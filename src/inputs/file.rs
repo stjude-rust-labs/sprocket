@@ -46,6 +46,7 @@ pub async fn read_input_file(path: &EvaluationPath) -> Result<JsonInputMap> {
             inputs.entry(key).or_default().push(LocatedJsonValue {
                 origin: origin.clone(),
                 value,
+                from_file: true,
             });
         }
 
@@ -217,15 +218,15 @@ mod tests {
         let expected_origin = absolute(Path::new("tests/fixtures")).unwrap();
         let expected_origin = expected_origin.to_str().unwrap();
 
-        let LocatedJsonValue { origin, value } = &inputs["foo"][0];
+        let LocatedJsonValue { origin, value, .. } = &inputs["foo"][0];
         assert_eq!(origin.to_string(), expected_origin);
         assert_eq!(value.as_str().unwrap(), "bar");
 
-        let LocatedJsonValue { origin, value } = &inputs["baz"][0];
+        let LocatedJsonValue { origin, value, .. } = &inputs["baz"][0];
         assert_eq!(origin.to_string(), expected_origin);
         assert_eq!(value.as_number().unwrap().as_f64().unwrap() as u64, 42);
 
-        let LocatedJsonValue { origin, value } = &inputs["quux"][0];
+        let LocatedJsonValue { origin, value, .. } = &inputs["quux"][0];
         assert_eq!(origin.to_string(), expected_origin);
         assert_eq!(value.as_str().unwrap(), "qil");
     }
@@ -242,15 +243,15 @@ mod tests {
 
         let expected_origin = "https://gist.githubusercontent.com/peterhuene/9990b86bf0c419e144326b0276bf6f14/raw/d4116ef8888ccd78e2967d7ad32e1aeb3e4ab734/";
 
-        let LocatedJsonValue { origin, value } = &inputs["foo"][0];
+        let LocatedJsonValue { origin, value, .. } = &inputs["foo"][0];
         assert_eq!(origin.to_string(), expected_origin);
         assert_eq!(value.as_str().unwrap(), "bar");
 
-        let LocatedJsonValue { origin, value } = &inputs["baz"][0];
+        let LocatedJsonValue { origin, value, .. } = &inputs["baz"][0];
         assert_eq!(origin.to_string(), expected_origin);
         assert_eq!(value.as_number().unwrap().as_f64().unwrap() as u64, 42);
 
-        let LocatedJsonValue { origin, value } = &inputs["quux"][0];
+        let LocatedJsonValue { origin, value, .. } = &inputs["quux"][0];
         assert_eq!(origin.to_string(), expected_origin);
         assert_eq!(value.as_str().unwrap(), "qil");
     }

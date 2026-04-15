@@ -29,7 +29,9 @@ use wdl_analysis::types::v1::task_requirement_types;
 use wdl_ast::SupportedVersion;
 use wdl_ast::version::V1;
 
+use crate::Array;
 use crate::Coercible;
+use crate::CompoundValue;
 use crate::EvaluationPath;
 use crate::Value;
 
@@ -58,6 +60,41 @@ fn check_input_type(document: &Document, name: &str, input: &Input, value: &Valu
     }
 
     Ok(())
+}
+
+/// Resolves paths in a value using per-element origins.
+///
+/// When `origins` contains multiple entries and the value is an array, each
+/// element is resolved against its corresponding origin. Otherwise, all paths
+/// are resolved against the first (and only) origin.
+async fn resolve_with_origins(
+    value: Value,
+    ty: &wdl_analysis::types::Type,
+    origins: &[EvaluationPath],
+) -> Result<Value> {
+    if origins.len() > 1
+        && let Value::Compound(CompoundValue::Array(ref array)) = value
+    {
+        let arr_ty = ty.as_array().expect("should be an array type");
+        let optional = arr_ty.element_type().is_optional();
+        let mut resolved = Vec::with_capacity(array.as_slice().len());
+        for (i, elem) in array.as_slice().iter().enumerate() {
+            let base_dir = &origins[i.min(origins.len() - 1)];
+            resolved.push(
+                elem.resolve_paths(optional, None, None, &|p| p.expand(base_dir))
+                    .await?,
+            );
+        }
+        return Ok(Value::Compound(CompoundValue::Array(Array::new_unchecked(
+            arr_ty.clone(),
+            resolved,
+        ))));
+    }
+
+    let base_dir = &origins[0];
+    value
+        .resolve_paths(ty.is_optional(), None, None, &|p| p.expand(base_dir))
+        .await
 }
 
 /// Represents inputs to a task.
@@ -129,19 +166,17 @@ impl TaskInputs {
     pub async fn join_paths<'a>(
         &mut self,
         task: &Task,
-        path: impl Fn(&str) -> Result<&'a EvaluationPath>,
+        path: impl Fn(&str) -> Result<&'a [EvaluationPath]>,
     ) -> Result<()> {
         for (name, value) in self.inputs.iter_mut() {
             let Some(ty) = task.inputs().get(name).map(|input| input.ty().clone()) else {
                 bail!("could not find an expected type for input {name}");
             };
 
-            let base_dir = path(name)?;
+            let origins = path(name)?;
 
             if let Ok(v) = value.coerce(None, &ty) {
-                *value = v
-                    .resolve_paths(ty.is_optional(), None, None, &|path| path.expand(base_dir))
-                    .await?;
+                *value = resolve_with_origins(v, &ty, origins).await?;
             }
         }
         Ok(())
@@ -432,19 +467,17 @@ impl WorkflowInputs {
     pub async fn join_paths<'a>(
         &mut self,
         workflow: &Workflow,
-        path: impl Fn(&str) -> Result<&'a EvaluationPath>,
+        path: impl Fn(&str) -> Result<&'a [EvaluationPath]>,
     ) -> Result<()> {
         for (name, value) in self.inputs.iter_mut() {
             let Some(ty) = workflow.inputs().get(name).map(|input| input.ty().clone()) else {
                 bail!("could not find an expected type for input {name}");
             };
 
-            let base_dir = path(name)?;
+            let origins = path(name)?;
 
             if let Ok(v) = value.coerce(None, &ty) {
-                *value = v
-                    .resolve_paths(ty.is_optional(), None, None, &|path| path.expand(base_dir))
-                    .await?;
+                *value = resolve_with_origins(v, &ty, origins).await?;
             }
         }
         Ok(())

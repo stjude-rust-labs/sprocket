@@ -46,6 +46,14 @@ pub struct LocatedJsonValue {
     pub origin: EvaluationPath,
     /// The raw JSON representation of the input value.
     pub value: JsonValue,
+    /// Whether this value was read from an input file (as opposed to a CLI
+    /// key-value pair).
+    ///
+    /// When multiple entries exist for the same key and a file-sourced entry
+    /// has an array value, the array elements are flattened into individual
+    /// values. CLI-sourced array literals (e.g., `key=["a","b"]`) are kept
+    /// intact since they represent a single compound value.
+    pub from_file: bool,
 }
 
 /// An input parsed from the command line.
@@ -195,6 +203,7 @@ impl Invocation {
                     .push(LocatedJsonValue {
                         origin: cwd.as_path().into(),
                         value,
+                        from_file: false,
                     });
                 self.last_pair_key = Some(prefixed);
             }
@@ -217,6 +226,7 @@ impl Invocation {
                     .push(LocatedJsonValue {
                         origin: cwd.as_path().into(),
                         value,
+                        from_file: false,
                     });
             }
             Err(e) => return Err(e),
@@ -274,15 +284,33 @@ impl Invocation {
             |(mut origins, mut values), (key, located_values)| {
                 if located_values.len() == 1 {
                     let lv = located_values.into_iter().next().unwrap();
-                    origins.insert(key.clone(), lv.origin);
+                    origins.insert(key.clone(), vec![lv.origin]);
                     values.insert(key, lv.value);
                 } else {
-                    let first_origin = located_values[0].origin.clone();
-                    let json_array: Vec<JsonValue> =
-                        located_values.into_iter().map(|lv| lv.value).collect();
-                    origins.insert(key.clone(), first_origin);
-                    values.insert(key, JsonValue::Array(json_array));
+                    let mut element_origins = Vec::new();
+                    let mut flat_values = Vec::new();
+
+                    for lv in located_values {
+                        if lv.from_file {
+                            if let JsonValue::Array(arr) = lv.value {
+                                for v in arr {
+                                    element_origins.push(lv.origin.clone());
+                                    flat_values.push(v);
+                                }
+                            } else {
+                                element_origins.push(lv.origin);
+                                flat_values.push(lv.value);
+                            }
+                        } else {
+                            element_origins.push(lv.origin);
+                            flat_values.push(lv.value);
+                        }
+                    }
+
+                    origins.insert(key.clone(), element_origins);
+                    values.insert(key, JsonValue::Array(flat_values));
                 }
+
                 (origins, values)
             },
         );
@@ -312,6 +340,7 @@ impl Invocation {
                         let key = format!("{target}.{key}");
                         origins
                             .get(&key)
+                            .map(|v| v.as_slice())
                             .ok_or_else(|| anyhow!("no origin path for input `{key}`"))
                     })
                     .await
@@ -329,6 +358,7 @@ impl Invocation {
                         let key = format!("{target}.{key}");
                         origins
                             .get(&key)
+                            .map(|v| v.as_slice())
                             .ok_or_else(|| anyhow!("no origin path for input `{key}`"))
                     })
                     .await
