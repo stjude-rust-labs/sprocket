@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* API v1 read endpoints (runs/sessions/tasks) now query the database directly
+  instead of routing through the run manager command channel ([#779](https://github.com/stjude-rust-labs/sprocket/pull/779)) .
+
 ## 0.23.0 - 2026-04-02
 
 ### Added

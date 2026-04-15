@@ -16,9 +16,7 @@ use uuid::Uuid;
 use super::AppState;
 use super::SprocketCommand;
 use super::error::Error;
-use super::send_command;
-use crate::system::v1::exec::svc::RunManagerCmd;
-use crate::system::v1::exec::svc::run_manager::commands;
+use crate::system::v1::exec::queries;
 
 /// Query parameters for listing sessions.
 #[derive(Debug, Clone, Serialize, Deserialize, IntoParams, ToSchema)]
@@ -64,8 +62,8 @@ pub struct SessionResponse {
     pub session: Session,
 }
 
-impl From<commands::SessionResponse> for SessionResponse {
-    fn from(response: commands::SessionResponse) -> Self {
+impl From<queries::SessionResponse> for SessionResponse {
+    fn from(response: queries::SessionResponse) -> Self {
         Self {
             session: response.session.into(),
         }
@@ -114,12 +112,7 @@ pub async fn list_sessions(
     };
     let limit = query.limit.unwrap_or(100);
 
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListSessions {
-        limit: query.limit,
-        offset: Some(offset),
-        rx,
-    })
-    .await?;
+    let response = queries::list_sessions(&state.db, Some(limit), Some(offset)).await?;
 
     let next_offset = offset + limit;
     let next_token = if next_offset < response.total {
@@ -152,10 +145,7 @@ pub async fn get_session(
     State(state): State<AppState>,
     Path(id): Path<Uuid>,
 ) -> Result<Json<SessionResponse>, Error> {
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetSession {
-        id,
-        rx,
-    })
-    .await?;
+    let response = queries::get_session_for_run(&state.db, id).await?;
+
     Ok(Json(response.into()))
 }
