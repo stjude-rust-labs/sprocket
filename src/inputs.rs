@@ -120,8 +120,8 @@ impl FromStr for Input {
             }
             None => {
                 bail!(
-                    "unrecognized input `{s}`: use `@` prefix for input files or `key=value` for \
-                     inputs"
+                    "unrecognized input `{s}`: prefix input files with `@` (e.g., `@inputs.json`) \
+                     or use `key=value` for inputs"
                 );
             }
         }
@@ -202,13 +202,21 @@ impl Invocation {
                 let cwd = std::env::current_dir()
                     .context("failed to determine the current working directory")?;
 
+                let value = serde_json::from_str(input).or_else(|_| {
+                    if ASSUME_STRING_REGEX.is_match(input) {
+                        Ok(JsonValue::String(input.to_owned()))
+                    } else {
+                        bail!("unable to deserialize `{input}` as a valid WDL value");
+                    }
+                })?;
+
                 let key = self.last_pair_key.as_ref().unwrap();
                 self.inputs
                     .entry(key.clone())
                     .or_default()
                     .push(LocatedJsonValue {
                         origin: cwd.as_path().into(),
-                        value: JsonValue::String(input.to_owned()),
+                        value,
                     });
             }
             Err(e) => return Err(e),
@@ -838,5 +846,34 @@ mod tests {
         .unwrap_err();
 
         assert!(error.to_string().contains("unrecognized input"));
+    }
+
+    #[tokio::test]
+    async fn trailing_bare_args_preserve_types() {
+        let invocation =
+            Invocation::coalesce(["counts=1", "2", "3", "4"], Some("task".to_string()))
+                .await
+                .unwrap();
+
+        let values = invocation.inputs.get("task.counts").unwrap();
+        assert_eq!(values.len(), 4);
+        assert_eq!(values[0].value.as_i64().unwrap(), 1);
+        assert_eq!(values[1].value.as_i64().unwrap(), 2);
+        assert_eq!(values[2].value.as_i64().unwrap(), 3);
+        assert_eq!(values[3].value.as_i64().unwrap(), 4);
+    }
+
+    #[tokio::test]
+    async fn trailing_bare_args_mixed_types() {
+        let invocation =
+            Invocation::coalesce(["items=hello", "42", "true"], Some("task".to_string()))
+                .await
+                .unwrap();
+
+        let values = invocation.inputs.get("task.items").unwrap();
+        assert_eq!(values.len(), 3);
+        assert_eq!(values[0].value.as_str().unwrap(), "hello");
+        assert_eq!(values[1].value.as_i64().unwrap(), 42);
+        assert_eq!(values[2].value.as_bool().unwrap(), true);
     }
 }
