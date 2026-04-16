@@ -40,8 +40,9 @@ pub struct Args {
 
     /// The inputs for the task or workflow.
     ///
-    /// These inputs can be either paths to files containing inputs or key-value
-    /// pairs passed in on the command line.
+    /// An input can be a key-value pair (e.g., `task.name=value`), an input
+    /// file prefixed with `@` (e.g., `@inputs.json`), or a bare value that
+    /// is appended to the preceding key's array.
     pub inputs: Vec<String>,
 
     /// The report mode.

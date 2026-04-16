@@ -1,0 +1,1 @@
+-qq run source.wdl @inputs.json read_files.files=c.txt
