@@ -210,7 +210,7 @@ mod tests {
 
         let allowed_url = Source::File(
             Url::from_directory_path(prefix)
-                .map_err(|e| anyhow!("Failed to build Url from directory path: {:?}", e))?,
+                .map_err(|e| anyhow!("failed to build URL from directory path: {:?}", e))?,
         )
         .to_string();
 
@@ -221,7 +221,7 @@ mod tests {
         config.server.database.url = db_path
             .path()
             .to_str()
-            .expect("Tempfile should have valid path")
+            .expect("tempfile should have valid path")
             .to_string();
 
         let port = listener.local_addr()?.port();
@@ -252,7 +252,7 @@ command <<<>>>
     const INVALID_FILE: &str = r#"this is not valid wdl"#;
 
     #[tokio::test]
-    pub async fn can_submit_simple_file() -> anyhow::Result<()> {
+    pub async fn can_submit_and_complete() -> anyhow::Result<()> {
         let ServerTestFixture {
             server_task,
             mut wdl_file,
@@ -260,6 +260,9 @@ command <<<>>>
         } = start_server(Config::default()).await?;
 
         wdl_file.write_all(EXAMPLE_WDL_FILE.as_bytes())?;
+
+        let base_url = format!("http://127.0.0.1:{port}");
+        let client = reqwest::Client::new();
 
         let config = Config::default();
         submit(
@@ -283,7 +286,37 @@ command <<<>>>
             false,
         )
         .await
-        .expect("Should be able to submit file");
+        .expect("should be able to submit file");
+
+        let runs: serde_json::Value = client
+            .get(format!("{base_url}/api/v1/runs"))
+            .send()
+            .await?
+            .json()
+            .await?;
+
+        let uuid = runs["runs"][0]["uuid"]
+            .as_str()
+            .expect("should have at least one run");
+
+        let poll_url = format!("{base_url}/api/v1/runs/{uuid}");
+        let mut status = String::new();
+
+        for _ in 0..50 {
+            let run: serde_json::Value = client.get(&poll_url).send().await?.json().await?;
+            status = run["status"]
+                .as_str()
+                .expect("run should have a status")
+                .to_string();
+
+            if status != "queued" && status != "running" {
+                break;
+            }
+
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        }
+
+        assert_eq!(status, "completed");
 
         assert!(!server_task.is_finished());
         server_task.abort();
