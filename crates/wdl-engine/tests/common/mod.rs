@@ -21,6 +21,8 @@ use wdl_engine::config::Config as EngineConfig;
 
 /// The set of tests that should only use the Docker backend
 const DOCKER_ONLY_TESTS: &[&str] = &[
+    // Exercises container image fallback, which requires a real pull
+    "container-fallback",
     // Disabled for local backend due to paths coming from the download cache
     "url-symlink",
 ];

@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* When a task's `container` requirement is an array, each candidate is
+  now tried in order until one pulls successfully instead of silently
+  using only the first entry
+  ([#698](https://github.com/stjude-rust-labs/sprocket/pull/698)).
 * Optional-to-default input coercion in `check_input_type` is no longer
   gated behind WDL 1.2+
   ([#814](https://github.com/stjude-rust-labs/sprocket/pull/814)).
