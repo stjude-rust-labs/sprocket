@@ -1247,7 +1247,7 @@ mod tests {
 
     use tower_lsp_server::ls_types::Uri;
 
-    use crate::server::NormalizedUri;
+    use crate::proto::NormalizedUri;
 
     #[test]
     fn url_normalization() {
@@ -1286,6 +1286,7 @@ mod tests {
         for (original, expected) in cases {
             let normalized = NormalizedUri::try_from(original.clone()).unwrap();
             assert_eq!(normalized.uri().as_str(), expected);
+            assert_eq!(normalized.url().as_str(), expected);
         }
     }
 }
