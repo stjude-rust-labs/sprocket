@@ -353,7 +353,7 @@ command <<<>>>
         .await;
 
         let Err(CommandError::Single(err)) = submit_result else {
-            anyhow::bail!("Did not fail in expected way: {:?}", submit_result);
+            anyhow::bail!("did not fail in expected way: {:?}", submit_result);
         };
 
         assert_eq!(
@@ -392,7 +392,7 @@ command <<<>>>
         .await;
 
         let Err(CommandError::Single(err)) = submit_result else {
-            anyhow::bail!("Did not fail in expected way: {:?}", submit_result);
+            anyhow::bail!("did not fail in expected way: {:?}", submit_result);
         };
 
         assert_eq!(
