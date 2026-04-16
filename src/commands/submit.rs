@@ -302,35 +302,37 @@ command <<<>>>
         .await
         .expect("should be able to submit file");
 
-        let runs: serde_json::Value = client
-            .get(format!("{base_url}/api/v1/runs"))
-            .send()
-            .await?
-            .json()
-            .await?;
+        if !cfg!(docker_tests_disabled) {
+            let runs: serde_json::Value = client
+                .get(format!("{base_url}/api/v1/runs"))
+                .send()
+                .await?
+                .json()
+                .await?;
 
-        let uuid = runs["runs"][0]["uuid"]
-            .as_str()
-            .expect("should have at least one run");
-
-        let poll_url = format!("{base_url}/api/v1/runs/{uuid}");
-        let mut status = String::new();
-
-        for _ in 0..50 {
-            let run: serde_json::Value = client.get(&poll_url).send().await?.json().await?;
-            status = run["status"]
+            let uuid = runs["runs"][0]["uuid"]
                 .as_str()
-                .expect("run should have a status")
-                .to_string();
+                .expect("should have at least one run");
 
-            if status != "queued" && status != "running" {
-                break;
+            let poll_url = format!("{base_url}/api/v1/runs/{uuid}");
+            let mut status = String::new();
+
+            for _ in 0..50 {
+                let run: serde_json::Value = client.get(&poll_url).send().await?.json().await?;
+                status = run["status"]
+                    .as_str()
+                    .expect("run should have a status")
+                    .to_string();
+
+                if status != "queued" && status != "running" {
+                    break;
+                }
+
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
             }
 
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            assert_eq!(status, "completed");
         }
-
-        assert_eq!(status, "completed");
 
         assert!(!server_task.is_finished());
         server_task.abort();
