@@ -51,7 +51,7 @@ pub struct SubmitRunRequestArgs {
     /// An input can be a key-value pair (e.g., `task.name=value`), an input
     /// file prefixed with `@` (e.g., `@inputs.json`), or a bare value that
     /// is appended to the preceding key's array.
-    pub inputs: Vec<String>,
+    inputs: Vec<String>,
 
     /// Optional output name to index on.
     /// If provided, the run outputs will be indexed.
@@ -71,11 +71,11 @@ pub struct SubmitRunRequestArgs {
     /// and then prepended to all key-value pair inputs on the command line.
     /// Keys specified within files are unchanged by this argument.
     #[clap(short, long, value_name = "NAME")]
-    pub target: Option<String>,
+    target: Option<String>,
 
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
-    pub report_mode: Option<Mode>,
+    report_mode: Option<Mode>,
 }
 
 /// Arguments for the `submit` subcommand.
