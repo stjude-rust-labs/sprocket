@@ -1,12 +1,12 @@
 //! Implementation of the `submit` subcommand.
-//!
-//! A wrapper around the Sprocket REST API to submit a new workflow!
 
 use anyhow::Context;
 use clap::Args as ClapArgs;
 use clap::Parser;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
+use wdl::diagnostics::Mode;
+use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::Inputs;
 
 use crate::analysis::Analysis;
@@ -16,8 +16,6 @@ use crate::commands::CommandResult;
 use crate::commands::run::inputs_to_json;
 use crate::commands::validate::resolve_target_and_inputs;
 use crate::config::Config;
-use wdl::diagnostics::Mode;
-use wdl::diagnostics::emit_diagnostics;
 use crate::server::ErrorResponse;
 use crate::server::SubmitRunRequest;
 
@@ -42,7 +40,7 @@ impl SprocketClientConnectionArgs {
     }
 }
 
-/// CLI Arguments for specifying the body of the SubmitRunRequest.
+/// CLI arguments for specifying the body of the [`SubmitRunRequest`].
 #[derive(ClapArgs, Debug)]
 pub struct SubmitRunRequestArgs {
     /// WDL source path (local file path or HTTP/HTTPS URL).
@@ -131,7 +129,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         .context("failed to emit diagnostics")?;
 
         return Err(anyhow::anyhow!(
-            "Failed to submit WDL document to server due to analysis errors."
+            "failed to submit WDL document to server due to analysis errors"
         )
         .into());
     }
@@ -159,7 +157,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
     }
 
     let target_json_inputs = serde_json::from_str(&inputs_to_json(&target, &inputs)?)
-        .context("Deserializing previously serialized inputs shouldn't fail")?;
+        .context("deserializing previously serialized inputs shouldn't fail")?;
 
     let url = format!(
         "{base}/api/v1/runs",
@@ -178,7 +176,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         .json(&request)
         .send()
         .await
-        .context("Sending Request")?;
+        .context("sending request")?;
 
     if !resp.status().is_success() {
         let status = resp.status();
@@ -192,7 +190,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
     let submit_response: serde_json::Value = resp
         .json()
         .await
-        .context("Expected a response body for successful SubmitRunRequest")?;
+        .context("expected a response body for successful `SubmitRunRequest`")?;
 
     println!("{}", submit_response);
 
@@ -239,13 +237,11 @@ mod tests {
 
         let db_path = tempfile::NamedTempFile::new()?;
 
-        config.server.database.url = Some(
-            db_path
-                .path()
-                .to_str()
-                .expect("Tempfile should have valid path")
-                .to_string(),
-        );
+        config.server.database.url = db_path
+            .path()
+            .to_str()
+            .expect("Tempfile should have valid path")
+            .to_string();
 
         let port = listener.local_addr()?.port();
         let server_task = tokio::task::spawn(async {
@@ -387,7 +383,7 @@ command <<<>>>
 
         assert_eq!(
             err.to_string(),
-            "Failed to submit WDL document to server due to analysis errors.".to_string()
+            "failed to submit WDL document to server due to analysis errors".to_string()
         );
 
         Ok(())

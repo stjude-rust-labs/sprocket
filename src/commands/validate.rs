@@ -53,7 +53,7 @@ pub struct Args {
 /// Accepts an optional target and set of inputs, and resolves them for
 /// validation.
 pub async fn resolve_target_and_inputs(
-    input_args: &Vec<String>,
+    input_args: &[String],
     target_arg: Option<String>,
     document: &Document,
 ) -> CommandResult<(String, EngineInputs)> {
