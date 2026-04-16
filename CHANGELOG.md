@@ -22,6 +22,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (e.g., `@inputs.json`) to disambiguate them from bare array values
   ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
 
+### Fixed
+
+* When a task's `container` requirement is an array, Sprocket now tries
+  each entry in order until one succeeds instead of silently using only
+  the first entry
+  ([#698](https://github.com/stjude-rust-labs/sprocket/pull/698)).
+
 ## 0.23.0 - 2026-04-02
 
 ### Added

@@ -757,6 +757,18 @@ impl Evaluator {
                 && let Some(cache) = &self.cache
             {
                 if hints::cacheable(&inputs, &hints, &self.config) {
+                    // The configured default container is only part of the cache key
+                    // when the task has no `container` requirement of its own. When
+                    // the task does specify `container`, the requirement is already
+                    // covered by the `requirements` digest, so including the default
+                    // here would be redundant; when it doesn't, a change to the
+                    // configured default must invalidate the cache entry.
+                    let default_container =
+                        if requirements::has_container_requirement(&inputs, &requirements) {
+                            None
+                        } else {
+                            Some(self.config.task.container.as_str())
+                        };
                     let request = KeyRequest {
                         document_uri: state.document.uri().as_ref(),
                         task_name: task.name(),
@@ -764,11 +776,7 @@ impl Evaluator {
                         command: &command,
                         requirements: &requirements,
                         hints: &hints,
-                        container: &constraints
-                            .container
-                            .as_ref()
-                            .map(|c| format!("{c:#}"))
-                            .unwrap_or_default(),
+                        default_container,
                         shell: &self.config.task.shell,
                         backend_inputs: state.backend_inputs.as_slice(),
                     };
@@ -927,6 +935,9 @@ impl Evaluator {
                         task = state.task.name()
                     )
                 })?);
+                if let Some(container) = &result.container {
+                    task.set_container(container.to_string());
+                }
                 task.set_return_code(result.exit_code);
             }
 
