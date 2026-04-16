@@ -60,28 +60,23 @@ pub struct SubmitRunRequestArgs {
 
     /// The name of the task or workflow to submit.
     ///
-    /// When no inputs are provided and `target` is not specified, the
-    /// target is inferred from the document: a workflow is selected if one
-    /// exists, otherwise a single task is selected. If the target remains
-    /// ambiguous (e.g., multiple tasks and no workflow), an error is
-    /// returned.
+    /// This argument is required if submitting a task or workflow without
+    /// any inputs.
     ///
-    /// If `target` is not specified but inputs are provided, all input
-    /// keys (from both files and key-value pairs) are expected to be
-    /// prefixed with the name of the workflow or task being run.
+    /// If `target` is not specified, all inputs (from both files and
+    /// key-value pairs) are expected to be prefixed with the name of the
+    /// workflow or task being submitted.
     ///
-    /// If `target` is specified, it is prepended (with a `.` delimiter)
-    /// to any input key that does not already carry the target prefix.
-    /// This applies to both file inputs and key-value pairs on the
-    /// command line.
+    /// If `target` is specified, it will be appended with a `.` delimiter
+    /// and then prepended to all key-value pair inputs on the command line.
+    /// Keys specified within files are unchanged by this argument.
     #[clap(short, long, value_name = "NAME")]
     target: Option<String>,
 
     /// The output name to index on.
     ///
-    /// If provided, the run outputs will be indexed using the specified output
-    /// name as the key. The index allows efficient lookup of runs by output
-    /// values.
+    /// If provided, the server will index the run outputs using the specified
+    /// output name as the key.
     #[clap(long, value_name = "OUTPUT_NAME")]
     index_on: Option<String>,
 
