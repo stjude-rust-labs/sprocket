@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added `ParameterizedResources` lint rule to flag tasks with fixed resource allocations ([#1232](https://github.com/stjude-rust-labs/sprocket/pull/1232)).
+
 #### Changed
 
 * `MetaDescription` now supports checking both doc comments and `meta` sections ([#1222](https://github.com/stjude-rust-labs/sprocket/pull/1222)).

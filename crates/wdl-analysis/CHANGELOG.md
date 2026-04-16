@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* `Visitor::requirements_item()` ([#1232](https://github.com/stjude-rust-labs/sprocket/pull/1232)).
+
 ## 0.26.0 - 2026-09-16
 
 #### Added
