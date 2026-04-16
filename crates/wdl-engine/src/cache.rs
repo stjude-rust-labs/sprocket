@@ -158,8 +158,15 @@ pub struct CallCacheEntry {
     version: u32,
     /// The digest of the command's evaluated task.
     command: ArrayString<64>,
-    /// The container candidates for the task.
-    container: Vec<String>,
+    /// The container image that was actually used during execution.
+    ///
+    /// `None` for tasks that ran directly on the host.
+    container: Option<ContainerSource>,
+    /// The configured default container at the time the entry was written.
+    ///
+    /// Only populated (and only compared) when the task declares no `container`
+    /// requirement; otherwise the requirement digest covers it.
+    default_container: Option<String>,
     /// The shell used by the task.
     shell: String,
     /// The requirement digests of the task.
@@ -196,8 +203,11 @@ pub struct Key {
     key: ArrayString<64>,
     /// The digest of the command's evaluated task.
     command: ArrayString<64>,
-    /// The container candidates for the task.
-    container: Vec<String>,
+    /// The configured default container for the task.
+    ///
+    /// Only populated (and only compared) when the task declares no `container`
+    /// requirement; otherwise the requirement digest covers it.
+    default_container: Option<String>,
     /// The shell used by the task.
     shell: String,
     /// The requirement digests of the task.
@@ -270,8 +280,8 @@ impl Key {
             bail!("the command of the task was modified");
         }
 
-        if self.container != entry.container {
-            bail!("the container used by the task was modified");
+        if self.default_container != entry.default_container {
+            bail!("the default container for the task was modified");
         }
 
         if self.shell != entry.shell {
@@ -320,10 +330,14 @@ pub struct KeyRequest<'a> {
     ///
     /// This field contributes to the digests stored in a cache entry.
     pub command: &'a str,
-    /// The container candidates for the task.
+    /// The configured default container for the task.
     ///
-    /// This field contributes to the digests stored in a cache entry.
-    pub container: &'a [ContainerSource],
+    /// This field is only meaningful when the task has no `container` (or
+    /// `docker`) requirement; in that case, a change to the default container
+    /// invalidates cached entries. When the task declares a `container`
+    /// requirement, the requirement digest already captures the container, so
+    /// this field should be `None`.
+    pub default_container: Option<&'a str>,
     /// The shell used by the task.
     ///
     /// This field contributes to the digests stored in a cache entry.
@@ -450,12 +464,10 @@ impl CallCache {
         );
         let key = hasher.finalize().to_hex();
 
-        let container: Vec<String> = request.container.iter().map(|c| format!("{c:#}")).collect();
-
         Ok(Key {
             key,
             command: command_digest,
-            container,
+            default_container: request.default_container.map(Into::into),
             shell: request.shell.into(),
             requirements: requirement_digests,
             hints: hint_digests,
@@ -510,10 +522,8 @@ impl CallCache {
             )
             .await?;
 
-        let container = entry.container.first().map(|s| s.parse().unwrap());
-
         Ok(Some(TaskExecutionResult {
-            container,
+            container: entry.container,
             exit_code: entry.exit,
             work_dir: work,
             stdout: PrimitiveValue::new_file(String::try_from(stdout)?).into(),
@@ -531,7 +541,8 @@ impl CallCache {
         let entry = CallCacheEntry {
             version: CURRENT_CACHE_VERSION,
             command: key.command,
-            container: key.container,
+            container: result.container.clone(),
+            default_container: key.default_container,
             shell: key.shell,
             requirements: key.requirements,
             hints: key.hints,
@@ -612,7 +623,7 @@ mod test {
         inputs: BTreeMap<String, Value>,
         requirements: HashMap<String, Value>,
         hints: HashMap<String, Value>,
-        container: Vec<ContainerSource>,
+        default_container: Option<String>,
         backend_inputs: [Input; 1],
     }
 
@@ -638,7 +649,7 @@ mod test {
                     "foo".into(),
                     PrimitiveValue::new_string("bar").into(),
                 )]),
-                container: vec![ContainerSource::Docker("ubuntu:latest".to_string())],
+                default_container: None,
                 backend_inputs: [Input::new(
                     ContentKind::File,
                     EvaluationPath::from_local_path(input),
@@ -656,7 +667,7 @@ mod test {
                 task_name: "test",
                 inputs: &self.inputs,
                 command: "cat /mnt/task/0/input",
-                container: &self.container,
+                default_container: self.default_container.as_deref(),
                 shell: "bash",
                 requirements: &self.requirements,
                 hints: &self.hints,
@@ -817,23 +828,40 @@ mod test {
     }
 
     #[tokio::test]
-    async fn modified_container() {
-        let ctx = TestContext::new().await;
-        let request = ctx.task.key_request();
+    async fn modified_default_container() {
+        // Build a task with no `container` requirement so `default_container`
+        // is what drives cache invalidation.
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let mut task = prepare_task(root_dir.path()).await;
+        task.requirements.clear();
+        task.default_container = Some("ubuntu:latest".into());
 
-        // Check for modified container
-        let modified_container = vec![ContainerSource::Docker("modified!".to_string())];
-        let key = ctx
-            .cache
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(
+            Some(&root_dir.path().join("cache")),
+            ContentDigestMode::Strong,
+            transfer,
+            Arc::new(CallCacheExclusions {
+                inputs: HashSet::new(),
+                requirements: HashSet::new(),
+                hints: HashSet::new(),
+            }),
+        )
+        .await
+        .unwrap();
+        populate_cache(&cache, &task).await;
+
+        let modified_default = Some("ubuntu:cthulhu".to_string());
+        let key = cache
             .key(KeyRequest {
-                container: &modified_container,
-                ..request
+                default_container: modified_default.as_deref(),
+                ..task.key_request()
             })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
-            "the container used by the task was modified"
+            cache.get(&key).await.unwrap_err().to_string(),
+            "the default container for the task was modified"
         );
     }
 

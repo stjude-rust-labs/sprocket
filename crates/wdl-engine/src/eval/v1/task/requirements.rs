@@ -8,6 +8,8 @@ use std::str::FromStr;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
+use serde::Deserialize;
+use serde::Serialize;
 use tracing::warn;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::v1::TASK_HINT_DISKS;
@@ -54,7 +56,8 @@ const SIF_EXTENSION: &str = "sif";
 const WILDCARD_CONTAINER: &str = "*";
 
 /// Represents the source of a container image.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ContainerSource {
     /// A Docker registry image (e.g. `docker://ubuntu:22.04`).
     Docker(String),
@@ -148,6 +151,19 @@ impl std::fmt::Display for ContainerSource {
             }
         }
     }
+}
+
+/// Returns whether the task has an explicit `container` (or `docker` alias)
+/// requirement set in either inputs or requirements.
+pub(crate) fn has_container_requirement(
+    inputs: &TaskInputs,
+    requirements: &HashMap<String, Value>,
+) -> bool {
+    find_key_value(
+        &[TASK_REQUIREMENT_CONTAINER, TASK_REQUIREMENT_CONTAINER_ALIAS],
+        |key| inputs.requirement(key).or_else(|| requirements.get(key)),
+    )
+    .is_some()
 }
 
 /// Gets the `container` requirement from a requirements map.

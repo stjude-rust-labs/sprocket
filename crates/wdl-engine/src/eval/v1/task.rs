@@ -757,6 +757,12 @@ impl Evaluator {
                 && let Some(cache) = &self.cache
             {
                 if hints::cacheable(&inputs, &hints, &self.config) {
+                    let default_container =
+                        if requirements::has_container_requirement(&inputs, &requirements) {
+                            None
+                        } else {
+                            Some(self.config.task.container.as_str())
+                        };
                     let request = KeyRequest {
                         document_uri: state.document.uri().as_ref(),
                         task_name: task.name(),
@@ -764,7 +770,7 @@ impl Evaluator {
                         command: &command,
                         requirements: &requirements,
                         hints: &hints,
-                        container: constraints.container.as_deref().unwrap_or_default(),
+                        default_container,
                         shell: &self.config.task.shell,
                         backend_inputs: state.backend_inputs.as_slice(),
                     };
