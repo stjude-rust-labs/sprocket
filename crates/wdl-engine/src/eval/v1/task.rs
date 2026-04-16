@@ -1282,15 +1282,10 @@ impl<'a> State<'a> {
         // Evaluate the input if not provided one
         let (value, span) = match inputs.get(name.text()) {
             Some(input) => {
-                // For WDL 1.2 evaluation, a `None` value when the expected type is non-optional
+                // A `None` value when the expected type is non-optional
                 // will invoke the default expression
                 if input.is_none()
                     && !expected_ty.is_optional()
-                    && self
-                        .document
-                        .version()
-                        .map(|v| v >= SupportedVersion::V1(V1::Two))
-                        .unwrap_or(false)
                     && let Some(expr) = decl.expr()
                 {
                     debug!(

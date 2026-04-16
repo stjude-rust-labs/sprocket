@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Ergonomic array inputs on the CLI: repeated keys collect into arrays
+  (e.g., `task.files=a.txt task.files=b.txt`), trailing bare arguments
+  append to the preceding key (e.g., `task.files=a.txt b.txt c.txt`),
+  and scalar values are auto-wrapped into single-element arrays when the
+  WDL type expects `Array[T]`
+  ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
+
+### Changed
+
+* Input files (JSON/YAML) must now be prefixed with `@`
+  (e.g., `@inputs.json`) to disambiguate them from bare array values
+  ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
+
 ## 0.23.0 - 2026-04-02
 
 ### Added
