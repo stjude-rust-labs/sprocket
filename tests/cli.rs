@@ -281,11 +281,16 @@ fn normalize_path(path: &Path) -> PathBuf {
 /// Returns true if the file is a binary file that should only be checked for
 /// existence.
 fn is_binary_file(path: &Path) -> bool {
-    // pagefind.js is platform-dependent
+    // Pagefind JS files are platform-dependent
+    const PAGEFIND_JS: &[&str] = &["pagefind.js", "pagefind-ui.js"];
+
     path.extension()
         .and_then(|ext| ext.to_str())
         .is_some_and(|ext| BINARY_EXTENSIONS.contains(&ext))
-        || path.file_name() == Some(OsStr::new("pagefind.js"))
+        || PAGEFIND_JS.iter().any(|name| {
+            path.file_name()
+                .is_some_and(|file_name| file_name == OsStr::new(name))
+        })
 }
 
 /// Returns true if the path is a symlink.

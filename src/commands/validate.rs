@@ -4,6 +4,7 @@ use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
 use wdl::analysis::Document;
+use wdl::diagnostics::Mode;
 use wdl::engine::Inputs as EngineInputs;
 
 use crate::Config;
@@ -11,7 +12,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::diagnostics::Mode;
 use crate::inputs::Invocation;
 
 /// Arguments for the `validate` subcommand.
@@ -113,7 +113,7 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
 
     let results = Analysis::default()
         .add_source(args.source.clone())
-        .fallback_version(config.common.wdl.fallback_version)
+        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
         .run()
         .await
         .map_err(CommandError::from)?;

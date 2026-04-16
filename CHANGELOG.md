@@ -7,12 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.23.0 - 2026-04-02
+
 ### Added
 
+* New `--hide-warnings` flag to `check`/`lint` with a corresponding `check.hide_warnings` option in `sprocket.toml` ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * Added support for configuring the `doc` subcommand via `sprocket.toml` ([#773](https://github.com/stjude-rust-labs/sprocket/pull/773))
 
 ### Changed
 
+* Changed how defaults for many `sprocket.toml` entries are serialized and deserialized; non-default config value serialization is unchanged ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* `format` table in `sprocket.toml` has been refactored and expanded with new options ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* Removed the `--prioritize-workflows-view` flag to `doc` subcommand ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* `--homepage` argument and config field for `doc` has been renamed to
+  `--index-page` to disambiguate it from `homepage_url` ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* Changed the `--javascript-*` arguments for `doc` to more adaptable `--html-*` options ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * The outputs path message is now printed to stderr instead of stdout so
   that stdout contains only the JSON outputs
   ([#732](https://github.com/stjude-rust-labs/sprocket/pull/732)).
@@ -49,6 +58,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Increased SQLite `busy_timeout` from 5s to 30s and added retry with
   exponential backoff when opening the database
   ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
+* Fixed a bug where the `format`, `run`, `lock` and `inputs` commands would not 
+  utilize the configured `fallback_version`
+  ([#784](https://github.com/stjude-rust-labs/sprocket/pull/784)).
 
 ## 0.22.0 - 2026-03-12
 

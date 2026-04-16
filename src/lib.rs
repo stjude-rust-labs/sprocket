@@ -25,6 +25,7 @@ use clap_verbosity_flag::WarnLevel;
 use commands::Commands;
 pub use config::ColorMode;
 pub use config::Config;
+pub use config::MaxConcurrentRuns;
 pub use config::ServerConfig;
 use git_testament::git_testament;
 use git_testament::render_testament;
@@ -51,7 +52,6 @@ pub mod analysis;
 #[doc(hidden)]
 pub mod commands;
 mod config;
-mod diagnostics;
 mod eval;
 mod inputs;
 pub mod server;

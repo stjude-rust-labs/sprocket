@@ -41,7 +41,6 @@ use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::backend::TaskExecutionResult;
 use crate::backend::manager::TaskManager;
 use crate::config::Config;
-use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::TaskResourceLimitBehavior;
 use crate::convert_unit_string;
 use crate::http::Transferer;
@@ -108,13 +107,7 @@ impl<'a> LocalTask<'a> {
                 )
             })?;
 
-            let mut command = Command::new(
-                self.config
-                    .task
-                    .shell
-                    .as_deref()
-                    .unwrap_or(DEFAULT_TASK_SHELL),
-            );
+            let mut command = Command::new(&self.config.task.shell);
             command
                 .current_dir(&work_dir)
                 .arg(command_path)

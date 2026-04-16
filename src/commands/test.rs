@@ -27,6 +27,8 @@ use tracing::info;
 use tracing::level_filters::LevelFilter;
 use wdl::analysis::AnalysisResult;
 use wdl::ast::AstNode;
+use wdl::diagnostics::DiagnosticCounts;
+use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::CancellationContext;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
@@ -44,8 +46,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::diagnostics::DiagnosticCounts;
-use crate::diagnostics::emit_diagnostics;
 use crate::eval::Evaluator;
 use crate::system::v1::fs::RUNS_DIR;
 use crate::test::DocumentTests;
@@ -718,7 +718,7 @@ pub async fn test(
 
     let analysis_results = Analysis::default()
         .add_source(source.clone())
-        .fallback_version(config.common.wdl.fallback_version)
+        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
         .run()
         .await
         .map_err(CommandError::from)?;
@@ -753,7 +753,6 @@ pub async fn test(
                         false
                     }
                 }),
-                &[],
                 config.common.report_mode,
                 colorize,
             )

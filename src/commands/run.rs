@@ -31,6 +31,9 @@ use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use tracing_subscriber::fmt::layer;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
+use wdl::diagnostics::Mode;
+use wdl::diagnostics::emit_diagnostics;
+use wdl::diagnostics::emit_diagnostics_with_backtrace;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::Config as EngineConfig;
@@ -50,9 +53,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::config::DEFAULT_DATABASE_FILENAME;
-use crate::diagnostics::Mode;
-use crate::diagnostics::emit_diagnostics;
 use crate::inputs::Invocation;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::exec::RunContext;
@@ -71,27 +71,6 @@ use crate::system::v1::fs::OutputDirectory;
 /// This is to prevent the progress bar from flashing on the screen for
 /// very short analyses.
 const PROGRESS_BAR_DELAY_BEFORE_RENDER: Duration = Duration::from_secs(2);
-
-/// The capacity for the events channels.
-///
-/// This is the number of events to buffer in the events channel before
-/// receivers become lagged.
-///
-/// As `tokio::sync::broadcast` channels are used to support multiple receivers,
-/// an event is only dropped from the channel once *all* receivers have read it.
-///
-/// If the senders are sending events faster than all receivers can read the
-/// events, the channel buffer will eventually reach capacity.
-///
-/// When this happens, the oldest events in the buffer are dropped and receivers
-/// are notified via an error on the next read that they are lagging behind.
-///
-/// If the capacity is reached, Sprocket will stop displaying progress
-/// statistics.
-///
-/// The value of `5000` was chosen as a reasonable amount to make reaching
-/// capacity unlikely without allocating too much space unnecessarily.
-const DEFAULT_EVENTS_CHANNEL_CAPACITY: usize = 5000;
 
 /// The name for the "latest" symlink.
 #[cfg(not(target_os = "windows"))]
@@ -559,7 +538,7 @@ pub async fn run(
 
     let results = Analysis::default()
         .add_source(args.source.clone())
-        .fallback_version(config.common.wdl.fallback_version)
+        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
         .init({
             let progress_bar = progress_bar.clone();
             Box::new(move || {
@@ -606,7 +585,6 @@ pub async fn run(
                 &path,
                 source,
                 result.document().diagnostics(),
-                &[],
                 report_mode,
                 colorize,
             )
@@ -705,7 +683,7 @@ pub async fn run(
     progress_bar.pb_set_style(&ProgressStyle::with_template(&template).unwrap());
 
     // Open or create the database for provenance tracking
-    let db_path = output_dir.root().join(DEFAULT_DATABASE_FILENAME);
+    let db_path = config.server.database_url();
     let db = open_database(&db_path).await?;
 
     // Create session and run records
@@ -743,12 +721,7 @@ pub async fn run(
     };
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
-    let events = Events::new(
-        config
-            .run
-            .events_capacity
-            .unwrap_or(DEFAULT_EVENTS_CHANNEL_CAPACITY),
-    );
+    let events = Events::new(config.run.events_capacity);
     let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
         events
             .subscribe_transfer()
@@ -833,7 +806,7 @@ pub async fn run(
                         Err(anyhow!("evaluation was interrupted").into())
                     }
                     Err(EvaluationError::Source(e)) => {
-                        emit_diagnostics(
+                        emit_diagnostics_with_backtrace(
                             &e.document.path(),
                             e.document.root().text().to_string(),
                             &[e.diagnostic],

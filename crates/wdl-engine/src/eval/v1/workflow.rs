@@ -88,10 +88,6 @@ use crate::v1::OUTPUTS_FILE;
 use crate::v1::resolve_enum_variant_value;
 use crate::v1::write_json_file;
 
-/// The default number of elements to concurrently process for a scatter
-/// statement.
-const DEFAULT_SCATTER_CONCURRENCY: u64 = 1000;
-
 /// Helper for formatting a workflow or task identifier for a call statement.
 fn format_id(namespace: Option<&str>, target: &str, alias: &str, scatter_index: &str) -> String {
     if alias != target {
@@ -660,7 +656,11 @@ impl Evaluator {
             )
         })?;
 
-        let ast = match document.root().morph().ast() {
+        let ast = match document
+            .root()
+            .morph()
+            .ast_with_version_fallback(document.config().fallback_version())
+        {
             Ast::V1(ast) => ast,
             _ => {
                 return Err(
@@ -984,15 +984,10 @@ impl State {
         // Either use the specified input or evaluate the input's expression
         let (value, span) = match self.inputs.get(name.text()) {
             Some(input) => {
-                // For WDL 1.2 evaluation, a `None` value when the expected type is non-optional
+                // A `None` value when the expected type is non-optional
                 // will invoke the default expression
                 if input.is_none()
                     && !expected_ty.is_optional()
-                    && self
-                        .document
-                        .version()
-                        .map(|v| v >= SupportedVersion::V1(V1::Two))
-                        .unwrap_or(false)
                     && let Some(expr) = decl.expr()
                 {
                     debug!(
@@ -1460,13 +1455,7 @@ impl State {
             return self.evaluate_empty_scatter(stmt, parent).await;
         }
 
-        let max_concurrency = self
-            .evaluator
-            .config
-            .workflow
-            .scatter
-            .concurrency
-            .unwrap_or(DEFAULT_SCATTER_CONCURRENCY);
+        let max_concurrency = self.evaluator.config.workflow.scatter.concurrency;
 
         let mut gathers: HashMap<_, Gather> = HashMap::new();
         for (i, value) in array.iter().enumerate() {

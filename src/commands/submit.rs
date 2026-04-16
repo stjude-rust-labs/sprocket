@@ -16,8 +16,8 @@ use crate::commands::CommandResult;
 use crate::commands::run::inputs_to_json;
 use crate::commands::validate::resolve_target_and_inputs;
 use crate::config::Config;
-use crate::diagnostics::Mode;
-use crate::diagnostics::emit_diagnostics;
+use wdl::diagnostics::Mode;
+use wdl::diagnostics::emit_diagnostics;
 use crate::server::ErrorResponse;
 use crate::server::SubmitRunRequest;
 
@@ -99,7 +99,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
     // Ensure the document is valid before sending to the server.
     let results = Analysis::default()
         .add_source(args.run_request_args.source.clone())
-        .fallback_version(config.common.wdl.fallback_version)
+        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
         .run()
         .await
         .map_err(CommandError::from)?;
@@ -125,7 +125,6 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
             &path,
             source,
             diagnostics,
-            &[],
             args.run_request_args.report_mode.unwrap_or_default(),
             colorize,
         )
