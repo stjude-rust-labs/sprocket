@@ -223,7 +223,6 @@ impl TokenStream<PreToken> {
         }
 
         let mut trivia = trivia.into_iter().peekable();
-        
 
         // Preserve any leading blank lines
         if let Some(PreToken::Trivia(Trivia::BlankLine)) = trivia.peek() {
@@ -233,7 +232,9 @@ impl TokenStream<PreToken> {
         for token in trivia {
             self.0.push(token);
         }
-        if docs_index >= 0 && let Some(PreToken::Trivia(Trivia::BlankLine)) = self.0.last() {
+        if docs_index >= 0
+            && let Some(PreToken::Trivia(Trivia::BlankLine)) = self.0.last()
+        {
             // don't allow documentation to "float" above the item being documented
             self.0.pop();
         }
