@@ -145,8 +145,17 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         base = args.client_args.base_url(&config)
     );
 
+    let source_str = match &args.run_request_args.source {
+        Source::File(url) => url
+            .to_file_path()
+            .ok()
+            .and_then(|p| p.to_str().map(String::from))
+            .unwrap_or_else(|| url.to_string()),
+        other => other.to_string(),
+    };
+
     let request = SubmitRunRequest {
-        source: args.run_request_args.source.to_string(),
+        source: source_str,
         inputs: target_json_inputs,
         target: args.run_request_args.target,
         index_on: args.run_request_args.index_on,
@@ -182,10 +191,8 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
 mod tests {
     use std::io::Write;
 
-    use anyhow::anyhow;
     use tempfile::NamedTempFile;
     use tokio::net::TcpListener;
-    use url::Url;
 
     use crate::Config;
     use crate::analysis::Source;
@@ -207,15 +214,14 @@ mod tests {
         let listener = TcpListener::bind("127.0.0.1:0").await?;
         let wdl_file = NamedTempFile::new()?;
 
-        let prefix = wdl_file.path().parent().unwrap();
+        let prefix = wdl_file
+            .path()
+            .parent()
+            .unwrap()
+            .canonicalize()
+            .expect("temp dir should be canonicalizable");
 
-        let allowed_url = Source::File(
-            Url::from_directory_path(prefix)
-                .map_err(|e| anyhow!("failed to build URL from directory path: {:?}", e))?,
-        )
-        .to_string();
-
-        config.server.allowed_urls.push(allowed_url);
+        config.server.allowed_file_paths.push(prefix);
 
         let db_path = tempfile::NamedTempFile::new()?;
 
