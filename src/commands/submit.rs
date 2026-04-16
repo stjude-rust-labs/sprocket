@@ -204,7 +204,7 @@ mod tests {
     }
 
     async fn start_server(mut config: Config) -> anyhow::Result<ServerTestFixture> {
-        let listener = TcpListener::bind("127.0.0.1:0").await?;
+        let listener = TcpListener::bind("127.0.0.1:8000").await?;
         let wdl_file = NamedTempFile::new()?;
 
         let prefix = wdl_file.path().parent().unwrap();
