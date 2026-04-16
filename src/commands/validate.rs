@@ -4,6 +4,7 @@ use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
 use wdl::analysis::Document;
+use wdl::ast::SupportedVersion;
 use wdl::diagnostics::Mode;
 use wdl::engine::Inputs as EngineInputs;
 
@@ -50,9 +51,53 @@ pub struct Args {
     pub report_mode: Option<Mode>,
 }
 
+/// Runs analysis on a single source and returns the resulting document.
+pub async fn analyze_source(
+    source: &Source,
+    fallback_version: Option<SupportedVersion>,
+) -> CommandResult<Document> {
+    let results = Analysis::default()
+        .add_source(source.clone())
+        .fallback_version(fallback_version)
+        .run()
+        .await
+        .map_err(CommandError::from)?;
+
+    // SAFETY: this must exist, as we added it as the only source to be
+    // analyzed above.
+    Ok(results.filter(&[source]).next().unwrap().document().clone())
+}
+
+/// Resolves the target and inputs against an already-analyzed document,
+/// then validates them.
+pub async fn validate_inputs(
+    document: &Document,
+    input_args: &[String],
+    target_arg: Option<String>,
+) -> CommandResult<(String, EngineInputs)> {
+    let (target, inputs) = resolve_target_and_inputs(input_args, target_arg, document).await?;
+
+    match &inputs {
+        EngineInputs::Task(inputs) => {
+            // SAFETY: we wouldn't have a task inputs if a task didn't exist
+            // that matched the user's criteria.
+            let task = document.task_by_name(&target).unwrap();
+            inputs.validate(document, task, None)?
+        }
+        EngineInputs::Workflow(inputs) => {
+            // SAFETY: we wouldn't have a workflow inputs if a workflow didn't
+            // exist that matched the user's criteria.
+            let workflow = document.workflow().unwrap();
+            inputs.validate(document, workflow, None)?
+        }
+    }
+
+    Ok((target, inputs))
+}
+
 /// Accepts an optional target and set of inputs, and resolves them for
 /// validation.
-pub async fn resolve_target_and_inputs(
+async fn resolve_target_and_inputs(
     input_args: &[String],
     target_arg: Option<String>,
     document: &Document,
@@ -112,32 +157,13 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
         );
     }
 
-    let results = Analysis::default()
-        .add_source(args.source.clone())
-        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
-        .run()
-        .await
-        .map_err(CommandError::from)?;
+    let document = analyze_source(
+        &args.source,
+        config.common.wdl.fallback_version.inner().cloned(),
+    )
+    .await?;
 
-    // SAFETY: this must exist, as we added it as the only source to be analyzed
-    // above.
-    let document = results.filter(&[&args.source]).next().unwrap().document();
-    let (target, inputs) = resolve_target_and_inputs(&args.inputs, args.target, document).await?;
-
-    match inputs {
-        EngineInputs::Task(inputs) => {
-            // SAFETY: we wouldn't have a task inputs if a task didn't exist
-            // that matched the user's criteria.
-            let task = document.task_by_name(&target).unwrap();
-            inputs.validate(document, task, None)?
-        }
-        EngineInputs::Workflow(inputs) => {
-            // SAFETY: we wouldn't have a workflow inputs if a workflow didn't
-            // exist that matched the user's criteria.
-            let workflow = document.workflow().unwrap();
-            inputs.validate(document, workflow, None)?
-        }
-    }
+    validate_inputs(&document, &args.inputs, args.target).await?;
 
     Ok(())
 }

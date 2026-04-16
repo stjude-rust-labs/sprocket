@@ -7,14 +7,13 @@ use wdl::ast::AstNode;
 use wdl::ast::Severity;
 use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
-use wdl::engine::Inputs;
 
-use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::commands::run::inputs_to_json;
-use crate::commands::validate::resolve_target_and_inputs;
+use crate::commands::validate::analyze_source;
+use crate::commands::validate::validate_inputs;
 use crate::config::Config;
 use crate::server::ErrorResponse;
 use crate::server::SubmitRunRequest;
@@ -94,21 +93,11 @@ pub struct Args {
 ///
 /// Submits a workflow to a Sprocket server based on the Args / Config.
 pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
-    // Ensure the document is valid before sending to the server.
-    let results = Analysis::default()
-        .add_source(args.run_request_args.source.clone())
-        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
-        .run()
-        .await
-        .map_err(CommandError::from)?;
-
-    // SAFETY: this must exist, as we added it as the only source to be analyzed
-    // above.
-    let document = results
-        .filter(&[&args.run_request_args.source])
-        .next()
-        .unwrap()
-        .document();
+    let document = analyze_source(
+        &args.run_request_args.source,
+        config.common.wdl.fallback_version.inner().cloned(),
+    )
+    .await?;
 
     let mut diagnostics = document
         .diagnostics()
@@ -134,27 +123,12 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         .into());
     }
 
-    let (target, inputs) = resolve_target_and_inputs(
+    let (target, inputs) = validate_inputs(
+        &document,
         &args.run_request_args.inputs,
         args.run_request_args.target.clone(),
-        document,
     )
     .await?;
-
-    match &inputs {
-        Inputs::Task(inputs) => {
-            // SAFETY: we wouldn't have a task inputs if a task didn't exist
-            // that matched the user's criteria.
-            let task = document.task_by_name(&target).unwrap();
-            inputs.validate(document, task, None)?
-        }
-        Inputs::Workflow(inputs) => {
-            // SAFETY: we wouldn't have a workflow inputs if a workflow didn't
-            // exist that matched the user's criteria.
-            let workflow = document.workflow().unwrap();
-            inputs.validate(document, workflow, None)?
-        }
-    }
 
     let target_json_inputs = serde_json::from_str(&inputs_to_json(&target, &inputs)?)
         .context("deserializing previously serialized inputs shouldn't fail")?;
