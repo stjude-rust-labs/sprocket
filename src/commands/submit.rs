@@ -22,11 +22,14 @@ use crate::server::SubmitRunRequest;
 #[derive(ClapArgs, Debug)]
 pub struct SprocketClientConnectionArgs {
     /// The hostname of the running Sprocket server to talk to.
-    /// If not provided, falls back to the value in the Sprocket Config.
+    ///
+    /// If not provided, falls back to the value in the Sprocket config.
     #[arg(long)]
     host: Option<String>,
+
     /// The port of the running Sprocket server to talk to.
-    /// If not provided, falls back to the value in the Sprocket Config.
+    ///
+    /// If not provided, falls back to the value in the Sprocket config.
     #[arg(short, long)]
     port: Option<u16>,
 }
