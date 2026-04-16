@@ -199,6 +199,7 @@ mod tests {
     struct ServerTestFixture {
         server_task: tokio::task::JoinHandle<anyhow::Result<()>>,
         wdl_file: NamedTempFile,
+        base_url: String,
         port: u16,
     }
 
@@ -230,7 +231,10 @@ mod tests {
             anyhow::Result::<()>::Ok(())
         });
 
+        let base_url = format!("http://127.0.0.1:{port}");
+
         Ok(ServerTestFixture {
+            base_url,
             port,
             wdl_file,
             server_task,
@@ -256,12 +260,12 @@ command <<<>>>
         let ServerTestFixture {
             server_task,
             mut wdl_file,
+            base_url,
             port,
         } = start_server(Config::default()).await?;
 
         wdl_file.write_all(EXAMPLE_WDL_FILE.as_bytes())?;
 
-        let base_url = format!("http://127.0.0.1:{port}");
         let client = reqwest::Client::new();
 
         let config = Config::default();
