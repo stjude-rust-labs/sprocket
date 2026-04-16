@@ -1,13 +1,10 @@
 //! Utilities for reporting diagnostics to the terminal.
 
-use std::io::Write as _;
 use std::sync::LazyLock;
 
 use anyhow::Context as _;
 use anyhow::anyhow;
 use clap::ValueEnum;
-use codespan_reporting::diagnostic::Label;
-use codespan_reporting::diagnostic::LabelStyle;
 use codespan_reporting::files::SimpleFiles;
 use codespan_reporting::term::Config as TermConfig;
 use codespan_reporting::term::DisplayStyle;
@@ -16,12 +13,7 @@ use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
 use serde::Deserialize;
 use serde::Serialize;
-use wdl::ast::AstNode as _;
-use wdl::ast::Diagnostic;
-use wdl::engine::CallLocation;
-
-/// The maximum number of call locations to print for evaluation errors.
-const MAX_CALL_LOCATIONS: usize = 10;
+use wdl_ast::Diagnostic;
 
 /// Configuration for full display style.
 static FULL_CONFIG: LazyLock<TermConfig> = LazyLock::new(|| TermConfig {
@@ -36,7 +28,7 @@ static ONE_LINE_CONFIG: LazyLock<TermConfig> = LazyLock::new(|| TermConfig {
 });
 
 /// A counter tracking the types of diagnostics emitted during analysis.
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct DiagnosticCounts {
     /// The number of errors encountered.
     pub errors: usize,
@@ -144,10 +136,44 @@ pub fn emit_diagnostics<'a>(
     path: &str,
     source: String,
     diagnostics: impl IntoIterator<Item = &'a Diagnostic>,
-    backtrace: &[CallLocation],
     report_mode: Mode,
     colorize: bool,
 ) -> anyhow::Result<()> {
+    let mut files = SimpleFiles::new();
+
+    let file_id = files.add(std::borrow::Cow::Borrowed(path), source);
+
+    let (config, mut stream) = get_diagnostics_display_config(report_mode, colorize);
+
+    for diagnostic in diagnostics {
+        let diagnostic = diagnostic.to_codespan(file_id);
+        emit_to_write_style(&mut stream, config, &files, &diagnostic)
+            .context("failed to emit diagnostic")?;
+    }
+
+    Ok(())
+}
+
+/// Emits the given diagnostics to the terminal with accompanying call-stack
+/// locations.
+#[cfg(feature = "backtrace")]
+pub fn emit_diagnostics_with_backtrace<'a>(
+    path: &str,
+    source: String,
+    diagnostics: impl IntoIterator<Item = &'a Diagnostic>,
+    backtrace: &[wdl_engine::CallLocation],
+    report_mode: Mode,
+    colorize: bool,
+) -> anyhow::Result<()> {
+    use std::io::Write;
+
+    use codespan_reporting::diagnostic::Label;
+    use codespan_reporting::diagnostic::LabelStyle;
+    use wdl_ast::AstNode as _;
+
+    /// The maximum number of call locations to print for evaluation errors.
+    const MAX_CALL_LOCATIONS: usize = 10;
+
     let mut map = std::collections::HashMap::new();
     let mut files = SimpleFiles::new();
 
@@ -185,8 +211,7 @@ pub fn emit_diagnostics<'a>(
                 } else {
                     "s"
                 }
-            )
-            .unwrap();
+            )?;
         }
     }
 

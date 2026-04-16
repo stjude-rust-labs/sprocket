@@ -86,11 +86,10 @@ jobs:
         with:
           tool: nextest
 
-      # Normal wdl-doc runs can automatically install Pagefind, but since the tests run in parallel, they
-      # can step on each other's toes in CI.
+      # Pre-warm the npx cache so parallel tests don't race to install it.
       - name: Install Pagefind
         if: runner.os == 'Linux'
-        run: npm install -g pagefind
+        run: npx -y pagefind@1.5.0 --help
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: Run tests
@@ -135,7 +134,7 @@ jobs:
 
       # See the `test` job
       - name: Install Pagefind
-        run: npm install -g pagefind
+        run: npx -y pagefind@1.5.0 --help
 
       - name: Pull test images
         if: runner.os == 'Linux'

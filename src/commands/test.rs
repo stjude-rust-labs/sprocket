@@ -27,6 +27,8 @@ use tracing::info;
 use tracing::level_filters::LevelFilter;
 use wdl::analysis::AnalysisResult;
 use wdl::ast::AstNode;
+use wdl::diagnostics::DiagnosticCounts;
+use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::CancellationContext;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
@@ -44,8 +46,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::diagnostics::DiagnosticCounts;
-use crate::diagnostics::emit_diagnostics;
 use crate::eval::Evaluator;
 use crate::system::v1::fs::RUNS_DIR;
 use crate::test::DocumentTests;
@@ -753,7 +753,6 @@ pub async fn test(
                         false
                     }
                 }),
-                &[],
                 config.common.report_mode,
                 colorize,
             )
@@ -803,8 +802,8 @@ pub async fn test(
         permits: parallelism,
     };
 
-    let include_tags = HashSet::from_iter(args.include_tag.into_iter());
-    let filter_tags = HashSet::from_iter(args.filter_tag.into_iter());
+    let include_tags = HashSet::from_iter(args.include_tag);
+    let filter_tags = HashSet::from_iter(args.filter_tag);
     let should_filter = |test: &TestDefinition| filter_test(test, &include_tags, &filter_tags);
     let mut errors = Vec::new();
     let results = runner

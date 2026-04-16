@@ -16,6 +16,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `TaskExecutionResult` and stored in `TaskPostEvaluationData`
   ([#698](https://github.com/stjude-rust-labs/sprocket/pull/698)).
 
+#### Changed
+
+* `TaskInputs::join_paths` and `WorkflowInputs::join_paths` now accept
+  a per-key slice of origins (`&[EvaluationPath]`) instead of a single
+  reference, enabling per-element path resolution for array inputs
+  ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
+* `TaskInputs::set_path_value` and `WorkflowInputs::set_path_value` now
+  auto-wrap scalar values into single-element arrays when the expected
+  WDL type is `Array[T]`
+  ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
+
+#### Fixed
+
+* Optional-to-default input coercion in `check_input_type` is no longer
+  gated behind WDL 1.2+
+  ([#814](https://github.com/stjude-rust-labs/sprocket/pull/814)).
+
 ## 0.13.1 - 2026-04-02
 
 #### Fixed
