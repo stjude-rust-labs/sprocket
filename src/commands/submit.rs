@@ -48,10 +48,10 @@ pub struct SubmitRunRequestArgs {
 
     /// The inputs for the task or workflow.
     ///
-    /// An input can be either a local file path or URL to an input file or
-    /// key-value pairs passed in on the command line.
-    #[arg(short, long)]
-    inputs: Vec<String>,
+    /// An input can be a key-value pair (e.g., `task.name=value`), an input
+    /// file prefixed with `@` (e.g., `@inputs.json`), or a bare value that
+    /// is appended to the preceding key's array.
+    pub inputs: Vec<String>,
 
     /// Optional output name to index on.
     /// If provided, the run outputs will be indexed.
