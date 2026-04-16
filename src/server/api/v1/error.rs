@@ -4,6 +4,7 @@ use axum::Json;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::response::Response;
+use serde::Deserialize;
 use serde::Serialize;
 
 use crate::system::v1::db::DatabaseError;
@@ -22,7 +23,7 @@ const INTERNAL_ERROR_MESSAGE: &str =
     "an internal server error occurred; contact the system administrator for more information";
 
 /// An API error response.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct ErrorResponse {
     /// Error kind.
     pub kind: String,

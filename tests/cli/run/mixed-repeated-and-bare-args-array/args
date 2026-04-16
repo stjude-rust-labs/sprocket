@@ -1,0 +1,1 @@
+-qq run source.wdl echo_items.items=alpha bravo echo_items.items=charlie delta

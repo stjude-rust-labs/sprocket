@@ -240,13 +240,7 @@ fn resolve_hover_by_context(
                     }
                 }
                 // Local call
-                (Some(name), None) => {
-                    if token.span() == name.span() {
-                        (None, name)
-                    } else {
-                        return Ok(None);
-                    }
-                }
+                (Some(name), None) if token.span() == name.span() => (None, name),
                 _ => return Ok(None),
             };
 

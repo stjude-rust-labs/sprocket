@@ -802,8 +802,8 @@ pub async fn test(
         permits: parallelism,
     };
 
-    let include_tags = HashSet::from_iter(args.include_tag.into_iter());
-    let filter_tags = HashSet::from_iter(args.filter_tag.into_iter());
+    let include_tags = HashSet::from_iter(args.include_tag);
+    let filter_tags = HashSet::from_iter(args.filter_tag);
     let should_filter = |test: &TestDefinition| filter_test(test, &include_tags, &filter_tags);
     let mut errors = Vec::new();
     let results = runner

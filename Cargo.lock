@@ -1035,8 +1035,7 @@ dependencies = [
 [[package]]
 name = "crankshaft"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fe3b288ff149d1e5a10a2b91265bd2b8d54c4a7f4d3684f90e84199ab3b3f53"
+source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=17c56c5#17c56c5909c8f403fd518a8d44e12c6ac1ed33a2"
 dependencies = [
  "crankshaft-config",
  "crankshaft-docker",
@@ -1047,8 +1046,7 @@ dependencies = [
 [[package]]
 name = "crankshaft-config"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d2e13ae8d83b9876ef53901b468ae7af951740b0f171f5ea38c64811e9db123"
+source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=17c56c5#17c56c5909c8f403fd518a8d44e12c6ac1ed33a2"
 dependencies = [
  "base64",
  "bon",
@@ -1063,30 +1061,26 @@ dependencies = [
 [[package]]
 name = "crankshaft-docker"
 version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4000c590f2c7319861e353efecb7e0b0d152699e52f92de7b659a6a84ebd5b89"
+source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=17c56c5#17c56c5909c8f403fd518a8d44e12c6ac1ed33a2"
 dependencies = [
  "anyhow",
  "bollard",
- "bon",
  "crankshaft-events",
  "futures",
  "indexmap 2.13.0",
  "nix",
- "serde",
- "tar",
  "thiserror 2.0.18",
  "tokio",
  "tokio-retry2 0.7.0",
  "tokio-stream",
+ "tokio-util",
  "tracing",
 ]
 
 [[package]]
 name = "crankshaft-engine"
 version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "78697a87ac1b9c6beac1df23d320c4a64ac5c5aa6d9270a7998130f6ccccddea"
+source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=17c56c5#17c56c5909c8f403fd518a8d44e12c6ac1ed33a2"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1118,8 +1112,7 @@ dependencies = [
 [[package]]
 name = "crankshaft-events"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a91580ed9689970b2ac77dd6bed52277d6c2af688ff79a3641e24acc99236030"
+source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=17c56c5#17c56c5909c8f403fd518a8d44e12c6ac1ed33a2"
 dependencies = [
  "bytes",
  "nonempty",
@@ -4356,9 +4349,9 @@ checksum = "f87165f0995f63a9fbeea62b64d10b4d9d8e78ec6d7d51fb2125fda7bb36788f"
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.10"
+version = "0.103.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "df33b2b81ac578cabaf06b89b0631153a3f416b0a886e8a7a1707fb51abbd1ef"
+checksum = "8279bb85272c9f10811ae6a6c547ff594d6a7f3c6c6b02ee9726d1d0dcfcdd06"
 dependencies = [
  "aws-lc-rs",
  "ring",

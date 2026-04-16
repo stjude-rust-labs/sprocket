@@ -91,8 +91,9 @@ pub struct Args {
 
     /// The inputs for the task or workflow.
     ///
-    /// An input can be either a local file path or URL to an input file or
-    /// key-value pairs passed in on the command line.
+    /// An input can be a key-value pair (e.g., `task.name=value`), an input
+    /// file prefixed with `@` (e.g., `@inputs.json`), or a bare value that
+    /// is appended to the preceding key's array.
     pub inputs: Vec<String>,
 
     /// The name of the task or workflow to run.
@@ -498,7 +499,7 @@ pub fn setup_run_dir(root: &Path, target: &str) -> Result<PathBuf> {
 }
 
 /// Serializes engine inputs to JSON with the target name prefix on each key.
-fn inputs_to_json(target: &str, inputs: &Inputs) -> Result<String> {
+pub fn inputs_to_json(target: &str, inputs: &Inputs) -> Result<String> {
     let serialized = serde_json::to_value(inputs)?;
 
     let mut map = serde_json::Map::new();

@@ -1446,15 +1446,11 @@ fn add_call_statement(
                         (Type::Union, true)
                     });
 
-                // For WDL 1.2, we accept optional types for the input even if the input's
-                // type is non-optional; if the runtime value is `None` for a non-optional
-                // input, the default expression will be evaluated instead.
-                let expected_input_ty = if !required
-                    && document
-                        .version
-                        .map(|v| v >= SupportedVersion::V1(V1::Two))
-                        .unwrap_or(false)
-                {
+                // We accept optional types for the input even if the input's
+                // type is non-optional; if the runtime value is `None` for a
+                // non-optional input, the default expression will be evaluated
+                // instead.
+                let expected_input_ty = if !required {
                     expected_input_ty.optional()
                 } else {
                     expected_input_ty
