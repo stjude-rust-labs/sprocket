@@ -18,6 +18,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   WDL type is `Array[T]`
   ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
 
+#### Fixed
+
+* Optional-to-default input coercion in `check_input_type` is no longer
+  gated behind WDL 1.2+
+  ([#814](https://github.com/stjude-rust-labs/sprocket/pull/814)).
+
 ## 0.13.1 - 2026-04-02
 
 #### Fixed
