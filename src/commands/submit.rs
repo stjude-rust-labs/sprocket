@@ -182,7 +182,11 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         .await
         .context("expected a response body for successful `SubmitRunRequest`")?;
 
-    println!("{}", submit_response);
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&submit_response)
+            .context("failed to pretty-print response")?
+    );
 
     Ok(())
 }
