@@ -757,6 +757,12 @@ impl Evaluator {
                 && let Some(cache) = &self.cache
             {
                 if hints::cacheable(&inputs, &hints, &self.config) {
+                    // The configured default container is only part of the cache key
+                    // when the task has no `container` requirement of its own. When
+                    // the task does specify `container`, the requirement is already
+                    // covered by the `requirements` digest, so including the default
+                    // here would be redundant; when it doesn't, a change to the
+                    // configured default must invalidate the cache entry.
                     let default_container =
                         if requirements::has_container_requirement(&inputs, &requirements) {
                             None
