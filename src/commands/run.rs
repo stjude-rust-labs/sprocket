@@ -31,6 +31,9 @@ use tracing_indicatif::span_ext::IndicatifSpanExt as _;
 use tracing_subscriber::fmt::layer;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
+use wdl::diagnostics::Mode;
+use wdl::diagnostics::emit_diagnostics;
+use wdl::diagnostics::emit_diagnostics_with_backtrace;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::Config as EngineConfig;
@@ -50,8 +53,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::diagnostics::Mode;
-use crate::diagnostics::emit_diagnostics;
 use crate::inputs::Invocation;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::exec::RunContext;
@@ -90,8 +91,9 @@ pub struct Args {
 
     /// The inputs for the task or workflow.
     ///
-    /// An input can be either a local file path or URL to an input file or
-    /// key-value pairs passed in on the command line.
+    /// An input can be a key-value pair (e.g., `task.name=value`), an input
+    /// file prefixed with `@` (e.g., `@inputs.json`), or a bare value that
+    /// is appended to the preceding key's array.
     pub inputs: Vec<String>,
 
     /// The name of the task or workflow to run.
@@ -497,7 +499,7 @@ pub fn setup_run_dir(root: &Path, target: &str) -> Result<PathBuf> {
 }
 
 /// Serializes engine inputs to JSON with the target name prefix on each key.
-fn inputs_to_json(target: &str, inputs: &Inputs) -> Result<String> {
+pub fn inputs_to_json(target: &str, inputs: &Inputs) -> Result<String> {
     let serialized = serde_json::to_value(inputs)?;
 
     let mut map = serde_json::Map::new();
@@ -584,7 +586,6 @@ pub async fn run(
                 &path,
                 source,
                 result.document().diagnostics(),
-                &[],
                 report_mode,
                 colorize,
             )
@@ -806,7 +807,7 @@ pub async fn run(
                         Err(anyhow!("evaluation was interrupted").into())
                     }
                     Err(EvaluationError::Source(e)) => {
-                        emit_diagnostics(
+                        emit_diagnostics_with_backtrace(
                             &e.document.path(),
                             e.document.root().text().to_string(),
                             &[e.diagnostic],

@@ -52,7 +52,6 @@ pub mod analysis;
 #[doc(hidden)]
 pub mod commands;
 mod config;
-mod diagnostics;
 mod eval;
 mod inputs;
 pub mod server;
@@ -157,6 +156,9 @@ async fn real_main() -> CommandResult<()> {
         }
         Commands::Dev(commands::DevCommands::Test(args)) => {
             commands::test::test(args, config, writer, colorize).await
+        }
+        Commands::Dev(commands::DevCommands::Submit(args)) => {
+            commands::submit::submit(args, config, colorize).await
         }
     }
 }
