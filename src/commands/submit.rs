@@ -18,7 +18,7 @@ use crate::config::Config;
 use crate::server::ErrorResponse;
 use crate::server::SubmitRunRequest;
 
-/// CLI Arguments for connecting to a Sprocket server instance.
+/// CLI arguments for connecting to a Sprocket server instance.
 #[derive(ClapArgs, Debug)]
 pub struct SprocketClientConnectionArgs {
     /// The hostname of the running Sprocket server to talk to.
@@ -42,7 +42,9 @@ impl SprocketClientConnectionArgs {
 /// CLI arguments for specifying the body of the [`SubmitRunRequest`].
 #[derive(ClapArgs, Debug)]
 pub struct SubmitRunRequestArgs {
-    /// WDL source path (local file path or HTTP/HTTPS URL).
+    /// The WDL source file to submit.
+    ///
+    /// The source file may be specified by either a local file path or a URL.
     #[clap(value_name = "SOURCE")]
     source: Source,
 
@@ -53,25 +55,32 @@ pub struct SubmitRunRequestArgs {
     /// is appended to the preceding key's array.
     inputs: Vec<String>,
 
-    /// Optional output name to index on.
-    /// If provided, the run outputs will be indexed.
-    #[arg(long)]
-    index_on: Option<String>,
-
-    /// Optional target workflow or task name to execute.
+    /// The name of the task or workflow to submit.
     ///
-    /// This argument is required if trying to run a task or workflow without
-    /// any inputs.
+    /// When no inputs are provided and `target` is not specified, the
+    /// target is inferred from the document: a workflow is selected if one
+    /// exists, otherwise a single task is selected. If the target remains
+    /// ambiguous (e.g., multiple tasks and no workflow), an error is
+    /// returned.
     ///
-    /// If `target` is not specified, all inputs (from both files and
-    /// key-value pairs) are expected to be prefixed with the name of the
-    /// workflow or task being run.
+    /// If `target` is not specified but inputs are provided, all input
+    /// keys (from both files and key-value pairs) are expected to be
+    /// prefixed with the name of the workflow or task being run.
     ///
-    /// If `target` is specified, it will be appended with a `.` delimiter
-    /// and then prepended to all key-value pair inputs on the command line.
-    /// Keys specified within files are unchanged by this argument.
+    /// If `target` is specified, it is prepended (with a `.` delimiter)
+    /// to any input key that does not already carry the target prefix.
+    /// This applies to both file inputs and key-value pairs on the
+    /// command line.
     #[clap(short, long, value_name = "NAME")]
     target: Option<String>,
+
+    /// The output name to index on.
+    ///
+    /// If provided, the run outputs will be indexed using the specified output
+    /// name as the key. The index allows efficient lookup of runs by output
+    /// values.
+    #[clap(long, value_name = "OUTPUT_NAME")]
+    index_on: Option<String>,
 
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
