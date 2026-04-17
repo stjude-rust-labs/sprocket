@@ -45,7 +45,8 @@ fn absolute_host_path_default(span: Span, decl_name: &str) -> Diagnostic {
         .with_rule(ID)
         .with_highlight(span)
         .with_help(
-            "absolute paths outside of `output` sections will resolve on the host filesystem",
+            "absolute paths outside of `output` sections will resolve on the host filesystem; \
+             this prevents the task from being portable across execution environments",
         )
 }
 
@@ -72,7 +73,7 @@ impl Rule for HostPathLiteralsRule {
 
     fn examples(&self) -> &'static [&'static str] {
         &[r#"```wdl
-version 1.2
+version 1.3
 
 task run_tool {
     input {
