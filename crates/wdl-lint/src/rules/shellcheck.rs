@@ -466,13 +466,11 @@ fn is_quoted(expr: &Expr) -> bool {
                     }
                 }
             }
-            Expr::NameRef(_) => {
-                if !placeholders.contains(&c) {
-                    if !opened {
-                        return false;
-                    }
-                    name = true;
+            Expr::NameRef(_) if !placeholders.contains(&c) => {
+                if !opened {
+                    return false;
                 }
+                name = true;
             }
             _ => {}
         }
@@ -547,10 +545,8 @@ fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
                     true,
                 );
             }
-            PrimitiveType::String => {
-                if evaluates_to_bash_literal(&placeholder.expr()) {
-                    return ("a".repeat(placeholder_len), true);
-                }
+            PrimitiveType::String if evaluates_to_bash_literal(&placeholder.expr()) => {
+                return ("a".repeat(placeholder_len), true);
             }
             _ => {}
         }
