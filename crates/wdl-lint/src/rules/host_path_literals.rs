@@ -20,25 +20,39 @@ use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
 
-/// The identifier for the host path literals rule.
+/// The `HostPathLiterals` rule ID.
 const ID: &str = "HostPathLiterals";
 
-/// Creates an absolute host-path default diagnostic.
-fn absolute_host_path_default(span: Span, decl_name: &str) -> Diagnostic {
-    Diagnostic::note(format!(
-        "declaration `{decl_name}` has an absolute host path default",
-    ))
-    .with_rule(ID)
-    .with_highlight(span)
-    .with_fix(
-        "use a relative path for input/private declarations, or pass the path at runtime instead",
-    )
+/// Returns `true` when `s` looks like an absolute host path on any platform we
+/// care about: POSIX (`/foo`), Windows UNC (`\\server\share`), or Windows
+/// drive-letter (`C:\foo` or `C:/foo`).
+fn is_absolute_host_path(s: &str) -> bool {
+    if s.starts_with('/') || s.starts_with(r"\\") {
+        return true;
+    }
+
+    let bytes = s.as_bytes();
+    bytes.len() >= 3
+        && bytes[0].is_ascii_alphabetic()
+        && bytes[1] == b':'
+        && (bytes[2] == b'\\' || bytes[2] == b'/')
 }
 
-/// Flags absolute host-path literals for File/Directory declaration defaults.
-#[derive(Default, Debug, Clone, Copy)]
+/// Creates a diagnostic for a `File`/`Directory` declaration whose default is
+/// an absolute host path.
+fn absolute_host_path_default(span: Span, decl_name: &str) -> Diagnostic {
+    Diagnostic::note(format!("`{decl_name}` has an absolute host path"))
+        .with_rule(ID)
+        .with_highlight(span)
+        .with_help(
+            "absolute paths outside of `output` sections will resolve on the host filesystem",
+        )
+}
+
+/// Flags `File`/`Directory` declaration defaults that use absolute host paths.
+#[derive(Copy, Clone, Debug, Default)]
 pub struct HostPathLiteralsRule {
-    /// Whether the current declaration is inside an output section.
+    /// Whether the current declaration is inside an `output` section.
     output_section: bool,
 }
 
@@ -57,36 +71,19 @@ impl Rule for HostPathLiteralsRule {
     }
 
     fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
+        &[r#"```wdl
 version 1.2
 
-task align {
+task run_tool {
     input {
-        File reference = "/data/references/hg38.fa"
+        File data = "/etc/host/input.txt"
     }
 
     command <<<
-        echo "aligning"
+        echo "run"
     >>>
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
-
-task align {
-    input {
-        File reference = "data/references/hg38.fa"
-    }
-
-    command <<<
-        echo "aligning"
-    >>>
-}
-```"#,
-        ]
+```"#]
     }
 
     fn tags(&self) -> TagSet {
@@ -133,10 +130,14 @@ impl Visitor for HostPathLiteralsRule {
             return;
         }
 
+        // NOTE: `s.text()` returns `None` for interpolated strings (those
+        // containing placeholders), so interpolated defaults are intentionally
+        // skipped — we can only reason about absolute paths when the literal is
+        // a single, static text piece.
         let expr = decl.expr();
         if let Expr::Literal(LiteralExpr::String(s)) = expr
             && let Some(text) = s.text()
-            && text.text().starts_with('/')
+            && is_absolute_host_path(text.text())
         {
             diagnostics.exceptable_add(
                 absolute_host_path_default(s.span(), decl.name().text()),
@@ -144,5 +145,39 @@ impl Visitor for HostPathLiteralsRule {
                 &self.exceptable_nodes(),
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detects_posix_absolute() {
+        assert!(is_absolute_host_path("/etc/host/input.txt"));
+        assert!(is_absolute_host_path("/"));
+    }
+
+    #[test]
+    fn detects_windows_drive_absolute() {
+        assert!(is_absolute_host_path(r"C:\host\input.txt"));
+        assert!(is_absolute_host_path("C:/host/input.txt"));
+        assert!(is_absolute_host_path(r"z:\lower"));
+    }
+
+    #[test]
+    fn detects_unc_absolute() {
+        assert!(is_absolute_host_path(r"\\server\share\input.txt"));
+    }
+
+    #[test]
+    fn rejects_relative() {
+        assert!(!is_absolute_host_path("data/input.txt"));
+        assert!(!is_absolute_host_path("./input.txt"));
+        assert!(!is_absolute_host_path("input.txt"));
+        assert!(!is_absolute_host_path(""));
+        assert!(!is_absolute_host_path("C:"));
+        assert!(!is_absolute_host_path("C:relative"));
+        assert!(!is_absolute_host_path("1:\\digit-not-letter"));
     }
 }
