@@ -14,6 +14,7 @@ use wdl::engine::EvaluationResult;
 use wdl::engine::Events;
 use wdl::engine::Inputs;
 use wdl::engine::Outputs;
+use wdl::engine::images::ContainerImageOverrides;
 
 /// An evaluator for a WDL task or workflow.
 pub struct Evaluator<'a> {
@@ -29,6 +30,9 @@ pub struct Evaluator<'a> {
     engine: &'a Engine,
     /// The output directory.
     output_dir: &'a Path,
+
+    /// See [`WdlEvaluator`].image_overrides.
+    image_overrides: Option<ContainerImageOverrides>,
 }
 
 impl<'a> Evaluator<'a> {
@@ -40,6 +44,7 @@ impl<'a> Evaluator<'a> {
         base_dir: &'a EvaluationPath,
         engine: &'a Engine,
         output_dir: &'a Path,
+        image_overrides: Option<ContainerImageOverrides>,
     ) -> Self {
         Self {
             document,
@@ -48,6 +53,7 @@ impl<'a> Evaluator<'a> {
             base_dir,
             engine,
             output_dir,
+            image_overrides,
         }
     }
 
@@ -89,7 +95,7 @@ impl<'a> Evaluator<'a> {
             .await?;
 
         self.engine
-            .create_v1_evaluator(events, cancellation)
+            .create_v1_evaluator(events, cancellation, self.image_overrides)
             .evaluate_task(self.document, task, inputs, self.output_dir)
             .await
     }
@@ -127,7 +133,7 @@ impl<'a> Evaluator<'a> {
                     .await?;
 
                 self.engine
-                    .create_v1_evaluator(events, cancellation)
+                    .create_v1_evaluator(events, cancellation, self.image_overrides)
                     .evaluate_workflow(self.document, inputs, self.output_dir)
                     .await
             }

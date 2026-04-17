@@ -61,6 +61,7 @@ use wdl::engine::config::CallCachingMode;
 use wdl::engine::config::FailureMode;
 use wdl::engine::config::RetryConfig;
 use wdl::engine::config::TaskResourceLimitBehavior;
+use wdl::engine::images::ContainerImageOverrides;
 
 use crate::Config;
 use crate::Stdout;
@@ -74,6 +75,7 @@ use crate::commands::uses_docker_backend;
 use crate::commands::warn_docker_termination;
 use crate::config::TestConfig;
 use crate::eval::Evaluator;
+use crate::lock::file::LockFile;
 use crate::system::v1::fs::RUNS_DIR;
 
 /// Test definitions may appear either sibling to their source WDL, or nested
@@ -172,6 +174,9 @@ pub struct Args {
     /// Do not print results as tests complete.
     #[clap(long)]
     pub no_status: bool,
+    /// Run tests without locking container images to digests.
+    #[clap(long)]
+    pub unlocked: bool,
     #[command(subcommand)]
     pub command: Option<Subcommand>,
 }
@@ -623,6 +628,7 @@ impl Runner {
         clean: bool,
         quiet: bool,
         errors: &mut Vec<Arc<anyhow::Error>>,
+        lock_file: LockFile,
     ) -> Result<FullResults> {
         let mut all_results = FullResults::new();
         let mut tasks = Vec::new();
@@ -663,6 +669,7 @@ impl Runner {
                 task.assertions,
                 task.document,
                 task.inputs,
+                lock_file.as_container_overrides(),
             )
             .await;
 
@@ -818,6 +825,7 @@ impl Runner {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn spawn_future(
         &self,
         futures: &mut JoinSet<TestIteration>,
@@ -826,6 +834,7 @@ impl Runner {
         assertions: Arc<Assertions>,
         document: wdl::analysis::Document,
         inputs: EngineInputs,
+        image_overrides: Option<ContainerImageOverrides>,
     ) {
         let is_workflow = matches!(inputs, EngineInputs::Workflow(_));
         let fixtures = self.fixtures.clone();
@@ -843,7 +852,7 @@ impl Runner {
                 let cancellation_clone = cancellation.clone();
                 let mut task = Box::pin(async move {
                     let evaluator =
-                        Evaluator::new(&document, &target, inputs, &fixtures, &engine, &run_dir_clone);
+                        Evaluator::new(&document, &target, inputs, &fixtures, &engine, &run_dir_clone, image_overrides);
 
                     if is_workflow {
                         RunResult::Workflow(evaluator.run(events, cancellation_clone).await)
@@ -1034,6 +1043,12 @@ pub async fn test(
         })?
         .clean();
 
+    let lock_file = if args.unlocked {
+        LockFile::default()
+    } else {
+        LockFile::locate(&source)?.unwrap_or_default()
+    };
+
     let analysis_results = Analysis::default()
         .add_source(source.clone())
         .fallback_version(config.common.wdl.fallback_version.into())
@@ -1192,6 +1207,7 @@ pub async fn test(
         !args.no_clean,
         args.no_status,
         &mut errors,
+        lock_file,
     ));
 
     loop {
@@ -1269,6 +1285,7 @@ mod tests {
             fixtures_dir,
             run_dir,
             no_status: false,
+            unlocked: false,
             filters: Filters::default(),
             exact: false,
             command: None,

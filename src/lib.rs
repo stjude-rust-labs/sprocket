@@ -61,6 +61,7 @@ pub mod commands;
 mod config;
 mod eval;
 mod inputs;
+pub mod lock;
 pub mod server;
 pub mod system;
 
