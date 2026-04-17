@@ -1,0 +1,4 @@
+error: invalid input key `greet.name`
+
+Caused by:
+    expected type `String` for input `name`, but found type `Array[String]`

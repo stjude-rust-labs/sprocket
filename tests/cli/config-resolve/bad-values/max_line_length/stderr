@@ -1,0 +1,4 @@
+error: parsing `bad.toml`
+
+Caused by:
+    `1` is outside the allowed range for the max line length (60-240) for key `format.max_line_length`

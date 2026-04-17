@@ -66,6 +66,39 @@ impl Rule for DeclarationNameRule {
          struct types, which are not flagged by this rule."
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+task example {
+    meta {}
+
+    input {
+        Int total_count_int
+    }
+
+    output {}
+}
+```"#,
+            r#"Use instead:
+
+```wdl
+version 1.2
+
+task example {
+    meta {}
+
+    input {
+        Int total_count
+    }
+
+    output {}
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Style, Tag::Clarity, Tag::Naming])
     }
@@ -82,7 +115,7 @@ impl Rule for DeclarationNameRule {
         ])
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &["InputName", "OutputName"]
     }
 }

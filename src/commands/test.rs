@@ -27,6 +27,8 @@ use tracing::info;
 use tracing::level_filters::LevelFilter;
 use wdl::analysis::AnalysisResult;
 use wdl::ast::AstNode;
+use wdl::diagnostics::DiagnosticCounts;
+use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::CancellationContext;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
@@ -44,8 +46,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::diagnostics::DiagnosticCounts;
-use crate::diagnostics::emit_diagnostics;
 use crate::eval::Evaluator;
 use crate::system::v1::fs::RUNS_DIR;
 use crate::test::DocumentTests;
@@ -110,7 +110,7 @@ pub struct Args {
     /// leaving only failed and errored run directories on the file system.
     #[clap(long, conflicts_with = "clean_all")]
     pub no_clean: bool,
-    /// Clean all exectuion directories, even for tests that failed or errored.
+    /// Clean all execution directories, even for tests that failed or errored.
     #[clap(long)]
     pub clean_all: bool,
     /// The number of test executions to run in parallel.
@@ -689,7 +689,7 @@ async fn summarize_results(
 /// Performs the `test` command.
 pub async fn test(
     args: Args,
-    config: Config,
+    mut config: Config,
     handle: FilterReloadHandle,
     colorize: bool,
 ) -> CommandResult<()> {
@@ -718,7 +718,7 @@ pub async fn test(
 
     let analysis_results = Analysis::default()
         .add_source(source.clone())
-        .fallback_version(config.common.wdl.fallback_version)
+        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
         .run()
         .await
         .map_err(CommandError::from)?;
@@ -753,7 +753,6 @@ pub async fn test(
                         false
                     }
                 }),
-                &[],
                 config.common.report_mode,
                 colorize,
             )
@@ -789,24 +788,22 @@ pub async fn test(
 
     let test_dir = workspace.join(WORKSPACE_TEST_DIR);
     let fixture_origins = EvaluationPath::from(test_dir.join(FIXTURES_DIR).as_path());
-    let engine = {
-        let mut engine = config.run.engine;
-        engine.task.cache = CallCachingMode::Off;
-        engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
-        engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
-        engine
-    };
+
+    config.run.engine.task.cache = CallCachingMode::Off;
+    config.run.engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
+    config.run.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
+    config.validate()?;
 
     let runner = Runner {
         root: test_dir.join(RUNS_DIR),
         fixtures: fixture_origins.into(),
-        engine_config: engine.into(),
+        engine_config: config.run.engine.into(),
         log_handle: handle,
         permits: parallelism,
     };
 
-    let include_tags = HashSet::from_iter(args.include_tag.into_iter());
-    let filter_tags = HashSet::from_iter(args.filter_tag.into_iter());
+    let include_tags = HashSet::from_iter(args.include_tag);
+    let filter_tags = HashSet::from_iter(args.filter_tag);
     let should_filter = |test: &TestDefinition| filter_test(test, &include_tags, &filter_tags);
     let mut errors = Vec::new();
     let results = runner

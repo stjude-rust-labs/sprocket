@@ -12,11 +12,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Renamed enum terminology from `variant` to `choice` across `wdl-ast`,
   `wdl-analysis`, and `wdl-engine`, including public APIs such as `EnumChoice`,
   `choices()`, and related field names.
+* `TaskInputs::join_paths` and `WorkflowInputs::join_paths` now accept
+  a per-key slice of origins (`&[EvaluationPath]`) instead of a single
+  reference, enabling per-element path resolution for array inputs
+  ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
+* `TaskInputs::set_path_value` and `WorkflowInputs::set_path_value` now
+  auto-wrap scalar values into single-element arrays when the expected
+  WDL type is `Array[T]`
+  ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
+
+#### Fixed
+
+* When a task's `container` requirement is an array, each candidate is
+  now tried in order until one pulls successfully instead of silently
+  using only the first entry
+  ([#698](https://github.com/stjude-rust-labs/sprocket/pull/698)).
+* Optional-to-default input coercion in `check_input_type` is no longer
+  gated behind WDL 1.2+
+  ([#814](https://github.com/stjude-rust-labs/sprocket/pull/814)).
+
+## 0.13.1 - 2026-04-02
+
+#### Fixed
+
+* Lazy cancellation (first ctrl+c in Slow mode) now preserves evaluation
+  results for in-flight tasks instead of discarding them as `Canceled`
+  ([#744](https://github.com/stjude-rust-labs/sprocket/pull/744)).
+
+#### Changed
+
+* If only one backend is configured in `backends` and it's name is not `"default"`,
+  it must be explicitly selected by setting `backend` to the appropriate name ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* Type mismatch diagnostics now distinguish between custom types and references
+  to custom types ([#757](https://github.com/stjude-rust-labs/sprocket/pull/757)).
 
 ## 0.13.0 - 2026-03-12
 
 #### Changed
 
+* Changed how defaults for many `Config` entries are serialized and
+  deserialized; non-default config value serialization is unchanged ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * The Slurm (with Apptainer) backend now uses `sbatch` to queue new jobs
   without waiting; instead a monitor now periodically checks job status with
   `sacct` ([#654](https://github.com/stjude-rust-labs/sprocket/pull/654)).

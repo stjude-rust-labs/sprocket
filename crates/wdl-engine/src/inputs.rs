@@ -26,10 +26,10 @@ use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::display_types;
 use wdl_analysis::types::v1::task_hint_types;
 use wdl_analysis::types::v1::task_requirement_types;
-use wdl_ast::SupportedVersion;
-use wdl_ast::version::V1;
 
+use crate::Array;
 use crate::Coercible;
+use crate::CompoundValue;
 use crate::EvaluationPath;
 use crate::Value;
 
@@ -37,16 +37,11 @@ use crate::Value;
 pub type JsonMap = serde_json::Map<String, JsonValue>;
 
 /// Checks that an input value matches the type of the input.
-fn check_input_type(document: &Document, name: &str, input: &Input, value: &Value) -> Result<()> {
-    // For WDL 1.2, we accept optional values for the input even if the input's type
-    // is non-optional; if the runtime value is `None` for a non-optional input, the
-    // default expression will be evaluated instead
-    let expected_ty = if !input.required()
-        && document
-            .version()
-            .map(|v| v >= SupportedVersion::V1(V1::Two))
-            .unwrap_or(false)
-    {
+fn check_input_type(_document: &Document, name: &str, input: &Input, value: &Value) -> Result<()> {
+    // We accept optional values for the input even if the input's type is
+    // non-optional; if the runtime value is `None` for a non-optional input,
+    // the default expression will be evaluated instead.
+    let expected_ty = if !input.required() {
         input.ty().optional()
     } else {
         input.ty().clone()
@@ -54,10 +49,49 @@ fn check_input_type(document: &Document, name: &str, input: &Input, value: &Valu
 
     let ty = value.ty();
     if !ty.is_coercible_to(&expected_ty) {
-        bail!("expected type `{expected_ty}` for input `{name}`, but found `{ty}`");
+        bail!("expected {expected_ty:#} for input `{name}`, but found {ty:#}");
     }
 
     Ok(())
+}
+
+/// Resolves paths in a value using per-element origins.
+///
+/// When `origins` contains multiple entries and the value is an array, each
+/// element is resolved against its corresponding origin. Otherwise, all paths
+/// are resolved against the first (and only) origin.
+async fn resolve_with_origins(
+    value: Value,
+    ty: &wdl_analysis::types::Type,
+    origins: &[EvaluationPath],
+) -> Result<Value> {
+    if origins.len() > 1
+        && let Value::Compound(CompoundValue::Array(ref array)) = value
+    {
+        let arr_ty = ty.as_array().expect("should be an array type");
+        assert_eq!(
+            origins.len(),
+            array.as_slice().len(),
+            "the number of origins should match the number of array elements"
+        );
+        let optional = arr_ty.element_type().is_optional();
+        let mut resolved = Vec::with_capacity(array.as_slice().len());
+        for (elem, base_dir) in array.as_slice().iter().zip(origins) {
+            resolved.push(
+                elem.resolve_paths(optional, None, None, &|p| p.expand(base_dir))
+                    .await?,
+            );
+        }
+        return Ok(Value::Compound(CompoundValue::Array(Array::new_unchecked(
+            arr_ty.clone(),
+            resolved,
+        ))));
+    }
+
+    let base_dir = &origins[0];
+    value
+        .resolve_paths(ty.is_optional(), None, None, &|p| p.expand(base_dir))
+        .await
 }
 
 /// Represents inputs to a task.
@@ -129,19 +163,17 @@ impl TaskInputs {
     pub async fn join_paths<'a>(
         &mut self,
         task: &Task,
-        path: impl Fn(&str) -> Result<&'a EvaluationPath>,
+        path: impl Fn(&str) -> Result<&'a [EvaluationPath]>,
     ) -> Result<()> {
         for (name, value) in self.inputs.iter_mut() {
             let Some(ty) = task.inputs().get(name).map(|input| input.ty().clone()) else {
                 bail!("could not find an expected type for input {name}");
             };
 
-            let base_dir = path(name)?;
+            let origins = path(name)?;
 
             if let Ok(v) = value.coerce(None, &ty) {
-                *value = v
-                    .resolve_paths(ty.is_optional(), None, None, &|path| path.expand(base_dir))
-                    .await?;
+                *value = resolve_with_origins(v, &ty, origins).await?;
             }
         }
         Ok(())
@@ -188,7 +220,7 @@ impl TaskInputs {
             if let Some(expected) = task_requirement_types(version, name.as_str()) {
                 if !expected.iter().any(|target| ty.is_coercible_to(target)) {
                     bail!(
-                        "expected {expected} for requirement `{name}`, but found type `{ty}`",
+                        "expected {expected:#} for requirement `{name}`, but found {ty:#}",
                         expected = display_types(expected),
                     );
                 }
@@ -206,7 +238,7 @@ impl TaskInputs {
                 && !expected.iter().any(|target| ty.is_coercible_to(target))
             {
                 bail!(
-                    "expected {expected} for hint `{name}`, but found type `{ty}`",
+                    "expected {expected:#} for hint `{name}`, but found {ty:#}",
                     expected = display_types(expected),
                 );
             }
@@ -275,7 +307,7 @@ impl TaskInputs {
                     }
 
                     bail!(
-                        "expected {expected} for {key} key `{remainder}`, but found type `{ty}`",
+                        "expected {expected:#} for {key} key `{remainder}`, but found {ty:#}",
                         expected = display_types(expected),
                         ty = value.ty()
                     );
@@ -305,6 +337,21 @@ impl TaskInputs {
                         .insert(path.to_string(), value.to_string().into());
                     return Ok(true);
                 }
+
+                // Auto-wrap a non-array value in a single-element array when the
+                // expected type is an array and the value is coercible to the
+                // element type.
+                let value = if let Some(arr_ty) = expected.as_array()
+                    && !matches!(&value, Value::Compound(CompoundValue::Array(_)))
+                    && value.ty().is_coercible_to(arr_ty.element_type())
+                {
+                    Value::Compound(CompoundValue::Array(Array::new_unchecked(
+                        expected.clone(),
+                        vec![value],
+                    )))
+                } else {
+                    value
+                };
 
                 check_input_type(document, path, input, &value)?;
                 self.inputs.insert(path.to_string(), value);
@@ -432,19 +479,17 @@ impl WorkflowInputs {
     pub async fn join_paths<'a>(
         &mut self,
         workflow: &Workflow,
-        path: impl Fn(&str) -> Result<&'a EvaluationPath>,
+        path: impl Fn(&str) -> Result<&'a [EvaluationPath]>,
     ) -> Result<()> {
         for (name, value) in self.inputs.iter_mut() {
             let Some(ty) = workflow.inputs().get(name).map(|input| input.ty().clone()) else {
                 bail!("could not find an expected type for input {name}");
             };
 
-            let base_dir = path(name)?;
+            let origins = path(name)?;
 
             if let Ok(v) = value.coerce(None, &ty) {
-                *value = v
-                    .resolve_paths(ty.is_optional(), None, None, &|path| path.expand(base_dir))
-                    .await?;
+                *value = resolve_with_origins(v, &ty, origins).await?;
             }
         }
         Ok(())
@@ -684,6 +729,21 @@ impl WorkflowInputs {
                         .insert(path.to_string(), value.to_string().into());
                     return Ok(true);
                 }
+
+                // Auto-wrap a non-array value in a single-element array when
+                // the expected type is an array and the value is coercible to
+                // the element type.
+                let value = if let Some(arr_ty) = expected.as_array()
+                    && !matches!(&value, Value::Compound(CompoundValue::Array(_)))
+                    && value.ty().is_coercible_to(arr_ty.element_type())
+                {
+                    Value::Compound(CompoundValue::Array(Array::new_unchecked(
+                        expected.clone(),
+                        vec![value],
+                    )))
+                } else {
+                    value
+                };
 
                 check_input_type(document, path, input, &value)?;
                 self.inputs.insert(path.to_string(), value);

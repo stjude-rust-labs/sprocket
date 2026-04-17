@@ -73,22 +73,22 @@ pub fn runtime_type_mismatch(
     actual_span: Span,
 ) -> Diagnostic {
     let e = e.context(format!(
-        "type mismatch: expected type `{expected}`, but found type `{actual}`"
+        "type mismatch: expected {expected:#}, but found {actual:#}"
     ));
 
     Diagnostic::error(format!("{e:#}"))
-        .with_label(format!("this is type `{actual}`"), actual_span)
-        .with_label(format!("this expects type `{expected}`"), expected_span)
+        .with_label(format!("this is {actual:#}"), actual_span)
+        .with_label(format!("this expects {expected:#}"), expected_span)
 }
 
 /// Creates an "if conditional mismatch" diagnostic.
 pub fn if_conditional_mismatch(e: anyhow::Error, actual: &Type, actual_span: Span) -> Diagnostic {
     let e = e.context(format!(
-        "type mismatch: expected `if` conditional expression to be type `Boolean`, but found type \
-         `{actual}`"
+        "type mismatch: expected `if` conditional expression to be type `Boolean`, but found \
+         {actual:#}"
     ));
 
-    Diagnostic::error(format!("{e:#}")).with_label(format!("this is type `{actual}`"), actual_span)
+    Diagnostic::error(format!("{e:#}")).with_label(format!("this is {actual:#}"), actual_span)
 }
 
 /// Creates an "array index out of range" diagnostic.

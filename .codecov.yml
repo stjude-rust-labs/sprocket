@@ -1,0 +1,18 @@
+codecov:
+  notify:
+    after_n_builds: 6
+  ignore:
+    - "crates/gauntlet"
+
+coverage:
+  status:
+    project:
+      default:
+        informational: true
+    patch:
+      default:
+        informational: true
+
+comment:
+  behavior: once
+  require_changes: "coverage_drop"

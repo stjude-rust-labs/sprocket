@@ -8,6 +8,8 @@ use std::str::FromStr;
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
+use serde::Deserialize;
+use serde::Serialize;
 use tracing::warn;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::v1::TASK_HINT_DISKS;
@@ -29,7 +31,6 @@ use crate::config::Config;
 use crate::units::StorageUnit;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::task::DEFAULT_GPU_COUNT;
-use crate::v1::task::DEFAULT_TASK_REQUIREMENT_CONTAINER;
 use crate::v1::task::DEFAULT_TASK_REQUIREMENT_CPU;
 use crate::v1::task::DEFAULT_TASK_REQUIREMENT_MAX_RETRIES;
 use crate::v1::task::DEFAULT_TASK_REQUIREMENT_MEMORY;
@@ -51,8 +52,12 @@ const FILE_PROTOCOL: &str = "file://";
 /// The expected extension for local SIF files.
 const SIF_EXTENSION: &str = "sif";
 
+/// The WDL wildcard container value (`*`), meaning any container is acceptable.
+const WILDCARD_CONTAINER: &str = "*";
+
 /// Represents the source of a container image.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum ContainerSource {
     /// A Docker registry image (e.g. `docker://ubuntu:22.04`).
     Docker(String),
@@ -148,53 +153,79 @@ impl std::fmt::Display for ContainerSource {
     }
 }
 
-/// Gets the `container` requirement from a requirements map.
-///
-/// Returns a [`ContainerSource`] indicating whether the container is a
-/// registry-based image or a local SIF file.
-pub(crate) fn container(
+/// Returns whether the task has an explicit `container` (or `docker` alias)
+/// requirement set in either inputs or requirements.
+pub(crate) fn has_container_requirement(
     inputs: &TaskInputs,
     requirements: &HashMap<String, Value>,
-    default: Option<&str>,
-) -> ContainerSource {
-    let value: Cow<'_, str> = find_key_value(
+) -> bool {
+    find_key_value(
         &[TASK_REQUIREMENT_CONTAINER, TASK_REQUIREMENT_CONTAINER_ALIAS],
         |key| inputs.requirement(key).or_else(|| requirements.get(key)),
     )
-    .and_then(|(_, v)| -> Option<Cow<'_, str>> {
-        // If the value is an array, use the first element or the default.
-        // NOTE: in the future we should be resolving which element in the array is
-        // usable; this will require some work in Crankshaft to enable.
-        if let Some(array) = v.as_array() {
-            return array.as_slice().first().map(|v| {
-                v.as_string()
-                    .expect("type should be string")
-                    .as_ref()
-                    .into()
-            });
-        }
+    .is_some()
+}
 
-        Some(
-            v.coerce(None, &PrimitiveType::String.into())
-                .expect("type should coerce")
-                .unwrap_string()
-                .as_ref()
-                .clone()
-                .into(),
-        )
-    })
-    .and_then(|v| {
-        // Treat `*` as the default.
-        if v == "*" { None } else { Some(v) }
-    })
-    .unwrap_or_else(|| {
-        default
-            .map(Into::into)
-            .unwrap_or(DEFAULT_TASK_REQUIREMENT_CONTAINER.into())
-    });
+/// Gets the `container` requirement from a requirements map.
+///
+/// Returns a list of [`ContainerSource`] candidates to try in order.
+/// Any [`ContainerSource::Any`] entries (from the WDL `*` wildcard) are
+/// resolved to the configured default container.
+pub(crate) fn container(
+    inputs: &TaskInputs,
+    requirements: &HashMap<String, Value>,
+    default: &str,
+) -> Vec<ContainerSource> {
+    let entry = find_key_value(
+        &[TASK_REQUIREMENT_CONTAINER, TASK_REQUIREMENT_CONTAINER_ALIAS],
+        |key| inputs.requirement(key).or_else(|| requirements.get(key)),
+    );
 
-    // SAFETY: `FromStr` for `ContainerSource` is infallible.
-    value.parse().unwrap()
+    let Some((_, value)) = entry else {
+        // SAFETY: `FromStr` for `ContainerSource` is infallible.
+        return vec![default.parse().unwrap()];
+    };
+
+    if let Some(array) = value.as_array() {
+        array
+            .as_slice()
+            .iter()
+            .map(|v| {
+                // SAFETY: the WDL type checker guarantees that elements of
+                // a `container` array are `String`.
+                let s = v
+                    .as_string()
+                    .expect("container array element should be a `String`");
+                let s = s.as_ref();
+                // SAFETY: `FromStr` for `ContainerSource` is infallible.
+                if s == WILDCARD_CONTAINER { default } else { s }
+                    .parse()
+                    .unwrap()
+            })
+            .collect()
+    } else {
+        // SAFETY: the WDL type checker guarantees that `container` is
+        // either `String` or `Array[String]`. Since we've ruled out the
+        // array case above, the value must be coercible to `String`.
+        let s: Cow<'_, str> = value
+            .coerce(None, &PrimitiveType::String.into())
+            .expect("container value should be coercible to `String`")
+            .unwrap_string()
+            .as_ref()
+            .clone()
+            .into();
+
+        // SAFETY: `FromStr` for `ContainerSource` is infallible.
+        vec![
+            if *s == *WILDCARD_CONTAINER {
+                default
+            } else {
+                &s
+            }
+            .parse()
+            .unwrap(),
+        ]
+    }
 }
 
 /// Gets the `cpu` requirement from a requirements map.
@@ -508,6 +539,8 @@ pub(crate) fn max_retries(
     Ok(config
         .task
         .retries
+        .inner()
+        .cloned()
         .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES))
 }
 
@@ -518,6 +551,7 @@ mod tests {
     use super::ContainerSource;
     use super::*;
     use crate::PrimitiveValue;
+    use crate::config::DEFAULT_TASK_CONTAINER;
 
     fn map_with_value(key: &str, value: Value) -> HashMap<String, Value> {
         let mut map = HashMap::new();
@@ -640,6 +674,161 @@ mod tests {
     }
 
     #[test]
+    fn container_returns_default_when_unset() {
+        let result = container(
+            &TaskInputs::default(),
+            &HashMap::new(),
+            DEFAULT_TASK_CONTAINER,
+        );
+        assert_eq!(result.len(), 1);
+        assert_eq!(
+            result[0],
+            ContainerSource::Docker(DEFAULT_TASK_CONTAINER.to_string())
+        );
+    }
+
+    #[test]
+    fn container_returns_custom_default_when_unset() {
+        let result = container(&TaskInputs::default(), &HashMap::new(), "alpine:3.18");
+        assert_eq!(result.len(), 1);
+        assert_eq!(
+            result[0],
+            ContainerSource::Docker("alpine:3.18".to_string())
+        );
+    }
+
+    #[test]
+    fn container_returns_single_image() {
+        let requirements = map_with_value(
+            TASK_REQUIREMENT_CONTAINER,
+            PrimitiveValue::new_string("foo:bar").into(),
+        );
+        let result = container(
+            &TaskInputs::default(),
+            &requirements,
+            DEFAULT_TASK_CONTAINER,
+        );
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], ContainerSource::Docker("foo:bar".to_string()));
+    }
+
+    #[test]
+    fn container_resolves_single_wildcard_to_default() {
+        let requirements = map_with_value(
+            TASK_REQUIREMENT_CONTAINER,
+            PrimitiveValue::new_string("*").into(),
+        );
+        let result = container(
+            &TaskInputs::default(),
+            &requirements,
+            DEFAULT_TASK_CONTAINER,
+        );
+        assert_eq!(result.len(), 1);
+        assert_eq!(
+            result[0],
+            ContainerSource::Docker(DEFAULT_TASK_CONTAINER.to_string())
+        );
+    }
+
+    #[test]
+    fn container_resolves_single_wildcard_to_custom_default() {
+        let requirements = map_with_value(
+            TASK_REQUIREMENT_CONTAINER,
+            PrimitiveValue::new_string("*").into(),
+        );
+        let result = container(&TaskInputs::default(), &requirements, "debian:12");
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], ContainerSource::Docker("debian:12".to_string()));
+    }
+
+    #[test]
+    fn container_returns_array_of_images() {
+        use wdl_analysis::types::ArrayType;
+
+        let elements = vec![
+            PrimitiveValue::new_string("foo:1.0").into(),
+            PrimitiveValue::new_string("bar:2.0").into(),
+            PrimitiveValue::new_string("baz:3.0").into(),
+        ];
+        let array = crate::Array::new_unchecked(
+            ArrayType::new(wdl_analysis::types::PrimitiveType::String),
+            elements,
+        );
+        let requirements = map_with_value(
+            TASK_REQUIREMENT_CONTAINER,
+            Value::Compound(crate::CompoundValue::Array(array)),
+        );
+
+        let result = container(
+            &TaskInputs::default(),
+            &requirements,
+            DEFAULT_TASK_CONTAINER,
+        );
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0], ContainerSource::Docker("foo:1.0".to_string()));
+        assert_eq!(result[1], ContainerSource::Docker("bar:2.0".to_string()));
+        assert_eq!(result[2], ContainerSource::Docker("baz:3.0".to_string()));
+    }
+
+    #[test]
+    fn container_resolves_wildcard_in_array() {
+        use wdl_analysis::types::ArrayType;
+
+        let elements = vec![
+            PrimitiveValue::new_string("foo:1.0").into(),
+            PrimitiveValue::new_string("*").into(),
+            PrimitiveValue::new_string("bar:2.0").into(),
+        ];
+        let array = crate::Array::new_unchecked(
+            ArrayType::new(wdl_analysis::types::PrimitiveType::String),
+            elements,
+        );
+        let requirements = map_with_value(
+            TASK_REQUIREMENT_CONTAINER,
+            Value::Compound(crate::CompoundValue::Array(array)),
+        );
+
+        let result = container(
+            &TaskInputs::default(),
+            &requirements,
+            DEFAULT_TASK_CONTAINER,
+        );
+        assert_eq!(result.len(), 3);
+        assert_eq!(result[0], ContainerSource::Docker("foo:1.0".to_string()));
+        assert_eq!(
+            result[1],
+            ContainerSource::Docker(DEFAULT_TASK_CONTAINER.to_string())
+        );
+        assert_eq!(result[2], ContainerSource::Docker("bar:2.0".to_string()));
+    }
+
+    #[test]
+    fn container_resolves_wildcard_in_array_with_custom_default() {
+        use wdl_analysis::types::ArrayType;
+
+        let elements = vec![
+            PrimitiveValue::new_string("foo:1.0").into(),
+            PrimitiveValue::new_string("*").into(),
+        ];
+        let array = crate::Array::new_unchecked(
+            ArrayType::new(wdl_analysis::types::PrimitiveType::String),
+            elements,
+        );
+        let requirements = map_with_value(
+            TASK_REQUIREMENT_CONTAINER,
+            Value::Compound(crate::CompoundValue::Array(array)),
+        );
+
+        let result = container(&TaskInputs::default(), &requirements, "alpine:3.18");
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], ContainerSource::Docker("foo:1.0".to_string()));
+        assert_eq!(
+            result[1],
+            ContainerSource::Docker("alpine:3.18".to_string())
+        );
+    }
+
+    #[test]
     fn respect_inputs_over_requirements() {
         let mut inputs = TaskInputs::default();
         inputs.override_requirement("container", PrimitiveValue::new_string("foo:bar"));
@@ -664,7 +853,10 @@ mod tests {
         requirements.insert("max_retries".to_string(), PrimitiveValue::from(1).into());
 
         assert_eq!(
-            container(&inputs, &requirements, None).to_string(),
+            container(&inputs, &requirements, DEFAULT_TASK_CONTAINER)
+                .first()
+                .unwrap()
+                .to_string(),
             "foo:bar"
         );
 

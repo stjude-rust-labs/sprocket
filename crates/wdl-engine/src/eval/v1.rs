@@ -104,7 +104,7 @@ impl Evaluator {
             }
             _ => Some(
                 CallCache::new(
-                    config.task.cache_dir.as_deref(),
+                    config.task.cache_dir().as_deref(),
                     config.task.digests,
                     transferer.clone(),
                     Arc::new(CallCacheExclusions {

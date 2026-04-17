@@ -719,7 +719,7 @@ async fn execute_workflow_target(
         .workflow()
         .context("document does not contain a workflow")?;
     inputs
-        .join_paths(workflow, |_| Ok(base_dir))
+        .join_paths(workflow, |_| Ok(std::slice::from_ref(base_dir)))
         .await
         .context("failed to resolve input paths")?;
 
@@ -779,7 +779,7 @@ async fn execute_task_target(
 
     // Resolve relative paths in inputs from `base_dir`
     inputs
-        .join_paths(task, |_| Ok(base_dir))
+        .join_paths(task, |_| Ok(std::slice::from_ref(base_dir)))
         .await
         .context("failed to resolve input paths")?;
 
@@ -808,7 +808,7 @@ async fn execute_task_target(
 /// # Arguments
 ///
 /// - `db` is a reference to the database and is used to update various aspects
-///   of the datbase as execution proceeds.
+///   of the database as execution proceeds.
 /// - `ctx` is the context of the run created for this execution (run UUID, run
 ///   name, start time, etc).
 /// - `document` is the analysis document containing the task or workflow to
@@ -882,9 +882,12 @@ pub async fn execute_target(
             set_run_success(db.as_ref(), ctx, target, outputs, run_dir, index_on).await?;
             Ok(())
         }
-        // NOTE: `Ok(None)` means the execution was canceled. The run manager
-        // handles transitioning the run status from `Canceling` to `Canceled`.
-        Ok(None) => Ok(()),
+        Ok(None) => {
+            if let Err(e) = db.cancel_run(ctx.run_id, Utc::now()).await {
+                tracing::error!("failed to record run cancellation: {e:#}");
+            }
+            Ok(())
+        }
         Err(e) => {
             let error = e.to_string();
             if let Err(db_err) = db.fail_run(ctx.run_id, &error, Utc::now()).await {

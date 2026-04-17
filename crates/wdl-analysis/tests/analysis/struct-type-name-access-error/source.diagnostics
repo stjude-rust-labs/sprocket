@@ -1,6 +1,6 @@
-error: cannot access type `Person`
+error: cannot access type name `Person`
    ┌─ tests/analysis/struct-type-name-access-error/source.wdl:11:14
    │
 11 │   String x = Person.name
-   │              ^^^^^^ this is type `Person`
+   │              ^^^^^^ this is type name `Person`
 

@@ -64,7 +64,6 @@ use crate::config::SlurmApptainerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
 use crate::http::Transferer;
 use crate::v1::requirements;
-use crate::v1::requirements::ContainerSource;
 
 /// The name of the file where the Apptainer command invocation will be written.
 const APPTAINER_COMMAND_FILE_NAME: &str = "apptainer_command";
@@ -923,16 +922,10 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             }
         }
 
-        let container =
-            requirements::container(inputs, requirements, self.config.task.container.as_deref());
-        if let ContainerSource::Unknown(_) = &container {
-            bail!(
-                "Slurm Apptainer backend does not support unknown container source `{container:#}`"
-            )
-        }
+        let containers = requirements::container(inputs, requirements, &self.config.task.container);
 
         Ok(super::TaskExecutionConstraints {
-            container: Some(container),
+            container: Some(containers),
             // TODO ACF 2025-10-13: populate more meaningful values for these based on the given
             // Slurm partition.
             //
@@ -996,11 +989,11 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                     )
                 })?;
 
-            let Some(apptainer_script) = self
+            let Some((apptainer_script, container)) = self
                 .apptainer
                 .generate_script(
                     &backend_config.apptainer_config,
-                    self.config.task.shell.as_deref(),
+                    &self.config.task.shell,
                     &request,
                     self.cancellation.first(),
                 )
@@ -1110,6 +1103,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             };
 
             Ok(Some(TaskExecutionResult {
+                container: Some(container),
                 exit_code: exit_code as i32,
                 work_dir: EvaluationPath::from_local_path(work_dir),
                 stdout: PrimitiveValue::new_file(

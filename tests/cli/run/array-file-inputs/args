@@ -1,0 +1,1 @@
+-qq run source.wdl read_files.files=a.txt b.txt c.txt

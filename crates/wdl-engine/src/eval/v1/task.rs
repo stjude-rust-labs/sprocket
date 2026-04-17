@@ -87,7 +87,6 @@ use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
 use crate::cache::KeyRequest;
 use crate::config::CallCachingMode;
-use crate::config::DEFAULT_TASK_SHELL;
 use crate::config::MAX_RETRIES;
 use crate::diagnostics::decl_evaluation_failed;
 use crate::diagnostics::runtime_type_mismatch;
@@ -117,8 +116,6 @@ pub(crate) mod requirements;
 /// The maximum number of stderr lines to display in error messages.
 const MAX_STDERR_LINES: usize = 10;
 
-/// The default container requirement.
-const DEFAULT_TASK_REQUIREMENT_CONTAINER: &str = "ubuntu:latest";
 /// The default value for the `cpu` requirement.
 const DEFAULT_TASK_REQUIREMENT_CPU: f64 = 1.0;
 /// The default value for the `memory` requirement.
@@ -598,7 +595,9 @@ impl Evaluator {
             .perform_task_evaluation(document, task, inputs, eval_root_dir.as_ref(), task.name())
             .await;
 
-        if self.cancellation.user_canceled() {
+        if self.cancellation.user_canceled()
+            && self.cancellation.state() == CancellationContextState::Canceling
+        {
             return Err(EvaluationError::Canceled);
         }
 
@@ -624,7 +623,11 @@ impl Evaluator {
             )
         })?;
 
-        let ast = match document.root().morph().ast() {
+        let ast = match document
+            .root()
+            .morph()
+            .ast_with_version_fallback(document.config().fallback_version())
+        {
             Ast::V1(ast) => ast,
             _ => {
                 return Err(
@@ -754,6 +757,18 @@ impl Evaluator {
                 && let Some(cache) = &self.cache
             {
                 if hints::cacheable(&inputs, &hints, &self.config) {
+                    // The configured default container is only part of the cache key
+                    // when the task has no `container` requirement of its own. When
+                    // the task does specify `container`, the requirement is already
+                    // covered by the `requirements` digest, so including the default
+                    // here would be redundant; when it doesn't, a change to the
+                    // configured default must invalidate the cache entry.
+                    let default_container =
+                        if requirements::has_container_requirement(&inputs, &requirements) {
+                            None
+                        } else {
+                            Some(self.config.task.container.as_str())
+                        };
                     let request = KeyRequest {
                         document_uri: state.document.uri().as_ref(),
                         task_name: task.name(),
@@ -761,17 +776,8 @@ impl Evaluator {
                         command: &command,
                         requirements: &requirements,
                         hints: &hints,
-                        container: &constraints
-                            .container
-                            .as_ref()
-                            .map(|c| format!("{c:#}"))
-                            .unwrap_or_default(),
-                        shell: self
-                            .config
-                            .task
-                            .shell
-                            .as_deref()
-                            .unwrap_or(DEFAULT_TASK_SHELL),
+                        default_container,
+                        shell: &self.config.task.shell,
                         backend_inputs: state.backend_inputs.as_slice(),
                     };
 
@@ -929,6 +935,9 @@ impl Evaluator {
                         task = state.task.name()
                     )
                 })?);
+                if let Some(container) = &result.container {
+                    task.set_container(container.to_string());
+                }
                 task.set_return_code(result.exit_code);
             }
 
@@ -1284,15 +1293,10 @@ impl<'a> State<'a> {
         // Evaluate the input if not provided one
         let (value, span) = match inputs.get(name.text()) {
             Some(input) => {
-                // For WDL 1.2 evaluation, a `None` value when the expected type is non-optional
+                // A `None` value when the expected type is non-optional
                 // will invoke the default expression
                 if input.is_none()
                     && !expected_ty.is_optional()
-                    && self
-                        .document
-                        .version()
-                        .map(|v| v >= SupportedVersion::V1(V1::Two))
-                        .unwrap_or(false)
                     && let Some(expr) = decl.expr()
                 {
                     debug!(
@@ -2082,7 +2086,7 @@ mod test {
 
         let mut config = Config::default();
         config.task.cache = mode;
-        config.task.cache_dir = Some(root_dir.join("cache"));
+        config.task.cache_dir = root_dir.join("cache").to_string_lossy().into();
         config
             .backends
             .insert("default".into(), BackendConfig::Local(Default::default()));

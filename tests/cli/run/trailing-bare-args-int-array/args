@@ -1,0 +1,1 @@
+-qq run source.wdl sum_numbers.numbers=1 2 3 4

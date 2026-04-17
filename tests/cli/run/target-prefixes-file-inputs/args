@@ -1,0 +1,1 @@
+-qq run source.wdl @inputs.json --target my_task

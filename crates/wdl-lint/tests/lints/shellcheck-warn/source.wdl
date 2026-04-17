@@ -72,7 +72,7 @@ task test4 {
     }
 
     command <<<
-            # other weird whitspace
+            # other weird whitespace
       ~{placeholder} "$trailing_pholder" ~{placeholder}
       ~{placeholder} somecommand.py "$leading_pholder"
     >>>

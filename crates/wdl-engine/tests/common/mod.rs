@@ -21,6 +21,8 @@ use wdl_engine::config::Config as EngineConfig;
 
 /// The set of tests that should only use the Docker backend
 const DOCKER_ONLY_TESTS: &[&str] = &[
+    // Exercises container image fallback, which requires a real pull
+    "container-fallback",
     // Disabled for local backend due to paths coming from the download cache
     "url-symlink",
 ];
@@ -71,32 +73,17 @@ pub fn find_tests(
 }
 
 /// Gets the configurations to use for the test, merging in any
-/// `config-override.yaml` files that may be present in the test directory.
-///
-/// Regardless of whether `config-override.yaml` is present, this function
-/// begins with the configs defined in [`base_configs()`]. If an override is
-/// present, its contents are merged into each base config to produce a final
-/// set of resolved configs. This is useful for tests which require a
-/// modification of the standard configs, particularly those that exercise
-/// whether certain options work.
-///
-/// Why YAML and not TOML for the overrides? TOML doesn't have a way to express
-/// "null", and therefore is not suitable for setting `Option` values to `None`.
-/// JSON also is a possibility, but YAML is more convenient for human use with
-/// its support for comments.
+/// `config-override.toml` files that may be present in the test directory.
 pub fn resolve_configs(path: &Path) -> Result<HashMap<String, TestConfig>, anyhow::Error> {
-    use figment::Figment;
-    use figment::providers::Format as _;
-    use figment::providers::Serialized;
-    use figment::providers::Yaml;
-
     let mut base_configs = base_configs()?;
-    let config_override_path = path.join("config-override.yaml");
+    let config_override_path = path.join("config-override.toml");
     if config_override_path.exists() {
         for config in base_configs.values_mut() {
-            let combined = Figment::from(Serialized::defaults(&config))
-                .merge(Yaml::file_exact(&config_override_path))
-                .extract()?;
+            let combined = config::Config::builder()
+                .add_source(config::Config::try_from(config).unwrap())
+                .add_source(config::File::from(config_override_path.as_path()).required(true))
+                .build()?
+                .try_deserialize()?;
             *config = combined;
         }
     }
@@ -113,7 +100,7 @@ pub fn resolve_configs(path: &Path) -> Result<HashMap<String, TestConfig>, anyho
 
 /// Get the baseline configs for executing the tests.
 ///
-/// These configs may be modified by merging with `*-config-override.yaml` files
+/// These configs may be modified by merging with `config-override.toml` files
 /// in individual test directories before execution.
 ///
 /// If the `SPROCKET_TEST_ENGINE_CONFIG` environment variable is set, the file

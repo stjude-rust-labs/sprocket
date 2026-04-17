@@ -13,10 +13,17 @@ env:
   IN_CI: 1
 
 jobs:
+  spelling:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Spell Check Repo
+        uses: crate-ci/typos@v1.44.0
+
   format:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Update Rust
         run: rustup update nightly && rustup default nightly
       - name: Install rustfmt
@@ -27,7 +34,7 @@ jobs:
   sort:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Update Rust
         run: rustup update stable
       - name: Install `cargo-sort`
@@ -42,7 +49,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - name: Install clippy
@@ -57,10 +64,12 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
-        run: rustup update stable && rustup default stable
+        run: rustup update stable && rustup default stable && rustup component add llvm-tools
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
       # Disabling cache as the size is now consistently running out of disk for certain actions
       # - uses: actions/cache@v4
       #   with:
@@ -77,16 +86,23 @@ jobs:
         with:
           tool: nextest
 
-      # Normal wdl-doc runs can automatically install Pagefind, but since the tests run in parallel, they
-      # can step on each other's toes in CI.
+      # Pre-warm the npx cache so parallel tests don't race to install it.
       - name: Install Pagefind
         if: runner.os == 'Linux'
-        run: npm install -g pagefind
+        run: npx -y pagefind@1.5.0 --help
 
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: Run tests
         shell: bash
-        run: cargo nextest run --profile=ci --workspace --locked --all-targets --all-features --no-fail-fast && cargo test --workspace --doc
+        run: cargo llvm-cov nextest --profile=ci --workspace --locked --all-targets --all-features --no-fail-fast --codecov --output-path codecov.json && cargo test --workspace --doc
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: codecov.json
+          fail_ci_if_error: true
+          exclude: "crates/gauntlet"
 
   engine-test:
     runs-on: ${{ matrix.os }}
@@ -95,10 +111,12 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
-        run: rustup update stable && rustup default stable
+        run: rustup update stable && rustup default stable && rustup component add llvm-tools
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov
       - uses: actions/cache@v4
         with:
           path: |
@@ -116,7 +134,7 @@ jobs:
 
       # See the `test` job
       - name: Install Pagefind
-        run: npm install -g pagefind
+        run: npx -y pagefind@1.5.0 --help
 
       - name: Pull test images
         if: runner.os == 'Linux'
@@ -132,12 +150,19 @@ jobs:
           if [[ "${{ runner.os }}" != "Linux" ]]; then
             export RUSTFLAGS="--cfg docker_tests_disabled"
           fi
-          cargo nextest run --profile=ci --ignore-default-filter -E "not (kind(bench))" --locked -p wdl-engine -p sprocket --all-features --no-fail-fast
+          cargo llvm-cov nextest --profile=ci --ignore-default-filter -E "not (kind(bench))" --locked -p wdl-engine -p sprocket --all-features --no-fail-fast --codecov --output-path codecov.json
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: codecov.json
+          fail_ci_if_error: true
 
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: true
       - name: Update Rust
@@ -151,7 +176,7 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: git config --global core.autocrlf false
       - name: Update Rust
         run: rustup update stable && rustup default stable
@@ -164,7 +189,7 @@ jobs:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: ./.github/actions/install-shellcheck
       - run: git config --global core.autocrlf false
       - name: Update Rust
@@ -174,7 +199,7 @@ jobs:
   workspace-lints-enabled:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - run: cargo --locked install cargo-workspace-lints
@@ -183,7 +208,7 @@ jobs:
   deny:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - run: cargo --locked install cargo-deny
@@ -192,7 +217,7 @@ jobs:
   msrv:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Update Rust
         run: rustup update stable && rustup default stable
       - name: Install cargo-binstall
@@ -206,7 +231,7 @@ jobs:
   udeps:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Update Rust
         run: rustup update nightly && rustup default nightly
       - name: Install cargo-udeps

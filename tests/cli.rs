@@ -281,11 +281,16 @@ fn normalize_path(path: &Path) -> PathBuf {
 /// Returns true if the file is a binary file that should only be checked for
 /// existence.
 fn is_binary_file(path: &Path) -> bool {
-    // pagefind.js is platform-dependent
+    // Pagefind JS files are platform-dependent
+    const PAGEFIND_JS: &[&str] = &["pagefind.js", "pagefind-ui.js"];
+
     path.extension()
         .and_then(|ext| ext.to_str())
         .is_some_and(|ext| BINARY_EXTENSIONS.contains(&ext))
-        || path.file_name() == Some(OsStr::new("pagefind.js"))
+        || PAGEFIND_JS.iter().any(|name| {
+            path.file_name()
+                .is_some_and(|file_name| file_name == OsStr::new(name))
+        })
 }
 
 /// Returns true if the path is a symlink.
@@ -503,21 +508,6 @@ __UNEXPECTED_FILES_FOUND__
     Ok(())
 }
 
-/// Returns true if the working directory contains files that were not in the
-/// inputs directory, indicating that the test produced output files.
-fn has_output_files(test_path: &Path, working_test_directory: &Path) -> Result<bool> {
-    let inputs_dir = test_path.join("inputs");
-    let input_files = build_relative_path_list(&inputs_dir)?;
-    let working_files = build_relative_path_list(working_test_directory)?;
-
-    let input_normalized: std::collections::HashSet<_> =
-        input_files.iter().map(|(n, _)| n).collect();
-
-    Ok(working_files
-        .iter()
-        .any(|(n, _)| !input_normalized.contains(n)))
-}
-
 /// Compares the result of the command output with the expected baseline.
 fn compare_test_results(
     test_path: &Path,
@@ -542,9 +532,8 @@ fn compare_test_results(
         )
         .context("failed to write exit code")?;
 
-        // Create outputs directory if the test produced output files
-        let produced_outputs = has_output_files(test_path, working_test_directory)?;
-        if expects_outputs || produced_outputs {
+        // Only re-bless outputs if the test already had an outputs directory
+        if expects_outputs {
             recursive_copy(working_test_directory, &expected_output_dir).context(
                 "failed to copy output files from test results to setup new expected outputs",
             )?;

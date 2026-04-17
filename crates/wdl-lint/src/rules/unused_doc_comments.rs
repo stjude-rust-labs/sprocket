@@ -196,6 +196,45 @@ impl Rule for UnusedDocCommentsRule {
         - Enum Choices"
     }
 
+    fn examples(&self) -> &'static [&'static str] {
+        &[
+            r#"```wdl
+version 1.2
+
+workflow example {
+    # This isn't documenting anything!
+    ## The inputs for the workflow
+    input {
+        String name
+    }
+
+    # Neither is this!
+    ## The outputs for the workflow
+    output {
+        String greeting = "Hello, ~{name}!"
+    }
+}
+```"#,
+            r#"Consider removing the comments or moving them to applicable items:
+
+```wdl
+version 1.2
+
+workflow example {
+    input {
+        ## The name to greet
+        String name
+    }
+
+    output {
+        ## The generated greeting
+        String greeting = "Hello, ~{name}!"
+    }
+}
+```"#,
+        ]
+    }
+
     fn tags(&self) -> crate::TagSet {
         TagSet::new(&[Tag::Documentation])
     }
@@ -204,7 +243,7 @@ impl Rule for UnusedDocCommentsRule {
         Some(&[SyntaxKind::VersionStatementNode])
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &[]
     }
 }

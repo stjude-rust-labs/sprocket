@@ -115,6 +115,26 @@ impl fmt::Display for HostPath {
     }
 }
 
+/// Writes a string as the body of a double-quoted WDL literal.
+fn write_escaped_wdl_string(f: &mut fmt::Formatter<'_>, s: &str) -> fmt::Result {
+    let mut chars = s.char_indices().peekable();
+    while let Some((_, c)) = chars.next() {
+        let next_is_brace = chars.peek().map(|(_, n)| *n == '{').unwrap_or(false);
+        match c {
+            '\\' => f.write_str(r"\\")?,
+            '\n' => f.write_str(r"\n")?,
+            '\r' => f.write_str(r"\r")?,
+            '\t' => f.write_str(r"\t")?,
+            '"' => f.write_str("\\\"")?,
+            '$' if next_is_brace => f.write_str(r"\$")?,
+            '~' if next_is_brace => f.write_str(r"\~")?,
+            c if c.is_control() => write!(f, "\\x{code:02X}", code = c as u32)?,
+            c => write!(f, "{c}")?,
+        }
+    }
+    Ok(())
+}
+
 impl From<Arc<String>> for HostPath {
     fn from(path: Arc<String>) -> Self {
         Self(path)
@@ -877,7 +897,7 @@ impl Coercible for Value {
                 if target.is_optional() {
                     Ok(Self::new_none(target.clone()))
                 } else {
-                    bail!("cannot coerce `None` to non-optional type `{target}`");
+                    bail!("cannot coerce `None` to non-optional {target:#}");
                 }
             }
             Self::Primitive(PrimitiveValue::String(s)) if target.as_enum().is_some() => {
@@ -919,8 +939,8 @@ impl Coercible for Value {
                 .unwrap_or_default();
 
                 bail!(
-                    "cannot coerce type `String` to type `{target}`: choice `{s}` not found in \
-                     enum `{}`{choices}",
+                    "cannot coerce type `String` to {target:#}: choice `{s}` not found in enum \
+                     `{}`{choices}",
                     enum_ty.name()
                 );
             }
@@ -1141,8 +1161,8 @@ impl<'de> serde::Deserialize<'de> for Value {
                     let Some(new_common_ty) = old_candidate_ty.common_type(&new_candidate_ty)
                     else {
                         return Err(A::Error::custom(format!(
-                            "a common element type does not exist between `{old_candidate_ty}` \
-                             and `{new_candidate_ty}`"
+                            "a common element type does not exist between {old_candidate_ty:#} \
+                             and {new_candidate_ty:#}"
                         )));
                     };
                     candidate_ty = Some(new_common_ty);
@@ -1151,7 +1171,7 @@ impl<'de> serde::Deserialize<'de> for Value {
                 let array_ty = ArrayType::new(candidate_ty.unwrap_or(Type::Union));
                 Ok(Array::new(array_ty.clone(), elements)
                     .map_err(|e| {
-                        A::Error::custom(format!("cannot coerce value to `{array_ty}`: {e:#}"))
+                        A::Error::custom(format!("cannot coerce value to {array_ty:#}: {e:#}"))
                     })?
                     .into())
             }
@@ -1448,8 +1468,9 @@ impl fmt::Display for PrimitiveValue {
             Self::Integer(v) => write!(f, "{v}"),
             Self::Float(v) => write!(f, "{v:.6?}"),
             Self::String(s) | Self::File(HostPath(s)) | Self::Directory(HostPath(s)) => {
-                // TODO: handle necessary escape sequences
-                write!(f, "\"{s}\"")
+                f.write_str("\"")?;
+                write_escaped_wdl_string(f, s.as_str())?;
+                f.write_str("\"")
             }
         }
     }
@@ -1529,7 +1550,7 @@ impl Coercible for PrimitiveValue {
                         PrimitiveType::Boolean => Some(Self::Boolean(*v)),
                         _ => None,
                     })
-                    .with_context(|| format!("cannot coerce type `Boolean` to type `{target}`"))
+                    .with_context(|| format!("cannot coerce type `Boolean` to {target:#}"))
             }
             Self::Integer(v) => {
                 target
@@ -1541,7 +1562,7 @@ impl Coercible for PrimitiveValue {
                         PrimitiveType::Float => Some(Self::Float((*v as f64).into())),
                         _ => None,
                     })
-                    .with_context(|| format!("cannot coerce type `Int` to type `{target}`"))
+                    .with_context(|| format!("cannot coerce type `Int` to {target:#}"))
             }
             Self::Float(v) => {
                 target
@@ -1551,7 +1572,7 @@ impl Coercible for PrimitiveValue {
                         PrimitiveType::Float => Some(Self::Float(*v)),
                         _ => None,
                     })
-                    .with_context(|| format!("cannot coerce type `Float` to type `{target}`"))
+                    .with_context(|| format!("cannot coerce type `Float` to {target:#}"))
             }
             Self::String(s) => {
                 target
@@ -1573,7 +1594,7 @@ impl Coercible for PrimitiveValue {
                         )),
                         _ => None,
                     })
-                    .with_context(|| format!("cannot coerce type `String` to type `{target}`"))
+                    .with_context(|| format!("cannot coerce type `String` to {target:#}"))
             }
             Self::File(p) => {
                 target
@@ -1589,7 +1610,7 @@ impl Coercible for PrimitiveValue {
                         )),
                         _ => None,
                     })
-                    .with_context(|| format!("cannot coerce type `File` to type `{target}`"))
+                    .with_context(|| format!("cannot coerce type `File` to {target:#}"))
             }
             Self::Directory(p) => {
                 target
@@ -1605,7 +1626,7 @@ impl Coercible for PrimitiveValue {
                         )),
                         _ => None,
                     })
-                    .with_context(|| format!("cannot coerce type `Directory` to type `{target}`"))
+                    .with_context(|| format!("cannot coerce type `Directory` to {target:#}"))
             }
         }
     }
@@ -2709,7 +2730,7 @@ impl Coercible for CompoundValue {
                     // Don't allow coercion when the source is empty but the target has the
                     // non-empty qualifier
                     if v.is_empty() && target_ty.is_non_empty() {
-                        bail!("cannot coerce empty array value to non-empty array type `{target}`",);
+                        bail!("cannot coerce empty array value to non-empty array {target:#}");
                     }
 
                     return Ok(Self::Array(Array::new_with_context(
@@ -2742,8 +2763,8 @@ impl Coercible for CompoundValue {
 
                     if len != expected_len {
                         bail!(
-                            "cannot coerce a map of {len} element{s1} to struct type `{target}` \
-                             as the struct has {expected_len} member{s2}",
+                            "cannot coerce a map of {len} element{s1} to {target:#} as the struct \
+                             has {expected_len} member{s2}",
                             s1 = if len == 1 { "" } else { "s" },
                             s2 = if expected_len == 1 { "" } else { "s" }
                         );
@@ -2758,9 +2779,8 @@ impl Coercible for CompoundValue {
                                     .coerce(context, &PrimitiveType::String.into())
                                     .with_context(|| {
                                         format!(
-                                            "cannot coerce a map of type `{map_type}` to struct \
-                                             type `{target}` as the key type cannot coerce to \
-                                             `String`",
+                                            "cannot coerce a map of {map_type:#} to {target:#} as \
+                                             the key type cannot coerce to type `String`",
                                             map_type = v.ty()
                                         )
                                     })?
@@ -2768,9 +2788,8 @@ impl Coercible for CompoundValue {
                                 let ty =
                                     target_ty.members().get(k.as_ref()).with_context(|| {
                                         format!(
-                                            "cannot coerce a map with key `{k}` to struct type \
-                                             `{target}` as the struct does not contain a member \
-                                             with that name"
+                                            "cannot coerce a map with key `{k}` to {target:#} as \
+                                             the struct does not contain a member with that name"
                                         )
                                     })?;
                                 let v = v.coerce(context, ty).with_context(|| {
@@ -2786,8 +2805,8 @@ impl Coercible for CompoundValue {
                     let key_ty = map_ty.key_type();
                     if !Type::from(PrimitiveType::String).is_coercible_to(key_ty) {
                         bail!(
-                            "cannot coerce a struct to type `{target}` as key type `{key_ty}` \
-                             cannot be coerced from `String`"
+                            "cannot coerce a struct to {target:#} as key {key_ty:#} cannot be \
+                             coerced from type `String`"
                         );
                     }
 
@@ -2815,8 +2834,8 @@ impl Coercible for CompoundValue {
                     let key_ty = map_ty.key_type();
                     if !Type::from(PrimitiveType::String).is_coercible_to(key_ty) {
                         bail!(
-                            "cannot coerce an object to type `{target}` as key type `{key_ty}` \
-                             cannot be coerced from `String`"
+                            "cannot coerce an object to {target:#} as key {key_ty:#} cannot be \
+                             coerced from type `String`"
                         );
                     }
 
@@ -2855,7 +2874,7 @@ impl Coercible for CompoundValue {
                     if len != expected_len {
                         bail!(
                             "cannot coerce a struct of {len} members{s1} to struct type \
-                             `{target}` as the target struct has {expected_len} member{s2}",
+                             `{target:#}` as the target struct has {expected_len} member{s2}",
                             s1 = if len == 1 { "" } else { "s" },
                             s2 = if expected_len == 1 { "" } else { "s" }
                         );
@@ -2870,7 +2889,7 @@ impl Coercible for CompoundValue {
                                 let ty = struct_ty.members().get(k).ok_or_else(|| {
                                     anyhow!(
                                         "cannot coerce a struct with member `{k}` to struct type \
-                                         `{target}` as the target struct does not contain a \
+                                         `{target:#}` as the target struct does not contain a \
                                          member with that name",
                                     )
                                 })?;
@@ -2897,8 +2916,8 @@ impl Coercible for CompoundValue {
                                     .coerce(context, &PrimitiveType::String.into())
                                     .with_context(|| {
                                         format!(
-                                            "cannot coerce a map of type `{map_type}` to `Object` \
-                                             as the key type cannot coerce to `String`",
+                                            "cannot coerce a map of {map_type:#} to type `Object` \
+                                             as the key type cannot coerce to type `String`",
                                             map_type = v.ty()
                                         )
                                     })?
@@ -2919,7 +2938,7 @@ impl Coercible for CompoundValue {
         }
 
         bail!(
-            "cannot coerce a value of type `{ty}` to type `{target}`",
+            "cannot coerce a value of {ty:#} to {target:#}",
             ty = self.ty()
         );
     }
@@ -3066,7 +3085,8 @@ impl Coercible for HiddenValue {
 /// Contains all evaluated requirement fields.
 #[derive(Debug, Clone)]
 pub(crate) struct TaskPostEvaluationData {
-    /// The container of the task.
+    /// The container image that was actually used for execution, if the task
+    /// runs in a container.
     container: Option<Arc<String>>,
     /// The allocated number of cpus for the task.
     cpu: f64,
@@ -3352,10 +3372,11 @@ impl TaskPostEvaluationValue {
             name: Arc::new(name.into()),
             id: Arc::new(id.into()),
             data: Arc::new(TaskPostEvaluationData {
-                container: constraints
-                    .container
-                    .as_ref()
-                    .map(|c| Arc::new(c.to_string())),
+                // NOTE: initialized as `None` because the actual container
+                // used is not known until after execution completes. It is
+                // set via `set_container()` once the backend resolves which
+                // candidate image was pulled.
+                container: None,
                 cpu: constraints.cpu,
                 memory: constraints
                     .memory
@@ -3483,6 +3504,12 @@ impl TaskPostEvaluationValue {
     /// Gets the task's extension metadata.
     pub fn ext(&self) -> &Object {
         &self.0.ext
+    }
+
+    /// Sets the container image after task execution has completed.
+    pub(crate) fn set_container(&mut self, container: String) {
+        let inner = Arc::get_mut(&mut self.0).expect("task value must be uniquely owned to mutate");
+        Arc::make_mut(&mut inner.data).container = Some(Arc::new(container));
     }
 
     /// Sets the return code after the task execution has completed.
@@ -4190,6 +4217,17 @@ mod test {
     }
 
     #[test]
+    fn string_display_escapes_special_characters() {
+        let value = PrimitiveValue::new_string(
+            "\u{1b}[31m${name} ~{color} \"quoted\" \\\\ tab\tline\ncarriage\r$HOME ~user",
+        );
+        assert_eq!(
+            value.to_string(),
+            r#""\x1B[31m\${name} \~{color} \"quoted\" \\\\ tab\tline\ncarriage\r$HOME ~user""#
+        );
+    }
+
+    #[test]
     fn file_coercion() {
         let value = PrimitiveValue::new_file("foo");
 
@@ -4536,7 +4574,8 @@ mod test {
         .into();
         assert_eq!(
             format!("{e:#}", e = string_to_file.coerce(None, &ty).unwrap_err()),
-            "cannot coerce a map of 2 elements to struct type `Foo` as the struct has 3 members"
+            "cannot coerce a map of 2 elements to an instance of struct `Foo` as the struct has 3 \
+             members"
         );
 
         // Map[String, File] -> Object

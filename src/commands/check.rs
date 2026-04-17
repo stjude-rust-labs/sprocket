@@ -13,6 +13,10 @@ use strum::VariantArray;
 use tracing::info;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
+use wdl::diagnostics::DiagnosticCounts;
+use wdl::diagnostics::Mode;
+use wdl::diagnostics::emit_diagnostics;
+use wdl::diagnostics::get_diagnostics_display_config;
 use wdl::lint::ALL_TAG_NAMES;
 use wdl::lint::Tag;
 use wdl::lint::TagSet;
@@ -24,10 +28,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::diagnostics::DiagnosticCounts;
-use crate::diagnostics::Mode;
-use crate::diagnostics::emit_diagnostics;
-use crate::diagnostics::get_diagnostics_display_config;
 
 /// The [`Tag`]s which will run with the default `lint` configuration.
 const DEFAULT_TAG_SET: TagSet = TagSet::new(&[
@@ -121,8 +121,12 @@ pub struct Common {
     pub show_remote_diagnostics: bool,
 
     /// Hide diagnostics with `note` severity.
-    #[arg(long)]
+    #[arg(long, conflicts_with_all = ["deny_notes"])]
     pub hide_notes: bool,
+
+    /// Hide diagnostics with `warning` or `note` severity.
+    #[arg(long, conflicts_with_all = ["deny_warnings"])]
+    pub hide_warnings: bool,
 
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
@@ -158,7 +162,8 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
 
     let deny_notes = args.common.deny_notes || config.check.deny_notes;
     let deny_warnings = args.common.deny_warnings || config.check.deny_warnings || deny_notes;
-    let hide_notes = args.common.hide_notes || config.check.hide_notes;
+    let hide_warnings = args.common.hide_warnings || config.check.hide_warnings;
+    let hide_notes = args.common.hide_notes || config.check.hide_notes || hide_warnings;
     let report_mode = args.common.report_mode.unwrap_or(config.common.report_mode);
 
     let lint = args.lint
@@ -251,7 +256,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         .extend_exceptions(except)
         .enabled_lint_tags(enabled_tags)
         .disabled_lint_tags(disabled_tags)
-        .fallback_version(config.common.wdl.fallback_version)
+        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
         .run()
         .await
         .map_err(CommandError::from)?;
@@ -293,8 +298,12 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
                                 return false;
                             }
 
-                            counts.warnings += 1;
-                            true
+                            if !hide_warnings {
+                                counts.warnings += 1;
+                                true
+                            } else {
+                                false
+                            }
                         }
                         Severity::Note => {
                             if args.common.suppress_imports && !provided_source_uris.contains(uri) {
@@ -310,7 +319,6 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
                         }
                     }
                 }),
-                &[],
                 report_mode,
                 colorize,
             )
