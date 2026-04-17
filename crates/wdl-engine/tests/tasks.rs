@@ -159,7 +159,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             .await
             .context("failed to create WDL engine")?;
 
-        let evaluator = engine.create_v1_evaluator(Events::disabled(), Default::default());
+        let evaluator = engine.create_v1_evaluator(Events::disabled(), Default::default(), None);
         match evaluator
             .evaluate_task(result.document(), task, inputs, dir.path())
             .await

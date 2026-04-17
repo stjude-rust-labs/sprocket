@@ -50,6 +50,7 @@ use crate::backend::manager::ManagedTask;
 use crate::backend::manager::TaskManager;
 use crate::config::Config;
 use crate::config::TaskResourceLimitBehavior;
+use crate::images::ContainerImageOverrides;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::hints;
 use crate::v1::requirements;
@@ -439,7 +440,10 @@ fn collect_applicable_sources(sources: &[ImageSource]) -> anyhow::Result<Vec<Str
     let mut results = PullResults::default();
     for source in sources {
         match source {
-            ImageSource::Docker(s) => results.push(source.clone(), Ok(s.clone())),
+            ImageSource::Docker(s) => {
+                let s = s.strip_prefix(requirements::DOCKER_PROTOCOL).unwrap_or(s);
+                results.push(source.clone(), Ok(s.to_string()));
+            }
             ImageSource::Library(_) | ImageSource::Oras(_) => {
                 let err = anyhow!(
                     "Docker backend does not support `{source:#}`; use a Docker registry image \
@@ -564,9 +568,15 @@ impl TaskExecutionBackend for DockerBackend {
         &self,
         inputs: &TaskInputs,
         requirements: &Object,
+        image_overrides: &ContainerImageOverrides,
         hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
-        let sources = requirements::container(inputs, requirements, &self.config.task.container);
+        let sources = requirements::container(
+            inputs,
+            requirements,
+            image_overrides,
+            &self.config.task.container,
+        )?;
 
         let mut cpu = requirements::cpu(inputs, requirements);
         if self.max_cpu < cpu {

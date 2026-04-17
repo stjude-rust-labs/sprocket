@@ -167,7 +167,7 @@ pub enum Commands {
 pub enum DevCommands {
     /// Document a workspace.
     Doc(doc::Args),
-    /// Locks Docker images to a sha256 digest.
+    /// Generates a container image lock file.
     Lock(lock::Args),
     /// Create and manage WDL modules.
     #[command(subcommand)]

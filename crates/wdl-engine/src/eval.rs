@@ -36,6 +36,7 @@ use crate::backend::TaskExecutionResult;
 use crate::config::FailureMode;
 use crate::http::Location;
 
+pub mod images;
 mod trie;
 pub mod v1;
 

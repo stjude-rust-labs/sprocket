@@ -64,6 +64,7 @@ async fn create_test_server(
         Mode::default(),
         true,
         db.clone(),
+        None,
     )
     .await
     .expect("failed to create run manager service");
@@ -2090,6 +2091,7 @@ async fn events_are_received_during_execution(pool: sqlx::SqlitePool) {
         Mode::default(),
         true,
         db.clone(),
+        None,
     )
     .await
     .expect("failed to create run manager service");

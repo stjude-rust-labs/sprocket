@@ -1,0 +1,8 @@
+note: no container specified
+  ┌─ source.wdl:3:6
+  │
+3 │ task no_container {
+  │      ^^^^^^^^^^^^
+  │
+  = help: tasks should specify a container image, otherwise the engine's default will be used
+  = fix: consider adding a `requirements` section
