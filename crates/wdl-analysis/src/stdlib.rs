@@ -4910,7 +4910,7 @@ task values_map {
                 MonomorphicFunction::new(
                     FunctionSignature::builder()
                         .min_version(SupportedVersion::V1(V1::One))
-                        .type_parameter("K", NonOptionalPrimitiveTypeConstraint)
+                        .type_parameter("K", MapKeyConstraint)
                         .any_type_parameter("V")
                         .parameter(
                             "pairs",

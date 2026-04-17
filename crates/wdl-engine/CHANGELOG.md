@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Renamed enum terminology from `variant` to `choice` across `wdl-ast`,
+  `wdl-analysis`, and `wdl-engine`, including public APIs such as `EnumChoice`,
+  `choices()`, and related field names.
+
 ## 0.13.0 - 2026-03-12
 
 #### Changed
@@ -15,8 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without waiting; instead a monitor now periodically checks job status with
   `sacct` ([#654](https://github.com/stjude-rust-labs/sprocket/pull/654)).
 * Removed support for constructing `Map` values with optional key types ([#645](https://github.com/stjude-rust-labs/sprocket/pull/645)).
-* Renamed enum evaluator cache terminology from `variant` to `choice` for
-  consistency with WDL 1.3 enum naming.
 
 #### Fixed
 

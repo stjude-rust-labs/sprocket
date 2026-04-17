@@ -1,5 +1,5 @@
 error: unknown choice named `InvalidVariant` for enum `Status`
-   ┌─ tests/workflows/enum-unknown-variant/source.wdl:10:23
+   ┌─ tests/workflows/enum-unknown-choice/source.wdl:10:23
    │
 10 │     Status s = Status.InvalidVariant
    │                       ^^^^^^^^^^^^^^ the choice is referenced here

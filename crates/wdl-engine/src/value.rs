@@ -880,7 +880,6 @@ impl Coercible for Value {
                     bail!("cannot coerce `None` to non-optional type `{target}`");
                 }
             }
-            // String -> Enum Choice
             Self::Primitive(PrimitiveValue::String(s)) if target.as_enum().is_some() => {
                 // SAFETY: we just checked above that this is an enum type.
                 let enum_ty = target.as_enum().unwrap();
@@ -925,7 +924,6 @@ impl Coercible for Value {
                     enum_ty.name()
                 );
             }
-            // Enum Choice -> String
             Self::Compound(CompoundValue::EnumChoice(e))
                 if target
                     .as_primitive()
