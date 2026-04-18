@@ -25,11 +25,13 @@ use crankshaft::engine::task::output::Type as OutputType;
 use futures::FutureExt;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
+use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::info;
 use tracing::warn;
 use url::Url;
 
+use super::PullResults;
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
@@ -79,6 +81,8 @@ struct DockerTask<'a> {
     config: Arc<Config>,
     /// The task execution request.
     request: ExecuteTaskRequest<'a>,
+    /// The resolved container image to use.
+    container: ContainerSource,
     /// The underlying Crankshaft backend.
     backend: Arc<docker::Backend>,
     /// The name of the task.
@@ -222,14 +226,7 @@ impl<'a> DockerTask<'a> {
             .name(&self.name)
             .executions(NonEmpty::new(
                 Execution::builder()
-                    .image(
-                        self.request
-                            .constraints
-                            .container
-                            .as_ref()
-                            .expect("must have container")
-                            .to_string(),
-                    )
+                    .image(self.container.to_string())
                     .program(&self.config.task.shell)
                     .args([GUEST_COMMAND_PATH.to_string()])
                     .work_dir(GUEST_WORK_DIR)
@@ -262,6 +259,7 @@ impl<'a> DockerTask<'a> {
         let status = statuses.first();
 
         Ok(Some(TaskExecutionResult {
+            container: Some(self.container),
             exit_code: status.code().expect("should have exit code"),
             work_dir: EvaluationPath::from_local_path(work_dir),
             stdout: PrimitiveValue::new_file(
@@ -373,6 +371,74 @@ impl CleanupTask {
     }
 }
 
+/// Attempts to pull the first available Docker image from a list of
+/// candidates.
+///
+/// Iterates through the candidates in order, using the bollard API (via
+/// crankshaft) to ensure each image exists locally. Returns a
+/// [`PullResults`] containing the outcome of each attempt, stopping after the
+/// first success.
+async fn pull_first_available_docker_image(
+    docker: &crankshaft::docker::Docker,
+    candidates: &[ContainerSource],
+    token: CancellationToken,
+) -> Option<PullResults<ContainerSource>> {
+    let mut results = PullResults::default();
+
+    for candidate in candidates {
+        match candidate {
+            ContainerSource::Docker(_) => {}
+            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
+                let err = anyhow::anyhow!(
+                    "Docker backend does not support `{candidate:#}`; use a Docker registry image \
+                     instead"
+                );
+                warn!("{err:#}");
+                results.push(candidate.clone(), Err(err));
+                continue;
+            }
+            ContainerSource::SifFile(_) => {
+                let err = anyhow::anyhow!(
+                    "Docker backend does not support local SIF file `{candidate:#}`; use a Docker \
+                     registry image instead"
+                );
+                warn!("{err:#}");
+                results.push(candidate.clone(), Err(err));
+                continue;
+            }
+            ContainerSource::Unknown(_) => {
+                let err = anyhow::anyhow!(
+                    "Docker backend does not support unknown container source `{candidate:#}`"
+                );
+                warn!("{err:#}");
+                results.push(candidate.clone(), Err(err));
+                continue;
+            }
+        }
+
+        debug!("attempting to pull container image `{candidate:#}`");
+        match docker
+            .ensure_image(&candidate.to_string(), token.clone())
+            .await
+        {
+            Ok(Some(())) => {
+                debug!("successfully pulled container image `{candidate:#}`");
+                results.push(candidate.clone(), Ok(candidate.clone()));
+                return Some(results);
+            }
+            Ok(None) => return None,
+            Err(e) => {
+                let err =
+                    anyhow::anyhow!(e).context(format!("failed to pull image `{candidate:#}`"));
+                warn!("failed to pull container image `{candidate:#}`: {err:#}");
+                results.push(candidate.clone(), Err(err));
+            }
+        }
+    }
+
+    Some(results)
+}
+
 /// Represents the Docker backend.
 pub struct DockerBackend {
     /// The engine configuration.
@@ -464,25 +530,7 @@ impl TaskExecutionBackend for DockerBackend {
         requirements: &HashMap<String, Value>,
         hints: &HashMap<String, Value>,
     ) -> Result<TaskExecutionConstraints> {
-        let container = requirements::container(inputs, requirements, &self.config.task.container);
-        match &container {
-            ContainerSource::Docker(_) => {}
-            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
-                bail!(
-                    "Docker backend does not support `{container:#}`; use a Docker registry image \
-                     instead"
-                )
-            }
-            ContainerSource::SifFile(_) => {
-                bail!(
-                    "Docker backend does not support local SIF file `{container:#}`; use a Docker \
-                     registry image instead"
-                )
-            }
-            ContainerSource::Unknown(_) => {
-                bail!("Docker backend does not support unknown container source `{container:#}`")
-            }
-        };
+        let containers = requirements::container(inputs, requirements, &self.config.task.container);
 
         let mut cpu = requirements::cpu(inputs, requirements);
         if self.max_cpu < cpu {
@@ -557,7 +605,7 @@ impl TaskExecutionBackend for DockerBackend {
             .collect();
 
         Ok(TaskExecutionConstraints {
-            container: Some(container),
+            container: Some(containers),
             cpu,
             memory,
             gpu,
@@ -583,6 +631,26 @@ impl TaskExecutionBackend for DockerBackend {
                 .map(|i| (i as u64).min(self.max_memory));
             let gpu = requirements::gpu(request.inputs, request.requirements, request.hints);
 
+            let results = match pull_first_available_docker_image(
+                self.inner.client(),
+                request
+                    .constraints
+                    .container
+                    .as_ref()
+                    .context("task does not use a container")?,
+                self.cancellation.second(),
+            )
+            .await
+            {
+                Some(results) => results,
+                None => return Ok(None),
+            };
+
+            let (_, container) = results
+                .successful_container()
+                .ok_or_else(|| anyhow::anyhow!("{results}"))?;
+            let container = container.clone();
+
             let name = format!(
                 "{id}-{generated}",
                 id = request.id,
@@ -597,6 +665,7 @@ impl TaskExecutionBackend for DockerBackend {
             let task = DockerTask {
                 config: self.config.clone(),
                 request,
+                container,
                 backend: self.inner.clone(),
                 name,
                 max_cpu,

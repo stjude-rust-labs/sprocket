@@ -7,10 +7,10 @@
 
 use anyhow::Result;
 use anyhow::bail;
-use lsp_types::Hover;
-use lsp_types::HoverContents;
-use lsp_types::MarkupContent;
-use lsp_types::MarkupKind;
+use ls_types::Hover;
+use ls_types::HoverContents;
+use ls_types::MarkupContent;
+use ls_types::MarkupKind;
 use tracing::debug;
 use url::Url;
 use wdl_ast::AstNode;
@@ -240,13 +240,7 @@ fn resolve_hover_by_context(
                     }
                 }
                 // Local call
-                (Some(name), None) => {
-                    if token.span() == name.span() {
-                        (None, name)
-                    } else {
-                        return Ok(None);
-                    }
-                }
+                (Some(name), None) if token.span() == name.span() => (None, name),
                 _ => return Ok(None),
             };
 

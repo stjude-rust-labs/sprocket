@@ -1,1 +1,1 @@
--qq run repro.wdl inputs.json
+-qq run repro.wdl @inputs.json
