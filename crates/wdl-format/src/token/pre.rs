@@ -229,8 +229,16 @@ impl TokenStream<PreToken> {
             self.0.push(trivia.next().unwrap());
         }
 
-        for token in trivia {
+        while let Some(token) = trivia.next() {
             self.0.push(token);
+
+            if let Some(PreToken::Trivia(Trivia::Comment(Comment::Documentation(_)))) =
+                self.0.last()
+                && let Some(PreToken::Trivia(Trivia::BlankLine)) = trivia.peek()
+            {
+                // don't allow documentation to "float" above the item being documented
+                let _ = trivia.next();
+            }
         }
         if docs_index >= 0
             && let Some(PreToken::Trivia(Trivia::BlankLine)) = self.0.last()
