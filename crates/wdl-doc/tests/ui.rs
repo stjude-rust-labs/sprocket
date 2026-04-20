@@ -12,14 +12,10 @@ mod custom_logo;
 
 use std::collections::HashMap;
 use std::ffi::OsStr;
-use std::fs::File;
-use std::io::BufRead;
-use std::io::BufReader;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Command;
-use std::process::Stdio;
+use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::LazyLock;
 use std::time::Duration;
@@ -47,6 +43,8 @@ use thirtyfour::support::block_on;
 use tokio::sync::Mutex;
 use tokio::sync::OnceCell;
 use tokio::task::JoinSet;
+use wdl_analysis::Config as AnalysisConfig;
+use wdl_doc::Config as DocConfig;
 
 /// Extension trait for [`WebDriver`]s.
 pub trait WebDriverExt {
@@ -94,6 +92,11 @@ pub trait UiTest: Send + Sync {
     ///
     /// By default, the `driver` will be navigated to the workspace index page.
     async fn run(&self, driver: &mut WebDriver, docs_path: &Path) -> anyhow::Result<()>;
+    /// Alter the [`DocConfig`] before generating the documentation for this
+    /// test.
+    fn setup_config(&self, config: DocConfig, _workspace_dir: &Path) -> DocConfig {
+        config
+    }
 }
 
 /// Map of test name -> test implementation
@@ -109,41 +112,6 @@ static TEST_CATEGORIES: LazyLock<HashMap<&'static str, TestMap>> = LazyLock::new
     categories
 });
 
-/// Metadata derived from the test file.
-#[derive(Clone, Default)]
-struct TestMetadata {
-    /// Arguments to pass to `wdl-doc` for this file.
-    wdl_doc_args: Vec<String>,
-}
-
-impl TestMetadata {
-    /// Parse the metadata comments at the top of the file.
-    fn load(path: &Path) -> anyhow::Result<Self> {
-        const METADATA_MARKER: &str = "//@";
-
-        let mut metadata = Self::default();
-        for line in BufReader::new(File::open(path)?).lines() {
-            let line = line?;
-            let Some(meta) = line.strip_prefix(METADATA_MARKER) else {
-                break;
-            };
-
-            let Some((field, value)) = meta.split_once(':') else {
-                bail!("Malformed meta line in '{}': {line}", path.display());
-            };
-
-            match field {
-                "args" => {
-                    metadata.wdl_doc_args = value.split(' ').map(ToString::to_string).collect()
-                }
-                _ => bail!("Unexpected meta line in '{}': {line}", path.display()),
-            }
-        }
-
-        Ok(metadata)
-    }
-}
-
 /// A UI test instance.
 #[derive(Clone)]
 struct Test {
@@ -151,8 +119,6 @@ struct Test {
     category: String,
     /// The name of the test.
     name: String,
-    /// The metadata of the test.
-    metadata: TestMetadata,
     /// The actual test implementation.
     test_impl: Arc<dyn UiTest>,
 }
@@ -212,18 +178,9 @@ fn find_tests() -> anyhow::Result<Vec<Test>> {
                 );
             };
 
-            let metadata = match TestMetadata::load(&test_path) {
-                Ok(m) => m,
-                Err(e) => {
-                    tracing::error!("Failed to parse metadata for {}: {e}", test_path.display());
-                    continue;
-                }
-            };
-
             found.push(Test {
                 category: category_name.clone(),
                 name: test_name,
-                metadata,
                 test_impl,
             });
         }
@@ -232,44 +189,27 @@ fn find_tests() -> anyhow::Result<Vec<Test>> {
 }
 
 /// Generates the documentation for all test instances.
-async fn generate_docs(tests: &[Test], tmp_dir: &Path, bin_path: &Path) -> anyhow::Result<()> {
+async fn generate_docs(tests: &[Test], tmp_dir: &Path) -> anyhow::Result<()> {
     let mut set = JoinSet::new();
+
+    let ui_tests_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("ui");
 
     for test in tests {
         let id = test.id();
-        let category = test.category.clone();
-        let args = test.metadata.wdl_doc_args.clone();
-        let tmp = tmp_dir.to_path_buf();
-        let bin = bin_path.to_path_buf();
+        let category_root = ui_tests_root.join(&test.category);
+        let output_dir = tmp_dir.join(&id).join("docs");
+        let assets_dir = category_root.join("assets");
+
+        let config = test.test_impl.setup_config(
+            DocConfig::new(AnalysisConfig::default(), &assets_dir, &output_dir),
+            &assets_dir,
+        );
 
         set.spawn(async move {
-            let category_root = Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("tests")
-                .join("ui")
-                .join(&category);
-
-            let output_dir = tmp.join(&id).join("docs");
-            let assets_dir = category_root.join("assets");
-
             tracing::info!("Generating docs for test '{id}'");
-
-            let mut cmd = Command::new(&bin);
-            cmd.args(&args)
-                .arg("--output")
-                .arg(&output_dir)
-                .arg(&assets_dir)
-                .current_dir(&category_root);
-
-            let status = cmd
-                .stderr(Stdio::inherit())
-                .stdout(Stdio::inherit())
-                .status()
-                .context("failed to generate docs")?;
-
-            if !status.success() {
-                bail!("failed to generate docs");
-            }
-            Ok(())
+            wdl_doc::document_workspace(config).await
         });
     }
 
@@ -375,31 +315,7 @@ async fn global_state(tests: Arc<Vec<Test>>, tmp_dir: PathBuf) -> GlobalState {
     let mutex = GLOBAL_STATE
         .get_or_init(|| async {
             let state = async {
-                let build_status = Command::new("cargo")
-                    .args(["build", "-p", "wdl-doc-bin", "--bin", "wdl-doc"])
-                    .status()?;
-                if !build_status.success() {
-                    bail!("Failed to build the `wdl-doc` binary");
-                }
-
-                let target_dir = std::env::var("CARGO_TARGET_DIR").map_or_else(
-                    |_| {
-                        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                            .parent()
-                            .unwrap()
-                            .parent()
-                            .unwrap()
-                            .join("target")
-                    },
-                    PathBuf::from,
-                );
-                let bin_path = target_dir.join("debug").join(if cfg!(windows) {
-                    "wdl-doc.exe"
-                } else {
-                    "wdl-doc"
-                });
-
-                generate_docs(&tests, &tmp_dir, &bin_path).await?;
+                generate_docs(&tests, &tmp_dir).await?;
 
                 let server_addr = start_web_server(&tmp_dir).await?;
                 let driver = setup_webdriver().await?;
@@ -429,7 +345,7 @@ async fn global_state(tests: Arc<Vec<Test>>, tmp_dir: PathBuf) -> GlobalState {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), anyhow::Error> {
+async fn main() -> ExitCode {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -437,6 +353,7 @@ async fn main() -> Result<(), anyhow::Error> {
         )
         .init();
 
+    let args = libtest_mimic::Arguments::from_args();
     if !should_run_headless() {
         let warning = r#"+------------------------------------+
 |                                    |
@@ -456,23 +373,27 @@ async fn main() -> Result<(), anyhow::Error> {
         }
     }
 
-    let build_status = Command::new("cargo")
-        .args(["build", "-p", "wdl-doc-bin", "--bin", "wdl-doc"])
-        .status()?;
-    if !build_status.success() {
-        bail!("Failed to build wdl-doc binary");
-    }
+    let tmp = match TempDir::with_prefix("wdl-doc-ui") {
+        Ok(tmp) => tmp,
+        Err(e) => {
+            eprintln!("failed to create tempdir: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
 
-    let tmp = TempDir::with_prefix("wdl-doc-ui")?;
-
-    let args = libtest_mimic::Arguments::from_args();
-    let tests = Arc::new(find_tests()?);
+    let tests = match find_tests() {
+        Ok(tests) => Arc::new(tests),
+        Err(e) => {
+            eprintln!("failed to find tests: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
 
     let trials = create_trials(tmp.path().to_path_buf(), tests);
     let conclusion = libtest_mimic::run(&args, trials);
 
     cleanup_global_state().await;
-    conclusion.exit()
+    conclusion.exit_code()
 }
 
 /// Create [`Trial`] instances for all tests.

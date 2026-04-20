@@ -34,7 +34,7 @@ pub struct Args {
     /// Path to the local WDL workspace to document.
     pub workspace: Option<Source>,
     /// Analyze the documents without producing an output.
-    #[arg(long, conflicts_with_all = ["output", "open"])]
+    #[arg(long, conflicts_with_all = ["output", "open", "overwrite"])]
     pub check: bool,
     /// Path to a Markdown file to embed in the `<output>/index.html` file.
     #[arg(long, value_name = "MARKDOWN FILE")]

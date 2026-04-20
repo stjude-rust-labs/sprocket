@@ -6467,20 +6467,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "wdl-doc-bin"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "clap",
- "tokio",
- "tracing-subscriber",
- "wdl-analysis",
- "wdl-ast",
- "wdl-diagnostics",
- "wdl-doc",
-]
-
-[[package]]
 name = "wdl-engine"
 version = "0.13.1"
 dependencies = [
