@@ -19,7 +19,7 @@ clap.workspace = true
 codespan-reporting.workspace = true
 serde.workspace = true
 wdl-ast = { path = "../wdl-ast", version = "0.22.0" }
-wdl-engine = { path = "../wdl-engine", version = "0.13.0", optional = true }
+wdl-engine = { path = "../wdl-engine", version = "0.13.2", optional = true }
 
 [lints]
 workspace = true
