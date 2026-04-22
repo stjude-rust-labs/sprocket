@@ -20,7 +20,7 @@ commit_hash = "9213fa5ff0a47fa29dbad35cb9db11f06aab6a70"
 
 [repositories."broadinstitute/palantir-workflows"]
 identifier = "broadinstitute/palantir-workflows"
-commit_hash = "0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992"
+commit_hash = "5bd9b0382ae0f1172cff3d49f240971edf01531d"
 
 [repositories."broadinstitute/warp"]
 identifier = "broadinstitute/warp"
