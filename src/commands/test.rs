@@ -744,7 +744,7 @@ pub async fn test(
             let source = document.root().text().to_string();
             emit_diagnostics(
                 &path,
-                source,
+                &source,
                 document.diagnostics().filter(|d| {
                     if d.severity().is_error() {
                         counts.errors += 1;

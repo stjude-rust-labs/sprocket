@@ -7,9 +7,12 @@ use std::collections::hash_map::Entry;
 use std::path::Path;
 use std::sync::Arc;
 
+use arrayvec::ArrayString;
 use indexmap::IndexMap;
 use petgraph::graph::NodeIndex;
 use rowan::GreenNode;
+use rowan::TextRange;
+use rowan::TextSize;
 use url::Url;
 use uuid::Uuid;
 use wdl_ast::Ast;
@@ -848,6 +851,31 @@ impl Document {
         }
 
         self.data.uri.as_str().into()
+    }
+
+    /// Computes the `blake3` hash of the document's source text over the
+    /// given span and returns the hex form.
+    ///
+    /// Uses `rowan::SyntaxText::for_each_chunk` so the span's text is never
+    /// materialized as a `String`.
+    ///
+    /// Returns `None` if `span` falls outside the document's source text.
+    pub fn hash_span(&self, span: Span) -> Option<ArrayString<64>> {
+        let text = self.root().inner().text();
+        let text_len = usize::from(text.len());
+        if span.end() > text_len {
+            return None;
+        }
+        let range = TextRange::new(
+            TextSize::new(span.start() as u32),
+            TextSize::new(span.end() as u32),
+        );
+        let slice = text.slice(range);
+        let mut hasher = blake3::Hasher::new();
+        slice.for_each_chunk(|chunk| {
+            hasher.update(chunk.as_bytes());
+        });
+        Some(hasher.finalize().to_hex())
     }
 
     /// Gets the supported version of the document.

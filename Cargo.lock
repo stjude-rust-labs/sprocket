@@ -4348,9 +4348,9 @@ checksum = "f87165f0995f63a9fbeea62b64d10b4d9d8e78ec6d7d51fb2125fda7bb36788f"
 
 [[package]]
 name = "rustls-webpki"
-version = "0.103.12"
+version = "0.103.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8279bb85272c9f10811ae6a6c547ff594d6a7f3c6c6b02ee9726d1d0dcfcdd06"
+checksum = "61c429a8649f110dddef65e2a5ad240f747e85f7758a6bccc7e5777bd33f756e"
 dependencies = [
  "aws-lc-rs",
  "ring",
@@ -6372,6 +6372,8 @@ name = "wdl-analysis"
 version = "0.19.0"
 dependencies = [
  "anyhow",
+ "arrayvec",
+ "blake3",
  "codespan-reporting",
  "convert_case 0.11.0",
  "futures",
@@ -6548,8 +6550,11 @@ name = "wdl-lint"
 version = "0.22.0"
 dependencies = [
  "anyhow",
+ "arrayvec",
+ "blake3",
  "codespan-reporting",
  "convert_case 0.11.0",
+ "fixedbitset",
  "ftree",
  "indexmap 2.13.0",
  "libtest-mimic",
@@ -6561,10 +6566,13 @@ dependencies = [
  "serde_json",
  "strsim",
  "strum",
+ "tempfile",
+ "thiserror 2.0.18",
  "tokio",
  "toml 0.9.12+spec-1.1.0",
  "tracing",
  "tracing-subscriber",
+ "url",
  "wdl-analysis",
  "wdl-ast",
 ]
@@ -6574,6 +6582,7 @@ name = "wdl-lsp"
 version = "0.18.0"
 dependencies = [
  "anyhow",
+ "blake3",
  "fs_extra",
  "line-index",
  "parking_lot",

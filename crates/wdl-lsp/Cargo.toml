@@ -28,6 +28,7 @@ wdl-ast = { path = "../wdl-ast", version = "0.22.1" }
 wdl-lint = { path = "../wdl-lint", version = "0.22.0" }
 
 [dev-dependencies]
+blake3 = { workspace = true }
 fs_extra = { workspace = true }
 pretty_assertions = { workspace = true }
 serde = { workspace = true }

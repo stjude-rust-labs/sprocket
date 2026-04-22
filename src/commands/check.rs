@@ -1,6 +1,8 @@
 //! Implementation of the `check` and `lint` subcommands.
 
 use std::collections::HashSet;
+use std::path::Path;
+use std::path::PathBuf;
 use std::str::FromStr;
 
 use anyhow::Context;
@@ -10,7 +12,9 @@ use clap::builder::PossibleValuesParser;
 use codespan_reporting::diagnostic::Diagnostic;
 use codespan_reporting::files::SimpleFiles;
 use strum::VariantArray;
+use tracing::debug;
 use tracing::info;
+use tracing::warn;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
 use wdl::diagnostics::DiagnosticCounts;
@@ -18,8 +22,11 @@ use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::diagnostics::get_diagnostics_display_config;
 use wdl::lint::ALL_TAG_NAMES;
+use wdl::lint::Baseline;
+use wdl::lint::BaselineEntry;
 use wdl::lint::Tag;
 use wdl::lint::TagSet;
+use wdl::lint::baseline::DEFAULT_BASELINE_FILENAME;
 use wdl::lint::find_nearest_rule;
 
 use super::explain::ALL_RULE_IDS;
@@ -131,6 +138,14 @@ pub struct Common {
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
     pub report_mode: Option<Mode>,
+
+    /// Generate a baseline file from current diagnostics and exit.
+    #[arg(long, conflicts_with = "no_baseline")]
+    pub generate_baseline: bool,
+
+    /// Ignore the baseline file for this run.
+    #[arg(long)]
+    pub no_baseline: bool,
 }
 
 /// Arguments for the `check` subcommand.
@@ -199,7 +214,6 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         }
     }
 
-    // Process args
     let show_remote_diagnostics = {
         let any_remote_sources = sources
             .iter()
@@ -211,6 +225,21 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
 
         any_remote_sources || args.common.show_remote_diagnostics
     };
+
+    let baseline_is_configured = config.check.baseline.is_some();
+    let baseline_path = config
+        .check
+        .baseline
+        .clone()
+        .unwrap_or_else(|| PathBuf::from(DEFAULT_BASELINE_FILENAME));
+
+    let baseline = if args.common.no_baseline || args.common.generate_baseline {
+        None
+    } else {
+        Baseline::load_or_default(&baseline_path, baseline_is_configured)
+            .map_err(anyhow::Error::from)?
+    };
+    let mut matcher = baseline.as_ref().map(|b| b.matcher());
 
     report_unknown_rules(&except, report_mode, colorize)?;
 
@@ -250,7 +279,6 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         TagSet::new(&[])
     };
 
-    // Run analysis
     let results = Analysis::default()
         .extend_sources(sources)
         .extend_exceptions(except)
@@ -260,6 +288,85 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         .run()
         .await
         .map_err(CommandError::from)?;
+
+    if args.common.generate_baseline {
+        let mut baseline_entries: Vec<BaselineEntry> = Vec::new();
+        let baseline_dir = std::fs::canonicalize(
+            baseline_path
+                .parent()
+                .filter(|p| !p.as_os_str().is_empty())
+                .unwrap_or_else(|| Path::new(".")),
+        )
+        .unwrap_or_else(|_| {
+            baseline_path
+                .parent()
+                .unwrap_or_else(|| Path::new("."))
+                .to_path_buf()
+        });
+
+        for result in results.as_slice() {
+            let uri = result.document().uri();
+            let entry_path = match uri.scheme() {
+                "file" => {
+                    let doc_path = match uri.to_file_path() {
+                        Ok(p) => std::fs::canonicalize(&p).unwrap_or(p),
+                        Err(()) => {
+                            warn!("skipping source `{uri}` with unparsable file path");
+                            continue;
+                        }
+                    };
+                    pathdiff::diff_paths(&doc_path, &baseline_dir)
+                        .and_then(|p| p.to_str().map(String::from))
+                        .unwrap_or_else(|| uri.to_string())
+                }
+                "http" | "https" => {
+                    if !show_remote_diagnostics {
+                        continue;
+                    }
+                    uri.to_string()
+                }
+                scheme => {
+                    warn!(
+                        "skipping source `{uri}` with unknown scheme `{scheme}` during baseline \
+                         generation"
+                    );
+                    continue;
+                }
+            };
+
+            for d in result.document().diagnostics() {
+                if matches!(d.severity(), Severity::Warning | Severity::Note)
+                    && args.common.suppress_imports
+                    && !provided_source_uris.contains(uri)
+                {
+                    continue;
+                }
+
+                if d.severity() == Severity::Error {
+                    continue;
+                }
+
+                if let Some(rule) = d.rule()
+                    && let Some(label) = d.labels().next()
+                    && let Some(hash) = result.document().hash_span(label.span())
+                {
+                    baseline_entries.push(BaselineEntry::new(rule, &entry_path, hash));
+                }
+            }
+        }
+
+        let mut new_baseline = Baseline::new(baseline_entries);
+        new_baseline.sort();
+        new_baseline
+            .write(&baseline_path)
+            .context("failed to write baseline file")?;
+        eprintln!(
+            "generated baseline with {} diagnostic(s) at `{}`",
+            new_baseline.entries().len(),
+            baseline_path.display()
+        );
+        return Ok(());
+    }
 
     let mut counts = DiagnosticCounts::default();
 
@@ -273,7 +380,10 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
                     continue;
                 }
             }
-            v => todo!("unhandled uri scheme: {v}"),
+            scheme => {
+                warn!("skipping source `{uri}` with unknown scheme `{scheme}`");
+                continue;
+            }
         };
 
         let mut diagnostics = result.document().diagnostics().peekable();
@@ -284,45 +394,74 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
 
             emit_diagnostics(
                 &path,
-                source,
+                &source,
                 diagnostics.filter(|d| {
-                    let severity = d.severity();
-
-                    match severity {
-                        Severity::Error => {
-                            counts.errors += 1;
-                            true
-                        }
-                        Severity::Warning => {
-                            if args.common.suppress_imports && !provided_source_uris.contains(uri) {
-                                return false;
-                            }
-
-                            if !hide_warnings {
-                                counts.warnings += 1;
-                                true
-                            } else {
-                                false
-                            }
-                        }
-                        Severity::Note => {
-                            if args.common.suppress_imports && !provided_source_uris.contains(uri) {
-                                return false;
-                            }
-
-                            if !hide_notes {
-                                counts.notes += 1;
-                                true
-                            } else {
-                                false
-                            }
-                        }
+                    if matches!(d.severity(), Severity::Warning | Severity::Note)
+                        && args.common.suppress_imports
+                        && !provided_source_uris.contains(uri)
+                    {
+                        return false;
                     }
+
+                    let matched = d.severity() != Severity::Error
+                        && matcher
+                            .as_mut()
+                            .is_some_and(|m| m.is_suppressed(d, result.document()));
+
+                    let hidden = match d.severity() {
+                        Severity::Error => false,
+                        Severity::Warning => hide_warnings,
+                        Severity::Note => hide_notes,
+                    };
+                    if hidden {
+                        return false;
+                    }
+
+                    if matched {
+                        return false;
+                    }
+
+                    match d.severity() {
+                        Severity::Error => counts.errors += 1,
+                        Severity::Warning => counts.warnings += 1,
+                        Severity::Note => counts.notes += 1,
+                    }
+                    true
                 }),
                 report_mode,
                 colorize,
             )
             .context("failed to emit diagnostics")?;
+        }
+    }
+
+    if let Some(matcher) = &matcher {
+        let mut groups = std::collections::BTreeMap::new();
+        let mut stale_count = 0usize;
+        for entry in matcher.stale_entries() {
+            debug!(
+                rule = entry.rule(),
+                path = entry.path(),
+                "stale baseline entry"
+            );
+            *groups.entry((entry.rule(), entry.path())).or_insert(0usize) += 1;
+            stale_count += 1;
+        }
+
+        if !groups.is_empty() {
+            let mut listing = String::new();
+            for ((rule, path), count) in &groups {
+                listing.push_str(&format!(
+                    "\n  - {count} stale `{rule}` diagnostic{plural} from `{path}`",
+                    plural = if *count == 1 { "" } else { "s" },
+                ));
+            }
+            return Err(anyhow!(
+                "the baseline contains {stale_count} stale entr{plural} for diagnostics that no \
+                 longer exist:{listing}\nrerun with `--generate-baseline` to update it",
+                plural = if stale_count == 1 { "y" } else { "ies" },
+            )
+            .into());
         }
     }
 

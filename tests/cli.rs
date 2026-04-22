@@ -265,6 +265,27 @@ fn normalize_string(input: &str) -> String {
         std::sync::LazyLock::new(|| regex::Regex::new(r"[A-Za-z]:(/[^\s])").unwrap());
     let s = DRIVE_PREFIX.replace_all(&s, "$1");
 
+    // Normalize Windows OS error messages to their Unix equivalents.
+    const WINDOWS_TO_UNIX_ERRORS: &[(&str, &str)] = &[
+        (
+            "The system cannot find the file specified. (os error 2)",
+            "No such file or directory (os error 2)",
+        ),
+        (
+            "The system cannot find the path specified. (os error 3)",
+            "No such file or directory (os error 2)",
+        ),
+        (
+            "Access is denied. (os error 5)",
+            "Permission denied (os error 13)",
+        ),
+    ];
+
+    let mut s = s.into_owned();
+    for (windows, unix) in WINDOWS_TO_UNIX_ERRORS {
+        s = s.replace(windows, unix);
+    }
+
     let s = UUID_PATTERN.replace_all(&s, "_UUID_");
     let s = TIMESTAMP_PATTERN.replace_all(&s, "_TIMESTAMP_");
     s.to_string()
