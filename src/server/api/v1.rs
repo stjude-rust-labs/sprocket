@@ -17,6 +17,7 @@ use super::AppState;
 use crate::system::v1::exec::svc::run_manager::RunManagerCmd;
 
 pub mod error;
+mod pagination;
 pub mod runs;
 pub mod sessions;
 pub mod tasks;

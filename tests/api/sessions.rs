@@ -259,7 +259,7 @@ async fn list_sessions_with_pagination(pool: sqlx::SqlitePool) {
         "`next_token` should be `null` when all results fit in one page"
     );
 
-    // List with next_token=1 should return empty
+    // List with an invalid token should return bad request
     let response = app
         .oneshot(
             Request::builder()
@@ -271,14 +271,5 @@ async fn list_sessions_with_pagination(pool: sqlx::SqlitePool) {
         .await
         .unwrap();
 
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
-
-    assert_eq!(
-        json["sessions"].as_array().unwrap().len(),
-        0,
-        "`next_token` beyond available items should return empty"
-    );
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }

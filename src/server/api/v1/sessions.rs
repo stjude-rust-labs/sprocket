@@ -16,9 +16,22 @@ use uuid::Uuid;
 use super::AppState;
 use super::SprocketCommand;
 use super::error::Error;
+use super::pagination::decode_token;
+use super::pagination::encode_token;
 use super::send_command;
+use crate::system::v1::db::SessionCursor;
 use crate::system::v1::exec::svc::RunManagerCmd;
 use crate::system::v1::exec::svc::run_manager::commands;
+
+/// Cursor payload used for session pagination tokens.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct SessionsCursorToken {
+    /// Creation time of the last session on the previous page.
+    created_at: DateTime<Utc>,
+    /// UUID of the last session on the previous page.
+    uuid: Uuid,
+}
 
 /// Query parameters for listing sessions.
 #[derive(Debug, Clone, Serialize, Deserialize, IntoParams, ToSchema)]
@@ -27,7 +40,8 @@ pub struct ListSessionsQueryParams {
     #[serde(default)]
     pub limit: Option<i64>,
     /// Token for pagination. It is expected that clients pass the value from a
-    /// previous response to retrieve the next page.
+    /// previous response to retrieve the next page. Legacy numeric tokens are
+    /// not supported.
     #[serde(default)]
     pub next_token: Option<String>,
 }
@@ -77,7 +91,9 @@ impl From<commands::SessionResponse> for SessionResponse {
 pub struct ListSessionsResponse {
     /// The sessions.
     pub sessions: Vec<Session>,
-    /// Total count before pagination.
+    /// Total count before applying cursor pagination.
+    ///
+    /// This is retained for compatibility with existing clients.
     pub total: i64,
     /// Next token for pagination. Pass this value as `next_token` in the next
     /// request to retrieve the next page of results.
@@ -106,24 +122,46 @@ pub async fn list_sessions(
         _ => Error::BadRequest("invalid query parameters".to_string()),
     })?;
 
-    let offset = match query.next_token.as_deref() {
-        Some(t) => t
-            .parse::<i64>()
-            .map_err(|_| Error::BadRequest(format!("invalid `next_token`: `{}`", t)))?,
-        None => 0,
+    let cursor = match query.next_token.as_deref() {
+        Some(token) => {
+            let parsed: SessionsCursorToken = decode_token(token).map_err(Error::BadRequest)?;
+            Some(SessionCursor {
+                created_at: parsed.created_at,
+                uuid: parsed.uuid,
+            })
+        }
+        None => None,
     };
-    let limit = query.limit.unwrap_or(100);
 
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListSessions {
-        limit: query.limit,
-        offset: Some(offset),
+    let limit = query.limit.unwrap_or(100);
+    let db_limit = if limit > 0 {
+        Some(limit.saturating_add(1))
+    } else {
+        Some(limit)
+    };
+
+    let mut response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListSessions {
+        limit: db_limit,
+        cursor,
         rx,
     })
     .await?;
 
-    let next_offset = offset + limit;
-    let next_token = if next_offset < response.total {
-        Some(next_offset.to_string())
+    let has_more = if limit > 0 && response.sessions.len() > limit as usize {
+        response.sessions.truncate(limit as usize);
+        true
+    } else {
+        false
+    };
+
+    let next_token = if has_more {
+        response.sessions.last().and_then(|session| {
+            encode_token(&SessionsCursorToken {
+                created_at: session.created_at,
+                uuid: session.uuid,
+            })
+            .ok()
+        })
     } else {
         None
     };

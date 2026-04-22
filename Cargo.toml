@@ -29,6 +29,7 @@ approx = "0.5.1"
 arrayvec = { version = "0.7.6", features = ["serde"] }
 async-trait = "0.1.89"
 axum = "0.8.8"
+base64 = "0.22.1"
 bimap = "0.6.3"
 blake3 = { version = "1.8.3", features = ["mmap"] }
 bon = "3.8.2"
@@ -60,7 +61,7 @@ libc = "0.2"
 libtest-mimic = "^0.8.1"
 line-index = "0.1.2"
 logos = "0.16.1"
-lsp-types = "0.94.1"
+ls-types = "0.0.3"
 macropol = "0.1.4"
 maud = "0.27.0"
 nonempty = "0.12.0"
@@ -107,7 +108,7 @@ toml = "0.9.11"
 toml_edit = { version = "0.24.0", features = ["serde"] }
 tower = { version = "0.5.3", features = ["util"] }
 tower-http = { version = "0.6.8", features = ["cors", "trace"] }
-tower-lsp = "0.20.0"
+tower-lsp-server = "0.23.0"
 tracing = "0.1.44"
 tracing-indicatif = "0.3.14"
 tracing-log = "0.2.0"
@@ -161,6 +162,7 @@ readme = "README.md"
 anyhow.workspace = true
 async-trait.workspace = true
 axum.workspace = true
+base64.workspace = true
 bon.workspace = true
 chrono.workspace = true
 clap.workspace = true
