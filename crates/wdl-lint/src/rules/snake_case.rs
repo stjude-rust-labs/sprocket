@@ -8,6 +8,8 @@ use convert_case::Boundary;
 use convert_case::Case;
 use convert_case::Converter;
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -149,29 +151,31 @@ impl Rule for SnakeCaseRule {
          naming convention makes the code easier to read and understand."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
-workflow ProcessData {
-    meta {}
-
-    output {}
+task SayHello {
+    command <<<
+        echo "Hello, World!"
+    >>>
 }
-```"#,
-            r#"Use instead:
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
-```wdl
-version 1.2
-
-workflow process_data {
-    meta {}
-
-    output {}
+task say_hello {
+    command <<<
+        echo "Hello, World!"
+    >>>
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

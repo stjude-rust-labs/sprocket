@@ -21,6 +21,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Input files (JSON/YAML) must now be prefixed with `@`
   (e.g., `@inputs.json`) to disambiguate them from bare array values
   ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
+* The `examples` field of `sprocket explain --format json` has changed from Markdown codeblocks to the following
+  structure ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)):
+
+  ```ts
+  type LabeledSnippet = { label?: String, snippet: String };
+  type Example = { negative: LabeledSnippet, revised?: LabeledSnippet }
+  ```
 
 ### Fixed
 

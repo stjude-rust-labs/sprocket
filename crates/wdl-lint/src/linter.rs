@@ -69,7 +69,7 @@ impl Default for Linter {
         Self {
             rules: rules(&Config::default())
                 .into_iter()
-                .map(|r| (r.id(), r))
+                .map(|r| (r.id(), r as Box<dyn Rule>))
                 .collect(),
             document_exceptions: HashSet::default(),
         }

@@ -1,6 +1,8 @@
 //! A lint rule for unnecessary input keyword when WDL version is >= 1.2.
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -51,40 +53,34 @@ impl Rule for CallInputKeywordRule {
          encourages adoption of the newer syntax when using WDL 1.2 or later."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow example {
-    meta {}
-
     # In versions prior to WDL v1.2, the `input:` keyword
     # was necessary in `call` statements.
     call say_hello { input:
         name = "world",
     }
-
-    output {}
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow example {
-    meta {}
-
     # This is correct for WDL v1.2 and later.
     call say_hello {
         name = "world",
     }
-
-    output {}
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {
