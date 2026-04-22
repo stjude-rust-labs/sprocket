@@ -1,0 +1,5 @@
+error: the argument '--generate-baseline' cannot be used with '--no-baseline'
+
+Usage: sprocket lint --generate-baseline <SOURCE>...
+
+For more information, try '--help'.

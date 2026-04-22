@@ -100,7 +100,7 @@ fn format_document(
         .collect::<Vec<_>>();
     if !diagnostics.is_empty() {
         let path = document.path();
-        emit_diagnostics(&path, source.clone(), diagnostics, mode, colorize)?;
+        emit_diagnostics(&path, &source, diagnostics, mode, colorize)?;
         return Err(anyhow!("cannot format a malformed document"));
     }
 

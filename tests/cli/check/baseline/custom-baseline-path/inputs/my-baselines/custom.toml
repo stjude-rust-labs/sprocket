@@ -1,0 +1,14 @@
+[[diagnostic]]
+rule = "InputName"
+path = "../source.wdl"
+source_hash = "3ae7d805f6789a6402acb70ad4096a85a56bf6804eaf25c0493ac697548d30b5"
+
+[[diagnostic]]
+rule = "MetaSections"
+path = "../source.wdl"
+source_hash = "4878ca0425c739fa427f7eda20fe845f6b2e46ba5fe2a14df5b1e32f50603215"
+
+[[diagnostic]]
+rule = "UnusedInput"
+path = "../source.wdl"
+source_hash = "3ae7d805f6789a6402acb70ad4096a85a56bf6804eaf25c0493ac697548d30b5"

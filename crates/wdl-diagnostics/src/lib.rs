@@ -134,14 +134,16 @@ pub fn get_diagnostics_display_config(
 /// Emits the given diagnostics to the terminal.
 pub fn emit_diagnostics<'a>(
     path: &str,
-    source: String,
+    source: &str,
     diagnostics: impl IntoIterator<Item = &'a Diagnostic>,
     report_mode: Mode,
     colorize: bool,
 ) -> anyhow::Result<()> {
+    use std::borrow::Cow;
+
     let mut files = SimpleFiles::new();
 
-    let file_id = files.add(std::borrow::Cow::Borrowed(path), source);
+    let file_id = files.add(Cow::Borrowed(path), Cow::Borrowed(source));
 
     let (config, mut stream) = get_diagnostics_display_config(report_mode, colorize);
 
@@ -159,12 +161,13 @@ pub fn emit_diagnostics<'a>(
 #[cfg(feature = "backtrace")]
 pub fn emit_diagnostics_with_backtrace<'a>(
     path: &str,
-    source: String,
+    source: &str,
     diagnostics: impl IntoIterator<Item = &'a Diagnostic>,
     backtrace: &[wdl_engine::CallLocation],
     report_mode: Mode,
     colorize: bool,
 ) -> anyhow::Result<()> {
+    use std::borrow::Cow;
     use std::io::Write;
 
     use codespan_reporting::diagnostic::Label;
@@ -177,7 +180,7 @@ pub fn emit_diagnostics_with_backtrace<'a>(
     let mut map = std::collections::HashMap::new();
     let mut files = SimpleFiles::new();
 
-    let file_id = files.add(std::borrow::Cow::Borrowed(path), source);
+    let file_id = files.add(Cow::Borrowed(path), Cow::Borrowed(source));
 
     let (config, mut stream) = get_diagnostics_display_config(report_mode, colorize);
 
@@ -186,7 +189,10 @@ pub fn emit_diagnostics_with_backtrace<'a>(
             backtrace.iter().take(MAX_CALL_LOCATIONS).map(|l| {
                 let id = l.document.id();
                 let file_id = *map.entry(id).or_insert_with(|| {
-                    files.add(l.document.path(), l.document.root().text().to_string())
+                    files.add(
+                        l.document.path(),
+                        Cow::Owned(l.document.root().text().to_string()),
+                    )
                 });
 
                 Label {

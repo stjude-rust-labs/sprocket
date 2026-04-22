@@ -12,6 +12,8 @@ documentation = "https://docs.rs/wdl-analysis"
 
 [dependencies]
 anyhow = { workspace = true }
+arrayvec = { workspace = true }
+blake3 = { workspace = true }
 convert_case = { workspace = true }
 futures = { workspace = true }
 ignore = { workspace = true }

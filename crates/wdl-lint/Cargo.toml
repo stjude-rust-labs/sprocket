@@ -13,25 +13,31 @@ readme = "../README.md"
 
 [dependencies]
 anyhow = { workspace = true }
+arrayvec = { workspace = true }
+blake3 = { workspace = true }
 convert_case = { workspace = true }
+fixedbitset = { workspace = true }
 ftree = { workspace = true }
 indexmap = { workspace = true }
+path-clean = { workspace = true }
 rand = { workspace = true }
 rowan = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 strsim = { workspace = true }
 strum = { workspace = true }
+thiserror = { workspace = true }
 toml = { workspace = true }
 tracing = { workspace = true }
+url = { workspace = true }
 wdl-analysis = { path = "../wdl-analysis", version = "0.19.0" }
 wdl-ast = { path = "../wdl-ast", version = "0.22.1" }
 
 [dev-dependencies]
 codespan-reporting = { workspace = true }
 libtest-mimic = { workspace = true }
-path-clean = { workspace = true }
 pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
 tokio = { workspace = true }
 tracing-subscriber = { workspace = true }
 

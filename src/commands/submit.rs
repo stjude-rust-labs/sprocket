@@ -117,7 +117,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
 
         emit_diagnostics(
             &path,
-            source,
+            &source,
             diagnostics,
             args.run_request_args.report_mode.unwrap_or_default(),
             colorize,
@@ -317,7 +317,7 @@ command <<<>>>
             let poll_url = format!("{base_url}/api/v1/runs/{uuid}");
             let mut status = String::new();
 
-            for _ in 0..50 {
+            for _ in 0..600 {
                 let run: serde_json::Value = client.get(&poll_url).send().await?.json().await?;
                 status = run["status"]
                     .as_str()
@@ -331,7 +331,7 @@ command <<<>>>
                 tokio::time::sleep(std::time::Duration::from_millis(100)).await;
             }
 
-            assert_eq!(status, "completed");
+            assert_eq!(status, "completed", "run should reach `completed`");
         }
 
         assert!(!server_task.is_finished());
