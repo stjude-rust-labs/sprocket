@@ -4865,7 +4865,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket"
-version = "0.23.1"
+version = "0.24.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6424,7 +6424,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-diagnostics"
-version = "0.1.1"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",

@@ -148,7 +148,7 @@ new_without_default = "allow"
 
 [package]
 name = "sprocket"
-version = "0.23.1"
+version = "0.24.0"
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true
