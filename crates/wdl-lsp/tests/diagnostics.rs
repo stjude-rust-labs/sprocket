@@ -2,8 +2,8 @@
 
 mod common;
 
-use tower_lsp::lsp_types::WorkspaceDiagnosticReportResult;
-use tower_lsp::lsp_types::WorkspaceDocumentDiagnosticReport;
+use tower_lsp_server::ls_types::WorkspaceDiagnosticReportResult;
+use tower_lsp_server::ls_types::WorkspaceDocumentDiagnosticReport;
 use wdl_lint::Baseline;
 use wdl_lint::BaselineEntry;
 
@@ -25,7 +25,7 @@ fn diagnostic_codes(report: &WorkspaceDiagnosticReportResult) -> Vec<String> {
             WorkspaceDocumentDiagnosticReport::Unchanged(_) => Vec::new(),
         })
         .filter_map(|d| match d.code {
-            Some(tower_lsp::lsp_types::NumberOrString::String(s)) => Some(s),
+            Some(tower_lsp_server::ls_types::NumberOrString::String(s)) => Some(s),
             _ => None,
         })
         .collect()

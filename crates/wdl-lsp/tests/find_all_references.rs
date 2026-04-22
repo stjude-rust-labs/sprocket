@@ -5,14 +5,14 @@ use core::panic;
 
 use common::TestContext;
 use pretty_assertions::assert_eq;
-use tower_lsp::lsp_types::Location;
-use tower_lsp::lsp_types::Position;
-use tower_lsp::lsp_types::Range;
-use tower_lsp::lsp_types::ReferenceContext;
-use tower_lsp::lsp_types::ReferenceParams;
-use tower_lsp::lsp_types::TextDocumentIdentifier;
-use tower_lsp::lsp_types::TextDocumentPositionParams;
-use tower_lsp::lsp_types::request::References;
+use tower_lsp_server::ls_types::Location;
+use tower_lsp_server::ls_types::Position;
+use tower_lsp_server::ls_types::Range;
+use tower_lsp_server::ls_types::ReferenceContext;
+use tower_lsp_server::ls_types::ReferenceParams;
+use tower_lsp_server::ls_types::TextDocumentIdentifier;
+use tower_lsp_server::ls_types::TextDocumentPositionParams;
+use tower_lsp_server::ls_types::request::References;
 
 async fn find_all_references(
     ctx: &mut TestContext,

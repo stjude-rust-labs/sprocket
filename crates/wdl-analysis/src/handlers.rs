@@ -21,6 +21,8 @@ mod signature_help;
 pub(crate) mod snippets;
 mod workspace_symbol;
 
+pub use common::UriToUrl;
+pub use common::UrlToUri;
 pub use completions::*;
 pub use document_symbol::*;
 pub use find_all_references::*;
