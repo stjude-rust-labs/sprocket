@@ -84,6 +84,7 @@ Available rules:
   - MatchingOutputMeta
   - MetaDescription
   - MetaSections
+  - NoInlineInstall
   - OutputName
   - ParameterDescription
   - ParameterMetaMatched
@@ -110,6 +111,7 @@ Available tags:
   - Deprecated
   - Documentation
   - Naming
+  - Performance
   - Portability
   - Sorting
   - Spacing

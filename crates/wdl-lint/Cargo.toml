@@ -21,6 +21,7 @@ ftree = { workspace = true }
 indexmap = { workspace = true }
 path-clean = { workspace = true }
 rand = { workspace = true }
+regex = { workspace = true }
 rowan = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -151,6 +151,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::DocCommentTabsRule>::default(),
         Box::<rules::UnusedDocCommentsRule>::default(),
         Box::<rules::DenyGlobStar>::default(),
+        Box::<rules::NoInlineInstall>::default(),
     ];
 
     // Ensure all the rule IDs are unique and pascal case and that related rules are
