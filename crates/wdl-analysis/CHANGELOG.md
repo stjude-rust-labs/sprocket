@@ -7,12 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* The type of `task.return_code` is now `Int` instead of `Int?` ([#790](https://github.com/stjude-rust-labs/sprocket/pull/790)).
+
 #### Fixed
 
 * Optional-to-default call input coercion (passing an optional value to
   a non-optional input with a default) is no longer gated behind WDL
   1.2+, matching Cromwell and miniwdl behavior
   ([#814](https://github.com/stjude-rust-labs/sprocket/pull/814)).
+* `task.return_code` can no longer be used outside of `output` sections ([#790](https://github.com/stjude-rust-labs/sprocket/pull/790)).
 
 ## 0.19.0 - 2026-04-02
 

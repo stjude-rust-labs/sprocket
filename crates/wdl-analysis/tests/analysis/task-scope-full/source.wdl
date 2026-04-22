@@ -57,6 +57,7 @@ task test_invalid_member {
     Array[String]? previous_fpga = task.previous.fpga
     Map[String, Int]? previous_disks = task.previous.disks
     Int? previous_max_retries = task.previous.max_retries
+    Int return_code = task.return_code
 
     Int gpu_count = length(select_first([task.previous.gpu, []]))
     Int fpga_count = length(select_first([task.previous.fpga, []]))
