@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* Switched the LSP implementation from `tower-lsp` / `lsp-types` to the
+  maintained forks `tower-lsp-server` / `ls-types`. LSP URIs are now represented
+  as `ls_types::Uri` (backed by `fluent_uri`) rather than `Url`
+  ([#648](https://github.com/stjude-rust-labs/sprocket/pull/648)).
+
+### Fixed
+
+* Fixed the `shutdown` request returning an error instead of `null`
+  ([#586](https://github.com/stjude-rust-labs/sprocket/issues/586)).
+
 ## 0.18.0 - 2026-04-02
 
 ### Added

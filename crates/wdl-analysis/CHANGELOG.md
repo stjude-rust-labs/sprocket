@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added public `UriToUrl` and `UrlToUri` traits under
+  `wdl_analysis::handlers` for converting between `ls_types::Uri` and
+  `url::Url`
+  ([#648](https://github.com/stjude-rust-labs/sprocket/pull/648)).
+
+#### Changed
+
+* Re-exported LSP types under `wdl_analysis` now come from `ls_types` instead
+  of `lsp_types`; public methods such as `Analyzer::inlay_hints` take an
+  `ls_types::Range` rather than an `lsp_types::Range` (breaking)
+  ([#648](https://github.com/stjude-rust-labs/sprocket/pull/648)).
+
 #### Fixed
 
 * Optional-to-default call input coercion (passing an optional value to

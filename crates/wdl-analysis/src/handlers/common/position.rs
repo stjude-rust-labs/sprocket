@@ -7,8 +7,8 @@ use anyhow::Result;
 use anyhow::anyhow;
 use line_index::LineIndex;
 use line_index::WideEncoding;
-use lsp_types::Location;
-use lsp_types::Position;
+use ls_types::Location;
+use ls_types::Position;
 use rowan::TextSize;
 use url::Url;
 use wdl_ast::Span;
@@ -18,6 +18,7 @@ use wdl_ast::SyntaxToken;
 
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
+use crate::handlers::common::UrlToUri;
 
 /// Converts a text size offset to LSP position.
 pub fn position(index: &LineIndex, offset: TextSize) -> Result<Position> {
@@ -39,12 +40,12 @@ pub fn position(index: &LineIndex, offset: TextSize) -> Result<Position> {
 pub fn location_from_span(uri: &Url, span: Span, lines: &Arc<LineIndex>) -> Result<Location> {
     let start_offset = TextSize::from(span.start() as u32);
     let end_offset = TextSize::from(span.end() as u32);
-    let range = lsp_types::Range {
+    let range = ls_types::Range {
         start: position(lines, start_offset)?,
         end: position(lines, end_offset)?,
     };
 
-    Ok(Location::new(uri.clone(), range))
+    Ok(Location::new(uri.try_into_uri()?, range))
 }
 
 /// Converts a source position to a text offset based on the specified encoding.
