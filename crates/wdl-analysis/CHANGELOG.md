@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.19.1 - 2026-04-22
+
 #### Fixed
 
 * Optional-to-default call input coercion (passing an optional value to
