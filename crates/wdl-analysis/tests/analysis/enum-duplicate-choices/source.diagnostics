@@ -1,0 +1,9 @@
+error: conflicting enum choice name `Active`
+  ┌─ tests/analysis/enum-duplicate-choices/source.wdl:7:5
+  │
+5 │     Active,
+  │     ------ the enum choice with the conflicting name is here
+6 │     Pending,
+7 │     Active
+  │     ^^^^^^ this enum choice conflicts with a previously used name
+

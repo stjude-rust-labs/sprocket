@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* Renamed enum terminology from `variant` to `choice` across `wdl-ast`,
+  `wdl-analysis`, and `wdl-engine`, including public APIs such as `EnumChoice`,
+  `choices()`, and related field names.
 * `TaskInputs::join_paths` and `WorkflowInputs::join_paths` now accept
   a per-key slice of origins (`&[EvaluationPath]`) instead of a single
   reference, enabling per-element path resolution for array inputs

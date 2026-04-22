@@ -203,10 +203,10 @@ async fn should_have_references_to_enum() {
 }
 
 #[tokio::test]
-async fn should_have_references_to_enum_variant() {
+async fn should_have_references_to_enum_choice() {
     let mut ctx = setup().await;
 
-    // Position of `Active` in variant definition
+    // Position of `Active` in choice definition
     let response = find_all_references(&mut ctx, "enum.wdl", Position::new(3, 4), true)
         .await
         .unwrap();

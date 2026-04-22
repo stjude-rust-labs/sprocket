@@ -222,13 +222,13 @@ fn enum_to_symbol(
 ) -> Result<DocumentSymbol> {
     let mut children = Vec::new();
 
-    for variant in e.variants() {
+    for choice in e.choices() {
         children.push(DocumentSymbol {
-            name: variant.name().text().to_string(),
+            name: choice.name().text().to_string(),
             detail: None,
             kind: SymbolKind::ENUM_MEMBER,
-            range: common::location_from_span(uri, variant.span(), lines)?.range,
-            selection_range: common::location_from_span(uri, variant.name().span(), lines)?.range,
+            range: common::location_from_span(uri, choice.span(), lines)?.range,
+            selection_range: common::location_from_span(uri, choice.name().span(), lines)?.range,
             children: None,
             tags: None,
             #[allow(deprecated)]
