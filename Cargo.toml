@@ -42,7 +42,7 @@ codespan-reporting = "0.13.1"
 colored = "3.1.1"
 config = { version = "0.15.21", features = ["toml", "preserve_order"] }
 convert_case = "0.11.0"
-crankshaft = { git = "https://github.com/stjude-rust-labs/crankshaft", rev = "17c56c5", features = ["docker"] }
+crankshaft = { version = "0.10.0", features = ["docker"] }
 criterion = "0.8.2"
 dirs = "6.0.0"
 faster-hex = "0.10.0"
@@ -120,7 +120,7 @@ utoipa = { version = "5.4.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 uuid = { version = "1.20.0", features = ["serde", "v4"] }
 walkdir = "2.5.0"
-wdl = { version = "0.22.3", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
+wdl = { version = "0.22.5", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
 which = "8.0.0"
 whoami = "2.1.0"
 zip = { version = "8.1.0", default-features = false, features = [] }
@@ -148,7 +148,7 @@ new_without_default = "allow"
 
 [package]
 name = "sprocket"
-version = "0.23.0"
+version = "0.24.0"
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true

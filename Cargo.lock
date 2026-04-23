@@ -1045,8 +1045,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft"
-version = "0.9.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=17c56c5#17c56c5909c8f403fd518a8d44e12c6ac1ed33a2"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bac450b95dcae324ca65cedff15f8f991d58dde49be0698b264c7d0397b65b3a"
 dependencies = [
  "crankshaft-config",
  "crankshaft-docker",
@@ -1057,7 +1058,8 @@ dependencies = [
 [[package]]
 name = "crankshaft-config"
 version = "0.6.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=17c56c5#17c56c5909c8f403fd518a8d44e12c6ac1ed33a2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1d2e13ae8d83b9876ef53901b468ae7af951740b0f171f5ea38c64811e9db123"
 dependencies = [
  "base64",
  "bon",
@@ -1071,8 +1073,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft-docker"
-version = "0.4.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=17c56c5#17c56c5909c8f403fd518a8d44e12c6ac1ed33a2"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4ab14fcfa01bb9286f405558f5a43b4ea1507523441112500ff13c91aa03483"
 dependencies = [
  "anyhow",
  "bollard",
@@ -1090,8 +1093,9 @@ dependencies = [
 
 [[package]]
 name = "crankshaft-engine"
-version = "0.9.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=17c56c5#17c56c5909c8f403fd518a8d44e12c6ac1ed33a2"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46d0196dc242411b549237c7c639642f1eed1c8a8a45f58fd52501ef5c284610"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1123,7 +1127,8 @@ dependencies = [
 [[package]]
 name = "crankshaft-events"
 version = "0.1.0"
-source = "git+https://github.com/stjude-rust-labs/crankshaft?rev=17c56c5#17c56c5909c8f403fd518a8d44e12c6ac1ed33a2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a91580ed9689970b2ac77dd6bed52277d6c2af688ff79a3641e24acc99236030"
 dependencies = [
  "bytes",
  "nonempty",
@@ -4865,7 +4870,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6351,7 +6356,7 @@ dependencies = [
 
 [[package]]
 name = "wdl"
-version = "0.22.3"
+version = "0.22.5"
 dependencies = [
  "anyhow",
  "clap",
@@ -6369,7 +6374,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-analysis"
-version = "0.19.0"
+version = "0.19.1"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -6424,7 +6429,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-diagnostics"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -6436,7 +6441,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-doc"
-version = "0.14.0"
+version = "0.14.1"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6463,7 +6468,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-engine"
-version = "0.13.1"
+version = "0.13.2"
 dependencies = [
  "anyhow",
  "approx",
@@ -6547,7 +6552,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lint"
-version = "0.22.0"
+version = "0.22.1"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -6579,7 +6584,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lsp"
-version = "0.18.0"
+version = "0.19.0"
 dependencies = [
  "anyhow",
  "blake3",

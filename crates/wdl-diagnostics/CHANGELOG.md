@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.1.1 - 2026-04-22
+
 #### Added
 
 * `wdl-diagnostics` crate for consistent diagnostic emission across crates ([#686](https://github.com/stjude-rust-labs/sprocket/pull/686)).
