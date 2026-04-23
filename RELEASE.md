@@ -48,6 +48,8 @@ After the release is complete, the following tasks should be performed:
 - [ ] Follow the release process in [`stjude-rust-labs/sprocket.bio`](https://github.com/stjude-rust-labs/sprocket.bio/blob/main/RELEASE.md).
 - [ ] Follow the release process in [`stjude-rust-labs/sprocket-action`](https://github.com/stjude-rust-labs/sprocket-action/blob/main/RELEASE.md).
 - [ ] Follow the release process in [`stjude-rust-labs/sprocket-vscode`](https://github.com/stjude-rust-labs/sprocket-vscode/blob/main/RELEASE.md) if applicable.
+- [ ] Follow the release process in [`stjude-rust-labs/sprocket-zed`](https://github.com/stjude-rust-labs/sprocket-zed/blob/main/RELEASE.md) if applicable.
+- [ ] Follow the release process in [`stjude-rust-labs/sprocket.nvim`](https://github.com/stjude-rust-labs/sprocket.nvim/blob/main/RELEASE.md) if applicable.
 - [ ] Release the latest version on the St. Jude HPC module system.
 - [ ] Update the official WDL documentation for the Sprocket entries if anything changed.
 - [ ] Post a message to Slack channels with the updated version.
