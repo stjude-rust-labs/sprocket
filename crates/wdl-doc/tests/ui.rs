@@ -7,12 +7,15 @@
 
 #[path = "ui/base/mod.rs"]
 mod base;
+#[path = "ui/custom_logo/mod.rs"]
+mod custom_logo;
 
 use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::net::SocketAddr;
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::ExitCode;
 use std::sync::Arc;
 use std::sync::LazyLock;
 use std::time::Duration;
@@ -41,8 +44,7 @@ use tokio::sync::Mutex;
 use tokio::sync::OnceCell;
 use tokio::task::JoinSet;
 use wdl_analysis::Config as AnalysisConfig;
-use wdl_doc::Config;
-use wdl_doc::document_workspace;
+use wdl_doc::Config as DocConfig;
 
 /// Extension trait for [`WebDriver`]s.
 pub trait WebDriverExt {
@@ -89,7 +91,12 @@ pub trait UiTest: Send + Sync {
     /// Execute the UI test.
     ///
     /// By default, the `driver` will be navigated to the workspace index page.
-    async fn run(&self, driver: &mut WebDriver) -> anyhow::Result<()>;
+    async fn run(&self, driver: &mut WebDriver, docs_path: &Path) -> anyhow::Result<()>;
+    /// Alter the [`DocConfig`] before generating the documentation for this
+    /// test.
+    fn setup_config(&self, config: DocConfig, _workspace_dir: &Path) -> DocConfig {
+        config
+    }
 }
 
 /// Map of test name -> test implementation
@@ -98,35 +105,36 @@ pub type TestMap = HashMap<&'static str, Arc<dyn UiTest>>;
 /// Map of test category -> TestMap
 static TEST_CATEGORIES: LazyLock<HashMap<&'static str, TestMap>> = LazyLock::new(|| {
     let mut categories = HashMap::new();
-    categories.extend([("base", base::all_tests())]);
+    categories.extend([
+        ("base", base::all_tests()),
+        ("custom_logo", custom_logo::all_tests()),
+    ]);
     categories
 });
 
-/// Important directories within a test category.
-struct TestCategoryDirs {
-    /// The directory containing the generated documentation.
-    docs: PathBuf,
-    /// The directory containing the assets used by `wdl-doc`.
-    assets: PathBuf,
+/// A UI test instance.
+#[derive(Clone)]
+struct Test {
+    /// The category the test lives in.
+    category: String,
+    /// The name of the test.
+    name: String,
+    /// The actual test implementation.
+    test_impl: Arc<dyn UiTest>,
 }
 
-impl TestCategoryDirs {
-    /// Get the directories for the given test category.
-    fn for_category(tmp: &Path, category: &str) -> Self {
-        let project_base = Path::new("tests").join("ui").join(category);
-        let base = tmp.join(category);
-        Self {
-            docs: base.join("docs"),
-            assets: project_base.join("assets"),
-        }
+impl Test {
+    /// A unique identifier for the test.
+    fn id(&self) -> String {
+        format!("{}_{}", self.category, self.name)
     }
 }
 
-/// Finds all UI tests and sets up libtest `Trials` for each.
-async fn find_tests(tmp_dir: PathBuf) -> anyhow::Result<Vec<Trial>> {
+/// Finds all UI tests.
+fn find_tests() -> anyhow::Result<Vec<Test>> {
     let ui_tests_dir = Path::new("tests").join("ui");
+    let mut found = Vec::new();
 
-    let mut trials = Vec::new();
     for entry in ui_tests_dir.read_dir()? {
         let entry = entry.context("failed to read directory")?;
         let category_path = entry.path();
@@ -136,150 +144,99 @@ async fn find_tests(tmp_dir: PathBuf) -> anyhow::Result<Vec<Trial>> {
 
         let category_name = category_path
             .file_stem()
-            .map(OsStr::to_string_lossy)
             .unwrap()
+            .to_string_lossy()
             .into_owned();
 
-        let Some(category) = TEST_CATEGORIES.get(&*category_name) else {
-            bail!(
-                "no category found for directory '{}'. Was it added to `all_tests()`?",
-                category_path.display()
-            );
-        };
+        if !TEST_CATEGORIES.contains_key(&*category_name) {
+            continue;
+        }
+        let category_map = TEST_CATEGORIES.get(&*category_name).unwrap();
 
-        for category_entry in category_path.read_dir()? {
-            let entry = category_entry.expect("failed to read directory");
-            let test_path = entry.path();
-            if test_path.is_dir() {
+        for test_entry in category_path.read_dir()? {
+            let test_entry = test_entry?;
+            let test_path = test_entry.path();
+
+            if test_path.is_dir() || test_path.extension().and_then(OsStr::to_str) != Some("rs") {
                 continue;
             }
 
             let test_name = test_path
                 .file_stem()
-                .map(OsStr::to_string_lossy)
                 .unwrap()
+                .to_string_lossy()
                 .into_owned();
 
-            // Ignore module declarations
             if test_name == "mod" {
                 continue;
             }
 
-            let Some(test) = category.get(&*test_name).cloned() else {
+            let Some(test_impl) = category_map.get(&*test_name).cloned() else {
                 bail!(
                     "no test found for file {}. Was it added to `all_tests()`?",
                     test_path.display()
                 );
             };
 
-            let category_name = category_name.clone();
-            let tmp_dir = tmp_dir.clone();
-            trials.push(Trial::test(test_name, move || {
-                let task = async move {
-                    let ctx = match global_state(tmp_dir).await {
-                        GlobalState::Ready(ctx) => ctx,
-                        GlobalState::Failed(e, _) => {
-                            return Err(anyhow!("failed to get global state: {e}").into());
-                        }
-                    };
-
-                    let server_addr = ctx
-                        .server_addresses
-                        .get(&*category_name)
-                        .expect("should exist");
-                    let category_url = format!("http://{server_addr}");
-
-                    let mut driver = ctx.driver.lock().await;
-                    let tab = driver.new_tab().await?;
-
-                    let do_test = async |driver: &mut WebDriver, tab, category_url| {
-                        driver.switch_to_window(tab).await?;
-                        driver.goto(&category_url).await?;
-                        test.run(driver).await?;
-                        Ok(())
-                    };
-
-                    let result = do_test(&mut driver, tab, category_url).await;
-
-                    // Cleanup
-                    driver.close_window().await?;
-                    driver.switch_to_window(ctx.primary_window.clone()).await?;
-
-                    result
-                };
-
-                block_on(task)
-            }));
+            found.push(Test {
+                category: category_name.clone(),
+                name: test_name,
+                test_impl,
+            });
         }
     }
-
-    Ok(trials)
+    Ok(found)
 }
 
-/// Generates the documentation for the workspace under
-/// `<tmp_dir>/<category>/assets`.
-async fn generate_docs(tmp_dir: &Path, category: &str) -> anyhow::Result<()> {
-    let paths = TestCategoryDirs::for_category(tmp_dir, category);
-    let config = Config::new(AnalysisConfig::default(), &paths.assets, &paths.docs);
+/// Generates the documentation for all test instances.
+async fn generate_docs(tests: &[Test], tmp_dir: &Path) -> anyhow::Result<()> {
+    let mut set = JoinSet::new();
 
-    tracing::info!("Generating docs for workspace '{}'", paths.assets.display());
-    if let Err(e) = document_workspace(config).await {
-        let _ = std::fs::remove_dir_all(&paths.docs);
-        bail!("failed to generate docs for {category}: {e}");
+    let ui_tests_root = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("tests")
+        .join("ui");
+
+    for test in tests {
+        let id = test.id();
+        let category_root = ui_tests_root.join(&test.category);
+        let output_dir = tmp_dir.join(&id).join("docs");
+        let assets_dir = category_root.join("assets");
+
+        let config = test.test_impl.setup_config(
+            DocConfig::new(AnalysisConfig::default(), &assets_dir, &output_dir),
+            &assets_dir,
+        );
+
+        set.spawn(async move {
+            tracing::info!("Generating docs for test '{id}'");
+            wdl_doc::document_workspace(config).await
+        });
+    }
+
+    while let Some(res) = set.join_next().await {
+        res??;
     }
 
     Ok(())
 }
 
-/// Create a router that serves `docs_path`.
-fn router(docs_path: &Path) -> Router {
-    Router::new().fallback_service(get_service(
-        tower_http::services::ServeDir::new(docs_path).append_index_html_on_directories(true),
-    ))
-}
+/// Setup a web server to serve the test docs.
+async fn start_web_server(tmp_dir: &Path) -> anyhow::Result<SocketAddr> {
+    let listener = tokio::net::TcpListener::bind("localhost:0").await?;
+    let addr = listener.local_addr()?;
 
-/// Map of `test category` -> server address.
-type ServerAddressMap = HashMap<&'static str, SocketAddr>;
+    let router = Router::new().fallback_service(get_service(
+        tower_http::services::ServeDir::new(tmp_dir).append_index_html_on_directories(true),
+    ));
 
-/// Setup a web server for each test category.
-async fn setup_web_servers(tmp_dir: PathBuf) -> anyhow::Result<ServerAddressMap> {
-    let addresses = Arc::new(Mutex::new(HashMap::new()));
+    tokio::spawn(async move {
+        if let Err(e) = axum::serve(listener, router).await {
+            tracing::error!("Web server failed: {e}");
+        }
+    });
 
-    let mut set = JoinSet::new();
-
-    for category in TEST_CATEGORIES.keys().copied() {
-        let paths = TestCategoryDirs::for_category(&tmp_dir, category);
-        let addresses = addresses.clone();
-
-        let tmp = tmp_dir.clone();
-        set.spawn(async move {
-            generate_docs(&tmp, category).await?;
-            let listener = tokio::net::TcpListener::bind("localhost:0").await?;
-            let addr = listener.local_addr()?;
-
-            tracing::info!("Listening on '{addr}' for category '{category}'");
-
-            addresses.lock().await.insert(category, addr);
-
-            tokio::spawn(async move {
-                let _ = axum::serve(listener, router(&paths.docs)).await;
-            });
-
-            Ok(())
-        });
-    }
-
-    let wait_for_setup = async {
-        let results = set.join_all().await;
-        results.into_iter().collect::<anyhow::Result<_>>()
-    };
-
-    match tokio::time::timeout(Duration::from_secs(10), wait_for_setup).await? {
-        Ok(()) => Ok(Arc::try_unwrap(addresses)
-            .expect("should be exclusive")
-            .into_inner()),
-        Err(e) => Err(e),
-    }
+    tracing::info!("Web server listening at http://{addr}");
+    Ok(addr)
 }
 
 /// Get a random unused port.
@@ -291,7 +248,7 @@ async fn random_port() -> anyhow::Result<u16> {
 // TODO: Figure out why tests fail on platforms other than Linux
 /// Whether the browser should be run in headless mode.
 fn should_run_headless() -> bool {
-    std::env::var("IN_CI").is_ok() || cfg!(target_os = "linux")
+    std::env::var("IN_CI").is_ok() || std::env::var("HEADLESS").is_ok()
 }
 
 /// Configure and run the webdriver process.
@@ -313,13 +270,20 @@ async fn setup_webdriver() -> anyhow::Result<WebDriver> {
     )
     .context("failed to start web driver process")?;
 
-    // `start_webdriver_process_full()` only waits 1 second. It may take longer for
-    // the process to spawn in CI.
     tracing::info!("Waiting for webdriver process to start...");
-    tokio::time::sleep(Duration::from_secs(5)).await;
 
-    let driver = WebDriver::new(format!("http://localhost:{port}"), caps).await?;
+    let mut driver = None;
+    for _ in 0..20 {
+        if let Ok(d) = WebDriver::new(format!("http://localhost:{port}"), caps.clone()).await {
+            driver = Some(d);
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+
+    let driver = driver.context("Webdriver failed to start within the timeout period")?;
     driver.fullscreen_window().await?;
+
     Ok(driver)
 }
 
@@ -329,15 +293,16 @@ enum GlobalState {
     /// The state was initialized successfully.
     Ready(Arc<DriverContext>),
     /// The state failed initialization.
-    Failed(Arc<anyhow::Error>, Option<Arc<Mutex<WebDriver>>>),
+    Failed(Arc<anyhow::Error>),
 }
 
 /// The webdriver handle and its surrounding context.
+#[derive(Debug)]
 struct DriverContext {
     /// A handle to the webdriver.
     driver: Arc<Mutex<WebDriver>>,
-    /// A map of test categories to their server addresses.
-    server_addresses: ServerAddressMap,
+    /// Address for the web server.
+    server_addr: SocketAddr,
     /// The initial blank window of the webdriver.
     primary_window: WindowHandle,
 }
@@ -346,24 +311,32 @@ struct DriverContext {
 static GLOBAL_STATE: OnceCell<Mutex<Option<GlobalState>>> = OnceCell::const_new();
 
 /// Initialize and get the [`GLOBAL_STATE`].
-async fn global_state(tmp_dir: PathBuf) -> GlobalState {
+async fn global_state(tests: Arc<Vec<Test>>, tmp_dir: PathBuf) -> GlobalState {
     let mutex = GLOBAL_STATE
         .get_or_init(|| async {
-            let state = match setup_webdriver().await {
-                Ok(driver) => {
-                    let driver_arc = Arc::new(Mutex::new(driver));
-                    match setup_web_servers(tmp_dir).await {
-                        Ok(addresses) => GlobalState::Ready(Arc::new(DriverContext {
-                            driver: driver_arc.clone(),
-                            server_addresses: addresses,
-                            primary_window: driver_arc.lock().await.window().await.unwrap(),
-                        })),
-                        Err(e) => GlobalState::Failed(Arc::new(e), Some(driver_arc)),
-                    }
-                }
-                Err(e) => GlobalState::Failed(Arc::new(e), None),
+            let state = async {
+                generate_docs(&tests, &tmp_dir).await?;
+
+                let server_addr = start_web_server(&tmp_dir).await?;
+                let driver = setup_webdriver().await?;
+
+                let driver_arc = Arc::new(Mutex::new(driver));
+                let primary_window = driver_arc.lock().await.window().await.unwrap();
+
+                Ok::<_, anyhow::Error>(Arc::new(DriverContext {
+                    driver: driver_arc.clone(),
+                    server_addr,
+                    primary_window,
+                }))
+            }
+            .await;
+
+            let result = match state {
+                Ok(ctx) => GlobalState::Ready(ctx),
+                Err(e) => GlobalState::Failed(Arc::new(e)),
             };
-            Mutex::new(Some(state))
+
+            Mutex::new(Some(result))
         })
         .await;
 
@@ -372,7 +345,7 @@ async fn global_state(tmp_dir: PathBuf) -> GlobalState {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), anyhow::Error> {
+async fn main() -> ExitCode {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
@@ -380,6 +353,7 @@ async fn main() -> Result<(), anyhow::Error> {
         )
         .init();
 
+    let args = libtest_mimic::Arguments::from_args();
     if !should_run_headless() {
         let warning = r#"+------------------------------------+
 |                                    |
@@ -399,36 +373,98 @@ async fn main() -> Result<(), anyhow::Error> {
         }
     }
 
-    let tmp = TempDir::with_prefix("wdl-doc-ui")?;
+    let tmp = match TempDir::with_prefix("wdl-doc-ui") {
+        Ok(tmp) => tmp,
+        Err(e) => {
+            eprintln!("failed to create tempdir: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
 
-    let args = libtest_mimic::Arguments::from_args();
-    let tests = find_tests(tmp.path().to_path_buf()).await?;
+    let tests = match find_tests() {
+        Ok(tests) => Arc::new(tests),
+        Err(e) => {
+            eprintln!("failed to find tests: {e}");
+            return ExitCode::FAILURE;
+        }
+    };
 
-    let conclusion = libtest_mimic::run(&args, tests);
+    let trials = create_trials(tmp.path().to_path_buf(), tests);
+    let conclusion = libtest_mimic::run(&args, trials);
 
+    cleanup_global_state().await;
+    conclusion.exit_code()
+}
+
+/// Create [`Trial`] instances for all tests.
+fn create_trials(tmp: PathBuf, tests: Arc<Vec<Test>>) -> Vec<Trial> {
+    let mut trials = Vec::new();
+
+    for test in &*tests {
+        let test = test.clone();
+        let tests = tests.clone();
+        let tmp = tmp.clone();
+
+        trials.push(Trial::test(
+            format!("{}::{}", test.category, test.name),
+            move || {
+                let task = async move {
+                    let ctx = match global_state(tests, tmp.clone()).await {
+                        GlobalState::Ready(ctx) => ctx,
+                        GlobalState::Failed(e) => {
+                            return Err(anyhow!("failed to get global state: {e}").into());
+                        }
+                    };
+
+                    let test_id = test.id();
+                    let test_url = format!("http://{}/{test_id}/docs/", ctx.server_addr);
+                    let docs_dir = tmp.join(&test_id).join("docs");
+
+                    let mut driver = ctx.driver.lock().await;
+                    let tab = driver.new_tab().await?;
+
+                    let test_result = async {
+                        driver.switch_to_window(tab.clone()).await?;
+                        driver.goto(&test_url).await?;
+                        test.test_impl.run(&mut driver, &docs_dir).await?;
+                        Ok(())
+                    }
+                    .await;
+
+                    if let Err(e) = driver.close_window().await {
+                        tracing::warn!("Failed to close tab: {e}");
+                    }
+                    if let Err(e) = driver.switch_to_window(ctx.primary_window.clone()).await {
+                        tracing::warn!("Failed to switch to primary window: {e}");
+                    }
+
+                    test_result.map_err(|e: anyhow::Error| e.into())
+                };
+
+                block_on(task)
+            },
+        ));
+    }
+
+    trials
+}
+
+/// Cleanup the processes related to [`GLOBAL_STATE`].
+async fn cleanup_global_state() {
     let Some(global_state) = GLOBAL_STATE.get() else {
-        return Ok(());
+        return;
     };
 
     let mut guard = global_state.lock().await;
-    if let Some(state) = guard.take() {
-        let driver_arc = match state {
-            GlobalState::Ready(ctx) => Some(ctx.driver.clone()),
-            GlobalState::Failed(e, d) => {
-                tracing::error!("Failed to initialize webdriver: {e}");
-                d
-            }
-        };
+    if let Some(state) = guard.take()
+        && let GlobalState::Ready(ctx) = state
+    {
+        let ctx = Arc::try_unwrap(ctx).expect("should be exclusive");
+        let driver_mutex = Arc::try_unwrap(ctx.driver).expect("should be exclusive");
+        let driver = driver_mutex.into_inner();
 
-        if let Some(driver) = driver_arc {
-            let driver_mutex = Arc::try_unwrap(driver).expect("should be exclusive");
-            let driver = driver_mutex.into_inner();
-
-            if let Err(e) = driver.quit().await {
-                tracing::error!("Failed to quit webdriver: {e}");
-            }
+        if let Err(e) = driver.quit().await {
+            tracing::error!("Failed to quit webdriver: {e}");
         }
     }
-
-    conclusion.exit()
 }

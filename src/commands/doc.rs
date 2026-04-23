@@ -33,6 +33,9 @@ use crate::commands::CommandResult;
 pub struct Args {
     /// Path to the local WDL workspace to document.
     pub workspace: Option<Source>,
+    /// Analyze the documents without producing an output.
+    #[arg(long, conflicts_with_all = ["output", "open", "overwrite"])]
+    pub check: bool,
     /// Path to a Markdown file to embed in the `<output>/index.html` file.
     #[arg(long, value_name = "MARKDOWN FILE")]
     pub index_page: Option<PathBuf>,
@@ -211,7 +214,8 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
             github: github_url,
         })
         .additional_html(addl_html)
-        .enable_doc_comments(with_doc_comments);
+        .enable_doc_comments(with_doc_comments)
+        .check(args.check);
 
     let mut counts = DiagnosticCounts::default();
     if let Err(e) = document_workspace(config).await {
