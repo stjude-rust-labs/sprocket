@@ -24,7 +24,6 @@ use tokio::fs::remove_dir_all;
 use tokio::task::JoinSet;
 use tracing::debug;
 use tracing::info;
-use tracing::level_filters::LevelFilter;
 use wdl::analysis::AnalysisResult;
 use wdl::ast::AstNode;
 use wdl::diagnostics::DiagnosticCounts;
@@ -391,7 +390,7 @@ impl Runner {
     ) -> Result<IndexMap<String, DocumentResults>> {
         let current_filter = self.log_handle.clone_current().expect("should have filter");
         self.log_handle
-            .reload(LevelFilter::OFF)
+            .reload(tracing_subscriber::EnvFilter::new("off"))
             .expect("should reload");
 
         let mut permits = self.permits;

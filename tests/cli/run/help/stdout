@@ -84,8 +84,8 @@ Options:
   -q, --quiet...
           Decrease logging verbosity
 
-      --suffix <SUFFIX>
-          Optional suffix to append to the run directory name
+      --show-task-stderr
+          Show task stderr during execution
 
       --color <COLOR>
           Controls output colorization
@@ -96,6 +96,9 @@ Options:
           - never:  Never colorize output
           
           [default: auto]
+
+      --suffix <SUFFIX>
+          Optional suffix to append to the run directory name
 
   -c, --config <CONFIG>
           Path to the configuration file

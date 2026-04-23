@@ -112,7 +112,7 @@ tower-lsp = "0.20.0"
 tracing = "0.1.44"
 tracing-indicatif = "0.3.14"
 tracing-log = "0.2.0"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tracing-test = "0.2.5"
 url = "2.5.8"
 urlencoding = "2.1.3"

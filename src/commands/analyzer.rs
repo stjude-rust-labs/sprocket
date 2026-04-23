@@ -66,7 +66,13 @@ pub async fn analyzer(
         ServerOptions {
             name: "Sprocket".into(),
             version: env!("CARGO_PKG_VERSION").into(),
-            log_level: LevelFilter::from(handle.clone_current().expect("should exist")),
+            log_level: LevelFilter::from(
+                handle
+                    .clone_current()
+                    .expect("should exist")
+                    .max_level_hint()
+                    .unwrap_or(tracing::metadata::LevelFilter::WARN),
+            ),
             lint: LintOptions {
                 enabled: args.lint,
                 config: Arc::new(config.check.lint),
