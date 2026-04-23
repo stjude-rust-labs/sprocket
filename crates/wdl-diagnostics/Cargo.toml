@@ -1,6 +1,6 @@
 [package]
 name = "wdl-diagnostics"
-version = "0.1.0"
+version = "0.1.1"
 description = "Utilities for reporting diagnostics in the wdl-* family of crates"
 license.workspace = true
 edition.workspace = true

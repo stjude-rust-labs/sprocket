@@ -39,7 +39,7 @@ lsp = ["dep:wdl-lsp"]
 [dependencies]
 wdl-analysis = { path = "../wdl-analysis", version = "0.19.1", optional = true }
 wdl-ast = { path = "../wdl-ast", version = "0.22.1", optional = true }
-wdl-diagnostics = { path = "../wdl-diagnostics", version = "0.1.0", optional = true }
+wdl-diagnostics = { path = "../wdl-diagnostics", version = "0.1.1", optional = true }
 wdl-doc = { path = "../wdl-doc", version = "0.14.1", optional = true }
 wdl-engine = { path = "../wdl-engine", version = "0.13.2", optional = true }
 wdl-format = { path = "../wdl-format", version = "0.17.0", optional = true }
