@@ -299,6 +299,7 @@ task hello {
         container: 'ubuntu:latest'
     }
 }"#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -329,6 +330,7 @@ task hello {
         container: '*'
     }
 }"#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -354,6 +356,7 @@ task hello {
         container: ['ubuntu:latest', '*']
     }
 }"#,
+            None,
         );
 
         assert!(diagnostics.is_empty());
