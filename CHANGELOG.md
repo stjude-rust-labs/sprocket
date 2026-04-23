@@ -7,16 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## 0.23.1 - 2026-04-22
+## 0.24.0 - 2026-04-22
 
 ### Added
 
-* Ergonomic array inputs on the CLI: repeated keys collect into arrays
-  (e.g., `task.files=a.txt task.files=b.txt`), trailing bare arguments
-  append to the preceding key (e.g., `task.files=a.txt b.txt c.txt`),
-  and scalar values are auto-wrapped into single-element arrays when the
-  WDL type expects `Array[T]`
-  ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
+* Repeated keys collect into arrays (e.g., `task.files=a.txt
+  task.files=b.txt`), trailing bare arguments append to the preceding
+  key (e.g., `task.files=a.txt b.txt c.txt`), and scalar values are
+  auto-wrapped into single-element arrays when the WDL type expects
+  `Array[T]` ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
 
 ### Changed
 
