@@ -45,7 +45,7 @@ Format each section so that it looks like:
 
 After the release is complete, the following tasks should be performed:
 
-- [ ] Merge the `next` branch in [`stjude-rust-labs/sprocket.bio`](https://github.com/stjude-rust-labs/sprocket.bio) if there are any pending documentation changes, then update the Sprocket version.
+- [ ] Follow the release process in [`stjude-rust-labs/sprocket.bio`](https://github.com/stjude-rust-labs/sprocket.bio/blob/main/RELEASE.md).
 - [ ] Update the Sprocket version in [`stjude-rust-labs/sprocket-action`](https://github.com/stjude-rust-labs/sprocket-action) and create a new release tag.
 - [ ] Merge any changes needed in [`stjude-rust-labs/sprocket-vscode`](https://github.com/stjude-rust-labs/sprocket-vscode) and create a new release tag if applicable.
 - [ ] Release the latest version on the St. Jude HPC module system.
