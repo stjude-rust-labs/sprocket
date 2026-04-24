@@ -585,19 +585,28 @@ import { sort as sorter, sort.CsvSort, sort.CsvSort as MySort, a.b.c.deep } from
 
         // `sort.CsvSort`
         assert_eq!(members[1].name().text(), "CsvSort");
-        let ns: Vec<_> = members[1].namespace().map(|i| i.text().to_string()).collect();
+        let ns: Vec<_> = members[1]
+            .namespace()
+            .map(|i| i.text().to_string())
+            .collect();
         assert_eq!(ns, vec!["sort"]);
         assert!(members[1].alias().is_none());
 
         // `sort.CsvSort as MySort`
         assert_eq!(members[2].name().text(), "CsvSort");
-        let ns: Vec<_> = members[2].namespace().map(|i| i.text().to_string()).collect();
+        let ns: Vec<_> = members[2]
+            .namespace()
+            .map(|i| i.text().to_string())
+            .collect();
         assert_eq!(ns, vec!["sort"]);
         assert_eq!(members[2].alias().unwrap().text(), "MySort");
 
         // `a.b.c.deep` (four-component path).
         assert_eq!(members[3].name().text(), "deep");
-        let ns: Vec<_> = members[3].namespace().map(|i| i.text().to_string()).collect();
+        let ns: Vec<_> = members[3]
+            .namespace()
+            .map(|i| i.text().to_string())
+            .collect();
         assert_eq!(ns, vec!["a", "b", "c"]);
         assert!(members[3].alias().is_none());
         let components: Vec<_> = members[3]
