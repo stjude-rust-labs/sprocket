@@ -11,10 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Initial WDL 1.4 support in `wdl-grammar` and `wdl-ast`, including the
   reserved `from` keyword and all four symbolic import forms from
-  [`openwdl/wdl#765`](https://github.com/openwdl/wdl/pull/765). WDL 1.4 is
-  gated behind the `feature_flags.wdl_1_4` analysis flag (default
-  `false`) for the duration of the unstable development cycle. See the
-  per-crate changelogs for details.
+  [`openwdl/wdl#765`](https://github.com/openwdl/wdl/pull/765). WDL 1.4
+  is gated behind the `feature_flags.wdl_1_4` analysis flag (default
+  `false`). See the per-crate changelogs for details ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 
 ## 0.24.0 - 2026-04-22
 

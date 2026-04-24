@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   single line; braced member lists render inline when the full statement
   fits within `max_line_length` and otherwise wrap with each member on
   its own indented line. Symbolic module paths are emitted as a single
-  literal so the line-break algorithm never splits them at `/`.
+  literal so the line-break algorithm never splits them at `/` ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 
 ## 0.17.0 - 2026-04-02
 

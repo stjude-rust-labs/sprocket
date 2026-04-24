@@ -10,17 +10,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 * `FeatureFlags::wdl_1_4` behind `feature_flags.wdl_1_4` in
-  `sprocket.toml`, defaulting to `false`.
+  `sprocket.toml`, defaulting to `false` ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 * `VersionVisitor` diagnostic when a document declares `version 1.4`
-  without the `wdl_1_4` feature flag enabled.
+  without the `wdl_1_4` feature flag enabled ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 
 #### Changed
 
 * Quoted-only callsites in `queue`, `document/v1`, `validation/imports`,
   `handlers/document_symbol`, `handlers/goto_definition`, and
   `handlers/semantic_tokens` now branch on `ImportStatement::kind()` or
-  guard on `as_quoted()`. Symbolic-import resolution is deferred to a
-  later phase.
+  guard on `as_quoted()`; symbolic-import resolution is handled by the
+  module resolver ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 
 ## 0.19.1 - 2026-04-22
 
