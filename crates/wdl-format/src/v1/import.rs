@@ -1,6 +1,13 @@
 //! Formatting for imports.
 
+use wdl_ast::AstNode;
+use wdl_ast::AstToken;
 use wdl_ast::SyntaxKind;
+use wdl_ast::v1::ImportStatement;
+use wdl_ast::v1::ImportStatementKind;
+use wdl_ast::v1::SymbolicImport;
+use wdl_ast::v1::SymbolicImportMember;
+use wdl_ast::v1::SymbolicImportMembers;
 
 use crate::Config;
 use crate::PreToken;
@@ -94,20 +101,14 @@ pub fn format_symbolic_import_members(
         .expect("symbolic import members children")
         .collect();
 
-    // Measure the inline width of the whole surrounding `ImportStatement`
-    // so the members clause only breaks when the full statement overflows.
-    let parent_width: usize = element
-        .element()
-        .as_node()
-        .and_then(|n| n.inner().parent())
-        .and_then(|p| p.parent())
-        .map(|stmt| stmt.text_range().len().into())
-        .unwrap_or_else(|| estimate_inline_width(&children));
-
+    // Decide on inline vs multiline by measuring the canonical inline width
+    // the formatter would emit, not the width of the source span. This makes
+    // the decision independent of incoming whitespace.
     let overflows = config
         .max_line_length
         .get()
-        .is_some_and(|max| parent_width > max);
+        .and_then(|max| canonical_import_width(element).map(|w| w > max))
+        .unwrap_or(false);
 
     if overflows {
         format_symbolic_import_members_multiline(&children, stream, config);
@@ -116,45 +117,66 @@ pub fn format_symbolic_import_members(
     }
 }
 
-/// Sums the rendered widths of every non-trivia child plus inter-token spacing
-/// for an inline `{ a, b, c }` rendering.
-fn estimate_inline_width(children: &[&FormatElement]) -> usize {
+/// Computes the canonical inline width of the enclosing `ImportStatement`
+/// as this formatter would emit it, ignoring trivia in the source span.
+///
+/// Returns `None` if the members clause is not enclosed in a recognizable
+/// import statement, in which case the caller falls back to the inline form.
+fn canonical_import_width(element: &FormatElement) -> Option<usize> {
+    let node = element.element().as_node()?.inner().clone();
+    let members = SymbolicImportMembers::cast(node)?;
+    let symbolic_node = members.inner().parent()?;
+    let symbolic = SymbolicImport::cast(symbolic_node)?;
+    let stmt_node = symbolic.inner().parent()?;
+    let stmt = ImportStatement::cast(stmt_node)?;
+
+    // Only the symbolic branch reaches this code; the quoted branch has its
+    // own formatter.
+    let ImportStatementKind::Symbolic(symbolic) = stmt.kind() else {
+        return None;
+    };
+
+    // `import ` prefix.
+    let mut width = "import ".len();
+
+    // Members clause: `{ m1, m2, ... }`.
+    let member_list: Vec<_> = members.members().collect();
+    width += "{ ".len();
+    for (i, m) in member_list.iter().enumerate() {
+        if i > 0 {
+            width += ", ".len();
+        }
+        width += symbolic_import_member_width(m);
+    }
+    width += " }".len();
+
+    // ` from <path>`.
+    width += " from ".len();
+    width += symbolic.module_path().text().len();
+
+    // Optional ` as <alias>`.
+    if let Some(alias) = symbolic.alias() {
+        width += " as ".len();
+        width += alias.text().len();
+    }
+
+    Some(width)
+}
+
+/// Computes the canonical inline width of a single selected-member entry.
+fn symbolic_import_member_width(member: &SymbolicImportMember) -> usize {
     let mut width = 0usize;
-    let mut last_was_comma = false;
-    for (i, child) in children.iter().enumerate() {
-        let kind = child.element().kind();
-        if kind.is_trivia() {
-            continue;
+    let mut first = true;
+    for component in member.components() {
+        if !first {
+            width += ".".len();
         }
-        let text_len: usize = child.element().inner().text_range().len().into();
-        match kind {
-            SyntaxKind::OpenBrace => {
-                width += text_len + 1;
-            }
-            SyntaxKind::CloseBrace => {
-                width += 1 + text_len;
-            }
-            SyntaxKind::Comma => {
-                let next_is_close_brace = children
-                    .iter()
-                    .skip(i + 1)
-                    .find(|c| !c.element().kind().is_trivia())
-                    .map(|c| c.element().kind())
-                    == Some(SyntaxKind::CloseBrace);
-                if !next_is_close_brace {
-                    width += text_len;
-                    last_was_comma = true;
-                }
-                continue;
-            }
-            _ => {
-                if last_was_comma {
-                    width += 1;
-                }
-                width += text_len;
-            }
-        }
-        last_was_comma = false;
+        width += component.text().len();
+        first = false;
+    }
+    if let Some(alias) = member.alias() {
+        width += " as ".len();
+        width += alias.text().len();
     }
     width
 }
