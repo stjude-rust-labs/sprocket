@@ -4,8 +4,6 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::ImportStatement;
-use wdl_ast::v1::ImportStatementKind;
-use wdl_ast::v1::SymbolicImport;
 use wdl_ast::v1::SymbolicImportMember;
 use wdl_ast::v1::SymbolicImportMembers;
 
@@ -33,44 +31,15 @@ pub fn format_import_alias(
 
 /// Formats an [`ImportStatement`](wdl_ast::v1::ImportStatement).
 ///
-/// # Panics
-///
-/// This will panic if the element does not have the expected children.
+/// Spaces are inserted around the `from` and `as` keywords. Other top-level
+/// children (keyword, selection clause, source, aliases) delegate to their
+/// own formatters.
 pub fn format_import_statement(
     element: &FormatElement,
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
     for child in element.children().expect("import statement children") {
-        (&child).write(stream, config);
-        stream.end_word();
-    }
-
-    stream.end_line();
-}
-
-/// Formats a [`QuotedImport`](wdl_ast::v1::QuotedImport).
-pub fn format_quoted_import(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
-    for child in element.children().expect("quoted import children") {
-        (&child).write(stream, config);
-        stream.end_word();
-    }
-}
-
-/// Formats a [`SymbolicImport`](wdl_ast::v1::SymbolicImport).
-///
-/// Spaces are inserted around the `from` and `as` keywords. The module path
-/// and the selected-members clause delegate to their own formatters.
-pub fn format_symbolic_import(
-    element: &FormatElement,
-    stream: &mut TokenStream<PreToken>,
-    config: &Config,
-) {
-    for child in element.children().expect("symbolic import children") {
         match child.element().kind() {
             SyntaxKind::FromKeyword | SyntaxKind::AsKeyword => {
                 stream.end_word();
@@ -79,9 +48,12 @@ pub fn format_symbolic_import(
             }
             _ => {
                 (&child).write(stream, config);
+                stream.end_word();
             }
         }
     }
+
+    stream.end_line();
 }
 
 /// Formats a [`SymbolicImportMembers`](wdl_ast::v1::SymbolicImportMembers).
@@ -125,21 +97,10 @@ pub fn format_symbolic_import_members(
 fn canonical_import_width(element: &FormatElement) -> Option<usize> {
     let node = element.element().as_node()?.inner().clone();
     let members = SymbolicImportMembers::cast(node)?;
-    let symbolic_node = members.inner().parent()?;
-    let symbolic = SymbolicImport::cast(symbolic_node)?;
-    let stmt_node = symbolic.inner().parent()?;
-    let stmt = ImportStatement::cast(stmt_node)?;
+    let stmt = ImportStatement::cast(members.inner().parent()?)?;
 
-    // Only the symbolic branch reaches this code; the quoted branch has its
-    // own formatter.
-    let ImportStatementKind::Symbolic(symbolic) = stmt.kind() else {
-        return None;
-    };
-
-    // `import ` prefix.
     let mut width = "import ".len();
 
-    // Members clause: `{ m1, m2, ... }`.
     let member_list: Vec<_> = members.members().collect();
     width += "{ ".len();
     for (i, m) in member_list.iter().enumerate() {
@@ -150,14 +111,12 @@ fn canonical_import_width(element: &FormatElement) -> Option<usize> {
     }
     width += " }".len();
 
-    // ` from <path>`.
     width += " from ".len();
-    width += symbolic.module_path().text().len();
-
-    // Optional ` as <alias>`.
-    if let Some(alias) = symbolic.alias() {
-        width += " as ".len();
-        width += alias.text().len();
+    if let Some(uri) = stmt.uri() {
+        let text = uri.text().map(|t| t.text().to_string()).unwrap_or_default();
+        width += 2 + text.len();
+    } else if let Some(path) = stmt.module_path() {
+        width += path.text().len();
     }
 
     Some(width)
@@ -254,8 +213,6 @@ fn format_symbolic_import_members_multiline(
                     .find(|c| !c.element().kind().is_trivia())
                     .map(|c| c.element().kind());
                 if next_kind == Some(SyntaxKind::CloseBrace) {
-                    // Emit a trailing comma for the last member in the
-                    // multiline form.
                     stream.push_literal(",".to_string(), SyntaxKind::Comma);
                     stream.end_line();
                 }

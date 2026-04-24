@@ -87,10 +87,6 @@ impl Writable for &FormatElement {
                 AstNode::ImportStatement(_) => {
                     v1::import::format_import_statement(self, stream, config)
                 }
-                AstNode::QuotedImport(_) => v1::import::format_quoted_import(self, stream, config),
-                AstNode::SymbolicImport(_) => {
-                    v1::import::format_symbolic_import(self, stream, config)
-                }
                 AstNode::SymbolicImportMembers(_) => {
                     v1::import::format_symbolic_import_members(self, stream, config)
                 }

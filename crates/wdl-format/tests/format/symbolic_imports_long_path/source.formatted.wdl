@@ -5,7 +5,6 @@ import openwdl/very/long/nested/module/path/that/definitely/exceeds/the/max/line
 import {
     Foo,
 } from openwdl/very/long/nested/module/path/that/definitely/exceeds/the/max/line/length/csvkit
-    as csv
 
 workflow test {
 }

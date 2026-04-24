@@ -323,8 +323,7 @@ fn resolve_identifier_ty(
     }
 
     if let Some(i) = parent.ancestors().find_map(ImportStatement::cast)
-        && let Some(q) = i.as_quoted()
-        && q.explicit_namespace().is_some_and(|ns| ns.inner() == token)
+        && i.explicit_namespace().is_some_and(|ns| ns.inner() == token)
     {
         return Some(SemanticTokenType::NAMESPACE);
     }

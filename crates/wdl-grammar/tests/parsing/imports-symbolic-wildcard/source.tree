@@ -7,30 +7,28 @@ RootNode@0..78
   ImportStatementNode@13..41
     ImportKeyword@13..19 "import"
     Whitespace@19..20 " "
-    SymbolicImportNode@20..41
-      Asterisk@20..21 "*"
-      Whitespace@21..22 " "
-      FromKeyword@22..26 "from"
-      Whitespace@26..27 " "
-      SymbolicModulePathNode@27..41
-        Ident@27..34 "openwdl"
-        Slash@34..35 "/"
-        Ident@35..41 "csvkit"
+    Asterisk@20..21 "*"
+    Whitespace@21..22 " "
+    FromKeyword@22..26 "from"
+    Whitespace@26..27 " "
+    SymbolicModulePathNode@27..41
+      Ident@27..34 "openwdl"
+      Slash@34..35 "/"
+      Ident@35..41 "csvkit"
   Whitespace@41..42 "\n"
-  ImportStatementNode@42..77
+  ImportStatementNode@42..70
     ImportKeyword@42..48 "import"
     Whitespace@48..49 " "
-    SymbolicImportNode@49..77
-      Asterisk@49..50 "*"
-      Whitespace@50..51 " "
-      FromKeyword@51..55 "from"
-      Whitespace@55..56 " "
-      SymbolicModulePathNode@56..70
-        Ident@56..63 "openwdl"
-        Slash@63..64 "/"
-        Ident@64..70 "csvkit"
-      Whitespace@70..71 " "
-      AsKeyword@71..73 "as"
-      Whitespace@73..74 " "
-      Ident@74..77 "csv"
+    Asterisk@49..50 "*"
+    Whitespace@50..51 " "
+    FromKeyword@51..55 "from"
+    Whitespace@55..56 " "
+    SymbolicModulePathNode@56..70
+      Ident@56..63 "openwdl"
+      Slash@63..64 "/"
+      Ident@64..70 "csvkit"
+  Whitespace@70..71 " "
+  AsKeyword@71..73 "as"
+  Whitespace@73..74 " "
+  Ident@74..77 "csv"
   Whitespace@77..78 "\n"

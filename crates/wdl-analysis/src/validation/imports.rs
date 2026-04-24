@@ -50,11 +50,10 @@ impl Visitor for ImportsVisitor {
 
         // Only quoted imports are validated here; symbolic imports have
         // their own validation path in the module resolver.
-        let Some(quoted) = stmt.as_quoted() else {
+        let Some(uri) = stmt.uri() else {
             return;
         };
 
-        let uri = quoted.uri();
         if uri.is_empty() {
             diagnostics.add(empty_import(uri.span()));
             return;
@@ -73,7 +72,7 @@ impl Visitor for ImportsVisitor {
             return;
         }
 
-        if quoted.namespace().is_none() {
+        if stmt.namespace().is_none() {
             diagnostics.add(invalid_import_namespace(uri.span()));
         }
     }

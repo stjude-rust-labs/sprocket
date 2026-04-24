@@ -480,128 +480,80 @@ fn item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnost
 }
 
 /// Parses an import statement.
+///
+/// Three forms are recognized, sharing a single parse path that differs only
+/// in whether an optional member-selection clause precedes a `from` keyword
+/// and in whether the source is a quoted URI or an unquoted symbolic module
+/// path.
+///
+/// 1. `import <source> [as <alias>] (alias <src> as <dst>)*`
+/// 2. `import * from <source>`
+/// 3. `import { <member> [as <N>], ... } from <source>`
+///
+/// `<source>` is either a quoted string URI or a symbolic module path. Forms
+/// 2 and 3 bring items directly into the importing document's scope; they
+/// take no `as <alias>` or `alias` clauses. Form 1's `as <alias>` renames the
+/// pseudo-namespace through which the imported module's tasks and workflows
+/// are accessed, and its `alias <src> as <dst>` clauses rename imported
+/// structs and enums.
 fn import_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::ImportKeyword);
 
+    let has_selection = match parser.peek() {
+        Some((Token::Asterisk, _)) => {
+            parser.require(Token::Asterisk);
+            true
+        }
+        Some((Token::OpenBrace, _)) => {
+            let inner = parser.start();
+            if let Err((inner, e)) = symbolic_import_members(parser, inner) {
+                inner.abandon(parser);
+                return Err((marker, e));
+            }
+            true
+        }
+        _ => false,
+    };
+
+    if has_selection {
+        expected!(parser, marker, Token::FromKeyword);
+    }
+
+    // Parse the import source, which is either a quoted string or a symbolic
+    // module path.
     match parser.peek() {
         Some((Token::SingleQuote | Token::DoubleQuote | Token::OpenHeredoc, _)) => {
-            let inner = parser.start();
-            if let Err((inner, e)) = quoted_import_body(parser, inner) {
-                inner.abandon(parser);
-                return Err((marker, e));
-            }
+            expected_fn!(parser, marker, string);
         }
         Some((Token::Ident, _)) => {
-            let inner = parser.start();
-            if let Err((inner, e)) = symbolic_import_body(parser, inner) {
-                inner.abandon(parser);
-                return Err((marker, e));
-            }
-        }
-        Some((Token::Asterisk | Token::OpenBrace, _)) => {
-            let inner = parser.start();
-            if let Err((inner, e)) = symbolic_import_with_members(parser, inner) {
-                inner.abandon(parser);
-                return Err((marker, e));
-            }
+            expected_fn!(parser, marker, symbolic_module_path);
         }
         found => {
             let (found, span) = found
                 .map(|(t, s)| (Some(t.describe()), s))
                 .unwrap_or_else(|| (None, parser.span()));
-            return Err((
-                marker,
-                expected_one_of(&["string", "identifier", "`*`", "`{`"], found, span),
-            ));
+            let expected = if has_selection {
+                &["string", "identifier"][..]
+            } else {
+                &["string", "identifier", "`*`", "`{`"][..]
+            };
+            return Err((marker, expected_one_of(expected, found, span)));
+        }
+    }
+
+    // Form 1 suffix: optional `as <alias>` and zero-or-more `alias` clauses.
+    // Forms 2 and 3 do not accept either.
+    if !has_selection {
+        if parser.next_if(Token::AsKeyword) {
+            expected!(parser, marker, Token::Ident, "import namespace");
+        }
+
+        while let Some((Token::AliasKeyword, _)) = parser.peek() {
+            expected_fn!(parser, marker, import_alias);
         }
     }
 
     marker.complete(parser, SyntaxKind::ImportStatementNode);
-    Ok(())
-}
-
-/// Parses the body of a quoted import statement.
-///
-/// The body consists of a string URI followed by an optional `as Ident`
-/// namespace and zero or more `alias <src> as <dst>` clauses.
-fn quoted_import_body(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    expected_fn!(parser, marker, string);
-
-    if parser.next_if(Token::AsKeyword) {
-        expected!(parser, marker, Token::Ident, "import namespace");
-    }
-
-    while let Some((Token::AliasKeyword, _)) = parser.peek() {
-        expected_fn!(parser, marker, import_alias);
-    }
-
-    marker.complete(parser, SyntaxKind::QuotedImportNode);
-    Ok(())
-}
-
-/// Parses the body of a symbolic import statement.
-///
-/// Covers three symbolic import forms, each accepting an optional trailing
-/// `as <alias>`.
-///
-/// 1. `import <path> [as <alias>]`
-/// 2. `import * from <path> [as <alias>]`
-/// 3. `import { <m> [as <N>] [, ...] } from <path> [as <alias>]`
-///
-/// Form 1 brings every member of the module into scope under a namespace;
-/// the namespace defaults to the last component of `<path>` and `as <alias>`
-/// renames it. Forms 2 and 3 bring items into the consuming document's
-/// top-level scope by default; `as <alias>` groups them under `<alias>`
-/// instead. Each member in form 3 is a dotted path of one or more
-/// identifiers, optionally followed by `as <ident>` to rename the member
-/// locally.
-fn symbolic_import_body(
-    parser: &mut Parser<'_>,
-    marker: Marker,
-) -> Result<(), (Marker, Diagnostic)> {
-    // The dispatcher in `fn import_statement` guarantees the first token is
-    // an `Ident`.
-    expected_fn!(parser, marker, symbolic_module_path);
-
-    if parser.next_if(Token::AsKeyword) {
-        expected!(parser, marker, Token::Ident, "module alias");
-    }
-
-    marker.complete(parser, SyntaxKind::SymbolicImportNode);
-    Ok(())
-}
-
-/// Parses the body of a member-selecting symbolic import statement.
-///
-/// Entered when the token following `import` is `Asterisk` (form 3) or
-/// `OpenBrace` (form 4).
-fn symbolic_import_with_members(
-    parser: &mut Parser<'_>,
-    marker: Marker,
-) -> Result<(), (Marker, Diagnostic)> {
-    match parser.peek() {
-        Some((Token::Asterisk, _)) => {
-            parser.require(Token::Asterisk);
-        }
-        Some((Token::OpenBrace, _)) => {
-            expected_fn!(parser, marker, symbolic_import_members);
-        }
-        found => {
-            let (found, span) = found
-                .map(|(t, s)| (Some(t.describe()), s))
-                .unwrap_or_else(|| (None, parser.span()));
-            return Err((marker, expected_found("`*` or `{`", found, span)));
-        }
-    }
-
-    expected!(parser, marker, Token::FromKeyword);
-    expected_fn!(parser, marker, symbolic_module_path);
-
-    if parser.next_if(Token::AsKeyword) {
-        expected!(parser, marker, Token::Ident, "module alias");
-    }
-
-    marker.complete(parser, SyntaxKind::SymbolicImportNode);
     Ok(())
 }
 

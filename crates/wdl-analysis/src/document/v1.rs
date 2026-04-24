@@ -33,7 +33,6 @@ use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::LiteralExpr;
-use wdl_ast::v1::QuotedImport;
 use wdl_ast::v1::ScatterStatement;
 use wdl_ast::v1::StringPart;
 use wdl_ast::v1::StructDefinition;
@@ -237,14 +236,8 @@ fn add_namespace(
     import: &ImportStatement,
     importer_index: NodeIndex,
 ) {
-    // Only quoted imports populate document-local namespaces; symbolic
-    // imports are resolved through the module resolver.
-    let Some(quoted) = import.as_quoted() else {
-        return;
-    };
-
     // Start by resolving the import to its document
-    let (uri, imported) = match resolve_import(graph, &quoted, importer_index) {
+    let (uri, imported) = match resolve_import(graph, import, importer_index) {
         Ok(resolved) => resolved,
         Err(Some(diagnostic)) => {
             document.analysis_diagnostics.push(diagnostic);
@@ -254,15 +247,21 @@ fn add_namespace(
     };
 
     // Check for conflicting namespaces
-    let span = quoted.uri().span();
-    let ns = match quoted.namespace() {
+    let span = match import.uri() {
+        Some(uri) => uri.span(),
+        None => match import.module_path() {
+            Some(path) => path.span(),
+            None => return,
+        },
+    };
+    let ns = match import.namespace() {
         Some((ns, span)) => match document.namespaces.get(&ns) {
             Some(prev) => {
                 document.analysis_diagnostics.push(namespace_conflict(
                     &ns,
                     span,
                     prev.span,
-                    quoted.explicit_namespace().is_none(),
+                    import.explicit_namespace().is_none(),
                 ));
                 return;
             }
@@ -288,7 +287,7 @@ fn add_namespace(
     };
 
     // Get the alias map for the namespace (for structs)
-    let aliases = quoted
+    let aliases = import
         .aliases()
         .filter_map(|a| {
             let (from, to) = a.names();
@@ -353,7 +352,7 @@ fn add_namespace(
     }
 
     // Get the alias map for the namespace (for enums)
-    let aliases = quoted
+    let aliases = import
         .aliases()
         .filter_map(|a| {
             let (from, to) = a.names();
@@ -1634,10 +1633,17 @@ fn resolve_call_type(
 /// Resolves an import to its document.
 fn resolve_import(
     graph: &DocumentGraph,
-    quoted: &QuotedImport,
+    stmt: &ImportStatement,
     importer_index: NodeIndex,
 ) -> Result<(Arc<Url>, Document), Option<Diagnostic>> {
-    let uri = quoted.uri();
+    let uri = match stmt.uri() {
+        Some(uri) => uri,
+        None => {
+            // Symbolic module paths do not resolve through the quoted-URI
+            // graph; the module resolver handles them separately.
+            return Err(None);
+        }
+    };
     let span = uri.span();
     let text = match uri.text() {
         Some(text) => text,

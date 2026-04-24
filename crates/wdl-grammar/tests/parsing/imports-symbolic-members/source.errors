@@ -1,0 +1,30 @@
+error: expected import statement, struct definition, enum definition, task definition, or workflow definition, but found `as` keyword
+  ┌─ tests/parsing/imports-symbolic-members/source.wdl:5:37
+  │
+5 │ import { sort } from openwdl/csvkit as csv
+  │                                     ^^ unexpected `as` keyword
+
+error: expected import statement, struct definition, enum definition, task definition, or workflow definition, but found `as` keyword
+  ┌─ tests/parsing/imports-symbolic-members/source.wdl:9:47
+  │
+9 │ import { sort as sorter } from openwdl/csvkit as csv
+  │                                               ^^ unexpected `as` keyword
+
+error: expected import statement, struct definition, enum definition, task definition, or workflow definition, but found `as` keyword
+   ┌─ tests/parsing/imports-symbolic-members/source.wdl:13:45
+   │
+13 │ import { sort.CsvSort } from openwdl/csvkit as csv
+   │                                             ^^ unexpected `as` keyword
+
+error: expected import statement, struct definition, enum definition, task definition, or workflow definition, but found `as` keyword
+   ┌─ tests/parsing/imports-symbolic-members/source.wdl:17:55
+   │
+17 │ import { sort.CsvSort as MySort } from openwdl/csvkit as csv
+   │                                                       ^^ unexpected `as` keyword
+
+error: expected import statement, struct definition, enum definition, task definition, or workflow definition, but found `as` keyword
+   ┌─ tests/parsing/imports-symbolic-members/source.wdl:21:80
+   │
+21 │ import { sort.CsvSort, sort.CsvSortStable as Stable, cut } from openwdl/csvkit as csv
+   │                                                                                ^^ unexpected `as` keyword
+

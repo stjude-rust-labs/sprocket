@@ -89,30 +89,27 @@ fn import_to_symbol(
     import: &ImportStatement,
     lines: &std::sync::Arc<line_index::LineIndex>,
 ) -> Result<DocumentSymbol> {
-    use wdl_ast::v1::ImportStatementKind;
-
-    let (name, detail, selection_span) = match import.kind() {
-        ImportStatementKind::Quoted(q) => {
-            let (name, selection_span) = q.namespace().unwrap_or_else(|| {
-                (
-                    q.uri()
-                        .text()
-                        .map(|t| t.text().to_string())
-                        .unwrap_or_else(|| "<import>".to_string()),
-                    q.uri().span(),
-                )
-            });
-            let detail = q.uri().text().map(|t| t.text().to_string());
-            (name, detail, selection_span)
-        }
-        ImportStatementKind::Symbolic(s) => {
-            let path = s.module_path().text();
-            let name = s
-                .alias()
-                .map(|a| a.text().to_string())
-                .unwrap_or_else(|| path.clone());
-            (name, Some(path), s.module_path().span())
-        }
+    let (name, detail, selection_span) = if let Some(q) = import.uri() {
+        let (name, selection_span) = import.namespace().unwrap_or_else(|| {
+            (
+                q.text()
+                    .map(|t| t.text().to_string())
+                    .unwrap_or_else(|| "<import>".to_string()),
+                q.span(),
+            )
+        });
+        let detail = q.text().map(|t| t.text().to_string());
+        (name, detail, selection_span)
+    } else if let Some(path) = import.module_path() {
+        let path_text = path.text();
+        let name = import
+            .explicit_namespace()
+            .map(|a| a.text().to_string())
+            .or_else(|| import.namespace().map(|(n, _)| n))
+            .unwrap_or_else(|| path_text.clone());
+        (name, Some(path_text), path.span())
+    } else {
+        ("<import>".to_string(), None, import.span())
     };
 
     Ok(DocumentSymbol {

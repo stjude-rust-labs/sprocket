@@ -111,8 +111,6 @@ static REGISTRY: LazyLock<HashMap<&'static str, Box<[SyntaxKind]>>> = LazyLock::
         v1::ImportAlias::register(),
         v1::ImportKeyword::register(),
         v1::ImportStatement::register(),
-        v1::QuotedImport::register(),
-        v1::SymbolicImport::register(),
         v1::SymbolicImportMember::register(),
         v1::SymbolicImportMembers::register(),
         v1::SymbolicModulePath::register(),

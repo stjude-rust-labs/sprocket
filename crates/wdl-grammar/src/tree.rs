@@ -208,11 +208,7 @@ pub enum SyntaxKind {
     VersionStatementNode,
     /// Represents an import statement node.
     ImportStatementNode,
-    /// Represents the quoted-import body inside an `ImportStatementNode`.
-    QuotedImportNode,
-    /// Represents the symbolic-import body inside an `ImportStatementNode`.
-    SymbolicImportNode,
-    /// Represents the braced selected-members clause in a symbolic import.
+    /// Represents the braced selected-members clause in an import statement.
     SymbolicImportMembersNode,
     /// Represents a single selected member in a symbolic import.
     SymbolicImportMemberNode,
@@ -501,8 +497,6 @@ impl SyntaxKind {
             Self::RootNode => "root node",
             Self::VersionStatementNode => "version statement",
             Self::ImportStatementNode => "import statement",
-            Self::QuotedImportNode => "quoted import",
-            Self::SymbolicImportNode => "symbolic import",
             Self::SymbolicImportMembersNode => "selected members clause",
             Self::SymbolicImportMemberNode => "selected member",
             Self::SymbolicModulePathNode => "symbolic module path",

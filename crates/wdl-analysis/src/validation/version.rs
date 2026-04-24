@@ -104,9 +104,15 @@ fn unstable_wdl_1_4(span: Span) -> Diagnostic {
     .with_highlight(span)
 }
 
-/// Creates a "symbolic import requires WDL 1.4" diagnostic.
-fn symbolic_import_requires_wdl_1_4(span: Span) -> Diagnostic {
-    Diagnostic::error("use of a symbolic import requires WDL version 1.4").with_highlight(span)
+/// Creates a "symbolic module path requires WDL 1.4" diagnostic.
+fn symbolic_path_requires_wdl_1_4(span: Span) -> Diagnostic {
+    Diagnostic::error("use of a symbolic module path requires WDL version 1.4").with_highlight(span)
+}
+
+/// Creates a "`from` selection requires WDL 1.4" diagnostic.
+fn from_selection_requires_wdl_1_4(span: Span) -> Diagnostic {
+    Diagnostic::error("use of a `from` selection clause requires WDL version 1.4")
+        .with_highlight(span)
 }
 
 /// Tracks the state of a deprecated version feature flag.
@@ -204,11 +210,19 @@ impl Visitor for VersionVisitor {
             return;
         }
 
-        if let Some(version) = self.version
-            && version < SupportedVersion::V1(V1::Four)
-            && let Some(symbolic) = stmt.as_symbolic()
-        {
-            diagnostics.add(symbolic_import_requires_wdl_1_4(symbolic.span()));
+        let Some(version) = self.version else {
+            return;
+        };
+        if version >= SupportedVersion::V1(V1::Four) {
+            return;
+        }
+
+        if let Some(path) = stmt.module_path() {
+            diagnostics.add(symbolic_path_requires_wdl_1_4(path.span()));
+        }
+
+        if let Some(from) = stmt.from_keyword() {
+            diagnostics.add(from_selection_requires_wdl_1_4(from.span()));
         }
     }
 

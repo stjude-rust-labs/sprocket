@@ -9,7 +9,7 @@ import {
     CsvJoin,
     CsvFormat,
     CsvKit,
-} from openwdl/csvkit as csv
+} from openwdl/csvkit
 
 workflow test {
 }

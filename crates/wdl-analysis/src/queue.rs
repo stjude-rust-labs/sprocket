@@ -1108,10 +1108,10 @@ where
                         // Only quoted imports contribute dependency edges;
                         // symbolic imports resolve through the module
                         // resolver and do not add graph nodes here.
-                        let Some(quoted) = import.as_quoted() else {
+                        let Some(uri) = import.uri() else {
                             continue;
                         };
-                        let text = match quoted.uri().text() {
+                        let text = match uri.text() {
                             Some(text) => text,
                             None => continue,
                         };
