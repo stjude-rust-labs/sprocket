@@ -156,7 +156,7 @@ fn resolve_by_context(
         SyntaxKind::CallTargetNode => {
             resolve_call_target(parent_node, token, analysis_doc, document_uri, lines, graph)
         }
-        SyntaxKind::ImportStatementNode => {
+        SyntaxKind::ImportStatementNode | SyntaxKind::QuotedImportNode => {
             resolve_import_namespace(parent_node, token, document_uri, lines)
         }
 
@@ -401,21 +401,26 @@ fn resolve_call_target(
 }
 
 /// Resolves import namespace identifier to their definition locations.
+///
+/// The caller passes the `ImportStatementNode` or its nested
+/// `QuotedImportNode` as `parent_node`.
 fn resolve_import_namespace(
     parent_node: &SyntaxNode,
     token: &SyntaxToken,
     document_uri: &Url,
     lines: &Arc<LineIndex>,
 ) -> Result<Option<Location>> {
-    let import_stmt = wdl_ast::v1::ImportStatement::cast(parent_node.clone()).unwrap();
-    let ident_text = token.text();
+    let quoted = match parent_node.kind() {
+        SyntaxKind::QuotedImportNode => wdl_ast::v1::QuotedImport::cast(parent_node.clone()),
+        SyntaxKind::ImportStatementNode => wdl_ast::v1::ImportStatement::cast(parent_node.clone())
+            .and_then(|stmt| stmt.as_quoted()),
+        _ => None,
+    };
 
-    // Only quoted-import explicit namespaces have a definition target in
-    // this document; symbolic imports point into the module resolver.
-    if let Some(quoted) = import_stmt.as_quoted()
+    if let Some(quoted) = quoted
         && quoted
             .explicit_namespace()
-            .is_some_and(|ns_ident| ns_ident.text() == ident_text)
+            .is_some_and(|ns_ident| ns_ident.text() == token.text())
     {
         return Ok(Some(location_from_span(document_uri, token.span(), lines)?));
     }
