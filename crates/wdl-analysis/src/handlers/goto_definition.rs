@@ -410,8 +410,8 @@ fn resolve_import_namespace(
     let import_stmt = wdl_ast::v1::ImportStatement::cast(parent_node.clone()).unwrap();
     let ident_text = token.text();
 
-    // Symbolic-import definition resolution is phase-4 work; only handle
-    // quoted-import explicit namespaces here.
+    // Only quoted-import explicit namespaces have a definition target in
+    // this document; symbolic imports point into the module resolver.
     if let Some(quoted) = import_stmt.as_quoted()
         && quoted
             .explicit_namespace()

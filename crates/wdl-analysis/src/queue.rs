@@ -1105,7 +1105,9 @@ where
                 None | Some(Ast::Unsupported) => {}
                 Some(Ast::V1(ast)) => {
                     for import in ast.imports() {
-                        // Symbolic-import dependency edges are phase-4 work.
+                        // Only quoted imports contribute dependency edges;
+                        // symbolic imports resolve through the module
+                        // resolver and do not add graph nodes here.
                         let Some(quoted) = import.as_quoted() else {
                             continue;
                         };

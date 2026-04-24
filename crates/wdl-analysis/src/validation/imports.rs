@@ -48,7 +48,8 @@ impl Visitor for ImportsVisitor {
             return;
         }
 
-        // Symbolic import validation is handled in a later phase.
+        // Only quoted imports are validated here; symbolic imports have
+        // their own validation path in the module resolver.
         let Some(quoted) = stmt.as_quoted() else {
             return;
         };

@@ -237,8 +237,8 @@ fn add_namespace(
     import: &ImportStatement,
     importer_index: NodeIndex,
 ) {
-    // Symbolic imports are resolved during a later phase; for now we only
-    // populate namespaces for quoted imports.
+    // Only quoted imports populate document-local namespaces; symbolic
+    // imports are resolved through the module resolver.
     let Some(quoted) = import.as_quoted() else {
         return;
     };
