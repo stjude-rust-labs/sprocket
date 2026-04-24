@@ -104,6 +104,11 @@ fn unstable_wdl_1_4(span: Span) -> Diagnostic {
     .with_highlight(span)
 }
 
+/// Creates a "symbolic import requires WDL 1.4" diagnostic.
+fn symbolic_import_requires_wdl_1_4(span: Span) -> Diagnostic {
+    Diagnostic::error("use of a symbolic import requires WDL version 1.4").with_highlight(span)
+}
+
 /// Tracks the state of a deprecated version feature flag.
 #[derive(Clone, Copy, Debug, Default)]
 struct DeprecatedVersionFeatureFlag {
@@ -186,6 +191,24 @@ impl Visitor for VersionVisitor {
                 SupportedVersion::V1(V1::Zero | V1::One | V1::Two | V1::Three | V1::Four) => {}
                 other => diagnostics.add(unsupported_version(other, stmt.version().span())),
             }
+        }
+    }
+
+    fn import_statement(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        stmt: &v1::ImportStatement,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        if let Some(version) = self.version
+            && version < SupportedVersion::V1(V1::Four)
+            && let Some(symbolic) = stmt.as_symbolic()
+        {
+            diagnostics.add(symbolic_import_requires_wdl_1_4(symbolic.span()));
         }
     }
 
