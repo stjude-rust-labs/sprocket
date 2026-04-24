@@ -1,194 +1,343 @@
-RootNode@0..391
+RootNode@0..1007
   VersionStatementNode@0..11
     VersionKeyword@0..7 "version"
     Whitespace@7..8 " "
     Version@8..11 "1.4"
   Whitespace@11..13 "\n\n"
-  ImportStatementNode@13..48
-    ImportKeyword@13..19 "import"
-    Whitespace@19..20 " "
-    SymbolicImportNode@20..48
-      SymbolicImportMembersNode@20..28
-        OpenBrace@20..21 "{"
-        Whitespace@21..22 " "
-        SymbolicImportMemberNode@22..26
-          Ident@22..26 "sort"
-        Whitespace@26..27 " "
-        CloseBrace@27..28 "}"
-      Whitespace@28..29 " "
-      FromKeyword@29..33 "from"
-      Whitespace@33..34 " "
-      SymbolicModulePathNode@34..48
-        Ident@34..41 "openwdl"
-        Slash@41..42 "/"
-        Ident@42..48 "csvkit"
-  Whitespace@48..49 "\n"
-  ImportStatementNode@49..101
-    ImportKeyword@49..55 "import"
-    Whitespace@55..56 " "
-    SymbolicImportNode@56..101
-      SymbolicImportMembersNode@56..74
-        OpenBrace@56..57 "{"
-        Whitespace@57..58 " "
-        SymbolicImportMemberNode@58..72
-          Ident@58..62 "sort"
-          Whitespace@62..63 " "
-          AsKeyword@63..65 "as"
-          Whitespace@65..66 " "
-          Ident@66..72 "sorter"
-        Whitespace@72..73 " "
-        CloseBrace@73..74 "}"
-      Whitespace@74..75 " "
-      FromKeyword@75..79 "from"
-      Whitespace@79..80 " "
-      SymbolicModulePathNode@80..94
-        Ident@80..87 "openwdl"
-        Slash@87..88 "/"
-        Ident@88..94 "csvkit"
-      Whitespace@94..95 " "
-      AsKeyword@95..97 "as"
-      Whitespace@97..98 " "
-      Ident@98..101 "csv"
-  Whitespace@101..102 "\n"
-  ImportStatementNode@102..145
-    ImportKeyword@102..108 "import"
-    Whitespace@108..109 " "
-    SymbolicImportNode@109..145
-      SymbolicImportMembersNode@109..125
-        OpenBrace@109..110 "{"
+  Comment@13..60 "# Single member, with ..."
+  Whitespace@60..61 "\n"
+  ImportStatementNode@61..96
+    ImportKeyword@61..67 "import"
+    Whitespace@67..68 " "
+    SymbolicImportNode@68..96
+      SymbolicImportMembersNode@68..76
+        OpenBrace@68..69 "{"
+        Whitespace@69..70 " "
+        SymbolicImportMemberNode@70..74
+          Ident@70..74 "sort"
+        Whitespace@74..75 " "
+        CloseBrace@75..76 "}"
+      Whitespace@76..77 " "
+      FromKeyword@77..81 "from"
+      Whitespace@81..82 " "
+      SymbolicModulePathNode@82..96
+        Ident@82..89 "openwdl"
+        Slash@89..90 "/"
+        Ident@90..96 "csvkit"
+  Whitespace@96..97 "\n"
+  ImportStatementNode@97..139
+    ImportKeyword@97..103 "import"
+    Whitespace@103..104 " "
+    SymbolicImportNode@104..139
+      SymbolicImportMembersNode@104..112
+        OpenBrace@104..105 "{"
+        Whitespace@105..106 " "
+        SymbolicImportMemberNode@106..110
+          Ident@106..110 "sort"
         Whitespace@110..111 " "
-        SymbolicImportMemberNode@111..123
-          Ident@111..115 "sort"
-          Dot@115..116 "."
-          Ident@116..123 "CsvSort"
-        Whitespace@123..124 " "
-        CloseBrace@124..125 "}"
-      Whitespace@125..126 " "
-      FromKeyword@126..130 "from"
-      Whitespace@130..131 " "
-      SymbolicModulePathNode@131..145
-        Ident@131..138 "openwdl"
-        Slash@138..139 "/"
-        Ident@139..145 "csvkit"
-  Whitespace@145..146 "\n"
-  ImportStatementNode@146..199
-    ImportKeyword@146..152 "import"
-    Whitespace@152..153 " "
-    SymbolicImportNode@153..199
-      SymbolicImportMembersNode@153..179
-        OpenBrace@153..154 "{"
-        Whitespace@154..155 " "
-        SymbolicImportMemberNode@155..177
-          Ident@155..159 "sort"
-          Dot@159..160 "."
-          Ident@160..167 "CsvSort"
-          Whitespace@167..168 " "
-          AsKeyword@168..170 "as"
-          Whitespace@170..171 " "
-          Ident@171..177 "MySort"
-        Whitespace@177..178 " "
-        CloseBrace@178..179 "}"
-      Whitespace@179..180 " "
-      FromKeyword@180..184 "from"
-      Whitespace@184..185 " "
-      SymbolicModulePathNode@185..199
-        Ident@185..192 "openwdl"
-        Slash@192..193 "/"
-        Ident@193..199 "csvkit"
-  Whitespace@199..200 "\n"
-  ImportStatementNode@200..285
-    ImportKeyword@200..206 "import"
-    Whitespace@206..207 " "
-    SymbolicImportNode@207..285
-      SymbolicImportMembersNode@207..258
-        OpenBrace@207..208 "{"
-        Whitespace@208..209 " "
-        SymbolicImportMemberNode@209..221
-          Ident@209..213 "sort"
-          Dot@213..214 "."
-          Ident@214..221 "CsvSort"
-        Comma@221..222 ","
-        Whitespace@222..223 " "
-        SymbolicImportMemberNode@223..251
-          Ident@223..227 "sort"
-          Dot@227..228 "."
-          Ident@228..241 "CsvSortStable"
-          Whitespace@241..242 " "
-          AsKeyword@242..244 "as"
-          Whitespace@244..245 " "
-          Ident@245..251 "Stable"
-        Comma@251..252 ","
-        Whitespace@252..253 " "
-        SymbolicImportMemberNode@253..256
-          Ident@253..256 "cut"
-        Whitespace@256..257 " "
-        CloseBrace@257..258 "}"
-      Whitespace@258..259 " "
-      FromKeyword@259..263 "from"
-      Whitespace@263..264 " "
-      SymbolicModulePathNode@264..278
-        Ident@264..271 "openwdl"
-        Slash@271..272 "/"
-        Ident@272..278 "csvkit"
-      Whitespace@278..279 " "
-      AsKeyword@279..281 "as"
+        CloseBrace@111..112 "}"
+      Whitespace@112..113 " "
+      FromKeyword@113..117 "from"
+      Whitespace@117..118 " "
+      SymbolicModulePathNode@118..132
+        Ident@118..125 "openwdl"
+        Slash@125..126 "/"
+        Ident@126..132 "csvkit"
+      Whitespace@132..133 " "
+      AsKeyword@133..135 "as"
+      Whitespace@135..136 " "
+      Ident@136..139 "csv"
+  Whitespace@139..141 "\n\n"
+  Comment@141..189 "# Renamed member, wit ..."
+  Whitespace@189..190 "\n"
+  ImportStatementNode@190..235
+    ImportKeyword@190..196 "import"
+    Whitespace@196..197 " "
+    SymbolicImportNode@197..235
+      SymbolicImportMembersNode@197..215
+        OpenBrace@197..198 "{"
+        Whitespace@198..199 " "
+        SymbolicImportMemberNode@199..213
+          Ident@199..203 "sort"
+          Whitespace@203..204 " "
+          AsKeyword@204..206 "as"
+          Whitespace@206..207 " "
+          Ident@207..213 "sorter"
+        Whitespace@213..214 " "
+        CloseBrace@214..215 "}"
+      Whitespace@215..216 " "
+      FromKeyword@216..220 "from"
+      Whitespace@220..221 " "
+      SymbolicModulePathNode@221..235
+        Ident@221..228 "openwdl"
+        Slash@228..229 "/"
+        Ident@229..235 "csvkit"
+  Whitespace@235..236 "\n"
+  ImportStatementNode@236..288
+    ImportKeyword@236..242 "import"
+    Whitespace@242..243 " "
+    SymbolicImportNode@243..288
+      SymbolicImportMembersNode@243..261
+        OpenBrace@243..244 "{"
+        Whitespace@244..245 " "
+        SymbolicImportMemberNode@245..259
+          Ident@245..249 "sort"
+          Whitespace@249..250 " "
+          AsKeyword@250..252 "as"
+          Whitespace@252..253 " "
+          Ident@253..259 "sorter"
+        Whitespace@259..260 " "
+        CloseBrace@260..261 "}"
+      Whitespace@261..262 " "
+      FromKeyword@262..266 "from"
+      Whitespace@266..267 " "
+      SymbolicModulePathNode@267..281
+        Ident@267..274 "openwdl"
+        Slash@274..275 "/"
+        Ident@275..281 "csvkit"
       Whitespace@281..282 " "
-      Ident@282..285 "csv"
-  Whitespace@285..286 "\n"
-  ImportStatementNode@286..322
-    ImportKeyword@286..292 "import"
-    Whitespace@292..293 " "
-    SymbolicImportNode@293..322
-      SymbolicImportMembersNode@293..302
-        OpenBrace@293..294 "{"
-        Whitespace@294..295 " "
-        SymbolicImportMemberNode@295..299
-          Ident@295..299 "sort"
-        Comma@299..300 ","
-        Whitespace@300..301 " "
-        CloseBrace@301..302 "}"
-      Whitespace@302..303 " "
-      FromKeyword@303..307 "from"
-      Whitespace@307..308 " "
-      SymbolicModulePathNode@308..322
-        Ident@308..315 "openwdl"
-        Slash@315..316 "/"
-        Ident@316..322 "csvkit"
-  Whitespace@322..323 "\n"
-  ImportStatementNode@323..390
-    ImportKeyword@323..329 "import"
-    Whitespace@329..330 " "
-    SymbolicImportNode@330..390
-      SymbolicImportMembersNode@330..370
-        OpenBrace@330..331 "{"
-        Whitespace@331..332 " "
-        SymbolicImportMemberNode@332..342
-          Ident@332..333 "a"
-          Dot@333..334 "."
-          Ident@334..335 "b"
-          Dot@335..336 "."
-          Ident@336..337 "c"
-          Dot@337..338 "."
-          Ident@338..342 "deep"
-        Comma@342..343 ","
-        Whitespace@343..344 " "
-        SymbolicImportMemberNode@344..368
-          Ident@344..346 "ns"
-          Dot@346..347 "."
-          Ident@347..352 "inner"
-          Dot@352..353 "."
-          Ident@353..357 "Name"
-          Whitespace@357..358 " "
-          AsKeyword@358..360 "as"
-          Whitespace@360..361 " "
-          Ident@361..368 "Renamed"
-        Whitespace@368..369 " "
-        CloseBrace@369..370 "}"
-      Whitespace@370..371 " "
-      FromKeyword@371..375 "from"
-      Whitespace@375..376 " "
-      SymbolicModulePathNode@376..390
-        Ident@376..383 "openwdl"
-        Slash@383..384 "/"
-        Ident@384..390 "csvkit"
-  Whitespace@390..391 "\n"
+      AsKeyword@282..284 "as"
+      Whitespace@284..285 " "
+      Ident@285..288 "csv"
+  Whitespace@288..290 "\n\n"
+  Comment@290..350 "# Dotted (namespaced) ..."
+  Whitespace@350..351 "\n"
+  ImportStatementNode@351..394
+    ImportKeyword@351..357 "import"
+    Whitespace@357..358 " "
+    SymbolicImportNode@358..394
+      SymbolicImportMembersNode@358..374
+        OpenBrace@358..359 "{"
+        Whitespace@359..360 " "
+        SymbolicImportMemberNode@360..372
+          Ident@360..364 "sort"
+          Dot@364..365 "."
+          Ident@365..372 "CsvSort"
+        Whitespace@372..373 " "
+        CloseBrace@373..374 "}"
+      Whitespace@374..375 " "
+      FromKeyword@375..379 "from"
+      Whitespace@379..380 " "
+      SymbolicModulePathNode@380..394
+        Ident@380..387 "openwdl"
+        Slash@387..388 "/"
+        Ident@388..394 "csvkit"
+  Whitespace@394..395 "\n"
+  ImportStatementNode@395..445
+    ImportKeyword@395..401 "import"
+    Whitespace@401..402 " "
+    SymbolicImportNode@402..445
+      SymbolicImportMembersNode@402..418
+        OpenBrace@402..403 "{"
+        Whitespace@403..404 " "
+        SymbolicImportMemberNode@404..416
+          Ident@404..408 "sort"
+          Dot@408..409 "."
+          Ident@409..416 "CsvSort"
+        Whitespace@416..417 " "
+        CloseBrace@417..418 "}"
+      Whitespace@418..419 " "
+      FromKeyword@419..423 "from"
+      Whitespace@423..424 " "
+      SymbolicModulePathNode@424..438
+        Ident@424..431 "openwdl"
+        Slash@431..432 "/"
+        Ident@432..438 "csvkit"
+      Whitespace@438..439 " "
+      AsKeyword@439..441 "as"
+      Whitespace@441..442 " "
+      Ident@442..445 "csv"
+  Whitespace@445..447 "\n\n"
+  Comment@447..506 "# Dotted member with  ..."
+  Whitespace@506..507 "\n"
+  ImportStatementNode@507..560
+    ImportKeyword@507..513 "import"
+    Whitespace@513..514 " "
+    SymbolicImportNode@514..560
+      SymbolicImportMembersNode@514..540
+        OpenBrace@514..515 "{"
+        Whitespace@515..516 " "
+        SymbolicImportMemberNode@516..538
+          Ident@516..520 "sort"
+          Dot@520..521 "."
+          Ident@521..528 "CsvSort"
+          Whitespace@528..529 " "
+          AsKeyword@529..531 "as"
+          Whitespace@531..532 " "
+          Ident@532..538 "MySort"
+        Whitespace@538..539 " "
+        CloseBrace@539..540 "}"
+      Whitespace@540..541 " "
+      FromKeyword@541..545 "from"
+      Whitespace@545..546 " "
+      SymbolicModulePathNode@546..560
+        Ident@546..553 "openwdl"
+        Slash@553..554 "/"
+        Ident@554..560 "csvkit"
+  Whitespace@560..561 "\n"
+  ImportStatementNode@561..621
+    ImportKeyword@561..567 "import"
+    Whitespace@567..568 " "
+    SymbolicImportNode@568..621
+      SymbolicImportMembersNode@568..594
+        OpenBrace@568..569 "{"
+        Whitespace@569..570 " "
+        SymbolicImportMemberNode@570..592
+          Ident@570..574 "sort"
+          Dot@574..575 "."
+          Ident@575..582 "CsvSort"
+          Whitespace@582..583 " "
+          AsKeyword@583..585 "as"
+          Whitespace@585..586 " "
+          Ident@586..592 "MySort"
+        Whitespace@592..593 " "
+        CloseBrace@593..594 "}"
+      Whitespace@594..595 " "
+      FromKeyword@595..599 "from"
+      Whitespace@599..600 " "
+      SymbolicModulePathNode@600..614
+        Ident@600..607 "openwdl"
+        Slash@607..608 "/"
+        Ident@608..614 "csvkit"
+      Whitespace@614..615 " "
+      AsKeyword@615..617 "as"
+      Whitespace@617..618 " "
+      Ident@618..621 "csv"
+  Whitespace@621..623 "\n\n"
+  Comment@623..687 "# Multiple members mi ..."
+  Whitespace@687..688 "\n"
+  ImportStatementNode@688..766
+    ImportKeyword@688..694 "import"
+    Whitespace@694..695 " "
+    SymbolicImportNode@695..766
+      SymbolicImportMembersNode@695..746
+        OpenBrace@695..696 "{"
+        Whitespace@696..697 " "
+        SymbolicImportMemberNode@697..709
+          Ident@697..701 "sort"
+          Dot@701..702 "."
+          Ident@702..709 "CsvSort"
+        Comma@709..710 ","
+        Whitespace@710..711 " "
+        SymbolicImportMemberNode@711..739
+          Ident@711..715 "sort"
+          Dot@715..716 "."
+          Ident@716..729 "CsvSortStable"
+          Whitespace@729..730 " "
+          AsKeyword@730..732 "as"
+          Whitespace@732..733 " "
+          Ident@733..739 "Stable"
+        Comma@739..740 ","
+        Whitespace@740..741 " "
+        SymbolicImportMemberNode@741..744
+          Ident@741..744 "cut"
+        Whitespace@744..745 " "
+        CloseBrace@745..746 "}"
+      Whitespace@746..747 " "
+      FromKeyword@747..751 "from"
+      Whitespace@751..752 " "
+      SymbolicModulePathNode@752..766
+        Ident@752..759 "openwdl"
+        Slash@759..760 "/"
+        Ident@760..766 "csvkit"
+  Whitespace@766..767 "\n"
+  ImportStatementNode@767..852
+    ImportKeyword@767..773 "import"
+    Whitespace@773..774 " "
+    SymbolicImportNode@774..852
+      SymbolicImportMembersNode@774..825
+        OpenBrace@774..775 "{"
+        Whitespace@775..776 " "
+        SymbolicImportMemberNode@776..788
+          Ident@776..780 "sort"
+          Dot@780..781 "."
+          Ident@781..788 "CsvSort"
+        Comma@788..789 ","
+        Whitespace@789..790 " "
+        SymbolicImportMemberNode@790..818
+          Ident@790..794 "sort"
+          Dot@794..795 "."
+          Ident@795..808 "CsvSortStable"
+          Whitespace@808..809 " "
+          AsKeyword@809..811 "as"
+          Whitespace@811..812 " "
+          Ident@812..818 "Stable"
+        Comma@818..819 ","
+        Whitespace@819..820 " "
+        SymbolicImportMemberNode@820..823
+          Ident@820..823 "cut"
+        Whitespace@823..824 " "
+        CloseBrace@824..825 "}"
+      Whitespace@825..826 " "
+      FromKeyword@826..830 "from"
+      Whitespace@830..831 " "
+      SymbolicModulePathNode@831..845
+        Ident@831..838 "openwdl"
+        Slash@838..839 "/"
+        Ident@839..845 "csvkit"
+      Whitespace@845..846 " "
+      AsKeyword@846..848 "as"
+      Whitespace@848..849 " "
+      Ident@849..852 "csv"
+  Whitespace@852..854 "\n\n"
+  Comment@854..871 "# Trailing comma."
+  Whitespace@871..872 "\n"
+  ImportStatementNode@872..908
+    ImportKeyword@872..878 "import"
+    Whitespace@878..879 " "
+    SymbolicImportNode@879..908
+      SymbolicImportMembersNode@879..888
+        OpenBrace@879..880 "{"
+        Whitespace@880..881 " "
+        SymbolicImportMemberNode@881..885
+          Ident@881..885 "sort"
+        Comma@885..886 ","
+        Whitespace@886..887 " "
+        CloseBrace@887..888 "}"
+      Whitespace@888..889 " "
+      FromKeyword@889..893 "from"
+      Whitespace@893..894 " "
+      SymbolicModulePathNode@894..908
+        Ident@894..901 "openwdl"
+        Slash@901..902 "/"
+        Ident@902..908 "csvkit"
+  Whitespace@908..910 "\n\n"
+  Comment@910..938 "# Deeply nested dotte ..."
+  Whitespace@938..939 "\n"
+  ImportStatementNode@939..1006
+    ImportKeyword@939..945 "import"
+    Whitespace@945..946 " "
+    SymbolicImportNode@946..1006
+      SymbolicImportMembersNode@946..986
+        OpenBrace@946..947 "{"
+        Whitespace@947..948 " "
+        SymbolicImportMemberNode@948..958
+          Ident@948..949 "a"
+          Dot@949..950 "."
+          Ident@950..951 "b"
+          Dot@951..952 "."
+          Ident@952..953 "c"
+          Dot@953..954 "."
+          Ident@954..958 "deep"
+        Comma@958..959 ","
+        Whitespace@959..960 " "
+        SymbolicImportMemberNode@960..984
+          Ident@960..962 "ns"
+          Dot@962..963 "."
+          Ident@963..968 "inner"
+          Dot@968..969 "."
+          Ident@969..973 "Name"
+          Whitespace@973..974 " "
+          AsKeyword@974..976 "as"
+          Whitespace@976..977 " "
+          Ident@977..984 "Renamed"
+        Whitespace@984..985 " "
+        CloseBrace@985..986 "}"
+      Whitespace@986..987 " "
+      FromKeyword@987..991 "from"
+      Whitespace@991..992 " "
+      SymbolicModulePathNode@992..1006
+        Ident@992..999 "openwdl"
+        Slash@999..1000 "/"
+        Ident@1000..1006 "csvkit"
+  Whitespace@1006..1007 "\n"

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* Formatting for symbolic imports: bare and wildcard forms render on a
+* Formatting for symbolic imports: module and wildcard forms render on a
   single line; braced member lists render inline when the full statement
   fits within `max_line_length` and otherwise wrap with each member on
   its own indented line. Symbolic module paths are emitted as a single

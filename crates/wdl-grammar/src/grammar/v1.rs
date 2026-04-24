@@ -548,8 +548,11 @@ fn quoted_import_body(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Ma
 /// 3. `import * from <path> [as <alias>]`
 /// 4. `import { <m> [as <N>] [, ...] } from <path> [as <alias>]`
 ///
-/// In form 4, each member is `<ident>` or `<ident>.<ident>`, optionally
-/// followed by `as <ident>`.
+/// Every form accepts an optional trailing `as <alias>`. Without it, forms 3
+/// and 4 bring items into the consuming document's top-level scope; with it,
+/// the items are grouped under `<alias>`. Each member in form 4 is a dotted
+/// path of one or more identifiers, optionally followed by `as <ident>` to
+/// rename the member locally.
 fn symbolic_import_body(
     parser: &mut Parser<'_>,
     marker: Marker,

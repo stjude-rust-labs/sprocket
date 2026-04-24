@@ -1,4 +1,4 @@
-RootNode@0..35
+RootNode@0..64
   VersionStatementNode@0..11
     VersionKeyword@0..7 "version"
     Whitespace@7..8 " "
@@ -13,3 +13,16 @@ RootNode@0..35
         Slash@27..28 "/"
         Ident@28..34 "csvkit"
   Whitespace@34..35 "\n"
+  ImportStatementNode@35..63
+    ImportKeyword@35..41 "import"
+    Whitespace@41..42 " "
+    SymbolicImportNode@42..63
+      SymbolicModulePathNode@42..56
+        Ident@42..49 "openwdl"
+        Slash@49..50 "/"
+        Ident@50..56 "csvkit"
+      Whitespace@56..57 " "
+      AsKeyword@57..59 "as"
+      Whitespace@59..60 " "
+      Ident@60..63 "csv"
+  Whitespace@63..64 "\n"

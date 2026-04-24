@@ -173,8 +173,8 @@ impl<N: TreeNode> AstNode<N> for QuotedImport<N> {
 /// A symbolic import references a module declared in the consuming module's
 /// `module.json` manifest. The body has one of four shapes.
 ///
-/// 1. A bare module path.
-/// 2. A bare module path with an `as <Ident>` alias.
+/// 1. A module path.
+/// 2. A module path with an `as <Ident>` alias.
 /// 3. A wildcard `*` followed by `from <path>` and an optional module alias.
 /// 4. A braced member list `{ ... }` followed by `from <path>` and an optional
 ///    module alias.
@@ -346,7 +346,7 @@ impl<N: TreeNode> SymbolicImportMember<N> {
 
     /// The namespace components before the name.
     ///
-    /// Returns an empty iterator when the member is a bare identifier.
+    /// Returns an empty iterator when the member is a single identifier.
     pub fn namespace(&self) -> impl Iterator<Item = Ident<N::Token>> + use<'_, N> {
         let count = self.component_count();
         self.idents().take(count.saturating_sub(1))
