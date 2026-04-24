@@ -179,8 +179,7 @@ impl TokenStream<PreToken> {
         let preceding_trivia = token.inner().preceding_trivia();
         let mut trivia = Vec::new();
         let mut exceptions = HashSet::new();
-        let mut doc_string = String::new();
-        let mut docs_index: i32 = -1;
+        let mut docs_present = false;
         for token in preceding_trivia {
             match token.kind() {
                 SyntaxKind::Whitespace => {
@@ -194,19 +193,10 @@ impl TokenStream<PreToken> {
                     if let Some(t) = token.text().strip_prefix(DOC_COMMENT_PREFIX) {
                         // do not `trim()` the token as the whitespace may
                         // have syntactical meaning in markdown
-                        doc_string.push_str(t);
-                        doc_string.push_str(NEWLINE);
-                        if docs_index.is_negative() {
-                            let comment = PreToken::Trivia(Trivia::Comment(
-                                Comment::Documentation(Rc::new(doc_string.clone())),
-                            ));
-                            trivia.push(comment);
-                            docs_index = trivia.len() as i32 - 1;
-                        } else {
-                            trivia[docs_index as usize] = PreToken::Trivia(Trivia::Comment(
-                                Comment::Documentation(Rc::new(doc_string.clone())),
-                            ));
-                        }
+                        trivia.push(PreToken::Trivia(Trivia::Comment(Comment::Documentation(
+                            Rc::new(t.to_string() + NEWLINE)))));
+                        docs_present = true;
+                        
                     } else if let Ok(directive) = token.text().parse::<Directive>() {
                         match directive {
                             Directive::Except(e) => exceptions.extend(e),
@@ -230,6 +220,7 @@ impl TokenStream<PreToken> {
         }
 
         while let Some(token) = trivia.next() {
+            tracing::info!("pushing preceding trivia token: {}", token.display(&crate::Config::default()));
             self.0.push(token);
 
             if let Some(PreToken::Trivia(Trivia::Comment(Comment::Documentation(_)))) =
@@ -240,7 +231,7 @@ impl TokenStream<PreToken> {
                 let _ = trivia.next();
             }
         }
-        if docs_index >= 0
+        if docs_present
             && let Some(PreToken::Trivia(Trivia::BlankLine)) = self.0.last()
         {
             // don't allow documentation to "float" above the item being documented

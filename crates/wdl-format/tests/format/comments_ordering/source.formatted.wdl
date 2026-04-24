@@ -8,17 +8,19 @@ struct Foo {
 # hello world
 ## This is a Bar Struct
 ##
-## I do cool things
 # this is an odd jumble
+## I do cool things
 #@ except: bar, foo
 struct Bar {
 }
 
-## I am a baz struct
-##
-## I do cool things
+## I am a baz task
+## I do very important things
 # hello world
+
+##
 # TODO: Implement this
+## I do cool things
 #@ except: bar, foo
-struct Baz {
+task Baz {
 }

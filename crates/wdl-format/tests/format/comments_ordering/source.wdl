@@ -16,12 +16,14 @@ struct Foo {}
 struct Bar {}
 
 #@ except: foo
-## I am a baz struct
+## I am a baz task
+## I do very important things
 
 # hello world
+
 #@ except: bar
 ##
 
 # TODO: Implement this
 ## I do cool things
-struct Baz {}
+task Baz {}
