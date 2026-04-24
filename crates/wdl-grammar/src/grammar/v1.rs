@@ -541,18 +541,20 @@ fn quoted_import_body(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Ma
 
 /// Parses the body of a symbolic import statement.
 ///
-/// Covers four symbolic import forms.
+/// Covers three symbolic import forms, each accepting an optional trailing
+/// `as <alias>`.
 ///
-/// 1. `import <path>`
-/// 2. `import <path> as <alias>`
-/// 3. `import * from <path> [as <alias>]`
-/// 4. `import { <m> [as <N>] [, ...] } from <path> [as <alias>]`
+/// 1. `import <path> [as <alias>]`
+/// 2. `import * from <path> [as <alias>]`
+/// 3. `import { <m> [as <N>] [, ...] } from <path> [as <alias>]`
 ///
-/// Every form accepts an optional trailing `as <alias>`. Without it, forms 3
-/// and 4 bring items into the consuming document's top-level scope; with it,
-/// the items are grouped under `<alias>`. Each member in form 4 is a dotted
-/// path of one or more identifiers, optionally followed by `as <ident>` to
-/// rename the member locally.
+/// Form 1 brings every member of the module into scope under a namespace;
+/// the namespace defaults to the last component of `<path>` and `as <alias>`
+/// renames it. Forms 2 and 3 bring items into the consuming document's
+/// top-level scope by default; `as <alias>` groups them under `<alias>`
+/// instead. Each member in form 3 is a dotted path of one or more
+/// identifiers, optionally followed by `as <ident>` to rename the member
+/// locally.
 fn symbolic_import_body(
     parser: &mut Parser<'_>,
     marker: Marker,

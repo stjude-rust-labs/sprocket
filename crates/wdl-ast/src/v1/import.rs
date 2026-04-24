@@ -171,13 +171,18 @@ impl<N: TreeNode> AstNode<N> for QuotedImport<N> {
 /// Represents a symbolic-module import body.
 ///
 /// A symbolic import references a module declared in the consuming module's
-/// `module.json` manifest. The body has one of four shapes.
+/// `module.json` manifest. The body has one of three shapes, each accepting
+/// an optional trailing `as <Ident>` alias.
 ///
-/// 1. A module path.
-/// 2. A module path with an `as <Ident>` alias.
-/// 3. A wildcard `*` followed by `from <path>` and an optional module alias.
-/// 4. A braced member list `{ ... }` followed by `from <path>` and an optional
-///    module alias.
+/// 1. A module path. Every member is brought into scope under a namespace;
+///    the default name is the last path component, and the optional alias
+///    renames that namespace.
+/// 2. A wildcard `*` followed by `from <path>`. Every member is brought into
+///    the consuming document's top-level scope; the optional alias groups
+///    them under a namespace.
+/// 3. A braced member list `{ ... }` followed by `from <path>`. Only the
+///    selected members are brought into top-level scope; the optional alias
+///    groups them under a namespace.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SymbolicImport<N: TreeNode = SyntaxNode>(N);
 
