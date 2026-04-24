@@ -220,7 +220,6 @@ impl TokenStream<PreToken> {
         }
 
         while let Some(token) = trivia.next() {
-            tracing::info!("pushing preceding trivia token: {}", token.display(&crate::Config::default()));
             self.0.push(token);
 
             if let Some(PreToken::Trivia(Trivia::Comment(Comment::Documentation(_)))) =
