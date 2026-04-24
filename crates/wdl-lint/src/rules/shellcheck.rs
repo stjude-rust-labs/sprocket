@@ -592,14 +592,14 @@ fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> BashVar {
                     span: Some(span),
                 };
             }
-PrimitiveType::String if evaluates_to_bash_literal(&expr) => {
-            return BashVar {
-                value: "a".repeat(placeholder_len),
-                quoted: true,
-                span: Some(span),
-            };
-        }
-        PrimitiveType::String => {}
+            PrimitiveType::String if evaluates_to_bash_literal(&expr) => {
+                return BashVar {
+                    value: "a".repeat(placeholder_len),
+                    quoted: true,
+                    span: Some(span),
+                };
+            }
+            PrimitiveType::String => {}
             _ => {}
         }
     };
