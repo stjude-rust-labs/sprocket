@@ -48,7 +48,12 @@ impl Visitor for ImportsVisitor {
             return;
         }
 
-        let uri = stmt.uri();
+        // Symbolic import validation is handled in a later phase.
+        let Some(quoted) = stmt.as_quoted() else {
+            return;
+        };
+
+        let uri = quoted.uri();
         if uri.is_empty() {
             diagnostics.add(empty_import(uri.span()));
             return;
@@ -67,7 +72,7 @@ impl Visitor for ImportsVisitor {
             return;
         }
 
-        if stmt.namespace().is_none() {
+        if quoted.namespace().is_none() {
             diagnostics.add(invalid_import_namespace(uri.span()));
         }
     }

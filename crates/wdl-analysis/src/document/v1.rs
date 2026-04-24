@@ -33,6 +33,7 @@ use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::LiteralExpr;
+use wdl_ast::v1::QuotedImport;
 use wdl_ast::v1::ScatterStatement;
 use wdl_ast::v1::StringPart;
 use wdl_ast::v1::StructDefinition;
@@ -236,8 +237,14 @@ fn add_namespace(
     import: &ImportStatement,
     importer_index: NodeIndex,
 ) {
+    // Symbolic imports are resolved during a later phase; for now we only
+    // populate namespaces for quoted imports.
+    let Some(quoted) = import.as_quoted() else {
+        return;
+    };
+
     // Start by resolving the import to its document
-    let (uri, imported) = match resolve_import(graph, import, importer_index) {
+    let (uri, imported) = match resolve_import(graph, &quoted, importer_index) {
         Ok(resolved) => resolved,
         Err(Some(diagnostic)) => {
             document.analysis_diagnostics.push(diagnostic);
@@ -247,15 +254,15 @@ fn add_namespace(
     };
 
     // Check for conflicting namespaces
-    let span = import.uri().span();
-    let ns = match import.namespace() {
+    let span = quoted.uri().span();
+    let ns = match quoted.namespace() {
         Some((ns, span)) => match document.namespaces.get(&ns) {
             Some(prev) => {
                 document.analysis_diagnostics.push(namespace_conflict(
                     &ns,
                     span,
                     prev.span,
-                    import.explicit_namespace().is_none(),
+                    quoted.explicit_namespace().is_none(),
                 ));
                 return;
             }
@@ -281,7 +288,7 @@ fn add_namespace(
     };
 
     // Get the alias map for the namespace (for structs)
-    let aliases = import
+    let aliases = quoted
         .aliases()
         .filter_map(|a| {
             let (from, to) = a.names();
@@ -346,7 +353,7 @@ fn add_namespace(
     }
 
     // Get the alias map for the namespace (for enums)
-    let aliases = import
+    let aliases = quoted
         .aliases()
         .filter_map(|a| {
             let (from, to) = a.names();
@@ -1627,10 +1634,10 @@ fn resolve_call_type(
 /// Resolves an import to its document.
 fn resolve_import(
     graph: &DocumentGraph,
-    stmt: &ImportStatement,
+    quoted: &QuotedImport,
     importer_index: NodeIndex,
 ) -> Result<(Arc<Url>, Document), Option<Diagnostic>> {
-    let uri = stmt.uri();
+    let uri = quoted.uri();
     let span = uri.span();
     let text = match uri.text() {
         Some(text) => text,

@@ -173,6 +173,16 @@ pub enum Node<N: TreeNode = SyntaxNode> {
     ImportAlias(ImportAlias<N>),
     /// An import statement.
     ImportStatement(ImportStatement<N>),
+    /// A quoted-URI import body.
+    QuotedImport(QuotedImport<N>),
+    /// A symbolic-module import body.
+    SymbolicImport(SymbolicImport<N>),
+    /// A single selected member in a symbolic import.
+    SymbolicImportMember(SymbolicImportMember<N>),
+    /// The braced selected-members clause in a symbolic import.
+    SymbolicImportMembers(SymbolicImportMembers<N>),
+    /// The unquoted path of a symbolic import.
+    SymbolicModulePath(SymbolicModulePath<N>),
     /// An index expression.
     IndexExpr(IndexExpr<N>),
     /// An inequality expression.
@@ -336,6 +346,11 @@ ast_element_impl!(
         if_expr(): IfExprNode => IfExpr => IfExpr,
         import_alias(): ImportAliasNode => ImportAlias => ImportAlias,
         import_statement(): ImportStatementNode => ImportStatement => ImportStatement,
+        quoted_import(): QuotedImportNode => QuotedImport => QuotedImport,
+        symbolic_import(): SymbolicImportNode => SymbolicImport => SymbolicImport,
+        symbolic_import_member(): SymbolicImportMemberNode => SymbolicImportMember => SymbolicImportMember,
+        symbolic_import_members(): SymbolicImportMembersNode => SymbolicImportMembers => SymbolicImportMembers,
+        symbolic_module_path(): SymbolicModulePathNode => SymbolicModulePath => SymbolicModulePath,
         index_expr(): IndexExprNode => IndexExpr => IndexExpr,
         inequality_expr(): InequalityExprNode => InequalityExpr => InequalityExpr,
         input_section(): InputSectionNode => InputSection => InputSection,
@@ -469,6 +484,8 @@ pub enum Token<T: TreeToken = SyntaxToken> {
     Float(Float<T>),
     /// The `Float` type keyword.
     FloatTypeKeyword(FloatTypeKeyword<T>),
+    /// The `from` keyword.
+    FromKeyword(FromKeyword<T>),
     /// The `>` symbol.
     Greater(Greater<T>),
     /// The `>=` symbol.
@@ -602,6 +619,7 @@ ast_element_impl!(
         file_type_keyword(): FileTypeKeyword => FileTypeKeyword => FileTypeKeyword,
         float(): Float => Float => Float,
         float_type_keyword(): FloatTypeKeyword => FloatTypeKeyword => FloatTypeKeyword,
+        from_keyword(): FromKeyword => FromKeyword => FromKeyword,
         greater(): Greater => Greater => Greater,
         greater_equal(): GreaterEqual => GreaterEqual => GreaterEqual,
         hints_keyword(): HintsKeyword => HintsKeyword => HintsKeyword,

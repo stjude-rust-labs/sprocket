@@ -89,20 +89,35 @@ fn import_to_symbol(
     import: &ImportStatement,
     lines: &std::sync::Arc<line_index::LineIndex>,
 ) -> Result<DocumentSymbol> {
-    let (name, selection_span) = import.namespace().unwrap_or_else(|| {
-        (
-            import
-                .uri()
-                .text()
-                .map(|t| t.text().to_string())
-                .unwrap_or_else(|| "<import>".to_string()),
-            import.uri().span(),
-        )
-    });
+    use wdl_ast::v1::ImportStatementKind;
+
+    let (name, detail, selection_span) = match import.kind() {
+        ImportStatementKind::Quoted(q) => {
+            let (name, selection_span) = q.namespace().unwrap_or_else(|| {
+                (
+                    q.uri()
+                        .text()
+                        .map(|t| t.text().to_string())
+                        .unwrap_or_else(|| "<import>".to_string()),
+                    q.uri().span(),
+                )
+            });
+            let detail = q.uri().text().map(|t| t.text().to_string());
+            (name, detail, selection_span)
+        }
+        ImportStatementKind::Symbolic(s) => {
+            let path = s.module_path().text();
+            let name = s
+                .alias()
+                .map(|a| a.text().to_string())
+                .unwrap_or_else(|| path.clone());
+            (name, Some(path), s.module_path().span())
+        }
+    };
 
     Ok(DocumentSymbol {
         name,
-        detail: import.uri().text().map(|t| t.text().to_string()),
+        detail,
         kind: SymbolKind::NAMESPACE,
         range: common::location_from_span(uri, import.span(), lines)?.range,
         selection_range: common::location_from_span(uri, selection_span, lines)?.range,

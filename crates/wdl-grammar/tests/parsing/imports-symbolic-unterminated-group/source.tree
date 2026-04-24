@@ -1,0 +1,23 @@
+RootNode@0..52
+  VersionStatementNode@0..11
+    VersionKeyword@0..7 "version"
+    Whitespace@7..8 " "
+    Version@8..11 "1.4"
+  Whitespace@11..13 "\n\n"
+  ImportKeyword@13..19 "import"
+  Whitespace@19..20 " "
+  OpenBrace@20..21 "{"
+  Whitespace@21..22 " "
+  SymbolicImportMemberNode@22..26
+    Ident@22..26 "sort"
+  Comma@26..27 ","
+  Whitespace@27..28 " "
+  SymbolicImportMemberNode@28..31
+    Ident@28..31 "cut"
+  Whitespace@31..32 " "
+  FromKeyword@32..36 "from"
+  Whitespace@36..37 " "
+  Ident@37..44 "openwdl"
+  Slash@44..45 "/"
+  Ident@45..51 "csvkit"
+  Whitespace@51..52 "\n"

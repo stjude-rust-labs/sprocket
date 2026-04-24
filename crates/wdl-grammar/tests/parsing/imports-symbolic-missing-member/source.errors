@@ -1,0 +1,6 @@
+error: expected string, identifier, `*`, or `{`, but found `from` keyword
+  ┌─ tests/parsing/imports-symbolic-missing-member/source.wdl:3:8
+  │
+3 │ import from openwdl/csvkit
+  │        ^^^^ unexpected `from` keyword
+

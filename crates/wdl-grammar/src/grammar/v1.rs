@@ -352,6 +352,7 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::ElseKeyword as u8,
     Token::EnvKeyword as u8,
     Token::FalseKeyword as u8,
+    Token::FromKeyword as u8,
     Token::HintsKeyword as u8,
     Token::IfKeyword as u8,
     Token::InKeyword as u8,
@@ -481,6 +482,49 @@ fn item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnost
 /// Parses an import statement.
 fn import_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::ImportKeyword);
+
+    match parser.peek() {
+        Some((Token::SingleQuote | Token::DoubleQuote | Token::OpenHeredoc, _)) => {
+            let inner = parser.start();
+            if let Err((inner, e)) = quoted_import_body(parser, inner) {
+                inner.abandon(parser);
+                return Err((marker, e));
+            }
+        }
+        Some((Token::Ident, _)) => {
+            let inner = parser.start();
+            if let Err((inner, e)) = symbolic_import_body(parser, inner) {
+                inner.abandon(parser);
+                return Err((marker, e));
+            }
+        }
+        Some((Token::Asterisk | Token::OpenBrace, _)) => {
+            let inner = parser.start();
+            if let Err((inner, e)) = symbolic_import_with_members(parser, inner) {
+                inner.abandon(parser);
+                return Err((marker, e));
+            }
+        }
+        found => {
+            let (found, span) = found
+                .map(|(t, s)| (Some(t.describe()), s))
+                .unwrap_or_else(|| (None, parser.span()));
+            return Err((
+                marker,
+                expected_one_of(&["string", "identifier", "`*`", "`{`"], found, span),
+            ));
+        }
+    }
+
+    marker.complete(parser, SyntaxKind::ImportStatementNode);
+    Ok(())
+}
+
+/// Parses the body of a quoted import statement.
+///
+/// The body consists of a string URI followed by an optional `as Ident`
+/// namespace and zero or more `alias <src> as <dst>` clauses.
+fn quoted_import_body(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     expected_fn!(parser, marker, string);
 
     if parser.next_if(Token::AsKeyword) {
@@ -491,7 +535,138 @@ fn import_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Mark
         expected_fn!(parser, marker, import_alias);
     }
 
-    marker.complete(parser, SyntaxKind::ImportStatementNode);
+    marker.complete(parser, SyntaxKind::QuotedImportNode);
+    Ok(())
+}
+
+/// Parses the body of a symbolic import statement.
+///
+/// Covers four symbolic import forms.
+///
+/// 1. `import <path>`
+/// 2. `import <path> as <alias>`
+/// 3. `import * from <path> [as <alias>]`
+/// 4. `import { <m> [as <N>] [, ...] } from <path> [as <alias>]`
+///
+/// In form 4, each member is `<ident>` or `<ident>.<ident>`, optionally
+/// followed by `as <ident>`.
+fn symbolic_import_body(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    // The dispatcher in `fn import_statement` guarantees the first token is
+    // an `Ident`.
+    expected_fn!(parser, marker, symbolic_module_path);
+
+    if parser.next_if(Token::AsKeyword) {
+        expected!(parser, marker, Token::Ident, "module alias");
+    }
+
+    marker.complete(parser, SyntaxKind::SymbolicImportNode);
+    Ok(())
+}
+
+/// Parses the body of a member-selecting symbolic import statement.
+///
+/// Entered when the token following `import` is `Asterisk` (form 3) or
+/// `OpenBrace` (form 4).
+fn symbolic_import_with_members(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    match parser.peek() {
+        Some((Token::Asterisk, _)) => {
+            parser.require(Token::Asterisk);
+        }
+        Some((Token::OpenBrace, _)) => {
+            expected_fn!(parser, marker, symbolic_import_members);
+        }
+        found => {
+            let (found, span) = found
+                .map(|(t, s)| (Some(t.describe()), s))
+                .unwrap_or_else(|| (None, parser.span()));
+            return Err((marker, expected_found("`*` or `{`", found, span)));
+        }
+    }
+
+    expected!(parser, marker, Token::FromKeyword);
+    expected_fn!(parser, marker, symbolic_module_path);
+
+    if parser.next_if(Token::AsKeyword) {
+        expected!(parser, marker, Token::Ident, "module alias");
+    }
+
+    marker.complete(parser, SyntaxKind::SymbolicImportNode);
+    Ok(())
+}
+
+/// Parses the braced member-selection clause `{ <m>, ... }`.
+fn symbolic_import_members(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    expected!(parser, marker, Token::OpenBrace);
+
+    loop {
+        if matches!(parser.peek(), Some((Token::CloseBrace, _))) {
+            break;
+        }
+
+        expected_fn!(parser, marker, symbolic_import_member);
+
+        if !parser.next_if(Token::Comma) {
+            break;
+        }
+    }
+
+    expected!(parser, marker, Token::CloseBrace);
+    marker.complete(parser, SyntaxKind::SymbolicImportMembersNode);
+    Ok(())
+}
+
+/// Parses one member entry inside the braced group.
+///
+/// An entry is a dotted path of one or more identifiers, optionally followed
+/// by `as <ident>`. A path may have arbitrary depth (`a`, `a.b`, `a.b.c`,
+/// and so on) to address any referable item in the imported module.
+fn symbolic_import_member(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    expected!(parser, marker, Token::Ident, "selected member");
+
+    while parser.next_if(Token::Dot) {
+        expected!(parser, marker, Token::Ident, "namespaced member component");
+    }
+
+    if parser.next_if(Token::AsKeyword) {
+        expected!(parser, marker, Token::Ident, "member alias");
+    }
+
+    marker.complete(parser, SyntaxKind::SymbolicImportMemberNode);
+    Ok(())
+}
+
+/// Parses the module path of a symbolic import.
+///
+/// The path consists of one or more `Ident` tokens separated by `Slash`
+/// (`/`) tokens.
+fn symbolic_module_path(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    expected!(parser, marker, Token::Ident, "symbolic module path");
+
+    while parser.next_if(Token::Slash) {
+        expected!(
+            parser,
+            marker,
+            Token::Ident,
+            "symbolic module path component"
+        );
+    }
+
+    marker.complete(parser, SyntaxKind::SymbolicModulePathNode);
     Ok(())
 }
 

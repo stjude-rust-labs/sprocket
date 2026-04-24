@@ -410,9 +410,12 @@ fn resolve_import_namespace(
     let import_stmt = wdl_ast::v1::ImportStatement::cast(parent_node.clone()).unwrap();
     let ident_text = token.text();
 
-    if import_stmt
-        .explicit_namespace()
-        .is_some_and(|ns_ident| ns_ident.text() == ident_text)
+    // Symbolic-import definition resolution is phase-4 work; only handle
+    // quoted-import explicit namespaces here.
+    if let Some(quoted) = import_stmt.as_quoted()
+        && quoted
+            .explicit_namespace()
+            .is_some_and(|ns_ident| ns_ident.text() == ident_text)
     {
         return Ok(Some(location_from_span(document_uri, token.span(), lines)?));
     }

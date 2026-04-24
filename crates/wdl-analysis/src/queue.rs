@@ -1105,7 +1105,11 @@ where
                 None | Some(Ast::Unsupported) => {}
                 Some(Ast::V1(ast)) => {
                     for import in ast.imports() {
-                        let text = match import.uri().text() {
+                        // Symbolic-import dependency edges are phase-4 work.
+                        let Some(quoted) = import.as_quoted() else {
+                            continue;
+                        };
+                        let text = match quoted.uri().text() {
                             Some(text) => text,
                             None => continue,
                         };

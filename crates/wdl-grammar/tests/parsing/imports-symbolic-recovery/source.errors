@@ -1,0 +1,6 @@
+error: expected string, identifier, `*`, or `{`, but found `from` keyword
+  ┌─ tests/parsing/imports-symbolic-recovery/source.wdl:3:8
+  │
+3 │ import from
+  │        ^^^^ unexpected `from` keyword
+

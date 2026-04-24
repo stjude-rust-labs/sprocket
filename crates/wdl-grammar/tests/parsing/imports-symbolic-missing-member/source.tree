@@ -1,0 +1,14 @@
+RootNode@0..40
+  VersionStatementNode@0..11
+    VersionKeyword@0..7 "version"
+    Whitespace@7..8 " "
+    Version@8..11 "1.4"
+  Whitespace@11..13 "\n\n"
+  ImportKeyword@13..19 "import"
+  Whitespace@19..20 " "
+  FromKeyword@20..24 "from"
+  Whitespace@24..25 " "
+  Ident@25..32 "openwdl"
+  Slash@32..33 "/"
+  Ident@33..39 "csvkit"
+  Whitespace@39..40 "\n"
