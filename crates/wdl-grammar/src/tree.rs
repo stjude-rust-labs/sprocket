@@ -208,7 +208,6 @@ pub enum SyntaxKind {
     VersionStatementNode,
     /// Represents an import statement node.
     ImportStatementNode,
-    // NOTE: kinds must be kept in sync with `SyntaxKind::describe`.
     /// Represents the quoted-import body inside an `ImportStatementNode`.
     QuotedImportNode,
     /// Represents the symbolic-import body inside an `ImportStatementNode`.
