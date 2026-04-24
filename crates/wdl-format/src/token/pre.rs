@@ -194,9 +194,9 @@ impl TokenStream<PreToken> {
                         // do not `trim()` the token as the whitespace may
                         // have syntactical meaning in markdown
                         trivia.push(PreToken::Trivia(Trivia::Comment(Comment::Documentation(
-                            Rc::new(t.to_string() + NEWLINE)))));
+                            Rc::new(t.to_string() + NEWLINE),
+                        ))));
                         docs_present = true;
-                        
                     } else if let Ok(directive) = token.text().parse::<Directive>() {
                         match directive {
                             Directive::Except(e) => exceptions.extend(e),
@@ -230,9 +230,7 @@ impl TokenStream<PreToken> {
                 let _ = trivia.next();
             }
         }
-        if docs_present
-            && let Some(PreToken::Trivia(Trivia::BlankLine)) = self.0.last()
-        {
+        if docs_present && let Some(PreToken::Trivia(Trivia::BlankLine)) = self.0.last() {
             // don't allow documentation to "float" above the item being documented
             self.0.pop();
         }
