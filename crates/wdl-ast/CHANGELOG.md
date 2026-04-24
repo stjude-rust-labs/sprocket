@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* `ImportStatementKind` discriminator on `ImportStatement`, with
+  `as_quoted` and `as_symbolic` convenience accessors ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+* `QuotedImport` wrapper owning the former `uri`, `namespace`,
+  `explicit_namespace`, and `aliases` accessors ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+* `SymbolicImport`, `SymbolicModulePath`, `SymbolicImportMembers`, and
+  `SymbolicImportMember` for the new symbolic import forms, with
+  `components`, `name`, `namespace`, and `alias` accessors on member
+  entries ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+
+#### Changed
+
+* `ImportStatement`'s URI/alias accessors have moved to `QuotedImport`;
+  consumers should match on `ImportStatement::kind()` and use
+  `as_quoted()` to reach them ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+
 ## 0.22.1 - 2026-04-02
 
 ## 0.22.0 - 2026-03-12
