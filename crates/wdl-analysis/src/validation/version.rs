@@ -217,7 +217,7 @@ impl Visitor for VersionVisitor {
             return;
         }
 
-        if let Some(path) = stmt.module_path() {
+        if let v1::ImportSource::ModulePath(path) = stmt.source() {
             diagnostics.add(symbolic_path_requires_wdl_1_4(path.span()));
         }
 

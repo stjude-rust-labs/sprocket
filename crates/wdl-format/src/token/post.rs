@@ -152,7 +152,9 @@ impl Token for PostToken {
                                             remaining = remaining.saturating_sub(cur_len);
                                             written_to_cur_line += 1;
                                         } else if remaining.saturating_sub(cur_len + 2) > 0 {
-                                            // Current rule fits
+                                            // NOTE: the `+ 2` accounts for
+                                            // the `", "` separator written
+                                            // before each subsequent rule.
                                             write!(f, ", {rule}")?;
                                             remaining = remaining.saturating_sub(cur_len + 2);
                                             written_to_cur_line += 1;

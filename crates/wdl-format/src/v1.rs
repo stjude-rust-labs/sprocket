@@ -5,6 +5,7 @@ use std::rc::Rc;
 use nonempty::NonEmpty;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxToken;
+use wdl_ast::v1::ImportSource;
 use wdl_ast::v1::ImportStatement;
 
 /// A key for sorting an `ImportStatement` alongside other imports.
@@ -12,13 +13,12 @@ use wdl_ast::v1::ImportStatement;
 /// Quoted imports sort before symbolic imports; within each group the sort key
 /// is the URI text or the module path text.
 fn import_sort_key(stmt: &ImportStatement) -> (u8, String) {
-    if let Some(uri) = stmt.uri() {
-        let text = uri.text().map(|t| t.text().to_string()).unwrap_or_default();
-        (0, text)
-    } else if let Some(path) = stmt.module_path() {
-        (1, path.text())
-    } else {
-        (2, String::new())
+    match stmt.source() {
+        ImportSource::Uri(uri) => {
+            let text = uri.text().map(|t| t.text().to_string()).unwrap_or_default();
+            (0, text)
+        }
+        ImportSource::ModulePath(path) => (1, path.text()),
     }
 }
 

@@ -31,6 +31,7 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::Expr;
+use wdl_ast::v1::ImportSource;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::LiteralExpr;
 use wdl_ast::v1::ScatterStatement;
@@ -246,14 +247,7 @@ fn add_namespace(
         Err(None) => return,
     };
 
-    // Check for conflicting namespaces
-    let span = match import.uri() {
-        Some(uri) => uri.span(),
-        None => match import.module_path() {
-            Some(path) => path.span(),
-            None => return,
-        },
-    };
+    let span = import.source().span();
     let ns = match import.namespace() {
         Some((ns, span)) => match document.namespaces.get(&ns) {
             Some(prev) => {
@@ -1636,9 +1630,9 @@ fn resolve_import(
     stmt: &ImportStatement,
     importer_index: NodeIndex,
 ) -> Result<(Arc<Url>, Document), Option<Diagnostic>> {
-    let uri = match stmt.uri() {
-        Some(uri) => uri,
-        None => {
+    let uri = match stmt.source() {
+        ImportSource::Uri(uri) => uri,
+        ImportSource::ModulePath(_) => {
             // Symbolic module paths do not resolve through the quoted-URI
             // graph; the module resolver handles them separately.
             return Err(None);

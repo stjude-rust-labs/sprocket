@@ -38,6 +38,7 @@ use url::Url;
 use wdl_ast::Ast;
 use wdl_ast::Node;
 use wdl_ast::Severity;
+use wdl_ast::v1::ImportSource;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
 
@@ -1108,7 +1109,7 @@ where
                         // Only quoted imports contribute dependency edges;
                         // symbolic imports resolve through the module
                         // resolver and do not add graph nodes here.
-                        let Some(uri) = import.uri() else {
+                        let ImportSource::Uri(uri) = import.source() else {
                             continue;
                         };
                         let text = match uri.text() {

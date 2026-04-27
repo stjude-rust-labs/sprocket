@@ -50,7 +50,7 @@ impl Visitor for ImportsVisitor {
 
         // Only quoted imports are validated here; symbolic imports have
         // their own validation path in the module resolver.
-        let Some(uri) = stmt.uri() else {
+        let v1::ImportSource::Uri(uri) = stmt.source() else {
             return;
         };
 

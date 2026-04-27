@@ -36,11 +36,33 @@ use crate::TreeToken;
 /// 3. `import { <member> [as <Name>], ... } from <source>` — only the listed
 ///    items are brought into scope.
 ///
-/// `<source>` is either a quoted string URI (`uri()`) or an unquoted symbolic
-/// module path (`module_path()`). Forms 2 and 3 do not accept the trailing
-/// `as <alias>` or `alias` clauses.
+/// `<source>` is either a quoted string URI or an unquoted symbolic module
+/// path; the variants are reachable through `source()`. Forms 2 and 3 do not
+/// accept the trailing `as <alias>` or `alias` clauses.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ImportStatement<N: TreeNode = SyntaxNode>(N);
+
+/// The source of an [`ImportStatement`].
+///
+/// The grammar guarantees that every well-formed `ImportStatementNode` has
+/// exactly one of these two children, so callers always receive a value.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ImportSource<N: TreeNode = SyntaxNode> {
+    /// A quoted string URI source, e.g. `"some/file.wdl"`.
+    Uri(LiteralString<N>),
+    /// An unquoted symbolic module path source, e.g. `openwdl/csvkit`.
+    ModulePath(SymbolicModulePath<N>),
+}
+
+impl<N: TreeNode> ImportSource<N> {
+    /// The span of the source.
+    pub fn span(&self) -> Span {
+        match self {
+            Self::Uri(uri) => uri.span(),
+            Self::ModulePath(path) => path.span(),
+        }
+    }
+}
 
 impl<N: TreeNode> ImportStatement<N> {
     /// Gets the `import` keyword of the statement.
@@ -48,14 +70,19 @@ impl<N: TreeNode> ImportStatement<N> {
         self.token().expect("import should have a keyword")
     }
 
-    /// The quoted URI of the import, when the source is a string literal.
-    pub fn uri(&self) -> Option<LiteralString<N>> {
-        self.child()
-    }
-
-    /// The unquoted symbolic module path, when the source is a path.
-    pub fn module_path(&self) -> Option<SymbolicModulePath<N>> {
-        self.child()
+    /// The source of the import, either a quoted URI or a symbolic module
+    /// path.
+    pub fn source(&self) -> ImportSource<N> {
+        if let Some(uri) = self.child::<LiteralString<N>>() {
+            return ImportSource::Uri(uri);
+        }
+        if let Some(path) = self.child::<SymbolicModulePath<N>>() {
+            return ImportSource::ModulePath(path);
+        }
+        // SAFETY: the v1 grammar's `import_statement` rule requires either a
+        // string source or a `symbolic_module_path`, so a well-formed
+        // `ImportStatementNode` always has one of these as a child.
+        unreachable!()
     }
 
     /// The braced member-selection clause, present in form 3.
@@ -116,34 +143,33 @@ impl<N: TreeNode> ImportStatement<N> {
             return Some((explicit.text().to_string(), explicit.span()));
         }
 
-        if let Some(uri) = self.uri() {
-            let text = uri.text()?;
-            let stem = match Url::parse(text.text()) {
-                Ok(url) => Path::new(
-                    urlencoding::decode(url.path_segments()?.next_back()?)
-                        .ok()?
-                        .as_ref(),
-                )
-                .file_stem()
-                .and_then(OsStr::to_str)?
-                .to_string(),
-                Err(_) => Path::new(text.text())
+        match self.source() {
+            ImportSource::Uri(uri) => {
+                let text = uri.text()?;
+                let stem = match Url::parse(text.text()) {
+                    Ok(url) => Path::new(
+                        urlencoding::decode(url.path_segments()?.next_back()?)
+                            .ok()?
+                            .as_ref(),
+                    )
                     .file_stem()
                     .and_then(OsStr::to_str)?
                     .to_string(),
-            };
-            if !is_ident(&stem) {
-                return None;
+                    Err(_) => Path::new(text.text())
+                        .file_stem()
+                        .and_then(OsStr::to_str)?
+                        .to_string(),
+                };
+                if !is_ident(&stem) {
+                    return None;
+                }
+                Some((stem, uri.span()))
             }
-            return Some((stem, uri.span()));
+            ImportSource::ModulePath(path) => {
+                let last = path.components().last()?;
+                Some((last.text().to_string(), last.span()))
+            }
         }
-
-        if let Some(path) = self.module_path() {
-            let last = path.components().last()?;
-            return Some((last.text().to_string(), last.span()));
-        }
-
-        None
     }
 }
 
@@ -374,13 +400,12 @@ import "qux.wdl" as x alias A as B alias C as D
         assert_eq!(imports.len(), 4);
 
         for import in &imports {
-            assert!(import.uri().is_some());
-            assert!(import.module_path().is_none());
+            assert!(matches!(import.source(), ImportSource::Uri(_)));
             assert!(!import.is_wildcard());
             assert!(import.members().is_none());
         }
 
-        assert_eq!(imports[0].uri().unwrap().text().unwrap().text(), "foo.wdl");
+        assert_eq!(uri_text(&imports[0]), "foo.wdl");
         assert!(imports[0].explicit_namespace().is_none());
         assert_eq!(
             imports[0].namespace().map(|(n, _)| n).as_deref(),
@@ -388,12 +413,12 @@ import "qux.wdl" as x alias A as B alias C as D
         );
         assert_eq!(imports[0].aliases().count(), 0);
 
-        assert_eq!(imports[1].uri().unwrap().text().unwrap().text(), "bar.wdl");
+        assert_eq!(uri_text(&imports[1]), "bar.wdl");
         assert_eq!(imports[1].explicit_namespace().unwrap().text(), "x");
         assert_eq!(imports[1].namespace().map(|(n, _)| n).as_deref(), Some("x"),);
         assert_eq!(imports[1].aliases().count(), 0);
 
-        assert_eq!(imports[2].uri().unwrap().text().unwrap().text(), "baz.wdl");
+        assert_eq!(uri_text(&imports[2]), "baz.wdl");
         assert!(imports[2].explicit_namespace().is_none());
         assert_eq!(
             imports[2].namespace().map(|(n, _)| n).as_deref(),
@@ -401,10 +426,24 @@ import "qux.wdl" as x alias A as B alias C as D
         );
         assert_aliases(imports[2].aliases());
 
-        assert_eq!(imports[3].uri().unwrap().text().unwrap().text(), "qux.wdl");
+        assert_eq!(uri_text(&imports[3]), "qux.wdl");
         assert_eq!(imports[3].explicit_namespace().unwrap().text(), "x");
         assert_eq!(imports[3].namespace().map(|(n, _)| n).as_deref(), Some("x"),);
         assert_aliases(imports[3].aliases());
+    }
+
+    fn uri_text(import: &ImportStatement) -> String {
+        match import.source() {
+            ImportSource::Uri(uri) => uri.text().unwrap().text().to_string(),
+            ImportSource::ModulePath(_) => panic!("expected a quoted URI source"),
+        }
+    }
+
+    fn module_path_text(import: &ImportStatement) -> String {
+        match import.source() {
+            ImportSource::ModulePath(path) => path.text(),
+            ImportSource::Uri(_) => panic!("expected a symbolic module path source"),
+        }
     }
 
     #[test]
@@ -429,8 +468,7 @@ import { CsvSort, CsvSortStable as Stable } from "local.wdl"
         assert_eq!(imports.len(), 5);
 
         // Form 1, symbolic, no alias.
-        assert!(imports[0].uri().is_none());
-        assert_eq!(imports[0].module_path().unwrap().text(), "openwdl/csvkit");
+        assert_eq!(module_path_text(&imports[0]), "openwdl/csvkit");
         assert!(!imports[0].is_wildcard());
         assert!(imports[0].members().is_none());
         assert_eq!(
@@ -448,7 +486,7 @@ import { CsvSort, CsvSortStable as Stable } from "local.wdl"
         // Form 2, wildcard, symbolic source.
         assert!(imports[2].is_wildcard());
         assert!(imports[2].members().is_none());
-        assert_eq!(imports[2].module_path().unwrap().text(), "openwdl/csvkit");
+        assert_eq!(module_path_text(&imports[2]), "openwdl/csvkit");
         assert!(imports[2].explicit_namespace().is_none());
 
         // Form 3, single member, symbolic source.
@@ -458,8 +496,7 @@ import { CsvSort, CsvSortStable as Stable } from "local.wdl"
         assert_eq!(members[0].name().text(), "sort");
 
         // Form 3 with quoted source, multiple members, per-member alias.
-        assert!(imports[4].uri().is_some());
-        assert!(imports[4].module_path().is_none());
+        assert!(matches!(imports[4].source(), ImportSource::Uri(_)));
         let members: Vec<_> = imports[4].members().unwrap().members().collect();
         assert_eq!(members.len(), 2);
         assert_eq!(members[0].name().text(), "CsvSort");

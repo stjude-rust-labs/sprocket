@@ -5,6 +5,7 @@ use wdl_ast::AstToken;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::ImportMember;
 use wdl_ast::v1::ImportMembers;
+use wdl_ast::v1::ImportSource;
 use wdl_ast::v1::ImportStatement;
 
 use crate::Config;
@@ -112,11 +113,16 @@ fn canonical_import_width(element: &FormatElement) -> Option<usize> {
     width += " }".len();
 
     width += " from ".len();
-    if let Some(uri) = stmt.uri() {
-        let text = uri.text().map(|t| t.text().to_string()).unwrap_or_default();
-        width += 2 + text.len();
-    } else if let Some(path) = stmt.module_path() {
-        width += path.text().len();
+    match stmt.source() {
+        ImportSource::Uri(uri) => {
+            let text = uri.text().map(|t| t.text().to_string()).unwrap_or_default();
+            // NOTE: the `+ 2` accounts for the surrounding quote characters
+            // around the URI text in the rendered output.
+            width += 2 + text.len();
+        }
+        ImportSource::ModulePath(path) => {
+            width += path.text().len();
+        }
     }
 
     Some(width)
