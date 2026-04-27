@@ -50,7 +50,7 @@ pub struct ImportStatement<N: TreeNode = SyntaxNode>(N);
 pub enum ImportSource<N: TreeNode = SyntaxNode> {
     /// A quoted string URI source, e.g. `"some/file.wdl"`.
     Uri(LiteralString<N>),
-    /// An unquoted symbolic module path source, e.g. `openwdl/csvkit`.
+    /// An unquoted symbolic module path source, e.g. `wizard/spellbook`.
     ModulePath(SymbolicModulePath<N>),
 }
 
@@ -90,14 +90,6 @@ impl<N: TreeNode> ImportStatement<N> {
         self.child()
     }
 
-    /// Whether the statement uses the `*` wildcard form.
-    pub fn is_wildcard(&self) -> bool {
-        self.0.children_with_tokens().any(|c| match c {
-            NodeOrToken::Token(t) => t.kind() == SyntaxKind::Asterisk,
-            NodeOrToken::Node(_) => false,
-        })
-    }
-
     /// The `*` token, present in the wildcard form.
     pub fn wildcard(&self) -> Option<Asterisk<N::Token>> {
         self.token()
@@ -110,19 +102,19 @@ impl<N: TreeNode> ImportStatement<N> {
 
     /// The explicit namespace introduced by the `as <Ident>` clause.
     ///
-    /// This clause is only valid on the no-member form (form 1) and renames
-    /// the pseudo-namespace through which the imported module's tasks and
-    /// workflows are accessed.
+    /// The `as <alias>` clause is only valid on form 1; the grammar rejects
+    /// it on the wildcard and member-selection forms. This accessor walks
+    /// the top-level token stream and returns the `Ident` immediately
+    /// following an `AsKeyword`, so it returns `None` on every form except a
+    /// form-1 import that explicitly aliases its source.
     pub fn explicit_namespace(&self) -> Option<Ident<N::Token>> {
-        // The final `Ident` token not associated with any child node.
-        // Member aliases live inside `ImportMembersNode`, not here.
-        self.0
-            .children_with_tokens()
-            .filter_map(|c| match c {
-                NodeOrToken::Token(t) => Ident::cast(t),
-                NodeOrToken::Node(_) => None,
-            })
-            .last()
+        let mut tokens = self.0.children_with_tokens().filter_map(|c| c.into_token());
+        while let Some(t) = tokens.next() {
+            if t.kind() == SyntaxKind::AsKeyword {
+                return tokens.find_map(Ident::cast);
+            }
+        }
+        None
     }
 
     /// The `alias <src> as <dst>` clauses on a form-1 import.
@@ -401,7 +393,7 @@ import "qux.wdl" as x alias A as B alias C as D
 
         for import in &imports {
             assert!(matches!(import.source(), ImportSource::Uri(_)));
-            assert!(!import.is_wildcard());
+            assert!(import.wildcard().is_none());
             assert!(import.members().is_none());
         }
 
@@ -469,7 +461,7 @@ import { CsvSort, CsvSortStable as Stable } from "local.wdl"
 
         // Form 1, symbolic, no alias.
         assert_eq!(module_path_text(&imports[0]), "openwdl/csvkit");
-        assert!(!imports[0].is_wildcard());
+        assert!(imports[0].wildcard().is_none());
         assert!(imports[0].members().is_none());
         assert_eq!(
             imports[0].namespace().map(|(n, _)| n).as_deref(),
@@ -484,13 +476,13 @@ import { CsvSort, CsvSortStable as Stable } from "local.wdl"
         );
 
         // Form 2, wildcard, symbolic source.
-        assert!(imports[2].is_wildcard());
+        assert!(imports[2].wildcard().is_some());
         assert!(imports[2].members().is_none());
         assert_eq!(module_path_text(&imports[2]), "openwdl/csvkit");
         assert!(imports[2].explicit_namespace().is_none());
 
         // Form 3, single member, symbolic source.
-        assert!(!imports[3].is_wildcard());
+        assert!(imports[3].wildcard().is_none());
         let members: Vec<_> = imports[3].members().unwrap().members().collect();
         assert_eq!(members.len(), 1);
         assert_eq!(members[0].name().text(), "sort");

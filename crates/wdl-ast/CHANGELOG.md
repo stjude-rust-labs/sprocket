@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* `ImportStatement::module_path`, `ImportStatement::is_wildcard`, and
-  `ImportStatement::members` accessors covering the unquoted symbolic
-  source, the `*` wildcard, and the braced member-selection clause
+* `ImportStatement::source` returns an `ImportSource` enum covering the
+  quoted URI and unquoted symbolic module path variants. The braced
+  member-selection clause and the `*` wildcard token are reachable
+  through `ImportStatement::members` and `ImportStatement::wildcard`
   ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 * `SymbolicModulePath`, `ImportMembers`, and `ImportMember` AST nodes
   for the new import forms. Each `ImportMember` exposes `name` and an
