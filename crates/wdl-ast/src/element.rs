@@ -174,9 +174,9 @@ pub enum Node<N: TreeNode = SyntaxNode> {
     /// An import statement.
     ImportStatement(ImportStatement<N>),
     /// A single selected member in a symbolic import.
-    SymbolicImportMember(SymbolicImportMember<N>),
+    ImportMember(ImportMember<N>),
     /// The braced selected-members clause in a symbolic import.
-    SymbolicImportMembers(SymbolicImportMembers<N>),
+    ImportMembers(ImportMembers<N>),
     /// The unquoted path of a symbolic import.
     SymbolicModulePath(SymbolicModulePath<N>),
     /// An index expression.
@@ -342,8 +342,8 @@ ast_element_impl!(
         if_expr(): IfExprNode => IfExpr => IfExpr,
         import_alias(): ImportAliasNode => ImportAlias => ImportAlias,
         import_statement(): ImportStatementNode => ImportStatement => ImportStatement,
-        symbolic_import_member(): SymbolicImportMemberNode => SymbolicImportMember => SymbolicImportMember,
-        symbolic_import_members(): SymbolicImportMembersNode => SymbolicImportMembers => SymbolicImportMembers,
+        import_member(): ImportMemberNode => ImportMember => ImportMember,
+        import_members(): ImportMembersNode => ImportMembers => ImportMembers,
         symbolic_module_path(): SymbolicModulePathNode => SymbolicModulePath => SymbolicModulePath,
         index_expr(): IndexExprNode => IndexExpr => IndexExpr,
         inequality_expr(): InequalityExprNode => InequalityExpr => InequalityExpr,

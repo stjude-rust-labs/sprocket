@@ -484,15 +484,15 @@ fn item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnost
 /// Three forms are recognized.
 ///
 /// 1. `import <source> [as <alias>] (alias <Old> as <New>)*` — the existing
-///    import form. `<source>` is either a quoted URI or a symbolic module
-///    path. `as <alias>` renames the pseudo-namespace through which the
-///    imported tasks and workflows are accessed; `alias <Old> as <New>`
-///    renames an imported struct or enum.
-/// 2. `import * from <source>` — every task, workflow, and user-defined
-///    type from `<source>` is brought into the importing document's scope.
-/// 3. `import { <member> [as <Name>], ... } from <source>` — only the
-///    listed items are brought into scope. A per-member `as <Name>`
-///    renames the selected item locally.
+///    import form. `<source>` is either a quoted URI or a symbolic module path.
+///    `as <alias>` renames the pseudo-namespace through which the imported
+///    tasks and workflows are accessed; `alias <Old> as <New>` renames an
+///    imported struct or enum.
+/// 2. `import * from <source>` — every task, workflow, and user-defined type
+///    from `<source>` is brought into the importing document's scope.
+/// 3. `import { <member> [as <Name>], ... } from <source>` — only the listed
+///    items are brought into scope. A per-member `as <Name>` renames the
+///    selected item locally.
 ///
 /// Forms 2 and 3 do not accept a trailing `as <alias>` or `alias` clause.
 fn import_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
@@ -505,7 +505,7 @@ fn import_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Mark
         }
         Some((Token::OpenBrace, _)) => {
             let inner = parser.start();
-            if let Err((inner, e)) = symbolic_import_members(parser, inner) {
+            if let Err((inner, e)) = import_members(parser, inner) {
                 inner.abandon(parser);
                 return Err((marker, e));
             }
@@ -557,10 +557,7 @@ fn import_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Mark
 }
 
 /// Parses the braced member-selection clause `{ <m>, ... }`.
-fn symbolic_import_members(
-    parser: &mut Parser<'_>,
-    marker: Marker,
-) -> Result<(), (Marker, Diagnostic)> {
+fn import_members(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     expected!(parser, marker, Token::OpenBrace);
 
     loop {
@@ -568,7 +565,7 @@ fn symbolic_import_members(
             break;
         }
 
-        expected_fn!(parser, marker, symbolic_import_member);
+        expected_fn!(parser, marker, import_member);
 
         if !parser.next_if(Token::Comma) {
             break;
@@ -576,30 +573,22 @@ fn symbolic_import_members(
     }
 
     expected!(parser, marker, Token::CloseBrace);
-    marker.complete(parser, SyntaxKind::SymbolicImportMembersNode);
+    marker.complete(parser, SyntaxKind::ImportMembersNode);
     Ok(())
 }
 
 /// Parses one member entry inside the braced group.
 ///
-/// An entry is a dotted path of one or more identifiers, optionally followed
-/// by `as <ident>`. A path may have arbitrary depth (`a`, `a.b`, `a.b.c`,
-/// and so on) to address any referable item in the imported module.
-fn symbolic_import_member(
-    parser: &mut Parser<'_>,
-    marker: Marker,
-) -> Result<(), (Marker, Diagnostic)> {
+/// An entry is a single identifier optionally followed by `as <ident>` to
+/// rename it locally.
+fn import_member(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     expected!(parser, marker, Token::Ident, "selected member");
-
-    while parser.next_if(Token::Dot) {
-        expected!(parser, marker, Token::Ident, "namespaced member component");
-    }
 
     if parser.next_if(Token::AsKeyword) {
         expected!(parser, marker, Token::Ident, "member alias");
     }
 
-    marker.complete(parser, SyntaxKind::SymbolicImportMemberNode);
+    marker.complete(parser, SyntaxKind::ImportMemberNode);
     Ok(())
 }
 

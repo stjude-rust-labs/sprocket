@@ -8,11 +8,11 @@ RootNode@0..52
   Whitespace@19..20 " "
   OpenBrace@20..21 "{"
   Whitespace@21..22 " "
-  SymbolicImportMemberNode@22..26
+  ImportMemberNode@22..26
     Ident@22..26 "sort"
   Comma@26..27 ","
   Whitespace@27..28 " "
-  SymbolicImportMemberNode@28..31
+  ImportMemberNode@28..31
     Ident@28..31 "cut"
   Whitespace@31..32 " "
   FromKeyword@32..36 "from"

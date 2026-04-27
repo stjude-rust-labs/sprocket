@@ -209,9 +209,9 @@ pub enum SyntaxKind {
     /// Represents an import statement node.
     ImportStatementNode,
     /// Represents the braced selected-members clause in an import statement.
-    SymbolicImportMembersNode,
+    ImportMembersNode,
     /// Represents a single selected member in a symbolic import.
-    SymbolicImportMemberNode,
+    ImportMemberNode,
     /// Represents the unquoted module path `Ident ("/" Ident)*`.
     SymbolicModulePathNode,
     /// Represents an import alias node.
@@ -497,8 +497,8 @@ impl SyntaxKind {
             Self::RootNode => "root node",
             Self::VersionStatementNode => "version statement",
             Self::ImportStatementNode => "import statement",
-            Self::SymbolicImportMembersNode => "selected members clause",
-            Self::SymbolicImportMemberNode => "selected member",
+            Self::ImportMembersNode => "selected members clause",
+            Self::ImportMemberNode => "selected member",
             Self::SymbolicModulePathNode => "symbolic module path",
             Self::ImportAliasNode => "import alias",
             Self::StructDefinitionNode => "struct definition",

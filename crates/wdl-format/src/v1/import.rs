@@ -3,9 +3,9 @@
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::SyntaxKind;
+use wdl_ast::v1::ImportMember;
+use wdl_ast::v1::ImportMembers;
 use wdl_ast::v1::ImportStatement;
-use wdl_ast::v1::SymbolicImportMember;
-use wdl_ast::v1::SymbolicImportMembers;
 
 use crate::Config;
 use crate::PreToken;
@@ -56,21 +56,21 @@ pub fn format_import_statement(
     stream.end_line();
 }
 
-/// Formats a [`SymbolicImportMembers`](wdl_ast::v1::SymbolicImportMembers).
+/// Formats a [`ImportMembers`](wdl_ast::v1::ImportMembers).
 ///
 /// Short lists render inline as `{ a, b, c }`. Lists whose inline width would
 /// exceed the configured `max_line_length` render multiline, with each member
 /// on its own line indented one level deeper than the surrounding statement.
 /// A trailing comma before the closing brace is dropped in the inline form
 /// and added in the multiline form.
-pub fn format_symbolic_import_members(
+pub fn format_import_members(
     element: &FormatElement,
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
     let children: Vec<_> = element
         .children()
-        .expect("symbolic import members children")
+        .expect("import members children")
         .collect();
 
     // Decide on inline vs multiline by measuring the canonical inline width
@@ -83,9 +83,9 @@ pub fn format_symbolic_import_members(
         .unwrap_or(false);
 
     if overflows {
-        format_symbolic_import_members_multiline(&children, stream, config);
+        format_import_members_multiline(&children, stream, config);
     } else {
-        format_symbolic_import_members_inline(&children, stream, config);
+        format_import_members_inline(&children, stream, config);
     }
 }
 
@@ -96,7 +96,7 @@ pub fn format_symbolic_import_members(
 /// import statement, in which case the caller falls back to the inline form.
 fn canonical_import_width(element: &FormatElement) -> Option<usize> {
     let node = element.element().as_node()?.inner().clone();
-    let members = SymbolicImportMembers::cast(node)?;
+    let members = ImportMembers::cast(node)?;
     let stmt = ImportStatement::cast(members.inner().parent()?)?;
 
     let mut width = "import ".len();
@@ -107,7 +107,7 @@ fn canonical_import_width(element: &FormatElement) -> Option<usize> {
         if i > 0 {
             width += ", ".len();
         }
-        width += symbolic_import_member_width(m);
+        width += import_member_width(m);
     }
     width += " }".len();
 
@@ -123,16 +123,8 @@ fn canonical_import_width(element: &FormatElement) -> Option<usize> {
 }
 
 /// Computes the canonical inline width of a single selected-member entry.
-fn symbolic_import_member_width(member: &SymbolicImportMember) -> usize {
-    let mut width = 0usize;
-    let mut first = true;
-    for component in member.components() {
-        if !first {
-            width += ".".len();
-        }
-        width += component.text().len();
-        first = false;
-    }
+fn import_member_width(member: &ImportMember) -> usize {
+    let mut width = member.name().text().len();
     if let Some(alias) = member.alias() {
         width += " as ".len();
         width += alias.text().len();
@@ -141,7 +133,7 @@ fn symbolic_import_member_width(member: &SymbolicImportMember) -> usize {
 }
 
 /// Emits the inline `{ a, b, c }` form.
-fn format_symbolic_import_members_inline(
+fn format_import_members_inline(
     children: &[&FormatElement],
     stream: &mut TokenStream<PreToken>,
     config: &Config,
@@ -177,7 +169,7 @@ fn format_symbolic_import_members_inline(
 }
 
 /// Emits the multiline form, with each member on its own indented line.
-fn format_symbolic_import_members_multiline(
+fn format_import_members_multiline(
     children: &[&FormatElement],
     stream: &mut TokenStream<PreToken>,
     config: &Config,
@@ -221,16 +213,15 @@ fn format_symbolic_import_members_multiline(
     }
 }
 
-/// Formats a [`SymbolicImportMember`](wdl_ast::v1::SymbolicImportMember).
+/// Formats an [`ImportMember`](wdl_ast::v1::ImportMember).
 ///
-/// A space surrounds the optional `as` keyword. The `.` in a
-/// namespace-qualified member is written tight.
-pub fn format_symbolic_import_member(
+/// A space surrounds the optional `as` keyword.
+pub fn format_import_member(
     element: &FormatElement,
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for child in element.children().expect("symbolic import member children") {
+    for child in element.children().expect("import member children") {
         match child.element().kind() {
             SyntaxKind::AsKeyword => {
                 stream.end_word();

@@ -29,12 +29,12 @@ use crate::TreeToken;
 ///
 /// 1. `import <source> [as <alias>] (alias <Old> as <New>)*` — the existing
 ///    import form. User-defined types from `<source>` are brought into the
-///    importing document's scope; tasks and workflows are accessible
-///    through the pseudo-namespace.
-/// 2. `import * from <source>` — every task, workflow, and user-defined
-///    type from `<source>` is brought into the importing document's scope.
-/// 3. `import { <member> [as <Name>], ... } from <source>` — only the
-///    listed items are brought into scope.
+///    importing document's scope; tasks and workflows are accessible through
+///    the pseudo-namespace.
+/// 2. `import * from <source>` — every task, workflow, and user-defined type
+///    from `<source>` is brought into the importing document's scope.
+/// 3. `import { <member> [as <Name>], ... } from <source>` — only the listed
+///    items are brought into scope.
 ///
 /// `<source>` is either a quoted string URI (`uri()`) or an unquoted symbolic
 /// module path (`module_path()`). Forms 2 and 3 do not accept the trailing
@@ -59,7 +59,7 @@ impl<N: TreeNode> ImportStatement<N> {
     }
 
     /// The braced member-selection clause, present in form 3.
-    pub fn members(&self) -> Option<SymbolicImportMembers<N>> {
+    pub fn members(&self) -> Option<ImportMembers<N>> {
         self.child()
     }
 
@@ -88,7 +88,7 @@ impl<N: TreeNode> ImportStatement<N> {
     /// workflows are accessed.
     pub fn explicit_namespace(&self) -> Option<Ident<N::Token>> {
         // The final `Ident` token not associated with any child node.
-        // Member aliases live inside `SymbolicImportMembersNode`, not here.
+        // Member aliases live inside `ImportMembersNode`, not here.
         self.0
             .children_with_tokens()
             .filter_map(|c| match c {
@@ -211,28 +211,28 @@ impl<N: TreeNode> AstNode<N> for SymbolicModulePath<N> {
     }
 }
 
-/// The braced selected-members clause of a symbolic import.
+/// The braced selected-members clause of an import.
 ///
-/// The clause contains one or more comma-separated `SymbolicImportMember`
+/// The clause contains one or more comma-separated `ImportMember`
 /// entries inside `{` and `}`. A trailing comma is permitted.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SymbolicImportMembers<N: TreeNode = SyntaxNode>(N);
+pub struct ImportMembers<N: TreeNode = SyntaxNode>(N);
 
-impl<N: TreeNode> SymbolicImportMembers<N> {
+impl<N: TreeNode> ImportMembers<N> {
     /// The member entries, in source order.
-    pub fn members(&self) -> impl Iterator<Item = SymbolicImportMember<N>> + use<'_, N> {
+    pub fn members(&self) -> impl Iterator<Item = ImportMember<N>> + use<'_, N> {
         self.children()
     }
 }
 
-impl<N: TreeNode> AstNode<N> for SymbolicImportMembers<N> {
+impl<N: TreeNode> AstNode<N> for ImportMembers<N> {
     fn can_cast(kind: SyntaxKind) -> bool {
-        kind == SyntaxKind::SymbolicImportMembersNode
+        kind == SyntaxKind::ImportMembersNode
     }
 
     fn cast(inner: N) -> Option<Self> {
         match inner.kind() {
-            SyntaxKind::SymbolicImportMembersNode => Some(Self(inner)),
+            SyntaxKind::ImportMembersNode => Some(Self(inner)),
             _ => None,
         }
     }
@@ -242,44 +242,24 @@ impl<N: TreeNode> AstNode<N> for SymbolicImportMembers<N> {
     }
 }
 
-/// One member entry inside a braced `SymbolicImportMembers` clause.
+/// One member entry inside a braced `ImportMembers` clause.
 ///
-/// An entry is a dotted path of one or more identifiers (e.g. `name`,
-/// `ns.name`, `ns.inner.name`), optionally followed by `as <alias>`.
+/// An entry is a single identifier optionally followed by `as <alias>` to
+/// rename it locally.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct SymbolicImportMember<N: TreeNode = SyntaxNode>(N);
+pub struct ImportMember<N: TreeNode = SyntaxNode>(N);
 
-impl<N: TreeNode> SymbolicImportMember<N> {
-    /// The path components of the member, in source order.
-    ///
-    /// The iterator yields at least one identifier. For `ns.inner.name`, it
-    /// yields `ns`, `inner`, `name` in order. The last component is the
-    /// member's effective name; every preceding component is part of the
-    /// namespace prefix.
-    pub fn components(&self) -> impl Iterator<Item = Ident<N::Token>> + use<'_, N> {
-        let count = self.component_count();
-        self.idents().take(count)
-    }
-
-    /// The effective name of the member (the last path component).
+impl<N: TreeNode> ImportMember<N> {
+    /// The name of the imported member.
     pub fn name(&self) -> Ident<N::Token> {
-        self.components()
-            .last()
-            .expect("member should have at least one component")
+        self.idents()
+            .next()
+            .expect("member should have a name identifier")
     }
 
-    /// The namespace components before the name.
-    ///
-    /// Returns an empty iterator when the member is a single identifier.
-    pub fn namespace(&self) -> impl Iterator<Item = Ident<N::Token>> + use<'_, N> {
-        let count = self.component_count();
-        self.idents().take(count.saturating_sub(1))
-    }
-
-    /// The optional alias (the `as <Ident>` after the path).
+    /// The optional alias (the `as <Ident>` clause).
     pub fn alias(&self) -> Option<Ident<N::Token>> {
-        let count = self.component_count();
-        self.idents().nth(count)
+        self.idents().nth(1)
     }
 
     /// Returns every `Ident` child token in source order.
@@ -289,29 +269,16 @@ impl<N: TreeNode> SymbolicImportMember<N> {
             NodeOrToken::Node(_) => None,
         })
     }
-
-    /// Returns the number of dotted path components (one more than the number
-    /// of `.` tokens).
-    fn component_count(&self) -> usize {
-        1 + self
-            .0
-            .children_with_tokens()
-            .filter(|c| match c {
-                NodeOrToken::Token(t) => t.kind() == SyntaxKind::Dot,
-                NodeOrToken::Node(_) => false,
-            })
-            .count()
-    }
 }
 
-impl<N: TreeNode> AstNode<N> for SymbolicImportMember<N> {
+impl<N: TreeNode> AstNode<N> for ImportMember<N> {
     fn can_cast(kind: SyntaxKind) -> bool {
-        kind == SyntaxKind::SymbolicImportMemberNode
+        kind == SyntaxKind::ImportMemberNode
     }
 
     fn cast(inner: N) -> Option<Self> {
         match inner.kind() {
-            SyntaxKind::SymbolicImportMemberNode => Some(Self(inner)),
+            SyntaxKind::ImportMemberNode => Some(Self(inner)),
             _ => None,
         }
     }
@@ -450,8 +417,7 @@ import openwdl/csvkit
 import openwdl/csvkit as csv
 import * from openwdl/csvkit
 import { sort } from openwdl/csvkit
-import { sort.CsvSort, sort.CsvSortStable as Stable } from "local.wdl"
-import { a.b.c.deep } from openwdl/csvkit
+import { CsvSort, CsvSortStable as Stable } from "local.wdl"
 "#,
         );
         assert!(diagnostics.is_empty(), "diagnostics: {diagnostics:#?}");
@@ -460,7 +426,7 @@ import { a.b.c.deep } from openwdl/csvkit
         };
 
         let imports: Vec<_> = ast.imports().collect();
-        assert_eq!(imports.len(), 6);
+        assert_eq!(imports.len(), 5);
 
         // Form 1, symbolic, no alias.
         assert!(imports[0].uri().is_none());
@@ -491,28 +457,14 @@ import { a.b.c.deep } from openwdl/csvkit
         assert_eq!(members.len(), 1);
         assert_eq!(members[0].name().text(), "sort");
 
-        // Form 3 with quoted source, dotted members, per-member alias.
+        // Form 3 with quoted source, multiple members, per-member alias.
         assert!(imports[4].uri().is_some());
         assert!(imports[4].module_path().is_none());
         let members: Vec<_> = imports[4].members().unwrap().members().collect();
         assert_eq!(members.len(), 2);
         assert_eq!(members[0].name().text(), "CsvSort");
-        let ns: Vec<_> = members[0]
-            .namespace()
-            .map(|i| i.text().to_string())
-            .collect();
-        assert_eq!(ns, vec!["sort"]);
+        assert!(members[0].alias().is_none());
         assert_eq!(members[1].name().text(), "CsvSortStable");
         assert_eq!(members[1].alias().unwrap().text(), "Stable");
-
-        // Deep dotted path.
-        let members: Vec<_> = imports[5].members().unwrap().members().collect();
-        assert_eq!(members.len(), 1);
-        assert_eq!(members[0].name().text(), "deep");
-        let ns: Vec<_> = members[0]
-            .namespace()
-            .map(|i| i.text().to_string())
-            .collect();
-        assert_eq!(ns, vec!["a", "b", "c"]);
     }
 }

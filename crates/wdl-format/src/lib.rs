@@ -87,12 +87,10 @@ impl Writable for &FormatElement {
                 AstNode::ImportStatement(_) => {
                     v1::import::format_import_statement(self, stream, config)
                 }
-                AstNode::SymbolicImportMembers(_) => {
-                    v1::import::format_symbolic_import_members(self, stream, config)
+                AstNode::ImportMembers(_) => {
+                    v1::import::format_import_members(self, stream, config)
                 }
-                AstNode::SymbolicImportMember(_) => {
-                    v1::import::format_symbolic_import_member(self, stream, config)
-                }
+                AstNode::ImportMember(_) => v1::import::format_import_member(self, stream, config),
                 AstNode::SymbolicModulePath(_) => {
                     v1::import::format_symbolic_module_path(self, stream, config)
                 }

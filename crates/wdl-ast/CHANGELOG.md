@@ -13,8 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `as_quoted` and `as_symbolic` convenience accessors ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 * `QuotedImport` wrapper owning the former `uri`, `namespace`,
   `explicit_namespace`, and `aliases` accessors ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
-* `SymbolicImport`, `SymbolicModulePath`, `SymbolicImportMembers`, and
-  `SymbolicImportMember` for the new symbolic import forms, with
+* `SymbolicImport`, `SymbolicModulePath`, `ImportMembers`, and
+  `ImportMember` for the new symbolic import forms, with
   `components`, `name`, `namespace`, and `alias` accessors on member
   entries ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 
