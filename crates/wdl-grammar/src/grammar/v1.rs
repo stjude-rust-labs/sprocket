@@ -481,21 +481,20 @@ fn item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnost
 
 /// Parses an import statement.
 ///
-/// Three forms are recognized, sharing a single parse path that differs only
-/// in whether an optional member-selection clause precedes a `from` keyword
-/// and in whether the source is a quoted URI or an unquoted symbolic module
-/// path.
+/// Three forms are recognized.
 ///
-/// 1. `import <source> [as <alias>] (alias <src> as <dst>)*`
-/// 2. `import * from <source>`
-/// 3. `import { <member> [as <N>], ... } from <source>`
+/// 1. `import <source> [as <alias>] (alias <Old> as <New>)*` — the existing
+///    import form. `<source>` is either a quoted URI or a symbolic module
+///    path. `as <alias>` renames the pseudo-namespace through which the
+///    imported tasks and workflows are accessed; `alias <Old> as <New>`
+///    renames an imported struct or enum.
+/// 2. `import * from <source>` — every task, workflow, and user-defined
+///    type from `<source>` is brought into the importing document's scope.
+/// 3. `import { <member> [as <Name>], ... } from <source>` — only the
+///    listed items are brought into scope. A per-member `as <Name>`
+///    renames the selected item locally.
 ///
-/// `<source>` is either a quoted string URI or a symbolic module path. Forms
-/// 2 and 3 bring items directly into the importing document's scope; they
-/// take no `as <alias>` or `alias` clauses. Form 1's `as <alias>` renames the
-/// pseudo-namespace through which the imported module's tasks and workflows
-/// are accessed, and its `alias <src> as <dst>` clauses rename imported
-/// structs and enums.
+/// Forms 2 and 3 do not accept a trailing `as <alias>` or `alias` clause.
 fn import_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::ImportKeyword);
 

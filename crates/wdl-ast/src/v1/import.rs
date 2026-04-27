@@ -24,12 +24,17 @@ use crate::TreeToken;
 
 /// Represents an import statement.
 ///
-/// Three forms are represented by a single node kind, distinguished by
-/// which optional children are present.
+/// Three forms are represented by a single node kind, distinguished by which
+/// optional children are present.
 ///
-/// 1. `import <source> [as <alias>] (alias <src> as <dst>)*`
-/// 2. `import * from <source>`
-/// 3. `import { <member> [as <Name>], ... } from <source>`
+/// 1. `import <source> [as <alias>] (alias <Old> as <New>)*` — the existing
+///    import form. User-defined types from `<source>` are brought into the
+///    importing document's scope; tasks and workflows are accessible
+///    through the pseudo-namespace.
+/// 2. `import * from <source>` — every task, workflow, and user-defined
+///    type from `<source>` is brought into the importing document's scope.
+/// 3. `import { <member> [as <Name>], ... } from <source>` — only the
+///    listed items are brought into scope.
 ///
 /// `<source>` is either a quoted string URI (`uri()`) or an unquoted symbolic
 /// module path (`module_path()`). Forms 2 and 3 do not accept the trailing
