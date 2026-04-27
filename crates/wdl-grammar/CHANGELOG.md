@@ -12,13 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Initial support for WDL 1.4 (`V1::Four`) ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 * `Token::FromKeyword` and `SyntaxKind::FromKeyword` for the reserved `from`
   keyword ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
-* CST node kinds for the parent-child import split: `QuotedImportNode`,
-  `SymbolicImportNode`, `ImportMembersNode`, `ImportMemberNode`,
-  and `SymbolicModulePathNode` ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
-* Parsing of the four symbolic import forms from
-  [`openwdl/wdl#765`](https://github.com/openwdl/wdl/pull/765): module path,
-  aliased path, `*` wildcard, and braced member list with optional renames
-  and namespace-qualified members ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+* CST node kinds for the unified import grammar: `ImportMembersNode`,
+  `ImportMemberNode`, and `SymbolicModulePathNode`
+  ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+* Parsing of the three import forms from
+  [`openwdl/wdl#765`](https://github.com/openwdl/wdl/pull/765): namespace
+  import with optional `as <alias>` and `alias` clauses, `* from <source>`
+  wildcard, and `{ <member> [as <Name>], ... } from <source>` selection.
+  Each `<source>` is either a quoted URI or an unquoted symbolic module
+  path ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 
 ## 0.21.1 - 2026-04-02
 
