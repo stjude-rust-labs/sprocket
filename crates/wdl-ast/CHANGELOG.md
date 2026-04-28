@@ -9,14 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* `ImportStatement::source` returns an `ImportSource` enum covering the
-  quoted URI and unquoted symbolic module path variants. The braced
-  member-selection clause and the `*` wildcard token are reachable
-  through `ImportStatement::members` and `ImportStatement::wildcard`
+* Support for the WDL 1.4 three-form import syntax, including new
+  `ImportForm` and `ImportSource` enums on `ImportStatement` and new
+  `SymbolicModulePath`, `ImportMembers`, and `ImportMember` AST nodes
   ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
-* `SymbolicModulePath`, `ImportMembers`, and `ImportMember` AST nodes
-  for the new import forms. Each `ImportMember` exposes `name` and an
-  optional `alias` ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 
 ## 0.22.1 - 2026-04-02
 
