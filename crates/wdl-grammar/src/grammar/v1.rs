@@ -606,12 +606,7 @@ fn symbolic_module_path(
     parser.update_last_token_kind(SyntaxKind::Ident);
 
     while parser.next_if(Token::Slash) {
-        expected_in!(
-            parser,
-            marker,
-            ANY_IDENT,
-            "symbolic module path component"
-        );
+        expected_in!(parser, marker, ANY_IDENT, "symbolic module path component");
         parser.update_last_token_kind(SyntaxKind::Ident);
     }
 
