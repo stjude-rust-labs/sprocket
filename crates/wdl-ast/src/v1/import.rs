@@ -64,10 +64,55 @@ impl<N: TreeNode> ImportSource<N> {
     }
 }
 
+/// The shape of an [`ImportStatement`].
+///
+/// Callers dispatch on this and then reach for `members`,
+/// `explicit_namespace`, or `aliases` as the form requires.
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum ImportForm {
+    /// `import <source> [as <alias>] (alias <Old> as <New>)*`. Introduces
+    /// a namespace through which the imported module's tasks and workflows
+    /// are accessed; user-defined types are copied into the importing
+    /// document's scope.
+    ///
+    /// ```wdl
+    /// import "csvkit.wdl"
+    /// import wizard/spellbook as book
+    /// ```
+    One,
+    /// `import * from <source>`. Brings every task, workflow, and
+    /// user-defined type from the source into the importing document's
+    /// scope. No namespace.
+    ///
+    /// ```wdl
+    /// import * from wizard/spellbook
+    /// ```
+    Two,
+    /// `import { <member> [as <Name>], ... } from <source>`. Brings only
+    /// the listed members into the importing document's scope, with an
+    /// optional per-member rename. No namespace.
+    ///
+    /// ```wdl
+    /// import { Cauldron, Wand as Staff } from wizard/spellbook
+    /// ```
+    Three,
+}
+
 impl<N: TreeNode> ImportStatement<N> {
     /// Gets the `import` keyword of the statement.
     pub fn keyword(&self) -> ImportKeyword<N::Token> {
         self.token().expect("import should have a keyword")
+    }
+
+    /// The shape of the import statement.
+    pub fn form(&self) -> ImportForm {
+        if self.wildcard().is_some() {
+            ImportForm::Two
+        } else if self.members().is_some() {
+            ImportForm::Three
+        } else {
+            ImportForm::One
+        }
     }
 
     /// The source of the import, either a quoted URI or a symbolic module
@@ -125,12 +170,17 @@ impl<N: TreeNode> ImportStatement<N> {
     /// The derived namespace for tasks and workflows reached through this
     /// import, along with the span at which it is defined.
     ///
-    /// Returns `None` when the namespace cannot be derived. For a quoted
-    /// import with no `as <alias>`, the namespace is the file stem of the
-    /// URI. For a symbolic import with no `as <alias>`, the namespace is the
-    /// last component of the module path. An explicit `as <alias>` overrides
-    /// both.
+    /// Only form 1 introduces a namespace; the wildcard and member-selection
+    /// forms bring items directly into the importing document's scope and
+    /// return `None`. For a quoted form-1 import with no `as <alias>`, the
+    /// namespace is the file stem of the URI. For a symbolic form-1 import
+    /// with no `as <alias>`, the namespace is the last component of the
+    /// module path. An explicit `as <alias>` overrides both.
     pub fn namespace(&self) -> Option<(String, Span)> {
+        if self.form() != ImportForm::One {
+            return None;
+        }
+
         if let Some(explicit) = self.explicit_namespace() {
             return Some((explicit.text().to_string(), explicit.span()));
         }
@@ -392,6 +442,7 @@ import "qux.wdl" as x alias A as B alias C as D
         assert_eq!(imports.len(), 4);
 
         for import in &imports {
+            assert_eq!(import.form(), ImportForm::One);
             assert!(matches!(import.source(), ImportSource::Uri(_)));
             assert!(import.wildcard().is_none());
             assert!(import.members().is_none());
@@ -459,36 +510,70 @@ import { CsvSort, CsvSortStable as Stable } from "local.wdl"
         let imports: Vec<_> = ast.imports().collect();
         assert_eq!(imports.len(), 5);
 
-        // Form 1, symbolic, no alias.
+        // Form 1, symbolic, no alias: `import openwdl/csvkit`.
+        assert_eq!(imports[0].form(), ImportForm::One);
+        assert_eq!(imports[0].keyword().text(), "import");
         assert_eq!(module_path_text(&imports[0]), "openwdl/csvkit");
         assert!(imports[0].wildcard().is_none());
+        assert!(imports[0].from_keyword().is_none());
         assert!(imports[0].members().is_none());
+        assert!(imports[0].explicit_namespace().is_none());
+        assert_eq!(imports[0].aliases().count(), 0);
         assert_eq!(
             imports[0].namespace().map(|(n, _)| n).as_deref(),
             Some("csvkit"),
         );
 
-        // Form 1, symbolic, aliased.
+        // Form 1, symbolic, aliased: `import openwdl/csvkit as csv`.
+        assert_eq!(imports[1].form(), ImportForm::One);
+        assert_eq!(imports[1].keyword().text(), "import");
+        assert_eq!(module_path_text(&imports[1]), "openwdl/csvkit");
+        assert!(imports[1].wildcard().is_none());
+        assert!(imports[1].from_keyword().is_none());
+        assert!(imports[1].members().is_none());
         assert_eq!(imports[1].explicit_namespace().unwrap().text(), "csv");
+        assert_eq!(imports[1].aliases().count(), 0);
         assert_eq!(
             imports[1].namespace().map(|(n, _)| n).as_deref(),
             Some("csv"),
         );
 
-        // Form 2, wildcard, symbolic source.
-        assert!(imports[2].wildcard().is_some());
-        assert!(imports[2].members().is_none());
+        // Form 2, wildcard, symbolic source: `import * from openwdl/csvkit`.
+        assert_eq!(imports[2].form(), ImportForm::Two);
+        assert_eq!(imports[2].keyword().text(), "import");
         assert_eq!(module_path_text(&imports[2]), "openwdl/csvkit");
+        assert!(imports[2].wildcard().is_some());
+        assert_eq!(imports[2].from_keyword().unwrap().text(), "from");
+        assert!(imports[2].members().is_none());
         assert!(imports[2].explicit_namespace().is_none());
+        assert_eq!(imports[2].aliases().count(), 0);
+        assert!(imports[2].namespace().is_none());
 
-        // Form 3, single member, symbolic source.
+        // Form 3, single member, symbolic source:
+        // `import { sort } from openwdl/csvkit`.
+        assert_eq!(imports[3].form(), ImportForm::Three);
+        assert_eq!(imports[3].keyword().text(), "import");
+        assert_eq!(module_path_text(&imports[3]), "openwdl/csvkit");
         assert!(imports[3].wildcard().is_none());
+        assert_eq!(imports[3].from_keyword().unwrap().text(), "from");
+        assert!(imports[3].explicit_namespace().is_none());
+        assert_eq!(imports[3].aliases().count(), 0);
+        assert!(imports[3].namespace().is_none());
         let members: Vec<_> = imports[3].members().unwrap().members().collect();
         assert_eq!(members.len(), 1);
         assert_eq!(members[0].name().text(), "sort");
+        assert!(members[0].alias().is_none());
 
-        // Form 3 with quoted source, multiple members, per-member alias.
-        assert!(matches!(imports[4].source(), ImportSource::Uri(_)));
+        // Form 3, quoted source, multiple members with per-member alias:
+        // `import { CsvSort, CsvSortStable as Stable } from "local.wdl"`.
+        assert_eq!(imports[4].form(), ImportForm::Three);
+        assert_eq!(imports[4].keyword().text(), "import");
+        assert_eq!(uri_text(&imports[4]), "local.wdl");
+        assert!(imports[4].wildcard().is_none());
+        assert_eq!(imports[4].from_keyword().unwrap().text(), "from");
+        assert!(imports[4].explicit_namespace().is_none());
+        assert_eq!(imports[4].aliases().count(), 0);
+        assert!(imports[4].namespace().is_none());
         let members: Vec<_> = imports[4].members().unwrap().members().collect();
         assert_eq!(members.len(), 2);
         assert_eq!(members[0].name().text(), "CsvSort");

@@ -72,7 +72,10 @@ impl Visitor for ImportsVisitor {
             return;
         }
 
-        if stmt.namespace().is_none() {
+        // Form 1 is the only form that introduces a namespace; the wildcard
+        // and member-selection forms bring items directly into scope and
+        // legitimately have no namespace, so the check is skipped for them.
+        if stmt.form() == v1::ImportForm::One && stmt.namespace().is_none() {
             diagnostics.add(invalid_import_namespace(uri.span()));
         }
     }
