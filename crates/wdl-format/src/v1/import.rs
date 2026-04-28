@@ -74,31 +74,49 @@ pub fn format_import_members(
         .expect("import members children")
         .collect();
 
-    // Decide on inline vs multiline by measuring the canonical inline width
-    // the formatter would emit, not the width of the source span. This makes
-    // the decision independent of incoming whitespace.
     let overflows = config
         .max_line_length
         .get()
-        .and_then(|max| canonical_import_width(element).map(|w| w > max))
+        .map(|max| canonical_import_width(element) > max)
         .unwrap_or(false);
+    let has_inner_comment = contains_comment(element);
 
-    if overflows {
+    if overflows || has_inner_comment {
         format_import_members_multiline(&children, stream, config);
     } else {
         format_import_members_inline(&children, stream, config);
     }
 }
 
+/// Returns `true` if the underlying syntax for `element` contains a comment
+/// token. `FormatElement` collation drops trivia, so the inline-vs-multiline
+/// decision peeks at the raw syntax instead.
+fn contains_comment(element: &FormatElement) -> bool {
+    let Some(node) = element.element().as_node() else {
+        return false;
+    };
+    node.inner()
+        .children_with_tokens()
+        .any(|c| c.kind() == SyntaxKind::Comment)
+}
+
 /// Computes the canonical inline width of the enclosing `ImportStatement`
 /// as this formatter would emit it, ignoring trivia in the source span.
-///
-/// Returns `None` if the members clause is not enclosed in a recognizable
-/// import statement, in which case the caller falls back to the inline form.
-fn canonical_import_width(element: &FormatElement) -> Option<usize> {
-    let node = element.element().as_node()?.inner().clone();
-    let members = ImportMembers::cast(node)?;
-    let stmt = ImportStatement::cast(members.inner().parent()?)?;
+fn canonical_import_width(element: &FormatElement) -> usize {
+    let node = element
+        .element()
+        .as_node()
+        .expect("`ImportMembers` element should be a node")
+        .inner()
+        .clone();
+    let members = ImportMembers::cast(node).expect("element should cast to `ImportMembers`");
+    let stmt = ImportStatement::cast(
+        members
+            .inner()
+            .parent()
+            .expect("`ImportMembers` should have a parent"),
+    )
+    .expect("parent should cast to `ImportStatement`");
 
     let mut width = "import ".len();
 
@@ -125,7 +143,7 @@ fn canonical_import_width(element: &FormatElement) -> Option<usize> {
         }
     }
 
-    Some(width)
+    width
 }
 
 /// Computes the canonical inline width of a single selected-member entry.

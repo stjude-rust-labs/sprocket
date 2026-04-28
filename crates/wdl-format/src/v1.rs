@@ -74,24 +74,14 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>, c
     }
 
     if config.sort_imports {
-        imports.sort_by(|a, b| {
-            let a = a
+        imports.sort_by_cached_key(|child| {
+            let stmt = child
                 .element()
                 .as_node()
                 .expect("import statement node")
                 .as_import_statement()
                 .expect("import statement");
-            let b = b
-                .element()
-                .as_node()
-                .expect("import statement node")
-                .as_import_statement()
-                .expect("import statement");
-            // Symbolic imports sort after quoted imports; within each group
-            // sort by URI or module path.
-            let a_key = import_sort_key(a);
-            let b_key = import_sort_key(b);
-            a_key.cmp(&b_key)
+            import_sort_key(stmt)
         });
     }
 
