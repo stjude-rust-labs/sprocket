@@ -31,10 +31,6 @@ pub fn format_import_alias(
 }
 
 /// Formats an [`ImportStatement`](wdl_ast::v1::ImportStatement).
-///
-/// Spaces are inserted around the `from` and `as` keywords. Other top-level
-/// children (keyword, selection clause, source, aliases) delegate to their
-/// own formatters.
 pub fn format_import_statement(
     element: &FormatElement,
     stream: &mut TokenStream<PreToken>,
