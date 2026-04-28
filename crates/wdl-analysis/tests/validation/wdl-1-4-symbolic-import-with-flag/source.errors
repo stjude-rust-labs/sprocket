@@ -1,0 +1,18 @@
+error: symbolic module resolution is not yet implemented
+  ┌─ tests/validation/wdl-1-4-symbolic-import-with-flag/source.wdl:3:8
+  │
+3 │ import openwdl/csvkit
+  │        ^^^^^^^^^^^^^^ this symbolic module path cannot be resolved by the current Sprocket release
+
+error: symbolic module resolution is not yet implemented
+  ┌─ tests/validation/wdl-1-4-symbolic-import-with-flag/source.wdl:4:15
+  │
+4 │ import * from openwdl/csvkit
+  │               ^^^^^^^^^^^^^^ this symbolic module path cannot be resolved by the current Sprocket release
+
+error: symbolic module resolution is not yet implemented
+  ┌─ tests/validation/wdl-1-4-symbolic-import-with-flag/source.wdl:5:22
+  │
+5 │ import { sort } from openwdl/csvkit
+  │                      ^^^^^^^^^^^^^^ this symbolic module path cannot be resolved by the current Sprocket release
+

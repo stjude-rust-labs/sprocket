@@ -98,8 +98,8 @@ fn unsupported_version(version: SupportedVersion, span: Span) -> Diagnostic {
 /// Creates an "unstable WDL 1.4" diagnostic.
 fn unstable_wdl_1_4(span: Span) -> Diagnostic {
     Diagnostic::error(
-        "WDL version 1.4 is unstable; set `feature_flags.wdl_1_4 = true` in your Sprocket \
-         configuration to opt in",
+        "WDL version 1.4 is unstable; set `feature_flags.wdl_1_4 = true` in your configuration to \
+         opt in",
     )
     .with_highlight(span)
 }
@@ -217,12 +217,12 @@ impl Visitor for VersionVisitor {
             return;
         }
 
-        if let v1::ImportSource::ModulePath(path) = stmt.source() {
-            diagnostics.add(symbolic_path_requires_wdl_1_4(path.span()));
-        }
-
+        // Forms 2 and 3 already require `from`, which subsumes the
+        // symbolic-path-only case.
         if let Some(from) = stmt.from_keyword() {
             diagnostics.add(from_selection_requires_wdl_1_4(from.span()));
+        } else if let v1::ImportSource::ModulePath(path) = stmt.source() {
+            diagnostics.add(symbolic_path_requires_wdl_1_4(path.span()));
         }
     }
 

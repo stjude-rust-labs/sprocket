@@ -1,4 +1,4 @@
-error: WDL version 1.4 is unstable; set `feature_flags.wdl_1_4 = true` in your Sprocket configuration to opt in
+error: WDL version 1.4 is unstable; set `feature_flags.wdl_1_4 = true` in your configuration to opt in
   ┌─ tests/validation/wdl-1-4-without-flag/source.wdl:1:9
   │
 1 │ version 1.4

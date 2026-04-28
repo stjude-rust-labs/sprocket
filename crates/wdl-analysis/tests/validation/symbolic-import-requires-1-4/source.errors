@@ -10,21 +10,9 @@ error: use of a `from` selection clause requires WDL version 1.4
 4 │ import * from openwdl/csvkit
   │          ^^^^
 
-error: use of a symbolic module path requires WDL version 1.4
-  ┌─ tests/validation/symbolic-import-requires-1-4/source.wdl:4:15
-  │
-4 │ import * from openwdl/csvkit
-  │               ^^^^^^^^^^^^^^
-
 error: use of a `from` selection clause requires WDL version 1.4
   ┌─ tests/validation/symbolic-import-requires-1-4/source.wdl:5:17
   │
 5 │ import { sort } from openwdl/csvkit
   │                 ^^^^
-
-error: use of a symbolic module path requires WDL version 1.4
-  ┌─ tests/validation/symbolic-import-requires-1-4/source.wdl:5:22
-  │
-5 │ import { sort } from openwdl/csvkit
-  │                      ^^^^^^^^^^^^^^
 
