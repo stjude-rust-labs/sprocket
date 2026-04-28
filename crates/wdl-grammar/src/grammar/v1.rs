@@ -365,7 +365,6 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::OutputKeyword as u8,
     Token::ParameterMetaKeyword as u8,
     Token::RequirementsKeyword as u8,
-    Token::HintsKeyword as u8,
     Token::RuntimeKeyword as u8,
     Token::ScatterKeyword as u8,
     Token::StructKeyword as u8,
@@ -544,7 +543,8 @@ fn import_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Mark
     // Forms 2 and 3 do not accept either.
     if !has_selection {
         if parser.next_if(Token::AsKeyword) {
-            expected!(parser, marker, Token::Ident, "import namespace");
+            expected_in!(parser, marker, ANY_IDENT, "import namespace");
+            parser.update_last_token_kind(SyntaxKind::Ident);
         }
 
         while let Some((Token::AliasKeyword, _)) = parser.peek() {
@@ -582,10 +582,12 @@ fn import_members(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
 /// An entry is a single identifier optionally followed by `as <ident>` to
 /// rename it locally.
 fn import_member(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    expected!(parser, marker, Token::Ident, "selected member");
+    expected_in!(parser, marker, ANY_IDENT, "selected member");
+    parser.update_last_token_kind(SyntaxKind::Ident);
 
     if parser.next_if(Token::AsKeyword) {
-        expected!(parser, marker, Token::Ident, "member alias");
+        expected_in!(parser, marker, ANY_IDENT, "member alias");
+        parser.update_last_token_kind(SyntaxKind::Ident);
     }
 
     marker.complete(parser, SyntaxKind::ImportMemberNode);
@@ -600,15 +602,17 @@ fn symbolic_module_path(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<(), (Marker, Diagnostic)> {
-    expected!(parser, marker, Token::Ident, "symbolic module path");
+    expected_in!(parser, marker, ANY_IDENT, "symbolic module path");
+    parser.update_last_token_kind(SyntaxKind::Ident);
 
     while parser.next_if(Token::Slash) {
-        expected!(
+        expected_in!(
             parser,
             marker,
-            Token::Ident,
+            ANY_IDENT,
             "symbolic module path component"
         );
+        parser.update_last_token_kind(SyntaxKind::Ident);
     }
 
     marker.complete(parser, SyntaxKind::SymbolicModulePathNode);
@@ -618,9 +622,11 @@ fn symbolic_module_path(
 /// Parses an import alias.
 fn import_alias(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::AliasKeyword);
-    expected!(parser, marker, Token::Ident, "source type name");
+    expected_in!(parser, marker, ANY_IDENT, "source type name");
+    parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::AsKeyword);
-    expected!(parser, marker, Token::Ident, "target type name");
+    expected_in!(parser, marker, ANY_IDENT, "target type name");
+    parser.update_last_token_kind(SyntaxKind::Ident);
     marker.complete(parser, SyntaxKind::ImportAliasNode);
     Ok(())
 }
