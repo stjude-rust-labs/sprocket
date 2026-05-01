@@ -111,6 +111,11 @@ const REQUIREMENTS_ITEM_RECOVERY_SET: TokenSet =
 const HINTS_ITEM_RECOVERY_SET: TokenSet =
     ANY_IDENT.union(TokenSet::new(&[Token::CloseBrace as u8]));
 
+/// The recovery set for the braced member-selection clause of a symbolic
+/// import.
+const IMPORT_MEMBER_RECOVERY_SET: TokenSet =
+    TokenSet::new(&[Token::Ident as u8, Token::CloseBrace as u8]);
+
 /// The recovery set for literal input items.
 const LITERAL_INPUT_ITEM_RECOVERY_SET: TokenSet =
     ANY_IDENT.union(TokenSet::new(&[Token::CloseBrace as u8]));
@@ -557,22 +562,48 @@ fn import_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Mark
 }
 
 /// Parses the braced member-selection clause `{ <m>, ... }`.
+///
+/// Behaves like [`braced_items!`] but treats [`Token::FromKeyword`] as an
+/// early-stop sentinel after a parsed member, so an unterminated brace group
+/// followed by `from` (the form-3 separator) preserves the surrounding
+/// [`ImportStatementNode`] structure rather than pulling symbolic-path tokens
+/// into the brace group as members. The check only fires post-member because
+/// `from` is a legal member name at the start of an item (e.g.
+/// `import { from } from "lib.wdl"`).
 fn import_members(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    expected!(parser, marker, Token::OpenBrace);
+    let open_span = match parser.expect(Token::OpenBrace) {
+        Ok(span) => span,
+        Err(e) => return Err((marker, e)),
+    };
+
+    parser.push_recovery_set(IMPORT_MEMBER_RECOVERY_SET);
 
     loop {
-        if matches!(parser.peek(), Some((Token::CloseBrace, _))) {
-            break;
+        match parser.peek() {
+            None | Some((Token::CloseBrace, _)) => break,
+            _ => {}
         }
 
-        expected_fn!(parser, marker, import_member);
+        let m = parser.start();
+        if let Err((m, e)) = import_member(parser, m) {
+            parser.recover(e);
+            m.abandon(parser);
+        }
 
-        if !parser.next_if(Token::Comma) {
-            break;
+        match parser.peek() {
+            None | Some((Token::CloseBrace | Token::FromKeyword, _)) => break,
+            _ => {}
+        }
+
+        if let Err(e) = parser.expect(Token::Comma) {
+            parser.recover(e);
+            parser.next_if(Token::Comma);
         }
     }
 
-    expected!(parser, marker, Token::CloseBrace);
+    parser.pop_recovery_set();
+    parser.consume_close_token(Token::OpenBrace, open_span, Token::CloseBrace);
+
     marker.complete(parser, SyntaxKind::ImportMembersNode);
     Ok(())
 }

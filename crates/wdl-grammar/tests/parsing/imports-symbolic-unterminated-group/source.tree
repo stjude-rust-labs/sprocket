@@ -4,20 +4,24 @@ RootNode@0..52
     Whitespace@7..8 " "
     Version@8..11 "1.4"
   Whitespace@11..13 "\n\n"
-  ImportKeyword@13..19 "import"
-  Whitespace@19..20 " "
-  OpenBrace@20..21 "{"
-  Whitespace@21..22 " "
-  ImportMemberNode@22..26
-    Ident@22..26 "sort"
-  Comma@26..27 ","
-  Whitespace@27..28 " "
-  ImportMemberNode@28..31
-    Ident@28..31 "cut"
-  Whitespace@31..32 " "
-  FromKeyword@32..36 "from"
-  Whitespace@36..37 " "
-  Ident@37..44 "openwdl"
-  Slash@44..45 "/"
-  Ident@45..51 "csvkit"
+  ImportStatementNode@13..51
+    ImportKeyword@13..19 "import"
+    Whitespace@19..20 " "
+    ImportMembersNode@20..31
+      OpenBrace@20..21 "{"
+      Whitespace@21..22 " "
+      ImportMemberNode@22..26
+        Ident@22..26 "sort"
+      Comma@26..27 ","
+      Whitespace@27..28 " "
+      ImportMemberNode@28..31
+        Ident@28..31 "cut"
+      CloseBrace@31..31 ""
+    Whitespace@31..32 " "
+    FromKeyword@32..36 "from"
+    Whitespace@36..37 " "
+    SymbolicModulePathNode@37..51
+      Ident@37..44 "openwdl"
+      Slash@44..45 "/"
+      Ident@45..51 "csvkit"
   Whitespace@51..52 "\n"
