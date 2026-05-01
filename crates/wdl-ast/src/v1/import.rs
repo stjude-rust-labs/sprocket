@@ -244,10 +244,7 @@ pub struct SymbolicModulePath<N: TreeNode = SyntaxNode>(N);
 impl<N: TreeNode> SymbolicModulePath<N> {
     /// The path components, in source order.
     pub fn components(&self) -> impl Iterator<Item = Ident<N::Token>> + use<'_, N> {
-        self.0.children_with_tokens().filter_map(|c| match c {
-            NodeOrToken::Token(t) => Ident::cast(t),
-            NodeOrToken::Node(_) => None,
-        })
+        self.tokens()
     }
 
     /// The path rendered with `/` separators.
@@ -335,10 +332,7 @@ impl<N: TreeNode> ImportMember<N> {
 
     /// Returns every `Ident` child token in source order.
     fn idents(&self) -> impl Iterator<Item = Ident<N::Token>> + use<'_, N> {
-        self.0.children_with_tokens().filter_map(|c| match c {
-            NodeOrToken::Token(t) => Ident::cast(t),
-            NodeOrToken::Node(_) => None,
-        })
+        self.tokens()
     }
 }
 
