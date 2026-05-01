@@ -1,0 +1,38 @@
+[package]
+name = "wdl-modules"
+version = "0.1.0"
+description = "Manifest, lockfile, content hashing, and signing for the WDL module system"
+authors.workspace = true
+rust-version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-modules"
+documentation = "https://docs.rs/wdl-modules"
+
+[features]
+default = []
+test-utils = []
+
+[dependencies]
+base64 = { workspace = true }
+ed25519-dalek = { workspace = true }
+hex = { workspace = true }
+path-clean = { workspace = true }
+semver = { workspace = true, features = ["serde"] }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha2 = { workspace = true }
+spdx = { workspace = true }
+ssh-key = { workspace = true }
+thiserror = { workspace = true }
+unicode-normalization = { workspace = true }
+url = { workspace = true, features = ["serde"] }
+wdl-grammar = { path = "../wdl-grammar" }
+
+[dev-dependencies]
+pretty_assertions = { workspace = true }
+tempfile = { workspace = true }
+
+[lints]
+workspace = true
