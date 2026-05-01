@@ -116,6 +116,13 @@ const HINTS_ITEM_RECOVERY_SET: TokenSet =
 const IMPORT_MEMBER_RECOVERY_SET: TokenSet =
     TokenSet::new(&[Token::Ident as u8, Token::CloseBrace as u8]);
 
+/// Tokens that terminate the braced member-selection clause of a symbolic
+/// import in addition to `CloseBrace`. `FromKeyword` is the form-3
+/// separator that immediately follows the brace group, so we treat its
+/// appearance after a parsed member as a missing-`}` signal rather than
+/// as another member.
+const IMPORT_MEMBER_TERMINATION_SET: TokenSet = TokenSet::new(&[Token::FromKeyword as u8]);
+
 /// The recovery set for literal input items.
 const LITERAL_INPUT_ITEM_RECOVERY_SET: TokenSet =
     ANY_IDENT.union(TokenSet::new(&[Token::CloseBrace as u8]));
@@ -382,12 +389,34 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
 
 /// Parses matching braces given a callback to parse the interior delimited
 /// items.
+///
+/// Accepts an optional `termination` token set; tokens in the set end the
+/// item loop early, with [`Parser::consume_close_token`] synthesizing a
+/// zero-width close brace.
 macro_rules! braced_items {
     ($parser:ident, $marker:ident, $delimiter:expr_2021, $recovery:expr_2021, $cb:expr_2021) => {
+        braced_items!(
+            $parser,
+            $marker,
+            $delimiter,
+            TokenSet::EMPTY,
+            $recovery,
+            $cb
+        )
+    };
+    (
+        $parser:ident,
+        $marker:ident,
+        $delimiter:expr_2021,
+        $termination:expr_2021,
+        $recovery:expr_2021,
+        $cb:expr_2021
+    ) => {
         if let Err(e) = $parser.matching_delimited(
             Token::OpenBrace,
             Token::CloseBrace,
             $delimiter,
+            $termination,
             $recovery,
             $cb,
         ) {
@@ -400,10 +429,28 @@ macro_rules! braced_items {
 /// items.
 macro_rules! bracketed_items {
     ($parser:ident, $marker:ident, $delimiter:expr_2021, $recovery:expr_2021, $cb:expr_2021) => {
+        bracketed_items!(
+            $parser,
+            $marker,
+            $delimiter,
+            TokenSet::EMPTY,
+            $recovery,
+            $cb
+        )
+    };
+    (
+        $parser:ident,
+        $marker:ident,
+        $delimiter:expr_2021,
+        $termination:expr_2021,
+        $recovery:expr_2021,
+        $cb:expr_2021
+    ) => {
         if let Err(e) = $parser.matching_delimited(
             Token::OpenBracket,
             Token::CloseBracket,
             $delimiter,
+            $termination,
             $recovery,
             $cb,
         ) {
@@ -416,10 +463,28 @@ macro_rules! bracketed_items {
 /// items.
 macro_rules! paren_items {
     ($parser:ident, $marker:ident, $delimiter:expr_2021, $recovery:expr_2021, $cb:expr_2021) => {
+        paren_items!(
+            $parser,
+            $marker,
+            $delimiter,
+            TokenSet::EMPTY,
+            $recovery,
+            $cb
+        )
+    };
+    (
+        $parser:ident,
+        $marker:ident,
+        $delimiter:expr_2021,
+        $termination:expr_2021,
+        $recovery:expr_2021,
+        $cb:expr_2021
+    ) => {
         if let Err(e) = $parser.matching_delimited(
             Token::OpenParen,
             Token::CloseParen,
             $delimiter,
+            $termination,
             $recovery,
             $cb,
         ) {
@@ -562,47 +627,15 @@ fn import_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Mark
 }
 
 /// Parses the braced member-selection clause `{ <m>, ... }`.
-///
-/// Behaves like [`braced_items!`] but treats [`Token::FromKeyword`] as an
-/// early-stop sentinel after a parsed member, so an unterminated brace group
-/// followed by `from` (the form-3 separator) preserves the surrounding
-/// [`ImportStatementNode`] structure rather than pulling symbolic-path tokens
-/// into the brace group as members. The check only fires post-member because
-/// `from` is a legal member name at the start of an item (e.g.
-/// `import { from } from "lib.wdl"`).
 fn import_members(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    let open_span = match parser.expect(Token::OpenBrace) {
-        Ok(span) => span,
-        Err(e) => return Err((marker, e)),
-    };
-
-    parser.push_recovery_set(IMPORT_MEMBER_RECOVERY_SET);
-
-    loop {
-        match parser.peek() {
-            None | Some((Token::CloseBrace, _)) => break,
-            _ => {}
-        }
-
-        let m = parser.start();
-        if let Err((m, e)) = import_member(parser, m) {
-            parser.recover(e);
-            m.abandon(parser);
-        }
-
-        match parser.peek() {
-            None | Some((Token::CloseBrace | Token::FromKeyword, _)) => break,
-            _ => {}
-        }
-
-        if let Err(e) = parser.expect(Token::Comma) {
-            parser.recover(e);
-            parser.next_if(Token::Comma);
-        }
-    }
-
-    parser.pop_recovery_set();
-    parser.consume_close_token(Token::OpenBrace, open_span, Token::CloseBrace);
+    braced_items!(
+        parser,
+        marker,
+        Some(Token::Comma),
+        IMPORT_MEMBER_TERMINATION_SET,
+        IMPORT_MEMBER_RECOVERY_SET,
+        import_member
+    );
 
     marker.complete(parser, SyntaxKind::ImportMembersNode);
     Ok(())
@@ -2089,6 +2122,7 @@ fn call_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
 
         parser.delimited(
             Token::CloseBrace,
+            TokenSet::EMPTY,
             Some(Token::Comma),
             CALL_INPUT_ITEM_RECOVERY_SET,
             call_input_item,
