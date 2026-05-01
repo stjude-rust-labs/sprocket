@@ -1,6 +1,6 @@
 [package]
 name = "wdl-diagnostics"
-version = "0.1.1"
+version = "0.1.2"
 description = "Utilities for reporting diagnostics in the wdl-* family of crates"
 license.workspace = true
 edition.workspace = true
@@ -18,8 +18,8 @@ anyhow.workspace = true
 clap.workspace = true
 codespan-reporting.workspace = true
 serde.workspace = true
-wdl-ast = { path = "../wdl-ast", version = "0.22.0" }
-wdl-engine = { path = "../wdl-engine", version = "0.13.2", optional = true }
+wdl-ast = { path = "../wdl-ast", version = "0.23.0" }
+wdl-engine = { path = "../wdl-engine", version = "0.13.3", optional = true }
 
 [lints]
 workspace = true
