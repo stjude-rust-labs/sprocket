@@ -16,6 +16,7 @@ use thiserror::Error;
 
 use crate::RelativePath;
 use crate::RelativePathError;
+use crate::tree::TreeError;
 
 /// An error during content hashing.
 #[derive(Debug, Error)]
@@ -54,6 +55,11 @@ pub enum HashError {
         #[source]
         source: io::Error,
     },
+
+    /// A module file-tree validation error (reserved-filename placement,
+    /// NFC duplicate paths).
+    #[error(transparent)]
+    Tree(#[from] TreeError),
 }
 
 /// An error parsing a [`ContentHash`].
@@ -162,6 +168,11 @@ impl Hasher {
             root: root.into(),
             paths: BTreeSet::new(),
         }
+    }
+
+    /// Returns an iterator over the recorded paths in lexicographic order.
+    pub fn paths(&self) -> impl Iterator<Item = &RelativePath> {
+        self.paths.iter()
     }
 
     /// Records a path relative to the hasher's root.
@@ -283,6 +294,9 @@ pub fn hash_directory(root: impl AsRef<Path>) -> Result<ContentHash, HashError> 
             hasher.try_add(rel)?;
         }
     }
+
+    crate::tree::validate_tree(hasher.paths())?;
+
     hasher.finalize()
 }
 
@@ -415,6 +429,25 @@ mod tests {
         let d_with_excludes = hash_directory(dir.path()).unwrap();
 
         assert_eq!(d_clean, d_with_excludes);
+    }
+
+    #[test]
+    fn hash_directory_rejects_nested_reserved_filename() {
+        let dir = tempdir().unwrap();
+        fs::create_dir(dir.path().join("nested")).unwrap();
+        fs::write(
+            dir.path().join("nested").join(crate::MANIFEST_FILENAME),
+            b"x",
+        )
+        .unwrap();
+        let err = hash_directory(dir.path()).unwrap_err();
+        assert!(matches!(
+            err,
+            HashError::Tree(crate::TreeError::ReservedFilename {
+                name: crate::MANIFEST_FILENAME,
+                ..
+            })
+        ));
     }
 
     #[test]

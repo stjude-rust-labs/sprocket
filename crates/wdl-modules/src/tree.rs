@@ -48,11 +48,11 @@ pub enum TreeError {
 ///   nested in any subdirectory).
 /// - No two distinct paths may collapse to the same Unicode Normalization Form
 ///   C (NFC).
-pub fn validate_tree<I>(paths: I) -> Result<(), TreeError>
+pub fn validate_tree<'a, I>(paths: I) -> Result<(), TreeError>
 where
-    I: IntoIterator<Item = RelativePath>,
+    I: IntoIterator<Item = &'a RelativePath>,
 {
-    let mut seen: HashSet<RelativePath> = HashSet::new();
+    let mut seen: HashSet<&RelativePath> = HashSet::new();
     for path in paths {
         if let Some((_, basename)) = path.as_str().rsplit_once('/')
             && let Some(reserved) = [MANIFEST_FILENAME, LOCKFILE_FILENAME, SIGNATURE_FILENAME]
@@ -61,13 +61,13 @@ where
         {
             return Err(TreeError::ReservedFilename {
                 name: reserved,
-                path: path.into_inner(),
+                path: path.as_str().to_string(),
             });
         }
 
-        if !seen.insert(path.clone()) {
+        if !seen.insert(path) {
             return Err(TreeError::AmbiguousPath {
-                nfc: path.into_inner(),
+                nfc: path.as_str().to_string(),
             });
         }
     }
@@ -86,7 +86,7 @@ mod tests {
 
     #[test]
     fn accepts_root_reserved_filenames() {
-        validate_tree([
+        validate_tree(&[
             rel(MANIFEST_FILENAME),
             rel(LOCKFILE_FILENAME),
             rel(SIGNATURE_FILENAME),
@@ -97,7 +97,7 @@ mod tests {
 
     #[test]
     fn rejects_nested_manifest() {
-        let err = validate_tree([rel("src/module.json")]).unwrap_err();
+        let err = validate_tree(&[rel("src/module.json")]).unwrap_err();
         assert!(matches!(
             err,
             TreeError::ReservedFilename {
@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn rejects_nested_lockfile() {
-        let err = validate_tree([rel("nested/dir/module-lock.json")]).unwrap_err();
+        let err = validate_tree(&[rel("nested/dir/module-lock.json")]).unwrap_err();
         assert!(matches!(
             err,
             TreeError::ReservedFilename {
@@ -121,7 +121,7 @@ mod tests {
 
     #[test]
     fn rejects_nested_signature() {
-        let err = validate_tree([rel("sub/module.sig")]).unwrap_err();
+        let err = validate_tree(&[rel("sub/module.sig")]).unwrap_err();
         assert!(matches!(
             err,
             TreeError::ReservedFilename {
@@ -133,12 +133,12 @@ mod tests {
 
     #[test]
     fn rejects_paths_colliding_under_nfc() {
-        let err = validate_tree([rel("caf\u{00E9}.wdl"), rel("cafe\u{0301}.wdl")]).unwrap_err();
+        let err = validate_tree(&[rel("caf\u{00E9}.wdl"), rel("cafe\u{0301}.wdl")]).unwrap_err();
         assert!(matches!(err, TreeError::AmbiguousPath { .. }));
     }
 
     #[test]
     fn accepts_distinct_unicode_paths() {
-        validate_tree([rel("alpha.wdl"), rel("beta.wdl"), rel("caf\u{00E9}.wdl")]).unwrap();
+        validate_tree(&[rel("alpha.wdl"), rel("beta.wdl"), rel("caf\u{00E9}.wdl")]).unwrap();
     }
 }
