@@ -41,6 +41,16 @@ pub enum ManifestError {
     #[error("`readme` is invalid")]
     InvalidReadme(#[source] RelativePathError),
 
+    /// An `exclude` entry failed relative-path validation.
+    #[error("`exclude` entry `{pattern}` is invalid")]
+    InvalidExclude {
+        /// The offending pattern as written in the manifest.
+        pattern: String,
+        /// The underlying validation error.
+        #[source]
+        source: RelativePathError,
+    },
+
     /// The `readme` field was set to the literal `true`. The schema only
     /// accepts a string, the literal `false`, or absence; `true` is
     /// rejected with a dedicated message because it is a common authoring
@@ -120,10 +130,12 @@ pub struct Manifest {
     /// The module's readme.
     pub readme: Readme,
     /// Gitignore-style glob patterns identifying files within the module
-    /// that consumers may not reach via symbolic import. Has no effect on
+    /// that consumers may not reach via symbolic import. Each entry is a
+    /// validated [`RelativePath`]; absolute paths, `..` segments, and
+    /// other invalid forms are rejected at parse time. Has no effect on
     /// content hashing, signing, validation, or quoted within-module
     /// imports.
-    pub exclude: Vec<String>,
+    pub exclude: Vec<RelativePath>,
     /// The upstream tools wrapped by the module.
     pub tools: Vec<Tool>,
     /// The module's dependencies, keyed by consumer-chosen name.
@@ -241,6 +253,15 @@ impl TryFrom<ManifestFields> for Manifest {
             deps.insert(name, value);
         }
 
+        let exclude = fields
+            .exclude
+            .into_iter()
+            .map(|pattern| {
+                RelativePath::try_from(pattern.clone())
+                    .map_err(|source| ManifestError::InvalidExclude { pattern, source })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
         Ok(Self {
             name: fields.name,
             version: fields.version,
@@ -251,7 +272,7 @@ impl TryFrom<ManifestFields> for Manifest {
             homepage: fields.homepage,
             entrypoint,
             readme,
-            exclude: fields.exclude,
+            exclude,
             tools: fields.tools,
             dependencies: deps,
             extra: fields.extra,
@@ -414,7 +435,32 @@ mod tests {
             }"#,
         )
         .unwrap();
-        assert_eq!(m.exclude, vec!["internal/**", "scratch/*.wdl"]);
+        assert_eq!(
+            m.exclude
+                .iter()
+                .map(RelativePath::as_str)
+                .collect::<Vec<_>>(),
+            vec!["internal/**", "scratch/*.wdl"]
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_exclude_entry() {
+        let err = parse(
+            r#"{
+                "name": "spellbook",
+                "version": "1.0.0",
+                "license": "MIT",
+                "exclude": ["internal/**", "/abs/path"]
+            }"#,
+        )
+        .unwrap_err();
+        match err {
+            ManifestError::InvalidExclude { pattern, .. } => {
+                assert_eq!(pattern, "/abs/path");
+            }
+            other => panic!("expected `InvalidExclude` variant; got {other:?}"),
+        }
     }
 
     #[test]
