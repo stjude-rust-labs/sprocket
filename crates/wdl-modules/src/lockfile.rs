@@ -15,6 +15,8 @@ use url::Url;
 use crate::ContentHash;
 use crate::DependencyName;
 use crate::DependencyNameError;
+use crate::RelativePath;
+use crate::RelativePathError;
 use crate::VerifyingKey;
 
 /// The current lockfile schema version.
@@ -77,7 +79,7 @@ pub struct DependencyEntry {
     /// The modules discovered within the source, keyed by their
     /// directory's relative path from the source root (`.` for the source
     /// root itself).
-    pub modules: BTreeMap<ModulePathKey, LockedModule>,
+    pub modules: BTreeMap<ModulePath, LockedModule>,
 }
 
 /// The resolved source of a dependency.
@@ -159,36 +161,54 @@ pub struct LockedModule {
     pub dependencies: DependencyMap,
 }
 
-/// The map key under [`DependencyEntry::modules`]. `.` denotes the source
-/// root; otherwise a relative path from the source root to the directory
-/// containing the module's `module.json`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
-pub struct ModulePathKey(String);
-
-impl ModulePathKey {
-    /// Returns the key as a string slice.
-    pub fn inner(&self) -> &str {
-        &self.0
-    }
+/// The map key under [`DependencyEntry::modules`]. The literal `.`
+/// denotes the source root; otherwise the value is a [`RelativePath`]
+/// from the source root to the directory containing the module's
+/// `module.json`.
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+#[serde(into = "String", try_from = "String")]
+pub enum ModulePath {
+    /// The module sits at the source root.
+    Root,
+    /// The module sits at a relative path under the source root.
+    Sub(RelativePath),
 }
 
-impl fmt::Display for ModulePathKey {
+impl fmt::Display for ModulePath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
+        match self {
+            Self::Root => f.write_str("."),
+            Self::Sub(p) => fmt::Display::fmt(p, f),
+        }
     }
 }
 
-impl From<String> for ModulePathKey {
-    fn from(s: String) -> Self {
-        Self(s)
+impl From<ModulePath> for String {
+    fn from(p: ModulePath) -> Self {
+        match p {
+            ModulePath::Root => ".".to_string(),
+            ModulePath::Sub(p) => p.into_inner(),
+        }
     }
 }
 
-impl FromStr for ModulePathKey {
-    type Err = std::convert::Infallible;
+impl TryFrom<String> for ModulePath {
+    type Error = RelativePathError;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        if s == "." {
+            Ok(Self::Root)
+        } else {
+            Ok(Self::Sub(RelativePath::try_from(s)?))
+        }
+    }
+}
+
+impl FromStr for ModulePath {
+    type Err = RelativePathError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Ok(Self(s.to_string()))
+        Self::try_from(s.to_string())
     }
 }
 
@@ -261,10 +281,7 @@ mod tests {
             .get(&"spellbook".to_string().try_into().unwrap())
             .unwrap();
         assert!(matches!(spellbook.source, ResolvedSource::Git { .. }));
-        let root = spellbook
-            .modules
-            .get(&ModulePathKey::from(".".to_string()))
-            .unwrap();
+        let root = spellbook.modules.get(&ModulePath::Root).unwrap();
         assert_eq!(root.version.to_string(), "1.2.0");
         assert_eq!(root.dependencies.len(), 1);
     }
@@ -364,5 +381,34 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(err, LockfileError::InvalidJson(_)));
+    }
+
+    #[test]
+    fn module_path_round_trips_root() {
+        let p: ModulePath = ".".parse().unwrap();
+        assert!(matches!(p, ModulePath::Root));
+        let s: String = p.into();
+        assert_eq!(s, ".");
+    }
+
+    #[test]
+    fn module_path_round_trips_sub() {
+        let p: ModulePath = "csvkit/cut".parse().unwrap();
+        let ModulePath::Sub(rel) = &p else {
+            panic!("expected `Sub` variant, got `{p:?}`");
+        };
+        assert_eq!(rel.as_str(), "csvkit/cut");
+        let s: String = p.into();
+        assert_eq!(s, "csvkit/cut");
+    }
+
+    #[test]
+    fn module_path_rejects_invalid_paths() {
+        for bad in ["", "..", "/abs", "a/.."] {
+            assert!(
+                bad.parse::<ModulePath>().is_err(),
+                "accepted `{bad}` as a `ModulePath`"
+            );
+        }
     }
 }

@@ -36,7 +36,7 @@ pub use crate::lockfile::LOCKFILE_VERSION;
 pub use crate::lockfile::LockedModule;
 pub use crate::lockfile::Lockfile;
 pub use crate::lockfile::LockfileError;
-pub use crate::lockfile::ModulePathKey;
+pub use crate::lockfile::ModulePath;
 pub use crate::lockfile::ResolvedSource;
 pub use crate::manifest::Manifest;
 pub use crate::manifest::ManifestError;
