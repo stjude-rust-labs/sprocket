@@ -1,5 +1,13 @@
 //! Formatting for imports.
 
+use wdl_ast::AstNode;
+use wdl_ast::AstToken;
+use wdl_ast::SyntaxKind;
+use wdl_ast::v1::ImportMember;
+use wdl_ast::v1::ImportMembers;
+use wdl_ast::v1::ImportSource;
+use wdl_ast::v1::ImportStatement;
+
 use crate::Config;
 use crate::PreToken;
 use crate::TokenStream;
@@ -23,19 +31,245 @@ pub fn format_import_alias(
 }
 
 /// Formats an [`ImportStatement`](wdl_ast::v1::ImportStatement).
-///
-/// # Panics
-///
-/// This will panic if the element does not have the expected children.
 pub fn format_import_statement(
     element: &FormatElement,
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
     for child in element.children().expect("import statement children") {
-        (&child).write(stream, config);
-        stream.end_word();
+        match child.element().kind() {
+            SyntaxKind::FromKeyword | SyntaxKind::AsKeyword => {
+                stream.end_word();
+                (&child).write(stream, config);
+                stream.end_word();
+            }
+            _ => {
+                (&child).write(stream, config);
+                stream.end_word();
+            }
+        }
     }
 
     stream.end_line();
+}
+
+/// Formats a [`ImportMembers`](wdl_ast::v1::ImportMembers).
+///
+/// Short lists render inline as `{ a, b, c }`. Lists whose inline width would
+/// exceed the configured `max_line_length` render multiline, with each member
+/// on its own line indented one level deeper than the surrounding statement.
+/// A trailing comma before the closing brace is dropped in the inline form
+/// and added in the multiline form.
+pub fn format_import_members(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
+    let children: Vec<_> = element
+        .children()
+        .expect("import members children")
+        .collect();
+
+    let overflows = config
+        .max_line_length
+        .get()
+        .map(|max| canonical_import_width(element) > max)
+        .unwrap_or(false);
+    let has_inner_comment = contains_comment(element);
+
+    if overflows || has_inner_comment {
+        format_import_members_multiline(&children, stream, config);
+    } else {
+        format_import_members_inline(&children, stream, config);
+    }
+}
+
+/// Returns `true` if the underlying syntax for `element` contains a comment
+/// token. `FormatElement` collation drops trivia, so the inline-vs-multiline
+/// decision peeks at the raw syntax instead.
+fn contains_comment(element: &FormatElement) -> bool {
+    let Some(node) = element.element().as_node() else {
+        return false;
+    };
+    node.inner()
+        .children_with_tokens()
+        .any(|c| c.kind() == SyntaxKind::Comment)
+}
+
+/// Computes the canonical inline width of the enclosing `ImportStatement`
+/// as this formatter would emit it, ignoring trivia in the source span.
+fn canonical_import_width(element: &FormatElement) -> usize {
+    let node = element
+        .element()
+        .as_node()
+        .expect("`ImportMembers` element should be a node")
+        .inner()
+        .clone();
+    let members = ImportMembers::cast(node).expect("element should cast to `ImportMembers`");
+    let stmt = ImportStatement::cast(
+        members
+            .inner()
+            .parent()
+            .expect("`ImportMembers` should have a parent"),
+    )
+    .expect("parent should cast to `ImportStatement`");
+
+    let mut width = "import ".len();
+
+    let member_list: Vec<_> = members.members().collect();
+    width += "{ ".len();
+    for (i, m) in member_list.iter().enumerate() {
+        if i > 0 {
+            width += ", ".len();
+        }
+        width += import_member_width(m);
+    }
+    width += " }".len();
+
+    width += " from ".len();
+    match stmt.source() {
+        ImportSource::Uri(uri) => {
+            let text = uri.text().map(|t| t.text().to_string()).unwrap_or_default();
+            // NOTE: the `+ 2` accounts for the surrounding quote characters
+            // around the URI text in the rendered output.
+            width += 2 + text.len();
+        }
+        ImportSource::ModulePath(path) => {
+            width += path.text().len();
+        }
+    }
+
+    width
+}
+
+/// Computes the canonical inline width of a single selected-member entry.
+fn import_member_width(member: &ImportMember) -> usize {
+    let mut width = member.name().text().len();
+    if let Some(alias) = member.alias() {
+        width += " as ".len();
+        width += alias.text().len();
+    }
+    width
+}
+
+/// Emits the inline `{ a, b, c }` form.
+fn format_import_members_inline(
+    children: &[&FormatElement],
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
+    for (i, child) in children.iter().enumerate() {
+        let kind = child.element().kind();
+        match kind {
+            SyntaxKind::OpenBrace => {
+                child.write(stream, config);
+                stream.end_word();
+            }
+            SyntaxKind::CloseBrace => {
+                stream.end_word();
+                child.write(stream, config);
+            }
+            SyntaxKind::Comma => {
+                let next_kind = children
+                    .iter()
+                    .skip(i + 1)
+                    .find(|c| !c.element().kind().is_trivia())
+                    .map(|c| c.element().kind());
+                if next_kind == Some(SyntaxKind::CloseBrace) {
+                    continue;
+                }
+                child.write(stream, config);
+                stream.end_word();
+            }
+            _ => {
+                child.write(stream, config);
+            }
+        }
+    }
+}
+
+/// Emits the multiline form, with each member on its own indented line.
+fn format_import_members_multiline(
+    children: &[&FormatElement],
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
+    for (i, child) in children.iter().enumerate() {
+        let kind = child.element().kind();
+        match kind {
+            SyntaxKind::OpenBrace => {
+                child.write(stream, config);
+                stream.increment_indent();
+            }
+            SyntaxKind::CloseBrace => {
+                stream.decrement_indent();
+                child.write(stream, config);
+            }
+            SyntaxKind::Comma => {
+                let next_kind = children
+                    .iter()
+                    .skip(i + 1)
+                    .find(|c| !c.element().kind().is_trivia())
+                    .map(|c| c.element().kind());
+                child.write(stream, config);
+                if next_kind != Some(SyntaxKind::CloseBrace) {
+                    stream.end_line();
+                }
+            }
+            k if k.is_trivia() => {}
+            _ => {
+                child.write(stream, config);
+                let next_kind = children
+                    .iter()
+                    .skip(i + 1)
+                    .find(|c| !c.element().kind().is_trivia())
+                    .map(|c| c.element().kind());
+                if next_kind == Some(SyntaxKind::CloseBrace) {
+                    stream.push_literal(",".to_string(), SyntaxKind::Comma);
+                    stream.end_line();
+                }
+            }
+        }
+    }
+}
+
+/// Formats an [`ImportMember`](wdl_ast::v1::ImportMember).
+///
+/// A space surrounds the optional `as` keyword.
+pub fn format_import_member(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
+    for child in element.children().expect("import member children") {
+        match child.element().kind() {
+            SyntaxKind::AsKeyword => {
+                stream.end_word();
+                (&child).write(stream, config);
+                stream.end_word();
+            }
+            _ => {
+                (&child).write(stream, config);
+            }
+        }
+    }
+}
+
+/// Formats a [`SymbolicModulePath`](wdl_ast::v1::SymbolicModulePath).
+///
+/// The path is emitted as a single literal so the post-processor's line-break
+/// algorithm never breaks it at the `/` separators.
+pub fn format_symbolic_module_path(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    _config: &Config,
+) {
+    let text = element
+        .element()
+        .inner()
+        .as_node()
+        .expect("symbolic module path should be a node")
+        .text()
+        .to_string();
+    stream.push_literal(text, SyntaxKind::Ident);
 }

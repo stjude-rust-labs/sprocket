@@ -407,12 +407,12 @@ fn resolve_import_namespace(
     document_uri: &Url,
     lines: &Arc<LineIndex>,
 ) -> Result<Option<Location>> {
-    let import_stmt = wdl_ast::v1::ImportStatement::cast(parent_node.clone()).unwrap();
-    let ident_text = token.text();
+    let stmt = wdl_ast::v1::ImportStatement::cast(parent_node.clone());
 
-    if import_stmt
-        .explicit_namespace()
-        .is_some_and(|ns_ident| ns_ident.text() == ident_text)
+    if let Some(stmt) = stmt
+        && stmt
+            .explicit_namespace()
+            .is_some_and(|ns_ident| ns_ident.text() == token.text())
     {
         return Ok(Some(location_from_span(document_uri, token.span(), lines)?));
     }

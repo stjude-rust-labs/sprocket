@@ -95,6 +95,26 @@ fn unsupported_version(version: SupportedVersion, span: Span) -> Diagnostic {
     Diagnostic::error(format!("unsupported version {version}")).with_highlight(span)
 }
 
+/// Creates an "unstable WDL 1.4" diagnostic.
+fn unstable_wdl_1_4(span: Span) -> Diagnostic {
+    Diagnostic::error(
+        "WDL version 1.4 is unstable; set `feature_flags.wdl_1_4 = true` in your configuration to \
+         opt in",
+    )
+    .with_highlight(span)
+}
+
+/// Creates a "symbolic module path requires WDL 1.4" diagnostic.
+fn symbolic_path_requires_wdl_1_4(span: Span) -> Diagnostic {
+    Diagnostic::error("use of a symbolic module path requires WDL version 1.4").with_highlight(span)
+}
+
+/// Creates a "`from` selection requires WDL 1.4" diagnostic.
+fn from_selection_requires_wdl_1_4(span: Span) -> Diagnostic {
+    Diagnostic::error("use of a `from` selection clause requires WDL version 1.4")
+        .with_highlight(span)
+}
+
 /// Tracks the state of a deprecated version feature flag.
 #[derive(Clone, Copy, Debug, Default)]
 struct DeprecatedVersionFeatureFlag {
@@ -110,6 +130,8 @@ struct DeprecatedVersionFeatureFlag {
 pub struct VersionVisitor {
     /// The state of the deprecated `wdl_1_3` feature flag.
     wdl_1_3_ff: DeprecatedVersionFeatureFlag,
+    /// Whether the `wdl_1_4` feature flag is enabled.
+    wdl_1_4_enabled: bool,
     /// Stores the supported version of the WDL document we're visiting.
     version: Option<SupportedVersion>,
 }
@@ -117,12 +139,15 @@ pub struct VersionVisitor {
 impl Visitor for VersionVisitor {
     fn register(&mut self, config: &Config) {
         self.wdl_1_3_ff.explicitly_disabled = !config.feature_flags().wdl_1_3();
+        self.wdl_1_4_enabled = config.feature_flags().wdl_1_4();
     }
 
     fn reset(&mut self) {
         let wdl_1_3_ff = self.wdl_1_3_ff;
+        let wdl_1_4_enabled = self.wdl_1_4_enabled;
         *self = Default::default();
         self.wdl_1_3_ff = wdl_1_3_ff;
+        self.wdl_1_4_enabled = wdl_1_4_enabled;
     }
 
     fn document(
@@ -162,13 +187,42 @@ impl Visitor for VersionVisitor {
                     ));
                     self.wdl_1_3_ff.warning_emitted = true;
                 }
+                SupportedVersion::V1(V1::Four) if !self.wdl_1_4_enabled => {
+                    diagnostics.add(unstable_wdl_1_4(stmt.version().span()));
+                }
                 // TODO ACF 2025-10-21: This is an unfortunate consequence of using
                 // `#[non_exhaustive]` on the version enums. We should consider removing that
                 // attribute in the future to get static assurance that downstream consumers of
                 // versions comprehensively handle the possible cases.
-                SupportedVersion::V1(V1::Zero | V1::One | V1::Two | V1::Three) => {}
+                SupportedVersion::V1(V1::Zero | V1::One | V1::Two | V1::Three | V1::Four) => {}
                 other => diagnostics.add(unsupported_version(other, stmt.version().span())),
             }
+        }
+    }
+
+    fn import_statement(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        stmt: &v1::ImportStatement,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        let Some(version) = self.version else {
+            return;
+        };
+        if version >= SupportedVersion::V1(V1::Four) {
+            return;
+        }
+
+        // Forms 2 and 3 already require `from`, which subsumes the
+        // symbolic-path-only case.
+        if let Some(from) = stmt.from_keyword() {
+            diagnostics.add(from_selection_requires_wdl_1_4(from.span()));
+        } else if let v1::ImportSource::ModulePath(path) = stmt.source() {
+            diagnostics.add(symbolic_path_requires_wdl_1_4(path.span()));
         }
     }
 

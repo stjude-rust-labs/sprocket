@@ -1,0 +1,6 @@
+error: expected import statement, struct definition, enum definition, task definition, or workflow definition, but found `as` keyword
+  ┌─ tests/parsing/imports-symbolic-wildcard/source.wdl:4:30
+  │
+4 │ import * from openwdl/csvkit as csv
+  │                              ^^ unexpected `as` keyword
+
