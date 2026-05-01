@@ -75,6 +75,10 @@ pub enum ContentHashError {
 /// The prefix used in the wire form of a [`ContentHash`].
 const SHA256_PREFIX: &str = "sha256:";
 
+/// Domain-separation magic prepended to the SHA-256 input by
+/// [`Hasher::finalize`].
+const CONTENT_HASH_MAGIC: &[u8] = b"wdl-module-content\0v1\0";
+
 /// A 32-byte SHA-256 module content hash.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(into = "String", try_from = "String")]
@@ -139,9 +143,10 @@ impl FromStr for ContentHash {
 
 /// An incremental content hasher for a module directory.
 ///
-/// `try_add` records relative paths; `finalize` sorts them lexicographically,
-/// opens each file under the configured root, and feeds path bytes plus raw
-/// file contents into a single SHA-256 state.
+/// `try_add` records relative paths into a [`BTreeSet`], so they are kept in
+/// lexicographic order as they are inserted. `finalize` walks them in that
+/// order, opens each file under the configured root, and feeds path bytes
+/// plus raw file contents into a single SHA-256 state.
 #[derive(Debug)]
 pub struct Hasher {
     /// The directory under which all recorded relative paths resolve.
@@ -161,17 +166,8 @@ impl Hasher {
 
     /// Records a path relative to the hasher's root.
     ///
-    /// Accepted forms include a relative path (e.g. `foo/bar.wdl`,
-    /// `./foo/bar.wdl`, `foo/../bar.wdl`) or an absolute path that lives
-    /// under the hasher's `root`.
-    ///
-    /// The recorded form is lexically normalized via
-    /// [`path_clean::clean`]; `.` and `..` segments are resolved,
-    /// duplicate separators are collapsed, and the result is canonical for
-    /// the purposes of digest determinism.
-    ///
-    /// Errors if the path resolves to nothing, escapes the module root, or
-    /// is an absolute path that is not under the root.
+    /// Accepts an absolute path under `root` (which is converted to a relative
+    /// form) or any [`RelativePath`]-convertible input.
     pub fn try_add(&mut self, path: impl Into<String>) -> Result<&mut Self, HashError> {
         let raw = path.into();
 
@@ -193,7 +189,7 @@ impl Hasher {
         Ok(self)
     }
 
-    /// Sorts the recorded paths and computes the [`ContentHash`].
+    /// Computes the [`ContentHash`] of the recorded paths.
     ///
     /// Each file's full path is canonicalized (resolving symbolic links)
     /// before reading; if the resolved target falls outside the module
@@ -207,6 +203,8 @@ impl Hasher {
         })?;
 
         let mut sha = Sha256::new();
+        sha.update(CONTENT_HASH_MAGIC);
+        // NOTE: paths are sorted by the [`BTreeSet`].
         for relative in &self.paths {
             let bytes = relative.as_str().as_bytes();
             sha.update((bytes.len() as u64).to_le_bytes());
@@ -390,24 +388,20 @@ mod tests {
     }
 
     #[test]
-    fn detects_path_collision_via_file_count() {
-        // The spec's collision case: `{a, bc}` vs `{ab, c}` with the same
-        // concatenated bytes. The trailing file-count step distinguishes
-        // them.
+    fn detects_path_content_boundary_collision() {
+        // Without per-field length prefixes, `{a: "Xbc"}` and `{aXbc: ""}`
+        // would both feed the byte stream `aXbc` into the hasher and collide.
+        // The path-length and content-length prefixes shift the boundary,
+        // making the encoding injective.
         let dir1 = tempdir().unwrap();
-        fs::write(dir1.path().join("a"), b"X").unwrap();
-        fs::write(dir1.path().join("bc"), b"Y").unwrap();
+        fs::write(dir1.path().join("a"), b"Xbc").unwrap();
 
         let dir2 = tempdir().unwrap();
-        fs::write(dir2.path().join("ab"), b"X").unwrap();
-        fs::write(dir2.path().join("c"), b"Y").unwrap();
+        fs::write(dir2.path().join("aXbc"), b"").unwrap();
 
         let d1 = hash_directory(dir1.path()).unwrap();
         let d2 = hash_directory(dir2.path()).unwrap();
-        assert_ne!(
-            d1, d2,
-            "different file layouts should produce different digests"
-        );
+        assert_ne!(d1, d2);
     }
 
     #[test]
