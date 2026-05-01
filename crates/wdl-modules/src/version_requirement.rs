@@ -12,7 +12,7 @@ use thiserror::Error;
 
 /// An error parsing a [`VersionRequirement`].
 #[derive(Debug, Error)]
-#[error("version requirement `{0}` is not a valid `semver::VersionReq`")]
+#[error("`{0}` is not a valid semantic version requirement")]
 pub struct VersionRequirementError(String);
 
 /// A version requirement, parsed by [`semver::VersionReq`].
@@ -103,6 +103,15 @@ mod tests {
                 "accepted `{bad}`"
             );
         }
+    }
+
+    #[test]
+    fn error_message_includes_input() {
+        let err = "^1.foo".parse::<VersionRequirement>().unwrap_err();
+        assert_eq!(
+            err.to_string(),
+            "`^1.foo` is not a valid semantic version requirement"
+        );
     }
 
     #[test]
