@@ -1,15 +1,9 @@
-//! Reference implementation of the WDL module specification. Covers
-//! manifest and lockfile parsing, symbolic-path parsing, deterministic
-//! content hashing, Ed25519 signing and verification, and SPDX license
-//! validation.
+//! Implementation of the WDL module specification. Covers manifest and lockfile
+//! parsing, symbolic-path parsing, deterministic content hashing, Ed25519
+//! signing and verification, and SPDX license validation.
 //!
 //! The crate handles every part of the module specification that does not
-//! require networking or process spawning. It does walk the filesystem
-//! during content hashing because the algorithm is defined in terms of
-//! files-on-disk and forcing an abstraction across that boundary buys no
-//! consumer outside the resolver.
-
-use thiserror::Error;
+//! require networking or process spawning.
 
 pub mod dependency_name;
 pub mod dependency_source;
@@ -93,53 +87,3 @@ pub(crate) fn starts_with_windows_drive(s: &str) -> bool {
         (Some(b'A'..=b'Z' | b'a'..=b'z'), Some(b':'))
     )
 }
-
-/// The top-level error type for this crate.
-#[derive(Debug, Error)]
-pub enum Error {
-    /// A `SymbolicPath` parse error.
-    #[error(transparent)]
-    SymbolicPath(#[from] SymbolicPathError),
-    /// A `DependencyName` parse error.
-    #[error(transparent)]
-    DependencyName(#[from] DependencyNameError),
-    /// A `DependencySource` parse error.
-    #[error(transparent)]
-    DependencySource(#[from] DependencySourceError),
-    /// A `VersionRequirement` parse error.
-    #[error(transparent)]
-    VersionRequirement(#[from] VersionRequirementError),
-    /// A content-hashing error.
-    #[error(transparent)]
-    Hash(#[from] HashError),
-    /// A `Manifest` parse or validation error.
-    #[error(transparent)]
-    Manifest(#[from] ManifestError),
-    /// A `Lockfile` parse or validation error.
-    #[error(transparent)]
-    Lockfile(#[from] LockfileError),
-    /// An SPDX license expression error.
-    #[error(transparent)]
-    License(#[from] LicenseError),
-    /// A module tree validation error.
-    #[error(transparent)]
-    Tree(#[from] TreeError),
-    /// A relative-path validation error.
-    #[error(transparent)]
-    RelativePath(#[from] RelativePathError),
-    /// An OpenSSH key parse error.
-    #[error(transparent)]
-    Key(#[from] KeyError),
-    /// An Ed25519 signature parse error.
-    #[error(transparent)]
-    Signature(#[from] SignatureError),
-    /// A `module.sig` parse error.
-    #[error(transparent)]
-    SignatureFile(#[from] SignatureFileError),
-    /// A signature verification error.
-    #[error(transparent)]
-    Verify(#[from] VerifyError),
-}
-
-/// A specialized [`Result`](std::result::Result) type for `wdl-modules`.
-pub type Result<T> = std::result::Result<T, Error>;

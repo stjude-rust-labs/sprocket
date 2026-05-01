@@ -32,8 +32,6 @@ pub struct LicenseExpression {
     // `Clone`—not `Debug`, `PartialEq`, `Eq`, or `Hash`—and those four
     // derives are required for `LicenseExpression` to compose into
     // `Manifest`, `Tool`, and other types that themselves derive them.
-    // Storing the canonical string also makes equality and serialization
-    // unambiguous (the SPDX-renormalized form).
     /// The canonical (parsed and re-rendered) form of the expression.
     canonical: String,
 }
@@ -46,8 +44,8 @@ impl LicenseExpression {
 
     /// Re-parses the canonical string into a fresh [`spdx::Expression`].
     pub fn as_expression(&self) -> spdx::Expression {
-        // SAFETY: `canonical` was produced by `spdx::Expression::parse`
-        // during construction in `TryFrom<String>`, so it round-trips.
+        // SAFETY: `canonical` was produced by `spdx::Expression::parse` during
+        // construction in `TryFrom<String>`, so it should always succeed.
         spdx::Expression::parse(&self.canonical).unwrap()
     }
 }
