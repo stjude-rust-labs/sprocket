@@ -159,6 +159,47 @@ async fn should_hover_local_variable_docs() {
 }
 
 #[tokio::test]
+async fn should_hover_object_param_meta_uses_description_key() {
+    // Hover over `name` in `~{name}` inside the `object_meta` task
+    // command. Its `parameter_meta` entry is an object literal with a
+    // `description` key plus an unrelated `something_else: true`. The
+    // hover doc should be the *description string only* — not the raw
+    // object-literal dump that previously bled through.
+    let mut ctx = setup().await;
+    let response = hover_request(&mut ctx, "meta.wdl", Position::new(55, 16)).await;
+    assert_hover_content(&response, "The name of the person to greet");
+    assert_hover_not_content(&response, "something_else");
+    // The raw object-literal dump (e.g. `{ description: "..." }`)
+    // must not leak into the hover output.
+    assert_hover_not_content(&response, "{ description");
+}
+
+#[tokio::test]
+async fn should_hover_object_param_meta_concats_description_and_help() {
+    // Hover over `message` in `~{message}`. The parameter_meta object
+    // has both `description` and `help`; both should appear in the
+    // rendered hover, separated by a blank line, mirroring the
+    // wdl-doc `full_description` behavior.
+    let mut ctx = setup().await;
+    let response = hover_request(&mut ctx, "meta.wdl", Position::new(55, 24)).await;
+    assert_hover_content(&response, "Text to be printed");
+    assert_hover_content(&response, "Use double quotes for multi-word values.");
+}
+
+#[tokio::test]
+async fn should_hover_object_param_meta_falls_back_to_help_only() {
+    // Hover over `only_help` in `~{only_help}`. The parameter_meta
+    // object has *only* a `help` key — no `description` — so the help
+    // text should still be surfaced rather than the raw object dump.
+    let mut ctx = setup().await;
+    let response = hover_request(&mut ctx, "meta.wdl", Position::new(55, 35)).await;
+    assert_hover_content(&response, "Only the help string is provided here.");
+    // The raw object-literal dump (e.g. `{ help: "..." }`) must not
+    // leak into the hover output.
+    assert_hover_not_content(&response, "{ help");
+}
+
+#[tokio::test]
 async fn should_hover_local_struct_member_access_docs() {
     let mut ctx = setup().await;
     let response = hover_request(&mut ctx, "meta.wdl", Position::new(20, 22)).await;

@@ -28,6 +28,8 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::EnumVariant;
 use wdl_ast::v1::LiteralStruct;
 use wdl_ast::v1::LiteralStructItem;
+use wdl_ast::v1::MetadataObject;
+use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::ParameterMetadataSection;
 use wdl_ast::v1::StructDefinition;
 
@@ -550,9 +552,65 @@ fn find_parameter_meta_documentation(token: &SyntaxToken) -> Option<String> {
 
     for item in param_meta.items() {
         if item.name().text() == token.text() {
-            let doc_text = item.value().text().to_string();
-            return Some(doc_text.trim_matches('"').to_string());
+            return Some(render_parameter_meta_value(&item.value()));
         }
     }
     None
+}
+
+/// Renders a `parameter_meta` value as a hover documentation string.
+///
+/// String values are returned with their surrounding quotes stripped.
+/// Object values (e.g. `name: { description: "...", help: "..." }`)
+/// are flattened to the canonical `description` (then `help`) text,
+/// matching what `wdl-doc` does for HTML rendering. When the object
+/// has neither `description` nor `help`, or for any other shape
+/// (numbers, booleans, arrays, null), the raw source text is returned
+/// as a last-ditch fallback so the user still sees *something*.
+fn render_parameter_meta_value(value: &MetadataValue) -> String {
+    match value {
+        MetadataValue::String(s) => s
+            .text()
+            .map(|t| t.text().to_string())
+            .unwrap_or_else(|| s.inner().text().to_string().trim_matches('"').to_string()),
+        MetadataValue::Object(obj) => {
+            object_description_and_help(obj).unwrap_or_else(|| value.text().to_string())
+        }
+        _ => value.text().to_string().trim_matches('"').to_string(),
+    }
+}
+
+/// Pulls `description` and (optionally) `help` from a metadata object,
+/// concatenating them with a blank-line separator. Returns `None` when
+/// neither key is present so callers can fall back to raw text.
+fn object_description_and_help(obj: &MetadataObject) -> Option<String> {
+    let mut description: Option<String> = None;
+    let mut help: Option<String> = None;
+    for item in obj.items() {
+        let key = item.name().text().to_string();
+        if key != "description" && key != "help" {
+            continue;
+        }
+        if let MetadataValue::String(s) = item.value()
+            && let Some(t) = s.text()
+        {
+            let text = t.text().to_string();
+            if key == "description" {
+                description = Some(text);
+            } else {
+                help = Some(text);
+            }
+        }
+    }
+
+    match (description, help) {
+        (Some(mut d), Some(h)) => {
+            d.push_str("\n\n");
+            d.push_str(&h);
+            Some(d)
+        }
+        (Some(d), None) => Some(d),
+        (None, Some(h)) => Some(h),
+        (None, None) => None,
+    }
 }
