@@ -55,6 +55,16 @@ pub use crate::resolver::MissingFileKind;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::ModulesConfig;
 #[cfg(feature = "resolver")]
+pub use crate::resolver::ResolvedDependency;
+#[cfg(feature = "resolver")]
+pub use crate::resolver::ResolvedFile;
+#[cfg(feature = "resolver")]
+pub use crate::resolver::ResolvedModule;
+#[cfg(feature = "resolver")]
+pub use crate::resolver::ResolvedTree;
+#[cfg(feature = "resolver")]
+pub use crate::resolver::Resolver;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::ResolverError;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::TrustMode;
