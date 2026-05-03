@@ -6895,8 +6895,12 @@ dependencies = [
 name = "wdl-modules"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "base64",
+ "bytesize",
+ "dirs",
  "ed25519-dalek",
+ "git2",
  "hex",
  "path-clean",
  "pretty_assertions",
@@ -6908,6 +6912,9 @@ dependencies = [
  "ssh-key",
  "tempfile",
  "thiserror 2.0.18",
+ "tokio",
+ "toml 0.9.12+spec-1.1.0",
+ "tracing",
  "unicode-normalization",
  "url",
  "wdl-grammar",

@@ -12,6 +12,8 @@ pub mod license;
 pub mod lockfile;
 pub mod manifest;
 pub mod relative_path;
+#[cfg(feature = "resolver")]
+pub mod resolver;
 pub mod signing;
 mod strict_json;
 pub mod symbolic_path;
@@ -44,6 +46,18 @@ pub use crate::manifest::Readme;
 pub use crate::manifest::Tool;
 pub use crate::relative_path::RelativePath;
 pub use crate::relative_path::RelativePathError;
+#[cfg(feature = "resolver")]
+pub use crate::resolver::LargeFileWarning;
+#[cfg(feature = "resolver")]
+pub use crate::resolver::LargeFileWarningError;
+#[cfg(feature = "resolver")]
+pub use crate::resolver::MissingFileKind;
+#[cfg(feature = "resolver")]
+pub use crate::resolver::ModulesConfig;
+#[cfg(feature = "resolver")]
+pub use crate::resolver::ResolverError;
+#[cfg(feature = "resolver")]
+pub use crate::resolver::TrustMode;
 pub use crate::signing::KeyError;
 pub use crate::signing::ModuleSignature;
 pub use crate::signing::Signature;
