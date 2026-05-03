@@ -5,6 +5,7 @@
 //! the manifest/lockfile/hashing types (e.g. `wdl-doc`) do not enable
 //! this feature and therefore do not pay for those deps.
 
+pub mod cache;
 pub mod config;
 pub mod error;
 pub mod types;
@@ -12,6 +13,8 @@ pub mod types;
 use async_trait::async_trait;
 use semver::Version;
 
+pub use crate::resolver::cache::CacheKey;
+pub use crate::resolver::cache::IntegrityError;
 pub use crate::resolver::config::LargeFileWarning;
 pub use crate::resolver::config::LargeFileWarningError;
 pub use crate::resolver::config::ModulesConfig;
