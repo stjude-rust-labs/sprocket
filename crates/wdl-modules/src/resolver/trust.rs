@@ -1,4 +1,4 @@
-//! User-level trust store at `~/.sprocket/modules-trust.toml`.
+//! User-level trust store at `<config>/sprocket/modules-trust.toml`.
 
 use std::path::Path;
 use std::path::PathBuf;
