@@ -8,6 +8,11 @@
 pub mod cache;
 pub mod config;
 pub mod error;
+// NOTE: items inside `git` are wired up by the forthcoming `GitResolver`;
+// `#[expect(dead_code)]` would error in test builds where its own tests
+// already exercise the items.
+#[allow(dead_code)]
+mod git;
 pub mod trust;
 pub mod types;
 pub mod versions;
