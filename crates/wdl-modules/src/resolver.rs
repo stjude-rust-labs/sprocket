@@ -10,6 +10,7 @@ pub mod config;
 pub mod error;
 pub mod trust;
 pub mod types;
+pub mod versions;
 
 use async_trait::async_trait;
 use semver::Version;
