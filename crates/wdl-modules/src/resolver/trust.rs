@@ -28,9 +28,9 @@ pub struct TrustEntry {
 }
 
 impl TrustStore {
-    /// Reads the trust store from `path`. Returns the default (empty) store
-    /// if the file does not exist.
-    pub fn load(path: &Path) -> Result<Self, TrustStoreError> {
+    /// Reads the trust store from `path`, or returns the default (empty)
+    /// store if the file does not exist.
+    pub fn load_or_default(path: &Path) -> Result<Self, TrustStoreError> {
         let bytes = match std::fs::read(path) {
             Ok(b) => b,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
@@ -77,7 +77,6 @@ impl TrustStore {
     pub fn lookup(&self, dep: &DependencyName) -> Option<&VerifyingKey> {
         self.entries.iter().find(|e| &e.dep == dep).map(|e| &e.key)
     }
-
 }
 
 /// An error reading or writing the trust store.
@@ -156,7 +155,7 @@ mod tests {
     fn loads_default_when_missing() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("trust.toml");
-        let store = TrustStore::load(&path).unwrap();
+        let store = TrustStore::load_or_default(&path).unwrap();
         assert!(store.entries.is_empty());
     }
 
@@ -175,7 +174,7 @@ mod tests {
         store.save(&path).unwrap();
         assert!(path.exists());
 
-        let reloaded = TrustStore::load(&path).unwrap();
+        let reloaded = TrustStore::load_or_default(&path).unwrap();
         assert!(reloaded.lookup(&dep).is_some());
     }
 
@@ -184,7 +183,7 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = dir.path().join("bad.toml");
         fs::write(&path, b"not valid toml [[[ {").unwrap();
-        let err = TrustStore::load(&path).unwrap_err();
+        let err = TrustStore::load_or_default(&path).unwrap_err();
         assert!(err.to_string().contains(path.to_str().unwrap()));
     }
 }
