@@ -78,33 +78,13 @@ impl TrustStore {
         self.entries.iter().find(|e| &e.dep == dep).map(|e| &e.key)
     }
 
-    /// Returns the default user-level trust store path under the same
-    /// config root that `sprocket.toml` uses.
-    ///
-    /// On macOS this is `$HOME/.config/sprocket/modules-trust.toml`; on
-    /// Linux it follows `$XDG_CONFIG_HOME` (typically
-    /// `~/.config/sprocket/modules-trust.toml`); on Windows it lands in
-    /// `%APPDATA%/sprocket/modules-trust.toml`.
-    pub fn default_path() -> Option<PathBuf> {
-        sprocket_config_dir().map(|d| d.join("modules-trust.toml"))
-    }
-}
-
-/// Returns the user-level Sprocket config directory, mirroring the
-/// resolution `sprocket.toml` uses.
-fn sprocket_config_dir() -> Option<PathBuf> {
-    #[cfg(target_os = "macos")]
-    let base = dirs::home_dir().map(|p| p.join(".config"));
-    #[cfg(not(target_os = "macos"))]
-    let base = dirs::config_dir();
-    base.map(|d| d.join("sprocket"))
 }
 
 /// An error reading or writing the trust store.
 #[derive(Debug, Error)]
 pub enum TrustStoreError {
     /// I/O error.
-    #[error("I/O error at `{path}`")]
+    #[error("i/o error at `{path}`")]
     Io {
         /// The path involved.
         path: PathBuf,

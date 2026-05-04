@@ -105,11 +105,11 @@ pub enum ResolverError {
     },
 
     /// A `git2` operation failed.
-    #[error("Git operation failed")]
+    #[error("git operation failed")]
     Git(#[source] git2::Error),
 
     /// An I/O error.
-    #[error("I/O error at `{path}`")]
+    #[error("i/o error at `{path}`")]
     Io {
         /// The path involved.
         path: PathBuf,
