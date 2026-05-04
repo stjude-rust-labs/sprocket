@@ -1,32 +1,38 @@
 //! Tag enumeration, semver matching, and version selection.
 
+use std::collections::HashSet;
+
 use semver::Version;
 use thiserror::Error;
 use url::Url;
 
 use crate::VersionRequirement;
 
+/// The Git ref namespace prefix for tags.
+const REF_TAG_PREFIX: &str = "refs/tags/";
+
+/// Suffix the smart-protocol ref advertisement appends to annotated tag
+/// names when reporting the underlying commit (the "peeled" form).
+const PEELED_TAG_SUFFIX: &str = "^{}";
+
 /// Lists the tags advertised by the remote at `url` over `git ls-remote`.
 /// No clone is performed.
-pub fn list_remote_tags(url: &Url) -> Result<Vec<String>, VersionError> {
+pub fn list_remote_tags(url: &Url) -> Result<HashSet<String>, VersionError> {
     let mut remote = git2::Remote::create_detached(url.as_str()).map_err(VersionError::Git)?;
     remote
         .connect_auth(git2::Direction::Fetch, None, None)
         .map_err(VersionError::Git)?;
     let advertised = remote.list().map_err(VersionError::Git)?;
-    let mut tags = Vec::new();
+    let mut tags = HashSet::new();
     for head in advertised {
-        let name = head.name();
-        let Some(stripped) = name.strip_prefix("refs/tags/") else {
+        let Some(stripped) = head.name().strip_prefix(REF_TAG_PREFIX) else {
             continue;
         };
-        // Annotated tags appear twice: once as the tag object, once peeled
-        // (`^{}`) to the underlying commit. The peeled entry duplicates the
-        // base name; skip it.
-        let base = stripped.strip_suffix("^{}").unwrap_or(stripped);
-        if !tags.iter().any(|t: &String| t == base) {
-            tags.push(base.to_string());
-        }
+        // Annotated tags appear twice: once as the tag object, once peeled to
+        // the underlying commit. The peeled entry duplicates the base name,
+        // and the `HashSet` collapses the two into a single entry.
+        let base = stripped.strip_suffix(PEELED_TAG_SUFFIX).unwrap_or(stripped);
+        tags.insert(base.to_string());
     }
     let _ = remote.disconnect();
     Ok(tags)
@@ -40,7 +46,7 @@ pub fn list_remote_tags(url: &Url) -> Result<Vec<String>, VersionError> {
 /// the `v` prefix and any `<path-prefix>/` and parses each as semver,
 /// ignoring entries that fail to parse or fail the requirement.
 pub fn select_version(
-    tags: &[String],
+    tags: &HashSet<String>,
     path_prefix: Option<&str>,
     requirement: &VersionRequirement,
 ) -> Result<Version, VersionError> {
@@ -114,7 +120,7 @@ mod tests {
         s.to_string().try_into().unwrap()
     }
 
-    fn tags(items: &[&str]) -> Vec<String> {
+    fn tags(items: &[&str]) -> HashSet<String> {
         items.iter().map(|s| s.to_string()).collect()
     }
 
@@ -142,12 +148,8 @@ mod tests {
 
     #[test]
     fn ignores_non_semver_tags() {
-        let v = select_version(
-            &tags(&["v1.0.0", "release-2024", "vXYZ"]),
-            None,
-            &req("^1"),
-        )
-        .unwrap();
+        let v =
+            select_version(&tags(&["v1.0.0", "release-2024", "vXYZ"]), None, &req("^1")).unwrap();
         assert_eq!(v, Version::parse("1.0.0").unwrap());
     }
 
@@ -156,7 +158,10 @@ mod tests {
         let err = select_version(&tags(&["v1.0.0"]), None, &req("^2")).unwrap_err();
         let msg = err.to_string();
         assert!(msg.contains("no version satisfies"), "got: {msg}");
-        assert!(msg.contains("1.0.0"), "msg should list considered versions: {msg}");
+        assert!(
+            msg.contains("1.0.0"),
+            "msg should list considered versions: {msg}"
+        );
     }
 
     #[test]
@@ -172,8 +177,8 @@ mod tests {
 
     #[test]
     fn path_selector_ignores_root_tags() {
-        let err = select_version(&tags(&["v1.0.0", "v2.0.0"]), Some("csvkit"), &req("^1"))
-            .unwrap_err();
+        let err =
+            select_version(&tags(&["v1.0.0", "v2.0.0"]), Some("csvkit"), &req("^1")).unwrap_err();
         assert!(matches!(err, VersionError::NoSatisfyingVersion { .. }));
     }
 }
