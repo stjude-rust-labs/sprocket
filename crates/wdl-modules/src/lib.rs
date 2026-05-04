@@ -57,7 +57,7 @@ pub use crate::resolver::ModulesConfig;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::ResolvedDependency;
 #[cfg(feature = "resolver")]
-pub use crate::resolver::ResolvedFile;
+pub use crate::resolver::MaterializedFile;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::ResolvedModule;
 #[cfg(feature = "resolver")]

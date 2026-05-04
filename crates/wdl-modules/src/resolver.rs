@@ -14,7 +14,6 @@ use async_trait::async_trait;
 use semver::Version;
 
 pub use crate::resolver::cache::CacheKey;
-pub use crate::resolver::cache::IntegrityError;
 pub use crate::resolver::config::LargeFileWarning;
 pub use crate::resolver::config::LargeFileWarningError;
 pub use crate::resolver::config::ModulesConfig;
@@ -22,7 +21,7 @@ pub use crate::resolver::config::TrustMode;
 pub use crate::resolver::error::MissingFileKind;
 pub use crate::resolver::error::ResolverError;
 pub use crate::resolver::types::ResolvedDependency;
-pub use crate::resolver::types::ResolvedFile;
+pub use crate::resolver::types::MaterializedFile;
 pub use crate::resolver::types::ResolvedModule;
 pub use crate::resolver::types::ResolvedTree;
 
@@ -31,24 +30,43 @@ use crate::Manifest;
 use crate::SymbolicPath;
 
 /// Resolves WDL module imports to concrete files on disk.
-///
-/// `wdl-analysis` takes a `dyn Resolver` so its symbolic-import
-/// resolution path stays free of `git2` and filesystem dependencies. The
-/// CLI uses the concrete `GitResolver` directly.
 #[async_trait]
 pub trait Resolver: Send + Sync {
-    /// Resolves a single symbolic import to a concrete file on disk.
-    async fn resolve(
+    /// Materializes a single symbolic import on disk and returns the path to
+    /// the resulting file.
+    ///
+    /// The primary call site for `wdl-analysis`. When the analyzer encounters a
+    /// symbolic import like `import openwdl/csvkit/cut`, it asks the resolver
+    /// for the file path that statement should route to, then parses the result
+    /// with the existing import machinery as if the user had written `import
+    /// "<that path>"`.
+    ///
+    /// - `consumer` is the manifest of the importing module.
+    /// - `path` is the parsed symbolic path.
+    ///
+    /// The resolver looks up the head component in `consumer.dependencies`,
+    /// materializes the dep's module folder if not yet cached, and resolves
+    /// either the manifest's `entrypoint` (when the symbolic path has no
+    /// sub-path) or `<sub-path>.wdl` under the module folder.
+    async fn materialize(
         &self,
         consumer: &Manifest,
         path: &SymbolicPath,
-    ) -> Result<ResolvedFile, ResolverError>;
+    ) -> Result<MaterializedFile, ResolverError>;
 
     /// Resolves every transitive dependency declared by `consumer`.
+    ///
+    /// Walks the consumer's `dependencies` map, recurses into each dep's own
+    /// manifest, and records every module visited along the way. Detects
+    /// cycles.
     async fn resolve_tree(&self, consumer: &Manifest) -> Result<ResolvedTree, ResolverError>;
 
-    /// Lists discovered versions for a dependency source that satisfy
-    /// the requirement, in descending semver order.
+    /// Lists discovered versions for a dependency source that satisfy the
+    /// requirement, in descending semver order.
+    ///
+    /// Used by CLI commands that surface available versions to the user and
+    /// internally by `resolve_tree` to select the version a Git dep resolves
+    /// to.
     async fn discover_versions(
         &self,
         source: &DependencySource,

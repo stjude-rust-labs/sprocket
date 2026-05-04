@@ -46,8 +46,7 @@ impl CacheKey {
     pub fn from_url(url: &Url, commit: &GitCommit) -> Self {
         let prefix = match url.host_str() {
             Some(host) => {
-                let segments: Vec<&str> =
-                    url.path().split('/').filter(|s| !s.is_empty()).collect();
+                let segments: Vec<&str> = url.path().split('/').filter(|s| !s.is_empty()).collect();
                 if segments.len() >= 2 {
                     let repo = segments[1].trim_end_matches(".git").to_string();
                     KeyPrefix::Structured {
@@ -72,7 +71,7 @@ impl CacheKey {
     }
 
     /// Returns the cache-root-relative path for this key.
-    pub fn relative_path(&self) -> PathBuf {
+    pub(crate) fn relative_path(&self) -> PathBuf {
         let mut p = PathBuf::new();
         match &self.prefix {
             KeyPrefix::Structured { host, org, repo } => {
@@ -105,7 +104,10 @@ fn hash_url(url: &Url) -> String {
 }
 
 /// Removes the cache leaf at `path`. No-op if the leaf does not exist.
-pub fn evict(path: &Path) -> std::io::Result<()> {
+// NOTE: `#[expect(dead_code)]` would error under tests where these items are
+// used; cannot expect the lint to fire across all configurations.
+#[allow(dead_code)]
+pub(crate) fn evict(path: &Path) -> std::io::Result<()> {
     match std::fs::remove_dir_all(path) {
         Ok(()) => Ok(()),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
@@ -115,7 +117,13 @@ pub fn evict(path: &Path) -> std::io::Result<()> {
 
 /// Re-hashes a cached module folder and compares against the expected
 /// content hash.
-pub fn verify_integrity(leaf: &Path, expected: &ContentHash) -> Result<(), IntegrityError> {
+// NOTE: `#[expect(dead_code)]` would error under tests where these items are
+// used; cannot expect the lint to fire across all configurations.
+#[allow(dead_code)]
+pub(crate) fn verify_integrity(
+    leaf: &Path,
+    expected: &ContentHash,
+) -> Result<(), IntegrityError> {
     let observed =
         crate::hash::hash_directory(leaf).map_err(|source| IntegrityError::Hash { source })?;
     if observed != *expected {
@@ -128,8 +136,11 @@ pub fn verify_integrity(leaf: &Path, expected: &ContentHash) -> Result<(), Integ
 }
 
 /// An error produced by [`verify_integrity`].
+// NOTE: `#[expect(dead_code)]` would error under tests where these items are
+// used; cannot expect the lint to fire across all configurations.
+#[allow(dead_code)]
 #[derive(Debug, Error)]
-pub enum IntegrityError {
+pub(crate) enum IntegrityError {
     /// The cached module's content hash does not match the expected
     /// digest.
     #[error("content hash mismatch: expected `{expected}`, observed `{observed}`")]

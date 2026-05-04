@@ -4,26 +4,20 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use semver::Version;
-use url::Url;
 
 use crate::ContentHash;
 use crate::DependencyName;
-use crate::GitCommit;
 use crate::ModulePath;
 use crate::ResolvedSource;
 use crate::VerifyingKey;
 
 /// A symbolic import resolved to a concrete file on disk.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ResolvedFile {
+pub struct MaterializedFile {
     /// Absolute path to the resolved file.
     pub path: PathBuf,
-    /// The Git URL the file's owning module came from. `None` for
-    /// local-path dependencies.
-    pub source_url: Option<Url>,
-    /// The Git commit the file's owning module came from. `None` for
-    /// local-path dependencies.
-    pub commit: Option<GitCommit>,
+    /// The source the file's owning module came from.
+    pub source: ResolvedSource,
 }
 
 /// A fully resolved dependency tree, suitable for `module-lock.json`

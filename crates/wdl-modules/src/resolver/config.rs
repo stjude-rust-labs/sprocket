@@ -15,7 +15,7 @@ pub struct ModulesConfig {
     pub cache_path: Option<PathBuf>,
 
     /// Threshold for the large-file warning, or [`LargeFileWarning::Disabled`]
-    /// when the user opts out. Default: 1 MiB.
+    /// when the user opts out. Defaults to 1 MiB.
     pub large_file_warning: LargeFileWarning,
 
     /// Reject any unsigned module in the dependency tree.
@@ -37,6 +37,7 @@ pub enum LargeFileWarning {
 
 impl Default for LargeFileWarning {
     fn default() -> Self {
+        // 1 MiB
         Self::Threshold(1024 * 1024)
     }
 }
