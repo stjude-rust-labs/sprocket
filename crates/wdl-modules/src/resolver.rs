@@ -8,6 +8,7 @@
 pub mod cache;
 pub mod config;
 pub mod error;
+pub mod trust;
 pub mod types;
 
 use async_trait::async_trait;
@@ -20,6 +21,9 @@ pub use crate::resolver::config::ModulesConfig;
 pub use crate::resolver::config::TrustMode;
 pub use crate::resolver::error::MissingFileKind;
 pub use crate::resolver::error::ResolverError;
+pub use crate::resolver::trust::TrustEntry;
+pub use crate::resolver::trust::TrustStore;
+pub use crate::resolver::trust::TrustStoreError;
 pub use crate::resolver::types::ResolvedDependency;
 pub use crate::resolver::types::MaterializedFile;
 pub use crate::resolver::types::ResolvedModule;
