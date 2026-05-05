@@ -26,23 +26,28 @@ struct SparseMeta(BTreeSet<String>);
 
 /// Clones the repository at `url` into `leaf`, checks out the working
 /// tree to `commit`, and materializes only the listed `paths` from the
-/// resulting tree (libgit2's path-filtered checkout, the durable
-/// equivalent of git's sparse-checkout).
+/// resulting tree.
 ///
 /// `leaf` and any missing parent directories are created. Credentials
 /// are obtained from libgit2's standard credential helper chain.
-pub(crate) fn clone_with_sparse_checkout(
+pub(crate) fn clone_with_sparse_checkout<I, S>(
     url: &Url,
     commit: &str,
     leaf: &Path,
-    paths: &[&str],
-) -> Result<(), GitError> {
-    if let Some(parent) = leaf.parent() {
-        std::fs::create_dir_all(parent).map_err(|source| GitError::Io {
-            path: parent.to_path_buf(),
-            source,
-        })?;
-    }
+    paths: I,
+) -> Result<(), GitError>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let owned: Vec<String> = paths.into_iter().map(|s| s.as_ref().to_string()).collect();
+    let parent = leaf
+        .parent()
+        .ok_or_else(|| GitError::RootLeaf(leaf.to_path_buf()))?;
+    std::fs::create_dir_all(parent).map_err(|source| GitError::Io {
+        path: parent.to_path_buf(),
+        source,
+    })?;
 
     let mut callbacks = RemoteCallbacks::new();
     callbacks.credentials(default_credentials);
@@ -66,8 +71,8 @@ pub(crate) fn clone_with_sparse_checkout(
     let oid = git2::Oid::from_str(commit).map_err(GitError::Git)?;
     repo.set_head_detached(oid).map_err(GitError::Git)?;
 
-    apply_sparse_checkout(&repo, paths)?;
-    save_sparse_meta(leaf, paths)?;
+    apply_sparse_checkout(&repo, &owned)?;
+    save_sparse_meta(leaf, &owned)?;
 
     Ok(())
 }
@@ -75,21 +80,25 @@ pub(crate) fn clone_with_sparse_checkout(
 /// Extends an existing sparse-checkout cache leaf to additionally
 /// materialize the given `paths`. Paths already present are kept; the
 /// union becomes the new sparse-checkout set.
-pub(crate) fn extend_sparse_checkout(leaf: &Path, paths: &[&str]) -> Result<(), GitError> {
+pub(crate) fn extend_sparse_checkout<I, S>(leaf: &Path, paths: I) -> Result<(), GitError>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
     let repo = Repository::open(leaf).map_err(GitError::Git)?;
     let mut all = load_sparse_meta(leaf)?.0;
     for p in paths {
-        all.insert((*p).to_string());
+        all.insert(p.as_ref().to_string());
     }
-    let all_refs: Vec<&str> = all.iter().map(String::as_str).collect();
-    apply_sparse_checkout(&repo, &all_refs)?;
-    save_sparse_meta(leaf, &all_refs)?;
+    let all_owned: Vec<String> = all.into_iter().collect();
+    apply_sparse_checkout(&repo, &all_owned)?;
+    save_sparse_meta(leaf, &all_owned)?;
     Ok(())
 }
 
 /// Materializes only the listed module folders from the repo's HEAD
 /// tree using libgit2's path-filtered checkout.
-fn apply_sparse_checkout(repo: &Repository, paths: &[&str]) -> Result<(), GitError> {
+fn apply_sparse_checkout(repo: &Repository, paths: &[String]) -> Result<(), GitError> {
     let head_commit = repo
         .head()
         .map_err(GitError::Git)?
@@ -109,11 +118,11 @@ fn apply_sparse_checkout(repo: &Repository, paths: &[&str]) -> Result<(), GitErr
     Ok(())
 }
 
-/// Writes `_sparse.json` next to the cache leaf, recording which
+/// Writes `.sparse.json` next to the cache leaf, recording which
 /// module folders are currently materialized so a later
 /// [`extend_sparse_checkout`] knows what to extend.
-fn save_sparse_meta(leaf: &Path, paths: &[&str]) -> Result<(), GitError> {
-    let meta = SparseMeta(paths.iter().map(|s| (*s).to_string()).collect());
+fn save_sparse_meta(leaf: &Path, paths: &[String]) -> Result<(), GitError> {
+    let meta = SparseMeta(paths.iter().cloned().collect());
     let path = leaf.join(SPARSE_META_FILENAME);
     let bytes = serde_json::to_vec_pretty(&meta).map_err(|source| GitError::Json {
         path: path.clone(),
@@ -122,7 +131,7 @@ fn save_sparse_meta(leaf: &Path, paths: &[&str]) -> Result<(), GitError> {
     std::fs::write(&path, bytes).map_err(|source| GitError::Io { path, source })
 }
 
-/// Reads `_sparse.json` from the cache leaf, returning the default
+/// Reads `.sparse.json` from the cache leaf, returning the default
 /// empty meta if the file is missing.
 fn load_sparse_meta(leaf: &Path) -> Result<SparseMeta, GitError> {
     let path = leaf.join(SPARSE_META_FILENAME);
@@ -181,6 +190,10 @@ pub(crate) enum GitError {
         #[source]
         source: serde_json::Error,
     },
+
+    /// The cache leaf path has no parent directory and cannot be created.
+    #[error("cache leaf path `{0}` has no parent directory")]
+    RootLeaf(PathBuf),
 }
 
 #[cfg(test)]
@@ -236,15 +249,16 @@ mod tests {
         let leaf = dest.path().join("leaf");
         let url = Url::from_directory_path(upstream.path()).unwrap();
 
-        clone_with_sparse_checkout(&url, &sha, &leaf, &["csvkit"]).unwrap();
+        clone_with_sparse_checkout(&url, &sha, &leaf, ["csvkit"]).unwrap();
 
         assert!(leaf.join("csvkit").join("module.json").exists());
         assert!(!leaf.join("spellbook").exists());
 
         let meta = load_sparse_meta(&leaf).unwrap();
-        assert_eq!(meta.0.iter().cloned().collect::<Vec<_>>(), vec![
-            "csvkit".to_string()
-        ]);
+        assert_eq!(
+            meta.0.iter().cloned().collect::<Vec<_>>(),
+            vec!["csvkit".to_string()]
+        );
     }
 
     #[test]
@@ -266,10 +280,10 @@ mod tests {
         let leaf = dest.path().join("leaf");
         let url = Url::from_directory_path(upstream.path()).unwrap();
 
-        clone_with_sparse_checkout(&url, &sha, &leaf, &["csvkit"]).unwrap();
+        clone_with_sparse_checkout(&url, &sha, &leaf, ["csvkit"]).unwrap();
         assert!(!leaf.join("spellbook").exists());
 
-        extend_sparse_checkout(&leaf, &["spellbook"]).unwrap();
+        extend_sparse_checkout(&leaf, ["spellbook"]).unwrap();
         assert!(leaf.join("spellbook").join("module.json").exists());
         assert!(leaf.join("csvkit").join("module.json").exists());
 
