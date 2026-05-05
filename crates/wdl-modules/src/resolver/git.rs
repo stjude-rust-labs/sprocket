@@ -16,14 +16,13 @@ use url::Url;
 
 /// File written into a cache leaf recording which module folders are
 /// currently materialized via sparse checkout.
-const SPARSE_META_FILENAME: &str = "_sparse.json";
+const SPARSE_META_FILENAME: &str = ".sparse.json";
 
-/// Metadata persisted alongside a sparse-checkout cache leaf.
+/// The module folders currently materialized in a sparse-checkout cache
+/// leaf.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
-struct SparseMeta {
-    /// The module folders currently materialized.
-    paths: BTreeSet<String>,
-}
+#[serde(transparent)]
+struct SparseMeta(BTreeSet<String>);
 
 /// Clones the repository at `url` into `leaf`, checks out the working
 /// tree to `commit`, and materializes only the listed `paths` from the
@@ -78,7 +77,7 @@ pub(crate) fn clone_with_sparse_checkout(
 /// union becomes the new sparse-checkout set.
 pub(crate) fn extend_sparse_checkout(leaf: &Path, paths: &[&str]) -> Result<(), GitError> {
     let repo = Repository::open(leaf).map_err(GitError::Git)?;
-    let mut all = load_sparse_meta(leaf)?.paths;
+    let mut all = load_sparse_meta(leaf)?.0;
     for p in paths {
         all.insert((*p).to_string());
     }
@@ -114,9 +113,7 @@ fn apply_sparse_checkout(repo: &Repository, paths: &[&str]) -> Result<(), GitErr
 /// module folders are currently materialized so a later
 /// [`extend_sparse_checkout`] knows what to extend.
 fn save_sparse_meta(leaf: &Path, paths: &[&str]) -> Result<(), GitError> {
-    let meta = SparseMeta {
-        paths: paths.iter().map(|s| (*s).to_string()).collect(),
-    };
+    let meta = SparseMeta(paths.iter().map(|s| (*s).to_string()).collect());
     let path = leaf.join(SPARSE_META_FILENAME);
     let bytes = serde_json::to_vec_pretty(&meta).map_err(|source| GitError::Json {
         path: path.clone(),
@@ -245,10 +242,9 @@ mod tests {
         assert!(!leaf.join("spellbook").exists());
 
         let meta = load_sparse_meta(&leaf).unwrap();
-        assert_eq!(
-            meta.paths.iter().cloned().collect::<Vec<_>>(),
-            vec!["csvkit".to_string()]
-        );
+        assert_eq!(meta.0.iter().cloned().collect::<Vec<_>>(), vec![
+            "csvkit".to_string()
+        ]);
     }
 
     #[test]
@@ -278,7 +274,7 @@ mod tests {
         assert!(leaf.join("csvkit").join("module.json").exists());
 
         let meta = load_sparse_meta(&leaf).unwrap();
-        let mut paths: Vec<_> = meta.paths.into_iter().collect();
+        let mut paths: Vec<_> = meta.0.into_iter().collect();
         paths.sort();
         assert_eq!(paths, vec!["csvkit".to_string(), "spellbook".to_string()]);
     }
