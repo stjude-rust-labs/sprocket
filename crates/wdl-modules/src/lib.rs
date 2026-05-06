@@ -51,13 +51,13 @@ pub use crate::resolver::LargeFileWarning;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::LargeFileWarningError;
 #[cfg(feature = "resolver")]
+pub use crate::resolver::MaterializedFile;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::MissingFileKind;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::ModulesConfig;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::ResolvedDependency;
-#[cfg(feature = "resolver")]
-pub use crate::resolver::MaterializedFile;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::ResolvedModule;
 #[cfg(feature = "resolver")]

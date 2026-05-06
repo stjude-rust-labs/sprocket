@@ -51,6 +51,15 @@ pub struct Lockfile {
     pub dependencies: DependencyMap,
 }
 
+impl Default for Lockfile {
+    fn default() -> Self {
+        Self {
+            version: LOCKFILE_VERSION,
+            dependencies: DependencyMap::new(),
+        }
+    }
+}
+
 impl Lockfile {
     /// Parses a `module-lock.json` from raw bytes.
     pub fn parse(bytes: &[u8]) -> Result<Self, LockfileError> {

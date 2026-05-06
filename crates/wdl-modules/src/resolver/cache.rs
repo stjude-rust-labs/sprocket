@@ -120,10 +120,7 @@ pub(crate) fn evict(path: &Path) -> std::io::Result<()> {
 // NOTE: `#[expect(dead_code)]` would error under tests where these items are
 // used; cannot expect the lint to fire across all configurations.
 #[allow(dead_code)]
-pub(crate) fn verify_integrity(
-    leaf: &Path,
-    expected: &ContentHash,
-) -> Result<(), IntegrityError> {
+pub(crate) fn verify_integrity(leaf: &Path, expected: &ContentHash) -> Result<(), IntegrityError> {
     let observed =
         crate::hash::hash_directory(leaf).map_err(|source| IntegrityError::Hash { source })?;
     if observed != *expected {

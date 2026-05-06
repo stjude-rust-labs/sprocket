@@ -13,6 +13,7 @@ pub mod error;
 // already exercise the items.
 #[allow(dead_code)]
 mod git;
+pub mod lock;
 pub mod trust;
 pub mod types;
 pub mod versions;
@@ -20,6 +21,9 @@ pub mod versions;
 use async_trait::async_trait;
 use semver::Version;
 
+use crate::DependencySource;
+use crate::Manifest;
+use crate::SymbolicPath;
 pub use crate::resolver::cache::CacheKey;
 pub use crate::resolver::config::LargeFileWarning;
 pub use crate::resolver::config::LargeFileWarningError;
@@ -27,17 +31,20 @@ pub use crate::resolver::config::ModulesConfig;
 pub use crate::resolver::config::TrustMode;
 pub use crate::resolver::error::MissingFileKind;
 pub use crate::resolver::error::ResolverError;
+pub use crate::resolver::lock::DependencyAddition;
+pub use crate::resolver::lock::DependencyUpdate;
+pub use crate::resolver::lock::LockfileDiff;
+pub use crate::resolver::lock::NewSigner;
+pub use crate::resolver::lock::RelockOutcome;
+pub use crate::resolver::lock::RelockStats;
+pub use crate::resolver::lock::partial_relock;
 pub use crate::resolver::trust::TrustEntry;
 pub use crate::resolver::trust::TrustStore;
 pub use crate::resolver::trust::TrustStoreError;
-pub use crate::resolver::types::ResolvedDependency;
 pub use crate::resolver::types::MaterializedFile;
+pub use crate::resolver::types::ResolvedDependency;
 pub use crate::resolver::types::ResolvedModule;
 pub use crate::resolver::types::ResolvedTree;
-
-use crate::DependencySource;
-use crate::Manifest;
-use crate::SymbolicPath;
 
 /// Resolves WDL module imports to concrete files on disk.
 #[async_trait]
