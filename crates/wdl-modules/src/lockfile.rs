@@ -102,9 +102,8 @@ pub enum ResolvedSource {
         /// The 40-character lowercase hex commit SHA.
         commit: GitCommit,
         /// The sub-path within the repository, if the module does not
-        /// sit at the repo root. Recorded so
-        /// [`partial_relock`](crate::resolver::lock::partial_relock)
-        /// can detect path changes.
+        /// sit at the repo root. Recorded so `partial_relock` can
+        /// detect path changes.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         path: Option<crate::GitModulePath>,
     },

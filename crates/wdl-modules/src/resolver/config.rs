@@ -61,12 +61,16 @@ pub struct ModulesConfig {
     pub allow_transitive_credentials: bool,
 
     /// Maximum number of files allowed in a single materialized module
-    /// tree. `None` disables the limit.
+    /// tree. `None` (the default) disables the limit. This is an
+    /// opt-in safety valve; set it in `sprocket.toml` if your
+    /// environment needs to bound resource consumption from untrusted
+    /// dependencies.
     #[serde(default)]
     pub max_materialized_files: Option<usize>,
 
     /// Maximum total bytes of regular files allowed in a single
-    /// materialized module tree. `None` disables the limit.
+    /// materialized module tree. `None` (the default) disables the
+    /// limit. Like `max_materialized_files`, this is opt-in.
     #[serde(default)]
     pub max_materialized_bytes: Option<u64>,
 }

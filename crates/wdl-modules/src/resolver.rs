@@ -334,6 +334,8 @@ impl GitResolver {
     /// Verifies a materialized dependency's content hash against the
     /// lockfile. The dependency must be present in the lockfile and the
     /// checksums must match.
+    /// Verifies a dependency's content hash against the lockfile. The
+    /// dependency must be present and the checksums must match.
     fn verify_against_lockfile(
         &self,
         name: &DependencyName,
@@ -710,8 +712,16 @@ impl Resolver for GitResolver {
                     name: name.inner().to_string(),
                 })?;
 
+        // Materialization through the trait is always top-level (not
+        // transitive); the analyzer materializes the consumer's direct
+        // deps, and transitive resolution goes through `resolve_tree`.
+        let is_transitive = false;
+        if let DependencySource::Git { url, .. } = source {
+            check_git_url_policy(name, url, is_transitive, &self.config)?;
+        }
+        let credential_mode = self.credential_mode(is_transitive);
         let (resolved_source, manifest, module_root) = self
-            .materialize_dependency(name, source, CredentialMode::Enabled)
+            .materialize_dependency(name, source, credential_mode)
             .await?;
 
         let verified = self.verify_materialized_dependency(name, &module_root)?;
@@ -929,6 +939,96 @@ mod tests {
         let module = dep.modules.get(&ModulePath::Root).unwrap();
         assert!(module.dependencies.is_empty());
         assert_eq!(module.version, Version::parse("1.0.0").unwrap());
+    }
+
+    fn hash_from_byte(byte: u8) -> crate::ContentHash {
+        format!("sha256:{}", hex::encode([byte; 32]))
+            .parse()
+            .unwrap()
+    }
+
+    #[tokio::test]
+    async fn materialize_returns_not_in_lockfile_when_dep_missing_from_lock() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let err = resolver(&cache)
+            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::NotInLockfile { .. }),
+            "expected `NotInLockfile`, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn materialize_rejects_lockfile_checksum_mismatch() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let (_, mut lockfile) = resolve_and_lock(&cache, &consumer).await;
+        let dep_name = DependencyName::try_from("dep".to_string()).unwrap();
+        lockfile
+            .dependencies
+            .get_mut(&dep_name)
+            .unwrap()
+            .modules
+            .get_mut(&ModulePath::Root)
+            .unwrap()
+            .checksum = hash_from_byte(42);
+        let r = resolver_with_lockfile(&cache, lockfile);
+        let err = r
+            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::ChecksumMismatch { .. }),
+            "expected `ChecksumMismatch`, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn materialize_succeeds_with_matching_lockfile_checksum() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let (r, _) = resolve_and_lock(&cache, &consumer).await;
+        let mat = r
+            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .await
+            .unwrap();
+        assert_eq!(mat.path, dep_dir.join("index.wdl").canonicalize().unwrap());
     }
 
     #[tokio::test]
