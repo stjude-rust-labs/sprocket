@@ -10,9 +10,15 @@ pub enum DependencyScope {
     Transitive,
 }
 
-impl DependencyScope {
-    /// Returns `true` if this is a transitive dependency.
-    pub fn is_transitive(self) -> bool {
-        self == Self::Transitive
-    }
+/// Whether to resolve mutable selectors against the remote or replay
+/// a locked commit.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ResolutionMode {
+    /// Resolve mutable selectors against the remote. Used by
+    /// `resolve_tree` when computing a fresh dependency graph.
+    Fresh,
+    /// Replay the locked commit from the lockfile. Used by
+    /// `materialize` when reproducing a previously-locked dependency.
+    Locked,
 }
+

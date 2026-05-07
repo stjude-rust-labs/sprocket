@@ -38,6 +38,7 @@ use crate::SymbolicPath;
 use crate::resolver::cache::CacheKey;
 use crate::resolver::policy::ResolverPolicy;
 use crate::resolver::scope::DependencyScope;
+use crate::resolver::scope::ResolutionMode;
 pub use crate::resolver::config::LargeFileWarning;
 pub use crate::resolver::config::LargeFileWarningError;
 pub use crate::resolver::config::ModulesConfig;
@@ -209,7 +210,12 @@ impl GitResolver {
         async move {
             let credential_mode = self.policy().git_policy(scope).credential_mode;
             let (resolved_source, manifest, module_root) = self
-                .materialize_dependency(name, source, credential_mode)
+                .materialize_dependency(
+                    name,
+                    source,
+                    credential_mode,
+                    ResolutionMode::Fresh,
+                )
                 .await?;
 
             if let Some(at) = chain.iter().position(|(_, s)| *s == resolved_source) {
@@ -462,6 +468,7 @@ impl GitResolver {
         name: &DependencyName,
         source: &DependencySource,
         credential_mode: CredentialMode,
+        mode: crate::resolver::scope::ResolutionMode,
     ) -> Result<(ResolvedSource, Manifest, PathBuf), ResolverError> {
         match source {
             DependencySource::LocalPath { path, .. } => {
@@ -480,23 +487,27 @@ impl GitResolver {
             } => {
                 let path_prefix = path.as_ref().map(GitModulePath::as_str).map(str::to_string);
 
-                // If the lockfile has an entry for this dep, use the
-                // locked commit directly instead of re-resolving
-                // against the remote. This prevents mutable selectors
-                // (tags/branches) from fetching newer commits that
-                // would fail the checksum comparison.
-                let (selected_version, commit) =
-                    if let Some(locked_commit) = self.lockfile.dependencies.get(name).and_then(
-                        |entry| {
-                            if let ResolvedSource::Git { commit, .. } = &entry.source {
-                                Some(commit.clone())
-                            } else {
-                                None
-                            }
-                        },
-                    ) {
+                let (selected_version, commit) = match mode {
+                    ResolutionMode::Locked => {
+                        // Replay the locked commit; do not re-resolve
+                        // mutable selectors against the remote.
+                        let locked_commit = self
+                            .lockfile
+                            .dependencies
+                            .get(name)
+                            .and_then(|entry| {
+                                if let ResolvedSource::Git { commit, .. } = &entry.source {
+                                    Some(commit.clone())
+                                } else {
+                                    None
+                                }
+                            })
+                            .ok_or_else(|| ResolverError::NotInLockfile {
+                                dep: name.clone(),
+                            })?;
                         (None, locked_commit)
-                    } else {
+                    }
+                    ResolutionMode::Fresh => {
                         self.resolve_git_selector(
                             name,
                             url,
@@ -505,7 +516,8 @@ impl GitResolver {
                             credential_mode,
                         )
                         .await?
-                    };
+                    }
+                };
 
                 let key = CacheKey::from_url(url, &commit);
                 let leaf = key.absolute_path(&self.cache_root);
@@ -721,7 +733,12 @@ impl Resolver for GitResolver {
         }
         let credential_mode = self.policy().git_policy(scope).credential_mode;
         let (resolved_source, manifest, module_root) = self
-            .materialize_dependency(name, source, credential_mode)
+            .materialize_dependency(
+                name,
+                source,
+                credential_mode,
+                ResolutionMode::Locked,
+            )
             .await?;
 
         let verified = self.verify_materialized_dependency(name, &module_root)?;
@@ -1036,6 +1053,37 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(mat.path, dep_dir.join("index.wdl").canonicalize().unwrap());
+    }
+
+    #[tokio::test]
+    async fn materialize_detects_content_drift_against_lockfile() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
+
+        // Mutate the dep content after locking.
+        fs::write(dep_dir.join("extra.wdl"), b"workflow extra {}").unwrap();
+
+        let r = resolver_with_lockfile(&cache, lockfile);
+        let err = r
+            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::ChecksumMismatch { .. }),
+            "expected `ChecksumMismatch` after content drift, got: {err}"
+        );
     }
 
     #[tokio::test]
