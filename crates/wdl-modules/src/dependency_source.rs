@@ -1,5 +1,7 @@
 //! Dependency-source parsing for `modules.json`.
 
+mod git_module_path;
+
 use std::path::PathBuf;
 
 use serde::Deserialize;
@@ -7,6 +9,8 @@ use serde::Serialize;
 use thiserror::Error;
 use url::Url;
 
+pub use self::git_module_path::GitModulePath;
+pub use self::git_module_path::GitModulePathError;
 use crate::VersionRequirement;
 use crate::VersionRequirementError;
 
@@ -36,6 +40,10 @@ pub enum DependencySourceError {
     /// The `git` URL did not parse.
     #[error("invalid `git` URL: {0}")]
     InvalidUrl(String),
+
+    /// The `path` field on a Git dependency was invalid.
+    #[error("invalid `path` on Git dependency: {0}")]
+    InvalidGitPath(#[from] GitModulePathError),
 }
 
 /// A dependency source.
@@ -52,7 +60,7 @@ pub enum DependencySource {
         /// The selector controlling which revision to resolve to.
         selector: GitSelector,
         /// Optional sub-path within the repository where the module lives.
-        path: Option<PathBuf>,
+        path: Option<GitModulePath>,
         /// Unknown fields, preserved for round-trip and inspection.
         extra: serde_json::Map<String, serde_json::Value>,
     },
@@ -112,10 +120,16 @@ impl TryFrom<DependencySourceFields> for DependencySource {
                     // field, so one of them must match.
                     unreachable!()
                 };
+                let validated_path = git_subpath
+                    .map(|p| {
+                        let s = p.to_string_lossy().to_string();
+                        GitModulePath::try_from(s)
+                    })
+                    .transpose()?;
                 Ok(Self::Git {
                     url,
                     selector,
-                    path: git_subpath,
+                    path: validated_path,
                     extra,
                 })
             }
@@ -186,7 +200,7 @@ impl From<DependencySource> for DependencySourceFields {
             } => {
                 let mut fields = DependencySourceFields {
                     git: Some(url.to_string()),
-                    path,
+                    path: path.map(PathBuf::from),
                     extra,
                     ..Default::default()
                 };
@@ -278,7 +292,7 @@ mod tests {
                 selector: GitSelector::Version(_),
                 path: Some(p),
                 ..
-            } => assert_eq!(p, std::path::Path::new("wdl")),
+            } => assert_eq!(p.as_str(), "wdl"),
             _ => panic!("expected Git source with sub-path"),
         }
     }
@@ -312,6 +326,63 @@ mod tests {
                 err.to_string().contains("dependency source is invalid"),
                 "wrong message for `{bad}`: {err}"
             );
+        }
+    }
+
+    #[test]
+    fn rejects_absolute_git_path() {
+        let err = parse(r#"{"git":"https://x/y","tag":"v1","path":"/etc/passwd"}"#).unwrap_err();
+        assert!(
+            err.to_string().contains("invalid `path` on Git dependency"),
+            "expected `InvalidGitPath` for absolute path; got: {err}"
+        );
+    }
+
+    #[test]
+    fn rejects_parent_traversal_git_path() {
+        let err = parse(r#"{"git":"https://x/y","tag":"v1","path":"../module"}"#).unwrap_err();
+        assert!(
+            err.to_string().contains("invalid `path` on Git dependency"),
+            "expected `InvalidGitPath` for `../module`; got: {err}"
+        );
+    }
+
+    #[test]
+    fn rejects_nested_escape_git_path() {
+        let err =
+            parse(r#"{"git":"https://x/y","tag":"v1","path":"module/../../secret"}"#).unwrap_err();
+        assert!(
+            err.to_string().contains("invalid `path` on Git dependency"),
+            "expected `InvalidGitPath` for nested escape; got: {err}"
+        );
+    }
+
+    #[test]
+    fn rejects_dot_git_path() {
+        let err = parse(r#"{"git":"https://x/y","tag":"v1","path":"."}"#).unwrap_err();
+        assert!(
+            err.to_string().contains("`.`"),
+            "expected dot rejection; got: {err}"
+        );
+    }
+
+    #[test]
+    fn rejects_empty_git_path() {
+        let err = parse(r#"{"git":"https://x/y","tag":"v1","path":""}"#).unwrap_err();
+        assert!(
+            err.to_string().contains("invalid `path` on Git dependency"),
+            "expected `InvalidGitPath` for empty path; got: {err}"
+        );
+    }
+
+    #[test]
+    fn accepts_valid_git_subpath() {
+        let dep = parse(r#"{"git":"https://x/y","tag":"v1","path":"modules/csvkit"}"#).unwrap();
+        match dep {
+            DependencySource::Git { path: Some(p), .. } => {
+                assert_eq!(p.as_str(), "modules/csvkit");
+            }
+            _ => panic!("expected Git source with valid sub-path"),
         }
     }
 }

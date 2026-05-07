@@ -1,6 +1,7 @@
-//! Wrapper over `git2` covering the operations the resolver needs:
-//! credential delegation, partial clone via filtered fetch, and sparse
-//! checkout of selected module folders within the cloned tree.
+//! Wrapper over `git2` covering the operations the resolver needs.
+//! Handles credential delegation, partial clone via filtered fetch,
+//! and sparse checkout of selected module folders within the cloned
+//! tree.
 
 use std::collections::BTreeSet;
 use std::path::Path;
@@ -23,6 +24,86 @@ const SPARSE_META_FILENAME: &str = ".sparse.json";
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(transparent)]
 struct SparseMeta(BTreeSet<String>);
+
+/// Default credential resolver. Tries the user's configured Git
+/// credential helper first, then falls back to ssh-agent for SSH URLs,
+/// and finally to no credentials.
+fn default_credentials(
+    url: &str,
+    username: Option<&str>,
+    allowed: git2::CredentialType,
+) -> Result<git2::Cred, git2::Error> {
+    if let Ok(config) = git2::Config::open_default()
+        && let Ok(cred) = git2::Cred::credential_helper(&config, url, username)
+    {
+        return Ok(cred);
+    }
+    if allowed.contains(git2::CredentialType::SSH_KEY) {
+        return git2::Cred::ssh_key_from_agent(username.unwrap_or("git"));
+    }
+    git2::Cred::default()
+}
+
+/// Builds a [`RemoteCallbacks`] wired up with [`default_credentials`].
+/// Reuse this anywhere a `git2` operation needs to authenticate.
+pub(crate) fn default_callbacks<'cb>() -> RemoteCallbacks<'cb> {
+    let mut cb = RemoteCallbacks::new();
+    cb.credentials(default_credentials);
+    cb
+}
+
+/// Builds a [`FetchOptions`] preconfigured with [`default_callbacks`].
+pub(crate) fn default_fetch_options<'fo>() -> FetchOptions<'fo> {
+    let mut opts = FetchOptions::new();
+    opts.remote_callbacks(default_callbacks());
+    opts
+}
+
+/// Creates a detached remote at `url` and connects it in the given
+/// `direction` using [`default_callbacks`]. The caller is responsible
+/// for `disconnect`ing (via [`disconnect_remote`]) when finished.
+pub(crate) fn connect_remote(
+    url: &Url,
+    direction: git2::Direction,
+) -> Result<git2::Remote<'_>, GitError> {
+    let mut remote = git2::Remote::create_detached(url.as_str()).map_err(GitError::Git)?;
+    remote
+        .connect_auth(direction, Some(default_callbacks()), None)
+        .map_err(GitError::Git)?;
+    Ok(remote)
+}
+
+/// Best-effort disconnect, swallowing the `git2` error since the remote
+/// may have been closed already by the time the caller is done.
+pub(crate) fn disconnect_remote(remote: &mut git2::Remote<'_>) {
+    let _ = remote.disconnect();
+}
+
+/// Connects to the remote at `url` and returns the advertised refs as
+/// `(refname, oid_hex)` pairs. Rejects remotes advertising more than
+/// `max_refs` entries.
+pub(crate) fn list_advertised_refs(
+    url: &Url,
+    max_refs: usize,
+) -> Result<Vec<(String, String)>, GitError> {
+    let mut remote = connect_remote(url, git2::Direction::Fetch)?;
+    let advertised = remote.list().map_err(GitError::Git)?;
+    if advertised.len() > max_refs {
+        let count = advertised.len();
+        disconnect_remote(&mut remote);
+        return Err(GitError::RefLimitExceeded {
+            url: url.to_string(),
+            count,
+            limit: max_refs,
+        });
+    }
+    let pairs = advertised
+        .iter()
+        .map(|h| (h.name().to_string(), h.oid().to_string()))
+        .collect();
+    disconnect_remote(&mut remote);
+    Ok(pairs)
+}
 
 /// Clones the repository at `url` into `leaf`, checks out the working
 /// tree to `commit`, and materializes only the listed `paths` from the
@@ -49,11 +130,7 @@ where
         source,
     })?;
 
-    let mut callbacks = RemoteCallbacks::new();
-    callbacks.credentials(default_credentials);
-
-    let mut fetch_opts = FetchOptions::new();
-    fetch_opts.remote_callbacks(callbacks);
+    let fetch_opts = default_fetch_options();
 
     // Skip the default checkout; we'll do a path-filtered checkout below.
     let mut empty_checkout = git2::build::CheckoutBuilder::new();
@@ -75,6 +152,30 @@ where
     save_sparse_meta(leaf, &owned)?;
 
     Ok(())
+}
+
+/// Ensures `leaf` contains a sparse checkout of `url` at `commit`
+/// covering at least `paths`. Clones if `leaf` does not yet exist;
+/// otherwise extends the existing leaf's sparse-checkout set.
+///
+/// Cached leaves are keyed by `(url, commit)` upstream, so an existing
+/// leaf already corresponds to the requested commit; this helper does
+/// not re-validate that.
+pub(crate) fn ensure_materialized<I, S>(
+    leaf: &Path,
+    url: &Url,
+    commit: &str,
+    paths: I,
+) -> Result<(), GitError>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    if leaf.exists() {
+        extend_sparse_checkout(leaf, paths)
+    } else {
+        clone_with_sparse_checkout(url, commit, leaf, paths)
+    }
 }
 
 /// Extends an existing sparse-checkout cache leaf to additionally
@@ -145,28 +246,9 @@ fn load_sparse_meta(leaf: &Path) -> Result<SparseMeta, GitError> {
     serde_json::from_slice(&bytes).map_err(|source| GitError::Json { path, source })
 }
 
-/// Default credential resolver. Tries the user's configured Git
-/// credential helper first, then falls back to ssh-agent for SSH URLs,
-/// and finally to no credentials.
-fn default_credentials(
-    url: &str,
-    username: Option<&str>,
-    allowed: git2::CredentialType,
-) -> Result<git2::Cred, git2::Error> {
-    if let Ok(config) = git2::Config::open_default()
-        && let Ok(cred) = git2::Cred::credential_helper(&config, url, username)
-    {
-        return Ok(cred);
-    }
-    if allowed.contains(git2::CredentialType::SSH_KEY) {
-        return git2::Cred::ssh_key_from_agent(username.unwrap_or("git"));
-    }
-    git2::Cred::default()
-}
-
 /// Errors produced by the `git` module.
 #[derive(Debug, Error)]
-pub(crate) enum GitError {
+pub enum GitError {
     /// A `git2` operation failed.
     #[error("git operation failed")]
     Git(#[source] git2::Error),
@@ -194,6 +276,17 @@ pub(crate) enum GitError {
     /// The cache leaf path has no parent directory and cannot be created.
     #[error("cache leaf path `{0}` has no parent directory")]
     RootLeaf(PathBuf),
+
+    /// A remote advertised more refs than the configured limit.
+    #[error("remote at `{url}` advertised {count} refs, exceeding the limit of {limit}")]
+    RefLimitExceeded {
+        /// The remote URL.
+        url: String,
+        /// The number of refs advertised.
+        count: usize,
+        /// The configured limit.
+        limit: usize,
+    },
 }
 
 #[cfg(test)]
@@ -259,6 +352,48 @@ mod tests {
             meta.0.iter().cloned().collect::<Vec<_>>(),
             vec!["csvkit".to_string()]
         );
+    }
+
+    #[test]
+    fn ref_count_limit_is_enforced() {
+        let (upstream, _sha) = build_upstream(&[(
+            "module.json",
+            br#"{"name":"x","version":"1.0.0","license":"MIT"}"#,
+        )]);
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+        let err = list_advertised_refs(&url, 0).unwrap_err();
+        assert!(
+            matches!(err, GitError::RefLimitExceeded { .. }),
+            "got: {err}"
+        );
+    }
+
+    #[test]
+    fn ensure_materialized_clones_then_extends() {
+        let (upstream, sha) = build_upstream(&[
+            (
+                "csvkit/module.json",
+                br#"{"name":"csvkit","version":"1.0.0","license":"MIT"}"#,
+            ),
+            ("csvkit/index.wdl", b"workflow w {}"),
+            (
+                "spellbook/module.json",
+                br#"{"name":"spellbook","version":"1.0.0","license":"MIT"}"#,
+            ),
+            ("spellbook/index.wdl", b"workflow w {}"),
+        ]);
+
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        ensure_materialized(&leaf, &url, &sha, ["csvkit"]).unwrap();
+        assert!(leaf.join("csvkit").join("module.json").exists());
+        assert!(!leaf.join("spellbook").exists());
+
+        ensure_materialized(&leaf, &url, &sha, ["spellbook"]).unwrap();
+        assert!(leaf.join("csvkit").join("module.json").exists());
+        assert!(leaf.join("spellbook").join("module.json").exists());
     }
 
     #[test]

@@ -5,6 +5,7 @@ use std::collections::BTreeMap;
 use semver::Version;
 
 use crate::DependencyEntry;
+use crate::DependencyMap;
 use crate::DependencyName;
 use crate::DependencySource;
 use crate::GitSelector;
@@ -20,7 +21,7 @@ use crate::resolver::types::ResolvedTree;
 /// The diff between an existing lockfile and a freshly-computed one.
 ///
 /// CLI commands that write a lockfile (`lock`, `add`, `update`, etc.)
-/// inspect this to render the confirm-mode prompt: the prompt fires
+/// inspect this to render the confirm-mode prompt. The prompt fires
 /// only when the diff introduces new `signer` entries.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct LockfileDiff {
@@ -34,49 +35,38 @@ pub struct LockfileDiff {
 /// lockfile.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NewSigner {
-    /// The dependency name carrying this module entry.
-    pub dep: DependencyName,
+    /// The chain of dependency names from the consumer down to the
+    /// module entry, e.g. `["foo", "bar"]` for a transitive signer one
+    /// level deep.
+    pub dep_chain: Vec<DependencyName>,
     /// The path within the dependency's source.
     pub module_path: ModulePath,
     /// The new signer key.
     pub key: VerifyingKey,
 }
 
+impl NewSigner {
+    /// The leaf dependency name (last element of `dep_chain`).
+    pub fn dep(&self) -> &DependencyName {
+        // SAFETY: `dep_chain` is non-empty for every `NewSigner` produced
+        // by `LockfileDiff::compute`.
+        self.dep_chain.last().unwrap()
+    }
+}
+
 impl LockfileDiff {
     /// Computes the diff that the prompt would render.
     ///
-    /// Walks both lockfiles' top-level `dependencies` maps; for each
-    /// `(dep, module_path)` pair present in `new`, checks whether
-    /// `previous` carried a matching `signer` and records the change.
+    /// Recursively walks all `dependencies` maps (top-level and nested)
+    /// so transitive signer changes are detected.
     pub fn compute(previous: &Lockfile, new: &Lockfile) -> Self {
         let mut diff = Self::default();
-        for (dep, entry) in &new.dependencies {
-            for (module_path, module) in &entry.modules {
-                let prev_signer = previous
-                    .dependencies
-                    .get(dep)
-                    .and_then(|e| e.modules.get(module_path))
-                    .and_then(|m| m.signer);
-                match (module.signer, prev_signer) {
-                    (Some(new_key), Some(prev_key)) if new_key == prev_key => {}
-                    (Some(new_key), _) => diff.new_signers.push(NewSigner {
-                        dep: dep.clone(),
-                        module_path: module_path.clone(),
-                        key: new_key,
-                    }),
-                    (None, _) => {
-                        let already_present = previous
-                            .dependencies
-                            .get(dep)
-                            .and_then(|e| e.modules.get(module_path))
-                            .is_some();
-                        if !already_present {
-                            diff.unsigned_added += 1;
-                        }
-                    }
-                }
-            }
-        }
+        walk_dep_map(
+            Some(&previous.dependencies),
+            &new.dependencies,
+            &mut Vec::new(),
+            &mut diff,
+        );
         diff
     }
 
@@ -87,9 +77,9 @@ impl LockfileDiff {
     }
 }
 
-/// The outcome of a [`partial_relock`] call: the merged lockfile and a
-/// per-dependency summary the CLI uses to print "Updating x v1.0.0 ->
-/// v1.5.0" style output.
+/// The outcome of a [`partial_relock`] call. Contains the merged
+/// lockfile and a per-dependency summary the CLI uses to print
+/// "Updating x v1.0.0 -> v1.5.0" style output.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct RelockOutcome {
     /// The merged lockfile.
@@ -136,9 +126,48 @@ pub struct DependencyUpdate {
     pub to: Option<Version>,
 }
 
+/// Recursive helper for [`LockfileDiff::compute`].
+fn walk_dep_map(
+    prev: Option<&DependencyMap>,
+    new: &DependencyMap,
+    chain: &mut Vec<DependencyName>,
+    diff: &mut LockfileDiff,
+) {
+    for (dep, entry) in new {
+        chain.push(dep.clone());
+        let prev_entry = prev.and_then(|p| p.get(dep));
+        for (module_path, module) in &entry.modules {
+            let prev_signer = prev_entry
+                .and_then(|e| e.modules.get(module_path))
+                .and_then(|m| m.signer);
+            match (module.signer, prev_signer) {
+                (Some(new_key), Some(prev_key)) if new_key == prev_key => {}
+                (Some(new_key), _) => diff.new_signers.push(NewSigner {
+                    dep_chain: chain.clone(),
+                    module_path: module_path.clone(),
+                    key: new_key,
+                }),
+                (None, _) => {
+                    if prev_entry
+                        .and_then(|e| e.modules.get(module_path))
+                        .is_none()
+                    {
+                        diff.unsigned_added += 1;
+                    }
+                }
+            }
+            let prev_nested = prev_entry
+                .and_then(|e| e.modules.get(module_path))
+                .map(|m| &m.dependencies);
+            walk_dep_map(prev_nested, &module.dependencies, chain, diff);
+        }
+        chain.pop();
+    }
+}
+
 /// Performs a partial relock against an existing lockfile.
 ///
-/// For each dependency declared by `consumer`:
+/// For each dependency declared by `consumer`
 ///
 /// - If `existing` has an entry that still satisfies the (possibly updated)
 ///   source, keep it as-is. The dependency is not refetched.
@@ -156,7 +185,7 @@ pub fn partial_relock(
     consumer: &Manifest,
     existing: &Lockfile,
     freshly_resolved: &ResolvedTree,
-) -> RelockOutcome {
+) -> Result<RelockOutcome, crate::resolver::error::ResolverError> {
     let mut lockfile = Lockfile::default();
     let mut stats = RelockStats::default();
 
@@ -170,7 +199,9 @@ pub fn partial_relock(
             continue;
         }
         let Some(resolved) = freshly_resolved.dependencies.get(name) else {
-            continue;
+            return Err(
+                crate::resolver::error::ResolverError::MissingFreshDependency { dep: name.clone() },
+            );
         };
         let new_entry = resolved_to_lockfile_entry(resolved);
         let new_version = primary_version(&new_entry);
@@ -194,7 +225,7 @@ pub fn partial_relock(
         }
     }
 
-    RelockOutcome { lockfile, stats }
+    Ok(RelockOutcome { lockfile, stats })
 }
 
 /// Returns the version of a dependency's first module, used to summarize
@@ -207,18 +238,35 @@ fn primary_version(entry: &DependencyEntry) -> Option<Version> {
 /// requirement expressed by the consumer's [`DependencySource`].
 fn satisfies(entry: &DependencyEntry, source: &DependencySource) -> bool {
     match (source, &entry.source) {
-        (DependencySource::Git { url, selector, .. }, ResolvedSource::Git { git, .. }) => {
+        (
+            DependencySource::Git {
+                url,
+                selector,
+                path,
+                ..
+            },
+            ResolvedSource::Git {
+                git,
+                commit: locked_commit,
+                path: locked_path,
+            },
+        ) => {
             if url != git {
+                return false;
+            }
+            if path.as_ref() != locked_path.as_ref() {
                 return false;
             }
             match selector {
                 GitSelector::Version(req) => {
                     entry.modules.values().any(|m| req.matches(&m.version))
                 }
-                // Tag, branch, and commit selectors are pinned in the lockfile;
-                // a re-resolve only happens when the caller invokes `update` or
-                // `upgrade` explicitly, not on routine `module.json` edits.
-                _ => true,
+                GitSelector::Commit(c) => c == locked_commit.inner(),
+                // Tag and branch selectors are mutable refs; the
+                // lockfile cannot know whether the remote has moved
+                // them, so the lock entry is never considered
+                // satisfying. The caller must re-resolve.
+                GitSelector::Tag(_) | GitSelector::Branch(_) => false,
             }
         }
         (DependencySource::LocalPath { path, .. }, ResolvedSource::Path { path: locked }) => {
@@ -381,12 +429,13 @@ mod tests {
                 source: ResolvedSource::Git {
                     git: "https://x/y".parse().unwrap(),
                     commit: "0000000000000000000000000000000000000001".parse().unwrap(),
+                    path: None,
                 },
                 modules: [(ModulePath::Root, locked("1.0.0", None))].into(),
             },
         );
 
-        let outcome = partial_relock(&consumer, &existing, &ResolvedTree::default());
+        let outcome = partial_relock(&consumer, &existing, &ResolvedTree::default()).unwrap();
         let kept = outcome.lockfile.dependencies.get(&dn("foo")).unwrap();
         let module = kept.modules.get(&ModulePath::Root).unwrap();
         assert_eq!(module.version, Version::parse("1.0.0").unwrap());
@@ -409,6 +458,7 @@ mod tests {
                 source: ResolvedSource::Git {
                     git: "https://x/y".parse().unwrap(),
                     commit: "0000000000000000000000000000000000000001".parse().unwrap(),
+                    path: None,
                 },
                 modules: [(ModulePath::Root, locked("1.0.0", None))].into(),
             },
@@ -420,6 +470,7 @@ mod tests {
                 source: ResolvedSource::Git {
                     git: "https://x/y".parse().unwrap(),
                     commit: "0000000000000000000000000000000000000002".parse().unwrap(),
+                    path: None,
                 },
                 modules: [(
                     ModulePath::Root,
@@ -434,7 +485,7 @@ mod tests {
             },
         );
 
-        let outcome = partial_relock(&consumer, &existing, &freshly);
+        let outcome = partial_relock(&consumer, &existing, &freshly).unwrap();
         let entry = outcome.lockfile.dependencies.get(&dn("foo")).unwrap();
         let module = entry.modules.get(&ModulePath::Root).unwrap();
         assert_eq!(module.version, Version::parse("2.0.0").unwrap());
@@ -460,6 +511,7 @@ mod tests {
                 source: ResolvedSource::Git {
                     git: "https://x/y".parse().unwrap(),
                     commit: "0000000000000000000000000000000000000001".parse().unwrap(),
+                    path: None,
                 },
                 modules: [(
                     ModulePath::Root,
@@ -474,11 +526,26 @@ mod tests {
             },
         );
 
-        let outcome = partial_relock(&consumer, &existing, &freshly);
+        let outcome = partial_relock(&consumer, &existing, &freshly).unwrap();
         assert_eq!(outcome.stats.added.len(), 1);
         let added = &outcome.stats.added[0];
         assert_eq!(added.name, dn("foo"));
         assert_eq!(added.version, Some(Version::parse("1.0.0").unwrap()));
+    }
+
+    #[test]
+    fn relock_errors_when_consumer_dep_missing_from_fresh_tree() {
+        let consumer = manifest("consumer", r#""foo": {"git":"https://x/y","tag":"v1"}"#);
+        let existing = Lockfile::default();
+        let fresh = ResolvedTree::default();
+        let err = partial_relock(&consumer, &existing, &fresh).unwrap_err();
+        assert!(
+            matches!(
+                err,
+                crate::resolver::error::ResolverError::MissingFreshDependency { .. }
+            ),
+            "got: {err}"
+        );
     }
 
     #[test]
@@ -489,9 +556,50 @@ mod tests {
             dn("removed"),
             entry_with(vec![(ModulePath::Root, locked("1.0.0", None))]),
         );
-        let outcome = partial_relock(&consumer, &existing, &ResolvedTree::default());
+        let outcome = partial_relock(&consumer, &existing, &ResolvedTree::default()).unwrap();
         assert!(outcome.lockfile.dependencies.is_empty());
         assert_eq!(outcome.stats.removed, vec![dn("removed")]);
+    }
+
+    #[test]
+    fn signer_diff_recurses_through_nested_dependencies() {
+        let previous = Lockfile::default();
+        let signer = crate::signing::test_utils::signing_key_from_seed(11).verifying_key();
+        let nested_module = LockedModule {
+            version: Version::parse("1.0.0").unwrap(),
+            checksum: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+                .parse()
+                .unwrap(),
+            signer: Some(signer),
+            dependencies: BTreeMap::new(),
+        };
+        let nested_entry = DependencyEntry {
+            source: ResolvedSource::Path {
+                path: "/nested".into(),
+            },
+            modules: BTreeMap::from([(ModulePath::Root, nested_module)]),
+        };
+        let outer = LockedModule {
+            version: Version::parse("1.0.0").unwrap(),
+            checksum: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+                .parse()
+                .unwrap(),
+            signer: None,
+            dependencies: BTreeMap::from([(dn("bar"), nested_entry)]),
+        };
+        let outer_entry = DependencyEntry {
+            source: ResolvedSource::Path {
+                path: "/outer".into(),
+            },
+            modules: BTreeMap::from([(ModulePath::Root, outer)]),
+        };
+        let mut new = Lockfile::default();
+        new.dependencies.insert(dn("foo"), outer_entry);
+
+        let diff = LockfileDiff::compute(&previous, &new);
+        assert_eq!(diff.new_signers.len(), 1);
+        assert_eq!(diff.new_signers[0].dep_chain, vec![dn("foo"), dn("bar")]);
+        assert!(diff.requires_confirmation());
     }
 
     #[test]

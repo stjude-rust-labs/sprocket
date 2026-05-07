@@ -8,7 +8,7 @@ use serde::Serialize;
 use thiserror::Error;
 
 /// The `[modules]` configuration section.
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct ModulesConfig {
     /// Override the global cache location for this project.
@@ -23,6 +23,66 @@ pub struct ModulesConfig {
 
     /// TOFU policy for new signer keys.
     pub trust_mode: TrustMode,
+
+    /// URL schemes permitted for top-level Git dependencies. Defaults
+    /// to `["https", "ssh"]`.
+    #[serde(default = "default_top_level_schemes")]
+    pub allowed_schemes: Vec<String>,
+
+    /// URL schemes permitted for transitive Git dependencies. Defaults
+    /// to `["https"]` so remote manifests cannot silently trigger SSH
+    /// authentication against an attacker-controlled host.
+    #[serde(default = "default_transitive_schemes")]
+    pub allowed_transitive_schemes: Vec<String>,
+
+    /// Maximum number of advertised refs accepted from a remote.
+    /// Defaults to 100,000.
+    #[serde(default = "default_max_refs")]
+    pub max_advertised_refs: usize,
+}
+
+/// Returns the default maximum advertised-ref count.
+fn default_max_refs() -> usize {
+    100_000
+}
+
+/// Returns the default set of allowed URL schemes for top-level Git
+/// dependencies.
+fn default_top_level_schemes() -> Vec<String> {
+    vec!["https".into(), "ssh".into()]
+}
+
+/// Returns the default set of allowed URL schemes for transitive Git
+/// dependencies.
+fn default_transitive_schemes() -> Vec<String> {
+    vec!["https".into()]
+}
+
+impl Default for ModulesConfig {
+    fn default() -> Self {
+        Self {
+            cache_path: None,
+            large_file_warning: LargeFileWarning::default(),
+            require_signed: false,
+            trust_mode: TrustMode::default(),
+            allowed_schemes: default_top_level_schemes(),
+            allowed_transitive_schemes: default_transitive_schemes(),
+            max_advertised_refs: default_max_refs(),
+        }
+    }
+}
+
+impl ModulesConfig {
+    /// Returns `true` if the given URL scheme is permitted for a
+    /// dependency at this level of the tree.
+    pub fn scheme_allowed(&self, scheme: &str, is_transitive: bool) -> bool {
+        let allowed = if is_transitive {
+            &self.allowed_transitive_schemes
+        } else {
+            &self.allowed_schemes
+        };
+        allowed.iter().any(|s| s.eq_ignore_ascii_case(scheme))
+    }
 }
 
 /// Threshold for the large-file warning emitted at sign- and fetch-time.

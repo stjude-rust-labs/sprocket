@@ -24,6 +24,8 @@ pub use crate::dependency_name::DependencyName;
 pub use crate::dependency_name::DependencyNameError;
 pub use crate::dependency_source::DependencySource;
 pub use crate::dependency_source::DependencySourceError;
+pub use crate::dependency_source::GitModulePath;
+pub use crate::dependency_source::GitModulePathError;
 pub use crate::dependency_source::GitSelector;
 pub use crate::hash::ContentHash;
 pub use crate::hash::HashError;

@@ -101,6 +101,12 @@ pub enum ResolvedSource {
         git: Url,
         /// The 40-character lowercase hex commit SHA.
         commit: GitCommit,
+        /// The sub-path within the repository, if the module does not
+        /// sit at the repo root. Recorded so
+        /// [`partial_relock`](crate::resolver::lock::partial_relock)
+        /// can detect path changes.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        path: Option<crate::GitModulePath>,
     },
     /// A local filesystem source.
     Path {
@@ -152,7 +158,7 @@ impl FromStr for GitCommit {
 
 /// An error parsing a [`GitCommit`].
 #[derive(Debug, Error)]
-#[error("Git commit `{0}` must be exactly 40 lowercase hex characters")]
+#[error("git commit `{0}` must be exactly 40 lowercase hex characters")]
 pub struct GitCommitError(String);
 
 /// One locked module entry.

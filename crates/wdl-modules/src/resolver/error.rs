@@ -7,6 +7,7 @@ use thiserror::Error;
 
 use crate::ContentHash;
 use crate::DependencyName;
+use crate::HashError;
 use crate::LockfileError;
 use crate::ManifestError;
 use crate::VerifyingKey;
@@ -97,6 +98,61 @@ pub enum ResolverError {
         observed: Box<VerifyingKey>,
     },
 
+    /// A Git tag or branch named in a dependency's selector does not
+    /// exist on the remote.
+    #[error("`{dep}` selector references unknown {kind} `{name}`")]
+    UnknownGitRef {
+        /// The owning dependency.
+        dep: DependencyName,
+        /// The kind of ref that was missing.
+        kind: GitRefKind,
+        /// The ref name as it appeared in the manifest.
+        name: String,
+    },
+
+    /// A `commit` selector did not parse as a valid 40-character lowercase
+    /// hex SHA.
+    #[error("`{dep}` `commit` value `{value}` is not a valid Git commit SHA")]
+    InvalidCommit {
+        /// The owning dependency.
+        dep: DependencyName,
+        /// The unparsable value.
+        value: String,
+    },
+
+    /// A `module.sig` file was present but failed to verify against the
+    /// observed content hash.
+    #[error(
+        "`{dep}` signature does not match observed content (signer: `{}`)",
+        signer.to_openssh()
+    )]
+    SignatureVerificationFailed {
+        /// The owning dependency.
+        dep: DependencyName,
+        /// The signer key from the rejected `module.sig`.
+        signer: Box<VerifyingKey>,
+    },
+
+    /// A `module.sig` file failed to parse.
+    #[error("`{dep}` `module.sig` failed to parse")]
+    SignatureParse {
+        /// The owning dependency.
+        dep: DependencyName,
+        /// The underlying parse error.
+        #[source]
+        source: crate::SignatureFileError,
+    },
+
+    /// A manifest `exclude` pattern is not a valid glob.
+    #[error("invalid `exclude` pattern `{pattern}`")]
+    InvalidExclude {
+        /// The offending pattern.
+        pattern: String,
+        /// The underlying glob error.
+        #[source]
+        source: globset::Error,
+    },
+
     /// `require_signed` is enabled and the dependency is unsigned.
     #[error("`{dep}` is unsigned but `require_signed` is enabled")]
     RequireSignedViolation {
@@ -104,9 +160,49 @@ pub enum ResolverError {
         dep: DependencyName,
     },
 
-    /// A `git2` operation failed.
-    #[error("git operation failed")]
-    Git(#[source] git2::Error),
+    /// A transitive dependency declared a local-path source from a
+    /// non-local parent.
+    #[error(
+        "`{dep}` declares a local-path source but is reachable through a non-local parent; only \
+         locally-rooted projects may use local-path dependencies"
+    )]
+    LocalPathInTransitive {
+        /// The offending dependency name.
+        dep: DependencyName,
+    },
+
+    /// A dependency declared by the consumer was missing from the
+    /// freshly-resolved tree and not satisfied by the prior lockfile.
+    #[error("`{dep}` is declared by the consumer but absent from the freshly-resolved tree")]
+    MissingFreshDependency {
+        /// The missing dependency name.
+        dep: DependencyName,
+    },
+
+    /// A Git URL violates the configured scheme policy.
+    #[error("`{dep}` git URL `{url}` uses scheme `{scheme}` which is not allowed by policy")]
+    GitUrlPolicyViolation {
+        /// The owning dependency.
+        dep: DependencyName,
+        /// The rejected URL.
+        url: String,
+        /// The rejected scheme.
+        scheme: String,
+    },
+
+    /// A Git operation failed.
+    #[error(transparent)]
+    Git(#[from] crate::resolver::git::GitError),
+
+    /// A materialized file resolved through a symlink that escapes the
+    /// module root.
+    #[error("`{dep}` materialized path escapes module root: `{path}`")]
+    MaterializedSymlinkEscape {
+        /// The owning dependency.
+        dep: DependencyName,
+        /// The escaping path as observed before canonicalization.
+        path: PathBuf,
+    },
 
     /// An I/O error.
     #[error("i/o error at `{path}`")]
@@ -118,6 +214,10 @@ pub enum ResolverError {
         source: std::io::Error,
     },
 
+    /// Hashing a cache leaf or local path failed.
+    #[error(transparent)]
+    Hash(#[from] HashError),
+
     /// A `Manifest` parse or validation error.
     #[error(transparent)]
     Manifest(#[from] ManifestError),
@@ -127,7 +227,25 @@ pub enum ResolverError {
     Lockfile(#[from] LockfileError),
 }
 
-/// Discriminator for [`ResolverError::MissingFile`].
+/// The kind of Git reference named in a [`ResolverError::UnknownGitRef`].
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum GitRefKind {
+    /// The reference was an annotated or lightweight tag.
+    Tag,
+    /// The reference was a branch (head).
+    Branch,
+}
+
+impl std::fmt::Display for GitRefKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Tag => f.write_str("tag"),
+            Self::Branch => f.write_str("branch"),
+        }
+    }
+}
+
+/// The kind of file lookup that failed in a [`ResolverError::MissingFile`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MissingFileKind {
     /// The dependency's entrypoint file (manifest `entrypoint` or default

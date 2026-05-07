@@ -30,8 +30,12 @@ enum KeyPrefix {
         host: String,
         /// The first path segment (organization or user).
         org: String,
-        /// The second path segment (repository name) with `.git` stripped.
-        repo: String,
+        /// `<repo>-<digest8>` where `digest8` is the first 8 hex chars
+        /// of the canonical URL SHA-256. The suffix eliminates
+        /// collisions between nested repository URLs (e.g.,
+        /// `gitlab/x/y` vs `gitlab/x/y/z`) while keeping a
+        /// human-readable prefix.
+        repo_with_suffix: String,
     },
     /// `_opaque/<sha256(url)>` for URLs that don't fit the structured
     /// shape (IP-only hosts, deeply nested groups, etc.).
@@ -48,11 +52,13 @@ impl CacheKey {
             Some(host) => {
                 let segments: Vec<&str> = url.path().split('/').filter(|s| !s.is_empty()).collect();
                 if segments.len() >= 2 {
-                    let repo = segments[1].trim_end_matches(".git").to_string();
+                    let repo = segments[1].trim_end_matches(".git");
+                    let digest = hash_url(url);
+                    let repo_with_suffix = format!("{repo}-{}", &digest[..8]);
                     KeyPrefix::Structured {
                         host: host.to_string(),
                         org: segments[0].to_string(),
-                        repo,
+                        repo_with_suffix,
                     }
                 } else {
                     KeyPrefix::Opaque {
@@ -74,10 +80,14 @@ impl CacheKey {
     pub(crate) fn relative_path(&self) -> PathBuf {
         let mut p = PathBuf::new();
         match &self.prefix {
-            KeyPrefix::Structured { host, org, repo } => {
+            KeyPrefix::Structured {
+                host,
+                org,
+                repo_with_suffix,
+            } => {
                 p.push(host);
                 p.push(org);
-                p.push(repo);
+                p.push(repo_with_suffix);
             }
             KeyPrefix::Opaque { digest_hex } => {
                 p.push("_opaque");
@@ -178,15 +188,14 @@ mod tests {
             .iter()
             .map(|c| c.to_str().unwrap().to_string())
             .collect();
-        assert_eq!(
-            parts,
-            vec![
-                "github.com",
-                "openwdl",
-                "tasks",
-                "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
-            ]
+        assert_eq!(parts.len(), 4);
+        assert_eq!(parts[0], "github.com");
+        assert_eq!(parts[1], "openwdl");
+        assert!(
+            parts[2].starts_with("tasks-"),
+            "expected `tasks-<digest8>`, got: {parts:?}"
         );
+        assert_eq!(parts[3], "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2");
     }
 
     #[test]
@@ -213,7 +222,20 @@ mod tests {
             .iter()
             .map(|c| c.to_str().unwrap().to_string())
             .collect();
-        assert_eq!(parts[2], "tasks");
+        assert!(parts[2].starts_with("tasks-"), "got: {parts:?}");
+    }
+
+    #[test]
+    fn nested_repository_urls_do_not_collide() {
+        let url_short = Url::parse("https://gitlab.example/x/y").unwrap();
+        let url_long = Url::parse("https://gitlab.example/x/y/z").unwrap();
+        let k_short = CacheKey::from_url(&url_short, &commit());
+        let k_long = CacheKey::from_url(&url_long, &commit());
+        assert_ne!(
+            k_short.relative_path(),
+            k_long.relative_path(),
+            "nested repository URLs must produce distinct cache keys"
+        );
     }
 
     #[test]

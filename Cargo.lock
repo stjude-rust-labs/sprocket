@@ -5172,6 +5172,7 @@ dependencies = [
  "uuid",
  "walkdir",
  "wdl",
+ "wdl-modules",
  "whoami 2.1.1",
  "zip 8.4.0",
 ]
@@ -6897,10 +6898,13 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "base64",
+ "bon",
  "bytesize",
  "dirs",
  "ed25519-dalek",
+ "futures",
  "git2",
+ "globset",
  "hex",
  "path-clean",
  "pretty_assertions",

@@ -142,6 +142,9 @@ pub struct Config {
     pub doc: DocConfig,
     /// Common configuration options for all commands.
     pub common: CommonConfig,
+    /// Configuration for the module system (`[modules]` section).
+    #[serde(default)]
+    pub modules: wdl_modules::ModulesConfig,
 }
 
 /// Represents shared configuration options for Sprocket commands.
