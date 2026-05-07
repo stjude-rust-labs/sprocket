@@ -68,6 +68,16 @@ pub enum ResolverError {
         considered: Vec<Version>,
     },
 
+    /// A dependency is not present in the lockfile. Run
+    /// `sprocket module lock` to update it.
+    #[error(
+        "`{dep}` is not in `module-lock.json`; run `sprocket module lock` to update"
+    )]
+    NotInLockfile {
+        /// The missing dependency.
+        dep: DependencyName,
+    },
+
     /// A cached module's content hash does not match the lockfile's
     /// recorded checksum.
     #[error(

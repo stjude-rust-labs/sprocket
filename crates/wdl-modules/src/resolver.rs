@@ -29,6 +29,7 @@ use crate::DependencySource;
 use crate::GitModulePath;
 use crate::GitSelector;
 use crate::Manifest;
+use crate::Lockfile;
 use crate::ModulePath;
 use crate::ResolvedSource;
 use crate::SymbolicPath;
@@ -123,6 +124,10 @@ pub struct GitResolver {
     config: ModulesConfig,
     /// The user-level trust store, loaded by the caller.
     trust: TrustStore,
+    /// The lockfile to verify materialized dependencies against.
+    /// `materialize` compares each dependency's observed content hash
+    /// against the locked checksum and rejects mismatches.
+    lockfile: Lockfile,
 }
 
 impl GitResolver {
@@ -144,6 +149,11 @@ impl GitResolver {
     /// Returns the active trust store.
     pub fn trust_store(&self) -> &TrustStore {
         &self.trust
+    }
+
+    /// Returns the lockfile.
+    pub fn lockfile(&self) -> &Lockfile {
+        &self.lockfile
     }
 
     /// Resolves every entry in `deps`, threading the cycle-detection
@@ -304,6 +314,38 @@ impl GitResolver {
         self.warn_on_large_files(name, module_root)?;
         let signer = self.read_and_verify_signature(name, module_root, &checksum)?;
         Ok(VerifiedModule { checksum, signer })
+    }
+
+    /// Verifies a materialized dependency's content hash against the
+    /// lockfile. The dependency must be present in the lockfile and the
+    /// checksums must match.
+    fn verify_against_lockfile(
+        &self,
+        name: &DependencyName,
+        checksum: &crate::ContentHash,
+    ) -> Result<(), ResolverError> {
+        let locked_entry =
+            self.lockfile
+                .dependencies
+                .get(name)
+                .ok_or_else(|| ResolverError::NotInLockfile {
+                    dep: name.clone(),
+                })?;
+        let locked_module =
+            locked_entry
+                .modules
+                .get(&ModulePath::Root)
+                .ok_or_else(|| ResolverError::NotInLockfile {
+                    dep: name.clone(),
+                })?;
+        if locked_module.checksum != *checksum {
+            return Err(ResolverError::ChecksumMismatch {
+                dep: name.clone(),
+                expected: locked_module.checksum,
+                observed: *checksum,
+            });
+        }
+        Ok(())
     }
 
     /// Resolves a [`GitSelector`] against the remote at `url` to a
@@ -606,7 +648,8 @@ impl Resolver for GitResolver {
         let (resolved_source, manifest, module_root) =
             self.materialize_dependency(name, source).await?;
 
-        self.verify_materialized_dependency(name, &module_root)?;
+        let verified = self.verify_materialized_dependency(name, &module_root)?;
+        self.verify_against_lockfile(name, &verified.checksum)?;
 
         let (rel, kind) = match path.sub_path() {
             None => (
@@ -742,11 +785,33 @@ mod tests {
     }
 
     fn resolver(cache: &TempDir) -> GitResolver {
+        resolver_with_lockfile(cache, Lockfile::default())
+    }
+
+    fn resolver_with_lockfile(cache: &TempDir, lockfile: Lockfile) -> GitResolver {
         GitResolver::builder()
             .cache_root(cache.path())
             .trust_path(cache.path().join("trust.toml"))
             .trust(TrustStore::default())
+            .lockfile(lockfile)
             .build()
+    }
+
+    /// Resolves a consumer's tree and builds a lockfile from it.
+    async fn resolve_and_lock(
+        cache: &TempDir,
+        consumer: &Manifest,
+    ) -> (GitResolver, Lockfile) {
+        let r = resolver(cache);
+        let tree = r.resolve_tree(consumer).await.unwrap();
+        let outcome = crate::resolver::lock::partial_relock(
+            consumer,
+            &Lockfile::default(),
+            &tree,
+        )
+        .unwrap();
+        let locked_resolver = resolver_with_lockfile(cache, outcome.lockfile.clone());
+        (locked_resolver, outcome.lockfile)
     }
 
     /// Writes a `module.sig` next to `dir`'s `module.json` over the
@@ -771,6 +836,7 @@ mod tests {
             .cache_root(cache.path())
             .trust_path(&trust_path)
             .trust(TrustStore::default())
+            .lockfile(Lockfile::default())
             .build();
         assert_eq!(r.cache_root(), cache.path());
         assert_eq!(r.trust_path(), trust_path);
@@ -816,7 +882,8 @@ mod tests {
         let consumer = Manifest::parse(&bytes).unwrap();
 
         let cache = tempdir().unwrap();
-        let mat = resolver(&cache)
+        let (r, _) = resolve_and_lock(&cache, &consumer).await;
+        let mat = r
             .materialize(&consumer, &"dep".to_string().try_into().unwrap())
             .await
             .unwrap();
@@ -838,7 +905,8 @@ mod tests {
         let consumer = Manifest::parse(&bytes).unwrap();
 
         let cache = tempdir().unwrap();
-        let mat = resolver(&cache)
+        let (r, _) = resolve_and_lock(&cache, &consumer).await;
+        let mat = r
             .materialize(&consumer, &"dep/cut".to_string().try_into().unwrap())
             .await
             .unwrap();
@@ -883,7 +951,8 @@ mod tests {
                 .unwrap();
 
         let cache = tempdir().unwrap();
-        let err = resolver(&cache)
+        let (r, _) = resolve_and_lock(&cache, &consumer).await;
+        let err = r
             .materialize(
                 &consumer,
                 &"dep/internal/private".to_string().try_into().unwrap(),
@@ -919,6 +988,7 @@ mod tests {
                 require_signed: true,
                 ..ModulesConfig::default()
             })
+            .lockfile(Lockfile::default())
             .build();
         let err = r
             .materialize(&consumer, &"dep".to_string().try_into().unwrap())
@@ -986,6 +1056,7 @@ mod tests {
             .cache_root(cache.path())
             .trust_path(cache.path().join("trust.toml"))
             .trust(trust)
+            .lockfile(Lockfile::default())
             .build();
         let err = r
             .materialize(&consumer, &"dep".to_string().try_into().unwrap())
@@ -1098,6 +1169,7 @@ mod tests {
                 require_signed: true,
                 ..ModulesConfig::default()
             })
+            .lockfile(Lockfile::default())
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
         assert!(
@@ -1158,6 +1230,7 @@ mod tests {
             .cache_root(cache.path())
             .trust_path(cache.path().join("trust.toml"))
             .trust(trust)
+            .lockfile(Lockfile::default())
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
         assert!(
