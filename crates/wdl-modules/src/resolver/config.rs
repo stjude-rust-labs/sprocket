@@ -7,6 +7,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use thiserror::Error;
 
+use crate::resolver::scope::DependencyScope;
+
 /// The `[modules]` configuration section.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -125,8 +127,8 @@ impl Default for ModulesConfig {
 impl ModulesConfig {
     /// Returns `true` if the given URL scheme is permitted for a
     /// dependency at this level of the tree.
-    pub fn scheme_allowed(&self, scheme: &str, scope: crate::resolver::scope::DependencyScope) -> bool {
-        let allowed = if scope.is_transitive() {
+    pub fn scheme_allowed(&self, scheme: &str, scope: DependencyScope) -> bool {
+        let allowed = if matches!(scope, DependencyScope::Transitive) {
             &self.allowed_transitive_schemes
         } else {
             &self.allowed_schemes
@@ -139,7 +141,7 @@ impl ModulesConfig {
     /// when possible and denies loopback, private, link-local,
     /// unique-local, multicast, unspecified, and metadata-service
     /// ranges by default.
-    pub fn host_allowed(&self, host: &str, scope: crate::resolver::scope::DependencyScope) -> bool {
+    pub fn host_allowed(&self, host: &str, scope: DependencyScope) -> bool {
         if self
             .denied_hosts
             .iter()
@@ -150,7 +152,7 @@ impl ModulesConfig {
         if is_non_public_ip(host) {
             return false;
         }
-        let allowed = if scope.is_transitive() {
+        let allowed = if matches!(scope, DependencyScope::Transitive) {
             &self.allowed_transitive_hosts
         } else {
             &self.allowed_hosts
@@ -160,8 +162,8 @@ impl ModulesConfig {
 
     /// Returns `true` if Git credential helpers and ssh-agent may be
     /// used for a dependency at this level of the tree.
-    pub fn credentials_allowed(&self, scope: crate::resolver::scope::DependencyScope) -> bool {
-        !scope.is_transitive() || self.allow_transitive_credentials
+    pub fn credentials_allowed(&self, scope: DependencyScope) -> bool {
+        !matches!(scope, DependencyScope::Transitive) || self.allow_transitive_credentials
     }
 }
 
@@ -169,7 +171,7 @@ impl ModulesConfig {
 /// (loopback, private RFC1918, link-local, unique-local, multicast,
 /// unspecified, or the AWS/cloud metadata service at
 /// `169.254.169.254`).
-fn is_non_public_ip(host: &str) -> bool {
+pub(crate) fn is_non_public_ip(host: &str) -> bool {
     use std::net::IpAddr;
     let Ok(ip) = host.parse::<IpAddr>() else {
         return false;

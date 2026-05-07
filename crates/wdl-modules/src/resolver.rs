@@ -10,6 +10,7 @@ pub mod config;
 pub mod error;
 mod git;
 pub mod lock;
+pub(crate) mod policy;
 pub(crate) mod scope;
 pub mod trust;
 pub(crate) mod types;
@@ -35,6 +36,7 @@ use crate::ModulePath;
 use crate::ResolvedSource;
 use crate::SymbolicPath;
 use crate::resolver::cache::CacheKey;
+use crate::resolver::policy::ResolverPolicy;
 use crate::resolver::scope::DependencyScope;
 pub use crate::resolver::config::LargeFileWarning;
 pub use crate::resolver::config::LargeFileWarningError;
@@ -153,13 +155,9 @@ impl GitResolver {
         &self.trust
     }
 
-    /// Returns the credential mode for the given transitivity level.
-    fn credential_mode(&self, scope: DependencyScope) -> crate::resolver::git::CredentialMode {
-        if self.config.credentials_allowed(scope) {
-            crate::resolver::git::CredentialMode::Enabled
-        } else {
-            crate::resolver::git::CredentialMode::Disabled
-        }
+    /// Returns the resolved policy for the given scope.
+    fn policy(&self) -> ResolverPolicy {
+        ResolverPolicy::from(&self.config)
     }
 
     /// Returns the lockfile.
@@ -187,7 +185,7 @@ impl GitResolver {
                     return Err(ResolverError::LocalPathInTransitive { dep: name.clone() });
                 }
                 if let DependencySource::Git { url, .. } = source {
-                    check_git_url_policy(name, url, scope, &self.config)?;
+                    self.policy().check_git_url(name, url, scope)?;
                 }
                 let resolved = self
                     .resolve_dependency(name, source, scope, chain)
@@ -209,7 +207,7 @@ impl GitResolver {
         chain: &'a mut Vec<(DependencyName, ResolvedSource)>,
     ) -> BoxFuture<'a, Result<ResolvedDependency, ResolverError>> {
         async move {
-            let credential_mode = self.credential_mode(scope);
+            let credential_mode = self.policy().git_policy(scope).credential_mode;
             let (resolved_source, manifest, module_root) = self
                 .materialize_dependency(name, source, credential_mode)
                 .await?;
@@ -634,33 +632,6 @@ fn check_tag_manifest_match(
     Ok(())
 }
 
-/// Checks that a Git URL's scheme and host are allowed by the
-/// configured policy.
-fn check_git_url_policy(
-    name: &DependencyName,
-    url: &url::Url,
-    scope: DependencyScope,
-    config: &ModulesConfig,
-) -> Result<(), ResolverError> {
-    if !config.scheme_allowed(url.scheme(), scope) {
-        return Err(ResolverError::GitUrlPolicyViolation {
-            dep: name.clone(),
-            url: url.to_string(),
-            scheme: url.scheme().to_string(),
-        });
-    }
-    if let Some(host) = url.host_str()
-        && !config.host_allowed(host, scope)
-    {
-        return Err(ResolverError::GitHostPolicyViolation {
-            dep: name.clone(),
-            url: url.to_string(),
-            host: host.to_string(),
-        });
-    }
-    Ok(())
-}
-
 /// Returns `true` if `child` is a local-path source declared by a
 /// non-local parent. Top-level deps (no parent in scope) and any
 /// non-local child are always allowed by this rule.
@@ -746,9 +717,9 @@ impl Resolver for GitResolver {
         // deps, and transitive resolution goes through `resolve_tree`.
         let scope = DependencyScope::TopLevel;
         if let DependencySource::Git { url, .. } = source {
-            check_git_url_policy(name, url, scope, &self.config)?;
+            self.policy().check_git_url(name, url, scope)?;
         }
-        let credential_mode = self.credential_mode(scope);
+        let credential_mode = self.policy().git_policy(scope).credential_mode;
         let (resolved_source, manifest, module_root) = self
             .materialize_dependency(name, source, credential_mode)
             .await?;
@@ -827,26 +798,13 @@ impl Resolver for GitResolver {
                 path,
                 ..
             } => {
-                // discover_versions is always a top-level CLI operation
                 let scope = DependencyScope::TopLevel;
-                if !self.config.scheme_allowed(url.scheme(), scope) {
-                    return Err(ResolverError::GitUrlPolicyViolation {
-                        dep: DependencyName::try_from("_discovery".to_string())
-                            .unwrap_or_else(|_| unreachable!()),
-                        url: url.to_string(),
-                        scheme: url.scheme().to_string(),
-                    });
-                }
-                if let Some(host) = url.host_str()
-                    && !self.config.host_allowed(host, scope)
-                {
-                    return Err(ResolverError::GitHostPolicyViolation {
-                        dep: DependencyName::try_from("_discovery".to_string())
-                            .unwrap_or_else(|_| unreachable!()),
-                        url: url.to_string(),
-                        host: host.to_string(),
-                    });
-                }
+                // SAFETY: `_discovery` is a valid identifier matching
+                // `DependencyName`'s `[A-Za-z][A-Za-z0-9_]*` pattern.
+                let discovery_name =
+                    DependencyName::try_from("_discovery".to_string()).unwrap();
+                self.policy()
+                    .check_git_url(&discovery_name, url, scope)?;
 
                 let GitSelector::Version(requirement) = selector else {
                     return Ok(Vec::new());
@@ -855,7 +813,7 @@ impl Resolver for GitResolver {
                 let path_prefix = path.as_ref().map(GitModulePath::as_str).map(str::to_string);
                 let requirement = requirement.clone();
                 let max_refs = self.config.max_advertised_refs;
-                let credential_mode = self.credential_mode(scope);
+                let credential_mode = self.policy().git_policy(scope).credential_mode;
                 tokio::task::spawn_blocking(move || -> Result<Vec<Version>, ResolverError> {
                     let refs = crate::resolver::versions::list_remote_refs(
                         &url,
@@ -1625,20 +1583,22 @@ mod tests {
                 ..ModulesConfig::default()
             })
             .build();
-        assert_eq!(r.credential_mode(DependencyScope::Transitive), CredentialMode::Enabled);
-        assert_eq!(r.credential_mode(DependencyScope::TopLevel), CredentialMode::Enabled);
+        let policy = r.policy();
+        assert_eq!(policy.git_policy(DependencyScope::Transitive).credential_mode, CredentialMode::Enabled);
+        assert_eq!(policy.git_policy(DependencyScope::TopLevel).credential_mode, CredentialMode::Enabled);
 
         let r_default = resolver(&cache);
-        assert_eq!(r_default.credential_mode(DependencyScope::Transitive), CredentialMode::Disabled);
-        assert_eq!(r_default.credential_mode(DependencyScope::TopLevel), CredentialMode::Enabled);
+        let default_policy = r_default.policy();
+        assert_eq!(default_policy.git_policy(DependencyScope::Transitive).credential_mode, CredentialMode::Disabled);
+        assert_eq!(default_policy.git_policy(DependencyScope::TopLevel).credential_mode, CredentialMode::Enabled);
     }
 
     #[test]
-    fn check_git_url_policy_blocks_file_scheme() {
-        let cfg = ModulesConfig::default();
+    fn policy_blocks_file_scheme() {
+        let policy = ResolverPolicy::from(&ModulesConfig::default());
         let dep = DependencyName::try_from("foo".to_string()).unwrap();
         let url: url::Url = "file:///tmp/repo".parse().unwrap();
-        let err = super::check_git_url_policy(&dep, &url, DependencyScope::TopLevel, &cfg).unwrap_err();
+        let err = policy.check_git_url(&dep, &url, DependencyScope::TopLevel).unwrap_err();
         assert!(
             matches!(err, ResolverError::GitUrlPolicyViolation { .. }),
             "got: {err}"
@@ -1646,22 +1606,22 @@ mod tests {
     }
 
     #[test]
-    fn check_git_url_policy_allows_ssh_top_level_blocks_transitive() {
-        let cfg = ModulesConfig::default();
+    fn policy_allows_ssh_top_level_blocks_transitive() {
+        let policy = ResolverPolicy::from(&ModulesConfig::default());
         let dep = DependencyName::try_from("foo".to_string()).unwrap();
         let url: url::Url = "ssh://git@github.com/x/y".parse().unwrap();
-        super::check_git_url_policy(&dep, &url, DependencyScope::TopLevel, &cfg).unwrap();
-        let err = super::check_git_url_policy(&dep, &url, DependencyScope::Transitive, &cfg).unwrap_err();
+        policy.check_git_url(&dep, &url, DependencyScope::TopLevel).unwrap();
+        let err = policy.check_git_url(&dep, &url, DependencyScope::Transitive).unwrap_err();
         assert!(matches!(err, ResolverError::GitUrlPolicyViolation { .. }));
     }
 
     #[test]
-    fn check_git_url_policy_allows_https_by_default() {
-        let cfg = ModulesConfig::default();
+    fn policy_allows_https_by_default() {
+        let policy = ResolverPolicy::from(&ModulesConfig::default());
         let dep = DependencyName::try_from("foo".to_string()).unwrap();
         let url: url::Url = "https://github.com/x/y".parse().unwrap();
-        super::check_git_url_policy(&dep, &url, DependencyScope::TopLevel, &cfg).unwrap();
-        super::check_git_url_policy(&dep, &url, DependencyScope::Transitive, &cfg).unwrap();
+        policy.check_git_url(&dep, &url, DependencyScope::TopLevel).unwrap();
+        policy.check_git_url(&dep, &url, DependencyScope::Transitive).unwrap();
     }
 
     #[test]
