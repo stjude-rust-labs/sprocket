@@ -59,6 +59,16 @@ pub struct ModulesConfig {
     /// credential helpers and ssh-agent. Defaults to `false`.
     #[serde(default)]
     pub allow_transitive_credentials: bool,
+
+    /// Maximum number of files allowed in a single materialized module
+    /// tree. `None` disables the limit.
+    #[serde(default)]
+    pub max_materialized_files: Option<usize>,
+
+    /// Maximum total bytes of regular files allowed in a single
+    /// materialized module tree. `None` disables the limit.
+    #[serde(default)]
+    pub max_materialized_bytes: Option<u64>,
 }
 
 /// Returns the default maximum advertised-ref count.
@@ -102,6 +112,8 @@ impl Default for ModulesConfig {
             allowed_hosts: Vec::new(),
             allowed_transitive_hosts: Vec::new(),
             allow_transitive_credentials: false,
+            max_materialized_files: None,
+            max_materialized_bytes: None,
         }
     }
 }

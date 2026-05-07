@@ -323,6 +323,7 @@ impl GitResolver {
         name: &DependencyName,
         module_root: &Path,
     ) -> Result<VerifiedModule, ResolverError> {
+        check_materialized_tree_limits(&self.config, name, module_root)?;
         let checksum = crate::hash::hash_directory(module_root)?;
         self.warn_on_large_files(name, module_root)?;
         let signer = self.read_and_verify_signature(name, module_root, &checksum)?;
@@ -629,6 +630,39 @@ fn check_git_url_policy(
 /// Returns `true` if `child` is a local-path source declared by a
 /// non-local parent. Top-level deps (no parent in scope) and any
 /// non-local child are always allowed by this rule.
+/// Walks `module_root` and rejects the tree if it exceeds configured
+/// file-count or byte-size limits.
+fn check_materialized_tree_limits(
+    config: &ModulesConfig,
+    name: &DependencyName,
+    module_root: &Path,
+) -> Result<(), ResolverError> {
+    if config.max_materialized_files.is_none() && config.max_materialized_bytes.is_none() {
+        return Ok(());
+    }
+    let mut files = 0usize;
+    let mut bytes = 0u64;
+    walk_files(module_root, &mut |_entry, size| {
+        files += 1;
+        bytes = bytes.saturating_add(size);
+        Ok(())
+    })?;
+    if config
+        .max_materialized_files
+        .is_some_and(|limit| files > limit)
+        || config
+            .max_materialized_bytes
+            .is_some_and(|limit| bytes > limit)
+    {
+        return Err(ResolverError::MaterializedTreeLimitExceeded {
+            dep: name.clone(),
+            files,
+            bytes,
+        });
+    }
+    Ok(())
+}
+
 fn is_transitive_local_disallowed(
     parent: Option<&ResolvedSource>,
     child: &DependencySource,
@@ -1324,6 +1358,71 @@ mod tests {
     #[test]
     fn tag_manifest_mismatch_helper_ok_when_no_expected() {
         super::check_tag_manifest_match(None, None, &Version::parse("0.0.1").unwrap()).unwrap();
+    }
+
+    #[tokio::test]
+    async fn resolve_tree_rejects_too_many_materialized_files() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("one.wdl"), b"workflow one {}").unwrap();
+        fs::write(dep_dir.join("two.wdl"), b"workflow two {}").unwrap();
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let r = GitResolver::builder()
+            .cache_root(cache.path())
+            .trust_path(cache.path().join("trust.toml"))
+            .trust(TrustStore::default())
+            .lockfile(Lockfile::default())
+            .config(ModulesConfig {
+                max_materialized_files: Some(1),
+                ..ModulesConfig::default()
+            })
+            .build();
+        let err = r.resolve_tree(&consumer).await.unwrap_err();
+        assert!(
+            matches!(err, ResolverError::MaterializedTreeLimitExceeded { .. }),
+            "expected `MaterializedTreeLimitExceeded`, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn resolve_tree_rejects_too_many_materialized_bytes() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("big.wdl"), vec![b'x'; 1024]).unwrap();
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let r = GitResolver::builder()
+            .cache_root(cache.path())
+            .trust_path(cache.path().join("trust.toml"))
+            .trust(TrustStore::default())
+            .lockfile(Lockfile::default())
+            .config(ModulesConfig {
+                max_materialized_bytes: Some(100),
+                ..ModulesConfig::default()
+            })
+            .build();
+        let err = r.resolve_tree(&consumer).await.unwrap_err();
+        assert!(
+            matches!(err, ResolverError::MaterializedTreeLimitExceeded { .. }),
+            "expected `MaterializedTreeLimitExceeded`, got: {err}"
+        );
     }
 
     #[test]

@@ -211,6 +211,19 @@ pub enum ResolverError {
         host: String,
     },
 
+    /// A materialized module tree exceeded configured resource limits.
+    #[error(
+        "`{dep}` materialized tree exceeds limits (files: {files}, bytes: {bytes})"
+    )]
+    MaterializedTreeLimitExceeded {
+        /// The owning dependency.
+        dep: DependencyName,
+        /// Number of files observed.
+        files: usize,
+        /// Total bytes observed.
+        bytes: u64,
+    },
+
     /// A Git operation failed.
     #[error(transparent)]
     Git(#[from] crate::resolver::git::GitError),
