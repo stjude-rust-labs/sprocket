@@ -125,8 +125,8 @@ impl Default for ModulesConfig {
 impl ModulesConfig {
     /// Returns `true` if the given URL scheme is permitted for a
     /// dependency at this level of the tree.
-    pub fn scheme_allowed(&self, scheme: &str, is_transitive: bool) -> bool {
-        let allowed = if is_transitive {
+    pub fn scheme_allowed(&self, scheme: &str, scope: crate::resolver::scope::DependencyScope) -> bool {
+        let allowed = if scope.is_transitive() {
             &self.allowed_transitive_schemes
         } else {
             &self.allowed_schemes
@@ -139,7 +139,7 @@ impl ModulesConfig {
     /// when possible and denies loopback, private, link-local,
     /// unique-local, multicast, unspecified, and metadata-service
     /// ranges by default.
-    pub fn host_allowed(&self, host: &str, is_transitive: bool) -> bool {
+    pub fn host_allowed(&self, host: &str, scope: crate::resolver::scope::DependencyScope) -> bool {
         if self
             .denied_hosts
             .iter()
@@ -150,7 +150,7 @@ impl ModulesConfig {
         if is_non_public_ip(host) {
             return false;
         }
-        let allowed = if is_transitive {
+        let allowed = if scope.is_transitive() {
             &self.allowed_transitive_hosts
         } else {
             &self.allowed_hosts
@@ -160,8 +160,8 @@ impl ModulesConfig {
 
     /// Returns `true` if Git credential helpers and ssh-agent may be
     /// used for a dependency at this level of the tree.
-    pub fn credentials_allowed(&self, is_transitive: bool) -> bool {
-        !is_transitive || self.allow_transitive_credentials
+    pub fn credentials_allowed(&self, scope: crate::resolver::scope::DependencyScope) -> bool {
+        !scope.is_transitive() || self.allow_transitive_credentials
     }
 }
 
@@ -262,6 +262,7 @@ pub enum TrustMode {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::resolver::scope::DependencyScope;
 
     #[test]
     fn parses_default_threshold_when_absent() {
@@ -299,29 +300,29 @@ mod tests {
     #[test]
     fn default_policy_denies_localhost_hosts() {
         let cfg = ModulesConfig::default();
-        assert!(!cfg.host_allowed("localhost", false));
-        assert!(!cfg.host_allowed("127.0.0.1", true));
-        assert!(!cfg.host_allowed("::1", true));
-        assert!(!cfg.host_allowed("0.0.0.0", false));
+        assert!(!cfg.host_allowed("localhost", DependencyScope::TopLevel));
+        assert!(!cfg.host_allowed("127.0.0.1", DependencyScope::Transitive));
+        assert!(!cfg.host_allowed("::1", DependencyScope::Transitive));
+        assert!(!cfg.host_allowed("0.0.0.0", DependencyScope::TopLevel));
     }
 
     #[test]
     fn default_policy_denies_private_and_metadata_ips() {
         let cfg = ModulesConfig::default();
-        assert!(!cfg.host_allowed("169.254.169.254", false));
-        assert!(!cfg.host_allowed("10.0.0.1", false));
-        assert!(!cfg.host_allowed("192.168.1.1", true));
-        assert!(!cfg.host_allowed("172.16.0.1", false));
-        assert!(!cfg.host_allowed("::1", false));
-        assert!(!cfg.host_allowed("fe80::1", true));
-        assert!(!cfg.host_allowed("fc00::1", false));
+        assert!(!cfg.host_allowed("169.254.169.254", DependencyScope::TopLevel));
+        assert!(!cfg.host_allowed("10.0.0.1", DependencyScope::TopLevel));
+        assert!(!cfg.host_allowed("192.168.1.1", DependencyScope::Transitive));
+        assert!(!cfg.host_allowed("172.16.0.1", DependencyScope::TopLevel));
+        assert!(!cfg.host_allowed("::1", DependencyScope::TopLevel));
+        assert!(!cfg.host_allowed("fe80::1", DependencyScope::Transitive));
+        assert!(!cfg.host_allowed("fc00::1", DependencyScope::TopLevel));
     }
 
     #[test]
     fn default_policy_allows_public_hosts() {
         let cfg = ModulesConfig::default();
-        assert!(cfg.host_allowed("github.com", false));
-        assert!(cfg.host_allowed("github.com", true));
+        assert!(cfg.host_allowed("github.com", DependencyScope::TopLevel));
+        assert!(cfg.host_allowed("github.com", DependencyScope::Transitive));
     }
 
     #[test]
@@ -330,16 +331,16 @@ mod tests {
             allowed_transitive_hosts: vec!["github.com".into()],
             ..ModulesConfig::default()
         };
-        assert!(cfg.host_allowed("github.com", true));
-        assert!(!cfg.host_allowed("gitlab.com", true));
-        assert!(cfg.host_allowed("gitlab.com", false));
+        assert!(cfg.host_allowed("github.com", DependencyScope::Transitive));
+        assert!(!cfg.host_allowed("gitlab.com", DependencyScope::Transitive));
+        assert!(cfg.host_allowed("gitlab.com", DependencyScope::TopLevel));
     }
 
     #[test]
     fn transitive_credentials_disabled_by_default() {
         let cfg = ModulesConfig::default();
-        assert!(!cfg.credentials_allowed(true));
-        assert!(cfg.credentials_allowed(false));
+        assert!(!cfg.credentials_allowed(DependencyScope::Transitive));
+        assert!(cfg.credentials_allowed(DependencyScope::TopLevel));
     }
 
     #[test]
@@ -348,6 +349,6 @@ mod tests {
             allow_transitive_credentials: true,
             ..ModulesConfig::default()
         };
-        assert!(cfg.credentials_allowed(true));
+        assert!(cfg.credentials_allowed(DependencyScope::Transitive));
     }
 }
