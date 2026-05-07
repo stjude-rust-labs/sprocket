@@ -70,9 +70,7 @@ pub enum ResolverError {
 
     /// A dependency is not present in the lockfile. Run
     /// `sprocket module lock` to update it.
-    #[error(
-        "`{dep}` is not in `module-lock.json`; run `sprocket module lock` to update"
-    )]
+    #[error("`{dep}` is not in `module-lock.json`; run `sprocket module lock` to update")]
     NotInLockfile {
         /// The missing dependency.
         dep: DependencyName,
@@ -212,9 +210,7 @@ pub enum ResolverError {
     },
 
     /// A materialized module tree exceeded configured resource limits.
-    #[error(
-        "`{dep}` materialized tree exceeds limits (files: {files}, bytes: {bytes})"
-    )]
+    #[error("`{dep}` materialized tree exceeds limits (files: {files}, bytes: {bytes})")]
     MaterializedTreeLimitExceeded {
         /// The owning dependency.
         dep: DependencyName,

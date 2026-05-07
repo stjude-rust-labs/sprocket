@@ -24,18 +24,16 @@ use futures::future::BoxFuture;
 use futures::future::FutureExt;
 use semver::Version;
 
-use crate::resolver::cache::CacheKey;
-
 use crate::DependencyName;
 use crate::DependencySource;
 use crate::GitModulePath;
 use crate::GitSelector;
-use crate::resolver::git::CredentialMode;
-use crate::Manifest;
 use crate::Lockfile;
+use crate::Manifest;
 use crate::ModulePath;
 use crate::ResolvedSource;
 use crate::SymbolicPath;
+use crate::resolver::cache::CacheKey;
 pub use crate::resolver::config::LargeFileWarning;
 pub use crate::resolver::config::LargeFileWarningError;
 pub use crate::resolver::config::ModulesConfig;
@@ -43,6 +41,7 @@ pub use crate::resolver::config::TrustMode;
 pub use crate::resolver::error::GitRefKind;
 pub use crate::resolver::error::MissingFileKind;
 pub use crate::resolver::error::ResolverError;
+use crate::resolver::git::CredentialMode;
 pub use crate::resolver::lock::DependencyAddition;
 pub use crate::resolver::lock::DependencyUpdate;
 pub use crate::resolver::lock::LockfileDiff;
@@ -184,8 +183,9 @@ impl GitResolver {
                 if let DependencySource::Git { url, .. } = source {
                     check_git_url_policy(name, url, is_transitive, &self.config)?;
                 }
-                let resolved =
-                    self.resolve_dependency(name, source, is_transitive, chain).await?;
+                let resolved = self
+                    .resolve_dependency(name, source, is_transitive, chain)
+                    .await?;
                 out.insert(name.clone(), resolved);
             }
             Ok(out)
@@ -204,8 +204,9 @@ impl GitResolver {
     ) -> BoxFuture<'a, Result<ResolvedDependency, ResolverError>> {
         async move {
             let credential_mode = self.credential_mode(is_transitive);
-            let (resolved_source, manifest, module_root) =
-                self.materialize_dependency(name, source, credential_mode).await?;
+            let (resolved_source, manifest, module_root) = self
+                .materialize_dependency(name, source, credential_mode)
+                .await?;
 
             if let Some(at) = chain.iter().position(|(_, s)| *s == resolved_source) {
                 let mut path: Vec<DependencyName> =
@@ -338,20 +339,15 @@ impl GitResolver {
         name: &DependencyName,
         checksum: &crate::ContentHash,
     ) -> Result<(), ResolverError> {
-        let locked_entry =
-            self.lockfile
-                .dependencies
-                .get(name)
-                .ok_or_else(|| ResolverError::NotInLockfile {
-                    dep: name.clone(),
-                })?;
-        let locked_module =
-            locked_entry
-                .modules
-                .get(&ModulePath::Root)
-                .ok_or_else(|| ResolverError::NotInLockfile {
-                    dep: name.clone(),
-                })?;
+        let locked_entry = self
+            .lockfile
+            .dependencies
+            .get(name)
+            .ok_or_else(|| ResolverError::NotInLockfile { dep: name.clone() })?;
+        let locked_module = locked_entry
+            .modules
+            .get(&ModulePath::Root)
+            .ok_or_else(|| ResolverError::NotInLockfile { dep: name.clone() })?;
         if locked_module.checksum != *checksum {
             return Err(ResolverError::ChecksumMismatch {
                 dep: name.clone(),
@@ -478,7 +474,13 @@ impl GitResolver {
             } => {
                 let path_prefix = path.as_ref().map(GitModulePath::as_str).map(str::to_string);
                 let (selected_version, commit) = self
-                    .resolve_git_selector(name, url, selector, path_prefix.as_deref(), credential_mode)
+                    .resolve_git_selector(
+                        name,
+                        url,
+                        selector,
+                        path_prefix.as_deref(),
+                        credential_mode,
+                    )
                     .await?;
 
                 let key = CacheKey::from_url(url, &commit);
@@ -664,6 +666,8 @@ fn check_materialized_tree_limits(
     Ok(())
 }
 
+/// Returns `true` if `child` is a local-path source declared by a
+/// non-local parent.
 fn is_transitive_local_disallowed(
     parent: Option<&ResolvedSource>,
     child: &DependencySource,
@@ -706,8 +710,9 @@ impl Resolver for GitResolver {
                     name: name.inner().to_string(),
                 })?;
 
-        let (resolved_source, manifest, module_root) =
-            self.materialize_dependency(name, source, CredentialMode::Enabled).await?;
+        let (resolved_source, manifest, module_root) = self
+            .materialize_dependency(name, source, CredentialMode::Enabled)
+            .await?;
 
         let verified = self.verify_materialized_dependency(name, &module_root)?;
         self.verify_against_lockfile(name, &verified.checksum)?;
@@ -863,18 +868,11 @@ mod tests {
     }
 
     /// Resolves a consumer's tree and builds a lockfile from it.
-    async fn resolve_and_lock(
-        cache: &TempDir,
-        consumer: &Manifest,
-    ) -> (GitResolver, Lockfile) {
+    async fn resolve_and_lock(cache: &TempDir, consumer: &Manifest) -> (GitResolver, Lockfile) {
         let r = resolver(cache);
         let tree = r.resolve_tree(consumer).await.unwrap();
-        let outcome = crate::resolver::lock::partial_relock(
-            consumer,
-            &Lockfile::default(),
-            &tree,
-        )
-        .unwrap();
+        let outcome =
+            crate::resolver::lock::partial_relock(consumer, &Lockfile::default(), &tree).unwrap();
         let locked_resolver = resolver_with_lockfile(cache, outcome.lockfile.clone());
         (locked_resolver, outcome.lockfile)
     }
