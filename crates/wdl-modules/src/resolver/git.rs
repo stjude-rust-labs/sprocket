@@ -44,18 +44,29 @@ fn default_credentials(
     git2::Cred::default()
 }
 
-/// Builds a [`RemoteCallbacks`] wired up with [`default_credentials`].
-/// Reuse this anywhere a `git2` operation needs to authenticate.
-pub(crate) fn default_callbacks<'cb>() -> RemoteCallbacks<'cb> {
+/// Whether Git operations should use credential helpers.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CredentialMode {
+    /// Use the user's configured Git credential helpers and ssh-agent.
+    Enabled,
+    /// Do not attach any credential callbacks.
+    Disabled,
+}
+
+/// Builds a [`RemoteCallbacks`] wired up with credentials according
+/// to `mode`.
+pub(crate) fn default_callbacks<'cb>(mode: CredentialMode) -> RemoteCallbacks<'cb> {
     let mut cb = RemoteCallbacks::new();
-    cb.credentials(default_credentials);
+    if mode == CredentialMode::Enabled {
+        cb.credentials(default_credentials);
+    }
     cb
 }
 
 /// Builds a [`FetchOptions`] preconfigured with [`default_callbacks`].
-pub(crate) fn default_fetch_options<'fo>() -> FetchOptions<'fo> {
+pub(crate) fn default_fetch_options<'fo>(mode: CredentialMode) -> FetchOptions<'fo> {
     let mut opts = FetchOptions::new();
-    opts.remote_callbacks(default_callbacks());
+    opts.remote_callbacks(default_callbacks(mode));
     opts
 }
 
@@ -65,10 +76,11 @@ pub(crate) fn default_fetch_options<'fo>() -> FetchOptions<'fo> {
 pub(crate) fn connect_remote(
     url: &Url,
     direction: git2::Direction,
+    mode: CredentialMode,
 ) -> Result<git2::Remote<'_>, GitError> {
     let mut remote = git2::Remote::create_detached(url.as_str()).map_err(GitError::Git)?;
     remote
-        .connect_auth(direction, Some(default_callbacks()), None)
+        .connect_auth(direction, Some(default_callbacks(mode)), None)
         .map_err(GitError::Git)?;
     Ok(remote)
 }
@@ -85,8 +97,9 @@ pub(crate) fn disconnect_remote(remote: &mut git2::Remote<'_>) {
 pub(crate) fn list_advertised_refs(
     url: &Url,
     max_refs: usize,
+    mode: CredentialMode,
 ) -> Result<Vec<(String, String)>, GitError> {
-    let mut remote = connect_remote(url, git2::Direction::Fetch)?;
+    let mut remote = connect_remote(url, git2::Direction::Fetch, mode)?;
     let advertised = remote.list().map_err(GitError::Git)?;
     if advertised.len() > max_refs {
         let count = advertised.len();
@@ -116,6 +129,7 @@ pub(crate) fn clone_with_sparse_checkout<I, S>(
     commit: &str,
     leaf: &Path,
     paths: I,
+    mode: CredentialMode,
 ) -> Result<(), GitError>
 where
     I: IntoIterator<Item = S>,
@@ -130,7 +144,7 @@ where
         source,
     })?;
 
-    let fetch_opts = default_fetch_options();
+    let fetch_opts = default_fetch_options(mode);
 
     // Skip the default checkout; we'll do a path-filtered checkout below.
     let mut empty_checkout = git2::build::CheckoutBuilder::new();
@@ -166,6 +180,7 @@ pub(crate) fn ensure_materialized<I, S>(
     url: &Url,
     commit: &str,
     paths: I,
+    mode: CredentialMode,
 ) -> Result<(), GitError>
 where
     I: IntoIterator<Item = S>,
@@ -174,7 +189,7 @@ where
     if leaf.exists() {
         extend_sparse_checkout(leaf, paths)
     } else {
-        clone_with_sparse_checkout(url, commit, leaf, paths)
+        clone_with_sparse_checkout(url, commit, leaf, paths, mode)
     }
 }
 
@@ -342,7 +357,7 @@ mod tests {
         let leaf = dest.path().join("leaf");
         let url = Url::from_directory_path(upstream.path()).unwrap();
 
-        clone_with_sparse_checkout(&url, &sha, &leaf, ["csvkit"]).unwrap();
+        clone_with_sparse_checkout(&url, &sha, &leaf, ["csvkit"], CredentialMode::Enabled).unwrap();
 
         assert!(leaf.join("csvkit").join("module.json").exists());
         assert!(!leaf.join("spellbook").exists());
@@ -361,7 +376,7 @@ mod tests {
             br#"{"name":"x","version":"1.0.0","license":"MIT"}"#,
         )]);
         let url = Url::from_directory_path(upstream.path()).unwrap();
-        let err = list_advertised_refs(&url, 0).unwrap_err();
+        let err = list_advertised_refs(&url, 0, CredentialMode::Enabled).unwrap_err();
         assert!(
             matches!(err, GitError::RefLimitExceeded { .. }),
             "got: {err}"
@@ -387,11 +402,11 @@ mod tests {
         let leaf = dest.path().join("leaf");
         let url = Url::from_directory_path(upstream.path()).unwrap();
 
-        ensure_materialized(&leaf, &url, &sha, ["csvkit"]).unwrap();
+        ensure_materialized(&leaf, &url, &sha, ["csvkit"], CredentialMode::Enabled).unwrap();
         assert!(leaf.join("csvkit").join("module.json").exists());
         assert!(!leaf.join("spellbook").exists());
 
-        ensure_materialized(&leaf, &url, &sha, ["spellbook"]).unwrap();
+        ensure_materialized(&leaf, &url, &sha, ["spellbook"], CredentialMode::Enabled).unwrap();
         assert!(leaf.join("csvkit").join("module.json").exists());
         assert!(leaf.join("spellbook").join("module.json").exists());
     }
@@ -415,7 +430,7 @@ mod tests {
         let leaf = dest.path().join("leaf");
         let url = Url::from_directory_path(upstream.path()).unwrap();
 
-        clone_with_sparse_checkout(&url, &sha, &leaf, ["csvkit"]).unwrap();
+        clone_with_sparse_checkout(&url, &sha, &leaf, ["csvkit"], CredentialMode::Enabled).unwrap();
         assert!(!leaf.join("spellbook").exists());
 
         extend_sparse_checkout(&leaf, ["spellbook"]).unwrap();

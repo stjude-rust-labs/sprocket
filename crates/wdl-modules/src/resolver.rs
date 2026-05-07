@@ -28,6 +28,7 @@ use crate::DependencyName;
 use crate::DependencySource;
 use crate::GitModulePath;
 use crate::GitSelector;
+use crate::resolver::git::CredentialMode;
 use crate::Manifest;
 use crate::Lockfile;
 use crate::ModulePath;
@@ -151,6 +152,15 @@ impl GitResolver {
         &self.trust
     }
 
+    /// Returns the credential mode for the given transitivity level.
+    fn credential_mode(&self, is_transitive: bool) -> crate::resolver::git::CredentialMode {
+        if self.config.credentials_allowed(is_transitive) {
+            crate::resolver::git::CredentialMode::Enabled
+        } else {
+            crate::resolver::git::CredentialMode::Disabled
+        }
+    }
+
     /// Returns the lockfile.
     pub fn lockfile(&self) -> &Lockfile {
         &self.lockfile
@@ -172,9 +182,10 @@ impl GitResolver {
                     return Err(ResolverError::LocalPathInTransitive { dep: name.clone() });
                 }
                 if let DependencySource::Git { url, .. } = source {
-                    check_git_url_scheme(name, url, is_transitive, &self.config)?;
+                    check_git_url_policy(name, url, is_transitive, &self.config)?;
                 }
-                let resolved = self.resolve_dependency(name, source, chain).await?;
+                let resolved =
+                    self.resolve_dependency(name, source, is_transitive, chain).await?;
                 out.insert(name.clone(), resolved);
             }
             Ok(out)
@@ -188,11 +199,13 @@ impl GitResolver {
         &'a self,
         name: &'a DependencyName,
         source: &'a DependencySource,
+        is_transitive: bool,
         chain: &'a mut Vec<(DependencyName, ResolvedSource)>,
     ) -> BoxFuture<'a, Result<ResolvedDependency, ResolverError>> {
         async move {
+            let credential_mode = self.credential_mode(is_transitive);
             let (resolved_source, manifest, module_root) =
-                self.materialize_dependency(name, source).await?;
+                self.materialize_dependency(name, source, credential_mode).await?;
 
             if let Some(at) = chain.iter().position(|(_, s)| *s == resolved_source) {
                 let mut path: Vec<DependencyName> =
@@ -356,6 +369,7 @@ impl GitResolver {
         url: &url::Url,
         selector: &GitSelector,
         path_prefix: Option<&str>,
+        credential_mode: crate::resolver::git::CredentialMode,
     ) -> Result<(Option<Version>, crate::GitCommit), ResolverError> {
         match selector {
             GitSelector::Version(requirement) => {
@@ -364,7 +378,7 @@ impl GitResolver {
                 let path_prefix_owned = path_prefix.map(str::to_string);
                 let max_refs = self.config.max_advertised_refs;
                 let refs = tokio::task::spawn_blocking(move || {
-                    crate::resolver::versions::list_remote_refs(&url, max_refs)
+                    crate::resolver::versions::list_remote_refs(&url, max_refs, credential_mode)
                 })
                 .await
                 // SAFETY: `list_remote_refs` performs only Git work; a
@@ -391,7 +405,7 @@ impl GitResolver {
                 let url = url.clone();
                 let max_refs = self.config.max_advertised_refs;
                 let refs = tokio::task::spawn_blocking(move || {
-                    crate::resolver::versions::list_remote_refs(&url, max_refs)
+                    crate::resolver::versions::list_remote_refs(&url, max_refs, credential_mode)
                 })
                 .await
                 // SAFETY: `list_remote_refs` does not panic.
@@ -410,7 +424,7 @@ impl GitResolver {
                 let url = url.clone();
                 let max_refs = self.config.max_advertised_refs;
                 let refs = tokio::task::spawn_blocking(move || {
-                    crate::resolver::versions::list_remote_branches(&url, max_refs)
+                    crate::resolver::versions::list_remote_branches(&url, max_refs, credential_mode)
                 })
                 .await
                 // SAFETY: `list_remote_branches` does not panic.
@@ -444,6 +458,7 @@ impl GitResolver {
         &self,
         name: &DependencyName,
         source: &DependencySource,
+        credential_mode: CredentialMode,
     ) -> Result<(ResolvedSource, Manifest, PathBuf), ResolverError> {
         match source {
             DependencySource::LocalPath { path, .. } => {
@@ -462,7 +477,7 @@ impl GitResolver {
             } => {
                 let path_prefix = path.as_ref().map(GitModulePath::as_str).map(str::to_string);
                 let (selected_version, commit) = self
-                    .resolve_git_selector(name, url, selector, path_prefix.as_deref())
+                    .resolve_git_selector(name, url, selector, path_prefix.as_deref(), credential_mode)
                     .await?;
 
                 let key = CacheKey::from_url(url, &commit);
@@ -478,6 +493,7 @@ impl GitResolver {
                         &url_for_clone,
                         commit_for_clone.inner(),
                         [sparse_path.as_str()],
+                        credential_mode,
                     )
                 })
                 .await
@@ -583,8 +599,9 @@ fn check_tag_manifest_match(
     Ok(())
 }
 
-/// Checks that a Git URL's scheme is allowed by the configured policy.
-fn check_git_url_scheme(
+/// Checks that a Git URL's scheme and host are allowed by the
+/// configured policy.
+fn check_git_url_policy(
     name: &DependencyName,
     url: &url::Url,
     is_transitive: bool,
@@ -595,6 +612,15 @@ fn check_git_url_scheme(
             dep: name.clone(),
             url: url.to_string(),
             scheme: url.scheme().to_string(),
+        });
+    }
+    if let Some(host) = url.host_str()
+        && !config.host_allowed(host, is_transitive)
+    {
+        return Err(ResolverError::GitHostPolicyViolation {
+            dep: name.clone(),
+            url: url.to_string(),
+            host: host.to_string(),
         });
     }
     Ok(())
@@ -646,7 +672,7 @@ impl Resolver for GitResolver {
                 })?;
 
         let (resolved_source, manifest, module_root) =
-            self.materialize_dependency(name, source).await?;
+            self.materialize_dependency(name, source, CredentialMode::Enabled).await?;
 
         let verified = self.verify_materialized_dependency(name, &module_root)?;
         self.verify_against_lockfile(name, &verified.checksum)?;
@@ -732,7 +758,11 @@ impl Resolver for GitResolver {
                 let requirement = requirement.clone();
                 let max_refs = self.config.max_advertised_refs;
                 tokio::task::spawn_blocking(move || -> Result<Vec<Version>, ResolverError> {
-                    let refs = crate::resolver::versions::list_remote_refs(&url, max_refs)?;
+                    let refs = crate::resolver::versions::list_remote_refs(
+                        &url,
+                        max_refs,
+                        CredentialMode::Enabled,
+                    )?;
                     Ok(crate::resolver::versions::filter_matching(
                         &refs,
                         path_prefix.as_deref(),
@@ -1297,11 +1327,32 @@ mod tests {
     }
 
     #[test]
-    fn check_git_url_scheme_blocks_file_scheme() {
+    fn credential_mode_respects_transitive_config() {
+        let cache = tempdir().unwrap();
+        let r = GitResolver::builder()
+            .cache_root(cache.path())
+            .trust_path(cache.path().join("trust.toml"))
+            .trust(TrustStore::default())
+            .lockfile(Lockfile::default())
+            .config(ModulesConfig {
+                allow_transitive_credentials: true,
+                ..ModulesConfig::default()
+            })
+            .build();
+        assert_eq!(r.credential_mode(true), CredentialMode::Enabled);
+        assert_eq!(r.credential_mode(false), CredentialMode::Enabled);
+
+        let r_default = resolver(&cache);
+        assert_eq!(r_default.credential_mode(true), CredentialMode::Disabled);
+        assert_eq!(r_default.credential_mode(false), CredentialMode::Enabled);
+    }
+
+    #[test]
+    fn check_git_url_policy_blocks_file_scheme() {
         let cfg = ModulesConfig::default();
         let dep = DependencyName::try_from("foo".to_string()).unwrap();
         let url: url::Url = "file:///tmp/repo".parse().unwrap();
-        let err = super::check_git_url_scheme(&dep, &url, false, &cfg).unwrap_err();
+        let err = super::check_git_url_policy(&dep, &url, false, &cfg).unwrap_err();
         assert!(
             matches!(err, ResolverError::GitUrlPolicyViolation { .. }),
             "got: {err}"
@@ -1309,22 +1360,22 @@ mod tests {
     }
 
     #[test]
-    fn check_git_url_scheme_allows_ssh_top_level_blocks_transitive() {
+    fn check_git_url_policy_allows_ssh_top_level_blocks_transitive() {
         let cfg = ModulesConfig::default();
         let dep = DependencyName::try_from("foo".to_string()).unwrap();
         let url: url::Url = "ssh://git@github.com/x/y".parse().unwrap();
-        super::check_git_url_scheme(&dep, &url, false, &cfg).unwrap();
-        let err = super::check_git_url_scheme(&dep, &url, true, &cfg).unwrap_err();
+        super::check_git_url_policy(&dep, &url, false, &cfg).unwrap();
+        let err = super::check_git_url_policy(&dep, &url, true, &cfg).unwrap_err();
         assert!(matches!(err, ResolverError::GitUrlPolicyViolation { .. }));
     }
 
     #[test]
-    fn check_git_url_scheme_allows_https_by_default() {
+    fn check_git_url_policy_allows_https_by_default() {
         let cfg = ModulesConfig::default();
         let dep = DependencyName::try_from("foo".to_string()).unwrap();
         let url: url::Url = "https://github.com/x/y".parse().unwrap();
-        super::check_git_url_scheme(&dep, &url, false, &cfg).unwrap();
-        super::check_git_url_scheme(&dep, &url, true, &cfg).unwrap();
+        super::check_git_url_policy(&dep, &url, false, &cfg).unwrap();
+        super::check_git_url_policy(&dep, &url, true, &cfg).unwrap();
     }
 
     #[test]

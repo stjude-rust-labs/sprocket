@@ -200,6 +200,17 @@ pub enum ResolverError {
         scheme: String,
     },
 
+    /// A Git URL violates the configured host policy.
+    #[error("`{dep}` git URL `{url}` targets host `{host}` which is not allowed by policy")]
+    GitHostPolicyViolation {
+        /// The owning dependency.
+        dep: DependencyName,
+        /// The rejected URL.
+        url: String,
+        /// The rejected host.
+        host: String,
+    },
+
     /// A Git operation failed.
     #[error(transparent)]
     Git(#[from] crate::resolver::git::GitError),

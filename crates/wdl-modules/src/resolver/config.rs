@@ -39,6 +39,26 @@ pub struct ModulesConfig {
     /// Defaults to 100,000.
     #[serde(default = "default_max_refs")]
     pub max_advertised_refs: usize,
+
+    /// Hosts denied for all Git dependencies. Defaults to localhost
+    /// addresses.
+    #[serde(default = "default_denied_hosts")]
+    pub denied_hosts: Vec<String>,
+
+    /// Hosts permitted for top-level Git dependencies. Empty means any
+    /// non-denied host is allowed.
+    #[serde(default)]
+    pub allowed_hosts: Vec<String>,
+
+    /// Hosts permitted for transitive Git dependencies. Empty means
+    /// any non-denied host is allowed.
+    #[serde(default)]
+    pub allowed_transitive_hosts: Vec<String>,
+
+    /// Whether transitive dependencies may use configured Git
+    /// credential helpers and ssh-agent. Defaults to `false`.
+    #[serde(default)]
+    pub allow_transitive_credentials: bool,
 }
 
 /// Returns the default maximum advertised-ref count.
@@ -58,6 +78,16 @@ fn default_transitive_schemes() -> Vec<String> {
     vec!["https".into()]
 }
 
+/// Returns the default denied-host list.
+fn default_denied_hosts() -> Vec<String> {
+    vec![
+        "localhost".into(),
+        "127.0.0.1".into(),
+        "::1".into(),
+        "0.0.0.0".into(),
+    ]
+}
+
 impl Default for ModulesConfig {
     fn default() -> Self {
         Self {
@@ -68,6 +98,10 @@ impl Default for ModulesConfig {
             allowed_schemes: default_top_level_schemes(),
             allowed_transitive_schemes: default_transitive_schemes(),
             max_advertised_refs: default_max_refs(),
+            denied_hosts: default_denied_hosts(),
+            allowed_hosts: Vec::new(),
+            allowed_transitive_hosts: Vec::new(),
+            allow_transitive_credentials: false,
         }
     }
 }
@@ -82,6 +116,30 @@ impl ModulesConfig {
             &self.allowed_schemes
         };
         allowed.iter().any(|s| s.eq_ignore_ascii_case(scheme))
+    }
+
+    /// Returns `true` if the given host is permitted for a dependency
+    /// at this level of the tree.
+    pub fn host_allowed(&self, host: &str, is_transitive: bool) -> bool {
+        if self
+            .denied_hosts
+            .iter()
+            .any(|h| h.eq_ignore_ascii_case(host))
+        {
+            return false;
+        }
+        let allowed = if is_transitive {
+            &self.allowed_transitive_hosts
+        } else {
+            &self.allowed_hosts
+        };
+        allowed.is_empty() || allowed.iter().any(|h| h.eq_ignore_ascii_case(host))
+    }
+
+    /// Returns `true` if Git credential helpers and ssh-agent may be
+    /// used for a dependency at this level of the tree.
+    pub fn credentials_allowed(&self, is_transitive: bool) -> bool {
+        !is_transitive || self.allow_transitive_credentials
     }
 }
 
@@ -185,5 +243,48 @@ mod tests {
     fn rejects_invalid_size_string() {
         let err = toml::from_str::<ModulesConfig>(r#"large_file_warning = "abc""#).unwrap_err();
         assert!(err.to_string().contains("abc"), "wrong message: {err}");
+    }
+
+    #[test]
+    fn default_policy_denies_localhost_hosts() {
+        let cfg = ModulesConfig::default();
+        assert!(!cfg.host_allowed("localhost", false));
+        assert!(!cfg.host_allowed("127.0.0.1", true));
+        assert!(!cfg.host_allowed("::1", true));
+        assert!(!cfg.host_allowed("0.0.0.0", false));
+    }
+
+    #[test]
+    fn default_policy_allows_public_hosts() {
+        let cfg = ModulesConfig::default();
+        assert!(cfg.host_allowed("github.com", false));
+        assert!(cfg.host_allowed("github.com", true));
+    }
+
+    #[test]
+    fn allowlist_limits_transitive_hosts() {
+        let cfg = ModulesConfig {
+            allowed_transitive_hosts: vec!["github.com".into()],
+            ..ModulesConfig::default()
+        };
+        assert!(cfg.host_allowed("github.com", true));
+        assert!(!cfg.host_allowed("gitlab.com", true));
+        assert!(cfg.host_allowed("gitlab.com", false));
+    }
+
+    #[test]
+    fn transitive_credentials_disabled_by_default() {
+        let cfg = ModulesConfig::default();
+        assert!(!cfg.credentials_allowed(true));
+        assert!(cfg.credentials_allowed(false));
+    }
+
+    #[test]
+    fn transitive_credentials_enabled_when_configured() {
+        let cfg = ModulesConfig {
+            allow_transitive_credentials: true,
+            ..ModulesConfig::default()
+        };
+        assert!(cfg.credentials_allowed(true));
     }
 }

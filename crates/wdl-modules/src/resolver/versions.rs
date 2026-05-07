@@ -35,8 +35,9 @@ pub type RemoteRefs = HashMap<String, GitCommit>;
 pub fn list_remote_refs(
     url: &Url,
     max_refs: usize,
+    mode: crate::resolver::git::CredentialMode,
 ) -> Result<RemoteRefs, crate::resolver::git::GitError> {
-    let advertised = crate::resolver::git::list_advertised_refs(url, max_refs)?;
+    let advertised = crate::resolver::git::list_advertised_refs(url, max_refs, mode)?;
     let mut refs = HashMap::new();
     for (name, oid) in advertised {
         let Some(stripped) = name.strip_prefix(REF_TAG_PREFIX) else {
@@ -63,8 +64,9 @@ pub fn list_remote_refs(
 pub fn list_remote_branches(
     url: &Url,
     max_refs: usize,
+    mode: crate::resolver::git::CredentialMode,
 ) -> Result<RemoteRefs, crate::resolver::git::GitError> {
-    let advertised = crate::resolver::git::list_advertised_refs(url, max_refs)?;
+    let advertised = crate::resolver::git::list_advertised_refs(url, max_refs, mode)?;
     let mut refs = HashMap::new();
     for (name, oid) in advertised {
         let Some(stripped) = name.strip_prefix(REF_HEAD_PREFIX) else {
