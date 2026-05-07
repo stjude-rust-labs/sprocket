@@ -135,13 +135,19 @@ impl ModulesConfig {
     }
 
     /// Returns `true` if the given host is permitted for a dependency
-    /// at this level of the tree.
+    /// at this level of the tree. Parses the host as an IP address
+    /// when possible and denies loopback, private, link-local,
+    /// unique-local, multicast, unspecified, and metadata-service
+    /// ranges by default.
     pub fn host_allowed(&self, host: &str, is_transitive: bool) -> bool {
         if self
             .denied_hosts
             .iter()
             .any(|h| h.eq_ignore_ascii_case(host))
         {
+            return false;
+        }
+        if is_non_public_ip(host) {
             return false;
         }
         let allowed = if is_transitive {
@@ -156,6 +162,35 @@ impl ModulesConfig {
     /// used for a dependency at this level of the tree.
     pub fn credentials_allowed(&self, is_transitive: bool) -> bool {
         !is_transitive || self.allow_transitive_credentials
+    }
+}
+
+/// Returns `true` if `host` parses as a non-public IP address
+/// (loopback, private RFC1918, link-local, unique-local, multicast,
+/// unspecified, or the AWS/cloud metadata service at
+/// `169.254.169.254`).
+fn is_non_public_ip(host: &str) -> bool {
+    use std::net::IpAddr;
+    let Ok(ip) = host.parse::<IpAddr>() else {
+        return false;
+    };
+    match ip {
+        IpAddr::V4(v4) => {
+            v4.is_loopback()
+                || v4.is_private()
+                || v4.is_link_local()
+                || v4.is_multicast()
+                || v4.is_unspecified()
+                || v4.is_broadcast()
+                || v4.octets()[0] == 100 && (v4.octets()[1] & 0xC0) == 64
+        }
+        IpAddr::V6(v6) => {
+            v6.is_loopback()
+                || v6.is_multicast()
+                || v6.is_unspecified()
+                || (v6.segments()[0] & 0xFE00) == 0xFC00
+                || (v6.segments()[0] & 0xFFC0) == 0xFE80
+        }
     }
 }
 
@@ -268,6 +303,18 @@ mod tests {
         assert!(!cfg.host_allowed("127.0.0.1", true));
         assert!(!cfg.host_allowed("::1", true));
         assert!(!cfg.host_allowed("0.0.0.0", false));
+    }
+
+    #[test]
+    fn default_policy_denies_private_and_metadata_ips() {
+        let cfg = ModulesConfig::default();
+        assert!(!cfg.host_allowed("169.254.169.254", false));
+        assert!(!cfg.host_allowed("10.0.0.1", false));
+        assert!(!cfg.host_allowed("192.168.1.1", true));
+        assert!(!cfg.host_allowed("172.16.0.1", false));
+        assert!(!cfg.host_allowed("::1", false));
+        assert!(!cfg.host_allowed("fe80::1", true));
+        assert!(!cfg.host_allowed("fc00::1", false));
     }
 
     #[test]

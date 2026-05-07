@@ -475,15 +475,33 @@ impl GitResolver {
                 ..
             } => {
                 let path_prefix = path.as_ref().map(GitModulePath::as_str).map(str::to_string);
-                let (selected_version, commit) = self
-                    .resolve_git_selector(
-                        name,
-                        url,
-                        selector,
-                        path_prefix.as_deref(),
-                        credential_mode,
-                    )
-                    .await?;
+
+                // If the lockfile has an entry for this dep, use the
+                // locked commit directly instead of re-resolving
+                // against the remote. This prevents mutable selectors
+                // (tags/branches) from fetching newer commits that
+                // would fail the checksum comparison.
+                let (selected_version, commit) =
+                    if let Some(locked_commit) = self.lockfile.dependencies.get(name).and_then(
+                        |entry| {
+                            if let ResolvedSource::Git { commit, .. } = &entry.source {
+                                Some(commit.clone())
+                            } else {
+                                None
+                            }
+                        },
+                    ) {
+                        (None, locked_commit)
+                    } else {
+                        self.resolve_git_selector(
+                            name,
+                            url,
+                            selector,
+                            path_prefix.as_deref(),
+                            credential_mode,
+                        )
+                        .await?
+                    };
 
                 let key = CacheKey::from_url(url, &commit);
                 let leaf = key.absolute_path(&self.cache_root);
@@ -551,9 +569,11 @@ fn exclude_set(patterns: &[crate::RelativePath]) -> Result<globset::GlobSet, Res
     Ok(builder.build().unwrap())
 }
 
-/// Recursively walks every file under `root`, calling `visit` with the
-/// file's path and size. Symlinks are followed; the symlink-escape
-/// guard is enforced upstream by [`crate::validate_tree`].
+/// Recursively walks every regular file under `root`, calling `visit`
+/// with each file's path and size. Uses `symlink_metadata` so symlinks
+/// are not followed (symlink containment is validated separately by
+/// `hash_directory`). Skips `.git` directories and `.sparse.json`
+/// resolver metadata.
 fn walk_files(
     root: &Path,
     visit: &mut dyn FnMut(&Path, u64) -> Result<(), ResolverError>,
@@ -567,8 +587,12 @@ fn walk_files(
             path: root.to_path_buf(),
             source,
         })?;
+        let name = entry.file_name();
+        if name == ".git" || name == ".sparse.json" {
+            continue;
+        }
         let path = entry.path();
-        let meta = entry.metadata().map_err(|source| ResolverError::Io {
+        let meta = std::fs::symlink_metadata(&path).map_err(|source| ResolverError::Io {
             path: path.clone(),
             source,
         })?;
@@ -658,7 +682,6 @@ fn check_materialized_tree_limits(
             .max_materialized_bytes
             .is_some_and(|limit| bytes > limit)
     {
-        crate::resolver::cache::evict(module_root).ok();
         return Err(ResolverError::MaterializedTreeLimitExceeded {
             dep: name.clone(),
             files,
@@ -798,8 +821,27 @@ impl Resolver for GitResolver {
                 path,
                 ..
             } => {
-                // Tag, branch, and commit selectors don't enumerate versions;
-                // the caller is asking for one specific revision.
+                // discover_versions is always a top-level CLI operation
+                let is_transitive = false;
+                if !self.config.scheme_allowed(url.scheme(), is_transitive) {
+                    return Err(ResolverError::GitUrlPolicyViolation {
+                        dep: DependencyName::try_from("_discovery".to_string())
+                            .unwrap_or_else(|_| unreachable!()),
+                        url: url.to_string(),
+                        scheme: url.scheme().to_string(),
+                    });
+                }
+                if let Some(host) = url.host_str()
+                    && !self.config.host_allowed(host, is_transitive)
+                {
+                    return Err(ResolverError::GitHostPolicyViolation {
+                        dep: DependencyName::try_from("_discovery".to_string())
+                            .unwrap_or_else(|_| unreachable!()),
+                        url: url.to_string(),
+                        host: host.to_string(),
+                    });
+                }
+
                 let GitSelector::Version(requirement) = selector else {
                     return Ok(Vec::new());
                 };
@@ -807,11 +849,12 @@ impl Resolver for GitResolver {
                 let path_prefix = path.as_ref().map(GitModulePath::as_str).map(str::to_string);
                 let requirement = requirement.clone();
                 let max_refs = self.config.max_advertised_refs;
+                let credential_mode = self.credential_mode(is_transitive);
                 tokio::task::spawn_blocking(move || -> Result<Vec<Version>, ResolverError> {
                     let refs = crate::resolver::versions::list_remote_refs(
                         &url,
                         max_refs,
-                        CredentialMode::Enabled,
+                        credential_mode,
                     )?;
                     Ok(crate::resolver::versions::filter_matching(
                         &refs,
@@ -1522,6 +1565,45 @@ mod tests {
             matches!(err, ResolverError::MaterializedTreeLimitExceeded { .. }),
             "expected `MaterializedTreeLimitExceeded`, got: {err}"
         );
+    }
+
+    #[tokio::test]
+    async fn tree_limit_does_not_delete_local_path_dep() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("one.wdl"), b"workflow one {}").unwrap();
+        fs::write(dep_dir.join("two.wdl"), b"workflow two {}").unwrap();
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let r = GitResolver::builder()
+            .cache_root(cache.path())
+            .trust_path(cache.path().join("trust.toml"))
+            .trust(TrustStore::default())
+            .lockfile(Lockfile::default())
+            .config(ModulesConfig {
+                max_materialized_files: Some(1),
+                ..ModulesConfig::default()
+            })
+            .build();
+        let err = r.resolve_tree(&consumer).await.unwrap_err();
+        assert!(matches!(
+            err,
+            ResolverError::MaterializedTreeLimitExceeded { .. }
+        ));
+        assert!(
+            dep_dir.exists(),
+            "local-path dep directory must survive the limit error"
+        );
+        assert!(dep_dir.join("one.wdl").exists());
+        assert!(dep_dir.join("two.wdl").exists());
     }
 
     #[test]

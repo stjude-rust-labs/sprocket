@@ -269,9 +269,9 @@ fn satisfies(entry: &DependencyEntry, source: &DependencySource) -> bool {
                 GitSelector::Tag(_) | GitSelector::Branch(_) => false,
             }
         }
-        (DependencySource::LocalPath { path, .. }, ResolvedSource::Path { path: locked }) => {
-            path == locked
-        }
+        // Local-path content is mutable; always re-resolve to pick
+        // up changed files, dependencies, or signatures.
+        (DependencySource::LocalPath { .. }, ResolvedSource::Path { .. }) => false,
         _ => false,
     }
 }

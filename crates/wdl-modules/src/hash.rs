@@ -276,6 +276,12 @@ pub fn hash_directory(root: impl AsRef<Path>) -> Result<ContentHash, HashError> 
                 source,
             })?;
             if file_type.is_dir() {
+                // SAFETY: `path` was produced by `read_dir`, so
+                // `file_name()` is always `Some`.
+                let name = entry.file_name();
+                if name == ".git" {
+                    continue;
+                }
                 stack.push(path);
                 continue;
             }
@@ -288,7 +294,10 @@ pub fn hash_directory(root: impl AsRef<Path>) -> Result<ContentHash, HashError> 
                 .to_str()
                 .ok_or(RelativePathError::NonUtf8)?
                 .replace('\\', "/");
-            if rel == crate::SIGNATURE_FILENAME || rel == crate::LOCKFILE_FILENAME {
+            if rel == crate::SIGNATURE_FILENAME
+                || rel == crate::LOCKFILE_FILENAME
+                || rel == ".sparse.json"
+            {
                 continue;
             }
             hasher.try_add(rel)?;
@@ -484,5 +493,29 @@ mod tests {
         h_nfd.try_add("cafe\u{0301}.wdl").unwrap();
 
         assert_eq!(h_nfc.finalize().unwrap(), h_nfd.finalize().unwrap());
+    }
+
+    #[test]
+    fn hash_stable_despite_dot_git_and_sparse_json() {
+        let dir = tempdir().unwrap();
+        fs::write(
+            dir.path().join(crate::MANIFEST_FILENAME),
+            br#"{"name":"x","version":"1.0.0","license":"MIT"}"#,
+        )
+        .unwrap();
+        fs::write(dir.path().join("index.wdl"), b"workflow w {}").unwrap();
+
+        let hash1 = hash_directory(dir.path()).unwrap();
+
+        fs::create_dir(dir.path().join(".git")).unwrap();
+        fs::write(dir.path().join(".git").join("HEAD"), b"ref: refs/heads/main").unwrap();
+        fs::write(dir.path().join(".sparse.json"), b"[]").unwrap();
+
+        let hash2 = hash_directory(dir.path()).unwrap();
+
+        assert_eq!(
+            hash1, hash2,
+            "`.git` and `.sparse.json` must not affect the content hash"
+        );
     }
 }

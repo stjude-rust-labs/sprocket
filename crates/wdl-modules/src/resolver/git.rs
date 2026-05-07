@@ -144,7 +144,12 @@ where
         source,
     })?;
 
-    let fetch_opts = default_fetch_options(mode);
+    let mut fetch_opts = default_fetch_options(mode);
+    // libgit2 does not support shallow fetch for local repos, so
+    // only request depth=1 for network-backed URLs.
+    if url.scheme() != "file" {
+        fetch_opts.depth(1);
+    }
 
     // Skip the default checkout; we'll do a path-filtered checkout below.
     let mut empty_checkout = git2::build::CheckoutBuilder::new();
