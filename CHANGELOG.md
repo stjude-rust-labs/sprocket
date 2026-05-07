@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Add `wdl-modules` resolver layer behind the `resolver` feature gate,
+  covering the `Resolver` trait, `GitResolver`, sparse-checkout caching,
+  version selection, lockfile generation, TOFU trust, and module
+  materialization. Wire `[modules]` config section into `sprocket.toml`
+  ([#838](https://github.com/stjude-rust-labs/sprocket/pull/838)).
 * Initial WDL 1.4 support in `wdl-grammar` and `wdl-ast`, including the
   reserved `from` keyword and the three import forms from
   [`openwdl/wdl#765`](https://github.com/openwdl/wdl/pull/765). WDL 1.4
