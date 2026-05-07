@@ -150,3 +150,14 @@ report_mode = "full"
 [common.wdl]
 fallback_version = "none"
 
+[modules]
+large_file_warning = "1.0 MiB"
+require_signed = false
+trust_mode = "auto"
+allowed_schemes = [
+    "https",
+    "ssh",
+]
+allowed_transitive_schemes = ["https"]
+max_advertised_refs = 100000
+
