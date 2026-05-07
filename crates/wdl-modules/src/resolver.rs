@@ -24,6 +24,8 @@ use futures::future::BoxFuture;
 use futures::future::FutureExt;
 use semver::Version;
 
+use crate::resolver::cache::CacheKey;
+
 use crate::DependencyName;
 use crate::DependencySource;
 use crate::GitModulePath;
@@ -34,7 +36,6 @@ use crate::Lockfile;
 use crate::ModulePath;
 use crate::ResolvedSource;
 use crate::SymbolicPath;
-pub use crate::resolver::cache::CacheKey;
 pub use crate::resolver::config::LargeFileWarning;
 pub use crate::resolver::config::LargeFileWarningError;
 pub use crate::resolver::config::ModulesConfig;
@@ -42,7 +43,6 @@ pub use crate::resolver::config::TrustMode;
 pub use crate::resolver::error::GitRefKind;
 pub use crate::resolver::error::MissingFileKind;
 pub use crate::resolver::error::ResolverError;
-pub use crate::resolver::git::GitError;
 pub use crate::resolver::lock::DependencyAddition;
 pub use crate::resolver::lock::DependencyUpdate;
 pub use crate::resolver::lock::LockfileDiff;
@@ -654,6 +654,7 @@ fn check_materialized_tree_limits(
             .max_materialized_bytes
             .is_some_and(|limit| bytes > limit)
     {
+        crate::resolver::cache::evict(module_root).ok();
         return Err(ResolverError::MaterializedTreeLimitExceeded {
             dep: name.clone(),
             files,
