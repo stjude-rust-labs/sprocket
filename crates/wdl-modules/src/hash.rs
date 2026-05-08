@@ -576,7 +576,6 @@ mod tests {
         );
     }
 
-    #[cfg(unix)]
     fn symlink_file(target: &std::path::Path, link: &std::path::Path) {
         #[cfg(unix)]
         std::os::unix::fs::symlink(target, link).unwrap();

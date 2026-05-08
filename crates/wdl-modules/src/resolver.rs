@@ -247,9 +247,14 @@ impl GitResolver {
 
             let VerifiedModule { checksum, signer } = self
                 .verify(name, module_root.module_root().as_ref())
-                .inspect_err(|_| {
+                .inspect_err(|e| {
                     if let MaterializedRoot::Cached { cache_leaf, .. } = &module_root {
-                        crate::resolver::cache::evict(cache_leaf).ok();
+                        tracing::warn!(
+                            dep = %name,
+                            cache_leaf = %cache_leaf.display(),
+                            error = %e,
+                            "verification failed; run `sprocket module clean` to remove the cached module",
+                        );
                     }
                 })?;
             Ok(ResolvedDependency {
