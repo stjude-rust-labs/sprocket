@@ -35,6 +35,11 @@ pub enum HashError {
     #[error("symbolic link `{0}` resolves outside the module root")]
     SymlinkEscapesRoot(String),
 
+    /// A symbolic link target resolves to non-module content (e.g.,
+    /// `.git` or `.sparse.json`).
+    #[error("symbolic link `{0}` targets non-module content")]
+    SymlinkTargetsMetadata(String),
+
     /// A new path collides under Unicode Normalization Form C (NFC) with a
     /// path that was already recorded. The spec requires the module's set
     /// of relative paths to be unique under NFC.
@@ -256,6 +261,15 @@ impl Hasher {
 
 /// Computes the content hash of a directory by walking it (excluding the
 /// spec-mandated exclusions `module.sig` and `module-lock.json`).
+/// Directory and file names that are not module content and should
+/// be excluded from hashing, limit checks, and content walks. Includes
+/// Git infrastructure (`.git`) and resolver cache metadata
+/// (`.sparse.json`).
+pub(crate) const NON_MODULE_CONTENT: &[&str] = &[".git", ".sparse.json"];
+
+/// Walks `root` and computes the deterministic content hash of the
+/// module directory, skipping non-module content and spec-defined
+/// exclusions.
 pub fn hash_directory(root: impl AsRef<Path>) -> Result<ContentHash, HashError> {
     let root = root.as_ref();
     let mut hasher = Hasher::new(root.to_path_buf());
@@ -270,18 +284,59 @@ pub fn hash_directory(root: impl AsRef<Path>) -> Result<ContentHash, HashError> 
                 path: dir.clone(),
                 source,
             })?;
+            let name = entry.file_name();
+            if NON_MODULE_CONTENT.iter().any(|s| *s == name) {
+                continue;
+            }
             let path = entry.path();
-            let file_type = entry.file_type().map_err(|source| HashError::Io {
+            let meta = std::fs::symlink_metadata(&path).map_err(|source| HashError::Io {
                 path: path.clone(),
                 source,
             })?;
-            if file_type.is_dir() {
-                // SAFETY: `path` was produced by `read_dir`, so
-                // `file_name()` is always `Some`.
-                let name = entry.file_name();
-                if name == ".git" {
+            if meta.file_type().is_symlink() {
+                let target = std::fs::canonicalize(&path).map_err(|source| HashError::Io {
+                    path: path.clone(),
+                    source,
+                })?;
+                let canonical_root =
+                    std::fs::canonicalize(root).map_err(|source| HashError::Io {
+                        path: root.to_path_buf(),
+                        source,
+                    })?;
+                if !target.starts_with(&canonical_root) {
+                    return Err(HashError::SymlinkEscapesRoot(
+                        path.strip_prefix(root)
+                            .unwrap_or(&path)
+                            .display()
+                            .to_string(),
+                    ));
+                }
+                // Reject symlinks targeting resolver metadata.
+                if let Ok(rel) = target.strip_prefix(&canonical_root) {
+                    let first_component = rel.components().next();
+                    if let Some(c) = first_component {
+                        let name = c.as_os_str().to_str().unwrap_or("");
+                        if NON_MODULE_CONTENT.contains(&name) {
+                            return Err(HashError::SymlinkTargetsMetadata(
+                                path.strip_prefix(root)
+                                    .unwrap_or(&path)
+                                    .display()
+                                    .to_string(),
+                            ));
+                        }
+                    }
+                }
+                // Symlink resolves within root and not to metadata;
+                // follow it for type classification.
+                let target_meta = std::fs::metadata(&path).map_err(|source| HashError::Io {
+                    path: path.clone(),
+                    source,
+                })?;
+                if target_meta.is_dir() {
+                    stack.push(path);
                     continue;
                 }
+            } else if meta.is_dir() {
                 stack.push(path);
                 continue;
             }
@@ -294,10 +349,8 @@ pub fn hash_directory(root: impl AsRef<Path>) -> Result<ContentHash, HashError> 
                 .to_str()
                 .ok_or(RelativePathError::NonUtf8)?
                 .replace('\\', "/");
-            if rel == crate::SIGNATURE_FILENAME
-                || rel == crate::LOCKFILE_FILENAME
-                || rel == ".sparse.json"
-            {
+            // Spec-defined hash exclusions (present in tree but not hashed).
+            if rel == crate::SIGNATURE_FILENAME || rel == crate::LOCKFILE_FILENAME {
                 continue;
             }
             hasher.try_add(rel)?;
@@ -521,5 +574,47 @@ mod tests {
             hash1, hash2,
             "`.git` and `.sparse.json` must not affect the content hash"
         );
+    }
+
+    #[cfg(unix)]
+    fn symlink_file(target: &std::path::Path, link: &std::path::Path) {
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(target, link).unwrap();
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_file(target, link).unwrap();
+    }
+
+    #[test]
+    fn symlink_to_dot_git_is_rejected() {
+        let dir = tempdir().unwrap();
+        fs::write(
+            dir.path().join(crate::MANIFEST_FILENAME),
+            br#"{"name":"x","version":"1.0.0","license":"MIT"}"#,
+        )
+        .unwrap();
+        fs::create_dir(dir.path().join(".git")).unwrap();
+        fs::write(dir.path().join(".git").join("config"), b"[core]").unwrap();
+        symlink_file(
+            &dir.path().join(".git").join("config"),
+            &dir.path().join("sneaky.wdl"),
+        );
+        let err = hash_directory(dir.path()).unwrap_err();
+        assert!(
+            matches!(err, HashError::SymlinkTargetsMetadata(_)),
+            "got: {err}"
+        );
+    }
+
+    #[test]
+    fn symlink_within_module_root_is_allowed() {
+        let dir = tempdir().unwrap();
+        fs::write(
+            dir.path().join(crate::MANIFEST_FILENAME),
+            br#"{"name":"x","version":"1.0.0","license":"MIT"}"#,
+        )
+        .unwrap();
+        fs::write(dir.path().join("real.wdl"), b"workflow w {}").unwrap();
+        symlink_file(&dir.path().join("real.wdl"), &dir.path().join("alias.wdl"));
+        hash_directory(dir.path()).unwrap();
     }
 }

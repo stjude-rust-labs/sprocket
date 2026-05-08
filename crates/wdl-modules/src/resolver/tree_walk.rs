@@ -6,12 +6,8 @@
 
 use std::path::Path;
 
+use crate::hash::NON_MODULE_CONTENT;
 use crate::resolver::error::ResolverError;
-
-/// Directory and file names skipped during tree walks. These are
-/// resolver/cache metadata that should never be treated as module
-/// content.
-const SKIP_LIST: &[&str] = &[".git", ".sparse.json"];
 
 /// Statistics collected during a tree walk.
 #[derive(Clone, Debug, Default)]
@@ -52,7 +48,7 @@ fn walk_recursive(
             source,
         })?;
         let name = entry.file_name();
-        if SKIP_LIST.iter().any(|s| *s == name) {
+        if NON_MODULE_CONTENT.iter().any(|s| *s == name) {
             continue;
         }
         let path = entry.path();
@@ -60,6 +56,40 @@ fn walk_recursive(
             path: path.clone(),
             source,
         })?;
+        if meta.file_type().is_symlink() {
+            let target = std::fs::canonicalize(&path).map_err(|source| ResolverError::Io {
+                path: path.clone(),
+                source,
+            })?;
+            let canonical_root =
+                std::fs::canonicalize(dir).map_err(|source| ResolverError::Io {
+                    path: dir.to_path_buf(),
+                    source,
+                })?;
+            if let Ok(rel) = target.strip_prefix(&canonical_root) {
+                let first = rel.components().next();
+                if let Some(c) = first {
+                    let name = c.as_os_str().to_str().unwrap_or("");
+                    if crate::hash::NON_MODULE_CONTENT.contains(&name) {
+                        return Err(ResolverError::Hash(
+                            crate::HashError::SymlinkTargetsMetadata(path.display().to_string()),
+                        ));
+                    }
+                }
+            }
+            let target_meta = std::fs::metadata(&path).map_err(|source| ResolverError::Io {
+                path: path.clone(),
+                source,
+            })?;
+            if target_meta.is_dir() {
+                walk_recursive(&path, visitor, stats)?;
+            } else if target_meta.is_file() {
+                stats.files += 1;
+                stats.bytes = stats.bytes.saturating_add(target_meta.len());
+                visitor(&path, target_meta.len())?;
+            }
+            continue;
+        }
         if meta.is_dir() {
             walk_recursive(&path, visitor, stats)?;
         } else if meta.is_file() {
