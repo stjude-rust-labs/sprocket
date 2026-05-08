@@ -50,7 +50,6 @@ pub use crate::resolver::error::GitRefKind;
 pub use crate::resolver::error::MissingFileKind;
 pub use crate::resolver::error::ResolverError;
 use crate::resolver::fetch::GitFetcher;
-use crate::resolver::git::CredentialMode;
 use crate::resolver::helpers::check_tag_manifest_match;
 use crate::resolver::helpers::exclude_set;
 use crate::resolver::helpers::is_transitive_local_disallowed;
@@ -246,9 +245,8 @@ impl GitResolver {
                 })?;
             chain.pop();
 
-            let VerifiedModule { checksum, signer } = self
-                .verifier()
-                .verify(name, module_root.module_root().as_ref())?;
+            let VerifiedModule { checksum, signer } =
+                self.verify(name, module_root.module_root().as_ref())?;
             Ok(ResolvedDependency {
                 source: resolved_source,
                 modules: BTreeMap::from([(
@@ -267,12 +265,35 @@ impl GitResolver {
 
     /// Returns a verifier that borrows this resolver's config, trust
     /// store, and lockfile.
-    fn verifier(&self) -> ModuleVerifier<'_> {
-        ModuleVerifier::builder()
+    fn verify(
+        &self,
+        name: &DependencyName,
+        module_root: &Path,
+    ) -> Result<VerifiedModule, ResolverError> {
+        let policy = self.policy();
+        let verifier = ModuleVerifier::builder()
             .config(&self.config)
+            .policy(&policy)
             .trust(&self.trust)
             .lockfile(&self.lockfile)
-            .build()
+            .build();
+        verifier.verify(name, module_root)
+    }
+
+    /// Verifies a dependency's content hash against the lockfile.
+    fn verify_against_lockfile(
+        &self,
+        name: &DependencyName,
+        checksum: &crate::ContentHash,
+    ) -> Result<(), ResolverError> {
+        let policy = self.policy();
+        let verifier = ModuleVerifier::builder()
+            .config(&self.config)
+            .policy(&policy)
+            .trust(&self.trust)
+            .lockfile(&self.lockfile)
+            .build();
+        verifier.verify_against_lockfile(name, checksum)
     }
 
     /// Resolves a [`GitSelector`] against the remote at `url` to a
@@ -503,9 +524,8 @@ impl Resolver for GitResolver {
             .await?;
 
         let root_path = module_root.module_root().as_ref();
-        let verifier = self.verifier();
-        let verified = verifier.verify(name, root_path)?;
-        verifier.verify_against_lockfile(name, &verified.checksum)?;
+        let verified = self.verify(name, root_path)?;
+        self.verify_against_lockfile(name, &verified.checksum)?;
 
         let (rel, kind) = match path.sub_path() {
             None => (

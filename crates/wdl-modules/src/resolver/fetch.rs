@@ -1,13 +1,11 @@
 //! Centralized Git remote access with policy enforcement.
 
 use std::path::Path;
-use std::path::PathBuf;
 
 use url::Url;
 
 use crate::DependencyName;
 use crate::resolver::error::ResolverError;
-use crate::resolver::git::CredentialMode;
 use crate::resolver::policy::ResolverPolicy;
 use crate::resolver::scope::DependencyScope;
 use crate::resolver::versions::RemoteRefs;
@@ -24,11 +22,6 @@ impl GitFetcher {
     /// Creates a fetcher from a resolver policy.
     pub fn new(policy: ResolverPolicy) -> Self {
         Self { policy }
-    }
-
-    /// Returns the policy.
-    pub fn policy(&self) -> &ResolverPolicy {
-        &self.policy
     }
 
     /// Lists tags from the remote, enforcing URL and credential policy.

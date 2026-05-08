@@ -11,6 +11,7 @@ use crate::VerifyingKey;
 use crate::resolver::config::LargeFileWarning;
 use crate::resolver::config::ModulesConfig;
 use crate::resolver::error::ResolverError;
+use crate::resolver::policy::ResolverPolicy;
 use crate::resolver::trust::TrustStore;
 
 /// Artifacts produced by [`ModuleVerifier::verify`].
@@ -27,6 +28,8 @@ pub(crate) struct VerifiedModule {
 pub(crate) struct ModuleVerifier<'a> {
     /// The resolved modules configuration.
     config: &'a ModulesConfig,
+    /// The resolved policy for resource limits.
+    policy: &'a ResolverPolicy,
     /// The trust store used for key lookups.
     trust: &'a TrustStore,
     /// The lockfile used for checksum verification.
@@ -40,7 +43,7 @@ impl ModuleVerifier<'_> {
         name: &DependencyName,
         module_root: &Path,
     ) -> Result<VerifiedModule, ResolverError> {
-        check_materialized_tree_limits(self.config, name, module_root)?;
+        check_materialized_tree_limits(self.policy, name, module_root)?;
         let checksum = crate::hash::hash_directory(module_root)?;
         self.warn_on_large_files(name, module_root)?;
         let signer = self.read_and_verify_signature(name, module_root, &checksum)?;
@@ -148,18 +151,18 @@ impl ModuleVerifier<'_> {
 /// Walks `module_root` and rejects the tree if it exceeds configured
 /// file-count or byte-size limits.
 fn check_materialized_tree_limits(
-    config: &ModulesConfig,
+    policy: &ResolverPolicy,
     name: &DependencyName,
     module_root: &Path,
 ) -> Result<(), ResolverError> {
-    if config.max_materialized_files.is_none() && config.max_materialized_bytes.is_none() {
+    if policy.max_materialized_files.is_none() && policy.max_materialized_bytes.is_none() {
         return Ok(());
     }
     let stats = crate::resolver::tree_walk::walk_module_tree(module_root, &mut |_, _| Ok(()))?;
-    if config
+    if policy
         .max_materialized_files
         .is_some_and(|limit| stats.files > limit)
-        || config
+        || policy
             .max_materialized_bytes
             .is_some_and(|limit| stats.bytes > limit)
     {
