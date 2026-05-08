@@ -245,8 +245,13 @@ impl GitResolver {
                 })?;
             chain.pop();
 
-            let VerifiedModule { checksum, signer } =
-                self.verify(name, module_root.module_root().as_ref())?;
+            let VerifiedModule { checksum, signer } = self
+                .verify(name, module_root.module_root().as_ref())
+                .inspect_err(|_| {
+                    if let MaterializedRoot::Cached { cache_leaf, .. } = &module_root {
+                        crate::resolver::cache::evict(cache_leaf).ok();
+                    }
+                })?;
             Ok(ResolvedDependency {
                 source: resolved_source,
                 modules: BTreeMap::from([(

@@ -143,9 +143,7 @@ impl ResolverPolicy {
             // is non-public. This prevents DNS-based SSRF where a
             // hostname resolves to an internal IP.
             if host.parse::<std::net::IpAddr>().is_err()
-                && let Ok(addrs) = std::net::ToSocketAddrs::to_socket_addrs(
-                    &(host, 443),
-                )
+                && let Ok(addrs) = std::net::ToSocketAddrs::to_socket_addrs(&(host, 443))
             {
                 for addr in addrs {
                     let ip = addr.ip().to_string();
