@@ -10,6 +10,7 @@ pub mod config;
 pub mod error;
 mod git;
 pub mod lock;
+pub(crate) mod module_root;
 pub(crate) mod policy;
 pub(crate) mod scope;
 pub mod trust;
@@ -36,6 +37,8 @@ use crate::ModulePath;
 use crate::ResolvedSource;
 use crate::SymbolicPath;
 use crate::resolver::cache::CacheKey;
+use crate::resolver::module_root::MaterializedRoot;
+use crate::resolver::module_root::ModuleRoot;
 use crate::resolver::policy::ResolverPolicy;
 use crate::resolver::scope::DependencyScope;
 use crate::resolver::scope::ResolutionMode;
@@ -235,7 +238,7 @@ impl GitResolver {
             chain.pop();
 
             let VerifiedModule { checksum, signer } =
-                self.verify_materialized_dependency(name, &module_root)?;
+                self.verify_materialized_dependency(name, module_root.module_root().as_ref())?;
             Ok(ResolvedDependency {
                 source: resolved_source,
                 modules: BTreeMap::from([(
@@ -469,14 +472,14 @@ impl GitResolver {
         source: &DependencySource,
         credential_mode: CredentialMode,
         mode: crate::resolver::scope::ResolutionMode,
-    ) -> Result<(ResolvedSource, Manifest, PathBuf), ResolverError> {
+    ) -> Result<(ResolvedSource, Manifest, MaterializedRoot), ResolverError> {
         match source {
             DependencySource::LocalPath { path, .. } => {
                 let manifest = read_manifest(path)?;
                 Ok((
                     ResolvedSource::Path { path: path.clone() },
                     manifest,
-                    path.clone(),
+                    MaterializedRoot::Local(ModuleRoot::new(path.clone())),
                 ))
             }
             DependencySource::Git {
@@ -540,11 +543,11 @@ impl GitResolver {
                 // work; it does not panic.
                 .unwrap()?;
 
-                let module_root = match path.as_ref() {
+                let module_path = match path.as_ref() {
                     Some(p) => leaf.join(p.as_path()),
-                    None => leaf,
+                    None => leaf.clone(),
                 };
-                let manifest = read_manifest(&module_root)?;
+                let manifest = read_manifest(&module_path)?;
                 check_tag_manifest_match(
                     path_prefix.as_deref(),
                     selected_version.as_ref(),
@@ -557,7 +560,10 @@ impl GitResolver {
                         path: path.clone(),
                     },
                     manifest,
-                    module_root,
+                    MaterializedRoot::Cached {
+                        module_root: ModuleRoot::new(module_path),
+                        cache_leaf: leaf,
+                    },
                 ))
             }
         }
@@ -741,7 +747,8 @@ impl Resolver for GitResolver {
             )
             .await?;
 
-        let verified = self.verify_materialized_dependency(name, &module_root)?;
+        let root_path = module_root.module_root().as_ref();
+        let verified = self.verify_materialized_dependency(name, root_path)?;
         self.verify_against_lockfile(name, &verified.checksum)?;
 
         let (rel, kind) = match path.sub_path() {
@@ -764,7 +771,7 @@ impl Resolver for GitResolver {
             });
         }
 
-        let abs = module_root.join(&rel);
+        let abs = root_path.join(&rel);
         if !abs.exists() {
             return Err(ResolverError::MissingFile {
                 dep: name.clone(),
@@ -773,12 +780,13 @@ impl Resolver for GitResolver {
             });
         }
 
-        let canonical_root = module_root
-            .canonicalize()
-            .map_err(|source| ResolverError::Io {
-                path: module_root.clone(),
-                source,
-            })?;
+        let canonical_root =
+            root_path
+                .canonicalize()
+                .map_err(|source| ResolverError::Io {
+                    path: root_path.to_path_buf(),
+                    source,
+                })?;
         let canonical_abs = abs.canonicalize().map_err(|source| ResolverError::Io {
             path: abs.clone(),
             source,
