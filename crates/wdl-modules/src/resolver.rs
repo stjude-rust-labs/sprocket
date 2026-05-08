@@ -626,6 +626,12 @@ mod tests {
     use super::*;
 
     /// Builds a `module.json` at `dir` with the given name, version, and
+    /// Converts a path to a JSON-safe string (forward slashes on all
+    /// platforms).
+    fn json_path(p: &Path) -> String {
+        p.display().to_string().replace('\\', "/")
+    }
+
     /// optional `dependencies` map (each value is the JSON-encoded
     /// dependency source).
     fn write_manifest(dir: &Path, name: &str, version: &str, deps: &[(&str, &str)]) {
@@ -701,7 +707,7 @@ mod tests {
         let dep_dir = workdir.path().join("dep");
 
         write_manifest(&dep_dir, "dep", "1.0.0", &[]);
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
 
         let bytes = fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap();
@@ -733,7 +739,7 @@ mod tests {
         fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -758,7 +764,7 @@ mod tests {
         fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -794,7 +800,7 @@ mod tests {
         fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -817,7 +823,7 @@ mod tests {
         fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -848,7 +854,7 @@ mod tests {
         fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let bytes = fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap();
         let consumer = Manifest::parse(&bytes).unwrap();
@@ -871,7 +877,7 @@ mod tests {
         fs::write(dep_dir.join("cut.wdl"), b"workflow cut {}").unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let bytes = fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap();
         let consumer = Manifest::parse(&bytes).unwrap();
@@ -916,7 +922,7 @@ mod tests {
         .unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -945,7 +951,7 @@ mod tests {
         fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -983,7 +989,7 @@ mod tests {
         fs::write(dep_dir.join("extra.wdl"), b"workflow extra {}").unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -1010,7 +1016,7 @@ mod tests {
         write_signature(&dep_dir, &signer);
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -1057,7 +1063,7 @@ mod tests {
         std::os::windows::fs::symlink_file(&target, &link).unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -1103,7 +1109,7 @@ mod tests {
         write_signature(&dep_dir, &signer);
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -1126,7 +1132,7 @@ mod tests {
         write_manifest(&dep_dir, "dep", "1.0.0", &[]);
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -1161,7 +1167,7 @@ mod tests {
         fs::write(dep_dir.join("extra.wdl"), b"workflow w {}").unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -1184,7 +1190,7 @@ mod tests {
         write_signature(&dep_dir, &signer);
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -1227,7 +1233,7 @@ mod tests {
         std::os::windows::fs::symlink_dir(&outside, &link).unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -1253,7 +1259,7 @@ mod tests {
         fs::write(dep_dir.join("two.wdl"), b"workflow two {}").unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -1285,7 +1291,7 @@ mod tests {
         fs::write(dep_dir.join("big.wdl"), vec![b'x'; 1024]).unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -1318,7 +1324,7 @@ mod tests {
         fs::write(dep_dir.join("two.wdl"), b"workflow two {}").unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -1356,7 +1362,7 @@ mod tests {
         fs::write(dep_dir.join("index.wdl"), b"workflow original {}").unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
-        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
@@ -1397,7 +1403,7 @@ mod tests {
         let dep_dir = workdir.path().join("self-loop");
 
         // The dep declares itself as one of its own dependencies.
-        let self_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        let self_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
         write_manifest(&dep_dir, "loop", "1.0.0", &[("loop", &self_src)]);
 
         let consumer_dir = workdir.path().join("consumer");
