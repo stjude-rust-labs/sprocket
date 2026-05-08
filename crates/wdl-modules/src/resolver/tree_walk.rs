@@ -35,7 +35,8 @@ pub(crate) fn walk_module_tree(
     Ok(stats)
 }
 
-/// Recursively walks `dir`, collecting stats and invoking `visitor` for each regular file.
+/// Recursively walks `dir`, collecting stats and invoking `visitor` for each
+/// regular file.
 fn walk_recursive(
     dir: &Path,
     visitor: &mut dyn FnMut(&Path, u64) -> Result<(), ResolverError>,

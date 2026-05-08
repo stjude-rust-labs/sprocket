@@ -72,7 +72,8 @@ impl ModuleVerifier<'_> {
         Ok(())
     }
 
-    /// Emits a tracing warning for any file exceeding the configured size threshold.
+    /// Emits a tracing warning for any file exceeding the configured size
+    /// threshold.
     fn warn_on_large_files(
         &self,
         name: &DependencyName,
@@ -96,7 +97,8 @@ impl ModuleVerifier<'_> {
         Ok(())
     }
 
-    /// Reads the signature file from `module_root` and verifies it against `checksum`.
+    /// Reads the signature file from `module_root` and verifies it against
+    /// `checksum`.
     fn read_and_verify_signature(
         &self,
         name: &DependencyName,
