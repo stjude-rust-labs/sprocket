@@ -59,8 +59,8 @@ impl GitFetcher {
         .map_err(ResolverError::from)
     }
 
-    /// Ensures a cache leaf is materialized, enforcing URL and
-    /// credential policy.
+    /// Ensures a cache leaf is materialized, enforcing URL, credential,
+    /// and tree-size policy.
     pub fn ensure_materialized(
         &self,
         dep: &DependencyName,
@@ -78,6 +78,8 @@ impl GitFetcher {
             commit,
             paths.iter().copied(),
             net.credential_mode,
+            self.policy.max_materialized_files,
+            self.policy.max_materialized_bytes,
         )?;
         Ok(())
     }

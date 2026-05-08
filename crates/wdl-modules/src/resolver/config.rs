@@ -7,8 +7,6 @@ use serde::Deserialize;
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::resolver::scope::DependencyScope;
-
 /// The `[modules]` configuration section.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
@@ -63,16 +61,15 @@ pub struct ModulesConfig {
     pub allow_transitive_credentials: bool,
 
     /// Maximum number of files allowed in a single materialized module
-    /// tree. `None` (the default) disables the limit. This is an
-    /// opt-in safety valve; set it in `sprocket.toml` if your
-    /// environment needs to bound resource consumption from untrusted
-    /// dependencies.
+    /// tree. `None` (the default) disables the limit. Checked against
+    /// the Git tree object after fetch but before sparse checkout; this
+    /// bounds materialized content, not network transfer.
     #[serde(default)]
     pub max_materialized_files: Option<usize>,
 
     /// Maximum total bytes of regular files allowed in a single
     /// materialized module tree. `None` (the default) disables the
-    /// limit. Like `max_materialized_files`, this is opt-in.
+    /// limit. Same enforcement point as `max_materialized_files`.
     #[serde(default)]
     pub max_materialized_bytes: Option<u64>,
 }
@@ -124,10 +121,14 @@ impl Default for ModulesConfig {
     }
 }
 
+#[cfg(test)]
+use crate::resolver::scope::DependencyScope;
+
+#[cfg(test)]
 impl ModulesConfig {
     /// Returns `true` if the given URL scheme is permitted for a
     /// dependency at this level of the tree.
-    pub fn scheme_allowed(&self, scheme: &str, scope: DependencyScope) -> bool {
+    fn scheme_allowed(&self, scheme: &str, scope: DependencyScope) -> bool {
         let allowed = if matches!(scope, DependencyScope::Transitive) {
             &self.allowed_transitive_schemes
         } else {
@@ -137,11 +138,8 @@ impl ModulesConfig {
     }
 
     /// Returns `true` if the given host is permitted for a dependency
-    /// at this level of the tree. Parses the host as an IP address
-    /// when possible and denies loopback, private, link-local,
-    /// unique-local, multicast, unspecified, and metadata-service
-    /// ranges by default.
-    pub fn host_allowed(&self, host: &str, scope: DependencyScope) -> bool {
+    /// at this level of the tree.
+    fn host_allowed(&self, host: &str, scope: DependencyScope) -> bool {
         if self
             .denied_hosts
             .iter()
@@ -162,7 +160,7 @@ impl ModulesConfig {
 
     /// Returns `true` if Git credential helpers and ssh-agent may be
     /// used for a dependency at this level of the tree.
-    pub fn credentials_allowed(&self, scope: DependencyScope) -> bool {
+    fn credentials_allowed(&self, scope: DependencyScope) -> bool {
         !matches!(scope, DependencyScope::Transitive) || self.allow_transitive_credentials
     }
 }

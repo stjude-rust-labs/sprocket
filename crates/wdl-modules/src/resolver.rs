@@ -63,6 +63,7 @@ pub use crate::resolver::lock::RelockStats;
 pub use crate::resolver::lock::partial_relock;
 use crate::resolver::module_root::MaterializedRoot;
 use crate::resolver::module_root::ModuleRoot;
+use crate::resolver::module_root::resolve_content_file;
 use crate::resolver::policy::ResolverPolicy;
 pub use crate::resolver::scope::DependencyScope;
 use crate::resolver::scope::ResolutionMode;
@@ -437,53 +438,17 @@ impl GitResolver {
                 path,
                 ..
             } => {
-                let path_prefix = path.as_ref().map(GitModulePath::as_str).map(str::to_string);
-
-                let (selected_version, commit) = match mode {
-                    ResolutionMode::Locked => {
-                        let locked_entry =
-                            self.lockfile.dependencies.get(name).ok_or_else(|| {
-                                ResolverError::NotInLockfile { dep: name.clone() }
-                            })?;
-                        let (locked_url, locked_commit, locked_path) = match &locked_entry.source {
-                            ResolvedSource::Git {
-                                git: lu,
-                                commit: lc,
-                                path: lp,
-                            } => (lu, lc, lp),
-                            _ => {
-                                return Err(ResolverError::NotInLockfile { dep: name.clone() });
-                            }
-                        };
-                        if url != locked_url || path != locked_path {
-                            return Err(ResolverError::LockfileSourceMismatch {
-                                dep: name.clone(),
-                            });
-                        }
-                        (None, locked_commit.clone())
-                    }
-                    ResolutionMode::Fresh => {
-                        self.resolve_git_selector(
-                            name,
-                            url,
-                            selector,
-                            path_prefix.as_deref(),
-                            scope,
-                        )
-                        .await?
-                    }
-                };
-
-                let key = CacheKey::from_url(url, &commit);
-                let leaf = key.absolute_path(&self.cache_root);
-                let sparse_path = path_prefix.clone().unwrap_or_else(|| ".".to_string());
+                let plan = self
+                    .plan_git_materialization(name, url, selector, path, scope, mode)
+                    .await?;
 
                 let fetcher = self.fetcher();
                 let dep_for_clone = name.clone();
                 let url_for_clone = url.clone();
-                let leaf_for_clone = leaf.clone();
-                let commit_for_clone = commit.clone();
-                tokio::task::spawn_blocking(move || {
+                let leaf_for_clone = plan.leaf.clone();
+                let commit_for_clone = plan.commit.clone();
+                let sparse_path = plan.sparse_path.clone();
+                let materialize_result = tokio::task::spawn_blocking(move || {
                     fetcher.ensure_materialized(
                         &dep_for_clone,
                         &url_for_clone,
@@ -494,35 +459,119 @@ impl GitResolver {
                     )
                 })
                 .await
-                // SAFETY: the closure performs only Git and filesystem
-                // work; it does not panic.
-                .unwrap()?;
+                .unwrap();
 
-                let module_path = match path.as_ref() {
-                    Some(p) => leaf.join(p.as_path()),
-                    None => leaf.clone(),
-                };
-                let manifest = read_manifest(&module_path)?;
+                if let Err(err) = materialize_result {
+                    if plan.leaf.starts_with(&self.cache_root)
+                        && plan.leaf.exists()
+                        && let Err(io_err) = std::fs::remove_dir_all(&plan.leaf)
+                    {
+                        tracing::warn!(
+                            path = %plan.leaf.display(),
+                            error = %io_err,
+                            "failed to clean up cache leaf after materialization failure",
+                        );
+                    }
+                    return Err(err);
+                }
+
+                let manifest = read_manifest(&plan.module_path)?;
                 check_tag_manifest_match(
-                    path_prefix.as_deref(),
-                    selected_version.as_ref(),
+                    plan.path_prefix.as_deref(),
+                    plan.selected_version.as_ref(),
                     &manifest.version,
                 )?;
                 Ok((
                     ResolvedSource::Git {
                         git: url.clone(),
-                        commit,
+                        commit: plan.commit,
                         path: path.clone(),
                     },
                     manifest,
                     MaterializedRoot::Cached {
-                        module_root: ModuleRoot::new(module_path),
-                        cache_leaf: leaf,
+                        module_root: ModuleRoot::new(plan.module_path),
+                        cache_leaf: plan.leaf,
                     },
                 ))
             }
         }
     }
+
+    /// Computes the materialization plan for a Git dependency: resolves
+    /// the commit (locked or fresh), derives cache paths, and validates
+    /// lockfile consistency when in locked mode.
+    async fn plan_git_materialization(
+        &self,
+        name: &DependencyName,
+        url: &url::Url,
+        selector: &GitSelector,
+        path: &Option<GitModulePath>,
+        scope: DependencyScope,
+        mode: ResolutionMode,
+    ) -> Result<GitMaterializationPlan, ResolverError> {
+        let path_prefix = path.as_ref().map(GitModulePath::as_str).map(str::to_string);
+
+        let (selected_version, commit) = match mode {
+            ResolutionMode::Locked => {
+                let locked_entry = self
+                    .lockfile
+                    .dependencies
+                    .get(name)
+                    .ok_or_else(|| ResolverError::NotInLockfile { dep: name.clone() })?;
+                let (locked_url, locked_commit, locked_path) = match &locked_entry.source {
+                    ResolvedSource::Git {
+                        git: lu,
+                        commit: lc,
+                        path: lp,
+                    } => (lu, lc, lp),
+                    _ => {
+                        return Err(ResolverError::NotInLockfile { dep: name.clone() });
+                    }
+                };
+                if url != locked_url || path != locked_path {
+                    return Err(ResolverError::LockfileSourceMismatch { dep: name.clone() });
+                }
+                (None, locked_commit.clone())
+            }
+            ResolutionMode::Fresh => {
+                self.resolve_git_selector(name, url, selector, path_prefix.as_deref(), scope)
+                    .await?
+            }
+        };
+
+        let key = CacheKey::from_url(url, &commit);
+        let leaf = key.absolute_path(&self.cache_root);
+        let sparse_path = path_prefix.clone().unwrap_or_else(|| ".".to_string());
+        let module_path = match path.as_ref() {
+            Some(p) => leaf.join(p.as_path()),
+            None => leaf.clone(),
+        };
+
+        Ok(GitMaterializationPlan {
+            selected_version,
+            commit,
+            path_prefix,
+            leaf,
+            sparse_path,
+            module_path,
+        })
+    }
+}
+
+/// Pre-computed materialization parameters for a Git dependency.
+struct GitMaterializationPlan {
+    /// The selected version from tag resolution, if any.
+    selected_version: Option<Version>,
+    /// The resolved commit SHA.
+    commit: crate::GitCommit,
+    /// The path prefix (from [`GitModulePath`]) for tag-version matching.
+    path_prefix: Option<String>,
+    /// The absolute path to the cache leaf directory.
+    leaf: PathBuf,
+    /// The sparse-checkout path (`path_prefix` or `"."`).
+    sparse_path: String,
+    /// The absolute path to the module root within the cache leaf.
+    module_path: PathBuf,
 }
 
 /// Compiles a manifest's `exclude` patterns into a [`globset::GlobSet`]
@@ -578,34 +627,22 @@ impl Resolver for GitResolver {
             });
         }
 
-        let abs = root_path.join(&rel);
-        if !abs.exists() {
-            return Err(ResolverError::MissingFile {
-                dep: name.clone(),
-                path: rel,
-                kind,
-            });
-        }
-
-        let canonical_root = root_path
-            .canonicalize()
-            .map_err(|source| ResolverError::Io {
-                path: root_path.to_path_buf(),
-                source,
+        let canonical =
+            resolve_content_file(module_root.module_root(), &rel, name).map_err(|e| match e {
+                ResolverError::Io { source, .. }
+                    if source.kind() == std::io::ErrorKind::NotFound =>
+                {
+                    ResolverError::MissingFile {
+                        dep: name.clone(),
+                        path: rel.clone(),
+                        kind,
+                    }
+                }
+                other => other,
             })?;
-        let canonical_abs = abs.canonicalize().map_err(|source| ResolverError::Io {
-            path: abs.clone(),
-            source,
-        })?;
-        if !canonical_abs.starts_with(&canonical_root) {
-            return Err(ResolverError::MaterializedSymlinkEscape {
-                dep: name.clone(),
-                path: abs,
-            });
-        }
 
         Ok(MaterializedFile {
-            path: canonical_abs,
+            path: canonical,
             source: resolved_source,
         })
     }
@@ -1541,5 +1578,60 @@ mod tests {
             panic!("expected `Cycle`, got: {err}");
         };
         assert_eq!(path.len(), 2, "self-loop should report a 2-element chain");
+    }
+
+    #[tokio::test]
+    async fn materialize_rejects_entrypoint_symlink_to_nested_metadata() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
+
+        // Replace the entrypoint with a symlink to nested metadata
+        // after locking.
+        fs::remove_file(dep_dir.join("index.wdl")).unwrap();
+        fs::create_dir_all(dep_dir.join("nested").join(".git")).unwrap();
+        fs::write(
+            dep_dir.join("nested").join(".git").join("config"),
+            b"private",
+        )
+        .unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(
+            dep_dir.join("nested").join(".git").join("config"),
+            dep_dir.join("index.wdl"),
+        )
+        .unwrap();
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_file(
+            dep_dir.join("nested").join(".git").join("config"),
+            dep_dir.join("index.wdl"),
+        )
+        .unwrap();
+
+        let r = resolver_with_lockfile(&cache, lockfile);
+        let err = r
+            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(
+                err,
+                ResolverError::Hash(crate::HashError::SymlinkTargetsMetadata(_))
+                    | ResolverError::MaterializedSymlinkEscape { .. }
+                    | ResolverError::ChecksumMismatch { .. }
+            ),
+            "symlink to nested metadata must be rejected, got: {err}"
+        );
     }
 }

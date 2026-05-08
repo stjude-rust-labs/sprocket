@@ -3,6 +3,10 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use crate::DependencyName;
+use crate::hash::NON_MODULE_CONTENT;
+use crate::resolver::error::ResolverError;
+
 /// A path guaranteed to contain only module content (no `.git`,
 /// `.sparse.json`, or other resolver metadata). Accepted by hashing,
 /// signing, tree validation, and materialization functions.
@@ -32,10 +36,6 @@ pub(crate) enum MaterializedRoot {
     Cached {
         /// The module content root inside the cache leaf.
         module_root: ModuleRoot,
-        // NOTE: `#[expect(dead_code)]` would error when eviction
-        // consumes this field; `#[allow]` is used because consumption
-        // depends on a later task in this refactor sequence.
-        #[allow(dead_code)]
         /// The resolver-owned cache leaf directory for this module.
         cache_leaf: PathBuf,
     },
@@ -48,5 +48,79 @@ impl MaterializedRoot {
             Self::Local(root) => root,
             Self::Cached { module_root, .. } => module_root,
         }
+    }
+}
+
+/// Resolves a relative content path under `root`, enforcing the same
+/// metadata exclusions and containment rules used by
+/// [`module_walk`](crate::module_walk). Returns the canonical absolute
+/// path on success.
+pub(crate) fn resolve_content_file(
+    root: &ModuleRoot,
+    rel: &Path,
+    dep: &DependencyName,
+) -> Result<PathBuf, ResolverError> {
+    if rel.components().any(|c| {
+        let name = c.as_os_str().to_str().unwrap_or("");
+        NON_MODULE_CONTENT.contains(&name)
+    }) {
+        return Err(ResolverError::Hash(
+            crate::HashError::SymlinkTargetsMetadata(rel.display().to_string()),
+        ));
+    }
+
+    let candidate = root.as_ref().join(rel);
+    if !candidate.exists() {
+        return Err(ResolverError::Io {
+            path: candidate,
+            source: std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "materialized content file does not exist",
+            ),
+        });
+    }
+
+    let meta = std::fs::symlink_metadata(&candidate).map_err(|source| ResolverError::Io {
+        path: candidate.clone(),
+        source,
+    })?;
+
+    if meta.file_type().is_symlink() {
+        let canonical_root =
+            std::fs::canonicalize(root.as_ref()).map_err(|source| ResolverError::Io {
+                path: root.as_ref().to_path_buf(),
+                source,
+            })?;
+        let target = std::fs::canonicalize(&candidate).map_err(|source| ResolverError::Io {
+            path: candidate.clone(),
+            source,
+        })?;
+
+        if !target.starts_with(&canonical_root) {
+            return Err(ResolverError::MaterializedSymlinkEscape {
+                dep: dep.clone(),
+                path: candidate,
+            });
+        }
+
+        if let Ok(target_rel) = target.strip_prefix(&canonical_root)
+            && target_rel.components().any(|c| {
+                let name = c.as_os_str().to_str().unwrap_or("");
+                NON_MODULE_CONTENT.contains(&name)
+            })
+        {
+            return Err(ResolverError::Hash(
+                crate::HashError::SymlinkTargetsMetadata(rel.display().to_string()),
+            ));
+        }
+
+        Ok(target)
+    } else {
+        candidate
+            .canonicalize()
+            .map_err(|source| ResolverError::Io {
+                path: candidate,
+                source,
+            })
     }
 }

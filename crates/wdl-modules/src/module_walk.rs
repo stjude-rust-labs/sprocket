@@ -129,11 +129,12 @@ fn handle_symlink<E>(
             path.display().to_string(),
         )));
     }
-    if let Ok(rel) = target.strip_prefix(module_root)
-        && let Some(first) = rel.components().next()
-    {
-        let name = first.as_os_str().to_str().unwrap_or("");
-        if NON_MODULE_CONTENT.contains(&name) {
+    if let Ok(rel) = target.strip_prefix(module_root) {
+        let targets_metadata = rel.components().any(|component| {
+            let name = component.as_os_str().to_str().unwrap_or("");
+            NON_MODULE_CONTENT.contains(&name)
+        });
+        if targets_metadata {
             return Err(WalkError::Hash(HashError::SymlinkTargetsMetadata(
                 path.display().to_string(),
             )));

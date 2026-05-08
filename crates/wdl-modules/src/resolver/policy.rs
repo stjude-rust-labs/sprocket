@@ -94,7 +94,7 @@ impl From<&ModulesConfig> for ResolverPolicy {
 
 impl ResolverPolicy {
     /// Returns the Git network policy for the given scope.
-    pub fn git_policy(&self, scope: DependencyScope) -> &GitNetworkPolicy {
+    pub(crate) fn git_policy(&self, scope: DependencyScope) -> &GitNetworkPolicy {
         match scope {
             DependencyScope::TopLevel => &self.top_level,
             DependencyScope::Transitive => &self.transitive,
@@ -102,7 +102,7 @@ impl ResolverPolicy {
     }
 
     /// Checks that a Git URL's scheme and host are allowed.
-    pub fn check_git_url(
+    pub(crate) fn check_git_url(
         &self,
         name: &DependencyName,
         url: &Url,
@@ -140,20 +140,37 @@ impl ResolverPolicy {
                 });
             }
             // Resolve the hostname and reject if any resolved address
-            // is non-public. This prevents DNS-based SSRF where a
-            // hostname resolves to an internal IP.
-            if host.parse::<std::net::IpAddr>().is_err()
-                && let Ok(addrs) = std::net::ToSocketAddrs::to_socket_addrs(&(host, 443))
-            {
-                for addr in addrs {
-                    let ip = addr.ip().to_string();
-                    if super::config::is_non_public_ip(&ip) {
-                        return Err(ResolverError::GitHostPolicyViolation {
+            // is non-public. Both DNS failure and empty results are
+            // treated as rejection (fail-closed). libgit2 re-resolves
+            // during connect/clone, so a DNS rebinding attack between
+            // this check and the fetch remains possible; fully
+            // preventing it would require peer-IP validation in a
+            // custom transport.
+            if host.parse::<std::net::IpAddr>().is_err() && url.scheme() != "file" {
+                let addrs: Vec<std::net::SocketAddr> =
+                    match std::net::ToSocketAddrs::to_socket_addrs(&(host, 443)) {
+                        Ok(iter) => iter.collect(),
+                        Err(_) => {
+                            return Err(ResolverError::GitHostResolutionFailed {
+                                dep: name.clone(),
+                                url: url.to_string(),
+                                host: host.to_string(),
+                            });
+                        }
+                    };
+                if let Err(bad_ip) = validate_resolved_addresses(&addrs) {
+                    return match bad_ip {
+                        Some(ip) => Err(ResolverError::GitHostPolicyViolation {
                             dep: name.clone(),
                             url: url.to_string(),
                             host: format!("{host} (resolves to {ip})"),
-                        });
-                    }
+                        }),
+                        None => Err(ResolverError::GitHostResolutionFailed {
+                            dep: name.clone(),
+                            url: url.to_string(),
+                            host: host.to_string(),
+                        }),
+                    };
                 }
             }
             if !net.host_policy.allows(host) {
@@ -166,6 +183,22 @@ impl ResolverPolicy {
         }
         Ok(())
     }
+}
+
+/// Validates that a set of resolved socket addresses contains at least
+/// one entry and that none resolve to non-public IPs. Returns the
+/// offending IP string on failure.
+fn validate_resolved_addresses(addrs: &[std::net::SocketAddr]) -> Result<(), Option<String>> {
+    if addrs.is_empty() {
+        return Err(None);
+    }
+    for addr in addrs {
+        let ip = addr.ip().to_string();
+        if super::config::is_non_public_ip(&ip) {
+            return Err(Some(ip));
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -246,6 +279,41 @@ mod tests {
                 .git_policy(DependencyScope::TopLevel)
                 .credential_mode,
             CredentialMode::Enabled
+        );
+    }
+
+    #[test]
+    fn empty_address_list_is_rejected() {
+        assert!(validate_resolved_addresses(&[]).is_err());
+    }
+
+    #[test]
+    fn loopback_address_is_rejected() {
+        let addr: std::net::SocketAddr = "127.0.0.1:443".parse().unwrap();
+        let result = validate_resolved_addresses(&[addr]);
+        assert!(result.is_err());
+        assert!(result.unwrap_err().is_some());
+    }
+
+    #[test]
+    fn public_address_is_accepted() {
+        let addr: std::net::SocketAddr = "140.82.121.3:443".parse().unwrap();
+        assert!(validate_resolved_addresses(&[addr]).is_ok());
+    }
+
+    #[test]
+    fn dns_failure_rejects_url() {
+        let policy = ResolverPolicy::from(&ModulesConfig::default());
+        let dep = DependencyName::try_from("foo".to_string()).unwrap();
+        let url: url::Url = "https://this-host-does-not-exist-xyzzy.invalid/x/y"
+            .parse()
+            .unwrap();
+        let err = policy
+            .check_git_url(&dep, &url, DependencyScope::TopLevel)
+            .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::GitHostResolutionFailed { .. }),
+            "expected `GitHostResolutionFailed`, got: {err}"
         );
     }
 }

@@ -208,6 +208,19 @@ pub enum ResolverError {
         scheme: String,
     },
 
+    /// DNS resolution for a Git URL's hostname failed. The resolver
+    /// rejects the URL rather than allowing a potentially spoofed host
+    /// through.
+    #[error("`{dep}` git URL `{url}` host `{host}` could not be resolved")]
+    GitHostResolutionFailed {
+        /// The owning dependency.
+        dep: DependencyName,
+        /// The URL that failed resolution.
+        url: String,
+        /// The hostname that could not be resolved.
+        host: String,
+    },
+
     /// A Git URL violates the configured host policy.
     #[error("`{dep}` git URL `{url}` targets host `{host}` which is not allowed by policy")]
     GitHostPolicyViolation {

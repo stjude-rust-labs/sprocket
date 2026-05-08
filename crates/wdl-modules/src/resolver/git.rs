@@ -25,6 +25,16 @@ const SPARSE_META_FILENAME: &str = ".sparse.json";
 #[serde(transparent)]
 struct SparseMeta(BTreeSet<String>);
 
+/// Statistics about a Git tree object collected without checkout by
+/// walking the tree's blob entries.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct GitTreeStats {
+    /// Total blob entries.
+    pub files: usize,
+    /// Total bytes across all blobs.
+    pub bytes: u64,
+}
+
 /// Default credential resolver. Tries the user's configured Git
 /// credential helper first, then falls back to ssh-agent for SSH URLs,
 /// and finally to no credentials.
@@ -64,6 +74,8 @@ pub(crate) fn default_callbacks<'cb>(mode: CredentialMode) -> RemoteCallbacks<'c
 }
 
 /// Builds a [`FetchOptions`] preconfigured with [`default_callbacks`].
+/// Proxy is left at the libgit2 default (`GIT_PROXY_NONE`), which
+/// disables proxy usage for resolver-managed fetches.
 pub(crate) fn default_fetch_options<'fo>(mode: CredentialMode) -> FetchOptions<'fo> {
     let mut opts = FetchOptions::new();
     opts.remote_callbacks(default_callbacks(mode));
@@ -71,8 +83,9 @@ pub(crate) fn default_fetch_options<'fo>(mode: CredentialMode) -> FetchOptions<'
 }
 
 /// Creates a detached remote at `url` and connects it in the given
-/// `direction` using [`default_callbacks`]. The caller is responsible
-/// for `disconnect`ing (via [`disconnect_remote`]) when finished.
+/// `direction` using [`default_callbacks`]. Proxy is disabled
+/// (`GIT_PROXY_NONE`). The caller is responsible for `disconnect`ing
+/// (via [`disconnect_remote`]) when finished.
 pub(crate) fn connect_remote(
     url: &Url,
     direction: git2::Direction,
@@ -118,18 +131,92 @@ pub(crate) fn list_advertised_refs(
     Ok(pairs)
 }
 
+/// Inspects a subtree at `path` within the commit identified by `oid`,
+/// counting blob entries and summing their sizes without materializing
+/// any content to disk.
+pub(crate) fn inspect_subtree_stats(
+    repo: &Repository,
+    oid: git2::Oid,
+    path: &str,
+) -> Result<GitTreeStats, GitError> {
+    let commit = repo.find_commit(oid).map_err(GitError::Git)?;
+    let root_tree = commit.tree().map_err(GitError::Git)?;
+    let subtree = if path.is_empty() || path == "." {
+        root_tree
+    } else {
+        let entry = root_tree.get_path(Path::new(path)).map_err(GitError::Git)?;
+        repo.find_tree(entry.id()).map_err(GitError::Git)?
+    };
+    let mut stats = GitTreeStats::default();
+    subtree
+        .walk(git2::TreeWalkMode::PreOrder, |_, entry| {
+            if entry.kind() == Some(git2::ObjectType::Blob) {
+                stats.files += 1;
+                if let Ok(blob) = repo.find_blob(entry.id()) {
+                    stats.bytes = stats.bytes.saturating_add(blob.size() as u64);
+                }
+            }
+            git2::TreeWalkResult::Ok
+        })
+        .map_err(GitError::Git)?;
+    Ok(stats)
+}
+
+/// Checks that the tree statistics at each of the given `paths` fall
+/// within the configured limits. Returns the first violation.
+///
+/// This runs after clone/fetch but before sparse checkout. It prevents
+/// materializing oversized module trees but does not bound pack
+/// transfer size or remote object negotiation. Full network-transfer
+/// limits would require transport-level enforcement (e.g., libgit2
+/// transfer-progress callbacks or a custom transport), which is not
+/// yet implemented.
+pub(crate) fn enforce_tree_limits(
+    repo: &Repository,
+    oid: git2::Oid,
+    paths: &[String],
+    max_files: Option<usize>,
+    max_bytes: Option<u64>,
+) -> Result<(), GitError> {
+    if max_files.is_none() && max_bytes.is_none() {
+        return Ok(());
+    }
+    for path in paths {
+        let stats = inspect_subtree_stats(repo, oid, path)?;
+        let files_exceeded = max_files.is_some_and(|limit| stats.files > limit);
+        let bytes_exceeded = max_bytes.is_some_and(|limit| stats.bytes > limit);
+        if files_exceeded || bytes_exceeded {
+            return Err(GitError::TreeLimitExceeded {
+                path: path.clone(),
+                files: stats.files,
+                bytes: stats.bytes,
+                max_files,
+                max_bytes,
+            });
+        }
+    }
+    Ok(())
+}
+
 /// Clones the repository at `url` into `leaf`, checks out the working
 /// tree to `commit`, and materializes only the listed `paths` from the
 /// resulting tree.
 ///
 /// `leaf` and any missing parent directories are created. Credentials
 /// are obtained from libgit2's standard credential helper chain.
+///
+/// When `max_files` or `max_bytes` are set, the selected module
+/// subtrees are inspected via Git tree objects after clone but before
+/// sparse checkout. This bounds the materialized content but not the
+/// network transfer itself.
 pub(crate) fn clone_with_sparse_checkout<I, S>(
     url: &Url,
     commit: &str,
     leaf: &Path,
     paths: I,
     mode: CredentialMode,
+    max_files: Option<usize>,
+    max_bytes: Option<u64>,
 ) -> Result<(), GitError>
 where
     I: IntoIterator<Item = S>,
@@ -145,13 +232,10 @@ where
     })?;
 
     let mut fetch_opts = default_fetch_options(mode);
-    // libgit2 does not support shallow fetch for local repos, so
-    // only request depth=1 for network-backed URLs.
     if url.scheme() != "file" {
         fetch_opts.depth(1);
     }
 
-    // Skip the default checkout; we'll do a path-filtered checkout below.
     let mut empty_checkout = git2::build::CheckoutBuilder::new();
     empty_checkout.disable_filters(true).dry_run();
 
@@ -166,6 +250,8 @@ where
 
     let oid = git2::Oid::from_str(commit).map_err(GitError::Git)?;
     repo.set_head_detached(oid).map_err(GitError::Git)?;
+
+    enforce_tree_limits(&repo, oid, &owned, max_files, max_bytes)?;
 
     apply_sparse_checkout(&repo, &owned)?;
     save_sparse_meta(leaf, &owned)?;
@@ -186,30 +272,52 @@ pub(crate) fn ensure_materialized<I, S>(
     commit: &str,
     paths: I,
     mode: CredentialMode,
+    max_files: Option<usize>,
+    max_bytes: Option<u64>,
 ) -> Result<(), GitError>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
     if leaf.exists() {
-        extend_sparse_checkout(leaf, paths)
+        extend_sparse_checkout(leaf, paths, max_files, max_bytes)
     } else {
-        clone_with_sparse_checkout(url, commit, leaf, paths, mode)
+        clone_with_sparse_checkout(url, commit, leaf, paths, mode, max_files, max_bytes)
     }
 }
 
 /// Extends an existing sparse-checkout cache leaf to additionally
 /// materialize the given `paths`. Paths already present are kept; the
 /// union becomes the new sparse-checkout set.
-pub(crate) fn extend_sparse_checkout<I, S>(leaf: &Path, paths: I) -> Result<(), GitError>
+pub(crate) fn extend_sparse_checkout<I, S>(
+    leaf: &Path,
+    paths: I,
+    max_files: Option<usize>,
+    max_bytes: Option<u64>,
+) -> Result<(), GitError>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
     let repo = Repository::open(leaf).map_err(GitError::Git)?;
-    let mut all = load_sparse_meta(leaf)?.0;
+    let existing = load_sparse_meta(leaf)?.0;
+    let mut all = existing.clone();
+    let mut new_paths = Vec::new();
     for p in paths {
-        all.insert(p.as_ref().to_string());
+        let s = p.as_ref().to_string();
+        if !existing.contains(&s) {
+            new_paths.push(s.clone());
+        }
+        all.insert(s);
+    }
+    if !new_paths.is_empty() {
+        let head_oid = repo
+            .head()
+            .map_err(GitError::Git)?
+            .peel_to_commit()
+            .map_err(GitError::Git)?
+            .id();
+        enforce_tree_limits(&repo, head_oid, &new_paths, max_files, max_bytes)?;
     }
     let all_owned: Vec<String> = all.into_iter().collect();
     apply_sparse_checkout(&repo, &all_owned)?;
@@ -307,6 +415,26 @@ pub enum GitError {
         /// The configured limit.
         limit: usize,
     },
+
+    /// A module subtree exceeds configured file or byte limits.
+    #[error(
+        "module subtree `{path}` exceeds tree limits (files: {files}, bytes: {bytes}, \
+         max_files: {}, max_bytes: {})",
+        max_files.map_or_else(|| "unlimited".to_string(), |v| v.to_string()),
+        max_bytes.map_or_else(|| "unlimited".to_string(), |v| v.to_string()),
+    )]
+    TreeLimitExceeded {
+        /// The module path within the repository.
+        path: String,
+        /// The number of files observed.
+        files: usize,
+        /// The total bytes observed.
+        bytes: u64,
+        /// The configured file limit.
+        max_files: Option<usize>,
+        /// The configured byte limit.
+        max_bytes: Option<u64>,
+    },
 }
 
 #[cfg(test)]
@@ -362,7 +490,16 @@ mod tests {
         let leaf = dest.path().join("leaf");
         let url = Url::from_directory_path(upstream.path()).unwrap();
 
-        clone_with_sparse_checkout(&url, &sha, &leaf, ["csvkit"], CredentialMode::Enabled).unwrap();
+        clone_with_sparse_checkout(
+            &url,
+            &sha,
+            &leaf,
+            ["csvkit"],
+            CredentialMode::Enabled,
+            None,
+            None,
+        )
+        .unwrap();
 
         assert!(leaf.join("csvkit").join("module.json").exists());
         assert!(!leaf.join("spellbook").exists());
@@ -407,11 +544,29 @@ mod tests {
         let leaf = dest.path().join("leaf");
         let url = Url::from_directory_path(upstream.path()).unwrap();
 
-        ensure_materialized(&leaf, &url, &sha, ["csvkit"], CredentialMode::Enabled).unwrap();
+        ensure_materialized(
+            &leaf,
+            &url,
+            &sha,
+            ["csvkit"],
+            CredentialMode::Enabled,
+            None,
+            None,
+        )
+        .unwrap();
         assert!(leaf.join("csvkit").join("module.json").exists());
         assert!(!leaf.join("spellbook").exists());
 
-        ensure_materialized(&leaf, &url, &sha, ["spellbook"], CredentialMode::Enabled).unwrap();
+        ensure_materialized(
+            &leaf,
+            &url,
+            &sha,
+            ["spellbook"],
+            CredentialMode::Enabled,
+            None,
+            None,
+        )
+        .unwrap();
         assert!(leaf.join("csvkit").join("module.json").exists());
         assert!(leaf.join("spellbook").join("module.json").exists());
     }
@@ -435,10 +590,19 @@ mod tests {
         let leaf = dest.path().join("leaf");
         let url = Url::from_directory_path(upstream.path()).unwrap();
 
-        clone_with_sparse_checkout(&url, &sha, &leaf, ["csvkit"], CredentialMode::Enabled).unwrap();
+        clone_with_sparse_checkout(
+            &url,
+            &sha,
+            &leaf,
+            ["csvkit"],
+            CredentialMode::Enabled,
+            None,
+            None,
+        )
+        .unwrap();
         assert!(!leaf.join("spellbook").exists());
 
-        extend_sparse_checkout(&leaf, ["spellbook"]).unwrap();
+        extend_sparse_checkout(&leaf, ["spellbook"], None, None).unwrap();
         assert!(leaf.join("spellbook").join("module.json").exists());
         assert!(leaf.join("csvkit").join("module.json").exists());
 
@@ -446,5 +610,123 @@ mod tests {
         let mut paths: Vec<_> = meta.0.into_iter().collect();
         paths.sort();
         assert_eq!(paths, vec!["csvkit".to_string(), "spellbook".to_string()]);
+    }
+
+    #[test]
+    fn inspect_subtree_stats_counts_blobs() {
+        let (upstream, sha) = build_upstream(&[
+            ("mod/a.wdl", b"task a {}"),
+            ("mod/b.wdl", b"task bb {}"),
+            ("mod/sub/c.wdl", b"task ccc {}"),
+        ]);
+        let repo = Repository::open(upstream.path()).unwrap();
+        let oid = git2::Oid::from_str(&sha).unwrap();
+        let stats = inspect_subtree_stats(&repo, oid, "mod").unwrap();
+        assert_eq!(stats.files, 3);
+        assert_eq!(
+            stats.bytes,
+            b"task a {}".len() as u64 + b"task bb {}".len() as u64 + b"task ccc {}".len() as u64
+        );
+    }
+
+    #[test]
+    fn tree_file_limit_blocks_clone() {
+        let (upstream, sha) = build_upstream(&[
+            ("mod/a.wdl", b"task a {}"),
+            ("mod/b.wdl", b"task b {}"),
+            ("mod/c.wdl", b"task c {}"),
+        ]);
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        let err = clone_with_sparse_checkout(
+            &url,
+            &sha,
+            &leaf,
+            ["mod"],
+            CredentialMode::Enabled,
+            Some(2),
+            None,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(err, GitError::TreeLimitExceeded { files: 3, .. }),
+            "got: {err}"
+        );
+    }
+
+    #[test]
+    fn tree_byte_limit_blocks_clone() {
+        let (upstream, sha) = build_upstream(&[("mod/big.wdl", &[0u8; 1024])]);
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        let err = clone_with_sparse_checkout(
+            &url,
+            &sha,
+            &leaf,
+            ["mod"],
+            CredentialMode::Enabled,
+            None,
+            Some(512),
+        )
+        .unwrap_err();
+        assert!(
+            matches!(err, GitError::TreeLimitExceeded { bytes: 1024, .. }),
+            "got: {err}"
+        );
+    }
+
+    #[test]
+    fn tree_limits_pass_when_within_bounds() {
+        let (upstream, sha) =
+            build_upstream(&[("mod/a.wdl", b"task a {}"), ("mod/b.wdl", b"task b {}")]);
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        clone_with_sparse_checkout(
+            &url,
+            &sha,
+            &leaf,
+            ["mod"],
+            CredentialMode::Enabled,
+            Some(100),
+            Some(100_000),
+        )
+        .unwrap();
+        assert!(leaf.join("mod").join("a.wdl").exists());
+    }
+
+    #[test]
+    fn tree_limits_enforced_on_extend() {
+        let (upstream, sha) = build_upstream(&[
+            ("small/a.wdl", b"x"),
+            ("big/a.wdl", b"task a {}"),
+            ("big/b.wdl", b"task b {}"),
+            ("big/c.wdl", b"task c {}"),
+        ]);
+        let dest = tempdir().unwrap();
+        let leaf = dest.path().join("leaf");
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+
+        clone_with_sparse_checkout(
+            &url,
+            &sha,
+            &leaf,
+            ["small"],
+            CredentialMode::Enabled,
+            None,
+            None,
+        )
+        .unwrap();
+
+        let err = extend_sparse_checkout(&leaf, ["big"], Some(2), None).unwrap_err();
+        assert!(
+            matches!(err, GitError::TreeLimitExceeded { files: 3, .. }),
+            "got: {err}"
+        );
     }
 }

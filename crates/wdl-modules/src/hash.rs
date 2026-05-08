@@ -554,6 +554,42 @@ mod tests {
     }
 
     #[test]
+    fn symlink_to_nested_dot_git_is_rejected() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("nested").join(".git")).unwrap();
+        fs::write(
+            dir.path().join("nested").join(".git").join("config"),
+            b"private metadata",
+        )
+        .unwrap();
+        symlink_file(
+            &dir.path().join("nested").join(".git").join("config"),
+            &dir.path().join("index.wdl"),
+        );
+        let err = hash_directory(dir.path()).unwrap_err();
+        assert!(
+            matches!(err, HashError::SymlinkTargetsMetadata(_)),
+            "expected metadata symlink rejection, got: {err}"
+        );
+    }
+
+    #[test]
+    fn symlink_to_nested_sparse_json_is_rejected() {
+        let dir = tempdir().unwrap();
+        fs::create_dir_all(dir.path().join("nested")).unwrap();
+        fs::write(dir.path().join("nested").join(".sparse.json"), b"[]").unwrap();
+        symlink_file(
+            &dir.path().join("nested").join(".sparse.json"),
+            &dir.path().join("index.wdl"),
+        );
+        let err = hash_directory(dir.path()).unwrap_err();
+        assert!(
+            matches!(err, HashError::SymlinkTargetsMetadata(_)),
+            "expected metadata symlink rejection, got: {err}"
+        );
+    }
+
+    #[test]
     fn directory_symlink_cycle_is_rejected() {
         let dir = tempdir().unwrap();
         fs::write(dir.path().join("real.wdl"), b"version 1.2\n").unwrap();
