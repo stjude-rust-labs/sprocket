@@ -1,4 +1,5 @@
-//! Resolver policy types derived from [`ModulesConfig`](super::config::ModulesConfig).
+//! Resolver policy types derived from
+//! [`ModulesConfig`](super::config::ModulesConfig).
 
 use url::Url;
 
@@ -203,7 +204,9 @@ mod tests {
         };
         let policy = ResolverPolicy::from(&cfg);
         assert_eq!(
-            policy.git_policy(DependencyScope::Transitive).credential_mode,
+            policy
+                .git_policy(DependencyScope::Transitive)
+                .credential_mode,
             CredentialMode::Enabled
         );
         assert_eq!(

@@ -21,4 +21,3 @@ pub enum ResolutionMode {
     /// `materialize` when reproducing a previously-locked dependency.
     Locked,
 }
-

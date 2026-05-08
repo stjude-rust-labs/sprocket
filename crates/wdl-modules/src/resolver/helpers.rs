@@ -4,8 +4,8 @@ use std::path::Path;
 
 use semver::Version;
 
-use crate::Manifest;
 use crate::DependencySource;
+use crate::Manifest;
 use crate::ResolvedSource;
 use crate::resolver::error::ResolverError;
 

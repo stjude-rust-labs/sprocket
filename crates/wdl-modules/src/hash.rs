@@ -508,7 +508,11 @@ mod tests {
         let hash1 = hash_directory(dir.path()).unwrap();
 
         fs::create_dir(dir.path().join(".git")).unwrap();
-        fs::write(dir.path().join(".git").join("HEAD"), b"ref: refs/heads/main").unwrap();
+        fs::write(
+            dir.path().join(".git").join("HEAD"),
+            b"ref: refs/heads/main",
+        )
+        .unwrap();
         fs::write(dir.path().join(".sparse.json"), b"[]").unwrap();
 
         let hash2 = hash_directory(dir.path()).unwrap();
