@@ -162,6 +162,7 @@ pub enum ResolverError {
     },
 
     /// A manifest `exclude` pattern is not a valid glob.
+    #[cfg(feature = "resolver")]
     #[error("invalid `exclude` pattern `{pattern}`")]
     InvalidExclude {
         /// The offending pattern.
@@ -244,6 +245,7 @@ pub enum ResolverError {
     },
 
     /// A Git operation failed.
+    #[cfg(feature = "resolver")]
     #[error(transparent)]
     Git(#[from] crate::resolver::git::GitError),
 

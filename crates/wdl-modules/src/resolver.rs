@@ -1,80 +1,133 @@
 //! Public resolver API.
 //!
-//! Gated behind the `resolver` cargo feature. The resolver exposes
-//! high-level resolution, materialization, lockfile, and trust types.
-//! Git transport, cache layout, sparse checkout, and version-discovery
-//! internals remain private so the implementation can change without
-//! breaking consumers.
+//! The trait definitions (`Resolver`, `ResolverError`, `MaterializedFile`,
+//! etc.) are always available. The Git-backed implementation and supporting
+//! infrastructure (cache, config, fetch, lock, trust, etc.) are gated
+//! behind the `resolver` cargo feature so that consumers like `wdl-doc`
+//! that only need the manifest/lockfile/hashing types do not pay for
+//! `git2` and friends.
 
+#[cfg(feature = "resolver")]
 pub(crate) mod cache;
+#[cfg(feature = "resolver")]
 pub(crate) mod config;
 pub(crate) mod error;
+#[cfg(feature = "resolver")]
 pub(crate) mod fetch;
+#[cfg(feature = "resolver")]
 mod git;
+#[cfg(feature = "resolver")]
 pub(crate) mod helpers;
+#[cfg(feature = "resolver")]
 pub(crate) mod lock;
+#[cfg(feature = "resolver")]
 pub(crate) mod module_root;
+#[cfg(feature = "resolver")]
 pub(crate) mod policy;
 pub(crate) mod scope;
+#[cfg(feature = "resolver")]
 pub(crate) mod tree_walk;
+#[cfg(feature = "resolver")]
 pub(crate) mod trust;
 pub(crate) mod types;
+#[cfg(feature = "resolver")]
 pub(crate) mod verify;
+#[cfg(feature = "resolver")]
 pub(crate) mod versions;
 
+#[cfg(feature = "resolver")]
 use std::collections::BTreeMap;
+#[cfg(feature = "resolver")]
 use std::path::Path;
+#[cfg(feature = "resolver")]
 use std::path::PathBuf;
 
 use async_trait::async_trait;
+#[cfg(feature = "resolver")]
 use bon::Builder;
+#[cfg(feature = "resolver")]
 use futures::future::BoxFuture;
+#[cfg(feature = "resolver")]
 use futures::future::FutureExt;
 use semver::Version;
 
+#[cfg(feature = "resolver")]
 use crate::DependencyName;
 use crate::DependencySource;
+#[cfg(feature = "resolver")]
 use crate::GitModulePath;
+#[cfg(feature = "resolver")]
 use crate::GitSelector;
+#[cfg(feature = "resolver")]
 use crate::Lockfile;
 use crate::Manifest;
+#[cfg(feature = "resolver")]
 use crate::ModulePath;
+#[cfg(feature = "resolver")]
 use crate::ResolvedSource;
 use crate::SymbolicPath;
+#[cfg(feature = "resolver")]
 use crate::resolver::cache::CacheKey;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::config::LargeFileWarning;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::config::LargeFileWarningError;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::config::ModulesConfig;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::config::TrustMode;
 pub use crate::resolver::error::GitRefKind;
 pub use crate::resolver::error::MissingFileKind;
 pub use crate::resolver::error::ResolverError;
+#[cfg(feature = "resolver")]
 use crate::resolver::fetch::GitFetcher;
+#[cfg(feature = "resolver")]
 use crate::resolver::helpers::check_tag_manifest_match;
+#[cfg(feature = "resolver")]
 use crate::resolver::helpers::exclude_set;
+#[cfg(feature = "resolver")]
 use crate::resolver::helpers::is_transitive_local_disallowed;
+#[cfg(feature = "resolver")]
 use crate::resolver::helpers::read_manifest;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::lock::DependencyAddition;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::lock::DependencyUpdate;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::lock::LockfileDiff;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::lock::NewSigner;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::lock::RelockOutcome;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::lock::RelockStats;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::lock::partial_relock;
+#[cfg(feature = "resolver")]
 use crate::resolver::module_root::MaterializedRoot;
+#[cfg(feature = "resolver")]
 use crate::resolver::module_root::ModuleRoot;
+#[cfg(feature = "resolver")]
 use crate::resolver::module_root::resolve_content_file;
+#[cfg(feature = "resolver")]
 use crate::resolver::policy::ResolverPolicy;
 pub use crate::resolver::scope::DependencyScope;
+#[cfg(feature = "resolver")]
 use crate::resolver::scope::ResolutionMode;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::trust::TrustEntry;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::trust::TrustStore;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::trust::TrustStoreError;
 pub use crate::resolver::types::MaterializedFile;
+pub use crate::resolver::types::NullResolver;
 pub use crate::resolver::types::ResolvedDependency;
 pub use crate::resolver::types::ResolvedModule;
 pub use crate::resolver::types::ResolvedTree;
+#[cfg(feature = "resolver")]
 use crate::resolver::verify::ModuleVerifier;
+#[cfg(feature = "resolver")]
 use crate::resolver::verify::VerifiedModule;
 
 /// Resolves WDL module imports to concrete files on disk.
@@ -122,6 +175,7 @@ pub trait Resolver: Send + Sync {
     ) -> Result<Vec<Version>, ResolverError>;
 }
 
+#[cfg(feature = "resolver")]
 /// The default Git-backed [`Resolver`].
 ///
 /// Construct via [`GitResolver::builder`]. The caller is expected to
@@ -150,6 +204,7 @@ pub struct GitResolver {
     lockfile: Lockfile,
 }
 
+#[cfg(feature = "resolver")]
 impl GitResolver {
     /// Returns the cache root.
     pub fn cache_root(&self) -> &Path {
@@ -558,6 +613,7 @@ impl GitResolver {
     }
 }
 
+#[cfg(feature = "resolver")]
 /// Pre-computed materialization parameters for a Git dependency.
 struct GitMaterializationPlan {
     /// The selected version from tag resolution, if any.
@@ -576,6 +632,7 @@ struct GitMaterializationPlan {
 
 /// Compiles a manifest's `exclude` patterns into a [`globset::GlobSet`]
 /// for gitignore-style matching against import sub-paths.
+#[cfg(feature = "resolver")]
 #[async_trait]
 impl Resolver for GitResolver {
     async fn materialize(
@@ -644,6 +701,7 @@ impl Resolver for GitResolver {
         Ok(MaterializedFile {
             path: canonical,
             source: resolved_source,
+            manifest: std::sync::Arc::new(manifest),
         })
     }
 
@@ -704,7 +762,7 @@ impl Resolver for GitResolver {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "resolver"))]
 mod tests {
     use std::fs;
 

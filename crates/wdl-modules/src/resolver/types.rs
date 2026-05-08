@@ -18,6 +18,8 @@ pub struct MaterializedFile {
     pub path: PathBuf,
     /// The source the file's owning module came from.
     pub source: ResolvedSource,
+    /// The parsed manifest of the dependency that owns this file.
+    pub manifest: std::sync::Arc<crate::Manifest>,
 }
 
 /// A fully resolved dependency tree, suitable for `module-lock.json`
@@ -51,4 +53,35 @@ pub struct ResolvedModule {
     pub signer: Option<VerifyingKey>,
     /// The module's transitive resolved dependencies.
     pub dependencies: BTreeMap<DependencyName, ResolvedDependency>,
+}
+
+/// A resolver that rejects every materialization request. Used when
+/// the analyzer runs without a module context.
+pub struct NullResolver;
+
+#[async_trait::async_trait]
+impl super::Resolver for NullResolver {
+    async fn materialize(
+        &self,
+        _: &crate::Manifest,
+        _: &crate::SymbolicPath,
+    ) -> Result<MaterializedFile, super::error::ResolverError> {
+        Err(super::error::ResolverError::NotADependency {
+            name: "symbolic imports require a module context".into(),
+        })
+    }
+
+    async fn resolve_tree(
+        &self,
+        _: &crate::Manifest,
+    ) -> Result<ResolvedTree, super::error::ResolverError> {
+        Ok(ResolvedTree::default())
+    }
+
+    async fn discover_versions(
+        &self,
+        _: &crate::DependencySource,
+    ) -> Result<Vec<semver::Version>, super::error::ResolverError> {
+        Ok(Vec::new())
+    }
 }
