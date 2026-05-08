@@ -1,16 +1,10 @@
-//! Resolver layer.
-//!
-//! Gated behind the `resolver` cargo feature. Pulls in `git2`, `tokio`,
-//! `dirs`, `bytesize`, `toml`, and `tracing`. Consumers that only need
-//! the manifest/lockfile/hashing types (e.g. `wdl-doc`) do not enable
-//! this feature and therefore do not pay for those deps.
-
 //! Public resolver API.
 //!
-//! The resolver exposes high-level resolution, materialization,
-//! lockfile, and trust types. Git transport, cache layout, sparse
-//! checkout, and version-discovery internals remain private so the
-//! implementation can change without breaking consumers.
+//! Gated behind the `resolver` cargo feature. The resolver exposes
+//! high-level resolution, materialization, lockfile, and trust types.
+//! Git transport, cache layout, sparse checkout, and version-discovery
+//! internals remain private so the implementation can change without
+//! breaking consumers.
 
 pub(crate) mod cache;
 pub(crate) mod config;
@@ -22,8 +16,8 @@ pub(crate) mod lock;
 pub(crate) mod module_root;
 pub(crate) mod policy;
 pub(crate) mod scope;
-pub(crate) mod trust;
 pub(crate) mod tree_walk;
+pub(crate) mod trust;
 pub(crate) mod types;
 pub(crate) mod verify;
 pub(crate) mod versions;
@@ -48,18 +42,6 @@ use crate::ModulePath;
 use crate::ResolvedSource;
 use crate::SymbolicPath;
 use crate::resolver::cache::CacheKey;
-use crate::resolver::fetch::GitFetcher;
-use crate::resolver::module_root::MaterializedRoot;
-use crate::resolver::module_root::ModuleRoot;
-use crate::resolver::policy::ResolverPolicy;
-pub use crate::resolver::scope::DependencyScope;
-use crate::resolver::scope::ResolutionMode;
-use crate::resolver::helpers::check_tag_manifest_match;
-use crate::resolver::helpers::exclude_set;
-use crate::resolver::helpers::is_transitive_local_disallowed;
-use crate::resolver::helpers::read_manifest;
-use crate::resolver::verify::ModuleVerifier;
-use crate::resolver::verify::VerifiedModule;
 pub use crate::resolver::config::LargeFileWarning;
 pub use crate::resolver::config::LargeFileWarningError;
 pub use crate::resolver::config::ModulesConfig;
@@ -67,7 +49,12 @@ pub use crate::resolver::config::TrustMode;
 pub use crate::resolver::error::GitRefKind;
 pub use crate::resolver::error::MissingFileKind;
 pub use crate::resolver::error::ResolverError;
+use crate::resolver::fetch::GitFetcher;
 use crate::resolver::git::CredentialMode;
+use crate::resolver::helpers::check_tag_manifest_match;
+use crate::resolver::helpers::exclude_set;
+use crate::resolver::helpers::is_transitive_local_disallowed;
+use crate::resolver::helpers::read_manifest;
 pub use crate::resolver::lock::DependencyAddition;
 pub use crate::resolver::lock::DependencyUpdate;
 pub use crate::resolver::lock::LockfileDiff;
@@ -75,6 +62,11 @@ pub use crate::resolver::lock::NewSigner;
 pub use crate::resolver::lock::RelockOutcome;
 pub use crate::resolver::lock::RelockStats;
 pub use crate::resolver::lock::partial_relock;
+use crate::resolver::module_root::MaterializedRoot;
+use crate::resolver::module_root::ModuleRoot;
+use crate::resolver::policy::ResolverPolicy;
+pub use crate::resolver::scope::DependencyScope;
+use crate::resolver::scope::ResolutionMode;
 pub use crate::resolver::trust::TrustEntry;
 pub use crate::resolver::trust::TrustStore;
 pub use crate::resolver::trust::TrustStoreError;
@@ -82,6 +74,8 @@ pub use crate::resolver::types::MaterializedFile;
 pub use crate::resolver::types::ResolvedDependency;
 pub use crate::resolver::types::ResolvedModule;
 pub use crate::resolver::types::ResolvedTree;
+use crate::resolver::verify::ModuleVerifier;
+use crate::resolver::verify::VerifiedModule;
 
 /// Resolves WDL module imports to concrete files on disk.
 #[async_trait]
@@ -214,9 +208,7 @@ impl GitResolver {
                 if let DependencySource::Git { url, .. } = source {
                     self.policy().check_git_url(name, url, scope)?;
                 }
-                let resolved = self
-                    .resolve_dependency(name, source, scope, chain)
-                    .await?;
+                let resolved = self.resolve_dependency(name, source, scope, chain).await?;
                 out.insert(name.clone(), resolved);
             }
             Ok(out)
@@ -235,12 +227,7 @@ impl GitResolver {
     ) -> BoxFuture<'a, Result<ResolvedDependency, ResolverError>> {
         async move {
             let (resolved_source, manifest, module_root) = self
-                .materialize_dependency(
-                    name,
-                    source,
-                    scope,
-                    ResolutionMode::Fresh,
-                )
+                .materialize_dependency(name, source, scope, ResolutionMode::Fresh)
                 .await?;
 
             if let Some(at) = chain.iter().position(|(_, s)| *s == resolved_source) {
@@ -259,8 +246,9 @@ impl GitResolver {
                 })?;
             chain.pop();
 
-            let VerifiedModule { checksum, signer } =
-                self.verifier().verify(name, module_root.module_root().as_ref())?;
+            let VerifiedModule { checksum, signer } = self
+                .verifier()
+                .verify(name, module_root.module_root().as_ref())?;
             Ok(ResolvedDependency {
                 source: resolved_source,
                 modules: BTreeMap::from([(
@@ -304,13 +292,12 @@ impl GitResolver {
                 let url = url.clone();
                 let requirement = requirement.clone();
                 let path_prefix_owned = path_prefix.map(str::to_string);
-                let refs = tokio::task::spawn_blocking(move || {
-                    fetcher.list_tags(&dep, &url, scope)
-                })
-                .await
-                // SAFETY: the closure performs only Git work; a
-                // `JoinError` would only fire on runtime shutdown.
-                .unwrap()?;
+                let refs =
+                    tokio::task::spawn_blocking(move || fetcher.list_tags(&dep, &url, scope))
+                        .await
+                        // SAFETY: the closure performs only Git work; a
+                        // `JoinError` would only fire on runtime shutdown.
+                        .unwrap()?;
                 let (version, commit) = crate::resolver::versions::resolve_version_to_commit(
                     &refs,
                     path_prefix_owned.as_deref(),
@@ -332,12 +319,11 @@ impl GitResolver {
                 let dep = name.clone();
                 let url = url.clone();
                 let fetcher = self.fetcher();
-                let refs = tokio::task::spawn_blocking(move || {
-                    fetcher.list_tags(&dep, &url, scope)
-                })
-                .await
-                // SAFETY: the closure does not panic.
-                .unwrap()?;
+                let refs =
+                    tokio::task::spawn_blocking(move || fetcher.list_tags(&dep, &url, scope))
+                        .await
+                        // SAFETY: the closure does not panic.
+                        .unwrap()?;
                 let commit =
                     refs.get(tag)
                         .cloned()
@@ -352,12 +338,11 @@ impl GitResolver {
                 let dep = name.clone();
                 let url = url.clone();
                 let fetcher = self.fetcher();
-                let refs = tokio::task::spawn_blocking(move || {
-                    fetcher.list_branches(&dep, &url, scope)
-                })
-                .await
-                // SAFETY: the closure does not panic.
-                .unwrap()?;
+                let refs =
+                    tokio::task::spawn_blocking(move || fetcher.list_branches(&dep, &url, scope))
+                        .await
+                        // SAFETY: the closure does not panic.
+                        .unwrap()?;
                 let commit =
                     refs.get(branch)
                         .cloned()
@@ -422,9 +407,7 @@ impl GitResolver {
                                     None
                                 }
                             })
-                            .ok_or_else(|| ResolverError::NotInLockfile {
-                                dep: name.clone(),
-                            })?;
+                            .ok_or_else(|| ResolverError::NotInLockfile { dep: name.clone() })?;
                         (None, locked_commit)
                     }
                     ResolutionMode::Fresh => {
@@ -516,12 +499,7 @@ impl Resolver for GitResolver {
             self.policy().check_git_url(name, url, scope)?;
         }
         let (resolved_source, manifest, module_root) = self
-            .materialize_dependency(
-                name,
-                source,
-                scope,
-                ResolutionMode::Locked,
-            )
+            .materialize_dependency(name, source, scope, ResolutionMode::Locked)
             .await?;
 
         let root_path = module_root.module_root().as_ref();
@@ -558,13 +536,12 @@ impl Resolver for GitResolver {
             });
         }
 
-        let canonical_root =
-            root_path
-                .canonicalize()
-                .map_err(|source| ResolverError::Io {
-                    path: root_path.to_path_buf(),
-                    source,
-                })?;
+        let canonical_root = root_path
+            .canonicalize()
+            .map_err(|source| ResolverError::Io {
+                path: root_path.to_path_buf(),
+                source,
+            })?;
         let canonical_abs = abs.canonicalize().map_err(|source| ResolverError::Io {
             path: abs.clone(),
             source,
@@ -1267,7 +1244,6 @@ mod tests {
         );
     }
 
-
     #[tokio::test]
     async fn resolve_tree_rejects_too_many_materialized_files() {
         let workdir = tempdir().unwrap();
@@ -1371,7 +1347,6 @@ mod tests {
         assert!(dep_dir.join("one.wdl").exists());
         assert!(dep_dir.join("two.wdl").exists());
     }
-
 
     #[tokio::test]
     async fn local_path_relock_refreshes_on_content_change() {
