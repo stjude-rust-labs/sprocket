@@ -76,6 +76,16 @@ pub enum ResolverError {
         dep: DependencyName,
     },
 
+    /// The manifest source for a dependency does not match the
+    /// lockfile source. Run `sprocket module lock` to update.
+    #[error(
+        "`{dep}` manifest source differs from the lockfile; run `sprocket module lock` to update"
+    )]
+    LockfileSourceMismatch {
+        /// The dependency whose source changed.
+        dep: DependencyName,
+    },
+
     /// A cached module's content hash does not match the lockfile's
     /// recorded checksum.
     #[error(

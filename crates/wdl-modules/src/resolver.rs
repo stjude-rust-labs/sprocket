@@ -398,6 +398,22 @@ impl GitResolver {
     ) -> Result<(ResolvedSource, Manifest, MaterializedRoot), ResolverError> {
         match source {
             DependencySource::LocalPath { path, .. } => {
+                if matches!(mode, ResolutionMode::Locked) {
+                    let locked_entry = self
+                        .lockfile
+                        .dependencies
+                        .get(name)
+                        .ok_or_else(|| ResolverError::NotInLockfile { dep: name.clone() })?;
+                    if let ResolvedSource::Path { path: locked_path } = &locked_entry.source {
+                        if path != locked_path {
+                            return Err(ResolverError::LockfileSourceMismatch {
+                                dep: name.clone(),
+                            });
+                        }
+                    } else {
+                        return Err(ResolverError::LockfileSourceMismatch { dep: name.clone() });
+                    }
+                }
                 let manifest = read_manifest(path)?;
                 Ok((
                     ResolvedSource::Path { path: path.clone() },
@@ -415,21 +431,26 @@ impl GitResolver {
 
                 let (selected_version, commit) = match mode {
                     ResolutionMode::Locked => {
-                        // Replay the locked commit; do not re-resolve
-                        // mutable selectors against the remote.
-                        let locked_commit = self
-                            .lockfile
-                            .dependencies
-                            .get(name)
-                            .and_then(|entry| {
-                                if let ResolvedSource::Git { commit, .. } = &entry.source {
-                                    Some(commit.clone())
-                                } else {
-                                    None
-                                }
-                            })
-                            .ok_or_else(|| ResolverError::NotInLockfile { dep: name.clone() })?;
-                        (None, locked_commit)
+                        let locked_entry =
+                            self.lockfile.dependencies.get(name).ok_or_else(|| {
+                                ResolverError::NotInLockfile { dep: name.clone() }
+                            })?;
+                        let (locked_url, locked_commit, locked_path) = match &locked_entry.source {
+                            ResolvedSource::Git {
+                                git: lu,
+                                commit: lc,
+                                path: lp,
+                            } => (lu, lc, lp),
+                            _ => {
+                                return Err(ResolverError::NotInLockfile { dep: name.clone() });
+                            }
+                        };
+                        if url != locked_url || path != locked_path {
+                            return Err(ResolverError::LockfileSourceMismatch {
+                                dep: name.clone(),
+                            });
+                        }
+                        (None, locked_commit.clone())
                     }
                     ResolutionMode::Fresh => {
                         self.resolve_git_selector(
@@ -683,12 +704,33 @@ mod tests {
 
     /// Resolves a consumer's tree and builds a lockfile from it.
     async fn resolve_and_lock(cache: &TempDir, consumer: &Manifest) -> (GitResolver, Lockfile) {
+        resolve_and_lock_with_config(
+            cache,
+            consumer,
+            ModulesConfig::default(),
+            TrustStore::default(),
+        )
+        .await
+    }
+
+    async fn resolve_and_lock_with_config(
+        cache: &TempDir,
+        consumer: &Manifest,
+        config: ModulesConfig,
+        trust: TrustStore,
+    ) -> (GitResolver, Lockfile) {
         let r = resolver(cache);
         let tree = r.resolve_tree(consumer).await.unwrap();
         let outcome =
             crate::resolver::lock::partial_relock(consumer, &Lockfile::default(), &tree).unwrap();
-        let locked_resolver = resolver_with_lockfile(cache, outcome.lockfile.clone());
-        (locked_resolver, outcome.lockfile)
+        let locked = GitResolver::builder()
+            .cache_root(cache.path())
+            .trust_path(cache.path().join("trust.toml"))
+            .trust(trust)
+            .lockfile(outcome.lockfile.clone())
+            .config(config)
+            .build();
+        (locked, outcome.lockfile)
     }
 
     /// Writes a `module.sig` next to `dir`'s `module.json` over the
@@ -867,6 +909,44 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn materialize_rejects_changed_local_path_after_lock() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
+
+        // Change the manifest to point to a different path.
+        let other_dir = workdir.path().join("other");
+        write_manifest(&other_dir, "dep", "1.0.0", &[]);
+        fs::write(other_dir.join("index.wdl"), b"workflow w {}").unwrap();
+        let other_src = format!("{{\"path\":\"{}\"}}", json_path(&other_dir));
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &other_src)]);
+        let consumer2 =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let r = resolver_with_lockfile(&cache, lockfile);
+        let err = r
+            .materialize(&consumer2, &"dep".to_string().try_into().unwrap())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::LockfileSourceMismatch { .. }),
+            "expected `LockfileSourceMismatch`, got: {err}"
+        );
+    }
+
+    #[tokio::test]
     async fn materialize_resolves_default_entrypoint() {
         let workdir = tempdir().unwrap();
         let dep_dir = workdir.path().join("dep");
@@ -978,16 +1058,16 @@ mod tests {
                 .unwrap();
 
         let cache = tempdir().unwrap();
-        let r = GitResolver::builder()
-            .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
-            .trust(TrustStore::default())
-            .config(ModulesConfig {
+        let (r, _) = resolve_and_lock_with_config(
+            &cache,
+            &consumer,
+            ModulesConfig {
                 require_signed: true,
                 ..ModulesConfig::default()
-            })
-            .lockfile(Lockfile::default())
-            .build();
+            },
+            TrustStore::default(),
+        )
+        .await;
         let err = r
             .materialize(&consumer, &"dep".to_string().try_into().unwrap())
             .await
@@ -1006,7 +1086,6 @@ mod tests {
         fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
         let signer = crate::signing::test_utils::signing_key_from_seed(7);
         write_signature(&dep_dir, &signer);
-        fs::write(dep_dir.join("extra.wdl"), b"workflow extra {}").unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
         let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
@@ -1016,12 +1095,24 @@ mod tests {
                 .unwrap();
 
         let cache = tempdir().unwrap();
-        let err = resolver(&cache)
+        let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
+
+        // Tamper after locking.
+        fs::write(dep_dir.join("extra.wdl"), b"workflow extra {}").unwrap();
+
+        let r = resolver_with_lockfile(&cache, lockfile);
+        let err = r
             .materialize(&consumer, &"dep".to_string().try_into().unwrap())
             .await
             .unwrap_err();
+        // Tampered content changes the hash, which the signature or
+        // lockfile checksum comparison catches.
         assert!(
-            matches!(err, ResolverError::SignatureVerificationFailed { .. }),
+            matches!(
+                err,
+                ResolverError::SignatureVerificationFailed { .. }
+                    | ResolverError::ChecksumMismatch { .. }
+            ),
             "got: {err}"
         );
     }
@@ -1050,12 +1141,8 @@ mod tests {
             }],
         };
         let cache = tempdir().unwrap();
-        let r = GitResolver::builder()
-            .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
-            .trust(trust)
-            .lockfile(Lockfile::default())
-            .build();
+        let (r, _) =
+            resolve_and_lock_with_config(&cache, &consumer, ModulesConfig::default(), trust).await;
         let err = r
             .materialize(&consumer, &"dep".to_string().try_into().unwrap())
             .await
@@ -1075,12 +1162,7 @@ mod tests {
 
         let dep_dir = workdir.path().join("dep");
         write_manifest(&dep_dir, "dep", "1.0.0", &[]);
-        let link = dep_dir.join("index.wdl");
-        let target = outside.join("evil.wdl");
-        #[cfg(unix)]
-        std::os::unix::fs::symlink(&target, &link).unwrap();
-        #[cfg(windows)]
-        std::os::windows::fs::symlink_file(&target, &link).unwrap();
+        fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
 
         let consumer_dir = workdir.path().join("consumer");
         let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
@@ -1090,7 +1172,18 @@ mod tests {
                 .unwrap();
 
         let cache = tempdir().unwrap();
-        let err = resolver(&cache)
+        let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
+
+        // Replace the entrypoint with a symlink after locking.
+        fs::remove_file(dep_dir.join("index.wdl")).unwrap();
+        let target = outside.join("evil.wdl");
+        #[cfg(unix)]
+        std::os::unix::fs::symlink(&target, dep_dir.join("index.wdl")).unwrap();
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_file(&target, dep_dir.join("index.wdl")).unwrap();
+
+        let r = resolver_with_lockfile(&cache, lockfile);
+        let err = r
             .materialize(&consumer, &"dep".to_string().try_into().unwrap())
             .await
             .unwrap_err();
@@ -1099,6 +1192,7 @@ mod tests {
                 err,
                 ResolverError::MaterializedSymlinkEscape { .. }
                     | ResolverError::Hash(crate::HashError::SymlinkEscapesRoot(_))
+                    | ResolverError::ChecksumMismatch { .. }
             ),
             "got: {err}"
         );
