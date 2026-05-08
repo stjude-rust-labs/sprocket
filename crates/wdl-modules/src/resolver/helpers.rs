@@ -73,3 +73,59 @@ pub(crate) fn read_manifest(dir: &Path) -> Result<Manifest, ResolverError> {
     })?;
     Manifest::parse(&bytes).map_err(ResolverError::from)
 }
+
+#[cfg(test)]
+mod tests {
+    use semver::Version;
+
+    use super::*;
+
+    #[test]
+    fn tag_manifest_mismatch_errors_on_disagreement() {
+        let v_expected = Version::parse("2.0.0").unwrap();
+        let v_declared = Version::parse("1.0.0").unwrap();
+        let err = check_tag_manifest_match(None, Some(&v_expected), &v_declared).unwrap_err();
+        let ResolverError::TagManifestMismatch { tag, declared } = err else {
+            panic!("got: {err:?}");
+        };
+        assert_eq!(tag, "v2.0.0");
+        assert_eq!(declared, v_declared);
+    }
+
+    #[test]
+    fn tag_manifest_mismatch_ok_when_agree() {
+        let v = Version::parse("1.2.3").unwrap();
+        check_tag_manifest_match(Some("csvkit"), Some(&v), &v).unwrap();
+    }
+
+    #[test]
+    fn tag_manifest_mismatch_ok_when_no_expected() {
+        check_tag_manifest_match(None, None, &Version::parse("0.0.1").unwrap()).unwrap();
+    }
+
+    #[test]
+    fn local_in_transitive_classifies_correctly() {
+        let local = ResolvedSource::Path {
+            path: "/tmp/local".into(),
+        };
+        let git = ResolvedSource::Git {
+            git: "https://github.com/x/y".parse().unwrap(),
+            commit: "0000000000000000000000000000000000000000".parse().unwrap(),
+            path: None,
+        };
+        let local_dep = DependencySource::LocalPath {
+            path: "/tmp/dep".into(),
+            extra: Default::default(),
+        };
+        let git_dep = DependencySource::Git {
+            url: "https://github.com/x/y".parse().unwrap(),
+            selector: crate::GitSelector::Tag("v1".into()),
+            path: None,
+            extra: Default::default(),
+        };
+        assert!(!is_transitive_local_disallowed(Some(&local), &local_dep));
+        assert!(is_transitive_local_disallowed(Some(&git), &local_dep));
+        assert!(!is_transitive_local_disallowed(None, &local_dep));
+        assert!(!is_transitive_local_disallowed(Some(&git), &git_dep));
+    }
+}

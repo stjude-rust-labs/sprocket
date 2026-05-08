@@ -146,3 +146,83 @@ impl ResolverPolicy {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::DependencyName;
+    use crate::resolver::config::ModulesConfig;
+    use crate::resolver::error::ResolverError;
+
+    #[test]
+    fn blocks_file_scheme() {
+        let policy = ResolverPolicy::from(&ModulesConfig::default());
+        let dep = DependencyName::try_from("foo".to_string()).unwrap();
+        let url: url::Url = "file:///tmp/repo".parse().unwrap();
+        let err = policy
+            .check_git_url(&dep, &url, DependencyScope::TopLevel)
+            .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::GitUrlPolicyViolation { .. }),
+            "got: {err}"
+        );
+    }
+
+    #[test]
+    fn allows_ssh_top_level_blocks_transitive() {
+        let policy = ResolverPolicy::from(&ModulesConfig::default());
+        let dep = DependencyName::try_from("foo".to_string()).unwrap();
+        let url: url::Url = "ssh://git@github.com/x/y".parse().unwrap();
+        policy
+            .check_git_url(&dep, &url, DependencyScope::TopLevel)
+            .unwrap();
+        let err = policy
+            .check_git_url(&dep, &url, DependencyScope::Transitive)
+            .unwrap_err();
+        assert!(matches!(err, ResolverError::GitUrlPolicyViolation { .. }));
+    }
+
+    #[test]
+    fn allows_https_by_default() {
+        let policy = ResolverPolicy::from(&ModulesConfig::default());
+        let dep = DependencyName::try_from("foo".to_string()).unwrap();
+        let url: url::Url = "https://github.com/x/y".parse().unwrap();
+        policy
+            .check_git_url(&dep, &url, DependencyScope::TopLevel)
+            .unwrap();
+        policy
+            .check_git_url(&dep, &url, DependencyScope::Transitive)
+            .unwrap();
+    }
+
+    #[test]
+    fn credential_mode_from_config() {
+        let cfg = ModulesConfig {
+            allow_transitive_credentials: true,
+            ..ModulesConfig::default()
+        };
+        let policy = ResolverPolicy::from(&cfg);
+        assert_eq!(
+            policy.git_policy(DependencyScope::Transitive).credential_mode,
+            CredentialMode::Enabled
+        );
+        assert_eq!(
+            policy.git_policy(DependencyScope::TopLevel).credential_mode,
+            CredentialMode::Enabled
+        );
+
+        let default_policy = ResolverPolicy::from(&ModulesConfig::default());
+        assert_eq!(
+            default_policy
+                .git_policy(DependencyScope::Transitive)
+                .credential_mode,
+            CredentialMode::Disabled
+        );
+        assert_eq!(
+            default_policy
+                .git_policy(DependencyScope::TopLevel)
+                .credential_mode,
+            CredentialMode::Enabled
+        );
+    }
+}

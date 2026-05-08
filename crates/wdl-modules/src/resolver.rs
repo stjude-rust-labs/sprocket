@@ -1260,29 +1260,6 @@ mod tests {
         );
     }
 
-    #[test]
-    fn tag_manifest_mismatch_helper_errors_on_disagreement() {
-        let v_expected = Version::parse("2.0.0").unwrap();
-        let v_declared = Version::parse("1.0.0").unwrap();
-        let err =
-            super::check_tag_manifest_match(None, Some(&v_expected), &v_declared).unwrap_err();
-        let ResolverError::TagManifestMismatch { tag, declared } = err else {
-            panic!("got: {err:?}");
-        };
-        assert_eq!(tag, "v2.0.0");
-        assert_eq!(declared, v_declared);
-    }
-
-    #[test]
-    fn tag_manifest_mismatch_helper_ok_when_agree() {
-        let v = Version::parse("1.2.3").unwrap();
-        super::check_tag_manifest_match(Some("csvkit"), Some(&v), &v).unwrap();
-    }
-
-    #[test]
-    fn tag_manifest_mismatch_helper_ok_when_no_expected() {
-        super::check_tag_manifest_match(None, None, &Version::parse("0.0.1").unwrap()).unwrap();
-    }
 
     #[tokio::test]
     async fn resolve_tree_rejects_too_many_materialized_files() {
@@ -1388,91 +1365,6 @@ mod tests {
         assert!(dep_dir.join("two.wdl").exists());
     }
 
-    #[test]
-    fn credential_mode_respects_transitive_config() {
-        let cache = tempdir().unwrap();
-        let r = GitResolver::builder()
-            .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
-            .trust(TrustStore::default())
-            .lockfile(Lockfile::default())
-            .config(ModulesConfig {
-                allow_transitive_credentials: true,
-                ..ModulesConfig::default()
-            })
-            .build();
-        let policy = r.policy();
-        assert_eq!(policy.git_policy(DependencyScope::Transitive).credential_mode, CredentialMode::Enabled);
-        assert_eq!(policy.git_policy(DependencyScope::TopLevel).credential_mode, CredentialMode::Enabled);
-
-        let r_default = resolver(&cache);
-        let default_policy = r_default.policy();
-        assert_eq!(default_policy.git_policy(DependencyScope::Transitive).credential_mode, CredentialMode::Disabled);
-        assert_eq!(default_policy.git_policy(DependencyScope::TopLevel).credential_mode, CredentialMode::Enabled);
-    }
-
-    #[test]
-    fn policy_blocks_file_scheme() {
-        let policy = ResolverPolicy::from(&ModulesConfig::default());
-        let dep = DependencyName::try_from("foo".to_string()).unwrap();
-        let url: url::Url = "file:///tmp/repo".parse().unwrap();
-        let err = policy.check_git_url(&dep, &url, DependencyScope::TopLevel).unwrap_err();
-        assert!(
-            matches!(err, ResolverError::GitUrlPolicyViolation { .. }),
-            "got: {err}"
-        );
-    }
-
-    #[test]
-    fn policy_allows_ssh_top_level_blocks_transitive() {
-        let policy = ResolverPolicy::from(&ModulesConfig::default());
-        let dep = DependencyName::try_from("foo".to_string()).unwrap();
-        let url: url::Url = "ssh://git@github.com/x/y".parse().unwrap();
-        policy.check_git_url(&dep, &url, DependencyScope::TopLevel).unwrap();
-        let err = policy.check_git_url(&dep, &url, DependencyScope::Transitive).unwrap_err();
-        assert!(matches!(err, ResolverError::GitUrlPolicyViolation { .. }));
-    }
-
-    #[test]
-    fn policy_allows_https_by_default() {
-        let policy = ResolverPolicy::from(&ModulesConfig::default());
-        let dep = DependencyName::try_from("foo".to_string()).unwrap();
-        let url: url::Url = "https://github.com/x/y".parse().unwrap();
-        policy.check_git_url(&dep, &url, DependencyScope::TopLevel).unwrap();
-        policy.check_git_url(&dep, &url, DependencyScope::Transitive).unwrap();
-    }
-
-    #[test]
-    fn local_in_transitive_helper_classifies_correctly() {
-        let local = ResolvedSource::Path {
-            path: "/tmp/local".into(),
-        };
-        let git = ResolvedSource::Git {
-            git: "https://github.com/x/y".parse().unwrap(),
-            commit: "0000000000000000000000000000000000000000".parse().unwrap(),
-            path: None,
-        };
-        let local_dep = DependencySource::LocalPath {
-            path: "/tmp/dep".into(),
-            extra: Default::default(),
-        };
-        let git_dep = DependencySource::Git {
-            url: "https://github.com/x/y".parse().unwrap(),
-            selector: GitSelector::Tag("v1".into()),
-            path: None,
-            extra: Default::default(),
-        };
-        assert!(!super::is_transitive_local_disallowed(
-            Some(&local),
-            &local_dep
-        ));
-        assert!(super::is_transitive_local_disallowed(
-            Some(&git),
-            &local_dep
-        ));
-        assert!(!super::is_transitive_local_disallowed(None, &local_dep));
-        assert!(!super::is_transitive_local_disallowed(Some(&git), &git_dep));
-    }
 
     #[tokio::test]
     async fn resolve_tree_detects_self_cycle() {
