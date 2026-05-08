@@ -16,6 +16,7 @@ use crate::resolver::versions::RemoteRefs;
 /// URL scheme, host, credential, and ref-count policy before
 /// touching the network.
 pub(crate) struct GitFetcher {
+    /// The resolver policy applied to all remote operations.
     policy: ResolverPolicy,
 }
 

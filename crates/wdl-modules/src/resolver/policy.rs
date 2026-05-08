@@ -19,6 +19,7 @@ pub(crate) enum HostPolicy {
 }
 
 impl HostPolicy {
+    /// Returns `true` if the given `host` is permitted by this policy.
     fn allows(&self, host: &str) -> bool {
         match self {
             Self::Any => true,
@@ -43,7 +44,9 @@ pub(crate) struct GitNetworkPolicy {
 /// The full resolver policy, derived from config at construction.
 #[derive(Clone, Debug)]
 pub(crate) struct ResolverPolicy {
+    /// Network policy applied to top-level dependencies.
     top_level: GitNetworkPolicy,
+    /// Network policy applied to transitive dependencies.
     transitive: GitNetworkPolicy,
     /// Hosts explicitly denied for all scopes.
     denied_hosts: Vec<String>,

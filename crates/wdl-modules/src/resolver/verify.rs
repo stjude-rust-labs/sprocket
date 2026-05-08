@@ -25,8 +25,11 @@ pub(crate) struct VerifiedModule {
 /// checksum, and resource-limit policies.
 #[derive(bon::Builder)]
 pub(crate) struct ModuleVerifier<'a> {
+    /// The resolved modules configuration.
     config: &'a ModulesConfig,
+    /// The trust store used for key lookups.
     trust: &'a TrustStore,
+    /// The lockfile used for checksum verification.
     lockfile: &'a Lockfile,
 }
 
@@ -69,6 +72,7 @@ impl ModuleVerifier<'_> {
         Ok(())
     }
 
+    /// Emits a tracing warning for any file exceeding the configured size threshold.
     fn warn_on_large_files(
         &self,
         name: &DependencyName,
@@ -92,6 +96,7 @@ impl ModuleVerifier<'_> {
         Ok(())
     }
 
+    /// Reads the signature file from `module_root` and verifies it against `checksum`.
     fn read_and_verify_signature(
         &self,
         name: &DependencyName,

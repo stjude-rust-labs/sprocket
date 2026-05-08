@@ -30,11 +30,13 @@ pub(crate) enum MaterializedRoot {
     Local(ModuleRoot),
     /// A resolver-owned cache leaf.
     Cached {
+        /// The module content root inside the cache leaf.
         module_root: ModuleRoot,
         // NOTE: `#[expect(dead_code)]` would error when eviction
         // consumes this field; `#[allow]` is used because consumption
         // depends on a later task in this refactor sequence.
         #[allow(dead_code)]
+        /// The resolver-owned cache leaf directory for this module.
         cache_leaf: PathBuf,
     },
 }
