@@ -10,6 +10,7 @@ pub mod config;
 pub mod error;
 pub(crate) mod fetch;
 mod git;
+pub(crate) mod helpers;
 pub mod lock;
 pub(crate) mod module_root;
 pub(crate) mod policy;
@@ -17,6 +18,7 @@ pub(crate) mod scope;
 pub mod trust;
 pub(crate) mod tree_walk;
 pub(crate) mod types;
+pub(crate) mod verify;
 pub(crate) mod versions;
 
 use std::collections::BTreeMap;
@@ -45,6 +47,12 @@ use crate::resolver::module_root::ModuleRoot;
 use crate::resolver::policy::ResolverPolicy;
 use crate::resolver::scope::DependencyScope;
 use crate::resolver::scope::ResolutionMode;
+use crate::resolver::helpers::check_tag_manifest_match;
+use crate::resolver::helpers::exclude_set;
+use crate::resolver::helpers::is_transitive_local_disallowed;
+use crate::resolver::helpers::read_manifest;
+use crate::resolver::verify::ModuleVerifier;
+use crate::resolver::verify::VerifiedModule;
 pub use crate::resolver::config::LargeFileWarning;
 pub use crate::resolver::config::LargeFileWarningError;
 pub use crate::resolver::config::ModulesConfig;
@@ -245,7 +253,7 @@ impl GitResolver {
             chain.pop();
 
             let VerifiedModule { checksum, signer } =
-                self.verify_materialized_dependency(name, module_root.module_root().as_ref())?;
+                self.verifier().verify(name, module_root.module_root().as_ref())?;
             Ok(ResolvedDependency {
                 source: resolved_source,
                 modules: BTreeMap::from([(
@@ -262,123 +270,14 @@ impl GitResolver {
         .boxed()
     }
 
-    /// Walks `module_root` and emits a `tracing::warn!` for every file
-    /// whose size meets or exceeds the configured
-    /// [`LargeFileWarning::Threshold`].
-    fn warn_on_large_files(
-        &self,
-        name: &DependencyName,
-        module_root: &Path,
-    ) -> Result<(), ResolverError> {
-        let LargeFileWarning::Threshold(threshold) = self.config.large_file_warning else {
-            return Ok(());
-        };
-        crate::resolver::tree_walk::walk_module_tree(module_root, &mut |entry, size| {
-            if size >= threshold {
-                tracing::warn!(
-                    dep = %name,
-                    file = %entry.display(),
-                    size,
-                    threshold,
-                    "module contains a large file",
-                );
-            }
-            Ok(())
-        })?;
-        Ok(())
-    }
-
-    /// Reads a `module.sig` next to `module_root` if present, verifies
-    /// it against the observed `checksum`, and applies the trust-store
-    /// policy (explicit pinning beats TOFU). Returns the signer key
-    /// when verification succeeds, `None` when no signature file exists
-    /// (and `require_signed` is off).
-    fn read_and_verify_signature(
-        &self,
-        name: &DependencyName,
-        module_root: &Path,
-        checksum: &crate::ContentHash,
-    ) -> Result<Option<crate::VerifyingKey>, ResolverError> {
-        let sig_path = module_root.join(crate::SIGNATURE_FILENAME);
-        let bytes = match std::fs::read(&sig_path) {
-            Ok(b) => b,
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-                if self.config.require_signed {
-                    return Err(ResolverError::RequireSignedViolation { dep: name.clone() });
-                }
-                return Ok(None);
-            }
-            Err(source) => {
-                return Err(ResolverError::Io {
-                    path: sig_path,
-                    source,
-                });
-            }
-        };
-        let sig = crate::ModuleSignature::parse(&bytes).map_err(|source| {
-            ResolverError::SignatureParse {
-                dep: name.clone(),
-                source,
-            }
-        })?;
-        sig.verify(checksum)
-            .map_err(|_| ResolverError::SignatureVerificationFailed {
-                dep: name.clone(),
-                signer: Box::new(sig.public_key),
-            })?;
-        if let Some(trusted) = self.trust.lookup(name)
-            && &sig.public_key != trusted
-        {
-            return Err(ResolverError::SignerKeyMismatch {
-                dep: name.clone(),
-                expected: Box::new(*trusted),
-                observed: Box::new(sig.public_key),
-            });
-        }
-        Ok(Some(sig.public_key))
-    }
-
-    /// Hashes a materialized module root, applies the large-file
-    /// warning, and reads/verifies `module.sig` if present.
-    fn verify_materialized_dependency(
-        &self,
-        name: &DependencyName,
-        module_root: &Path,
-    ) -> Result<VerifiedModule, ResolverError> {
-        check_materialized_tree_limits(&self.config, name, module_root)?;
-        let checksum = crate::hash::hash_directory(module_root)?;
-        self.warn_on_large_files(name, module_root)?;
-        let signer = self.read_and_verify_signature(name, module_root, &checksum)?;
-        Ok(VerifiedModule { checksum, signer })
-    }
-
-    /// Verifies a materialized dependency's content hash against the
-    /// lockfile. The dependency must be present in the lockfile and the
-    /// checksums must match.
-    /// Verifies a dependency's content hash against the lockfile. The
-    /// dependency must be present and the checksums must match.
-    fn verify_against_lockfile(
-        &self,
-        name: &DependencyName,
-        checksum: &crate::ContentHash,
-    ) -> Result<(), ResolverError> {
-        let locked_entry = self
-            .lockfile
-            .dependencies
-            .get(name)
-            .ok_or_else(|| ResolverError::NotInLockfile { dep: name.clone() })?;
-        let locked_module = locked_entry
-            .modules
-            .get(&ModulePath::Root)
-            .ok_or_else(|| ResolverError::NotInLockfile { dep: name.clone() })?;
-        if locked_module.checksum != *checksum {
-            return Err(ResolverError::ChecksumMismatch {
-                dep: name.clone(),
-                expected: locked_module.checksum,
-                observed: *checksum,
-            });
-        }
-        Ok(())
+    /// Returns a verifier that borrows this resolver's config, trust
+    /// store, and lockfile.
+    fn verifier(&self) -> ModuleVerifier<'_> {
+        ModuleVerifier::builder()
+            .config(&self.config)
+            .trust(&self.trust)
+            .lockfile(&self.lockfile)
+            .build()
     }
 
     /// Resolves a [`GitSelector`] against the remote at `url` to a
@@ -586,108 +485,6 @@ impl GitResolver {
 
 /// Compiles a manifest's `exclude` patterns into a [`globset::GlobSet`]
 /// for gitignore-style matching against import sub-paths.
-fn exclude_set(patterns: &[crate::RelativePath]) -> Result<globset::GlobSet, ResolverError> {
-    if patterns.is_empty() {
-        return Ok(globset::GlobSet::empty());
-    }
-    let mut builder = globset::GlobSetBuilder::new();
-    for p in patterns {
-        let s: &str = p.as_ref();
-        let glob = globset::Glob::new(s).map_err(|source| ResolverError::InvalidExclude {
-            pattern: s.to_string(),
-            source,
-        })?;
-        builder.add(glob);
-    }
-    // SAFETY: `GlobSetBuilder::build` only consolidates already-compiled
-    // globs; `Glob::new` above is the validating step, so by the time
-    // we reach this call there is nothing left for `build` to reject.
-    Ok(builder.build().unwrap())
-}
-
-
-/// Returns `Err(TagManifestMismatch)` when a Git tag's selected
-/// semver `expected` does not equal the manifest's `declared` version.
-fn check_tag_manifest_match(
-    path_prefix: Option<&str>,
-    expected: Option<&Version>,
-    declared: &Version,
-) -> Result<(), ResolverError> {
-    if let Some(exp) = expected
-        && exp != declared
-    {
-        let tag = crate::resolver::versions::VersionTag::new(
-            path_prefix.map(str::to_string),
-            exp.clone(),
-        )
-        .to_string();
-        return Err(ResolverError::TagManifestMismatch {
-            tag,
-            declared: declared.clone(),
-        });
-    }
-    Ok(())
-}
-
-/// Returns `true` if `child` is a local-path source declared by a
-/// non-local parent. Top-level deps (no parent in scope) and any
-/// non-local child are always allowed by this rule.
-/// Walks `module_root` and rejects the tree if it exceeds configured
-/// file-count or byte-size limits.
-fn check_materialized_tree_limits(
-    config: &ModulesConfig,
-    name: &DependencyName,
-    module_root: &Path,
-) -> Result<(), ResolverError> {
-    if config.max_materialized_files.is_none() && config.max_materialized_bytes.is_none() {
-        return Ok(());
-    }
-    let stats =
-        crate::resolver::tree_walk::walk_module_tree(module_root, &mut |_, _| Ok(()))?;
-    if config
-        .max_materialized_files
-        .is_some_and(|limit| stats.files > limit)
-        || config
-            .max_materialized_bytes
-            .is_some_and(|limit| stats.bytes > limit)
-    {
-        return Err(ResolverError::MaterializedTreeLimitExceeded {
-            dep: name.clone(),
-            files: stats.files,
-            bytes: stats.bytes,
-        });
-    }
-    Ok(())
-}
-
-/// Returns `true` if `child` is a local-path source declared by a
-/// non-local parent.
-fn is_transitive_local_disallowed(
-    parent: Option<&ResolvedSource>,
-    child: &DependencySource,
-) -> bool {
-    matches!(child, DependencySource::LocalPath { .. })
-        && matches!(parent, Some(ResolvedSource::Git { .. }))
-}
-
-/// Reads and parses `module.json` from `dir`.
-fn read_manifest(dir: &Path) -> Result<Manifest, ResolverError> {
-    let path = dir.join(crate::MANIFEST_FILENAME);
-    let bytes = std::fs::read(&path).map_err(|source| ResolverError::Io {
-        path: path.clone(),
-        source,
-    })?;
-    Manifest::parse(&bytes).map_err(ResolverError::from)
-}
-
-/// Artifacts produced by [`GitResolver::verify_materialized_dependency`].
-struct VerifiedModule {
-    /// The module's content hash.
-    checksum: crate::ContentHash,
-    /// The signer's public key, if the module was signed.
-    signer: Option<crate::VerifyingKey>,
-}
-
 #[async_trait]
 impl Resolver for GitResolver {
     async fn materialize(
@@ -721,8 +518,9 @@ impl Resolver for GitResolver {
             .await?;
 
         let root_path = module_root.module_root().as_ref();
-        let verified = self.verify_materialized_dependency(name, root_path)?;
-        self.verify_against_lockfile(name, &verified.checksum)?;
+        let verifier = self.verifier();
+        let verified = verifier.verify(name, root_path)?;
+        verifier.verify_against_lockfile(name, &verified.checksum)?;
 
         let (rel, kind) = match path.sub_path() {
             None => (
