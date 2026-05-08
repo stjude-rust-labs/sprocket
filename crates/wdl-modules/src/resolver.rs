@@ -5,17 +5,24 @@
 //! the manifest/lockfile/hashing types (e.g. `wdl-doc`) do not enable
 //! this feature and therefore do not pay for those deps.
 
+//! Public resolver API.
+//!
+//! The resolver exposes high-level resolution, materialization,
+//! lockfile, and trust types. Git transport, cache layout, sparse
+//! checkout, and version-discovery internals remain private so the
+//! implementation can change without breaking consumers.
+
 pub(crate) mod cache;
-pub mod config;
-pub mod error;
+pub(crate) mod config;
+pub(crate) mod error;
 pub(crate) mod fetch;
 mod git;
 pub(crate) mod helpers;
-pub mod lock;
+pub(crate) mod lock;
 pub(crate) mod module_root;
 pub(crate) mod policy;
 pub(crate) mod scope;
-pub mod trust;
+pub(crate) mod trust;
 pub(crate) mod tree_walk;
 pub(crate) mod types;
 pub(crate) mod verify;
@@ -45,7 +52,7 @@ use crate::resolver::fetch::GitFetcher;
 use crate::resolver::module_root::MaterializedRoot;
 use crate::resolver::module_root::ModuleRoot;
 use crate::resolver::policy::ResolverPolicy;
-use crate::resolver::scope::DependencyScope;
+pub use crate::resolver::scope::DependencyScope;
 use crate::resolver::scope::ResolutionMode;
 use crate::resolver::helpers::check_tag_manifest_match;
 use crate::resolver::helpers::exclude_set;
