@@ -273,89 +273,25 @@ pub(crate) const NON_MODULE_CONTENT: &[&str] = &[".git", ".sparse.json"];
 pub fn hash_directory(root: impl AsRef<Path>) -> Result<ContentHash, HashError> {
     let root = root.as_ref();
     let mut hasher = Hasher::new(root.to_path_buf());
-    let mut stack = vec![root.to_path_buf()];
-    while let Some(dir) = stack.pop() {
-        let entries = std::fs::read_dir(&dir).map_err(|source| HashError::Io {
-            path: dir.clone(),
-            source,
-        })?;
-        for entry in entries {
-            let entry = entry.map_err(|source| HashError::Io {
-                path: dir.clone(),
-                source,
-            })?;
-            let name = entry.file_name();
-            if NON_MODULE_CONTENT.iter().any(|s| *s == name) {
-                continue;
-            }
-            let path = entry.path();
-            let meta = std::fs::symlink_metadata(&path).map_err(|source| HashError::Io {
-                path: path.clone(),
-                source,
-            })?;
-            if meta.file_type().is_symlink() {
-                let target = std::fs::canonicalize(&path).map_err(|source| HashError::Io {
-                    path: path.clone(),
-                    source,
-                })?;
-                let canonical_root =
-                    std::fs::canonicalize(root).map_err(|source| HashError::Io {
-                        path: root.to_path_buf(),
-                        source,
-                    })?;
-                if !target.starts_with(&canonical_root) {
-                    return Err(HashError::SymlinkEscapesRoot(
-                        path.strip_prefix(root)
-                            .unwrap_or(&path)
-                            .display()
-                            .to_string(),
-                    ));
-                }
-                // Reject symlinks targeting resolver metadata.
-                if let Ok(rel) = target.strip_prefix(&canonical_root) {
-                    let first_component = rel.components().next();
-                    if let Some(c) = first_component {
-                        let name = c.as_os_str().to_str().unwrap_or("");
-                        if NON_MODULE_CONTENT.contains(&name) {
-                            return Err(HashError::SymlinkTargetsMetadata(
-                                path.strip_prefix(root)
-                                    .unwrap_or(&path)
-                                    .display()
-                                    .to_string(),
-                            ));
-                        }
-                    }
-                }
-                // Symlink resolves within root and not to metadata;
-                // follow it for type classification.
-                let target_meta = std::fs::metadata(&path).map_err(|source| HashError::Io {
-                    path: path.clone(),
-                    source,
-                })?;
-                if target_meta.is_dir() {
-                    stack.push(path);
-                    continue;
-                }
-            } else if meta.is_dir() {
-                stack.push(path);
-                continue;
-            }
 
-            // SAFETY: `path` was produced by `read_dir(dir)` for a `dir`
-            // whose ancestor stack started at `root`, so it always lives
-            // under `root`.
-            let rel_path = path.strip_prefix(root).unwrap();
-            let rel = rel_path
-                .to_str()
-                .ok_or(RelativePathError::NonUtf8)?
-                .replace('\\', "/");
-            // Spec-defined hash exclusions (present in tree but not hashed).
-            if rel == crate::SIGNATURE_FILENAME || rel == crate::LOCKFILE_FILENAME {
-                continue;
-            }
-            hasher.try_add(rel)?;
+    crate::module_walk::walk_module_tree(root, &mut |path: &Path, _size| {
+        // SAFETY: the walker only yields paths under `root`.
+        let rel_path = path.strip_prefix(root).unwrap();
+        let rel = rel_path
+            .to_str()
+            .ok_or(RelativePathError::NonUtf8)?
+            .replace('\\', "/");
+        // Spec-defined hash exclusions (present in tree but not hashed).
+        if rel == crate::SIGNATURE_FILENAME || rel == crate::LOCKFILE_FILENAME {
+            return Ok(());
         }
-    }
+        hasher.try_add(rel)?;
+        Ok(())
+    })
+    .map_err(|e| match e {
+        crate::module_walk::WalkError::Hash(h) => h,
+        crate::module_walk::WalkError::Visitor(h) => h,
+    })?;
 
     crate::tree::validate_tree(hasher.paths())?;
 
@@ -615,5 +551,24 @@ mod tests {
         fs::write(dir.path().join("real.wdl"), b"workflow w {}").unwrap();
         symlink_file(&dir.path().join("real.wdl"), &dir.path().join("alias.wdl"));
         hash_directory(dir.path()).unwrap();
+    }
+
+    #[test]
+    fn directory_symlink_cycle_is_rejected() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("real.wdl"), b"version 1.2\n").unwrap();
+        fs::create_dir(dir.path().join("sub")).unwrap();
+        #[cfg(unix)]
+        std::os::unix::fs::symlink("..", dir.path().join("sub").join("loop")).unwrap();
+        #[cfg(windows)]
+        std::os::windows::fs::symlink_dir("..", dir.path().join("sub").join("loop")).unwrap();
+        let err = hash_directory(dir.path()).unwrap_err();
+        assert!(
+            matches!(
+                err,
+                HashError::SymlinkEscapesRoot(_) | HashError::SymlinkTargetsMetadata(_)
+            ),
+            "directory symlink cycles must be rejected, got: {err}"
+        );
     }
 }

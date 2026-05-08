@@ -11,6 +11,7 @@ pub mod hash;
 pub mod license;
 pub mod lockfile;
 pub mod manifest;
+pub mod module_walk;
 pub mod relative_path;
 #[cfg(feature = "resolver")]
 pub mod resolver;
