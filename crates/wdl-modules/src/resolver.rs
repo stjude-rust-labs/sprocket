@@ -15,6 +15,7 @@ pub(crate) mod module_root;
 pub(crate) mod policy;
 pub(crate) mod scope;
 pub mod trust;
+pub(crate) mod tree_walk;
 pub(crate) mod types;
 pub(crate) mod versions;
 
@@ -272,7 +273,7 @@ impl GitResolver {
         let LargeFileWarning::Threshold(threshold) = self.config.large_file_warning else {
             return Ok(());
         };
-        walk_files(module_root, &mut |entry, size| {
+        crate::resolver::tree_walk::walk_module_tree(module_root, &mut |entry, size| {
             if size >= threshold {
                 tracing::warn!(
                     dep = %name,
@@ -283,7 +284,8 @@ impl GitResolver {
                 );
             }
             Ok(())
-        })
+        })?;
+        Ok(())
     }
 
     /// Reads a `module.sig` next to `module_root` if present, verifies
@@ -603,41 +605,6 @@ fn exclude_set(patterns: &[crate::RelativePath]) -> Result<globset::GlobSet, Res
     Ok(builder.build().unwrap())
 }
 
-/// Recursively walks every regular file under `root`, calling `visit`
-/// with each file's path and size. Uses `symlink_metadata` so symlinks
-/// are not followed (symlink containment is validated separately by
-/// `hash_directory`). Skips `.git` directories and `.sparse.json`
-/// resolver metadata.
-fn walk_files(
-    root: &Path,
-    visit: &mut dyn FnMut(&Path, u64) -> Result<(), ResolverError>,
-) -> Result<(), ResolverError> {
-    let entries = std::fs::read_dir(root).map_err(|source| ResolverError::Io {
-        path: root.to_path_buf(),
-        source,
-    })?;
-    for entry in entries {
-        let entry = entry.map_err(|source| ResolverError::Io {
-            path: root.to_path_buf(),
-            source,
-        })?;
-        let name = entry.file_name();
-        if name == ".git" || name == ".sparse.json" {
-            continue;
-        }
-        let path = entry.path();
-        let meta = std::fs::symlink_metadata(&path).map_err(|source| ResolverError::Io {
-            path: path.clone(),
-            source,
-        })?;
-        if meta.is_dir() {
-            walk_files(&path, visit)?;
-        } else if meta.is_file() {
-            visit(&path, meta.len())?;
-        }
-    }
-    Ok(())
-}
 
 /// Returns `Err(TagManifestMismatch)` when a Git tag's selected
 /// semver `expected` does not equal the manifest's `declared` version.
@@ -675,24 +642,19 @@ fn check_materialized_tree_limits(
     if config.max_materialized_files.is_none() && config.max_materialized_bytes.is_none() {
         return Ok(());
     }
-    let mut files = 0usize;
-    let mut bytes = 0u64;
-    walk_files(module_root, &mut |_entry, size| {
-        files += 1;
-        bytes = bytes.saturating_add(size);
-        Ok(())
-    })?;
+    let stats =
+        crate::resolver::tree_walk::walk_module_tree(module_root, &mut |_, _| Ok(()))?;
     if config
         .max_materialized_files
-        .is_some_and(|limit| files > limit)
+        .is_some_and(|limit| stats.files > limit)
         || config
             .max_materialized_bytes
-            .is_some_and(|limit| bytes > limit)
+            .is_some_and(|limit| stats.bytes > limit)
     {
         return Err(ResolverError::MaterializedTreeLimitExceeded {
             dep: name.clone(),
-            files,
-            bytes,
+            files: stats.files,
+            bytes: stats.bytes,
         });
     }
     Ok(())
