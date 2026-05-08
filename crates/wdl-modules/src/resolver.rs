@@ -8,6 +8,7 @@
 pub(crate) mod cache;
 pub mod config;
 pub mod error;
+pub(crate) mod fetch;
 mod git;
 pub mod lock;
 pub(crate) mod module_root;
@@ -37,6 +38,7 @@ use crate::ModulePath;
 use crate::ResolvedSource;
 use crate::SymbolicPath;
 use crate::resolver::cache::CacheKey;
+use crate::resolver::fetch::GitFetcher;
 use crate::resolver::module_root::MaterializedRoot;
 use crate::resolver::module_root::ModuleRoot;
 use crate::resolver::policy::ResolverPolicy;
@@ -159,9 +161,14 @@ impl GitResolver {
         &self.trust
     }
 
-    /// Returns the resolved policy for the given scope.
+    /// Returns the resolved policy.
     fn policy(&self) -> ResolverPolicy {
         ResolverPolicy::from(&self.config)
+    }
+
+    /// Returns a policy-enforcing Git fetcher.
+    fn fetcher(&self) -> GitFetcher {
+        GitFetcher::new(self.policy())
     }
 
     /// Returns the lockfile.
@@ -211,12 +218,11 @@ impl GitResolver {
         chain: &'a mut Vec<(DependencyName, ResolvedSource)>,
     ) -> BoxFuture<'a, Result<ResolvedDependency, ResolverError>> {
         async move {
-            let credential_mode = self.policy().git_policy(scope).credential_mode;
             let (resolved_source, manifest, module_root) = self
                 .materialize_dependency(
                     name,
                     source,
-                    credential_mode,
+                    scope,
                     ResolutionMode::Fresh,
                 )
                 .await?;
@@ -381,19 +387,20 @@ impl GitResolver {
         url: &url::Url,
         selector: &GitSelector,
         path_prefix: Option<&str>,
-        credential_mode: crate::resolver::git::CredentialMode,
+        scope: DependencyScope,
     ) -> Result<(Option<Version>, crate::GitCommit), ResolverError> {
+        let fetcher = self.fetcher();
         match selector {
             GitSelector::Version(requirement) => {
+                let dep = name.clone();
                 let url = url.clone();
                 let requirement = requirement.clone();
                 let path_prefix_owned = path_prefix.map(str::to_string);
-                let max_refs = self.config.max_advertised_refs;
                 let refs = tokio::task::spawn_blocking(move || {
-                    crate::resolver::versions::list_remote_refs(&url, max_refs, credential_mode)
+                    fetcher.list_tags(&dep, &url, scope)
                 })
                 .await
-                // SAFETY: `list_remote_refs` performs only Git work; a
+                // SAFETY: the closure performs only Git work; a
                 // `JoinError` would only fire on runtime shutdown.
                 .unwrap()?;
                 let (version, commit) = crate::resolver::versions::resolve_version_to_commit(
@@ -414,13 +421,14 @@ impl GitResolver {
                 Ok((Some(version), commit))
             }
             GitSelector::Tag(tag) => {
+                let dep = name.clone();
                 let url = url.clone();
-                let max_refs = self.config.max_advertised_refs;
+                let fetcher = self.fetcher();
                 let refs = tokio::task::spawn_blocking(move || {
-                    crate::resolver::versions::list_remote_refs(&url, max_refs, credential_mode)
+                    fetcher.list_tags(&dep, &url, scope)
                 })
                 .await
-                // SAFETY: `list_remote_refs` does not panic.
+                // SAFETY: the closure does not panic.
                 .unwrap()?;
                 let commit =
                     refs.get(tag)
@@ -433,13 +441,14 @@ impl GitResolver {
                 Ok((None, commit))
             }
             GitSelector::Branch(branch) => {
+                let dep = name.clone();
                 let url = url.clone();
-                let max_refs = self.config.max_advertised_refs;
+                let fetcher = self.fetcher();
                 let refs = tokio::task::spawn_blocking(move || {
-                    crate::resolver::versions::list_remote_branches(&url, max_refs, credential_mode)
+                    fetcher.list_branches(&dep, &url, scope)
                 })
                 .await
-                // SAFETY: `list_remote_branches` does not panic.
+                // SAFETY: the closure does not panic.
                 .unwrap()?;
                 let commit =
                     refs.get(branch)
@@ -470,8 +479,8 @@ impl GitResolver {
         &self,
         name: &DependencyName,
         source: &DependencySource,
-        credential_mode: CredentialMode,
-        mode: crate::resolver::scope::ResolutionMode,
+        scope: DependencyScope,
+        mode: ResolutionMode,
     ) -> Result<(ResolvedSource, Manifest, MaterializedRoot), ResolverError> {
         match source {
             DependencySource::LocalPath { path, .. } => {
@@ -516,7 +525,7 @@ impl GitResolver {
                             url,
                             selector,
                             path_prefix.as_deref(),
-                            credential_mode,
+                            scope,
                         )
                         .await?
                     }
@@ -526,16 +535,19 @@ impl GitResolver {
                 let leaf = key.absolute_path(&self.cache_root);
                 let sparse_path = path_prefix.clone().unwrap_or_else(|| ".".to_string());
 
+                let fetcher = self.fetcher();
+                let dep_for_clone = name.clone();
                 let url_for_clone = url.clone();
                 let leaf_for_clone = leaf.clone();
                 let commit_for_clone = commit.clone();
                 tokio::task::spawn_blocking(move || {
-                    crate::resolver::git::ensure_materialized(
-                        &leaf_for_clone,
+                    fetcher.ensure_materialized(
+                        &dep_for_clone,
                         &url_for_clone,
                         commit_for_clone.inner(),
-                        [sparse_path.as_str()],
-                        credential_mode,
+                        &[sparse_path.as_str()],
+                        scope,
+                        &leaf_for_clone,
                     )
                 })
                 .await
@@ -737,12 +749,11 @@ impl Resolver for GitResolver {
         if let DependencySource::Git { url, .. } = source {
             self.policy().check_git_url(name, url, scope)?;
         }
-        let credential_mode = self.policy().git_policy(scope).credential_mode;
         let (resolved_source, manifest, module_root) = self
             .materialize_dependency(
                 name,
                 source,
-                credential_mode,
+                scope,
                 ResolutionMode::Locked,
             )
             .await?;
@@ -824,27 +835,18 @@ impl Resolver for GitResolver {
                 ..
             } => {
                 let scope = DependencyScope::TopLevel;
-                // SAFETY: `_discovery` is a valid identifier matching
-                // `DependencyName`'s `[A-Za-z][A-Za-z0-9_]*` pattern.
-                let discovery_name =
-                    DependencyName::try_from("_discovery".to_string()).unwrap();
-                self.policy()
-                    .check_git_url(&discovery_name, url, scope)?;
-
                 let GitSelector::Version(requirement) = selector else {
                     return Ok(Vec::new());
                 };
+                let fetcher = self.fetcher();
+                // SAFETY: `_discovery` is a valid identifier matching
+                // `DependencyName`'s `[A-Za-z][A-Za-z0-9_]*` pattern.
+                let dep = DependencyName::try_from("_discovery".to_string()).unwrap();
                 let url = url.clone();
                 let path_prefix = path.as_ref().map(GitModulePath::as_str).map(str::to_string);
                 let requirement = requirement.clone();
-                let max_refs = self.config.max_advertised_refs;
-                let credential_mode = self.policy().git_policy(scope).credential_mode;
                 tokio::task::spawn_blocking(move || -> Result<Vec<Version>, ResolverError> {
-                    let refs = crate::resolver::versions::list_remote_refs(
-                        &url,
-                        max_refs,
-                        credential_mode,
-                    )?;
+                    let refs = fetcher.list_tags(&dep, &url, scope)?;
                     Ok(crate::resolver::versions::filter_matching(
                         &refs,
                         path_prefix.as_deref(),
