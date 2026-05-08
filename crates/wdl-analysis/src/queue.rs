@@ -4,6 +4,7 @@ use std::marker::PhantomData;
 use std::ops::Range;
 use std::panic;
 use std::panic::AssertUnwindSafe;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -282,6 +283,10 @@ pub struct AnalysisQueue<Progress, Context, Return, Validator> {
     tokio: Handle,
     /// The HTTP client to use for fetching documents.
     client: Client,
+    /// The module resolver used for resolving WDL module imports.
+    resolver: Arc<dyn wdl_modules::Resolver>,
+    /// The path to the manifest file, if any.
+    manifest_path: Option<PathBuf>,
     /// The progress callback to use.
     progress: Arc<Progress>,
     /// The validator callback to use.
@@ -298,11 +303,20 @@ where
     Validator: Fn() -> crate::Validator + Send + Sync + 'static,
 {
     /// Constructs a new analysis queue.
-    pub fn new(config: Config, tokio: Handle, progress: Progress, validator: Validator) -> Self {
+    pub fn new(
+        config: Config,
+        tokio: Handle,
+        resolver: Arc<dyn wdl_modules::Resolver>,
+        manifest_path: Option<PathBuf>,
+        progress: Progress,
+        validator: Validator,
+    ) -> Self {
         Self {
             graph: Arc::new(RwLock::new(DocumentGraph::new(config.clone()))),
             config,
             tokio,
+            resolver,
+            manifest_path,
             progress: Arc::new(progress),
             marker: PhantomData,
             client: Default::default(),

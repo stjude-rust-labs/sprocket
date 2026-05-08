@@ -6,6 +6,7 @@ use std::future::Future;
 use std::mem::ManuallyDrop;
 use std::ops::Range;
 use std::path::Path;
+use std::path::PathBuf;
 use std::path::absolute;
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -64,6 +65,8 @@ use crate::rayon::RayonHandle;
 /// Represents the kind of analysis progress being reported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProgressKind {
+    /// The progress is for resolving modules.
+    Resolving,
     /// The progress is for parsing documents.
     Parsing,
     /// The progress is for analyzing documents.
@@ -73,6 +76,7 @@ pub enum ProgressKind {
 impl fmt::Display for ProgressKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::Resolving => write!(f, "resolving"),
             Self::Parsing => write!(f, "parsing"),
             Self::Analyzing => write!(f, "analyzing"),
         }
@@ -315,7 +319,6 @@ pub struct IncrementalChange {
 /// the queue thread to join.
 ///
 /// The type parameter is the context type passed to the progress callback.
-#[derive(Debug)]
 pub struct Analyzer<Context> {
     /// The sender for sending analysis requests to the queue.
     sender: ManuallyDrop<mpsc::UnboundedSender<Request<Context>>>,
@@ -323,6 +326,19 @@ pub struct Analyzer<Context> {
     handle: Option<JoinHandle<()>>,
     /// The config to use during analysis.
     config: Config,
+    /// The module resolver used for resolving WDL module imports.
+    resolver: Arc<dyn wdl_modules::Resolver>,
+    /// The path to the manifest file, if any.
+    manifest_path: Option<PathBuf>,
+}
+
+impl<Context> fmt::Debug for Analyzer<Context> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Analyzer")
+            .field("config", &self.config)
+            .field("manifest_path", &self.manifest_path)
+            .finish_non_exhaustive()
+    }
 }
 
 impl<Context> Analyzer<Context>
@@ -336,12 +352,23 @@ where
     /// The analyzer will use a default validator for validation.
     ///
     /// The analyzer must be constructed from the context of a Tokio runtime.
-    pub fn new<Progress, Return>(config: Config, progress: Progress) -> Self
+    pub fn new<Progress, Return>(
+        config: Config,
+        resolver: Arc<dyn wdl_modules::Resolver>,
+        manifest_path: Option<PathBuf>,
+        progress: Progress,
+    ) -> Self
     where
         Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
         Return: Future<Output = ()>,
     {
-        Self::new_with_validator(config, progress, crate::Validator::default)
+        Self::new_with_validator(
+            config,
+            resolver,
+            manifest_path,
+            progress,
+            crate::Validator::default,
+        )
     }
 
     /// Constructs a new analyzer with the given config and validator function.
@@ -354,6 +381,8 @@ where
     /// The analyzer must be constructed from the context of a Tokio runtime.
     pub fn new_with_validator<Progress, Return, Validator>(
         config: Config,
+        resolver: Arc<dyn wdl_modules::Resolver>,
+        manifest_path: Option<PathBuf>,
         progress: Progress,
         validator: Validator,
     ) -> Self
@@ -365,8 +394,17 @@ where
         let (tx, rx) = mpsc::unbounded_channel();
         let tokio = Handle::current();
         let inner_config = config.clone();
+        let inner_resolver = resolver.clone();
+        let inner_manifest_path = manifest_path.clone();
         let handle = std::thread::spawn(move || {
-            let queue = AnalysisQueue::new(inner_config, tokio, progress, validator);
+            let queue = AnalysisQueue::new(
+                inner_config,
+                tokio,
+                inner_resolver,
+                inner_manifest_path,
+                progress,
+                validator,
+            );
             queue.run(rx);
         });
 
@@ -374,6 +412,8 @@ where
             sender: ManuallyDrop::new(tx),
             handle: Some(handle),
             config,
+            resolver,
+            manifest_path,
         }
     }
 
@@ -902,7 +942,12 @@ where
 
 impl Default for Analyzer<()> {
     fn default() -> Self {
-        Self::new(Default::default(), |_, _, _, _| async {})
+        Self::new(
+            Default::default(),
+            Arc::new(wdl_modules::NullResolver),
+            None,
+            |_, _, _, _| async {},
+        )
     }
 }
 
