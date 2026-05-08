@@ -1374,6 +1374,49 @@ mod tests {
 
 
     #[tokio::test]
+    async fn local_path_relock_refreshes_on_content_change() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("index.wdl"), b"workflow original {}").unwrap();
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", dep_dir.display());
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let (_, lockfile_v1) = resolve_and_lock(&cache, &consumer).await;
+        let v1_checksum = lockfile_v1
+            .dependencies
+            .get(&DependencyName::try_from("dep".to_string()).unwrap())
+            .unwrap()
+            .modules
+            .get(&ModulePath::Root)
+            .unwrap()
+            .checksum;
+
+        fs::write(dep_dir.join("index.wdl"), b"workflow changed {}").unwrap();
+
+        let (_, lockfile_v2) = resolve_and_lock(&cache, &consumer).await;
+        let v2_checksum = lockfile_v2
+            .dependencies
+            .get(&DependencyName::try_from("dep".to_string()).unwrap())
+            .unwrap()
+            .modules
+            .get(&ModulePath::Root)
+            .unwrap()
+            .checksum;
+
+        assert_ne!(
+            v1_checksum, v2_checksum,
+            "local path relock must produce a new checksum when content changes"
+        );
+    }
+
+    #[tokio::test]
     async fn resolve_tree_detects_self_cycle() {
         let workdir = tempdir().unwrap();
         let dep_dir = workdir.path().join("self-loop");
