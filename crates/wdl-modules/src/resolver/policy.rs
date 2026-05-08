@@ -139,6 +139,25 @@ impl ResolverPolicy {
                     host: host.to_string(),
                 });
             }
+            // Resolve the hostname and reject if any resolved address
+            // is non-public. This prevents DNS-based SSRF where a
+            // hostname resolves to an internal IP.
+            if host.parse::<std::net::IpAddr>().is_err()
+                && let Ok(addrs) = std::net::ToSocketAddrs::to_socket_addrs(
+                    &(host, 443),
+                )
+            {
+                for addr in addrs {
+                    let ip = addr.ip().to_string();
+                    if super::config::is_non_public_ip(&ip) {
+                        return Err(ResolverError::GitHostPolicyViolation {
+                            dep: name.clone(),
+                            url: url.to_string(),
+                            host: format!("{host} (resolves to {ip})"),
+                        });
+                    }
+                }
+            }
             if !net.host_policy.allows(host) {
                 return Err(ResolverError::GitHostPolicyViolation {
                     dep: name.clone(),
