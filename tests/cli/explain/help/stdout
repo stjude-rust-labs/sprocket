@@ -64,7 +64,6 @@ Available rules:
   - CallInputKeyword
   - CommandSectionIndentation
   - ConciseInput
-  - ConsistentNewlines
   - ContainerUri
   - DeclarationName
   - DenyGlobStar

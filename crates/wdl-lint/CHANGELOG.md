@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `UnnecessaryFunctionCall` lint rule
   ([#842](https://github.com/stjude-rust-labs/sprocket/pull/842)).
 
+#### Removed
+
+* Removed the `ConsistentNewlines` rule ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)).
+
 ## 0.22.1 - 2026-04-22
 
 ## 0.22.0 - 2026-04-02

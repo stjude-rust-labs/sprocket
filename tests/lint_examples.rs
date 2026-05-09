@@ -31,6 +31,7 @@ use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::format::Config as FormatConfig;
 use wdl::format::Formatter;
+use wdl::format::NewlineStyle;
 use wdl::format::element::node::AstNodeFormatExt;
 use wdl::grammar::SupportedVersion;
 use wdl::lint::Linter;
@@ -76,7 +77,7 @@ impl TestContext {
     fn new() -> anyhow::Result<Self> {
         let tmp = tempdir()?;
         let tests = HashMap::new();
-        let formatter = Formatter::new(FormatConfig::default());
+        let formatter = Formatter::new(FormatConfig::default().newline_style(NewlineStyle::Unix));
 
         Ok(Self {
             tests: Mutex::new(tests),
@@ -296,9 +297,6 @@ fn find_tests(ctx: Arc<TestContext>, handle: &Handle) -> Vec<Trial> {
         .chain(
             wdl::lint::rules(&wdl::lint::Config::default())
                 .into_iter()
-                // TODO: Remove the `ConsistentNewlines` rule
-                //       https://github.com/stjude-rust-labs/sprocket/issues/667
-                .filter(|lint| lint.id() != "ConsistentNewlines")
                 .map(|r| {
                     let handle = handle.clone();
                     let ctx = ctx.clone();

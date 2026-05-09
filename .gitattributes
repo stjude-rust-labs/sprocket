@@ -14,7 +14,6 @@ crates/wdl-doc/tests/output_docs/style.css text eol=lf
 crates/wdl-doc/tests/output_docs/index.js text eol=lf
 
 # Ignore line endings for these files as they are intentionally inconsistent
-crates/wdl-lint/tests/lints/inconsistent-newlines/source.wdl -text
 crates/wdl-format/tests/format/newline-style/source.formatted.wdl -text
 
 # Don't count doc test files for GitHub repo stats
