@@ -1849,6 +1849,28 @@ fn resolve_call_type(
                 workflow.inputs.clone(),
                 workflow.outputs.clone(),
             ),
+            _ if namespace.is_none() => {
+                if let Some(imported) = document.imported_tasks.get(name.text()) {
+                    (
+                        CallKind::Task,
+                        imported.inputs.clone(),
+                        imported.outputs.clone(),
+                    )
+                } else if let Some(imported) = document.imported_workflows.get(name.text()) {
+                    (
+                        CallKind::Workflow,
+                        imported.inputs.clone(),
+                        imported.outputs.clone(),
+                    )
+                } else {
+                    document.analysis_diagnostics.push(unknown_task_or_workflow(
+                        None,
+                        name.text(),
+                        name.span(),
+                    ));
+                    return None;
+                }
+            }
             _ => {
                 document.analysis_diagnostics.push(unknown_task_or_workflow(
                     namespace.map(|ns| ns.span),
