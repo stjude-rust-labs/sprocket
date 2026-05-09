@@ -27,6 +27,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
 use std::rc::Rc;
+use std::sync::Arc;
 
 pub use command_section::CommandSectionExt;
 pub use docs_tree::DocsTree;
@@ -335,7 +336,12 @@ async fn analyze_workspace(
     config: AnalysisConfig,
 ) -> DocResult<Vec<AnalysisResult>> {
     let workspace = workspace_root.as_ref();
-    let analyzer = Analyzer::new(config, async |_, _, _, _| ());
+    let analyzer = Analyzer::new(
+        config,
+        Arc::new(wdl_modules::NullResolver),
+        None,
+        async |_, _, _, _| (),
+    );
     analyzer
         .add_directory(workspace)
         .await

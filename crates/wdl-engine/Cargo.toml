@@ -51,6 +51,7 @@ walkdir = { workspace = true }
 wdl-analysis = { version = "0.19.1", path = "../wdl-analysis" }
 wdl-ast = { version = "0.22.1", path = "../wdl-ast" }
 wdl-grammar = { version = "0.21.1", path = "../wdl-grammar" }
+wdl-modules = { path = "../wdl-modules", version = "0.1.0" }
 
 [dev-dependencies]
 approx = { workspace = true }

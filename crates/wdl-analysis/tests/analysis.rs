@@ -18,6 +18,7 @@ use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 use std::path::absolute;
+use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -164,7 +165,12 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     } else {
         Config::default()
     };
-    let analyzer = Analyzer::new(config, |_, _, _, _| async {});
+    let analyzer = Analyzer::new(
+        config,
+        Arc::new(wdl_modules::NullResolver),
+        None,
+        |_, _, _, _| async {},
+    );
 
     let results =
         if SINGLE_DOCUMENT_TESTS.contains(&base.file_stem().and_then(OsStr::to_str).unwrap()) {

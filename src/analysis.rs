@@ -175,6 +175,8 @@ impl Analysis {
 
         let mut analyzer = Analyzer::new_with_validator(
             config,
+            Arc::new(wdl_modules::NullResolver),
+            None,
             move |_, kind, count, total| (self.progress)(kind, count, total),
             validator,
         );

@@ -3,6 +3,7 @@
 use std::ffi::OsStr;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use criterion::BenchmarkGroup;
 use criterion::Criterion;
@@ -50,7 +51,12 @@ impl AnalyzeWorkflows {
     fn analyze_all(&self) -> Vec<AnalysisResult> {
         self.runtime.block_on(async {
             let config = AnalysisConfig::default();
-            let analyzer = Analyzer::new(config, |_, _, _, _| async {});
+            let analyzer = Analyzer::new(
+                config,
+                Arc::new(wdl_modules::NullResolver),
+                None,
+                |_, _, _, _| async {},
+            );
             analyzer.add_directory(&self.repo_root).await.unwrap();
             analyzer.analyze(()).await.unwrap()
         })
@@ -63,7 +69,12 @@ impl AnalyzeWorkflows {
         assert!(path.as_ref().is_relative());
         self.runtime.block_on(async {
             let config = AnalysisConfig::default();
-            let analyzer = Analyzer::new(config, |_, _, _, _| async {});
+            let analyzer = Analyzer::new(
+                config,
+                Arc::new(wdl_modules::NullResolver),
+                None,
+                |_, _, _, _| async {},
+            );
             let document = Url::from_file_path(self.repo_root.join(path)).unwrap();
             analyzer.add_document(document).await.unwrap();
             analyzer.analyze(()).await.unwrap()

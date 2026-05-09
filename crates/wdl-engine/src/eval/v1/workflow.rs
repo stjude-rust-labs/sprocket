@@ -1898,6 +1898,8 @@ workflow test {
         // Analyze the source file
         let analyzer = Analyzer::new(
             AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            Arc::new(wdl_modules::NullResolver),
+            None,
             |(), _, _, _| async {},
         );
         analyzer
@@ -2055,6 +2057,8 @@ workflow foo {
         // Analyze the source file
         let analyzer = Analyzer::new(
             AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            Arc::new(wdl_modules::NullResolver),
+            None,
             |(), _, _, _| async {},
         );
         analyzer
@@ -2266,6 +2270,8 @@ workflow w {
         // Analyze the source files
         let analyzer = Analyzer::new(
             AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            Arc::new(wdl_modules::NullResolver),
+            None,
             |(), _, _, _| async {},
         );
         analyzer
@@ -2380,6 +2386,8 @@ workflow w {
         // Analyze the source files
         let analyzer = Analyzer::new(
             AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            Arc::new(wdl_modules::NullResolver),
+            None,
             |(), _, _, _| async {},
         );
         analyzer

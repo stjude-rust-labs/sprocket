@@ -22,6 +22,7 @@ use std::env;
 use std::fs;
 use std::path::Path;
 use std::path::absolute;
+use std::sync::Arc;
 use std::sync::LazyLock;
 
 use anyhow::Context;
@@ -67,7 +68,12 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
     async move {
         debug!(test = %test.display(), ?config, "running test");
 
-        let analyzer = Analyzer::new(config.analysis, |(), _, _, _| async {});
+        let analyzer = Analyzer::new(
+            config.analysis,
+            Arc::new(wdl_modules::NullResolver),
+            None,
+            |(), _, _, _| async {},
+        );
         analyzer
             .add_directory(test)
             .await

@@ -568,7 +568,12 @@ pub async fn analyze_wdl_document(
     fallback_version: Option<SupportedVersion>,
 ) -> Result<AnalysisResult> {
     let config = AnalysisConfig::default().with_fallback_version(fallback_version);
-    let analyzer = Analyzer::new(config, |(), _, _, _| async {});
+    let analyzer = Analyzer::new(
+        config,
+        Arc::new(wdl_modules::NullResolver),
+        None,
+        |(), _, _, _| async {},
+    );
 
     let uri = source.to_url();
     analyzer
