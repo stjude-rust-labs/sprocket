@@ -26,7 +26,8 @@ use tokio::task::JoinSet;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
-use tracing::level_filters::LevelFilter;
+use tracing::instrument::WithSubscriber;
+use tracing::subscriber::NoSubscriber;
 use wdl::analysis::AnalysisResult;
 use wdl::ast::AstNode;
 use wdl::diagnostics::DiagnosticCounts;
@@ -44,7 +45,6 @@ use wdl::engine::config::FailureMode;
 use wdl::engine::config::TaskResourceLimitBehavior;
 
 use crate::Config;
-use crate::FilterReloadHandle;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -380,7 +380,6 @@ struct Runner {
     root: PathBuf,
     fixtures: Arc<EvaluationPath>,
     engine_config: Arc<wdl::engine::Config>,
-    log_handle: FilterReloadHandle,
     permits: usize,
     cancellation: CancellationContext,
 }
@@ -394,11 +393,6 @@ impl Runner {
         quiet: bool,
         errors: &mut Vec<Arc<anyhow::Error>>,
     ) -> Result<IndexMap<String, DocumentResults>> {
-        let current_filter = self.log_handle.clone_current().expect("should have filter");
-        self.log_handle
-            .reload(LevelFilter::OFF)
-            .expect("should reload");
-
         let mut permits = self.permits;
         let mut futures = JoinSet::new();
         let mut all_results = IndexMap::new();
@@ -581,9 +575,6 @@ impl Runner {
                 .push(test_iteration.evaluate(clean, quiet).await);
         }
 
-        self.log_handle
-            .reload(current_filter)
-            .expect("should reload");
         Ok(all_results)
     }
 
@@ -603,22 +594,26 @@ impl Runner {
         let events = Events::disabled();
         let target = id.target.clone();
         let cancellation = self.cancellation.clone();
-        futures.spawn(async move {
-            let evaluator = Evaluator::new(&document, &target, inputs, &fixtures, engine, &run_dir);
-            TestIteration {
-                id,
-                result: if is_workflow {
-                    RunResult::Workflow(evaluator.run(cancellation.clone(), events).await)
-                } else {
-                    RunResult::Task(Box::new(
-                        evaluator.evaluate_task(cancellation.clone(), events).await,
-                    ))
-                },
-                assertions,
-                run_dir,
-                cancellation,
+        futures.spawn(
+            async move {
+                let evaluator =
+                    Evaluator::new(&document, &target, inputs, &fixtures, engine, &run_dir);
+                TestIteration {
+                    id,
+                    result: if is_workflow {
+                        RunResult::Workflow(evaluator.run(cancellation.clone(), events).await)
+                    } else {
+                        RunResult::Task(Box::new(
+                            evaluator.evaluate_task(cancellation.clone(), events).await,
+                        ))
+                    },
+                    assertions,
+                    run_dir,
+                    cancellation,
+                }
             }
-        });
+            .with_subscriber(NoSubscriber::new()),
+        );
     }
 }
 
@@ -693,12 +688,7 @@ async fn summarize_results(
 }
 
 /// Performs the `test` command.
-pub async fn test(
-    args: Args,
-    mut config: Config,
-    handle: FilterReloadHandle,
-    colorize: bool,
-) -> CommandResult<()> {
+pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
     let parallelism = args.parallelism.unwrap_or(config.test.parallelism);
     let (source, workspace) = match (&source, args.workspace) {
@@ -805,7 +795,6 @@ pub async fn test(
         root: test_dir.join(RUNS_DIR),
         fixtures: fixture_origins.into(),
         engine_config: config.run.engine.into(),
-        log_handle: handle,
         permits: parallelism,
         cancellation: cancellation.clone(),
     };
