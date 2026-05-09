@@ -1248,4 +1248,120 @@ workflow test {
         let results = analyzer.analyze(()).await.unwrap();
         assert!(results.is_empty());
     }
+
+    #[tokio::test]
+    async fn symbolic_import_resolves_through_mock_resolver() {
+        use wdl_modules::Manifest;
+        use wdl_modules::MaterializedFile;
+        use wdl_modules::ResolvedSource;
+        use wdl_modules::ResolvedTree;
+        use wdl_modules::ResolverError;
+
+        struct MockResolver {
+            dep_path: PathBuf,
+        }
+
+        #[async_trait::async_trait]
+        impl wdl_modules::Resolver for MockResolver {
+            async fn materialize(
+                &self,
+                _consumer: &Manifest,
+                path: &wdl_modules::SymbolicPath,
+            ) -> Result<MaterializedFile, ResolverError> {
+                let rel = match path.sub_path() {
+                    Some(sub) => {
+                        let mut p = sub.to_path_buf();
+                        p.set_extension("wdl");
+                        p
+                    }
+                    None => std::path::PathBuf::from("index.wdl"),
+                };
+                let file_path = self.dep_path.join(rel);
+                let manifest_bytes = fs::read(self.dep_path.join("module.json")).unwrap();
+                let manifest = Manifest::parse(&manifest_bytes).unwrap();
+                Ok(MaterializedFile {
+                    path: file_path,
+                    source: ResolvedSource::Path {
+                        path: self.dep_path.clone(),
+                    },
+                    manifest: Arc::new(manifest),
+                })
+            }
+
+            async fn resolve_tree(
+                &self,
+                _consumer: &Manifest,
+            ) -> Result<ResolvedTree, ResolverError> {
+                Ok(ResolvedTree::default())
+            }
+
+            async fn discover_versions(
+                &self,
+                _source: &wdl_modules::DependencySource,
+            ) -> Result<Vec<semver::Version>, ResolverError> {
+                Ok(Vec::new())
+            }
+        }
+
+        let dir = TempDir::new().expect("failed to create temporary directory");
+
+        let dep_dir = dir.path().join("dep");
+        fs::create_dir_all(&dep_dir).unwrap();
+        fs::write(
+            dep_dir.join("module.json"),
+            r#"{"name":"dep","version":"1.0.0","license":"MIT"}"#,
+        )
+        .unwrap();
+        fs::write(
+            dep_dir.join("index.wdl"),
+            "version 1.4\n\ntask hello {\n    command <<<>>>\n}\n",
+        )
+        .unwrap();
+
+        let consumer_dir = dir.path().join("consumer");
+        fs::create_dir_all(&consumer_dir).unwrap();
+        let dep_path_json = dep_dir.display().to_string().replace('\\', "/");
+        fs::write(
+            consumer_dir.join("module.json"),
+            format!(
+                r#"{{"name":"consumer","version":"0.1.0","license":"MIT","dependencies":{{"dep":{{"path":"{dep_path_json}"}}}}}}"#
+            ),
+        )
+        .unwrap();
+        fs::write(
+            consumer_dir.join("source.wdl"),
+            "version 1.4\n\nimport dep\n\nworkflow main {}\n",
+        )
+        .unwrap();
+
+        let config = Config::default()
+            .with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+        let resolver: Arc<dyn wdl_modules::Resolver> = Arc::new(MockResolver {
+            dep_path: dep_dir.clone(),
+        });
+        let manifest_path = consumer_dir.join("module.json");
+        let analyzer = Analyzer::new(config, resolver, Some(manifest_path), |(), _, _, _| async {
+        });
+        analyzer
+            .add_document(path_to_uri(&consumer_dir.join("source.wdl")).expect("should convert"))
+            .await
+            .expect("should add document");
+
+        let results = analyzer.analyze(()).await.unwrap();
+        assert!(!results.is_empty(), "should have analysis results");
+        let consumer_result = results
+            .iter()
+            .find(|r| r.document.uri().path().contains("source.wdl"))
+            .expect("should find consumer result");
+        let errors: Vec<_> = consumer_result
+            .document
+            .diagnostics()
+            .filter(|d| d.severity() == Severity::Error)
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "consumer should have no errors, got: {:?}",
+            errors.iter().map(|d| d.message()).collect::<Vec<_>>()
+        );
+    }
 }
