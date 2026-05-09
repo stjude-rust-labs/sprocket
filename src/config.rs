@@ -176,6 +176,9 @@ pub struct WdlConfig {
     /// The fallback version to use when a WDL document declares an
     /// unrecognized version (e.g., `version development`).
     pub fallback_version: FallbackVersion,
+    /// Feature flags for experimental WDL versions.
+    #[serde(default)]
+    pub feature_flags: wdl::analysis::FeatureFlags,
 }
 
 /// Represents the configuration for the Sprocket `check` and `lint` commands.

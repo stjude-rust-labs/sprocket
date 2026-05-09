@@ -117,6 +117,7 @@ fn format_document(
 pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     let fallback_version = config.common.wdl.fallback_version.inner().cloned();
+    let feature_flags = config.common.wdl.feature_flags.clone();
     let modules_config = config.modules.clone();
 
     let indent = if args.with_tabs || args.indentation_size.is_some() {
@@ -159,6 +160,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                 .extend_sources(sources.clone())
                 .fallback_version(fallback_version)
                 .modules_config(modules_config.clone())
+                .feature_flags(feature_flags.clone())
                 .run()
                 .await
                 .map_err(CommandError::from)?;
@@ -219,6 +221,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                 .add_source(source.clone())
                 .fallback_version(fallback_version)
                 .modules_config(modules_config.clone())
+                .feature_flags(feature_flags.clone())
                 .run()
                 .await
                 .map_err(CommandError::from)?;
@@ -252,6 +255,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                 .extend_sources(sources.clone())
                 .fallback_version(fallback_version)
                 .modules_config(modules_config.clone())
+                .feature_flags(feature_flags.clone())
                 .run()
                 .await
                 .map_err(CommandError::from)?;

@@ -1909,31 +1909,47 @@ fn resolve_import(
     stmt: &ImportStatement,
     importer_index: NodeIndex,
 ) -> Result<(Arc<Url>, Document), Option<Diagnostic>> {
-    let uri = match stmt.source() {
-        ImportSource::Uri(uri) => uri,
-        ImportSource::ModulePath(_) => {
-            // Symbolic module paths do not resolve through the quoted-URI
-            // graph; the module resolver handles them separately.
-            return Err(None);
+    let (span, imported_index, source_label) = match stmt.source() {
+        ImportSource::Uri(uri) => {
+            let span = uri.span();
+            let text = match uri.text() {
+                Some(text) => text,
+                None => return Err(None),
+            };
+            let label = text.text().to_string();
+            let importer_node = graph.get(importer_index);
+            let resolved = match importer_node.uri().join(text.text()) {
+                Ok(uri) => uri,
+                Err(e) => return Err(Some(invalid_relative_import(&e, span))),
+            };
+            let index = graph
+                .get_index(&resolved)
+                .expect("missing import node in graph");
+            (span, index, label)
+        }
+        ImportSource::ModulePath(module_path) => {
+            let span = module_path.span();
+            let path_text = module_path.text();
+            match graph.get_resolved_symbolic_import(importer_index, &path_text) {
+                Some(uri) => {
+                    let index = graph
+                        .get_index(uri)
+                        .expect("resolved symbolic import missing from graph");
+                    (span, index, path_text)
+                }
+                None => {
+                    return Err(Some(
+                        Diagnostic::error(
+                            "symbolic imports are only resolvable from within a module; run \
+                             `sprocket module init` to create one",
+                        )
+                        .with_highlight(span),
+                    ));
+                }
+            }
         }
     };
-    let span = uri.span();
-    let text = match uri.text() {
-        Some(text) => text,
-        None => {
-            // The import URI isn't valid; this is caught at validation time, so we do not
-            // emit any additional diagnostics for it here.
-            return Err(None);
-        }
-    };
-
     let importer_node = graph.get(importer_index);
-    let uri = match importer_node.uri().join(text.text()) {
-        Ok(uri) => uri,
-        Err(e) => return Err(Some(invalid_relative_import(&e, span))),
-    };
-
-    let imported_index = graph.get_index(&uri).expect("missing import node in graph");
     let imported_node = graph.get(imported_index);
 
     // Check for an import cycle to report
@@ -1943,12 +1959,12 @@ fn resolve_import(
 
     // Check for a failure to load the import
     if let ParseState::Error(e) = imported_node.parse_state() {
-        return Err(Some(import_failure(text.text(), e, span)));
+        return Err(Some(import_failure(&source_label, e, span)));
     }
 
     // Check for analysis error
     if let Some(e) = imported_node.analysis_error() {
-        return Err(Some(import_failure(text.text(), e, span)));
+        return Err(Some(import_failure(&source_label, e, span)));
     }
 
     // Ensure the import has a matching WDL version

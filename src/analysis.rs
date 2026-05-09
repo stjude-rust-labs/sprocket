@@ -133,27 +133,29 @@ impl Analysis {
         self
     }
 
+    /// Sets the feature flags.
+    pub fn feature_flags(mut self, flags: FeatureFlags) -> Self {
+        self.feature_flags = flags;
+        self
+    }
+
     /// Sets the `[modules]` configuration.
     pub fn modules_config(mut self, config: wdl_modules::ModulesConfig) -> Self {
         self.modules_config = Some(config);
         self
     }
 
-    /// Searches the sources for a `module.json` and constructs a
-    /// resolver if one is found and `modules_config` is set.
-    fn build_resolver_from_sources(&self) -> (Arc<dyn wdl_modules::Resolver>, Option<PathBuf>) {
+    /// Checks the current working directory for a `module.json` and
+    /// constructs a resolver if one is found and `modules_config` is
+    /// set.
+    fn build_resolver_from_cwd(&self) -> (Arc<dyn wdl_modules::Resolver>, Option<PathBuf>) {
         let Some(ref modules_config) = self.modules_config else {
             return (Arc::new(wdl_modules::NullResolver), None);
         };
 
-        let manifest_path = self.sources.iter().find_map(|s| match s {
-            Source::Directory(d) => find_manifest(d),
-            Source::File(url) => url.to_file_path().ok().and_then(|p| find_manifest(&p)),
-            _ => None,
-        });
-
-        let Some(manifest_path) = manifest_path else {
-            return (Arc::new(wdl_modules::NullResolver), None);
+        let manifest_path = match std::env::current_dir() {
+            Ok(cwd) => cwd.join(wdl_modules::MANIFEST_FILENAME),
+            Err(_) => return (Arc::new(wdl_modules::NullResolver), None),
         };
 
         match build_resolver(modules_config, &manifest_path) {
@@ -193,7 +195,7 @@ impl Analysis {
             info!("enabled lint rules: {:?}", enabled_rules);
             info!("disabled lint rules: {:?}", disabled_rules);
         }
-        let (resolver, manifest_path) = self.build_resolver_from_sources();
+        let (resolver, manifest_path) = self.build_resolver_from_cwd();
 
         let config = wdl::analysis::Config::default()
             .with_fallback_version(self.fallback_version)
@@ -311,26 +313,6 @@ pub fn build_resolver(
         .build();
 
     Ok(Some((Arc::new(resolver), manifest_path.to_path_buf())))
-}
-
-/// Searches for a `module.json` by walking up from `start`. Returns
-/// the path to the manifest if found, or `None` if the filesystem root
-/// is reached without finding one.
-pub fn find_manifest(start: &std::path::Path) -> Option<PathBuf> {
-    let mut dir = if start.is_file() {
-        start.parent()?.to_path_buf()
-    } else {
-        start.to_path_buf()
-    };
-    loop {
-        let candidate = dir.join(wdl_modules::MANIFEST_FILENAME);
-        if candidate.exists() {
-            return Some(candidate);
-        }
-        if !dir.pop() {
-            return None;
-        }
-    }
 }
 
 /// Warns about any unknown rules.

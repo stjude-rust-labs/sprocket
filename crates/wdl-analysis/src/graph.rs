@@ -1,5 +1,6 @@
 //! Representation of the analysis document graph.
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs;
 use std::panic;
@@ -502,6 +503,9 @@ pub struct DocumentGraph {
     /// import relationship exists in this set, a diagnostic will be added and
     /// the import otherwise ignored.
     cycles: HashSet<(NodeIndex, NodeIndex)>,
+    /// Maps `(importer_index, symbolic_path_text)` to the resolved file
+    /// URI for symbolic imports materialized by the queue.
+    resolved_symbolic_imports: HashMap<(NodeIndex, String), Arc<Url>>,
 }
 
 impl DocumentGraph {
@@ -513,6 +517,7 @@ impl DocumentGraph {
             indexes: IndexMap::new(),
             roots: IndexSet::new(),
             cycles: HashSet::new(),
+            resolved_symbolic_imports: HashMap::new(),
         }
     }
 
@@ -642,6 +647,27 @@ impl DocumentGraph {
         self.inner
             .edges_directed(index, Direction::Incoming)
             .map(|e| e.source())
+    }
+
+    /// Records a resolved symbolic import.
+    pub fn insert_resolved_symbolic_import(
+        &mut self,
+        importer: NodeIndex,
+        path_text: String,
+        uri: Arc<Url>,
+    ) {
+        self.resolved_symbolic_imports
+            .insert((importer, path_text), uri);
+    }
+
+    /// Looks up a previously resolved symbolic import.
+    pub fn get_resolved_symbolic_import(
+        &self,
+        importer: NodeIndex,
+        path_text: &str,
+    ) -> Option<&Arc<Url>> {
+        self.resolved_symbolic_imports
+            .get(&(importer, path_text.to_string()))
     }
 
     /// Removes all dependency edges from the given node.
