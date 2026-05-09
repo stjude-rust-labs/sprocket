@@ -21,8 +21,10 @@ use path_clean::PathClean;
 use regex::Regex;
 use serde_json::Value as JsonValue;
 use tokio::fs::remove_dir_all;
+use tokio::select;
 use tokio::task::JoinSet;
 use tracing::debug;
+use tracing::error;
 use tracing::info;
 use tracing::level_filters::LevelFilter;
 use wdl::analysis::AnalysisResult;
@@ -30,6 +32,7 @@ use wdl::ast::AstNode;
 use wdl::diagnostics::DiagnosticCounts;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::CancellationContext;
+use wdl::engine::CancellationContextState;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
@@ -217,6 +220,7 @@ struct TestIteration {
     result: RunResult,
     assertions: Arc<ParsedAssertions>,
     run_dir: PathBuf,
+    cancellation: CancellationContext,
 }
 
 impl TestIteration {
@@ -343,7 +347,7 @@ impl TestIteration {
             }
         }
         .await;
-        if !quiet {
+        if !quiet && self.cancellation.state() != CancellationContextState::Canceling {
             match &evaluation {
                 Ok(IterationResult::Success) => {
                     println!("{id}: ✅")
@@ -378,6 +382,7 @@ struct Runner {
     engine_config: Arc<wdl::engine::Config>,
     log_handle: FilterReloadHandle,
     permits: usize,
+    cancellation: CancellationContext,
 }
 
 impl Runner {
@@ -597,20 +602,21 @@ impl Runner {
         let run_dir = root.join(id.iteration_num.to_string());
         let events = Events::disabled();
         let target = id.target.clone();
+        let cancellation = self.cancellation.clone();
         futures.spawn(async move {
             let evaluator = Evaluator::new(&document, &target, inputs, &fixtures, engine, &run_dir);
-            let cancellation = CancellationContext::new(FailureMode::Fast);
             TestIteration {
                 id,
                 result: if is_workflow {
-                    RunResult::Workflow(evaluator.run(cancellation, events).await)
+                    RunResult::Workflow(evaluator.run(cancellation.clone(), events).await)
                 } else {
                     RunResult::Task(Box::new(
-                        evaluator.evaluate_task(cancellation, events).await,
+                        evaluator.evaluate_task(cancellation.clone(), events).await,
                     ))
                 },
                 assertions,
                 run_dir,
+                cancellation,
             }
         });
     }
@@ -794,29 +800,62 @@ pub async fn test(
     config.run.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
     config.validate()?;
 
+    let cancellation = CancellationContext::new(FailureMode::Fast);
     let runner = Runner {
         root: test_dir.join(RUNS_DIR),
         fixtures: fixture_origins.into(),
         engine_config: config.run.engine.into(),
         log_handle: handle,
         permits: parallelism,
+        cancellation: cancellation.clone(),
     };
 
     let include_tags = HashSet::from_iter(args.include_tag);
     let filter_tags = HashSet::from_iter(args.filter_tag);
     let should_filter = |test: &TestDefinition| filter_test(test, &include_tags, &filter_tags);
     let mut errors = Vec::new();
-    let results = runner
-        .run(
-            documents,
-            should_filter,
-            !args.no_clean,
-            args.no_status,
-            &mut errors,
-        )
-        .await?;
+    let mut runner_task = Box::pin(runner.run(
+        documents,
+        should_filter,
+        !args.no_clean,
+        args.no_status,
+        &mut errors,
+    ));
 
-    summarize_results(results, &runner.root, !args.no_clean, &mut errors).await;
+    loop {
+        select! {
+            biased;
+
+            _ = tokio::signal::ctrl_c() => {
+                if cancellation.state() == CancellationContextState::Canceling {
+                    continue
+                }
+
+                match cancellation.cancel() {
+                    CancellationContextState::NotCanceled => unreachable!("should be canceled"),
+                    CancellationContextState::Waiting | CancellationContextState::Canceling => {
+                        error!("evaluation was interrupted");
+                    },
+                }
+            },
+
+            res = &mut runner_task => {
+                drop(runner_task);
+                match res {
+                    Ok(results) => {
+                        if !cancellation.user_canceled() {
+                            summarize_results(results, &runner.root, !args.no_clean, &mut errors).await;
+                        }
+                    },
+                    Err(e) => {
+                        errors.push(Arc::new(e));
+                    }
+                }
+
+                break;
+            }
+        }
+    }
 
     if args.clean_all {
         remove_dir_all(runner.root)
