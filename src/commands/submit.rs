@@ -103,6 +103,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
     let document = analyze_source(
         &args.run_request_args.source,
         config.common.wdl.fallback_version.inner().cloned(),
+        config.modules.clone(),
     )
     .await?;
 

@@ -566,6 +566,7 @@ pub async fn run(
                 .boxed()
             }
         })
+        .modules_config(config.modules.clone())
         .run()
         .await
         .map_err(CommandError::from)?;

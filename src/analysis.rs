@@ -1,6 +1,7 @@
 //! Facilities for performing a typical analysis using the `wdl-*` crates.
 
 use std::collections::HashSet;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Error;
@@ -65,6 +66,10 @@ pub struct Analysis {
     /// unrecognized version.
     fallback_version: Option<SupportedVersion>,
 
+    /// The `[modules]` config for constructing a resolver when a
+    /// `module.json` is found near the sources.
+    modules_config: Option<wdl_modules::ModulesConfig>,
+
     /// The initialization callback.
     init: InitCb,
 
@@ -128,6 +133,45 @@ impl Analysis {
         self
     }
 
+    /// Sets the `[modules]` configuration.
+    pub fn modules_config(mut self, config: wdl_modules::ModulesConfig) -> Self {
+        self.modules_config = Some(config);
+        self
+    }
+
+    /// Searches the sources for a `module.json` and constructs a
+    /// resolver if one is found and `modules_config` is set.
+    fn build_resolver_from_sources(&self) -> (Arc<dyn wdl_modules::Resolver>, Option<PathBuf>) {
+        let Some(ref modules_config) = self.modules_config else {
+            return (Arc::new(wdl_modules::NullResolver), None);
+        };
+
+        let manifest_path = self.sources.iter().find_map(|s| match s {
+            Source::Directory(d) => find_manifest(d),
+            Source::File(url) => url.to_file_path().ok().and_then(|p| find_manifest(&p)),
+            _ => None,
+        });
+
+        let Some(manifest_path) = manifest_path else {
+            return (Arc::new(wdl_modules::NullResolver), None);
+        };
+
+        match build_resolver(modules_config, &manifest_path) {
+            Ok(Some((resolver, path))) => {
+                info!(
+                    manifest = %path.display(),
+                    "found `module.json`; symbolic imports will resolve through the module system"
+                );
+                (resolver, Some(path))
+            }
+            Ok(None) => (Arc::new(wdl_modules::NullResolver), None),
+            Err(e) => {
+                warn!(error = %e, "failed to construct module resolver; symbolic imports will not resolve");
+                (Arc::new(wdl_modules::NullResolver), None)
+            }
+        }
+    }
+
     /// Runs the analysis and returns all results (if any exist).
     pub async fn run(self) -> std::result::Result<AnalysisResults, NonEmpty<Arc<Error>>> {
         warn_unknown_rules(&self.exceptions);
@@ -149,6 +193,8 @@ impl Analysis {
             info!("enabled lint rules: {:?}", enabled_rules);
             info!("disabled lint rules: {:?}", disabled_rules);
         }
+        let (resolver, manifest_path) = self.build_resolver_from_sources();
+
         let config = wdl::analysis::Config::default()
             .with_fallback_version(self.fallback_version)
             .with_diagnostics_config(get_diagnostics_config(&self.exceptions))
@@ -175,8 +221,8 @@ impl Analysis {
 
         let mut analyzer = Analyzer::new_with_validator(
             config,
-            Arc::new(wdl_modules::NullResolver),
-            None,
+            resolver,
+            manifest_path,
             move |_, kind, count, total| (self.progress)(kind, count, total),
             validator,
         );
@@ -207,8 +253,82 @@ impl Default for Analysis {
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
             feature_flags: FeatureFlags::default(),
             fallback_version: None,
+            modules_config: None,
             init: Box::new(|| {}),
             progress: Box::new(|_, _, _| Box::pin(async {})),
+        }
+    }
+}
+
+/// Constructs a [`GitResolver`](wdl_modules::GitResolver) from the given
+/// `[modules]` config and a `module.json` path. Returns `None` if the
+/// manifest file does not exist; returns an error if the file exists but
+/// cannot be read or parsed.
+pub fn build_resolver(
+    modules_config: &wdl_modules::ModulesConfig,
+    manifest_path: &std::path::Path,
+) -> anyhow::Result<Option<(Arc<dyn wdl_modules::Resolver>, PathBuf)>> {
+    use anyhow::Context as _;
+
+    if !manifest_path.exists() {
+        return Ok(None);
+    }
+
+    let bytes = std::fs::read(manifest_path)
+        .with_context(|| format!("reading `{}`", manifest_path.display()))?;
+    let _manifest = wdl_modules::Manifest::parse(&bytes)
+        .with_context(|| format!("parsing `{}`", manifest_path.display()))?;
+
+    let lockfile_path = manifest_path.with_file_name(wdl_modules::LOCKFILE_FILENAME);
+    let lockfile = if lockfile_path.exists() {
+        let lock_bytes = std::fs::read(&lockfile_path)
+            .with_context(|| format!("reading `{}`", lockfile_path.display()))?;
+        wdl_modules::Lockfile::parse(&lock_bytes)
+            .with_context(|| format!("parsing `{}`", lockfile_path.display()))?
+    } else {
+        wdl_modules::Lockfile::default()
+    };
+
+    let cache_root = modules_config
+        .cache_path
+        .clone()
+        .or_else(|| crate::config::config_root().map(|r| r.join("cache").join("modules")))
+        .unwrap_or_else(|| PathBuf::from(".sprocket/cache/modules"));
+
+    let trust_path = crate::config::config_root()
+        .map(|r| r.join("modules-trust.toml"))
+        .unwrap_or_else(|| PathBuf::from("modules-trust.toml"));
+
+    let trust = wdl_modules::TrustStore::load_or_default(&trust_path)
+        .with_context(|| format!("loading trust store at `{}`", trust_path.display()))?;
+
+    let resolver = wdl_modules::GitResolver::builder()
+        .cache_root(cache_root)
+        .trust_path(trust_path)
+        .trust(trust)
+        .lockfile(lockfile)
+        .config(modules_config.clone())
+        .build();
+
+    Ok(Some((Arc::new(resolver), manifest_path.to_path_buf())))
+}
+
+/// Searches for a `module.json` by walking up from `start`. Returns
+/// the path to the manifest if found, or `None` if the filesystem root
+/// is reached without finding one.
+pub fn find_manifest(start: &std::path::Path) -> Option<PathBuf> {
+    let mut dir = if start.is_file() {
+        start.parent()?.to_path_buf()
+    } else {
+        start.to_path_buf()
+    };
+    loop {
+        let candidate = dir.join(wdl_modules::MANIFEST_FILENAME);
+        if candidate.exists() {
+            return Some(candidate);
+        }
+        if !dir.pop() {
+            return None;
         }
     }
 }
