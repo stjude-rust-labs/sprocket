@@ -828,13 +828,13 @@ pub async fn test(
 
             _ = tokio::signal::ctrl_c() => {
                 if cancellation.state() == CancellationContextState::Canceling {
-                    continue
+                    return Err(anyhow!("evaluation was interrupted").into());
                 }
 
                 match cancellation.cancel() {
                     CancellationContextState::NotCanceled => unreachable!("should be canceled"),
                     CancellationContextState::Waiting | CancellationContextState::Canceling => {
-                        error!("evaluation was interrupted");
+                        error!("canceling tests: use Ctrl-C to immediately terminate Sprocket and skip cleanup");
                     },
                 }
             },
