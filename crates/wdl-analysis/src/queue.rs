@@ -1,5 +1,6 @@
 //! Implements the analysis queue.
 
+use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::ops::Range;
 use std::panic;
@@ -42,6 +43,8 @@ use wdl_ast::Severity;
 use wdl_ast::v1::ImportSource;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
+use wdl_modules::Manifest;
+use wdl_modules::SymbolicPath;
 
 use crate::AnalysisResult;
 use crate::IncrementalChange;
@@ -287,6 +290,8 @@ pub struct AnalysisQueue<Progress, Context, Return, Validator> {
     resolver: Arc<dyn wdl_modules::Resolver>,
     /// The path to the manifest file, if any.
     manifest_path: Option<PathBuf>,
+    /// Cached manifests keyed by directory path.
+    manifests: parking_lot::Mutex<HashMap<PathBuf, Arc<Manifest>>>,
     /// The progress callback to use.
     progress: Arc<Progress>,
     /// The validator callback to use.
@@ -317,6 +322,7 @@ where
             tokio,
             resolver,
             manifest_path,
+            manifests: parking_lot::Mutex::new(HashMap::new()),
             progress: Arc::new(progress),
             marker: PhantomData,
             client: Default::default(),
@@ -1120,30 +1126,76 @@ where
                 None | Some(Ast::Unsupported) => {}
                 Some(Ast::V1(ast)) => {
                     for import in ast.imports() {
-                        // Only quoted imports contribute dependency edges;
-                        // symbolic imports resolve through the module
-                        // resolver and do not add graph nodes here.
-                        let ImportSource::Uri(uri) = import.source() else {
-                            continue;
-                        };
-                        let text = match uri.text() {
-                            Some(text) => text,
-                            None => continue,
-                        };
+                        match import.source() {
+                            ImportSource::Uri(uri) => {
+                                let text = match uri.text() {
+                                    Some(text) => text,
+                                    None => continue,
+                                };
 
-                        let import_uri = match graph.get(index).uri().join(text.text()) {
-                            Ok(uri) => uri,
-                            Err(_) => continue,
-                        };
+                                let import_uri = match graph.get(index).uri().join(text.text()) {
+                                    Ok(uri) => uri,
+                                    Err(_) => continue,
+                                };
 
-                        // Add a dependency edge to the import
-                        let import_index = graph
-                            .get_index(&import_uri)
-                            .unwrap_or_else(|| graph.add_node(import_uri, false));
-                        graph.add_dependency_edge(index, import_index, space);
+                                let import_index = graph
+                                    .get_index(&import_uri)
+                                    .unwrap_or_else(|| graph.add_node(import_uri, false));
+                                graph.add_dependency_edge(index, import_index, space);
+                                subgraph.insert(import_index);
+                            }
+                            ImportSource::ModulePath(module_path) => {
+                                let manifest =
+                                    match self.find_manifest_for_document(graph.get(index).uri()) {
+                                        Some(m) => m,
+                                        None => continue,
+                                    };
 
-                        // Add the import to the subgraph
-                        subgraph.insert(import_index);
+                                let Ok(symbolic_path): Result<SymbolicPath, _> =
+                                    module_path.text().try_into()
+                                else {
+                                    continue;
+                                };
+
+                                match self
+                                    .tokio
+                                    .block_on(self.resolver.materialize(&manifest, &symbolic_path))
+                                {
+                                    Ok(materialized) => {
+                                        let Some(import_uri) =
+                                            Url::from_file_path(&materialized.path).ok()
+                                        else {
+                                            continue;
+                                        };
+
+                                        self.manifests
+                                            .lock()
+                                            .entry(
+                                                materialized
+                                                    .path
+                                                    .parent()
+                                                    .unwrap_or(&materialized.path)
+                                                    .to_path_buf(),
+                                            )
+                                            .or_insert_with(|| materialized.manifest.clone());
+
+                                        let import_index = graph
+                                            .get_index(&import_uri)
+                                            .unwrap_or_else(|| graph.add_node(import_uri, false));
+                                        graph.add_dependency_edge(index, import_index, space);
+                                        subgraph.insert(import_index);
+                                    }
+                                    Err(e) => {
+                                        tracing::warn!(
+                                            path = %module_path.text(),
+                                            error = %e,
+                                            "symbolic import resolution failed",
+                                        );
+                                        continue;
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -1210,6 +1262,20 @@ where
         );
 
         (index, document)
+    }
+
+    /// Looks up (or lazily loads) the [`Manifest`] that governs `_uri`.
+    fn find_manifest_for_document(&self, _uri: &Url) -> Option<Arc<Manifest>> {
+        let manifest_path = self.manifest_path.as_ref()?;
+        let mut manifests = self.manifests.lock();
+        if let Some(m) = manifests.get(manifest_path) {
+            return Some(m.clone());
+        }
+        let bytes = std::fs::read(manifest_path).ok()?;
+        let manifest = Manifest::parse(&bytes).ok()?;
+        let arc = Arc::new(manifest);
+        manifests.insert(manifest_path.clone(), arc.clone());
+        Some(arc)
     }
 }
 
