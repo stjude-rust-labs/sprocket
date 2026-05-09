@@ -337,9 +337,11 @@ fn apply_sparse_checkout(repo: &Repository, paths: &[String]) -> Result<(), GitE
 
     let mut checkout = git2::build::CheckoutBuilder::new();
     checkout.force().recreate_missing(true);
-    for p in paths {
-        // Match every entry under the given module folder.
-        checkout.path(format!("{p}/**"));
+    let checkout_all = paths.iter().any(|p| p == ".");
+    if !checkout_all {
+        for p in paths {
+            checkout.path(format!("{p}/**"));
+        }
     }
     repo.checkout_tree(tree.as_object(), Some(&mut checkout))
         .map_err(GitError::Git)?;

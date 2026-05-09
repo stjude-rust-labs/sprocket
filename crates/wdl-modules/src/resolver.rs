@@ -493,10 +493,17 @@ impl GitResolver {
                 path,
                 ..
             } => {
+                tracing::debug!(dep = %name, url = %url, "planning git materialization");
                 let plan = self
                     .plan_git_materialization(name, url, selector, path, scope, mode)
                     .await?;
 
+                tracing::debug!(
+                    dep = %name,
+                    commit = %plan.commit,
+                    leaf = %plan.leaf.display(),
+                    "materialization plan ready; cloning",
+                );
                 let fetcher = self.fetcher();
                 let dep_for_clone = name.clone();
                 let url_for_clone = url.clone();
@@ -641,6 +648,7 @@ impl Resolver for GitResolver {
         path: &SymbolicPath,
     ) -> Result<MaterializedFile, ResolverError> {
         let name = path.dep_name();
+        tracing::debug!(dep = %name, "materializing symbolic import");
         let source =
             consumer
                 .dependencies

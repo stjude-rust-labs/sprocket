@@ -1157,6 +1157,10 @@ where
                                     continue;
                                 };
 
+                                tracing::debug!(
+                                    path = %module_path.text(),
+                                    "resolving symbolic import",
+                                );
                                 match self
                                     .tokio
                                     .block_on(self.resolver.materialize(&manifest, &symbolic_path))
