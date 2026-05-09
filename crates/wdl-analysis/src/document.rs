@@ -622,6 +622,32 @@ impl Workflow {
     }
 }
 
+/// A task imported into scope by a wildcard or selected-member import.
+#[derive(Debug)]
+pub(crate) struct ImportedTask {
+    /// The span of the import statement that introduced this task.
+    pub span: Span,
+    /// The source URI the task came from.
+    pub source: Arc<Url>,
+    /// The inputs of the task.
+    pub inputs: Arc<IndexMap<String, Input>>,
+    /// The outputs of the task.
+    pub outputs: Arc<IndexMap<String, Output>>,
+}
+
+/// A workflow imported into scope by a wildcard or selected-member import.
+#[derive(Debug)]
+pub(crate) struct ImportedWorkflow {
+    /// The span of the import statement.
+    pub span: Span,
+    /// The source URI.
+    pub source: Arc<Url>,
+    /// The inputs of the workflow.
+    pub inputs: Arc<IndexMap<String, Input>>,
+    /// The outputs of the workflow.
+    pub outputs: Arc<IndexMap<String, Output>>,
+}
+
 /// Represents analysis data about a WDL document.
 #[derive(Debug)]
 pub(crate) struct DocumentData {
@@ -649,6 +675,10 @@ pub(crate) struct DocumentData {
     structs: IndexMap<String, Struct>,
     /// The enums in the document.
     enums: IndexMap<String, Enum>,
+    /// Tasks imported via wildcard or selected-member imports.
+    imported_tasks: IndexMap<String, ImportedTask>,
+    /// Workflows imported via wildcard or selected-member imports.
+    imported_workflows: IndexMap<String, ImportedWorkflow>,
     /// The diagnostics from parsing.
     parse_diagnostics: Vec<Diagnostic>,
     /// The diagnostics from analysis.
@@ -675,6 +705,8 @@ impl DocumentData {
             workflow: Default::default(),
             structs: Default::default(),
             enums: Default::default(),
+            imported_tasks: Default::default(),
+            imported_workflows: Default::default(),
             parse_diagnostics: diagnostics,
             analysis_diagnostics: Default::default(),
         }

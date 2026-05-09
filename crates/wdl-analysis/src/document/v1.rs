@@ -31,6 +31,7 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::Expr;
+use wdl_ast::v1::ImportForm;
 use wdl_ast::v1::ImportSource;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::LiteralExpr;
@@ -45,6 +46,8 @@ use wdl_ast::version::V1;
 use super::Document;
 use super::DocumentData;
 use super::Enum;
+use super::ImportedTask;
+use super::ImportedWorkflow;
 use super::Input;
 use super::Namespace;
 use super::Output;
@@ -184,9 +187,17 @@ pub(crate) fn populate_document(
     // declarations might reference an imported or locally-defined struct or enum
     for item in ast.items() {
         match item {
-            DocumentItem::Import(import) => {
-                add_namespace(document, graph, &import, index);
-            }
+            DocumentItem::Import(import) => match import.form() {
+                ImportForm::Namespace => {
+                    add_namespace(document, graph, &import, index);
+                }
+                ImportForm::Wildcard => {
+                    add_wildcard_import(document, graph, &import, index);
+                }
+                ImportForm::Selected => {
+                    add_selected_import(document, graph, &import, index);
+                }
+            },
             DocumentItem::Struct(s) => {
                 add_struct(document, &s);
             }
@@ -461,6 +472,252 @@ fn are_enums_equal(a: &EnumDefinition, b: &EnumDefinition) -> bool {
     }
 
     true
+}
+
+/// Imports all items from the resolved document into the importing document's
+/// scope.
+fn add_wildcard_import(
+    document: &mut DocumentData,
+    graph: &DocumentGraph,
+    import: &ImportStatement,
+    importer_index: NodeIndex,
+) {
+    let (uri, imported) = match resolve_import(graph, import, importer_index) {
+        Ok(resolved) => resolved,
+        Err(Some(diagnostic)) => {
+            document.analysis_diagnostics.push(diagnostic);
+            return;
+        }
+        Err(None) => return,
+    };
+
+    let span = import.source().span();
+
+    for (name, s) in &imported.data.structs {
+        if let Some(prev) = document.structs.get(name) {
+            let a = StructDefinition::cast(SyntaxNode::new_root(prev.node.clone()))
+                .expect("node should cast");
+            let b = StructDefinition::cast(SyntaxNode::new_root(s.node.clone()))
+                .expect("node should cast");
+            if !are_structs_equal(&a, &b) {
+                document.analysis_diagnostics.push(wildcard_import_conflict(
+                    name,
+                    span,
+                    prev.name_span,
+                ));
+                continue;
+            }
+        } else {
+            document.structs.insert(
+                name.clone(),
+                Struct {
+                    name_span: span,
+                    name: name.clone(),
+                    offset: s.offset,
+                    node: s.node.clone(),
+                    namespace: None,
+                    ty: s.ty.clone(),
+                },
+            );
+        }
+    }
+
+    for (name, e) in &imported.data.enums {
+        if let Some(prev) = document.enums.get(name) {
+            let a = prev.definition();
+            let b = e.definition();
+            if !are_enums_equal(&a, &b) {
+                document.analysis_diagnostics.push(wildcard_import_conflict(
+                    name,
+                    span,
+                    prev.name_span,
+                ));
+                continue;
+            }
+        } else {
+            document.enums.insert(
+                name.clone(),
+                Enum {
+                    name_span: span,
+                    name: name.clone(),
+                    offset: e.offset,
+                    node: e.node.clone(),
+                    namespace: None,
+                    ty: e.ty.clone(),
+                },
+            );
+        }
+    }
+
+    for (name, task) in &imported.data.tasks {
+        if document.tasks.contains_key(name) || document.imported_tasks.contains_key(name) {
+            document.analysis_diagnostics.push(wildcard_import_conflict(
+                name,
+                span,
+                document
+                    .tasks
+                    .get(name)
+                    .map(|t| t.name_span)
+                    .or_else(|| document.imported_tasks.get(name).map(|t| t.span))
+                    .unwrap_or(span),
+            ));
+            continue;
+        }
+        document.imported_tasks.insert(
+            name.clone(),
+            ImportedTask {
+                span,
+                source: uri.clone(),
+                inputs: task.inputs.clone(),
+                outputs: task.outputs.clone(),
+            },
+        );
+    }
+
+    if let Some(workflow) = &imported.data.workflow {
+        let name = &workflow.name;
+        if document.workflow.is_some() || document.imported_workflows.contains_key(name) {
+            let prev_span = document
+                .workflow
+                .as_ref()
+                .map(|w| w.name_span)
+                .or_else(|| document.imported_workflows.get(name).map(|w| w.span))
+                .unwrap_or(span);
+            document
+                .analysis_diagnostics
+                .push(wildcard_import_conflict(name, span, prev_span));
+        } else {
+            document.imported_workflows.insert(
+                name.clone(),
+                ImportedWorkflow {
+                    span,
+                    source: uri.clone(),
+                    inputs: workflow.inputs.clone(),
+                    outputs: workflow.outputs.clone(),
+                },
+            );
+        }
+    }
+}
+
+/// Imports only the listed members from the resolved document.
+fn add_selected_import(
+    document: &mut DocumentData,
+    graph: &DocumentGraph,
+    import: &ImportStatement,
+    importer_index: NodeIndex,
+) {
+    let (uri, imported) = match resolve_import(graph, import, importer_index) {
+        Ok(resolved) => resolved,
+        Err(Some(diagnostic)) => {
+            document.analysis_diagnostics.push(diagnostic);
+            return;
+        }
+        Err(None) => return,
+    };
+
+    let span = import.source().span();
+    let Some(members) = import.members() else {
+        return;
+    };
+
+    for member in members.members() {
+        let member_name = member.name();
+        let local_name = member
+            .alias()
+            .map(|a| a.text().to_string())
+            .unwrap_or_else(|| member_name.text().to_string());
+
+        let found_struct = imported.data.structs.get(member_name.text());
+        let found_enum = imported.data.enums.get(member_name.text());
+        let found_task = imported.data.tasks.get(member_name.text());
+        let found_workflow = imported
+            .data
+            .workflow
+            .as_ref()
+            .filter(|w| w.name == member_name.text());
+
+        if found_struct.is_none()
+            && found_enum.is_none()
+            && found_task.is_none()
+            && found_workflow.is_none()
+        {
+            document
+                .analysis_diagnostics
+                .push(selected_member_not_found(
+                    member_name.text(),
+                    member_name.span(),
+                ));
+            continue;
+        }
+
+        if let Some(s) = found_struct {
+            document.structs.insert(
+                local_name.clone(),
+                Struct {
+                    name_span: member_name.span(),
+                    name: local_name.clone(),
+                    offset: s.offset,
+                    node: s.node.clone(),
+                    namespace: None,
+                    ty: s.ty.clone(),
+                },
+            );
+        }
+
+        if let Some(e) = found_enum {
+            document.enums.insert(
+                local_name.clone(),
+                Enum {
+                    name_span: member_name.span(),
+                    name: local_name.clone(),
+                    offset: e.offset,
+                    node: e.node.clone(),
+                    namespace: None,
+                    ty: e.ty.clone(),
+                },
+            );
+        }
+
+        if let Some(task) = found_task {
+            document.imported_tasks.insert(
+                local_name.clone(),
+                ImportedTask {
+                    span,
+                    source: uri.clone(),
+                    inputs: task.inputs.clone(),
+                    outputs: task.outputs.clone(),
+                },
+            );
+        }
+
+        if let Some(workflow) = found_workflow {
+            document.imported_workflows.insert(
+                local_name.clone(),
+                ImportedWorkflow {
+                    span,
+                    source: uri.clone(),
+                    inputs: workflow.inputs.clone(),
+                    outputs: workflow.outputs.clone(),
+                },
+            );
+        }
+    }
+}
+
+/// Creates a diagnostic for a wildcard import conflict.
+fn wildcard_import_conflict(name: &str, import_span: Span, prev_span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "wildcard import introduces `{name}` which conflicts with an existing definition"
+    ))
+    .with_label("imported here", import_span)
+    .with_label("previous definition", prev_span)
+}
+
+/// Creates a diagnostic for a member not found in a selected import.
+fn selected_member_not_found(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(format!("`{name}` does not exist in the imported module"))
+        .with_highlight(span)
 }
 
 /// Adds a struct to the document.
