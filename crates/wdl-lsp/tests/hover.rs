@@ -163,7 +163,7 @@ async fn should_hover_object_param_meta_uses_description_key() {
     // Hover over `name` in `~{name}` inside the `object_meta` task
     // command. Its `parameter_meta` entry is an object literal with a
     // `description` key plus an unrelated `something_else: true`. The
-    // hover doc should be the *description string only* — not the raw
+    // hover doc should be the *description string only*, not the raw
     // object-literal dump that previously bled through.
     let mut ctx = setup().await;
     let response = hover_request(&mut ctx, "meta.wdl", Position::new(55, 16)).await;
@@ -189,7 +189,7 @@ async fn should_hover_object_param_meta_concats_description_and_help() {
 #[tokio::test]
 async fn should_hover_object_param_meta_falls_back_to_help_only() {
     // Hover over `only_help` in `~{only_help}`. The parameter_meta
-    // object has *only* a `help` key — no `description` — so the help
+    // object has *only* a `help` key, no `description`, so the help
     // text should still be surfaced rather than the raw object dump.
     let mut ctx = setup().await;
     let response = hover_request(&mut ctx, "meta.wdl", Position::new(55, 35)).await;
