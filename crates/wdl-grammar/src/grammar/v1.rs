@@ -876,7 +876,7 @@ fn enum_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marke
 
 /// Parses a variant in an enum definition.
 fn enum_variant(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    ident!(parser, marker, "enum variant declaration");
+    ident!(parser, marker, "enum variant name");
 
     // Optional value, i.e., `= <expr>`.
     if parser.peek().map(|(t, _)| t) == Some(Token::Assignment) {
@@ -1408,7 +1408,7 @@ fn runtime_section(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marke
 
 /// Parses an item in a runtime section.
 fn runtime_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    ident!(parser, marker, "runtime key");
+    expected_in!(parser, marker, ANY_IDENT, "runtime key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, expr);
@@ -1435,7 +1435,7 @@ fn requirements_section(
 
 /// Parses an item in a requirements section.
 fn requirements_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    ident!(parser, marker, "requirements key");
+    expected_in!(parser, marker, ANY_IDENT, "requirements key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, expr);
@@ -1476,7 +1476,7 @@ fn workflow_hints_section(
 
 /// Parses an item in a task hints section.
 fn task_hints_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    ident!(parser, marker, "hint key");
+    expected_in!(parser, marker, ANY_IDENT, "hint key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, expr);
@@ -1489,7 +1489,7 @@ fn workflow_hints_item(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<(), (Marker, Diagnostic)> {
-    ident!(parser, marker, "hint key");
+    expected_in!(parser, marker, ANY_IDENT, "hint key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, workflow_hints_value);
@@ -1558,7 +1558,7 @@ fn workflow_hints_object_item(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<(), (Marker, Diagnostic)> {
-    ident!(parser, marker, "object key");
+    expected_in!(parser, marker, ANY_IDENT, "object key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, workflow_hints_value);
@@ -1601,7 +1601,7 @@ fn metadata_object_item(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<(), (Marker, Diagnostic)> {
-    ident!(parser, marker, "metadata key");
+    expected_in!(parser, marker, ANY_IDENT, "metadata key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, metadata_value);
