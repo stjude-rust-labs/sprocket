@@ -2,6 +2,7 @@
 
 use std::collections::HashSet;
 use std::iter::once;
+use std::sync::Arc;
 
 use anyhow::Result;
 use anyhow::bail;
@@ -114,7 +115,7 @@ pub(crate) struct DocumentTests {
 #[derive(serde::Deserialize, Debug)]
 pub(crate) struct TestDefinition {
     /// Name for the test.
-    pub name: String,
+    pub name: Arc<str>,
     /// Any tags associated with the test.
     #[serde(default)]
     pub tags: HashSet<String>,
