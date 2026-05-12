@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added `HostPathLiterals` lint rule to flag absolute path defaults in `File` and `Directory` declarations ([#736](https://github.com/stjude-rust-labs/sprocket/pull/736)).
 
+#### Fixed
+
+* `#@ except:` directives on ancestor nodes are now honored by the
+  `UnnecessaryFunctionCall` lint rule
+  ([#842](https://github.com/stjude-rust-labs/sprocket/pull/842)).
+
 ## 0.22.1 - 2026-04-22
 
 ## 0.22.0 - 2026-04-02
