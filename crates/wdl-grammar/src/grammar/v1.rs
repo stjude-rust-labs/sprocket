@@ -342,9 +342,6 @@ const MAP_RECOVERY_SET: TokenSet = TokenSet::new(&[Token::Comma as u8, Token::Cl
 const LITERAL_OBJECT_RECOVERY_SET: TokenSet =
     TokenSet::new(&[Token::Comma as u8, Token::CloseBrace as u8]);
 
-/// Hidden identifiers that the engine provides for use in expressions.
-const ENGINE_PROVIDED_IDENTIFIERS: TokenSet = TokenSet::new(&[Token::TaskKeyword as u8]);
-
 /// Represents *any* identifier, including reserved keywords.
 const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::Ident as u8,
@@ -2281,11 +2278,8 @@ fn expr_with_precedence(
     min_precedence: u8,
 ) -> Result<CompletedMarker, (Marker, Diagnostic)> {
     // First parse an atom or a prefix operation as the left-hand side
-
-    let mut is_engine_ident = false;
     let mut lhs = match parser.peek() {
         Some((token, _)) if ATOM_EXPECTED_SET.contains(token.into_raw()) => {
-            is_engine_ident = ENGINE_PROVIDED_IDENTIFIERS.contains(token.into_raw());
             let lhs = parser.start();
             match atom_expr(parser, lhs, token) {
                 Ok(lhs) => lhs,
@@ -2357,7 +2351,6 @@ fn expr_with_precedence(
                 }
 
                 lhs = infix.complete(parser, kind);
-                is_engine_ident = false;
             }
             Some((token, _)) if POSTFIX_OPERATOR_EXPECTED_SET.contains(token.into_raw()) => {
                 // The operation is a postfix operation; check the precedence level
@@ -2375,11 +2368,10 @@ fn expr_with_precedence(
                 let postfix = lhs.precede(parser);
                 let res = match token {
                     Token::OpenBracket => index_expr(parser, postfix),
-                    Token::Dot => access_expr(parser, postfix, is_engine_ident),
+                    Token::Dot => access_expr(parser, postfix),
                     _ => panic!("unexpected postfix operator"),
                 };
 
-                is_engine_ident = false;
                 lhs = match res {
                     Ok(marker) => marker,
                     Err((postfix, e)) => {
@@ -2421,11 +2413,6 @@ fn atom_expr(
         Token::HintsKeyword => literal_hints(parser, marker),
         Token::InputKeyword => literal_input(parser, marker),
         Token::OutputKeyword => literal_output(parser, marker),
-        t if ENGINE_PROVIDED_IDENTIFIERS.contains(t.into_raw()) => {
-            parser.next();
-            parser.update_last_token_kind(SyntaxKind::Ident);
-            Ok(marker.complete(parser, SyntaxKind::NameRefExprNode))
-        }
         t if ANY_IDENT.contains(t.into_raw()) => name_ref_expr(parser, marker),
         _ => unreachable!(),
     }
@@ -2518,7 +2505,8 @@ fn object(
 
 /// Parses a single item in a literal object.
 fn object_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    ident!(parser, marker, "object key");
+    expected_in!(parser, marker, ANY_IDENT, "object key");
+    parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, expr);
     marker.complete(parser, SyntaxKind::LiteralObjectItemNode);
@@ -2531,7 +2519,8 @@ fn name_ref_expr(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<CompletedMarker, (Marker, Diagnostic)> {
-    ident!(parser, marker, "identifier");
+    expected_in!(parser, marker, ANY_IDENT, "identifier");
+    parser.update_last_token_kind(SyntaxKind::Ident);
 
     // Check for call expression
     if let Some((Token::OpenParen, _)) = parser.peek() {
@@ -2599,7 +2588,7 @@ fn literal_hints(
 
 /// Parses a literal hints item.
 fn literal_hints_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    ident!(parser, marker, "hint key");
+    expected_in!(parser, marker, ANY_IDENT, "hint key");
     parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, expr);
@@ -2695,19 +2684,10 @@ fn index_expr(
 fn access_expr(
     parser: &mut Parser<'_>,
     marker: Marker,
-    any_ident: bool,
 ) -> Result<CompletedMarker, (Marker, Diagnostic)> {
     parser.require(Token::Dot);
-
-    // In the case of `task` member accesses, we can have multiple
-    // keywords (e.g. `task.meta`). So we just allow anything through
-    // and leave any further errors to the validation pass.
-    if any_ident {
-        expected_in!(parser, marker, ANY_IDENT, "name");
-        parser.update_last_token_kind(SyntaxKind::Ident);
-    } else {
-        ident!(parser, marker, "name");
-    }
+    expected_in!(parser, marker, ANY_IDENT, "name");
+    parser.update_last_token_kind(SyntaxKind::Ident);
     Ok(marker.complete(parser, SyntaxKind::AccessExprNode))
 }
 
