@@ -20,6 +20,7 @@ use wdl_ast::v1::ConditionalStatement;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::v1::EnumDefinition;
+use wdl_ast::v1::ImportSource;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::InputSection;
 use wdl_ast::v1::OutputSection;
@@ -89,20 +90,33 @@ fn import_to_symbol(
     import: &ImportStatement,
     lines: &std::sync::Arc<line_index::LineIndex>,
 ) -> Result<DocumentSymbol> {
-    let (name, selection_span) = import.namespace().unwrap_or_else(|| {
-        (
-            import
-                .uri()
-                .text()
-                .map(|t| t.text().to_string())
-                .unwrap_or_else(|| "<import>".to_string()),
-            import.uri().span(),
-        )
-    });
+    let (name, detail, selection_span) = match import.source() {
+        ImportSource::Uri(q) => {
+            let (name, selection_span) = import.namespace().unwrap_or_else(|| {
+                (
+                    q.text()
+                        .map(|t| t.text().to_string())
+                        .unwrap_or_else(|| "<import>".to_string()),
+                    q.span(),
+                )
+            });
+            let detail = q.text().map(|t| t.text().to_string());
+            (name, detail, selection_span)
+        }
+        ImportSource::ModulePath(path) => {
+            let path_text = path.text();
+            let name = import
+                .explicit_namespace()
+                .map(|a| a.text().to_string())
+                .or_else(|| import.namespace().map(|(n, _)| n))
+                .unwrap_or_else(|| path_text.clone());
+            (name, Some(path_text), path.span())
+        }
+    };
 
     Ok(DocumentSymbol {
         name,
-        detail: import.uri().text().map(|t| t.text().to_string()),
+        detail,
         kind: SymbolKind::NAMESPACE,
         range: common::location_from_span(uri, import.span(), lines)?.range,
         selection_range: common::location_from_span(uri, selection_span, lines)?.range,

@@ -584,7 +584,7 @@ pub async fn run(
 
             emit_diagnostics(
                 &path,
-                source,
+                &source,
                 result.document().diagnostics(),
                 report_mode,
                 colorize,
@@ -807,9 +807,10 @@ pub async fn run(
                         Err(anyhow!("evaluation was interrupted").into())
                     }
                     Err(EvaluationError::Source(e)) => {
+                        let source = e.document.root().text().to_string();
                         emit_diagnostics_with_backtrace(
                             &e.document.path(),
-                            e.document.root().text().to_string(),
+                            &source,
                             &[e.diagnostic],
                             &e.backtrace,
                             report_mode,

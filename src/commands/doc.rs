@@ -223,7 +223,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
 
                     emit_diagnostics(
                         &path,
-                        source,
+                        &source,
                         result.document().diagnostics().filter(|d| {
                             if d.severity() == Severity::Error {
                                 counts.errors += 1;

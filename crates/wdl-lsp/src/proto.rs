@@ -116,6 +116,7 @@ pub fn document_diagnostic_report(
     params: DocumentDiagnosticParams,
     results: Vec<AnalysisResult>,
     source: &str,
+    mut matcher: Option<&mut wdl_lint::BaselineMatcher<'_>>,
 ) -> Option<DocumentDiagnosticReportResult> {
     let result = results
         .iter()
@@ -146,6 +147,12 @@ pub fn document_diagnostic_report(
     let items = result
         .document()
         .diagnostics()
+        .filter(|d| {
+            if let Some(matcher) = &mut matcher {
+                return !matcher.is_suppressed(d, result.document());
+            }
+            true
+        })
         .map(|d| {
             diagnostic(
                 result.document().uri(),
@@ -173,6 +180,7 @@ pub fn workspace_diagnostic_report(
     params: WorkspaceDiagnosticParams,
     results: Vec<AnalysisResult>,
     source: &str,
+    mut matcher: Option<&mut wdl_lint::BaselineMatcher<'_>>,
 ) -> WorkspaceDiagnosticReportResult {
     let ids = params
         .previous_result_ids
@@ -215,6 +223,12 @@ pub fn workspace_diagnostic_report(
         let diagnostics = result
             .document()
             .diagnostics()
+            .filter(|d| {
+                if let Some(matcher) = &mut matcher {
+                    return !matcher.is_suppressed(d, result.document());
+                }
+                true
+            })
             .filter_map(|d| {
                 diagnostic(
                     result.document().uri(),

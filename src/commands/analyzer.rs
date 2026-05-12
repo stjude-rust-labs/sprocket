@@ -1,10 +1,13 @@
 //! Implementation of the language server protocol (LSP) subcommand.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use clap::Parser;
 use clap::builder::PossibleValuesParser;
 use wdl::analysis::FeatureFlags;
+use wdl::lint::Baseline;
+use wdl::lint::baseline::DEFAULT_BASELINE_FILENAME;
 use wdl::lsp::LevelFilter;
 use wdl::lsp::LintOptions;
 use wdl::lsp::Server;
@@ -71,6 +74,16 @@ pub async fn analyzer(
             exceptions: args.except,
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
             feature_flags: FeatureFlags::default(),
+            baseline: {
+                let baseline_is_configured = config.check.baseline.is_some();
+                let path = config
+                    .check
+                    .baseline
+                    .clone()
+                    .unwrap_or_else(|| PathBuf::from(DEFAULT_BASELINE_FILENAME));
+                Baseline::load_or_default(&path, baseline_is_configured)
+                    .map_err(anyhow::Error::from)?
+            },
         },
         Some(handle),
     )

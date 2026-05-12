@@ -1,6 +1,6 @@
 [package]
 name = "wdl-analysis"
-version = "0.19.0"
+version = "0.19.1"
 rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -12,6 +12,8 @@ documentation = "https://docs.rs/wdl-analysis"
 
 [dependencies]
 anyhow = { workspace = true }
+arrayvec = { workspace = true }
+blake3 = { workspace = true }
 convert_case = { workspace = true }
 futures = { workspace = true }
 ignore = { workspace = true }

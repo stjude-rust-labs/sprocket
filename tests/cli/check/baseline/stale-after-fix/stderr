@@ -1,0 +1,5 @@
+error: the baseline contains 3 stale entries for diagnostics that no longer exist:
+  - 1 stale `InputName` diagnostic from `source.wdl`
+  - 1 stale `MetaSections` diagnostic from `source.wdl`
+  - 1 stale `UnusedInput` diagnostic from `source.wdl`
+rerun with `--generate-baseline` to update it

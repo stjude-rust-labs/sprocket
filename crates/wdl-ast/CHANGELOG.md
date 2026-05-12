@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Support for the WDL 1.4 three-form import syntax, including new
+  `ImportForm` and `ImportSource` enums on `ImportStatement` and new
+  `SymbolicModulePath`, `ImportMembers`, and `ImportMember` AST nodes
+  ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+
 ## 0.22.1 - 2026-04-02
 
 ## 0.22.0 - 2026-03-12

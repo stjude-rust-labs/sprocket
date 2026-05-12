@@ -185,6 +185,9 @@ pub struct CheckConfig {
     /// Set of lint tags to filter out of the enabled lint rules.
     #[serde(default)]
     pub filter_lint_tags: Vec<String>,
+    /// Path to the diagnostic baseline file.
+    #[serde(default)]
+    pub baseline: Option<PathBuf>,
     /// Lint rule configuration.
     #[serde(default)]
     pub lint: wdl::lint::Config,
