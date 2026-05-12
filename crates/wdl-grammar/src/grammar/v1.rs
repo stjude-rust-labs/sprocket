@@ -111,6 +111,18 @@ const REQUIREMENTS_ITEM_RECOVERY_SET: TokenSet =
 const HINTS_ITEM_RECOVERY_SET: TokenSet =
     ANY_IDENT.union(TokenSet::new(&[Token::CloseBrace as u8]));
 
+/// The recovery set for the braced member-selection clause of a symbolic
+/// import.
+const IMPORT_MEMBER_RECOVERY_SET: TokenSet =
+    TokenSet::new(&[Token::Ident as u8, Token::CloseBrace as u8]);
+
+/// Tokens that terminate the braced member-selection clause of a symbolic
+/// import in addition to `CloseBrace`. `FromKeyword` is the form-3
+/// separator that immediately follows the brace group, so we treat its
+/// appearance after a parsed member as a missing-`}` signal rather than
+/// as another member.
+const IMPORT_MEMBER_TERMINATION_SET: TokenSet = TokenSet::new(&[Token::FromKeyword as u8]);
+
 /// The recovery set for literal input items.
 const LITERAL_INPUT_ITEM_RECOVERY_SET: TokenSet =
     ANY_IDENT.union(TokenSet::new(&[Token::CloseBrace as u8]));
@@ -352,6 +364,7 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::ElseKeyword as u8,
     Token::EnvKeyword as u8,
     Token::FalseKeyword as u8,
+    Token::FromKeyword as u8,
     Token::HintsKeyword as u8,
     Token::IfKeyword as u8,
     Token::InKeyword as u8,
@@ -364,7 +377,6 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::OutputKeyword as u8,
     Token::ParameterMetaKeyword as u8,
     Token::RequirementsKeyword as u8,
-    Token::HintsKeyword as u8,
     Token::RuntimeKeyword as u8,
     Token::ScatterKeyword as u8,
     Token::StructKeyword as u8,
@@ -377,12 +389,34 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
 
 /// Parses matching braces given a callback to parse the interior delimited
 /// items.
+///
+/// Accepts an optional `termination` token set; tokens in the set end the
+/// item loop early, with [`Parser::consume_close_token`] synthesizing a
+/// zero-width close brace.
 macro_rules! braced_items {
     ($parser:ident, $marker:ident, $delimiter:expr_2021, $recovery:expr_2021, $cb:expr_2021) => {
+        braced_items!(
+            $parser,
+            $marker,
+            $delimiter,
+            TokenSet::EMPTY,
+            $recovery,
+            $cb
+        )
+    };
+    (
+        $parser:ident,
+        $marker:ident,
+        $delimiter:expr_2021,
+        $termination:expr_2021,
+        $recovery:expr_2021,
+        $cb:expr_2021
+    ) => {
         if let Err(e) = $parser.matching_delimited(
             Token::OpenBrace,
             Token::CloseBrace,
             $delimiter,
+            $termination,
             $recovery,
             $cb,
         ) {
@@ -395,10 +429,28 @@ macro_rules! braced_items {
 /// items.
 macro_rules! bracketed_items {
     ($parser:ident, $marker:ident, $delimiter:expr_2021, $recovery:expr_2021, $cb:expr_2021) => {
+        bracketed_items!(
+            $parser,
+            $marker,
+            $delimiter,
+            TokenSet::EMPTY,
+            $recovery,
+            $cb
+        )
+    };
+    (
+        $parser:ident,
+        $marker:ident,
+        $delimiter:expr_2021,
+        $termination:expr_2021,
+        $recovery:expr_2021,
+        $cb:expr_2021
+    ) => {
         if let Err(e) = $parser.matching_delimited(
             Token::OpenBracket,
             Token::CloseBracket,
             $delimiter,
+            $termination,
             $recovery,
             $cb,
         ) {
@@ -411,10 +463,28 @@ macro_rules! bracketed_items {
 /// items.
 macro_rules! paren_items {
     ($parser:ident, $marker:ident, $delimiter:expr_2021, $recovery:expr_2021, $cb:expr_2021) => {
+        paren_items!(
+            $parser,
+            $marker,
+            $delimiter,
+            TokenSet::EMPTY,
+            $recovery,
+            $cb
+        )
+    };
+    (
+        $parser:ident,
+        $marker:ident,
+        $delimiter:expr_2021,
+        $termination:expr_2021,
+        $recovery:expr_2021,
+        $cb:expr_2021
+    ) => {
         if let Err(e) = $parser.matching_delimited(
             Token::OpenParen,
             Token::CloseParen,
             $delimiter,
+            $termination,
             $recovery,
             $cb,
         ) {
@@ -479,28 +549,143 @@ fn item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnost
 }
 
 /// Parses an import statement.
+///
+/// Three forms are recognized.
+///
+/// 1. `import <source> [as <alias>] (alias <Old> as <New>)*` — the existing
+///    import form. `<source>` is either a quoted URI or a symbolic module path.
+///    `as <alias>` renames the pseudo-namespace through which the imported
+///    tasks and workflows are accessed; `alias <Old> as <New>` renames an
+///    imported struct or enum.
+/// 2. `import * from <source>` — every task, workflow, and user-defined type
+///    from `<source>` is brought into the importing document's scope.
+/// 3. `import { <member> [as <Name>], ... } from <source>` — only the listed
+///    items are brought into scope. A per-member `as <Name>` renames the
+///    selected item locally.
+///
+/// Forms 2 and 3 do not accept a trailing `as <alias>` or `alias` clause.
 fn import_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::ImportKeyword);
-    expected_fn!(parser, marker, string);
 
-    if parser.next_if(Token::AsKeyword) {
-        expected!(parser, marker, Token::Ident, "import namespace");
+    let has_selection = match parser.peek() {
+        Some((Token::Asterisk, _)) => {
+            parser.require(Token::Asterisk);
+            true
+        }
+        Some((Token::OpenBrace, _)) => {
+            let inner = parser.start();
+            if let Err((inner, e)) = import_members(parser, inner) {
+                inner.abandon(parser);
+                return Err((marker, e));
+            }
+            true
+        }
+        _ => false,
+    };
+
+    if has_selection {
+        expected!(parser, marker, Token::FromKeyword);
     }
 
-    while let Some((Token::AliasKeyword, _)) = parser.peek() {
-        expected_fn!(parser, marker, import_alias);
+    // Parse the import source, which is either a quoted string or a symbolic
+    // module path.
+    match parser.peek() {
+        Some((Token::SingleQuote | Token::DoubleQuote | Token::OpenHeredoc, _)) => {
+            expected_fn!(parser, marker, string);
+        }
+        Some((Token::Ident, _)) => {
+            expected_fn!(parser, marker, symbolic_module_path);
+        }
+        found => {
+            let (found, span) = found
+                .map(|(t, s)| (Some(t.describe()), s))
+                .unwrap_or_else(|| (None, parser.span()));
+            let expected = if has_selection {
+                &["string", "identifier"][..]
+            } else {
+                &["string", "identifier", "`*`", "`{`"][..]
+            };
+            return Err((marker, expected_one_of(expected, found, span)));
+        }
+    }
+
+    // Form 1 suffix: optional `as <alias>` and zero-or-more `alias` clauses.
+    // Forms 2 and 3 do not accept either.
+    if !has_selection {
+        if parser.next_if(Token::AsKeyword) {
+            expected_in!(parser, marker, ANY_IDENT, "import namespace");
+            parser.update_last_token_kind(SyntaxKind::Ident);
+        }
+
+        while let Some((Token::AliasKeyword, _)) = parser.peek() {
+            expected_fn!(parser, marker, import_alias);
+        }
     }
 
     marker.complete(parser, SyntaxKind::ImportStatementNode);
     Ok(())
 }
 
+/// Parses the braced member-selection clause `{ <m>, ... }`.
+fn import_members(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+    braced_items!(
+        parser,
+        marker,
+        Some(Token::Comma),
+        IMPORT_MEMBER_TERMINATION_SET,
+        IMPORT_MEMBER_RECOVERY_SET,
+        import_member
+    );
+
+    marker.complete(parser, SyntaxKind::ImportMembersNode);
+    Ok(())
+}
+
+/// Parses one member entry inside the braced group.
+///
+/// An entry is a single identifier optionally followed by `as <ident>` to
+/// rename it locally.
+fn import_member(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+    expected_in!(parser, marker, ANY_IDENT, "selected member");
+    parser.update_last_token_kind(SyntaxKind::Ident);
+
+    if parser.next_if(Token::AsKeyword) {
+        expected_in!(parser, marker, ANY_IDENT, "member alias");
+        parser.update_last_token_kind(SyntaxKind::Ident);
+    }
+
+    marker.complete(parser, SyntaxKind::ImportMemberNode);
+    Ok(())
+}
+
+/// Parses the module path of a symbolic import.
+///
+/// The path consists of one or more `Ident` tokens separated by `Slash`
+/// (`/`) tokens.
+fn symbolic_module_path(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    expected_in!(parser, marker, ANY_IDENT, "symbolic module path");
+    parser.update_last_token_kind(SyntaxKind::Ident);
+
+    while parser.next_if(Token::Slash) {
+        expected_in!(parser, marker, ANY_IDENT, "symbolic module path component");
+        parser.update_last_token_kind(SyntaxKind::Ident);
+    }
+
+    marker.complete(parser, SyntaxKind::SymbolicModulePathNode);
+    Ok(())
+}
+
 /// Parses an import alias.
 fn import_alias(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::AliasKeyword);
-    expected!(parser, marker, Token::Ident, "source type name");
+    expected_in!(parser, marker, ANY_IDENT, "source type name");
+    parser.update_last_token_kind(SyntaxKind::Ident);
     expected!(parser, marker, Token::AsKeyword);
-    expected!(parser, marker, Token::Ident, "target type name");
+    expected_in!(parser, marker, ANY_IDENT, "target type name");
+    parser.update_last_token_kind(SyntaxKind::Ident);
     marker.complete(parser, SyntaxKind::ImportAliasNode);
     Ok(())
 }
@@ -1937,6 +2122,7 @@ fn call_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
 
         parser.delimited(
             Token::CloseBrace,
+            TokenSet::EMPTY,
             Some(Token::Comma),
             CALL_INPUT_ITEM_RECOVERY_SET,
             call_input_item,

@@ -564,12 +564,18 @@ where
     /// item, and then parses the close token.
     ///
     /// The provided recovery token set is used to recover within the delimited
-    /// item list.
+    /// item list. The provided termination token set, in addition to `close`,
+    /// causes the loop to stop early; on early stop, [`consume_close_token`]
+    /// synthesizes a zero-width close token and emits an "unmatched" diagnostic
+    /// so the surrounding caller can continue parsing.
+    ///
+    /// [`consume_close_token`]: Self::consume_close_token
     pub fn matching_delimited<F>(
         &mut self,
         open: T,
         close: T,
         delimiter: Option<T>,
+        termination: TokenSet,
         recovery: TokenSet,
         cb: F,
     ) -> Result<(), Diagnostic>
@@ -577,7 +583,7 @@ where
         F: FnMut(&mut Self, Marker) -> Result<(), (Marker, Diagnostic)>,
     {
         let open_span = self.expect(open)?;
-        self.delimited(close, delimiter, recovery, cb);
+        self.delimited(close, termination, delimiter, recovery, cb);
         self.consume_close_token(open, open_span, close);
         Ok(())
     }
@@ -611,20 +617,31 @@ where
         });
     }
 
-    /// Parses a delimited list of items until the given token.
+    /// Parses a delimited list of items until the given `until` token.
     ///
     /// The provided recovery token set is used to recover within the delimited
-    /// item list.
+    /// item list. Any token in the termination set additionally ends the loop
+    /// after a successfully-parsed item.
     ///
-    /// The `until` token is not consumed.
-    pub fn delimited<F>(&mut self, until: T, delimiter: Option<T>, recovery: TokenSet, mut cb: F)
-    where
+    /// Neither `until` nor any termination token is consumed by this method.
+    pub fn delimited<F>(
+        &mut self,
+        until: T,
+        termination: TokenSet,
+        delimiter: Option<T>,
+        recovery: TokenSet,
+        mut cb: F,
+    ) where
         F: FnMut(&mut Self, Marker) -> Result<(), (Marker, Diagnostic)>,
     {
         let recovery = if let Some(delimiter) = delimiter {
-            recovery.union(TokenSet::new(&[until.into_raw(), delimiter.into_raw()]))
+            recovery
+                .union(termination)
+                .union(TokenSet::new(&[until.into_raw(), delimiter.into_raw()]))
         } else {
-            recovery.union(TokenSet::new(&[until.into_raw()]))
+            recovery
+                .union(termination)
+                .union(TokenSet::new(&[until.into_raw()]))
         };
 
         let parent = self.recovery.last().copied();
@@ -667,7 +684,7 @@ where
             if let Some(delimiter) = delimiter
                 && let Some((token, _)) = next
             {
-                if token == until {
+                if token == until || termination.contains(token.into_raw()) {
                     break;
                 }
 

@@ -1,0 +1,6 @@
+error: expected selected member, but found `,`
+  ┌─ tests/parsing/imports-symbolic-leading-comma/source.wdl:3:10
+  │
+3 │ import { , } from openwdl/csvkit
+  │          ^ unexpected `,`
+

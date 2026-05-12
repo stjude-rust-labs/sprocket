@@ -5,6 +5,22 @@ use std::rc::Rc;
 use nonempty::NonEmpty;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxToken;
+use wdl_ast::v1::ImportSource;
+use wdl_ast::v1::ImportStatement;
+
+/// A key for sorting an `ImportStatement` alongside other imports.
+///
+/// Quoted imports sort before symbolic imports; within each group the sort key
+/// is the URI text or the module path text.
+fn import_sort_key(stmt: &ImportStatement) -> (u8, String) {
+    match stmt.source() {
+        ImportSource::Uri(uri) => {
+            let text = uri.text().map(|t| t.text().to_string()).unwrap_or_default();
+            (0, text)
+        }
+        ImportSource::ModulePath(path) => (1, path.text()),
+    }
+}
 
 pub mod decl;
 pub mod r#enum;
@@ -58,28 +74,14 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>, c
     }
 
     if config.sort_imports {
-        imports.sort_by(|a, b| {
-            let a = a
+        imports.sort_by_cached_key(|child| {
+            let stmt = child
                 .element()
                 .as_node()
                 .expect("import statement node")
                 .as_import_statement()
                 .expect("import statement");
-            let b = b
-                .element()
-                .as_node()
-                .expect("import statement node")
-                .as_import_statement()
-                .expect("import statement");
-            let a_uri = a
-                .uri()
-                .text()
-                .expect("import uri should not be interpolated");
-            let b_uri = b
-                .uri()
-                .text()
-                .expect("import uri should not be interpolated");
-            a_uri.text().cmp(b_uri.text())
+            import_sort_key(stmt)
         });
     }
 

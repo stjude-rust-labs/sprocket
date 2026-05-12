@@ -197,6 +197,12 @@ pub struct FeatureFlags {
     /// `false` will emit a warning.
     #[serde(default = "default_wdl_1_3")]
     wdl_1_3: bool,
+    /// Enables experimental WDL 1.4 features.
+    ///
+    /// Defaults to `false`. While `false`, `wdl-analysis` reports an error for
+    /// any document declaring `version 1.4`.
+    #[serde(default = "default_wdl_1_4")]
+    wdl_1_4: bool,
 }
 
 /// Returns the default value for the `wdl_1_3` feature flag.
@@ -204,9 +210,17 @@ fn default_wdl_1_3() -> bool {
     true
 }
 
+/// Returns the default value for the `wdl_1_4` feature flag.
+fn default_wdl_1_4() -> bool {
+    false
+}
+
 impl Default for FeatureFlags {
     fn default() -> Self {
-        Self { wdl_1_3: true }
+        Self {
+            wdl_1_3: true,
+            wdl_1_4: false,
+        }
     }
 }
 
@@ -222,6 +236,17 @@ impl FeatureFlags {
     /// Returns a new `FeatureFlags` with WDL 1.3 features enabled.
     #[deprecated(note = "WDL 1.3 is now enabled by default; this method is a no-op")]
     pub fn with_wdl_1_3(self) -> Self {
+        self
+    }
+
+    /// Returns whether WDL 1.4 is enabled.
+    pub fn wdl_1_4(&self) -> bool {
+        self.wdl_1_4
+    }
+
+    /// Returns a new `FeatureFlags` with WDL 1.4 features enabled.
+    pub fn with_wdl_1_4(mut self) -> Self {
+        self.wdl_1_4 = true;
         self
     }
 }

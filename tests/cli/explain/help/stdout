@@ -78,6 +78,7 @@ Available rules:
   - ExceptDirectiveValid
   - ExpectedRuntimeKeys
   - HereDocCommands
+  - HostPathLiterals
   - ImportPlacement
   - InputName
   - KnownRules

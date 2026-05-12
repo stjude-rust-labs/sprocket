@@ -88,6 +88,8 @@ pub enum SyntaxKind {
     EnvKeyword,
     /// The `false` keyword token.
     FalseKeyword,
+    /// The `from` keyword token.
+    FromKeyword,
     /// The `if` keyword token.
     IfKeyword,
     /// The `in` keyword token.
@@ -206,6 +208,12 @@ pub enum SyntaxKind {
     VersionStatementNode,
     /// Represents an import statement node.
     ImportStatementNode,
+    /// Represents the braced selected-members clause in an import statement.
+    ImportMembersNode,
+    /// Represents a single selected member in a symbolic import.
+    ImportMemberNode,
+    /// Represents the unquoted module path `Ident ("/" Ident)*`.
+    SymbolicModulePathNode,
     /// Represents an import alias node.
     ImportAliasNode,
     /// Represents a struct definition node.
@@ -433,6 +441,7 @@ impl SyntaxKind {
             Self::ElseKeyword => "`else` keyword",
             Self::EnvKeyword => "`env` keyword",
             Self::FalseKeyword => "`false` keyword",
+            Self::FromKeyword => "`from` keyword",
             Self::IfKeyword => "`if` keyword",
             Self::InKeyword => "`in` keyword",
             Self::ImportKeyword => "`import` keyword",
@@ -488,6 +497,9 @@ impl SyntaxKind {
             Self::RootNode => "root node",
             Self::VersionStatementNode => "version statement",
             Self::ImportStatementNode => "import statement",
+            Self::ImportMembersNode => "selected members clause",
+            Self::ImportMemberNode => "selected member",
+            Self::SymbolicModulePathNode => "symbolic module path",
             Self::ImportAliasNode => "import alias",
             Self::StructDefinitionNode => "struct definition",
             Self::EnumDefinitionNode => "enum definition",
@@ -600,6 +612,7 @@ impl SyntaxKind {
                 | SyntaxKind::FalseKeyword
                 | SyntaxKind::FileTypeKeyword
                 | SyntaxKind::FloatTypeKeyword
+                | SyntaxKind::FromKeyword
                 | SyntaxKind::HintsKeyword
                 | SyntaxKind::IfKeyword
                 | SyntaxKind::ImportKeyword
