@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   is gated behind the `feature_flags.wdl_1_4` analysis flag (default
   `false`). See the per-crate changelogs for details ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 
+### Fixed
+
+* `dev test` will now cancel execution on `CTRL+C` ([#839](https://github.com/stjude-rust-labs/sprocket/pull/839)).
+
 ## 0.24.0 - 2026-04-22
 
 ### Added
