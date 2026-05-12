@@ -560,13 +560,9 @@ fn find_parameter_meta_documentation(token: &SyntaxToken) -> Option<String> {
 
 /// Renders a `parameter_meta` value as a hover documentation string.
 ///
-/// String values are returned with their surrounding quotes stripped.
-/// Object values (e.g. `name: { description: "...", help: "..." }`)
-/// are flattened to the canonical `description` (then `help`) text,
-/// matching what `wdl-doc` does for HTML rendering. When the object
-/// has neither `description` nor `help`, or for any other shape
-/// (numbers, booleans, arrays, null), the raw source text is returned
-/// as a last-ditch fallback so the user still sees *something*.
+/// Strings are returned without surrounding quotes. Objects are flattened
+/// to their `description` (then `help`) text, as in `wdl-doc`. Anything
+/// else falls back to the raw source text.
 fn render_parameter_meta_value(value: &MetadataValue) -> String {
     match value {
         MetadataValue::String(s) => s
@@ -580,9 +576,8 @@ fn render_parameter_meta_value(value: &MetadataValue) -> String {
     }
 }
 
-/// Pulls `description` and (optionally) `help` from a metadata object,
-/// concatenating them with a blank-line separator. Returns `None` when
-/// neither key is present so callers can fall back to raw text.
+/// Returns the `description` and `help` strings from a metadata object,
+/// joined by a blank line, or `None` if neither key is present.
 fn object_description_and_help(obj: &MetadataObject) -> Option<String> {
     let mut description: Option<String> = None;
     let mut help: Option<String> = None;
