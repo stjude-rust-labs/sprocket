@@ -163,8 +163,7 @@ async fn should_hover_object_param_meta_uses_description_key() {
     // Hover over `name` in `~{name}` inside the `object_meta` task
     // command. Its `parameter_meta` entry is an object literal with a
     // `description` key plus an unrelated `something_else: true`. The
-    // hover doc should be the *description string only*, not the raw
-    // object-literal dump that previously bled through.
+    // hover doc should be the *description string only*.
     let mut ctx = setup().await;
     let response = hover_request(&mut ctx, "meta.wdl", Position::new(55, 16)).await;
     assert_hover_content(&response, "The name of the person to greet");
