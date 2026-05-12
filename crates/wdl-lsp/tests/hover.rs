@@ -187,8 +187,7 @@ async fn should_hover_object_param_meta_concats_description_and_help() {
 #[tokio::test]
 async fn should_hover_object_param_meta_falls_back_to_help_only() {
     // Hover over `only_help` in `~{only_help}`. The parameter_meta
-    // object has *only* a `help` key, no `description`, so the help
-    // text should still be surfaced rather than the raw object dump.
+    // object has *only* a `help` key, no `description`.
     let mut ctx = setup().await;
     let response = hover_request(&mut ctx, "meta.wdl", Position::new(55, 35)).await;
     assert_hover_content(&response, "Only the help string is provided here.");
