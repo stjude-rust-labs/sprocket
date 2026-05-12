@@ -7,15 +7,14 @@
 //! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#workspace_symbol)
 
 use anyhow::Result;
-use ls_types::DocumentSymbol;
-use ls_types::DocumentSymbolResponse;
-use ls_types::Location;
-use ls_types::SymbolInformation;
+use lsp_types::DocumentSymbol;
+use lsp_types::DocumentSymbolResponse;
+use lsp_types::Location;
+use lsp_types::SymbolInformation;
 use url::Url;
 
 use crate::graph::DocumentGraph;
 use crate::handlers;
-use crate::handlers::common::UrlToUri;
 
 /// Handles a workspace symbol request.
 pub fn workspace_symbol(
@@ -54,7 +53,7 @@ fn flatten_document_symbols(
                 tags: symbol.tags.clone(),
                 deprecated: symbol.deprecated,
                 location: Location {
-                    uri: uri.try_into_uri()?,
+                    uri: uri.clone(),
                     range: symbol.range,
                 },
                 container_name: parent_name.map(|s| s.to_string()),
