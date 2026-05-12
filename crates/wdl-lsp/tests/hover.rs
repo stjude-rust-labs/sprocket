@@ -191,8 +191,6 @@ async fn should_hover_object_param_meta_falls_back_to_help_only() {
     let mut ctx = setup().await;
     let response = hover_request(&mut ctx, "meta.wdl", Position::new(55, 35)).await;
     assert_hover_content(&response, "Only the help string is provided here.");
-    // The raw object-literal dump (e.g. `{ help: "..." }`) must not
-    // leak into the hover output.
     assert_hover_not_content(&response, "{ help");
 }
 
