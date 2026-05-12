@@ -22,4 +22,8 @@ workflow test {
     # OK
     File? file = None
     Boolean quuux = defined(file)
+
+    # OK
+    #@ except: UnnecessaryFunctionCall
+    String excepted = select_first(['foo', 'bar', 'baz'])
 }
