@@ -169,8 +169,6 @@ async fn should_hover_object_param_meta_uses_description_key() {
     let response = hover_request(&mut ctx, "meta.wdl", Position::new(55, 16)).await;
     assert_hover_content(&response, "The name of the person to greet");
     assert_hover_not_content(&response, "something_else");
-    // The raw object-literal dump (e.g. `{ description: "..." }`)
-    // must not leak into the hover output.
     assert_hover_not_content(&response, "{ description");
 }
 
