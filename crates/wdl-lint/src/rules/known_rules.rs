@@ -4,6 +4,8 @@ use std::collections::HashSet;
 use std::sync::LazyLock;
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::Visitor;
 use wdl_analysis::rules as analysis_rules;
 use wdl_ast::AstToken;
@@ -68,31 +70,26 @@ impl Rule for KnownRulesRule {
          mistakes."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-#@ except: LintThatDoesNotExist
-
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"#@ except: LintThatDoesNotExist
 version 1.2
 
 workflow example {
-    meta {}
-
-    output {}
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow example {
-    meta {}
-
-    output {}
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

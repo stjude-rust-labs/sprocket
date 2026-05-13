@@ -196,6 +196,7 @@ mod tests {
                 Blue = "#0000FF" # No description
             }
             "##,
+            None,
         );
 
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();

@@ -2,6 +2,8 @@
 
 use indexmap::IndexMap;
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -124,32 +126,16 @@ impl Rule for MatchingOutputMetaRule<'_> {
          is up to the developer to decide). No extraneous `meta.outputs` entries are allowed."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
-
-task generate_greeting {
-    input {
-        String name
-    }
-
-    command <<<>>>
-
-    output {
-        String greeting = "Hello, ~{name}!"
-    }
-}
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task generate_greeting {
     meta {
         outputs: {
-            greeting: "The generated greeting for the provided name"
+            # Missing `greeting`
         }
     }
 
@@ -157,14 +143,34 @@ task generate_greeting {
         String name
     }
 
-    command <<<>>>
+    output {
+        String greeting = "Hello, ~{name}!"
+    }
+}
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
+
+task generate_greeting {
+    meta {
+        outputs: {
+            greeting: "The generated greeting for the provided name",
+        }
+    }
+
+    input {
+        String name
+    }
 
     output {
         String greeting = "Hello, ~{name}!"
     }
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

@@ -14,12 +14,6 @@ use wdl_ast::Node as AstNode;
 
 use crate::element::FormatElement;
 
-/// Newline constant used for formatting on windows platforms.
-#[cfg(windows)]
-pub const NEWLINE: &str = "\r\n";
-/// Newline constant used for formatting on non-windows platforms.
-#[cfg(not(windows))]
-pub const NEWLINE: &str = "\n";
 /// A space.
 pub const SPACE: &str = " ";
 /// A tab.
@@ -294,6 +288,7 @@ workflow bar # This is an inline comment on the workflow ident.
   # This is attached to the call keyword.
   call foo {}
 } # This is an inline comment on the workflow close brace.",
+            None,
         );
 
         assert!(diagnostics.is_empty());

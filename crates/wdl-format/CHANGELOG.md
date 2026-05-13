@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added configurable newline style (`auto`, `unix`, `windows`) to formatting configuration ([#795](https://github.com/stjude-rust-labs/sprocket/pull/795)).
 * Formatting for the WDL 1.4 import forms. The namespace and wildcard
   forms render on a single line. Braced member lists render inline when
   the full statement fits within `max_line_length` and otherwise wrap

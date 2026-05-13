@@ -2,6 +2,8 @@
 
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -46,10 +48,11 @@ impl Rule for RuntimeSectionRule {
         "Tasks that don't declare `runtime` sections are unlikely to be portable."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.1
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.1
 
 task say_hello {
     input {
@@ -60,11 +63,11 @@ task say_hello {
         echo "Hello, ~{name}!"
     >>>
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.1
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.1
 
 task say_hello {
     input {
@@ -79,8 +82,9 @@ task say_hello {
         container: "ubuntu:latest"
     }
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

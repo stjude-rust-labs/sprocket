@@ -64,7 +64,6 @@ Available rules:
   - CallInputKeyword
   - CommandSectionIndentation
   - ConciseInput
-  - ConsistentNewlines
   - ContainerUri
   - DeclarationName
   - DenyGlobStar
@@ -78,6 +77,7 @@ Available rules:
   - ExceptDirectiveValid
   - ExpectedRuntimeKeys
   - HereDocCommands
+  - HostPathLiterals
   - ImportPlacement
   - InputName
   - KnownRules

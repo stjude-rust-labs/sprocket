@@ -19,7 +19,7 @@
 //! ```rust
 //! use wdl_grammar::SyntaxTree;
 //!
-//! let (tree, diagnostics) = SyntaxTree::parse("version 1.1");
+//! let (tree, diagnostics) = SyntaxTree::parse("version 1.1", None);
 //! assert!(diagnostics.is_empty());
 //! println!("{tree:#?}");
 //! ```

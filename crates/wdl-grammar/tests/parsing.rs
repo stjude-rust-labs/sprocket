@@ -112,7 +112,7 @@ fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     let source = std::fs::read_to_string(&path)
         .with_context(|| format!("failed to read source file `{path}`", path = path.display()))?
         .replace("\r\n", "\n");
-    let (tree, diagnostics) = SyntaxTree::parse(&source);
+    let (tree, diagnostics) = SyntaxTree::parse(&source, None);
     compare_result(&path.with_extension("tree"), &format!("{tree:#?}"), false)?;
     compare_result(
         &path.with_extension("errors"),
