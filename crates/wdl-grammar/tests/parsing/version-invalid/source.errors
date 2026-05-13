@@ -1,3 +1,11 @@
+error: unsupported WDL version `1-DEVEL.`
+  ┌─ tests/parsing/version-invalid/source.wdl:3:9
+  │
+3 │ version 1-DEVEL.~bad~
+  │         ^^^^^^^^ this version of WDL is not supported
+  │
+  = fix: either use a supported WDL version or configure a fallback version
+
 error: an unknown token was encountered
   ┌─ tests/parsing/version-invalid/source.wdl:3:17
   │

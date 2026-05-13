@@ -38,7 +38,6 @@ use crate::GitModulePath;
 use crate::GitSelector;
 use crate::Lockfile;
 use crate::Manifest;
-use crate::ModulePath;
 use crate::ResolvedSource;
 use crate::SymbolicPath;
 use crate::resolver::cache::CacheKey;
@@ -251,7 +250,7 @@ impl GitResolver {
                 .inspect_err(|e| {
                     if let MaterializedRoot::Cached { cache_leaf, .. } = &module_root {
                         tracing::warn!(
-                            dep = %name,
+                            dep = name.manifest(),
                             cache_leaf = %cache_leaf.display(),
                             error = %e,
                             "verification failed; run `sprocket module clean` to remove the cached module",
@@ -260,15 +259,10 @@ impl GitResolver {
                 })?;
             Ok(ResolvedDependency {
                 source: resolved_source,
-                modules: BTreeMap::from([(
-                    ModulePath::Root,
-                    ResolvedModule {
-                        version: manifest.version,
-                        checksum,
-                        signer,
-                        dependencies: inner,
-                    },
-                )]),
+                version: manifest.version,
+                checksum,
+                signer,
+                dependencies: inner,
             })
         }
         .boxed()
@@ -385,15 +379,7 @@ impl GitResolver {
                         })?;
                 Ok((None, commit))
             }
-            GitSelector::Commit(commit) => {
-                let commit = crate::GitCommit::try_from(commit.clone()).map_err(|_| {
-                    ResolverError::InvalidCommit {
-                        dep: name.clone(),
-                        value: commit.clone(),
-                    }
-                })?;
-                Ok((None, commit))
-            }
+            GitSelector::Commit(commit) => Ok((None, commit.clone())),
         }
     }
 
@@ -452,7 +438,7 @@ impl GitResolver {
                     fetcher.ensure_materialized(
                         &dep_for_clone,
                         &url_for_clone,
-                        commit_for_clone.inner(),
+                        commit_for_clone.as_str(),
                         &[sparse_path.as_str()],
                         scope,
                         &leaf_for_clone,
@@ -589,7 +575,7 @@ impl Resolver for GitResolver {
                 .dependencies
                 .get(name)
                 .ok_or_else(|| ResolverError::NotADependency {
-                    name: name.inner().to_string(),
+                    name: name.manifest().to_string(),
                 })?;
 
         // Materialization through the trait is always top-level (not
@@ -829,9 +815,8 @@ mod tests {
             .get(&DependencyName::try_from("dep".to_string()).unwrap())
             .unwrap();
         assert!(matches!(&dep.source, ResolvedSource::Path { .. }));
-        let module = dep.modules.get(&ModulePath::Root).unwrap();
-        assert!(module.dependencies.is_empty());
-        assert_eq!(module.version, Version::parse("1.0.0").unwrap());
+        assert!(dep.dependencies.is_empty());
+        assert_eq!(dep.version, Version::parse("1.0.0").unwrap());
     }
 
     fn hash_from_byte(byte: u8) -> crate::ContentHash {
@@ -882,14 +867,7 @@ mod tests {
         let cache = tempdir().unwrap();
         let (_, mut lockfile) = resolve_and_lock(&cache, &consumer).await;
         let dep_name = DependencyName::try_from("dep".to_string()).unwrap();
-        lockfile
-            .dependencies
-            .get_mut(&dep_name)
-            .unwrap()
-            .modules
-            .get_mut(&ModulePath::Root)
-            .unwrap()
-            .checksum = hash_from_byte(42);
+        lockfile.dependencies.get_mut(&dep_name).unwrap().checksum = hash_from_byte(42);
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
             .materialize(&consumer, &"dep".to_string().try_into().unwrap())
@@ -1039,19 +1017,16 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn invalid_commit_selector_produces_invalid_commit_error() {
+    async fn invalid_commit_selector_rejected_at_parse_time() {
         let workdir = tempdir().unwrap();
         let consumer_dir = workdir.path().join("consumer");
         let bad_src = "{\"git\":\"https://example.com/repo.git\",\"commit\":\"not-a-sha\"}";
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", bad_src)]);
         let bytes = fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap();
-        let consumer = Manifest::parse(&bytes).unwrap();
-
-        let cache = tempdir().unwrap();
-        let err = resolver(&cache).resolve_tree(&consumer).await.unwrap_err();
+        let err = Manifest::parse(&bytes).unwrap_err();
         assert!(
-            matches!(err, ResolverError::InvalidCommit { .. }),
-            "expected `InvalidCommit`, got: {err}"
+            matches!(err, crate::ManifestError::InvalidJson(_)),
+            "expected `InvalidJson` from manifest parse, got: {err}"
         );
     }
 
@@ -1282,8 +1257,7 @@ mod tests {
             .dependencies
             .get(&DependencyName::try_from("dep".to_string()).unwrap())
             .unwrap();
-        let module = dep.modules.get(&ModulePath::Root).unwrap();
-        assert_eq!(module.signer.as_ref(), Some(&signer.verifying_key()));
+        assert_eq!(dep.signer.as_ref(), Some(&signer.verifying_key()));
     }
 
     #[tokio::test]
@@ -1535,9 +1509,6 @@ mod tests {
             .dependencies
             .get(&DependencyName::try_from("dep".to_string()).unwrap())
             .unwrap()
-            .modules
-            .get(&ModulePath::Root)
-            .unwrap()
             .checksum;
 
         fs::write(dep_dir.join("index.wdl"), b"workflow changed {}").unwrap();
@@ -1546,9 +1517,6 @@ mod tests {
         let v2_checksum = lockfile_v2
             .dependencies
             .get(&DependencyName::try_from("dep".to_string()).unwrap())
-            .unwrap()
-            .modules
-            .get(&ModulePath::Root)
             .unwrap()
             .checksum;
 

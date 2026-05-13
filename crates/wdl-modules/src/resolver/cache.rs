@@ -94,7 +94,7 @@ impl CacheKey {
                 p.push(digest_hex);
             }
         }
-        p.push(self.commit.inner());
+        p.push(self.commit.as_str());
         p
     }
 

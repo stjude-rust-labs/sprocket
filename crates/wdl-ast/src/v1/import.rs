@@ -417,6 +417,7 @@ import "bar.wdl" as x
 import "baz.wdl" alias A as B alias C as D
 import "qux.wdl" as x alias A as B alias C as D
 "#,
+            None,
         );
         assert!(diagnostics.is_empty());
         let Ast::V1(ast) = document.ast() else {
@@ -498,6 +499,7 @@ import * from openwdl/csvkit
 import { sort } from openwdl/csvkit
 import { CsvSort, CsvSortStable as Stable } from "local.wdl"
 "#,
+            None,
         );
         assert!(diagnostics.is_empty(), "diagnostics: {diagnostics:#?}");
         let Ast::V1(ast) = document.ast() else {

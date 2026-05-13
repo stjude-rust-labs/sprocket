@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use semver::Version;
 use serde::Deserialize;
+use serde::Deserializer;
 use serde::Serialize;
 use thiserror::Error;
 use url::Url;
@@ -189,8 +190,8 @@ struct ManifestFields {
     /// The path to the module's entrypoint WDL file.
     #[serde(default)]
     entrypoint: Option<PathBuf>,
-    /// The `readme` field, accepting `null`, a string, or `false`.
-    #[serde(default)]
+    /// The `readme` field, accepting a string, `false`, or absence.
+    #[serde(default, deserialize_with = "deserialize_readme")]
     readme: ReadmeFields,
     /// Gitignore-style glob patterns identifying files outside the public
     /// import surface.
@@ -209,8 +210,7 @@ struct ManifestFields {
 
 /// The `readme` field's JSON shape; one of a string, `false`, or absent.
 /// The values `null` and `true` are rejected at parse time.
-#[derive(Debug, Default, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Default)]
 enum ReadmeFields {
     /// A relative path to a readme file.
     Path(PathBuf),
@@ -219,6 +219,22 @@ enum ReadmeFields {
     /// The field was absent.
     #[default]
     Default,
+}
+
+/// Deserializes the `readme` field, accepting `false` or a string path.
+fn deserialize_readme<'de, D>(deserializer: D) -> Result<ReadmeFields, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let value = serde_json::Value::deserialize(deserializer)?;
+    match value {
+        serde_json::Value::String(s) => Ok(ReadmeFields::Path(PathBuf::from(s))),
+        serde_json::Value::Bool(b) => Ok(ReadmeFields::Bool(b)),
+        serde_json::Value::Null => Err(serde::de::Error::custom("`readme` cannot be null")),
+        other => Err(serde::de::Error::custom(format!(
+            "`readme` must be a string or `false`; got {other}"
+        ))),
+    }
 }
 
 impl TryFrom<ManifestFields> for Manifest {
@@ -425,6 +441,20 @@ mod tests {
     }
 
     #[test]
+    fn rejects_readme_null() {
+        let err = parse(
+            r#"{
+                "name": "spellbook",
+                "version": "1.0.0",
+                "license": "MIT",
+                "readme": null
+            }"#,
+        )
+        .unwrap_err();
+        assert!(matches!(err, ManifestError::InvalidJson(_)));
+    }
+
+    #[test]
     fn parses_exclude_field() {
         let m = parse(
             r#"{
@@ -521,13 +551,30 @@ mod tests {
     }
 
     #[test]
+    fn accepts_hyphenated_dep_key() {
+        let m = parse(
+            r#"{
+                "name": "spellbook",
+                "version": "1.0.0",
+                "license": "MIT",
+                "dependencies": { "my-dep": {"path": "../local"} }
+            }"#,
+        )
+        .unwrap();
+        let key: DependencyName = "my-dep".parse().unwrap();
+        assert!(m.dependencies.contains_key(&key));
+        assert_eq!(key.manifest(), "my-dep");
+        assert_eq!(key.identifier(), "my_dep");
+    }
+
+    #[test]
     fn rejects_non_identifier_dep_key() {
         let err = parse(
             r#"{
                 "name": "spellbook",
                 "version": "1.0.0",
                 "license": "MIT",
-                "dependencies": { "bad-name": {"path": "../local"} }
+                "dependencies": { "1bad": {"path": "../local"} }
             }"#,
         )
         .unwrap_err();

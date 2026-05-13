@@ -130,9 +130,8 @@ mod tests {
     #[test]
     fn rejects_empty_string() {
         let err = GitModulePath::from_str("").unwrap_err();
-        assert_eq!(
-            err,
-            GitModulePathError::Invalid(RelativePathError::Empty),
+        assert!(
+            matches!(err, GitModulePathError::Invalid(RelativePathError::Empty)),
             "expected `Invalid(Empty)` for empty string"
         );
     }
@@ -140,15 +139,20 @@ mod tests {
     #[test]
     fn rejects_dot() {
         let err = GitModulePath::from_str(".").unwrap_err();
-        assert_eq!(err, GitModulePathError::Dot, "expected `Dot` for `.`");
+        assert!(
+            matches!(err, GitModulePathError::Dot),
+            "expected `Dot` for `.`"
+        );
     }
 
     #[test]
     fn rejects_absolute_path() {
         let err = GitModulePath::from_str("/tmp/module").unwrap_err();
-        assert_eq!(
-            err,
-            GitModulePathError::Invalid(RelativePathError::Absolute),
+        assert!(
+            matches!(
+                err,
+                GitModulePathError::Invalid(RelativePathError::Absolute(_))
+            ),
             "expected `Invalid(Absolute)` for `/tmp/module`"
         );
     }
@@ -156,9 +160,11 @@ mod tests {
     #[test]
     fn rejects_parent_traversal() {
         let err = GitModulePath::from_str("../module").unwrap_err();
-        assert_eq!(
-            err,
-            GitModulePathError::Invalid(RelativePathError::EscapesRoot),
+        assert!(
+            matches!(
+                err,
+                GitModulePathError::Invalid(RelativePathError::EscapesRoot(_))
+            ),
             "expected `Invalid(EscapesRoot)` for `../module`"
         );
     }
@@ -166,9 +172,11 @@ mod tests {
     #[test]
     fn rejects_nested_escape() {
         let err = GitModulePath::from_str("module/../../secret").unwrap_err();
-        assert_eq!(
-            err,
-            GitModulePathError::Invalid(RelativePathError::EscapesRoot),
+        assert!(
+            matches!(
+                err,
+                GitModulePathError::Invalid(RelativePathError::EscapesRoot(_))
+            ),
             "expected `Invalid(EscapesRoot)` for `module/../../secret`"
         );
     }

@@ -1,10 +1,9 @@
-//! Strict JSON parsing per the WDL module spec.
+//! Strict JSON deserialization that rejects duplicate object keys.
 //!
-//! `serde_json` is strict on trailing commas, comments, and BOM by
-//! default, but it silently uses the last value when an object contains
-//! duplicate keys. The module spec requires implementations to reject
-//! duplicate keys outright. The wrapper in this module performs a
-//! strict pre-pass that rejects them, then deserializes the typed value.
+//! The WDL module spec requires implementations to reject duplicate keys
+//! at any depth. `serde_json` silently uses the last value, so we
+//! deserialize through a thin wrapper that checks key uniqueness in its
+//! `visit_map` before forwarding to `serde_json::Value`.
 
 use std::collections::HashSet;
 use std::fmt;
@@ -12,29 +11,30 @@ use std::fmt;
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
 
-/// Parses `bytes` strictly. Any duplicate object key at any depth fails
-/// the parse. The typed value is then deserialized from the resulting
-/// document.
+/// Deserializes `bytes` as JSON, rejecting any duplicate object key at
+/// any depth, then converts the checked value into `T`.
 pub(crate) fn from_slice<T: DeserializeOwned>(bytes: &[u8]) -> Result<T, serde_json::Error> {
-    let CheckedValue(value) = serde_json::from_slice(bytes)?;
+    let UniqueKeyValue(value) = serde_json::from_slice(bytes)?;
     serde_json::from_value(value)
 }
 
 /// A `serde_json::Value` whose `Deserialize` impl rejects duplicate keys
 /// at every nested object level.
-struct CheckedValue(serde_json::Value);
+struct UniqueKeyValue(serde_json::Value);
 
-impl<'de> Deserialize<'de> for CheckedValue {
+impl<'de> Deserialize<'de> for UniqueKeyValue {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        deserializer.deserialize_any(Visitor).map(CheckedValue)
+        deserializer
+            .deserialize_any(UniqueKeyVisitor)
+            .map(UniqueKeyValue)
     }
 }
 
-/// A `Visitor` that builds a `serde_json::Value` while rejecting duplicate
-/// keys.
-struct Visitor;
+/// Visitor that builds a [`serde_json::Value`] while rejecting duplicate
+/// object keys.
+struct UniqueKeyVisitor;
 
-impl<'de> serde::de::Visitor<'de> for Visitor {
+impl<'de> serde::de::Visitor<'de> for UniqueKeyVisitor {
     type Value = serde_json::Value;
 
     fn expecting(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -76,20 +76,20 @@ impl<'de> serde::de::Visitor<'de> for Visitor {
     }
 
     fn visit_some<D: serde::Deserializer<'de>>(self, d: D) -> Result<Self::Value, D::Error> {
-        let CheckedValue(v) = Deserialize::deserialize(d)?;
+        let UniqueKeyValue(v) = Deserialize::deserialize(d)?;
         Ok(v)
     }
 
     fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
         let mut items = Vec::with_capacity(seq.size_hint().unwrap_or(0));
-        while let Some(CheckedValue(item)) = seq.next_element()? {
+        while let Some(UniqueKeyValue(item)) = seq.next_element()? {
             items.push(item);
         }
         Ok(serde_json::Value::Array(items))
     }
 
     fn visit_map<A: serde::de::MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
-        let mut seen: HashSet<String> = HashSet::new();
+        let mut seen = HashSet::new();
         let mut obj = serde_json::Map::new();
         while let Some(key) = map.next_key::<String>()? {
             if !seen.insert(key.clone()) {
@@ -97,7 +97,7 @@ impl<'de> serde::de::Visitor<'de> for Visitor {
                     "duplicate object key `{key}`"
                 )));
             }
-            let CheckedValue(value) = map.next_value()?;
+            let UniqueKeyValue(value) = map.next_value()?;
             obj.insert(key, value);
         }
         Ok(serde_json::Value::Object(obj))

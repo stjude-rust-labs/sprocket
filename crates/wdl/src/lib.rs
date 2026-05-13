@@ -17,7 +17,7 @@
 //! ```rust
 //! use wdl::grammar::SyntaxTree;
 //!
-//! let (tree, diagnostics) = SyntaxTree::parse("version 1.1");
+//! let (tree, diagnostics) = SyntaxTree::parse("version 1.1", None);
 //! assert!(diagnostics.is_empty());
 //! println!("{tree:#?}");
 //! ```
@@ -28,7 +28,7 @@
 //! # let source = "version 1.1\nworkflow test {}";
 //! use wdl::ast::Document;
 //!
-//! let (document, diagnostics) = Document::parse(source);
+//! let (document, diagnostics) = Document::parse(source, None);
 //! if !diagnostics.is_empty() {
 //!     // Handle the failure to parse
 //! }

@@ -330,7 +330,7 @@ fn missing_file_message(
 /// Renders a cycle path as a chain of arrows for error display.
 fn format_cycle(path: &[DependencyName]) -> String {
     path.iter()
-        .map(DependencyName::inner)
+        .map(DependencyName::manifest)
         .collect::<Vec<_>>()
         .join(" → ")
 }

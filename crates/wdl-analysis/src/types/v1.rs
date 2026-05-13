@@ -1561,7 +1561,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         Ok(binding) => {
                             if let Some(severity) =
                                 self.context.diagnostics_config().unnecessary_function_call
-                                && !expr.inner().is_rule_excepted(UNNECESSARY_FUNCTION_CALL)
+                                && !expr
+                                    .inner()
+                                    .ancestors()
+                                    .any(|node| node.is_rule_excepted(UNNECESSARY_FUNCTION_CALL))
                             {
                                 self.check_unnecessary_call(
                                     &target,

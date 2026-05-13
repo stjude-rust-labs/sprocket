@@ -1,7 +1,5 @@
 //! Dependency-source parsing for `modules.json`.
 
-mod git_module_path;
-
 use std::path::PathBuf;
 
 use serde::Deserialize;
@@ -9,8 +7,10 @@ use serde::Serialize;
 use thiserror::Error;
 use url::Url;
 
-pub use self::git_module_path::GitModulePath;
-pub use self::git_module_path::GitModulePathError;
+pub use super::git_module_path::GitModulePath;
+pub use super::git_module_path::GitModulePathError;
+use crate::GitCommit;
+use crate::GitCommitError;
 use crate::VersionRequirement;
 use crate::VersionRequirementError;
 
@@ -37,8 +37,12 @@ pub enum DependencySourceError {
     #[error(transparent)]
     VersionRequirement(#[from] VersionRequirementError),
 
-    /// The `git` URL did not parse.
-    #[error("invalid `git` URL: {0}")]
+    /// A Git commit selector was invalid.
+    #[error(transparent)]
+    GitCommit(#[from] GitCommitError),
+
+    /// The Git URL did not parse.
+    #[error("invalid Git URL: {0}")]
     InvalidUrl(String),
 
     /// The `path` field on a Git dependency was invalid.
@@ -113,7 +117,7 @@ impl TryFrom<DependencySourceFields> for DependencySource {
                 } else if let Some(b) = branch {
                     GitSelector::Branch(b)
                 } else if let Some(c) = commit {
-                    GitSelector::Commit(c)
+                    GitSelector::Commit(GitCommit::try_from(c)?)
                 } else {
                     // SAFETY: `selector_count` is 1 in this branch, and the
                     // four `if let Some(...)` arms above cover every selector
@@ -158,7 +162,7 @@ pub enum GitSelector {
     /// A Git branch name.
     Branch(String),
     /// A full Git commit SHA.
-    Commit(String),
+    Commit(GitCommit),
 }
 
 /// Flat field set of a dependency declaration as it appears in
@@ -205,10 +209,10 @@ impl From<DependencySource> for DependencySourceFields {
                     ..Default::default()
                 };
                 match selector {
-                    GitSelector::Version(v) => fields.version = Some(v.inner().to_string()),
+                    GitSelector::Version(v) => fields.version = Some(v.to_string()),
                     GitSelector::Tag(t) => fields.tag = Some(t),
                     GitSelector::Branch(b) => fields.branch = Some(b),
-                    GitSelector::Commit(c) => fields.commit = Some(c),
+                    GitSelector::Commit(c) => fields.commit = Some(c.to_string()),
                 }
                 fields
             }
@@ -267,14 +271,20 @@ mod tests {
 
     #[test]
     fn parses_git_with_commit() {
-        let dep = parse(r#"{"git": "https://github.com/x/y", "commit": "abc123"}"#).unwrap();
-        assert!(matches!(
-            dep,
+        let dep = parse(
+            r#"{
+                "git": "https://github.com/x/y",
+                "commit": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+            }"#,
+        )
+        .unwrap();
+        match dep {
             DependencySource::Git {
-                selector: GitSelector::Commit(_),
+                selector: GitSelector::Commit(commit),
                 ..
-            }
-        ));
+            } => assert_eq!(commit.as_str(), "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"),
+            _ => panic!("expected `Commit` selector"),
+        }
     }
 
     #[test]
@@ -295,6 +305,26 @@ mod tests {
             } => assert_eq!(p.as_str(), "wdl"),
             _ => panic!("expected Git source with sub-path"),
         }
+    }
+
+    #[test]
+    fn rejects_invalid_git_subpaths() {
+        for bad in [
+            r#"{"git": "https://x/y", "version": "^1", "path": "/abs"}"#,
+            r#"{"git": "https://x/y", "version": "^1", "path": "../escape"}"#,
+        ] {
+            assert!(parse(bad).is_err(), "accepted `{bad}`");
+        }
+    }
+
+    #[test]
+    fn rejects_short_commit_selector() {
+        let err = parse(r#"{"git": "https://x/y", "commit": "abc123"}"#).unwrap_err();
+        assert!(
+            err.to_string()
+                .contains("must be exactly 40 lowercase hex characters"),
+            "wrong error: {err}"
+        );
     }
 
     #[test]

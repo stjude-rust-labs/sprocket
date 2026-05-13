@@ -223,7 +223,7 @@ impl CancellationContext {
     }
 
     /// Determines if the user initiated the cancellation.
-    pub(crate) fn user_canceled(&self) -> bool {
+    pub fn user_canceled(&self) -> bool {
         let state = self.state.load(Ordering::SeqCst);
         state != CANCELLATION_STATE_NOT_CANCELED && (state & CANCELLATION_STATE_ERROR == 0)
     }

@@ -1,7 +1,5 @@
 //! Lockfile generation and diff helpers.
 
-use std::collections::BTreeMap;
-
 use semver::Version;
 
 use crate::DependencyEntry;
@@ -9,10 +7,8 @@ use crate::DependencyMap;
 use crate::DependencyName;
 use crate::DependencySource;
 use crate::GitSelector;
-use crate::LockedModule;
 use crate::Lockfile;
 use crate::Manifest;
-use crate::ModulePath;
 use crate::ResolvedSource;
 use crate::VerifyingKey;
 use crate::resolver::types::ResolvedDependency;
@@ -39,8 +35,6 @@ pub struct NewSigner {
     /// module entry, e.g. `["foo", "bar"]` for a transitive signer one
     /// level deep.
     pub dep_chain: Vec<DependencyName>,
-    /// The path within the dependency's source.
-    pub module_path: ModulePath,
     /// The new signer key.
     pub key: VerifyingKey,
 }
@@ -136,31 +130,21 @@ fn walk_dep_map(
     for (dep, entry) in new {
         chain.push(dep.clone());
         let prev_entry = prev.and_then(|p| p.get(dep));
-        for (module_path, module) in &entry.modules {
-            let prev_signer = prev_entry
-                .and_then(|e| e.modules.get(module_path))
-                .and_then(|m| m.signer);
-            match (module.signer, prev_signer) {
-                (Some(new_key), Some(prev_key)) if new_key == prev_key => {}
-                (Some(new_key), _) => diff.new_signers.push(NewSigner {
-                    dep_chain: chain.clone(),
-                    module_path: module_path.clone(),
-                    key: new_key,
-                }),
-                (None, _) => {
-                    if prev_entry
-                        .and_then(|e| e.modules.get(module_path))
-                        .is_none()
-                    {
-                        diff.unsigned_added += 1;
-                    }
+        let prev_signer = prev_entry.and_then(|e| e.signer);
+        match (entry.signer, prev_signer) {
+            (Some(new_key), Some(prev_key)) if new_key == prev_key => {}
+            (Some(new_key), _) => diff.new_signers.push(NewSigner {
+                dep_chain: chain.clone(),
+                key: new_key,
+            }),
+            (None, _) => {
+                if prev_entry.is_none() {
+                    diff.unsigned_added += 1;
                 }
             }
-            let prev_nested = prev_entry
-                .and_then(|e| e.modules.get(module_path))
-                .map(|m| &m.dependencies);
-            walk_dep_map(prev_nested, &module.dependencies, chain, diff);
         }
+        let prev_nested = prev_entry.map(|e| &e.dependencies);
+        walk_dep_map(prev_nested, &entry.dependencies, chain, diff);
         chain.pop();
     }
 }
@@ -228,10 +212,10 @@ pub fn partial_relock(
     Ok(RelockOutcome { lockfile, stats })
 }
 
-/// Returns the version of a dependency's first module, used to summarize
+/// Returns the version of a dependency entry, used to summarize
 /// version transitions in [`RelockStats`].
 fn primary_version(entry: &DependencyEntry) -> Option<Version> {
-    entry.modules.values().next().map(|m| m.version.clone())
+    Some(entry.version.clone())
 }
 
 /// Returns true if the existing lockfile entry still satisfies the
@@ -258,10 +242,8 @@ fn satisfies(entry: &DependencyEntry, source: &DependencySource) -> bool {
                 return false;
             }
             match selector {
-                GitSelector::Version(req) => {
-                    entry.modules.values().any(|m| req.matches(&m.version))
-                }
-                GitSelector::Commit(c) => c == locked_commit.inner(),
+                GitSelector::Version(req) => req.matches(&entry.version),
+                GitSelector::Commit(c) => c.as_str() == locked_commit.as_str(),
                 // Tag and branch selectors are mutable refs; the
                 // lockfile cannot know whether the remote has moved
                 // them, so the lock entry is never considered
@@ -279,28 +261,16 @@ fn satisfies(entry: &DependencyEntry, source: &DependencySource) -> bool {
 /// Converts a [`ResolvedDependency`] to the [`DependencyEntry`] shape
 /// the lockfile records.
 fn resolved_to_lockfile_entry(dep: &ResolvedDependency) -> DependencyEntry {
-    let modules: BTreeMap<ModulePath, LockedModule> = dep
-        .modules
-        .iter()
-        .map(|(p, m)| {
-            (
-                p.clone(),
-                LockedModule {
-                    version: m.version.clone(),
-                    checksum: m.checksum,
-                    signer: m.signer,
-                    dependencies: m
-                        .dependencies
-                        .iter()
-                        .map(|(n, d)| (n.clone(), resolved_to_lockfile_entry(d)))
-                        .collect(),
-                },
-            )
-        })
-        .collect();
     DependencyEntry {
         source: dep.source.clone(),
-        modules,
+        version: dep.version.clone(),
+        checksum: dep.checksum,
+        signer: dep.signer,
+        dependencies: dep
+            .dependencies
+            .iter()
+            .map(|(n, d)| (n.clone(), resolved_to_lockfile_entry(d)))
+            .collect(),
     }
 }
 
@@ -313,7 +283,6 @@ mod tests {
     use super::*;
     use crate::ContentHash;
     use crate::DependencyEntry;
-    use crate::LockedModule;
     use crate::ResolvedSource;
 
     fn dn(s: &str) -> DependencyName {
@@ -326,19 +295,13 @@ mod tests {
             .unwrap()
     }
 
-    fn locked(version: &str, signer: Option<VerifyingKey>) -> LockedModule {
-        LockedModule {
+    fn entry(version: &str, signer: Option<VerifyingKey>) -> DependencyEntry {
+        DependencyEntry {
+            source: ResolvedSource::Path { path: ".".into() },
             version: Version::parse(version).unwrap(),
             checksum: checksum(),
             signer,
             dependencies: BTreeMap::new(),
-        }
-    }
-
-    fn entry_with(modules: Vec<(ModulePath, LockedModule)>) -> DependencyEntry {
-        DependencyEntry {
-            source: ResolvedSource::Path { path: ".".into() },
-            modules: modules.into_iter().collect(),
         }
     }
 
@@ -349,10 +312,8 @@ mod tests {
     #[test]
     fn empty_diff_for_identical_lockfiles() {
         let mut lock = Lockfile::default();
-        lock.dependencies.insert(
-            dn("openwdl"),
-            entry_with(vec![(ModulePath::Root, locked("1.0.0", None))]),
-        );
+        lock.dependencies
+            .insert(dn("openwdl"), entry("1.0.0", None));
         let diff = LockfileDiff::compute(&lock, &lock);
         assert!(diff.new_signers.is_empty());
         assert_eq!(diff.unsigned_added, 0);
@@ -363,10 +324,8 @@ mod tests {
     fn lists_added_signer() {
         let prev = Lockfile::default();
         let mut new = Lockfile::default();
-        new.dependencies.insert(
-            dn("openwdl"),
-            entry_with(vec![(ModulePath::Root, locked("1.0.0", Some(key(7))))]),
-        );
+        new.dependencies
+            .insert(dn("openwdl"), entry("1.0.0", Some(key(7))));
 
         let diff = LockfileDiff::compute(&prev, &new);
         assert_eq!(diff.new_signers.len(), 1);
@@ -377,15 +336,11 @@ mod tests {
     #[test]
     fn lists_changed_signer() {
         let mut prev = Lockfile::default();
-        prev.dependencies.insert(
-            dn("openwdl"),
-            entry_with(vec![(ModulePath::Root, locked("1.0.0", Some(key(7))))]),
-        );
+        prev.dependencies
+            .insert(dn("openwdl"), entry("1.0.0", Some(key(7))));
         let mut new = Lockfile::default();
-        new.dependencies.insert(
-            dn("openwdl"),
-            entry_with(vec![(ModulePath::Root, locked("1.0.0", Some(key(99))))]),
-        );
+        new.dependencies
+            .insert(dn("openwdl"), entry("1.0.0", Some(key(99))));
 
         let diff = LockfileDiff::compute(&prev, &new);
         assert_eq!(diff.new_signers.len(), 1);
@@ -394,7 +349,7 @@ mod tests {
 
     #[test]
     fn unchanged_signer_does_not_appear() {
-        let signed = entry_with(vec![(ModulePath::Root, locked("1.0.0", Some(key(7))))]);
+        let signed = entry("1.0.0", Some(key(7)));
         let mut prev = Lockfile::default();
         prev.dependencies.insert(dn("openwdl"), signed.clone());
         let mut new = Lockfile::default();
@@ -431,14 +386,16 @@ mod tests {
                     commit: "0000000000000000000000000000000000000001".parse().unwrap(),
                     path: None,
                 },
-                modules: [(ModulePath::Root, locked("1.0.0", None))].into(),
+                version: Version::parse("1.0.0").unwrap(),
+                checksum: checksum(),
+                signer: None,
+                dependencies: BTreeMap::new(),
             },
         );
 
         let outcome = partial_relock(&consumer, &existing, &ResolvedTree::default()).unwrap();
         let kept = outcome.lockfile.dependencies.get(&dn("foo")).unwrap();
-        let module = kept.modules.get(&ModulePath::Root).unwrap();
-        assert_eq!(module.version, Version::parse("1.0.0").unwrap());
+        assert_eq!(kept.version, Version::parse("1.0.0").unwrap());
         assert_eq!(outcome.stats.kept, 1);
         assert!(outcome.stats.added.is_empty());
         assert!(outcome.stats.updated.is_empty());
@@ -460,7 +417,10 @@ mod tests {
                     commit: "0000000000000000000000000000000000000001".parse().unwrap(),
                     path: None,
                 },
-                modules: [(ModulePath::Root, locked("1.0.0", None))].into(),
+                version: Version::parse("1.0.0").unwrap(),
+                checksum: checksum(),
+                signer: None,
+                dependencies: BTreeMap::new(),
             },
         );
         let mut freshly = ResolvedTree::default();
@@ -472,23 +432,16 @@ mod tests {
                     commit: "0000000000000000000000000000000000000002".parse().unwrap(),
                     path: None,
                 },
-                modules: [(
-                    ModulePath::Root,
-                    crate::resolver::ResolvedModule {
-                        version: Version::parse("2.0.0").unwrap(),
-                        checksum: checksum(),
-                        signer: None,
-                        dependencies: BTreeMap::new(),
-                    },
-                )]
-                .into(),
+                version: Version::parse("2.0.0").unwrap(),
+                checksum: checksum(),
+                signer: None,
+                dependencies: BTreeMap::new(),
             },
         );
 
         let outcome = partial_relock(&consumer, &existing, &freshly).unwrap();
         let entry = outcome.lockfile.dependencies.get(&dn("foo")).unwrap();
-        let module = entry.modules.get(&ModulePath::Root).unwrap();
-        assert_eq!(module.version, Version::parse("2.0.0").unwrap());
+        assert_eq!(entry.version, Version::parse("2.0.0").unwrap());
 
         assert_eq!(outcome.stats.updated.len(), 1);
         let update = &outcome.stats.updated[0];
@@ -513,16 +466,10 @@ mod tests {
                     commit: "0000000000000000000000000000000000000001".parse().unwrap(),
                     path: None,
                 },
-                modules: [(
-                    ModulePath::Root,
-                    crate::resolver::ResolvedModule {
-                        version: Version::parse("1.0.0").unwrap(),
-                        checksum: checksum(),
-                        signer: None,
-                        dependencies: BTreeMap::new(),
-                    },
-                )]
-                .into(),
+                version: Version::parse("1.0.0").unwrap(),
+                checksum: checksum(),
+                signer: None,
+                dependencies: BTreeMap::new(),
             },
         );
 
@@ -552,10 +499,9 @@ mod tests {
     fn relock_drops_removed_deps_and_records_them() {
         let consumer = manifest("consumer", "");
         let mut existing = Lockfile::default();
-        existing.dependencies.insert(
-            dn("removed"),
-            entry_with(vec![(ModulePath::Root, locked("1.0.0", None))]),
-        );
+        existing
+            .dependencies
+            .insert(dn("removed"), entry("1.0.0", None));
         let outcome = partial_relock(&consumer, &existing, &ResolvedTree::default()).unwrap();
         assert!(outcome.lockfile.dependencies.is_empty());
         assert_eq!(outcome.stats.removed, vec![dn("removed")]);
@@ -565,7 +511,10 @@ mod tests {
     fn signer_diff_recurses_through_nested_dependencies() {
         let previous = Lockfile::default();
         let signer = crate::signing::test_utils::signing_key_from_seed(11).verifying_key();
-        let nested_module = LockedModule {
+        let nested_entry = DependencyEntry {
+            source: ResolvedSource::Path {
+                path: "/nested".into(),
+            },
             version: Version::parse("1.0.0").unwrap(),
             checksum: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
                 .parse()
@@ -573,25 +522,16 @@ mod tests {
             signer: Some(signer),
             dependencies: BTreeMap::new(),
         };
-        let nested_entry = DependencyEntry {
+        let outer_entry = DependencyEntry {
             source: ResolvedSource::Path {
-                path: "/nested".into(),
+                path: "/outer".into(),
             },
-            modules: BTreeMap::from([(ModulePath::Root, nested_module)]),
-        };
-        let outer = LockedModule {
             version: Version::parse("1.0.0").unwrap(),
             checksum: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
                 .parse()
                 .unwrap(),
             signer: None,
             dependencies: BTreeMap::from([(dn("bar"), nested_entry)]),
-        };
-        let outer_entry = DependencyEntry {
-            source: ResolvedSource::Path {
-                path: "/outer".into(),
-            },
-            modules: BTreeMap::from([(ModulePath::Root, outer)]),
         };
         let mut new = Lockfile::default();
         new.dependencies.insert(dn("foo"), outer_entry);
@@ -605,19 +545,10 @@ mod tests {
     #[test]
     fn counts_unsigned_additions_only_for_new_entries() {
         let mut prev = Lockfile::default();
-        prev.dependencies.insert(
-            dn("kept"),
-            entry_with(vec![(ModulePath::Root, locked("1.0.0", None))]),
-        );
+        prev.dependencies.insert(dn("kept"), entry("1.0.0", None));
         let mut new = Lockfile::default();
-        new.dependencies.insert(
-            dn("kept"),
-            entry_with(vec![(ModulePath::Root, locked("1.0.0", None))]),
-        );
-        new.dependencies.insert(
-            dn("added"),
-            entry_with(vec![(ModulePath::Root, locked("1.0.0", None))]),
-        );
+        new.dependencies.insert(dn("kept"), entry("1.0.0", None));
+        new.dependencies.insert(dn("added"), entry("1.0.0", None));
 
         let diff = LockfileDiff::compute(&prev, &new);
         assert_eq!(diff.unsigned_added, 1);

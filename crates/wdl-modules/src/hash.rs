@@ -213,6 +213,8 @@ impl Hasher {
     /// rule. Without this check, a symbolic link inside the module could
     /// pull bytes from elsewhere on the filesystem into the digest.
     pub fn finalize(self) -> Result<ContentHash, HashError> {
+        crate::tree::validate_tree(self.paths())?;
+
         let canonical_root = std::fs::canonicalize(&self.root).map_err(|source| HashError::Io {
             path: self.root.clone(),
             source,
@@ -454,6 +456,28 @@ mod tests {
         let mut h = Hasher::new(dir.path().to_path_buf());
         h.try_add("missing.txt").unwrap();
         assert!(matches!(h.finalize(), Err(HashError::Io { .. })));
+    }
+
+    #[test]
+    fn finalize_validates_reserved_filenames() {
+        let dir = tempdir().unwrap();
+        fs::create_dir(dir.path().join("nested")).unwrap();
+        fs::write(
+            dir.path().join("nested").join(crate::SIGNATURE_FILENAME),
+            b"x",
+        )
+        .unwrap();
+
+        let mut h = Hasher::new(dir.path().to_path_buf());
+        h.try_add("nested/module.sig").unwrap();
+        let err = h.finalize().unwrap_err();
+        assert!(matches!(
+            err,
+            HashError::Tree(crate::TreeError::ReservedFilename {
+                name: crate::SIGNATURE_FILENAME,
+                ..
+            })
+        ));
     }
 
     #[test]

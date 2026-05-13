@@ -4,6 +4,8 @@ use convert_case::Boundary;
 use convert_case::Case;
 use convert_case::Converter;
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -47,27 +49,27 @@ impl Rule for PascalCaseRule {
          the code easier to read and understand."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"Struct names should be in PascalCase:
-
-```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: Some("Struct names should be in PascalCase"),
+                snippet: r#"version 1.2
 
 struct registered_user {
     String name
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 struct RegisteredUser {
     String name
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

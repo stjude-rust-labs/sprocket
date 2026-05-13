@@ -21,30 +21,27 @@ use unicode_normalization::UnicodeNormalization;
 /// An error constructing a [`RelativePath`].
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum RelativePathError {
-    /// The path contains non-UTF-8 bytes.
-    #[error("path contains non-UTF-8 bytes")]
+    /// The path is not encoded as UTF-8.
+    #[error("path is not encoded as UTF-8")]
     NonUtf8,
     /// The path is empty.
     #[error("path is empty")]
     Empty,
     /// The path contains a null byte.
-    #[error("path contains a null byte")]
-    NullByte,
-    /// The path uses Windows-style `\` separators.
-    #[error("path uses Windows-style `\\` separators")]
-    Backslash,
-    /// The path starts with `/`.
-    #[error("path starts with `/`")]
-    Absolute,
-    /// The path uses a Windows-style drive letter.
-    #[error("path uses a Windows-style drive letter")]
-    DriveLetter,
+    #[error("path `{0}` contains a null byte")]
+    NullByte(String),
+    /// The path contains Windows path separators.
+    #[error("path `{0}` contains Windows path separators (e.g. `\\`)")]
+    Backslash(String),
+    /// The path is absolute.
+    #[error("path `{0}` cannot be absolute")]
+    Absolute(String),
     /// The path resolves to nothing after lexical cleanup.
-    #[error("path resolves to empty")]
-    ResolvesToEmpty,
-    /// The path escapes the module root via leading `..` segments.
-    #[error("path escapes the module root")]
-    EscapesRoot,
+    #[error("path `{0}` resolves to empty")]
+    ResolvesToEmpty(String),
+    /// The path escapes the module root directory.
+    #[error("path `{0}` escapes the module root directory")]
+    EscapesRoot(String),
 }
 
 /// A validated, canonical, NFC-normalized relative path under a module
@@ -62,11 +59,6 @@ impl RelativePath {
     /// Returns the path as a [`Path`].
     pub fn as_path(&self) -> &Path {
         Path::new(&self.0)
-    }
-
-    /// Consumes the [`RelativePath`] and returns its inner string.
-    pub fn into_inner(self) -> String {
-        self.0
     }
 }
 
@@ -109,16 +101,13 @@ impl TryFrom<&Path> for RelativePath {
             return Err(RelativePathError::Empty);
         }
         if s.contains('\0') {
-            return Err(RelativePathError::NullByte);
+            return Err(RelativePathError::NullByte(s.replace('\0', "\\0")));
         }
         if s.contains('\\') {
-            return Err(RelativePathError::Backslash);
+            return Err(RelativePathError::Backslash(s.to_string()));
         }
-        if s.starts_with('/') {
-            return Err(RelativePathError::Absolute);
-        }
-        if crate::starts_with_windows_drive(s) {
-            return Err(RelativePathError::DriveLetter);
+        if s.starts_with('/') || crate::starts_with_windows_drive(s) {
+            return Err(RelativePathError::Absolute(s.to_string()));
         }
         let cleaned = path_clean::clean(path)
             .into_os_string()
@@ -131,10 +120,10 @@ impl TryFrom<&Path> for RelativePath {
         // Windows.
         let cleaned = cleaned.replace('\\', "/");
         if cleaned.is_empty() || cleaned == "." {
-            return Err(RelativePathError::ResolvesToEmpty);
+            return Err(RelativePathError::ResolvesToEmpty(s.to_string()));
         }
-        if cleaned.starts_with("..") {
-            return Err(RelativePathError::EscapesRoot);
+        if cleaned == ".." || cleaned.starts_with("../") {
+            return Err(RelativePathError::EscapesRoot(s.to_string()));
         }
         Ok(Self(cleaned.nfc().collect()))
     }
@@ -187,6 +176,15 @@ mod tests {
     }
 
     #[test]
+    fn accepts_names_that_start_with_two_dots() {
+        let file = RelativePath::from_str("..config").unwrap();
+        assert_eq!(file.as_str(), "..config");
+
+        let nested = RelativePath::from_str("..foo/bar.wdl").unwrap();
+        assert_eq!(nested.as_str(), "..foo/bar.wdl");
+    }
+
+    #[test]
     fn collapses_duplicate_separators() {
         let p = RelativePath::from_str("foo//bar.wdl").unwrap();
         assert_eq!(p.as_str(), "foo/bar.wdl");
@@ -202,21 +200,44 @@ mod tests {
 
     #[test]
     fn rejects_per_path_violations() {
-        for (bad, expected) in [
-            ("", RelativePathError::Empty),
-            ("has\0null", RelativePathError::NullByte),
-            ("a\\b", RelativePathError::Backslash),
-            ("/abs", RelativePathError::Absolute),
-            ("C:/win", RelativePathError::DriveLetter),
-            ("c:\\win", RelativePathError::Backslash),
-            (".", RelativePathError::ResolvesToEmpty),
-            ("..", RelativePathError::EscapesRoot),
-            ("../escape", RelativePathError::EscapesRoot),
-            ("a/..", RelativePathError::ResolvesToEmpty),
-        ] {
-            let err = RelativePath::from_str(bad).unwrap_err();
-            assert_eq!(err, expected, "wrong error for `{bad}`");
-        }
+        let err = RelativePath::from_str("").unwrap_err();
+        assert!(matches!(err, RelativePathError::Empty));
+
+        let err = RelativePath::from_str("has\0null").unwrap_err();
+        assert!(matches!(err, RelativePathError::NullByte(_)));
+
+        let err = RelativePath::from_str("a\\b").unwrap_err();
+        assert!(matches!(err, RelativePathError::Backslash(_)));
+
+        let err = RelativePath::from_str("/abs").unwrap_err();
+        assert!(matches!(err, RelativePathError::Absolute(_)));
+
+        let err = RelativePath::from_str("C:/win").unwrap_err();
+        assert!(matches!(err, RelativePathError::Absolute(_)));
+
+        let err = RelativePath::from_str("c:\\win").unwrap_err();
+        assert!(matches!(err, RelativePathError::Backslash(_)));
+
+        let err = RelativePath::from_str(".").unwrap_err();
+        assert!(matches!(err, RelativePathError::ResolvesToEmpty(_)));
+
+        let err = RelativePath::from_str("..").unwrap_err();
+        assert!(matches!(err, RelativePathError::EscapesRoot(_)));
+
+        let err = RelativePath::from_str("../escape").unwrap_err();
+        assert!(matches!(err, RelativePathError::EscapesRoot(_)));
+
+        let err = RelativePath::from_str("a/..").unwrap_err();
+        assert!(matches!(err, RelativePathError::ResolvesToEmpty(_)));
+    }
+
+    #[test]
+    fn error_includes_path() {
+        let err = RelativePath::from_str("/abs/path").unwrap_err();
+        assert!(
+            err.to_string().contains("/abs/path"),
+            "error should include the path: {err}"
+        );
     }
 
     #[test]

@@ -8,3 +8,73 @@ This rule checks the following:
 - Use of the 'any' container URI (`*`) within an array of container URIs is ambiguous and should be avoided.
 - Empty container URI arrays are not disallowed by the specification but are ambiguous and should be avoided.
 - An array of container URIs with a single element should be changed to a single string value.
+
+Examples:
+```wdl
+version 1.2
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+
+    # No tag
+    requirements {
+        container: "ubuntu"
+    }
+}
+
+task say_goodbye {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Goodbye, ~{name}!"
+    >>>
+
+    # Unnecessary array
+    requirements {
+        container: [
+            "ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1",
+        ]
+    }
+}
+```
+Use instead:
+
+```wdl
+version 1.2
+
+task say_hello {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+
+    requirements {
+        container: "ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1"
+    }
+}
+
+task say_goodbye {
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Goodbye, ~{name}!"
+    >>>
+
+    requirements {
+        container: "ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1"
+    }
+}
+```

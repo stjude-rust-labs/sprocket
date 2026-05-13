@@ -14,11 +14,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   version selection, lockfile generation, TOFU trust, and module
   materialization. Wire `[modules]` config section into `sprocket.toml`
   ([#838](https://github.com/stjude-rust-labs/sprocket/pull/838)).
+* `sprocket format --newline-style` and `format.newline_style` config option to control the style of newlines in
+  `sprocket format` output ([#795](https://github.com/stjude-rust-labs/sprocket/pull/795)).
 * Initial WDL 1.4 support in `wdl-grammar` and `wdl-ast`, including the
   reserved `from` keyword and the three import forms from
   [`openwdl/wdl#765`](https://github.com/openwdl/wdl/pull/765). WDL 1.4
   is gated behind the `feature_flags.wdl_1_4` analysis flag (default
   `false`). See the per-crate changelogs for details ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+* `sprocket explain` now includes WDL snippets for lint rules ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)).
+
+### Changed
+
+* The `examples` field of `sprocket explain --format json` has changed from Markdown codeblocks to the following
+  structure ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)):
+
+  ```ts
+  type LabeledSnippet = { label?: String, snippet: String };
+  type Example = { negative: LabeledSnippet, revised?: LabeledSnippet }
+  ```
+
+### Fixed
+
+* `dev test` will now cancel execution on `CTRL+C` ([#839](https://github.com/stjude-rust-labs/sprocket/pull/839)).
 
 ## 0.24.0 - 2026-04-22
 

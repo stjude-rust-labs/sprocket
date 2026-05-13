@@ -6,7 +6,6 @@ use std::path::Path;
 use crate::ContentHash;
 use crate::DependencyName;
 use crate::Lockfile;
-use crate::ModulePath;
 use crate::VerifyingKey;
 use crate::resolver::config::LargeFileWarning;
 use crate::resolver::config::ModulesConfig;
@@ -61,14 +60,10 @@ impl ModuleVerifier<'_> {
             .dependencies
             .get(name)
             .ok_or_else(|| ResolverError::NotInLockfile { dep: name.clone() })?;
-        let locked_module = locked_entry
-            .modules
-            .get(&ModulePath::Root)
-            .ok_or_else(|| ResolverError::NotInLockfile { dep: name.clone() })?;
-        if locked_module.checksum != *checksum {
+        if locked_entry.checksum != *checksum {
             return Err(ResolverError::ChecksumMismatch {
                 dep: name.clone(),
-                expected: locked_module.checksum,
+                expected: locked_entry.checksum,
                 observed: *checksum,
             });
         }
@@ -88,7 +83,7 @@ impl ModuleVerifier<'_> {
         crate::resolver::tree_walk::walk_module_tree(module_root, &mut |entry, size| {
             if size >= threshold {
                 tracing::warn!(
-                    dep = %name,
+                    dep = name.manifest(),
                     file = %entry.display(),
                     size,
                     threshold,

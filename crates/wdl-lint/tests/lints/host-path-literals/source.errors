@@ -1,0 +1,72 @@
+note[HostPathLiterals]: `data_abs` has an absolute host path
+  ┌─ tests/lints/host-path-literals/source.wdl:9:25
+  │
+9 │         File data_abs = "/etc/host/input.txt"
+  │                         ^^^^^^^^^^^^^^^^^^^^^
+  │
+  = help: absolute paths outside of `output` sections will resolve on the host filesystem; this prevents the task from being portable across execution environments
+
+note[HostPathLiterals]: `optional_abs` has an absolute host path
+   ┌─ tests/lints/host-path-literals/source.wdl:10:30
+   │
+10 │         File? optional_abs = "/etc/host/optional.txt"
+   │                              ^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: absolute paths outside of `output` sections will resolve on the host filesystem; this prevents the task from being portable across execution environments
+
+note[HostPathLiterals]: `folder_abs` has an absolute host path
+   ┌─ tests/lints/host-path-literals/source.wdl:14:32
+   │
+14 │         Directory folder_abs = "/etc/host/folder"
+   │                                ^^^^^^^^^^^^^^^^^^
+   │
+   = help: absolute paths outside of `output` sections will resolve on the host filesystem; this prevents the task from being portable across execution environments
+
+note[HostPathLiterals]: `win_drive_abs` has an absolute host path
+   ┌─ tests/lints/host-path-literals/source.wdl:16:30
+   │
+16 │         File win_drive_abs = "C://host//input.txt"
+   │                              ^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: absolute paths outside of `output` sections will resolve on the host filesystem; this prevents the task from being portable across execution environments
+
+note[HostPathLiterals]: `win_drive_forward` has an absolute host path
+   ┌─ tests/lints/host-path-literals/source.wdl:17:34
+   │
+17 │         File win_drive_forward = "C:/host/input.txt"
+   │                                  ^^^^^^^^^^^^^^^^^^^
+   │
+   = help: absolute paths outside of `output` sections will resolve on the host filesystem; this prevents the task from being portable across execution environments
+
+note[HostPathLiterals]: `unc_abs` has an absolute host path
+   ┌─ tests/lints/host-path-literals/source.wdl:18:24
+   │
+18 │         File unc_abs = "////server//share//input.txt"
+   │                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: absolute paths outside of `output` sections will resolve on the host filesystem; this prevents the task from being portable across execution environments
+
+note[HostPathLiterals]: `private_abs` has an absolute host path
+   ┌─ tests/lints/host-path-literals/source.wdl:21:24
+   │
+21 │     File private_abs = "/etc/host/private.txt"
+   │                        ^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: absolute paths outside of `output` sections will resolve on the host filesystem; this prevents the task from being portable across execution environments
+
+note[HostPathLiterals]: `wf_input_abs` has an absolute host path
+   ┌─ tests/lints/host-path-literals/source.wdl:38:29
+   │
+38 │         File wf_input_abs = "/etc/host/wf_input.txt"
+   │                             ^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: absolute paths outside of `output` sections will resolve on the host filesystem; this prevents the task from being portable across execution environments
+
+note[HostPathLiterals]: `workflow_private_abs` has an absolute host path
+   ┌─ tests/lints/host-path-literals/source.wdl:42:33
+   │
+42 │     File workflow_private_abs = "/etc/host/wf_private.txt"
+   │                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = help: absolute paths outside of `output` sections will resolve on the host filesystem; this prevents the task from being portable across execution environments
+

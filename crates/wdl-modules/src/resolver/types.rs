@@ -7,7 +7,6 @@ use semver::Version;
 
 use crate::ContentHash;
 use crate::DependencyName;
-use crate::ModulePath;
 use crate::ResolvedSource;
 use crate::VerifyingKey;
 
@@ -34,13 +33,20 @@ pub struct ResolvedTree {
 pub struct ResolvedDependency {
     /// The resolved source.
     pub source: ResolvedSource,
-    /// The modules discovered within the source, keyed by their
-    /// directory's relative path from the source root, with
-    /// [`ModulePath::Root`] for the source root itself.
-    pub modules: BTreeMap<ModulePath, ResolvedModule>,
+    /// The version declared in the module's `module.json`.
+    pub version: Version,
+    /// The module's content hash.
+    pub checksum: ContentHash,
+    /// The signer's public key, if the module was signed.
+    pub signer: Option<VerifyingKey>,
+    /// The module's transitive resolved dependencies.
+    pub dependencies: BTreeMap<DependencyName, ResolvedDependency>,
 }
 
 /// One resolved module inside a [`ResolvedDependency`].
+///
+/// This type is produced during resolution before being folded into
+/// [`ResolvedDependency`].
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ResolvedModule {
     /// The version declared in the module's `module.json`.
