@@ -122,7 +122,7 @@ impl TryFrom<&Path> for RelativePath {
         if cleaned.is_empty() || cleaned == "." {
             return Err(RelativePathError::ResolvesToEmpty(s.to_string()));
         }
-        if cleaned.starts_with("..") {
+        if cleaned == ".." || cleaned.starts_with("../") {
             return Err(RelativePathError::EscapesRoot(s.to_string()));
         }
         Ok(Self(cleaned.nfc().collect()))
@@ -173,6 +173,15 @@ mod tests {
     fn cleans_inner_double_dot() {
         let p = RelativePath::from_str("foo/../bar.wdl").unwrap();
         assert_eq!(p.as_str(), "bar.wdl");
+    }
+
+    #[test]
+    fn accepts_names_that_start_with_two_dots() {
+        let file = RelativePath::from_str("..config").unwrap();
+        assert_eq!(file.as_str(), "..config");
+
+        let nested = RelativePath::from_str("..foo/bar.wdl").unwrap();
+        assert_eq!(nested.as_str(), "..foo/bar.wdl");
     }
 
     #[test]
