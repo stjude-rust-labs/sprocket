@@ -9,10 +9,10 @@
 //! # Quickstart
 //!
 //! Parse `module.json` with [`Manifest::parse`], parse `module-lock.json` with
-//! [`Lockfile::parse`], and compute a content hash with [`hash::hash_directory`].
-//! These entry points reject duplicate JSON object keys, invalid relative
-//! paths, invalid dependency declarations, and module trees that violate the
-//! reserved-filename or Unicode-normalization rules.
+//! [`Lockfile::parse`], and compute a content hash with
+//! [`hash::hash_directory`]. These entry points reject duplicate JSON object
+//! keys, invalid relative paths, invalid dependency declarations, and module
+//! trees that violate the reserved-filename or Unicode-normalization rules.
 //!
 //! ```rust
 //! use wdl_modules::Manifest;

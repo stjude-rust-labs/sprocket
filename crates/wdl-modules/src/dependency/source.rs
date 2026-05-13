@@ -279,10 +279,7 @@ mod tests {
             DependencySource::Git {
                 selector: GitSelector::Commit(commit),
                 ..
-            } => assert_eq!(
-                commit.as_str(),
-                "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
-            ),
+            } => assert_eq!(commit.as_str(), "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"),
             _ => panic!("expected `Commit` selector"),
         }
     }
