@@ -1,9 +1,33 @@
-//! Implementation of the WDL module specification. Covers manifest and lockfile
-//! parsing, symbolic-path parsing, deterministic content hashing, Ed25519
-//! signing and verification, and SPDX license validation.
+//! Implementation of the WDL module specification.
 //!
-//! The crate handles every part of the module specification that does not
-//! require networking or process spawning.
+//! `wdl-modules` provides the local, deterministic pieces of WDL module
+//! handling: `module.json` manifest parsing, `module-lock.json` lockfile
+//! parsing, symbolic import paths, deterministic content hashing, Ed25519
+//! `module.sig` signing and verification, SPDX license validation, and
+//! module file-tree checks.
+//!
+//! # Quickstart
+//!
+//! Parse `module.json` with [`Manifest::parse`], parse `module-lock.json` with
+//! [`Lockfile::parse`], and compute a content hash with [`hash::hash_directory`].
+//! These entry points reject duplicate JSON object keys, invalid relative
+//! paths, invalid dependency declarations, and module trees that violate the
+//! reserved-filename or Unicode-normalization rules.
+//!
+//! ```rust
+//! use wdl_modules::Manifest;
+//!
+//! let manifest = Manifest::parse(
+//!     br#"{
+//!         "name": "spellbook",
+//!         "version": "1.0.0",
+//!         "license": "MIT"
+//!     }"#,
+//! )?;
+//!
+//! assert_eq!(manifest.name, "spellbook");
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 
 pub mod dependency;
 pub mod hash;
