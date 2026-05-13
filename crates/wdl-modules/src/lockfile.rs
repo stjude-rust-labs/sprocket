@@ -187,7 +187,7 @@ impl From<ModulePath> for String {
     fn from(p: ModulePath) -> Self {
         match p {
             ModulePath::Root => ".".to_string(),
-            ModulePath::Sub(p) => p.into_inner(),
+            ModulePath::Sub(p) => String::from(p),
         }
     }
 }

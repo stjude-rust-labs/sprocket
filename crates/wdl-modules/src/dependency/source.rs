@@ -33,8 +33,8 @@ pub enum DependencySourceError {
     #[error(transparent)]
     VersionRequirement(#[from] VersionRequirementError),
 
-    /// The `git` URL did not parse.
-    #[error("invalid `git` URL: {0}")]
+    /// The Git URL did not parse.
+    #[error("invalid Git URL: {0}")]
     InvalidUrl(String),
 }
 
@@ -191,7 +191,7 @@ impl From<DependencySource> for DependencySourceFields {
                     ..Default::default()
                 };
                 match selector {
-                    GitSelector::Version(v) => fields.version = Some(v.inner().to_string()),
+                    GitSelector::Version(v) => fields.version = Some(v.to_string()),
                     GitSelector::Tag(t) => fields.tag = Some(t),
                     GitSelector::Branch(b) => fields.branch = Some(b),
                     GitSelector::Commit(c) => fields.commit = Some(c),

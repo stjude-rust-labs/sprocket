@@ -1,6 +1,8 @@
 //! SPDX license expression validation.
 
 use std::fmt;
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::str::FromStr;
 
 use serde::Deserialize;
@@ -24,29 +26,47 @@ pub enum LicenseError {
 /// Validates both the expression syntax and the license identifiers
 /// against the SPDX license list (so typos like `MIT-2.0` are rejected
 /// even though they would parse syntactically).
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize)]
 #[serde(into = "String", try_from = "String")]
-pub struct LicenseExpression {
-    // NOTE: we store the canonical string rather than the parsed
-    // `spdx::Expression` because the upstream `Expression` only derives
-    // `Clone`—not `Debug`, `PartialEq`, `Eq`, or `Hash`—and those four
-    // derives are required for `LicenseExpression` to compose into
-    // `Manifest`, `Tool`, and other types that themselves derive them.
-    /// The canonical (parsed and re-rendered) form of the expression.
-    canonical: String,
-}
+pub struct LicenseExpression(spdx::Expression);
 
 impl LicenseExpression {
-    /// Returns the canonical string form of the expression.
-    pub fn as_str(&self) -> &str {
-        &self.canonical
+    /// Returns a reference to the inner [`spdx::Expression`].
+    pub fn as_expression(&self) -> &spdx::Expression {
+        &self.0
     }
 
-    /// Re-parses the canonical string into a fresh [`spdx::Expression`].
-    pub fn as_expression(&self) -> spdx::Expression {
-        // SAFETY: `canonical` was produced by `spdx::Expression::parse` during
-        // construction in `TryFrom<String>`, so it should always succeed.
-        spdx::Expression::parse(&self.canonical).unwrap()
+    /// Returns the canonical string form of the expression.
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
+impl fmt::Debug for LicenseExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("LicenseExpression")
+            .field(&self.as_str())
+            .finish()
+    }
+}
+
+impl fmt::Display for LicenseExpression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl PartialEq for LicenseExpression {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
+impl Eq for LicenseExpression {}
+
+impl Hash for LicenseExpression {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_str().hash(state);
     }
 }
 
@@ -60,15 +80,7 @@ impl TryFrom<String> for LicenseExpression {
         }
         let expr =
             spdx::Expression::parse(trimmed).map_err(|e| LicenseError::Invalid(format!("{e}")))?;
-        Ok(Self {
-            canonical: expr.to_string(),
-        })
-    }
-}
-
-impl fmt::Display for LicenseExpression {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.canonical)
+        Ok(Self(expr))
     }
 }
 
@@ -82,7 +94,7 @@ impl FromStr for LicenseExpression {
 
 impl From<LicenseExpression> for String {
     fn from(expr: LicenseExpression) -> Self {
-        expr.canonical
+        expr.as_str().to_string()
     }
 }
 
@@ -111,7 +123,6 @@ mod tests {
 
     #[test]
     fn rejects_unknown_id() {
-        // `MIT-2.0` is syntactically valid but not in the SPDX list.
         assert!("MIT-2.0".parse::<LicenseExpression>().is_err());
     }
 

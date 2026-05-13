@@ -25,12 +25,12 @@ pub struct DependencyName(String);
 
 impl DependencyName {
     /// Returns the dependency name as a string slice.
-    pub fn inner(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         &self.0
     }
 
     /// Consumes the [`DependencyName`] and returns the inner [`String`].
-    pub fn into_inner(self) -> String {
+    pub fn into_string(self) -> String {
         self.0
     }
 }

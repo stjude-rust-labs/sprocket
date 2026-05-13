@@ -21,8 +21,8 @@ use unicode_normalization::UnicodeNormalization;
 /// An error constructing a [`RelativePath`].
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum RelativePathError {
-    /// The path contains non-UTF-8 bytes.
-    #[error("path contains non-UTF-8 bytes")]
+    /// The path is not encoded as UTF-8.
+    #[error("path is not encoded as UTF-8")]
     NonUtf8,
     /// The path is empty.
     #[error("path is empty")]
@@ -30,20 +30,20 @@ pub enum RelativePathError {
     /// The path contains a null byte.
     #[error("path contains a null byte")]
     NullByte,
-    /// The path uses Windows-style `\` separators.
-    #[error("path uses Windows-style `\\` separators")]
+    /// The path contains Windows path separators.
+    #[error("path contains Windows path separators (e.g. `\\`)")]
     Backslash,
-    /// The path starts with `/`.
-    #[error("path starts with `/`")]
+    /// The path must be relative and therefore cannot start with a `/`.
+    #[error("path must be relative and therefore cannot start with a `/`")]
     Absolute,
-    /// The path uses a Windows-style drive letter.
-    #[error("path uses a Windows-style drive letter")]
+    /// The path contains a Windows drive letter.
+    #[error("path contains a Windows drive letter")]
     DriveLetter,
     /// The path resolves to nothing after lexical cleanup.
     #[error("path resolves to empty")]
     ResolvesToEmpty,
-    /// The path escapes the module root via leading `..` segments.
-    #[error("path escapes the module root")]
+    /// The path escapes the module root directory.
+    #[error("path escapes the module root directory")]
     EscapesRoot,
 }
 
@@ -62,11 +62,6 @@ impl RelativePath {
     /// Returns the path as a [`Path`].
     pub fn as_path(&self) -> &Path {
         Path::new(&self.0)
-    }
-
-    /// Consumes the [`RelativePath`] and returns its inner string.
-    pub fn into_inner(self) -> String {
-        self.0
     }
 }
 

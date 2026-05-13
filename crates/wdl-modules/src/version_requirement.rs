@@ -2,9 +2,9 @@
 //! [`semver::VersionReq`].
 
 use std::fmt;
+use std::ops::Deref;
 use std::str::FromStr;
 
-use semver::Version;
 use semver::VersionReq;
 use serde::Deserialize;
 use serde::Serialize;
@@ -21,20 +21,18 @@ pub struct VersionRequirementError(String);
 pub struct VersionRequirement(VersionReq);
 
 impl VersionRequirement {
-    /// Tests whether a [`Version`] satisfies this requirement.
-    pub fn matches(&self, version: &Version) -> bool {
-        self.0.matches(version)
-    }
-
-    /// Returns a reference to the underlying [`VersionReq`].
-    pub fn inner(&self) -> &VersionReq {
-        &self.0
-    }
-
     /// Consumes the [`VersionRequirement`] and returns the inner
     /// [`VersionReq`].
     pub fn into_inner(self) -> VersionReq {
         self.0
+    }
+}
+
+impl Deref for VersionRequirement {
+    type Target = VersionReq;
+
+    fn deref(&self) -> &VersionReq {
+        &self.0
     }
 }
 
@@ -48,11 +46,7 @@ impl TryFrom<String> for VersionRequirement {
     type Error = VersionRequirementError;
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
-        let trimmed = s.trim();
-        if trimmed.is_empty() {
-            return Err(VersionRequirementError(s));
-        }
-        match VersionReq::parse(trimmed) {
+        match VersionReq::parse(s.trim()) {
             Ok(v) => Ok(Self(v)),
             Err(_) => Err(VersionRequirementError(s)),
         }
@@ -75,6 +69,8 @@ impl From<VersionRequirement> for String {
 
 #[cfg(test)]
 mod tests {
+    use semver::Version;
+
     use super::*;
 
     #[test]

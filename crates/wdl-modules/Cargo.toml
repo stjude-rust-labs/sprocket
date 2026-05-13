@@ -1,7 +1,7 @@
 [package]
 name = "wdl-modules"
 version = "0.1.0"
-description = "Manifest, lockfile, content hashing, and signing for the WDL module system"
+description = "Implementation of the WDL module specification"
 authors.workspace = true
 rust-version.workspace = true
 edition.workspace = true

@@ -22,8 +22,9 @@ pub struct SymbolicPathError(String);
 ///
 /// The string form is `<dep-name>[/<sub-path>]`. The `<dep-name>` is the
 /// key declared under `dependencies` in the consumer's `module.json`; the
-/// optional `<sub-path>` addresses a specific module within a multi-module
-/// dependency source. Path components are case-sensitive.
+/// optional `<sub-path>` addresses a specific document within a module.
+///
+/// Path components are case-sensitive.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct SymbolicPath {
     /// The dependency name component.
@@ -89,7 +90,7 @@ impl FromStr for SymbolicPath {
 
 impl fmt::Display for SymbolicPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.dep_name.inner())?;
+        f.write_str(self.dep_name.as_str())?;
         if let Some(sub) = &self.sub_path {
             for component in sub.iter() {
                 f.write_str("/")?;
@@ -107,14 +108,14 @@ mod tests {
     #[test]
     fn parses_dep_only() {
         let p: SymbolicPath = "spellbook".parse().unwrap();
-        assert_eq!(p.dep_name().inner(), "spellbook");
+        assert_eq!(p.dep_name().as_str(), "spellbook");
         assert!(p.sub_path().is_none());
     }
 
     #[test]
     fn parses_with_sub_path() {
         let p: SymbolicPath = "spellbook/cauldron".parse().unwrap();
-        assert_eq!(p.dep_name().inner(), "spellbook");
+        assert_eq!(p.dep_name().as_str(), "spellbook");
         assert_eq!(p.sub_path().unwrap(), Path::new("cauldron"));
     }
 

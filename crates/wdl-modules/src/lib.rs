@@ -5,8 +5,7 @@
 //! The crate handles every part of the module specification that does not
 //! require networking or process spawning.
 
-pub mod dependency_name;
-pub mod dependency_source;
+pub mod dependency;
 pub mod hash;
 pub mod license;
 pub mod lockfile;
@@ -18,11 +17,11 @@ pub mod symbolic_path;
 pub mod tree;
 pub mod version_requirement;
 
-pub use crate::dependency_name::DependencyName;
-pub use crate::dependency_name::DependencyNameError;
-pub use crate::dependency_source::DependencySource;
-pub use crate::dependency_source::DependencySourceError;
-pub use crate::dependency_source::GitSelector;
+pub use crate::dependency::DependencyName;
+pub use crate::dependency::DependencyNameError;
+pub use crate::dependency::DependencySource;
+pub use crate::dependency::DependencySourceError;
+pub use crate::dependency::GitSelector;
 pub use crate::hash::ContentHash;
 pub use crate::hash::HashError;
 pub use crate::hash::Hasher;
