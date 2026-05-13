@@ -90,7 +90,7 @@ impl FromStr for SymbolicPath {
 
 impl fmt::Display for SymbolicPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.dep_name.as_str())?;
+        f.write_str(self.dep_name.identifier())?;
         if let Some(sub) = &self.sub_path {
             for component in sub.iter() {
                 f.write_str("/")?;
@@ -108,14 +108,14 @@ mod tests {
     #[test]
     fn parses_dep_only() {
         let p: SymbolicPath = "spellbook".parse().unwrap();
-        assert_eq!(p.dep_name().as_str(), "spellbook");
+        assert_eq!(p.dep_name().identifier(), "spellbook");
         assert!(p.sub_path().is_none());
     }
 
     #[test]
     fn parses_with_sub_path() {
         let p: SymbolicPath = "spellbook/cauldron".parse().unwrap();
-        assert_eq!(p.dep_name().as_str(), "spellbook");
+        assert_eq!(p.dep_name().identifier(), "spellbook");
         assert_eq!(p.sub_path().unwrap(), Path::new("cauldron"));
     }
 

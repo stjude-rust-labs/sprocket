@@ -1,6 +1,5 @@
-//! Dependency-name newtype enforcing the WDL identifier rule.
+//! Dependency-name newtype with hyphen-to-underscore normalization.
 
-use std::fmt;
 use std::str::FromStr;
 
 use serde::Deserialize;
@@ -9,35 +8,61 @@ use thiserror::Error;
 
 /// An error parsing a [`DependencyName`].
 #[derive(Debug, Error, PartialEq, Eq)]
-#[error("dependency name `{0}` does not match `[A-Za-z][A-Za-z0-9_]*`")]
+#[error("dependency name `{0}` does not match `[A-Za-z][A-Za-z0-9_-]*`")]
 pub struct DependencyNameError(String);
+
+/// Returns `true` if `s` matches the dependency-name grammar
+/// `[A-Za-z][A-Za-z0-9_-]*`.
+fn is_dependency_name(s: &str) -> bool {
+    let mut chars = s.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
 
 /// A dependency name.
 ///
-/// Dependency names are WDL identifiers. They begin with an ASCII letter
-/// and continue with ASCII letters, digits, or underscores. The same rule
-/// governs the keys of `dependencies` in [`Manifest`](crate::Manifest), the
-/// top-level keys of [`Lockfile::dependencies`](crate::Lockfile), and the
-/// `<dep-name>` portion of a [`SymbolicPath`](crate::SymbolicPath).
+/// Dependency names begin with an ASCII letter and continue with ASCII
+/// letters, digits, underscores, or hyphens. Following Cargo's
+/// convention, hyphens and underscores are interchangeable: `spell-book`
+/// and `spell_book` refer to the same dependency.
+///
+/// Two forms are stored: the **manifest** form preserves the exact
+/// spelling from `module.json`, and the **identifier** form replaces
+/// hyphens with underscores to produce a valid WDL identifier suitable
+/// for use in symbolic imports. The identifier form must not be a
+/// reserved keyword.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-#[serde(try_from = "String")]
-pub struct DependencyName(String);
-
-impl DependencyName {
-    /// Returns the dependency name as a string slice.
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
-    /// Consumes the [`DependencyName`] and returns the inner [`String`].
-    pub fn into_string(self) -> String {
-        self.0
-    }
+#[serde(into = "String", try_from = "String")]
+pub struct DependencyName {
+    /// The name as written in `module.json`.
+    manifest: String,
+    /// The WDL identifier form (hyphens replaced with underscores).
+    identifier: String,
 }
 
-impl fmt::Display for DependencyName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
+impl DependencyName {
+    /// Returns the name as written in `module.json`.
+    pub fn manifest(&self) -> &str {
+        &self.manifest
+    }
+
+    /// Returns the WDL identifier form of the name (hyphens replaced
+    /// with underscores).
+    pub fn identifier(&self) -> &str {
+        &self.identifier
+    }
+
+    /// Consumes the [`DependencyName`] and returns the manifest form.
+    pub fn into_manifest(self) -> String {
+        self.manifest
+    }
+
+    /// Consumes the [`DependencyName`] and returns the identifier form.
+    pub fn into_identifier(self) -> String {
+        self.identifier
     }
 }
 
@@ -45,11 +70,17 @@ impl TryFrom<String> for DependencyName {
     type Error = DependencyNameError;
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
-        if wdl_grammar::lexer::v1::is_ident(&s) {
-            Ok(Self(s))
-        } else {
-            Err(DependencyNameError(s))
+        if !is_dependency_name(&s) {
+            return Err(DependencyNameError(s));
         }
+        let identifier = s.replace('-', "_");
+        if !wdl_grammar::lexer::v1::is_ident(&identifier) {
+            return Err(DependencyNameError(s));
+        }
+        Ok(Self {
+            manifest: s,
+            identifier,
+        })
     }
 }
 
@@ -61,9 +92,15 @@ impl FromStr for DependencyName {
     }
 }
 
+impl From<DependencyName> for String {
+    fn from(name: DependencyName) -> Self {
+        name.manifest
+    }
+}
+
 impl AsRef<str> for DependencyName {
     fn as_ref(&self) -> &str {
-        &self.0
+        &self.manifest
     }
 }
 
@@ -73,9 +110,26 @@ mod tests {
 
     #[test]
     fn accepts_valid_names() {
-        for name in ["a", "spellbook", "spell_book", "Spell2", "X_1_2_3"] {
+        for name in [
+            "a",
+            "spellbook",
+            "spell_book",
+            "spell-book",
+            "Spell2",
+            "X_1_2_3",
+            "my-crate",
+        ] {
             assert!(name.parse::<DependencyName>().is_ok(), "rejected `{name}`");
         }
+    }
+
+    #[test]
+    fn normalizes_hyphens_to_underscores() {
+        let hyphen: DependencyName = "spell-book".parse().unwrap();
+        let underscore: DependencyName = "spell_book".parse().unwrap();
+        assert_eq!(hyphen.identifier(), "spell_book");
+        assert_eq!(hyphen.manifest(), "spell-book");
+        assert_eq!(underscore.manifest(), "spell_book");
     }
 
     #[test]
@@ -84,7 +138,7 @@ mod tests {
             "",
             "1spellbook",
             "_spellbook",
-            "spell-book",
+            "-spellbook",
             "spell book",
             "spell.book",
             "spell/book",
@@ -105,11 +159,12 @@ mod tests {
 
     #[test]
     fn round_trips_via_serde() {
-        let name: DependencyName = "spellbook".parse().unwrap();
+        let name: DependencyName = "spell-book".parse().unwrap();
         let json = serde_json::to_string(&name).unwrap();
-        assert_eq!(json, r#""spellbook""#);
+        assert_eq!(json, r#""spell-book""#);
         let parsed: DependencyName = serde_json::from_str(&json).unwrap();
         assert_eq!(parsed, name);
+        assert_eq!(parsed.manifest(), "spell-book");
     }
 
     #[test]

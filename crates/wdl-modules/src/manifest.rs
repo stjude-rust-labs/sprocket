@@ -521,13 +521,30 @@ mod tests {
     }
 
     #[test]
+    fn accepts_hyphenated_dep_key() {
+        let m = parse(
+            r#"{
+                "name": "spellbook",
+                "version": "1.0.0",
+                "license": "MIT",
+                "dependencies": { "my-dep": {"path": "../local"} }
+            }"#,
+        )
+        .unwrap();
+        let key: DependencyName = "my-dep".parse().unwrap();
+        assert!(m.dependencies.contains_key(&key));
+        assert_eq!(key.manifest(), "my-dep");
+        assert_eq!(key.identifier(), "my_dep");
+    }
+
+    #[test]
     fn rejects_non_identifier_dep_key() {
         let err = parse(
             r#"{
                 "name": "spellbook",
                 "version": "1.0.0",
                 "license": "MIT",
-                "dependencies": { "bad-name": {"path": "../local"} }
+                "dependencies": { "1bad": {"path": "../local"} }
             }"#,
         )
         .unwrap_err();
