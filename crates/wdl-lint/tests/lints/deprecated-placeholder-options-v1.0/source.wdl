@@ -1,4 +1,4 @@
-#@ except: EmptyOutputs
+#@ except: EmptyOutputs, BashSetSyntax
 
 ## This is a test of the `DeprecatedPlaceholder` lint.
 

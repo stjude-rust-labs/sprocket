@@ -1,4 +1,4 @@
-#@ except: MetaDescription, MetaSections, RuntimeSection, TodoComment, UnusedDocComments, EmptyOutputs
+#@ except: MetaDescription, MetaSections, RuntimeSection, TodoComment, UnusedDocComments, EmptyOutputs, BashSetSyntax
 
 version 1.1
 

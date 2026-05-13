@@ -1,4 +1,4 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, ParameterMetaMatched, HereDocCommands, EmptyOutputs
+#@ except: MetaDescription, ExpectedRuntimeKeys, ParameterMetaMatched, HereDocCommands, EmptyOutputs, BashSetSyntax
 
 ## This is a test of having no shellcheck lints
 

@@ -1,4 +1,4 @@
-#@ except: MetaSections, RequirementsSection, OutputName
+#@ except: MetaSections, RequirementsSection, OutputName, BashSetSyntax
 
 version 1.2
 

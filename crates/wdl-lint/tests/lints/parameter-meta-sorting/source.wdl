@@ -1,4 +1,4 @@
-#@ except: MetaDescription, InputName, RequirementsSection, EmptyOutputs
+#@ except: MetaDescription, InputName, RequirementsSection, EmptyOutputs, BashSetSyntax
 
 version 1.3
 

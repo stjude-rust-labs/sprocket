@@ -1,5 +1,5 @@
 ## This is a test of the `DenyGlobStar` lint.
-#@ except: DoubleQuotes, ExpectedRuntimeKeys, MetaDescription
+#@ except: DoubleQuotes, ExpectedRuntimeKeys, MetaDescription, BashSetSyntax
 version 1.3
 
 task bad {

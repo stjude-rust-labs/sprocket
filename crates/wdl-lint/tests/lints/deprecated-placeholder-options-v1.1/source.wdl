@@ -1,4 +1,4 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, ShellCheck, EmptyOutputs
+#@ except: MetaDescription, ExpectedRuntimeKeys, ShellCheck, EmptyOutputs, BashSetSyntax
 
 ## This is a test of the `DeprecatedPlaceholder` lint.
 

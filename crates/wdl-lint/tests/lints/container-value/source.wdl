@@ -1,4 +1,4 @@
-#@ except: MetaDescription, TodoComment, RequirementsSection, EmptyOutputs
+#@ except: MetaDescription, TodoComment, RequirementsSection, EmptyOutputs, BashSetSyntax
 
 ## This is a test of the `ContainerUri` lint.
 

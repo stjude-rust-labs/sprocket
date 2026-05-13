@@ -1,5 +1,5 @@
 #@ except: MetaDescription, RequirementsSection
-#@ except: ExpectedRuntimeKeys, MetaSections, EmptyOutputs
+#@ except: ExpectedRuntimeKeys, MetaSections, EmptyOutputs, BashSetSyntax
 
 version 1.2
 

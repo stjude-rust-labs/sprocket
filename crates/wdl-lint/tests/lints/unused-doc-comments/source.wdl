@@ -1,4 +1,4 @@
-#@ except: EmptyOutputs
+#@ except: EmptyOutputs, BashSetSyntax
 
 ## This preamble is considered a valid doc comment,
 ## despite having whitespace between it and the version statement.

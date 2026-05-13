@@ -1,5 +1,5 @@
 #@ except: RuntimeSection, MatchingOutputMeta, MetaDescription
-#@ except: ParameterMetaMatched, ExpectedRuntimeKeys
+#@ except: ParameterMetaMatched, ExpectedRuntimeKeys, BashSetSyntax
 
 ## Test that CallInputKeyword does NOT trigger for WDL 1.1.
 ## The `input:` keyword is required in version 1.1.
