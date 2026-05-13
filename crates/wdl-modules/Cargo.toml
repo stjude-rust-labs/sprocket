@@ -28,7 +28,7 @@ ssh-key = { workspace = true }
 thiserror = { workspace = true }
 unicode-normalization = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-wdl-grammar = { path = "../wdl-grammar" }
+wdl-grammar = { path = "../wdl-grammar", version = "0.21.1" }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
