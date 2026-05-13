@@ -2,6 +2,8 @@
 //! declaration defaults.
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -71,9 +73,11 @@ impl Rule for HostPathLiteralsRule {
          environments. Use relative paths or supply values at runtime."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[r#"```wdl
-version 1.3
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.3
 
 task run_tool {
     input {
@@ -84,7 +88,10 @@ task run_tool {
         echo "run"
     >>>
 }
-```"#]
+"#,
+            },
+            revised: None,
+        }]
     }
 
     fn tags(&self) -> TagSet {

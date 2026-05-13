@@ -2,6 +2,8 @@
 
 use rowan::ast::support;
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -48,45 +50,31 @@ impl Rule for HereDocCommandsRule {
          with Bash syntax."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task say_hello {
-    meta {}
-
-    parameter_meta {}
-
     command {
         echo "Hello, World!"
     }
-
-    output {}
-
-    runtime {}
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task say_hello {
-    meta {}
-
-    parameter_meta {}
-
     command <<<
         echo "Hello, World!"
     >>>
-
-    output {}
-
-    runtime {}
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

@@ -16,6 +16,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [`openwdl/wdl#765`](https://github.com/openwdl/wdl/pull/765). WDL 1.4
   is gated behind the `feature_flags.wdl_1_4` analysis flag (default
   `false`). See the per-crate changelogs for details ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+* `sprocket explain` now includes WDL snippets for lint rules ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)).
+
+### Changed
+
+* The `examples` field of `sprocket explain --format json` has changed from Markdown codeblocks to the following
+  structure ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)):
+
+  ```ts
+  type LabeledSnippet = { label?: String, snippet: String };
+  type Example = { negative: LabeledSnippet, revised?: LabeledSnippet }
+  ```
 
 ### Fixed
 

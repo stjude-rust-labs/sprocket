@@ -16,6 +16,7 @@ anyhow = { workspace = true }
 arrayvec = { workspace = true }
 blake3 = { workspace = true }
 convert_case = { workspace = true }
+dyn-clone = { workspace = true }
 fixedbitset = { workspace = true }
 ftree = { workspace = true }
 indexmap = { workspace = true }
