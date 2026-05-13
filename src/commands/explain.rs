@@ -137,7 +137,8 @@ pub struct Rule {
     pub description: &'static str,
     /// An extended description of the rule (possibly Markdown formatted).
     pub explanation: &'static str,
-    /// Markdown-formatted examples that would trigger the rule.
+    /// Structured examples that would trigger the rule, each with an optional
+    /// revision.
     pub examples: &'static [Example],
     /// An optional URL associated with the rule.
     pub url: Option<&'static str>,
@@ -184,6 +185,22 @@ impl Display for Rule {
                 writeln!(f, "  - {}", rule.cyan())?;
             }
         };
+
+        if !self.examples.is_empty() {
+            writeln!(f, "\n{}", "Examples:".bold())?;
+            for example in self.examples {
+                if let Some(label) = &example.negative.label {
+                    writeln!(f, "{label}:\n")?;
+                }
+
+                writeln!(f, "```wdl\n{}```", example.negative.snippet)?;
+
+                if let Some(revision) = &example.revised {
+                    writeln!(f, "{}:\n", revision.label.unwrap_or("Use instead"))?;
+                    writeln!(f, "```wdl\n{}```", revision.snippet)?;
+                }
+            }
+        }
 
         Ok(())
     }
