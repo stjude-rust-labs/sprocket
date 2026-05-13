@@ -150,7 +150,14 @@ workflow example {
 }
 "#,
             },
-            revised: None,
+            revised: Some(LabeledSnippet {
+                label: Some("Consider removing the import entirely"),
+                snippet: r#"version 1.2
+
+workflow example {
+}
+"#,
+            }),
         }]
     }
 
