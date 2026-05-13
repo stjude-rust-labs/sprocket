@@ -213,6 +213,7 @@ impl TryFrom<String> for Signature {
 
 /// The contents of a `module.sig` file.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct ModuleSignature {
     /// The signer's Ed25519 public key in OpenSSH format.
     pub public_key: VerifyingKey,
@@ -223,7 +224,7 @@ pub struct ModuleSignature {
 impl ModuleSignature {
     /// Parses a `module.sig` JSON document.
     pub fn parse(bytes: &[u8]) -> Result<Self, SignatureFileError> {
-        Ok(serde_json::from_slice(bytes)?)
+        Ok(crate::strict_json::from_slice(bytes)?)
     }
 
     /// Writes the signature as JSON to `w`.
@@ -333,17 +334,40 @@ mod tests {
 
     #[test]
     fn module_signature_rejects_unknown_keys() {
-        // The schema only has `public_key` and `signature`; serde_json's
-        // default Deserialize ignores unknown fields. We rely on the
-        // top-level strict-parsing wrapper (when added) to reject those;
-        // here we just check that the well-formed schema still parses.
         let signer = signing_key_from_seed(5);
         let digest = ContentHash::from([0x33; 32]);
-        let json = serde_json::to_string(&ModuleSignature {
-            public_key: signer.verifying_key(),
-            signature: signer.sign(&digest),
-        })
-        .unwrap();
-        ModuleSignature::parse(json.as_bytes()).unwrap();
+        let json = format!(
+            r#"{{
+                "public_key": {},
+                "signature": {},
+                "unexpected": true
+            }}"#,
+            serde_json::to_string(&signer.verifying_key()).unwrap(),
+            serde_json::to_string(&signer.sign(&digest)).unwrap()
+        );
+
+        assert!(ModuleSignature::parse(json.as_bytes()).is_err());
+    }
+
+    #[test]
+    fn module_signature_rejects_duplicate_keys() {
+        let signer = signing_key_from_seed(6);
+        let digest = ContentHash::from([0x44; 32]);
+        let json = format!(
+            r#"{{
+                "public_key": {},
+                "public_key": {},
+                "signature": {}
+            }}"#,
+            serde_json::to_string(&signer.verifying_key()).unwrap(),
+            serde_json::to_string(&signer.verifying_key()).unwrap(),
+            serde_json::to_string(&signer.sign(&digest)).unwrap()
+        );
+
+        let err = ModuleSignature::parse(json.as_bytes()).unwrap_err();
+        assert!(
+            err.to_string().contains("invalid `module.sig` JSON"),
+            "wrong error: {err}"
+        );
     }
 }
