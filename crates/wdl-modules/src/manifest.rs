@@ -63,6 +63,11 @@ pub enum ManifestError {
     #[error("`dependencies` key `{0}` is not a valid WDL identifier")]
     InvalidDependencyName(String),
 
+    /// Two dependency keys resolve to the same dependency (either
+    /// identical or equivalent after hyphen-to-underscore normalization).
+    #[error("duplicate `dependencies` key: `{0}` and `{1}` resolve to the same dependency")]
+    DuplicateDependencyName(String, String),
+
     /// A dependency declaration is invalid.
     #[error(transparent)]
     DependencySource(#[from] DependencySourceError),
@@ -262,10 +267,16 @@ impl TryFrom<ManifestFields> for Manifest {
             ReadmeFields::Bool(true) => return Err(ManifestError::ReadmeTrue),
         };
 
-        let mut deps = BTreeMap::new();
+        let mut deps: BTreeMap<DependencyName, DependencySource> = BTreeMap::new();
         for (key, value) in fields.dependencies {
             let name = DependencyName::try_from(key.clone())
                 .map_err(|_| ManifestError::InvalidDependencyName(key))?;
+            if let Some((existing, _)) = deps.get_key_value(&name) {
+                return Err(ManifestError::DuplicateDependencyName(
+                    existing.manifest().to_string(),
+                    name.manifest().to_string(),
+                ));
+            }
             deps.insert(name, value);
         }
 
@@ -568,6 +579,46 @@ mod tests {
     }
 
     #[test]
+    #[test]
+    fn rejects_exact_duplicate_dep_keys() {
+        let err = parse(
+            r#"{
+                "name": "spellbook",
+                "version": "1.0.0",
+                "license": "MIT",
+                "dependencies": {
+                    "dep": {"path": "../a"},
+                    "dep": {"path": "../b"}
+                }
+            }"#,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(err, ManifestError::InvalidJson(_)),
+            "exact duplicate JSON keys should be rejected by strict JSON parsing, got: {err}"
+        );
+    }
+
+    #[test]
+    fn rejects_duplicate_hyphen_underscore_dep_keys() {
+        let err = parse(
+            r#"{
+                "name": "spellbook",
+                "version": "1.0.0",
+                "license": "MIT",
+                "dependencies": {
+                    "spell-book": {"path": "../a"},
+                    "spell_book": {"path": "../b"}
+                }
+            }"#,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(err, ManifestError::DuplicateDependencyName(..)),
+            "expected `DuplicateDependencyName`, got: {err}"
+        );
+    }
+
     fn rejects_non_identifier_dep_key() {
         let err = parse(
             r#"{

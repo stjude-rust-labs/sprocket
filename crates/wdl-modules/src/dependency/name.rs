@@ -1,5 +1,7 @@
 //! Dependency-name newtype with hyphen-to-underscore normalization.
 
+use std::hash::Hash;
+use std::hash::Hasher;
 use std::str::FromStr;
 
 use serde::Deserialize;
@@ -34,13 +36,46 @@ fn is_dependency_name(s: &str) -> bool {
 /// hyphens with underscores to produce a valid WDL identifier suitable
 /// for use in symbolic imports. The identifier form must not be a
 /// reserved keyword.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
+///
+/// `Eq`, `Ord`, and `Hash` operate on the **identifier** form only,
+/// so `spell-book` and `spell_book` are the same key in maps and
+/// sets. This enforces the spec rule that hyphens and underscores are
+/// interchangeable for the purpose of identity. Use
+/// [`manifest()`](Self::manifest) when exact-spelling fidelity is
+/// needed (e.g., serialization or display).
+#[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(into = "String", try_from = "String")]
 pub struct DependencyName {
     /// The name as written in `module.json`.
     manifest: String,
     /// The WDL identifier form (hyphens replaced with underscores).
     identifier: String,
+}
+
+impl PartialEq for DependencyName {
+    fn eq(&self, other: &Self) -> bool {
+        self.identifier == other.identifier
+    }
+}
+
+impl Eq for DependencyName {}
+
+impl PartialOrd for DependencyName {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for DependencyName {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.identifier.cmp(&other.identifier)
+    }
+}
+
+impl Hash for DependencyName {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.identifier.hash(state);
+    }
 }
 
 impl DependencyName {
@@ -130,6 +165,14 @@ mod tests {
         assert_eq!(hyphen.identifier(), "spell_book");
         assert_eq!(hyphen.manifest(), "spell-book");
         assert_eq!(underscore.manifest(), "spell_book");
+    }
+
+    #[test]
+    fn hyphen_and_underscore_are_equal() {
+        let hyphen: DependencyName = "spell-book".parse().unwrap();
+        let underscore: DependencyName = "spell_book".parse().unwrap();
+        assert_eq!(hyphen, underscore);
+        assert_eq!(hyphen.cmp(&underscore), std::cmp::Ordering::Equal);
     }
 
     #[test]
