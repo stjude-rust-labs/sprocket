@@ -67,34 +67,6 @@ const SPARSE_META_EXT: &str = ".sparse.json";
 /// form the per-leaf advisory lock path.
 const LOCK_EXT: &str = ".lock";
 
-/// Acquires an exclusive file lock for a cache leaf directory.
-///
-/// The lock file is placed next to the leaf (in its parent directory)
-/// as `.<leaf_name>.lock` so it can be created before the leaf itself
-/// exists. The lock is released when the returned [`File`] handle is
-/// dropped; the lock file remains on disk to avoid delete-after-unlock
-/// races.
-fn lock_cache_leaf(leaf: &Path) -> Result<File, GitError> {
-    // SAFETY: cache leaves are always `<parent>/<commit_sha>`, so
-    // both `parent()` and `file_name()` are always `Some`.
-    let parent = leaf.parent().unwrap();
-    std::fs::create_dir_all(parent).map_err(|source| GitError::Io {
-        path: parent.to_path_buf(),
-        source,
-    })?;
-    let name = leaf.file_name().unwrap().to_string_lossy();
-    let lock_path = parent.join(format!(".{name}{LOCK_EXT}"));
-    let file = File::create(&lock_path).map_err(|source| GitError::Io {
-        path: lock_path.clone(),
-        source,
-    })?;
-    file.lock().map_err(|source| GitError::Io {
-        path: lock_path,
-        source,
-    })?;
-    Ok(file)
-}
-
 /// The module folders currently materialized in a sparse-checkout cache
 /// leaf.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -109,6 +81,69 @@ pub(crate) struct GitTreeStats {
     pub files: usize,
     /// Total bytes across all blobs.
     pub bytes: u64,
+}
+
+/// Errors produced by the `git` module.
+#[derive(Debug, Error)]
+pub enum GitError {
+    /// A `git2` operation failed.
+    #[error("git operation failed")]
+    Git(#[source] git2::Error),
+
+    /// I/O error.
+    #[error("i/o error at `{path}`")]
+    Io {
+        /// The path involved.
+        path: PathBuf,
+        /// The underlying I/O error.
+        #[source]
+        source: std::io::Error,
+    },
+
+    /// JSON (de)serialization error for the sparse-meta file.
+    #[error("sparse-checkout metadata error at `{path}`")]
+    Json {
+        /// The path involved.
+        path: PathBuf,
+        /// The underlying error.
+        #[source]
+        source: serde_json::Error,
+    },
+
+    /// The cache leaf path has no parent directory and cannot be created.
+    #[error("cache leaf path `{0}` has no parent directory")]
+    RootLeaf(PathBuf),
+
+    /// A remote advertised more refs than the configured limit.
+    #[error("remote at `{url}` advertised {count} refs, exceeding the limit of {limit}")]
+    RefLimitExceeded {
+        /// The remote URL.
+        url: String,
+        /// The number of refs advertised.
+        count: usize,
+        /// The configured limit.
+        limit: usize,
+    },
+
+    /// A module subtree exceeds configured file or byte limits.
+    #[error(
+        "module subtree `{path}` exceeds tree limits (files: {files}, bytes: {bytes}, \
+         max_files: {}, max_bytes: {})",
+        max_files.map_or_else(|| "unlimited".to_string(), |v| v.to_string()),
+        max_bytes.map_or_else(|| "unlimited".to_string(), |v| v.to_string()),
+    )]
+    TreeLimitExceeded {
+        /// The module path within the repository.
+        path: String,
+        /// The number of files observed.
+        files: usize,
+        /// The total bytes observed.
+        bytes: u64,
+        /// The configured file limit.
+        max_files: Option<usize>,
+        /// The configured byte limit.
+        max_bytes: Option<u64>,
+    },
 }
 
 /// Default credential resolver. Tries the user's configured Git
@@ -274,6 +309,64 @@ pub(crate) fn enforce_tree_limits(
     Ok(())
 }
 
+/// Materializes only the listed module folders from the repo's HEAD
+/// tree using libgit2's path-filtered checkout.
+fn apply_sparse_checkout(repo: &Repository, paths: &[String]) -> Result<(), GitError> {
+    let head_commit = repo
+        .head()
+        .map_err(GitError::Git)?
+        .peel_to_commit()
+        .map_err(GitError::Git)?;
+    let tree = head_commit.tree().map_err(GitError::Git)?;
+
+    let mut checkout = git2::build::CheckoutBuilder::new();
+    checkout.force().recreate_missing(true);
+    for p in paths {
+        // Match every entry under the given module folder.
+        checkout.path(format!("{p}/**"));
+    }
+    repo.checkout_tree(tree.as_object(), Some(&mut checkout))
+        .map_err(GitError::Git)?;
+
+    Ok(())
+}
+
+/// Returns the path to the sparse-checkout metadata file for a cache
+/// leaf. The file is placed in the leaf's parent directory as
+/// `.<leaf_name>.sparse.json`.
+fn sparse_meta_path(leaf: &Path) -> PathBuf {
+    let name = leaf
+        .file_name()
+        .map(|n| n.to_string_lossy())
+        .unwrap_or_default();
+    leaf.with_file_name(format!(".{name}{SPARSE_META_EXT}"))
+}
+
+/// Writes the sparse-checkout metadata next to the cache leaf.
+fn save_sparse_meta(leaf: &Path, paths: &[String]) -> Result<(), GitError> {
+    let meta = SparseMeta(paths.iter().cloned().collect());
+    let path = sparse_meta_path(leaf);
+    let bytes = serde_json::to_vec_pretty(&meta).map_err(|source| GitError::Json {
+        path: path.clone(),
+        source,
+    })?;
+    std::fs::write(&path, bytes).map_err(|source| GitError::Io { path, source })
+}
+
+/// Reads the sparse-checkout metadata for a cache leaf, returning the
+/// default empty meta if the file is missing.
+fn load_sparse_meta(leaf: &Path) -> Result<SparseMeta, GitError> {
+    let path = sparse_meta_path(leaf);
+    let bytes = match std::fs::read(&path) {
+        Ok(b) => b,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(SparseMeta::default());
+        }
+        Err(source) => return Err(GitError::Io { path, source }),
+    };
+    serde_json::from_slice(&bytes).map_err(|source| GitError::Json { path, source })
+}
+
 /// Clones the repository at `url` into `leaf`, checks out the working
 /// tree to `commit`, and materializes only the listed `paths` from the
 /// resulting tree.
@@ -360,34 +453,6 @@ where
     Ok(())
 }
 
-/// Ensures `leaf` contains a sparse checkout of `url` at `commit`
-/// covering at least `paths`. Clones if `leaf` does not yet exist;
-/// otherwise extends the existing leaf's sparse-checkout set.
-///
-/// Cached leaves are keyed by `(url, commit)` upstream, so an existing
-/// leaf already corresponds to the requested commit; this helper does
-/// not re-validate that.
-pub(crate) fn ensure_materialized<I, S>(
-    leaf: &Path,
-    url: &Url,
-    commit: &str,
-    paths: I,
-    mode: CredentialMode,
-    max_files: Option<usize>,
-    max_bytes: Option<u64>,
-) -> Result<(), GitError>
-where
-    I: IntoIterator<Item = S>,
-    S: AsRef<str>,
-{
-    let _lock = lock_cache_leaf(leaf)?;
-    if leaf.exists() {
-        extend_sparse_checkout(leaf, paths, max_files, max_bytes)
-    } else {
-        clone_with_sparse_checkout(url, commit, leaf, paths, mode, max_files, max_bytes)
-    }
-}
-
 /// Extends an existing sparse-checkout cache leaf to additionally
 /// materialize the given `paths`. Paths already present are kept; the
 /// union becomes the new sparse-checkout set.
@@ -427,125 +492,60 @@ where
     Ok(())
 }
 
-/// Materializes only the listed module folders from the repo's HEAD
-/// tree using libgit2's path-filtered checkout.
-fn apply_sparse_checkout(repo: &Repository, paths: &[String]) -> Result<(), GitError> {
-    let head_commit = repo
-        .head()
-        .map_err(GitError::Git)?
-        .peel_to_commit()
-        .map_err(GitError::Git)?;
-    let tree = head_commit.tree().map_err(GitError::Git)?;
-
-    let mut checkout = git2::build::CheckoutBuilder::new();
-    checkout.force().recreate_missing(true);
-    for p in paths {
-        // Match every entry under the given module folder.
-        checkout.path(format!("{p}/**"));
-    }
-    repo.checkout_tree(tree.as_object(), Some(&mut checkout))
-        .map_err(GitError::Git)?;
-
-    Ok(())
-}
-
-/// Returns the path to the sparse-checkout metadata file for a cache
-/// leaf. The file is placed in the leaf's parent directory as
-/// `.<leaf_name>.sparse.json`.
-fn sparse_meta_path(leaf: &Path) -> PathBuf {
-    let name = leaf
-        .file_name()
-        .map(|n| n.to_string_lossy())
-        .unwrap_or_default();
-    leaf.with_file_name(format!(".{name}{SPARSE_META_EXT}"))
-}
-
-/// Writes the sparse-checkout metadata next to the cache leaf.
-fn save_sparse_meta(leaf: &Path, paths: &[String]) -> Result<(), GitError> {
-    let meta = SparseMeta(paths.iter().cloned().collect());
-    let path = sparse_meta_path(leaf);
-    let bytes = serde_json::to_vec_pretty(&meta).map_err(|source| GitError::Json {
-        path: path.clone(),
+/// Acquires an exclusive file lock for a cache leaf directory.
+///
+/// The lock file is placed next to the leaf (in its parent directory)
+/// as `.<leaf_name>.lock` so it can be created before the leaf itself
+/// exists. The lock is released when the returned [`File`] handle is
+/// dropped; the lock file remains on disk to avoid delete-after-unlock
+/// races.
+fn lock_cache_leaf(leaf: &Path) -> Result<File, GitError> {
+    // SAFETY: cache leaves are always `<parent>/<commit_sha>`, so
+    // both `parent()` and `file_name()` are always `Some`.
+    let parent = leaf.parent().unwrap();
+    std::fs::create_dir_all(parent).map_err(|source| GitError::Io {
+        path: parent.to_path_buf(),
         source,
     })?;
-    std::fs::write(&path, bytes).map_err(|source| GitError::Io { path, source })
+    let name = leaf.file_name().unwrap().to_string_lossy();
+    let lock_path = parent.join(format!(".{name}{LOCK_EXT}"));
+    let file = File::create(&lock_path).map_err(|source| GitError::Io {
+        path: lock_path.clone(),
+        source,
+    })?;
+    file.lock().map_err(|source| GitError::Io {
+        path: lock_path,
+        source,
+    })?;
+    Ok(file)
 }
 
-/// Reads the sparse-checkout metadata for a cache leaf, returning the
-/// default empty meta if the file is missing.
-fn load_sparse_meta(leaf: &Path) -> Result<SparseMeta, GitError> {
-    let path = sparse_meta_path(leaf);
-    let bytes = match std::fs::read(&path) {
-        Ok(b) => b,
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
-            return Ok(SparseMeta::default());
-        }
-        Err(source) => return Err(GitError::Io { path, source }),
-    };
-    serde_json::from_slice(&bytes).map_err(|source| GitError::Json { path, source })
-}
-
-/// Errors produced by the `git` module.
-#[derive(Debug, Error)]
-pub enum GitError {
-    /// A `git2` operation failed.
-    #[error("git operation failed")]
-    Git(#[source] git2::Error),
-
-    /// I/O error.
-    #[error("i/o error at `{path}`")]
-    Io {
-        /// The path involved.
-        path: PathBuf,
-        /// The underlying I/O error.
-        #[source]
-        source: std::io::Error,
-    },
-
-    /// JSON (de)serialization error for the sparse-meta file.
-    #[error("sparse-checkout metadata error at `{path}`")]
-    Json {
-        /// The path involved.
-        path: PathBuf,
-        /// The underlying error.
-        #[source]
-        source: serde_json::Error,
-    },
-
-    /// The cache leaf path has no parent directory and cannot be created.
-    #[error("cache leaf path `{0}` has no parent directory")]
-    RootLeaf(PathBuf),
-
-    /// A remote advertised more refs than the configured limit.
-    #[error("remote at `{url}` advertised {count} refs, exceeding the limit of {limit}")]
-    RefLimitExceeded {
-        /// The remote URL.
-        url: String,
-        /// The number of refs advertised.
-        count: usize,
-        /// The configured limit.
-        limit: usize,
-    },
-
-    /// A module subtree exceeds configured file or byte limits.
-    #[error(
-        "module subtree `{path}` exceeds tree limits (files: {files}, bytes: {bytes}, \
-         max_files: {}, max_bytes: {})",
-        max_files.map_or_else(|| "unlimited".to_string(), |v| v.to_string()),
-        max_bytes.map_or_else(|| "unlimited".to_string(), |v| v.to_string()),
-    )]
-    TreeLimitExceeded {
-        /// The module path within the repository.
-        path: String,
-        /// The number of files observed.
-        files: usize,
-        /// The total bytes observed.
-        bytes: u64,
-        /// The configured file limit.
-        max_files: Option<usize>,
-        /// The configured byte limit.
-        max_bytes: Option<u64>,
-    },
+/// Ensures `leaf` contains a sparse checkout of `url` at `commit`
+/// covering at least `paths`. Clones if `leaf` does not yet exist;
+/// otherwise extends the existing leaf's sparse-checkout set.
+///
+/// Cached leaves are keyed by `(url, commit)` upstream, so an existing
+/// leaf already corresponds to the requested commit; this helper does
+/// not re-validate that.
+pub(crate) fn ensure_materialized<I, S>(
+    leaf: &Path,
+    url: &Url,
+    commit: &str,
+    paths: I,
+    mode: CredentialMode,
+    max_files: Option<usize>,
+    max_bytes: Option<u64>,
+) -> Result<(), GitError>
+where
+    I: IntoIterator<Item = S>,
+    S: AsRef<str>,
+{
+    let _lock = lock_cache_leaf(leaf)?;
+    if leaf.exists() {
+        extend_sparse_checkout(leaf, paths, max_files, max_bytes)
+    } else {
+        clone_with_sparse_checkout(url, commit, leaf, paths, mode, max_files, max_bytes)
+    }
 }
 
 #[cfg(test)]
@@ -727,8 +727,8 @@ mod tests {
     fn inspect_subtree_stats_counts_blobs() {
         let (upstream, sha) = build_upstream(&[
             ("mod/a.wdl", b"task a {}"),
-            ("mod/b.wdl", b"task bb {}"),
-            ("mod/sub/c.wdl", b"task ccc {}"),
+            ("mod/b.wdl", b"task b {}"),
+            ("mod/sub/c.wdl", b"task c {}"),
         ]);
         let repo = Repository::open(upstream.path()).unwrap();
         let oid = git2::Oid::from_str(&sha).unwrap();
@@ -736,7 +736,7 @@ mod tests {
         assert_eq!(stats.files, 3);
         assert_eq!(
             stats.bytes,
-            b"task a {}".len() as u64 + b"task bb {}".len() as u64 + b"task ccc {}".len() as u64
+            b"task a {}".len() as u64 + b"task b {}".len() as u64 + b"task c {}".len() as u64
         );
     }
 
