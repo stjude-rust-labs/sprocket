@@ -1,4 +1,15 @@
 //! Ownership-aware module root types.
+//!
+//! A resolved dependency can come from two places: a Git cache leaf
+//! (sparse checkout under `cache_root`) or a local filesystem path.
+//! The resolver needs to know which case it is dealing with so it can
+//! produce diagnostic messages that reference the cache leaf path on
+//! verification failure, while still exposing a uniform `&Path` to
+//! the module's content for hashing, signing, and tree validation.
+//!
+//! [`ModuleRoot`] wraps the content path. [`MaterializedRoot`] pairs
+//! it with optional cache metadata so callers can distinguish cached
+//! from local modules without threading that context separately.
 
 use std::path::Path;
 use std::path::PathBuf;
