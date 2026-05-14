@@ -109,10 +109,7 @@ impl TryFrom<PathBuf> for GitModulePath {
     type Error = GitModulePathError;
 
     fn try_from(p: PathBuf) -> Result<Self, Self::Error> {
-        let s = p
-            .to_str()
-            .ok_or(RelativePathError::NonUtf8)?
-            .to_string();
+        let s = p.to_str().ok_or(RelativePathError::NonUtf8)?.to_string();
         if s.is_empty() {
             return Err(RelativePathError::Empty.into());
         }

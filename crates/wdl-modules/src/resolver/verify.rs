@@ -55,11 +55,13 @@ impl ModuleVerifier<'_> {
         name: &DependencyName,
         checksum: &ContentHash,
     ) -> Result<(), ResolverError> {
-        let locked_entry = self
-            .lockfile
-            .dependencies
-            .get(name)
-            .ok_or_else(|| ResolverError::NotInLockfile { dep: name.manifest().to_string() })?;
+        let locked_entry =
+            self.lockfile
+                .dependencies
+                .get(name)
+                .ok_or_else(|| ResolverError::NotInLockfile {
+                    dep: name.manifest().to_string(),
+                })?;
         if locked_entry.checksum != *checksum {
             return Err(ResolverError::ChecksumMismatch {
                 dep: name.manifest().to_string(),
@@ -108,7 +110,9 @@ impl ModuleVerifier<'_> {
             Ok(b) => b,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 if self.config.require_signed {
-                    return Err(ResolverError::RequireSignedViolation { dep: name.manifest().to_string() });
+                    return Err(ResolverError::RequireSignedViolation {
+                        dep: name.manifest().to_string(),
+                    });
                 }
                 return Ok(None);
             }

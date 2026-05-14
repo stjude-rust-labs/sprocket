@@ -28,13 +28,19 @@ pub struct ModulesConfig {
 
     /// URL schemes permitted for top-level Git dependencies. Defaults
     /// to `["https", "ssh"]`.
-    #[serde(default = "default_top_level_schemes", skip_serializing_if = "Vec::is_empty")]
+    #[serde(
+        default = "default_top_level_schemes",
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub allowed_schemes: Vec<String>,
 
     /// URL schemes permitted for transitive Git dependencies. Defaults
     /// to `["https"]` so remote manifests cannot silently trigger SSH
     /// authentication against an attacker-controlled host.
-    #[serde(default = "default_transitive_schemes", skip_serializing_if = "Vec::is_empty")]
+    #[serde(
+        default = "default_transitive_schemes",
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub allowed_transitive_schemes: Vec<String>,
 
     /// Maximum number of advertised refs accepted from a remote.
@@ -44,7 +50,10 @@ pub struct ModulesConfig {
 
     /// Hosts denied for all Git dependencies. Defaults to localhost
     /// addresses.
-    #[serde(default = "default_denied_hosts", skip_serializing_if = "Vec::is_empty")]
+    #[serde(
+        default = "default_denied_hosts",
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub denied_hosts: Vec<String>,
 
     /// Hosts permitted for top-level Git dependencies. Empty means any

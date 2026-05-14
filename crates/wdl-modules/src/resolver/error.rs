@@ -311,11 +311,7 @@ pub enum MissingFileKind {
 }
 
 /// Renders the message for a [`ResolverError::MissingFile`].
-fn missing_file_message(
-    dep: &str,
-    path: &std::path::Path,
-    kind: &MissingFileKind,
-) -> String {
+fn missing_file_message(dep: &str, path: &std::path::Path, kind: &MissingFileKind) -> String {
     let p = path.display();
     match kind {
         MissingFileKind::Entrypoint => {
