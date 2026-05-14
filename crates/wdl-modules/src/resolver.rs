@@ -525,7 +525,7 @@ impl GitResolver {
             }
         };
 
-        let key = CacheKey::from_url(url, &commit);
+        let key = CacheKey::from_git_url(url, &commit);
         let leaf = key.absolute_path(&self.cache_root);
         let sparse_path = path_prefix.clone().unwrap_or_else(|| ".".to_string());
         let module_path = match path.as_ref() {

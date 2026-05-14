@@ -15,17 +15,17 @@ use crate::GitCommit;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CacheKey {
     /// The leading directory components, derived from the Git URL.
-    prefix: KeyPrefix,
+    prefix: PrefixKey,
     /// The commit SHA.
     commit: GitCommit,
 }
 
 /// The shape of a cache key's leading directory components.
 #[derive(Clone, Debug, PartialEq, Eq)]
-enum KeyPrefix {
+enum PrefixKey {
     /// `<host>/<org>/<repo>` derived from a Git URL whose path has at
     /// least two segments.
-    Structured {
+    GitStructured {
         /// The host name.
         host: String,
         /// The first path segment (organization or user).
@@ -39,7 +39,7 @@ enum KeyPrefix {
     },
     /// `_opaque/<sha256(url)>` for URLs that don't fit the structured
     /// shape (IP-only hosts, deeply nested groups, etc.).
-    Opaque {
+    GitOpaque {
         /// Lowercase hex SHA-256 digest of the canonical URL.
         digest_hex: String,
     },
@@ -47,7 +47,7 @@ enum KeyPrefix {
 
 impl CacheKey {
     /// Derives a `CacheKey` from a Git URL and a commit SHA.
-    pub fn from_url(url: &Url, commit: &GitCommit) -> Self {
+    pub fn from_git_url(url: &Url, commit: &GitCommit) -> Self {
         let prefix = match url.host_str() {
             Some(host) => {
                 let segments: Vec<&str> = url.path().split('/').filter(|s| !s.is_empty()).collect();
@@ -55,18 +55,18 @@ impl CacheKey {
                     let repo = segments[1].trim_end_matches(".git");
                     let digest = hash_url(url);
                     let repo_with_suffix = format!("{repo}-{}", &digest[..8]);
-                    KeyPrefix::Structured {
+                    PrefixKey::GitStructured {
                         host: host.to_string(),
                         org: segments[0].to_string(),
                         repo_with_suffix,
                     }
                 } else {
-                    KeyPrefix::Opaque {
+                    PrefixKey::GitOpaque {
                         digest_hex: hash_url(url),
                     }
                 }
             }
-            None => KeyPrefix::Opaque {
+            None => PrefixKey::GitOpaque {
                 digest_hex: hash_url(url),
             },
         };
@@ -80,7 +80,7 @@ impl CacheKey {
     pub(crate) fn relative_path(&self) -> PathBuf {
         let mut p = PathBuf::new();
         match &self.prefix {
-            KeyPrefix::Structured {
+            PrefixKey::GitStructured {
                 host,
                 org,
                 repo_with_suffix,
@@ -89,7 +89,7 @@ impl CacheKey {
                 p.push(org);
                 p.push(repo_with_suffix);
             }
-            KeyPrefix::Opaque { digest_hex } => {
+            PrefixKey::GitOpaque { digest_hex } => {
                 p.push("_opaque");
                 p.push(digest_hex);
             }
@@ -182,7 +182,7 @@ mod tests {
     #[test]
     fn structured_layout_for_github_url() {
         let url = Url::parse("https://github.com/openwdl/tasks").unwrap();
-        let key = CacheKey::from_url(&url, &commit());
+        let key = CacheKey::from_git_url(&url, &commit());
         let parts: Vec<_> = key
             .relative_path()
             .iter()
@@ -201,7 +201,7 @@ mod tests {
     #[test]
     fn opaque_layout_when_url_lacks_org_repo() {
         let url = Url::parse("https://example.com/").unwrap();
-        let key = CacheKey::from_url(&url, &commit());
+        let key = CacheKey::from_git_url(&url, &commit());
         let parts: Vec<_> = key
             .relative_path()
             .iter()
@@ -216,7 +216,7 @@ mod tests {
     #[test]
     fn strips_dot_git_suffix() {
         let url = Url::parse("https://github.com/openwdl/tasks.git").unwrap();
-        let key = CacheKey::from_url(&url, &commit());
+        let key = CacheKey::from_git_url(&url, &commit());
         let parts: Vec<_> = key
             .relative_path()
             .iter()
@@ -229,8 +229,8 @@ mod tests {
     fn nested_repository_urls_do_not_collide() {
         let url_short = Url::parse("https://gitlab.example/x/y").unwrap();
         let url_long = Url::parse("https://gitlab.example/x/y/z").unwrap();
-        let k_short = CacheKey::from_url(&url_short, &commit());
-        let k_long = CacheKey::from_url(&url_long, &commit());
+        let k_short = CacheKey::from_git_url(&url_short, &commit());
+        let k_long = CacheKey::from_git_url(&url_long, &commit());
         assert_ne!(
             k_short.relative_path(),
             k_long.relative_path(),
