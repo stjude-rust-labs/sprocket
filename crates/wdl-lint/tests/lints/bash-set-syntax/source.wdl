@@ -1,4 +1,4 @@
-#@ except: MetaSections, RequirementsSection
+#@ except: MetaSections, RequirementsSection, EmptyOutputs
 
 version 1.3
 
