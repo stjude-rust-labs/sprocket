@@ -2,6 +2,49 @@
 //! Handles credential delegation, partial clone via filtered fetch,
 //! and sparse checkout of selected module folders within the cloned
 //! tree.
+//!
+//! ## Cache layout
+//!
+//! Each resolved Git dependency is materialized under the resolver's
+//! `cache_root`. The directory structure is derived from the Git URL
+//! and commit SHA by [`CacheKey`](super::cache::CacheKey):
+//!
+//! ```text
+//! <cache_root>/
+//!   <host>/                                        # structured layout
+//!     <org>/
+//!       <repo>-<digest8>/
+//!         .<commit_sha>.lock                       # advisory file lock
+//!         .<commit_sha>.sparse.json                # sparse-checkout metadata
+//!         <commit_sha>/                            # the "cache leaf" — a clean Git checkout
+//!           .git/
+//!           csvkit/                                # a materialized module folder
+//!             module.json
+//!             index.wdl
+//!           spellbook/                             # another module folder (added by extend)
+//!             module.json
+//!             index.wdl
+//!   _opaque/                                       # fallback for URLs without host/org/repo
+//!     <sha256(url)>/
+//!       .<commit_sha>.lock
+//!       .<commit_sha>.sparse.json
+//!       <commit_sha>/
+//!         .git/
+//!         ...
+//! ```
+//!
+//! The structured layout is used when the Git URL has a parseable
+//! `<host>/<org>/<repo>` path. URLs that don't fit that shape
+//! (IP-only hosts, deeply nested groups, etc.) fall back to the
+//! `_opaque/` layout keyed by a SHA-256 digest of the URL.
+//!
+//! Both `.<commit>.lock` and `.<commit>.sparse.json` live next to the
+//! cache leaf (in its parent directory), keeping the Git checkout
+//! clean. `.sparse.json` tracks which module folders have been checked
+//! out so far; when a second dependency in the same repository needs
+//! a different folder, the existing checkout is extended rather than
+//! re-cloned. The `.lock` file serializes concurrent operations via
+//! `File::lock()`.
 
 use std::collections::BTreeSet;
 use std::fs::File;
@@ -16,28 +59,31 @@ use serde::Serialize;
 use thiserror::Error;
 use url::Url;
 
-/// File written into a cache leaf recording which module folders are
-/// currently materialized via sparse checkout.
-const SPARSE_META_FILENAME: &str = ".sparse.json";
+/// Extension appended to `.<leaf_name>` in the parent directory to
+/// form the per-leaf sparse-checkout metadata path.
+const SPARSE_META_EXT: &str = ".sparse.json";
 
-/// Advisory lock file inside each cache leaf directory.
-const LOCK_FILENAME: &str = ".lock";
+/// Extension appended to `.<leaf_name>` in the parent directory to
+/// form the per-leaf advisory lock path.
+const LOCK_EXT: &str = ".lock";
 
 /// Acquires an exclusive file lock for a cache leaf directory.
 ///
 /// The lock file is placed next to the leaf (in its parent directory)
-/// so it can be created before the leaf itself exists. The lock is
-/// released when the returned [`File`] handle is dropped; the lock
-/// file remains on disk to avoid delete-after-unlock races.
+/// as `.<leaf_name>.lock` so it can be created before the leaf itself
+/// exists. The lock is released when the returned [`File`] handle is
+/// dropped; the lock file remains on disk to avoid delete-after-unlock
+/// races.
 fn lock_cache_leaf(leaf: &Path) -> Result<File, GitError> {
-    let parent = leaf
-        .parent()
-        .ok_or_else(|| GitError::RootLeaf(leaf.to_path_buf()))?;
+    // SAFETY: cache leaves are always `<parent>/<commit_sha>`, so
+    // both `parent()` and `file_name()` are always `Some`.
+    let parent = leaf.parent().unwrap();
     std::fs::create_dir_all(parent).map_err(|source| GitError::Io {
         path: parent.to_path_buf(),
         source,
     })?;
-    let lock_path = parent.join(LOCK_FILENAME);
+    let name = leaf.file_name().unwrap().to_string_lossy();
+    let lock_path = parent.join(format!(".{name}{LOCK_EXT}"));
     let file = File::create(&lock_path).map_err(|source| GitError::Io {
         path: lock_path.clone(),
         source,
@@ -261,14 +307,24 @@ where
         source,
     })?;
 
+    // Shallow-fetch remote URLs (depth 1) to reduce bandwidth since
+    // we only need the single resolved commit. Local `file://` URLs
+    // skip this because there is no network transfer to optimize.
     let mut fetch_opts = default_fetch_options(mode);
     if url.scheme() != "file" {
         fetch_opts.depth(1);
     }
 
+    // Dry-run the checkout so the clone fetches objects without
+    // writing the full tree to disk. `apply_sparse_checkout`
+    // materializes only the requested module folders afterward.
     let mut empty_checkout = git2::build::CheckoutBuilder::new();
     empty_checkout.disable_filters(true).dry_run();
 
+    // `bare(false)` gives us a working tree (not just the object
+    // database) so `apply_sparse_checkout` can write files to disk.
+    // `CloneLocal::Auto` lets libgit2 hardlink objects when the
+    // source is on the same filesystem.
     let mut builder = git2::build::RepoBuilder::new();
     builder
         .fetch_options(fetch_opts)
@@ -393,12 +449,21 @@ fn apply_sparse_checkout(repo: &Repository, paths: &[String]) -> Result<(), GitE
     Ok(())
 }
 
-/// Writes `.sparse.json` next to the cache leaf, recording which
-/// module folders are currently materialized so a later
-/// [`extend_sparse_checkout`] knows what to extend.
+/// Returns the path to the sparse-checkout metadata file for a cache
+/// leaf. The file is placed in the leaf's parent directory as
+/// `.<leaf_name>.sparse.json`.
+fn sparse_meta_path(leaf: &Path) -> PathBuf {
+    let name = leaf
+        .file_name()
+        .map(|n| n.to_string_lossy())
+        .unwrap_or_default();
+    leaf.with_file_name(format!(".{name}{SPARSE_META_EXT}"))
+}
+
+/// Writes the sparse-checkout metadata next to the cache leaf.
 fn save_sparse_meta(leaf: &Path, paths: &[String]) -> Result<(), GitError> {
     let meta = SparseMeta(paths.iter().cloned().collect());
-    let path = leaf.join(SPARSE_META_FILENAME);
+    let path = sparse_meta_path(leaf);
     let bytes = serde_json::to_vec_pretty(&meta).map_err(|source| GitError::Json {
         path: path.clone(),
         source,
@@ -406,10 +471,10 @@ fn save_sparse_meta(leaf: &Path, paths: &[String]) -> Result<(), GitError> {
     std::fs::write(&path, bytes).map_err(|source| GitError::Io { path, source })
 }
 
-/// Reads `.sparse.json` from the cache leaf, returning the default
-/// empty meta if the file is missing.
+/// Reads the sparse-checkout metadata for a cache leaf, returning the
+/// default empty meta if the file is missing.
 fn load_sparse_meta(leaf: &Path) -> Result<SparseMeta, GitError> {
-    let path = leaf.join(SPARSE_META_FILENAME);
+    let path = sparse_meta_path(leaf);
     let bytes = match std::fs::read(&path) {
         Ok(b) => b,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
