@@ -92,6 +92,12 @@ fn default_transitive_schemes() -> Vec<String> {
 }
 
 /// Returns the default denied-host list.
+///
+/// Loopback and unspecified addresses are blocked to prevent a
+/// dependency's `module.json` from directing the resolver at a
+/// service running on the user's machine. Without this, a malicious
+/// transitive dependency could exfiltrate data or probe internal
+/// services by pointing its `git` URL at `localhost`.
 fn default_denied_hosts() -> Vec<String> {
     vec![
         "localhost".into(),
