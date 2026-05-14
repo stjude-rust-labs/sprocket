@@ -854,7 +854,10 @@ pub fn misleading_declaration_order(name: &str, span: Span) -> Diagnostic {
     Diagnostic::warning("variable declaration appears after the `command` section")
         .with_rule(MisleadingDeclarationOrderRule::ID)
         .with_highlight(span)
-        .with_help("tasks are evaluated in dependency order, not top-to-bottom")
+        .with_help(
+            "this is visually misleading; tasks are evaluated in dependency order, not \
+             top-to-bottom",
+        )
         .with_fix(format!(
             "move the declaration of `{name}` above the `command` section"
         ))
