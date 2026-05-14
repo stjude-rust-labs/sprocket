@@ -11,7 +11,6 @@ pub(crate) mod config;
 pub(crate) mod error;
 pub(crate) mod fetch;
 mod git;
-pub(crate) mod helpers;
 pub(crate) mod lock;
 pub(crate) mod module_root;
 pub(crate) mod policy;
@@ -51,10 +50,6 @@ pub use crate::resolver::error::GitRefKind;
 pub use crate::resolver::error::MissingFileKind;
 pub use crate::resolver::error::ResolverError;
 use crate::resolver::fetch::GitFetcher;
-use crate::resolver::helpers::check_tag_manifest_match;
-use crate::resolver::helpers::exclude_set;
-use crate::resolver::helpers::is_transitive_local_disallowed;
-use crate::resolver::helpers::read_manifest;
 pub use crate::resolver::lock::DependencyAddition;
 pub use crate::resolver::lock::DependencyUpdate;
 pub use crate::resolver::lock::LockfileDiff;
@@ -736,6 +731,71 @@ impl Resolver for GitResolver {
             }
         }
     }
+}
+
+/// Returns `true` if `child` is a local-path source declared by a
+/// non-local parent.
+fn is_transitive_local_disallowed(
+    parent: Option<&ResolvedSource>,
+    child: &DependencySource,
+) -> bool {
+    matches!(child, DependencySource::LocalPath { .. })
+        && matches!(parent, Some(ResolvedSource::Git { .. }))
+}
+
+/// Reads and parses `module.json` from `dir`.
+fn read_manifest(dir: &Path) -> Result<Manifest, ResolverError> {
+    let path = dir.join(crate::MANIFEST_FILENAME);
+    let bytes = std::fs::read(&path).map_err(|source| ResolverError::Io {
+        path: path.clone(),
+        source,
+    })?;
+    Manifest::parse(&bytes).map_err(ResolverError::from)
+}
+
+/// Returns `Err(TagManifestMismatch)` when a Git tag's selected
+/// semver `expected` does not equal the manifest's `declared` version.
+fn check_tag_manifest_match(
+    path_prefix: Option<&str>,
+    expected: Option<&semver::Version>,
+    declared: &semver::Version,
+) -> Result<(), ResolverError> {
+    if let Some(exp) = expected
+        && exp != declared
+    {
+        let tag = crate::resolver::versions::VersionTag::new(
+            path_prefix.map(str::to_string),
+            exp.clone(),
+        )
+        .to_string();
+        return Err(ResolverError::TagManifestMismatch {
+            tag,
+            declared: declared.clone(),
+        });
+    }
+    Ok(())
+}
+
+/// Compiles a manifest's `exclude` patterns into a [`globset::GlobSet`].
+fn exclude_set(
+    patterns: &[crate::RelativePath],
+) -> Result<globset::GlobSet, ResolverError> {
+    if patterns.is_empty() {
+        return Ok(globset::GlobSet::empty());
+    }
+    let mut builder = globset::GlobSetBuilder::new();
+    for p in patterns {
+        let s: &str = p.as_ref();
+        let glob = globset::Glob::new(s).map_err(|source| ResolverError::InvalidExclude {
+            pattern: s.to_string(),
+            source,
+        })?;
+        builder.add(glob);
+    }
+    // SAFETY: `GlobSetBuilder::build` only consolidates already-compiled
+    // globs; `Glob::new` above is the validating step, so by the time
+    // we reach this call there is nothing left for `build` to reject.
+    Ok(builder.build().unwrap())
 }
 
 #[cfg(test)]
@@ -1932,5 +1992,55 @@ mod tests {
             vec![semver::Version::parse("1.0.0").unwrap()],
             "should discover `v1.0.0` tag"
         );
+    }
+
+    #[test]
+    fn local_in_transitive_classifies_correctly() {
+        let local = ResolvedSource::Path {
+            path: "/home/user/projects/local".into(),
+        };
+        let git = ResolvedSource::Git {
+            git: "https://github.com/x/y".parse().unwrap(),
+            commit: "0000000000000000000000000000000000000000".parse().unwrap(),
+            path: None,
+            selector: Some(crate::GitSelector::Tag("v1".into())),
+        };
+        let local_dep = DependencySource::LocalPath {
+            path: "/home/user/projects/dep".into(),
+            extra: Default::default(),
+        };
+        let git_dep = DependencySource::Git {
+            url: "https://github.com/x/y".parse().unwrap(),
+            selector: crate::GitSelector::Tag("v1".into()),
+            path: None,
+            extra: Default::default(),
+        };
+        assert!(!is_transitive_local_disallowed(Some(&local), &local_dep));
+        assert!(is_transitive_local_disallowed(Some(&git), &local_dep));
+        assert!(!is_transitive_local_disallowed(None, &local_dep));
+        assert!(!is_transitive_local_disallowed(Some(&git), &git_dep));
+    }
+
+    #[test]
+    fn tag_manifest_mismatch_errors_on_disagreement() {
+        let v_expected = semver::Version::parse("2.0.0").unwrap();
+        let v_declared = semver::Version::parse("1.0.0").unwrap();
+        let err = check_tag_manifest_match(None, Some(&v_expected), &v_declared).unwrap_err();
+        let ResolverError::TagManifestMismatch { tag, declared } = err else {
+            panic!("got: {err:?}");
+        };
+        assert_eq!(tag, "v2.0.0");
+        assert_eq!(declared, v_declared);
+    }
+
+    #[test]
+    fn tag_manifest_mismatch_ok_when_agree() {
+        let v = semver::Version::parse("1.2.3").unwrap();
+        check_tag_manifest_match(Some("csvkit"), Some(&v), &v).unwrap();
+    }
+
+    #[test]
+    fn tag_manifest_mismatch_ok_when_no_expected() {
+        check_tag_manifest_match(None, None, &semver::Version::parse("0.0.1").unwrap()).unwrap();
     }
 }
