@@ -12,7 +12,6 @@ pub(crate) mod error;
 pub(crate) mod fetch;
 mod git;
 pub(crate) mod lock;
-pub(crate) mod module_root;
 pub(crate) mod policy;
 pub(crate) mod scope;
 pub(crate) mod tree_walk;
@@ -57,9 +56,7 @@ pub use crate::resolver::lock::NewSigner;
 pub use crate::resolver::lock::RelockOutcome;
 pub use crate::resolver::lock::RelockStats;
 pub use crate::resolver::lock::partial_relock;
-use crate::resolver::module_root::MaterializedRoot;
-use crate::resolver::module_root::ModuleRoot;
-use crate::resolver::module_root::resolve_content_file;
+use crate::hash::NON_MODULE_CONTENT;
 use crate::resolver::policy::ResolverPolicy;
 pub use crate::resolver::scope::DependencyScope;
 use crate::resolver::scope::ResolutionMode;
@@ -422,7 +419,7 @@ impl GitResolver {
                 Ok((
                     ResolvedSource::Path { path: path.clone() },
                     manifest,
-                    MaterializedRoot::Local(ModuleRoot::new(path.clone())),
+                    MaterializedRoot::Local(ModuleRoot::from(path.clone())),
                 ))
             }
             DependencySource::Git {
@@ -483,7 +480,7 @@ impl GitResolver {
                     },
                     manifest,
                     MaterializedRoot::Cached {
-                        module_root: ModuleRoot::new(plan.module_path),
+                        module_root: ModuleRoot::from(plan.module_path),
                         cache_leaf: plan.leaf,
                     },
                 ))
@@ -730,6 +727,123 @@ impl Resolver for GitResolver {
                 Ok(vec![manifest.version])
             }
         }
+    }
+}
+
+/// The filesystem path to a module's content directory. Hashing,
+/// signing, and tree validation accept this path and skip
+/// non-module entries (`.git`, `module.sig`, `module-lock.json`)
+/// internally.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ModuleRoot(PathBuf);
+
+impl From<PathBuf> for ModuleRoot {
+    fn from(path: PathBuf) -> Self {
+        Self(path)
+    }
+}
+
+impl AsRef<Path> for ModuleRoot {
+    fn as_ref(&self) -> &Path {
+        &self.0
+    }
+}
+
+/// Distinguishes resolver-owned cache paths from user-owned local
+/// paths. Only `Cached` variants may be evicted.
+#[derive(Clone, Debug)]
+enum MaterializedRoot {
+    /// A user's local module directory. Must never be evicted.
+    Local(ModuleRoot),
+    /// A resolver-owned cache leaf.
+    Cached {
+        /// The module content root inside the cache leaf.
+        module_root: ModuleRoot,
+        /// The resolver-owned cache leaf directory for this module.
+        cache_leaf: PathBuf,
+    },
+}
+
+impl MaterializedRoot {
+    /// Returns the module root regardless of ownership.
+    fn module_root(&self) -> &ModuleRoot {
+        match self {
+            Self::Local(root) => root,
+            Self::Cached { module_root, .. } => module_root,
+        }
+    }
+}
+
+/// Resolves a relative content path under `root`, enforcing the same
+/// metadata exclusions and containment rules used by
+/// [`module_walk`](crate::module_walk).
+fn resolve_content_file(
+    root: &ModuleRoot,
+    rel: &Path,
+    dep: &DependencyName,
+) -> Result<PathBuf, ResolverError> {
+    if rel.components().any(|c| {
+        let name = c.as_os_str().to_str().unwrap_or("");
+        NON_MODULE_CONTENT.contains(&name)
+    }) {
+        return Err(ResolverError::Hash(
+            crate::HashError::SymlinkTargetsMetadata(rel.display().to_string()),
+        ));
+    }
+
+    let candidate = root.as_ref().join(rel);
+    if !candidate.exists() {
+        return Err(ResolverError::Io {
+            path: candidate,
+            source: std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "materialized content file does not exist",
+            ),
+        });
+    }
+
+    let meta = std::fs::symlink_metadata(&candidate).map_err(|source| ResolverError::Io {
+        path: candidate.clone(),
+        source,
+    })?;
+
+    if meta.file_type().is_symlink() {
+        let canonical_root =
+            std::fs::canonicalize(root.as_ref()).map_err(|source| ResolverError::Io {
+                path: root.as_ref().to_path_buf(),
+                source,
+            })?;
+        let target = std::fs::canonicalize(&candidate).map_err(|source| ResolverError::Io {
+            path: candidate.clone(),
+            source,
+        })?;
+
+        if !target.starts_with(&canonical_root) {
+            return Err(ResolverError::MaterializedSymlinkEscape {
+                dep: dep.manifest().to_string(),
+                path: candidate,
+            });
+        }
+
+        if let Ok(target_rel) = target.strip_prefix(&canonical_root)
+            && target_rel.components().any(|c| {
+                let name = c.as_os_str().to_str().unwrap_or("");
+                NON_MODULE_CONTENT.contains(&name)
+            })
+        {
+            return Err(ResolverError::Hash(
+                crate::HashError::SymlinkTargetsMetadata(rel.display().to_string()),
+            ));
+        }
+
+        Ok(target)
+    } else {
+        candidate
+            .canonicalize()
+            .map_err(|source| ResolverError::Io {
+                path: candidate,
+                source,
+            })
     }
 }
 

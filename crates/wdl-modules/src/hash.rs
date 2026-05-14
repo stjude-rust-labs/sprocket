@@ -264,10 +264,8 @@ impl Hasher {
 /// Computes the content hash of a directory by walking it (excluding the
 /// spec-mandated exclusions `module.sig` and `module-lock.json`).
 /// Directory and file names that are not module content and should
-/// be excluded from hashing, limit checks, and content walks. Includes
-/// Git infrastructure (`.git`) and resolver cache metadata
-/// (`.sparse.json`).
-pub(crate) const NON_MODULE_CONTENT: &[&str] = &[".git", ".sparse.json"];
+/// be excluded from hashing, limit checks, and content walks.
+pub(crate) const NON_MODULE_CONTENT: &[&str] = &[".git"];
 
 /// Walks `root` and computes the deterministic content hash of the
 /// module directory, skipping non-module content and spec-defined
@@ -526,13 +524,12 @@ mod tests {
             b"ref: refs/heads/main",
         )
         .unwrap();
-        fs::write(dir.path().join(".sparse.json"), b"[]").unwrap();
 
         let hash2 = hash_directory(dir.path()).unwrap();
 
         assert_eq!(
             hash1, hash2,
-            "`.git` and `.sparse.json` must not affect the content hash"
+            "`.git` must not affect the content hash"
         );
     }
 
@@ -588,22 +585,6 @@ mod tests {
         .unwrap();
         symlink_file(
             &dir.path().join("nested").join(".git").join("config"),
-            &dir.path().join("index.wdl"),
-        );
-        let err = hash_directory(dir.path()).unwrap_err();
-        assert!(
-            matches!(err, HashError::SymlinkTargetsMetadata(_)),
-            "expected metadata symlink rejection, got: {err}"
-        );
-    }
-
-    #[test]
-    fn symlink_to_nested_sparse_json_is_rejected() {
-        let dir = tempdir().unwrap();
-        fs::create_dir_all(dir.path().join("nested")).unwrap();
-        fs::write(dir.path().join("nested").join(".sparse.json"), b"[]").unwrap();
-        symlink_file(
-            &dir.path().join("nested").join(".sparse.json"),
             &dir.path().join("index.wdl"),
         );
         let err = hash_directory(dir.path()).unwrap_err();
