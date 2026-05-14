@@ -114,9 +114,7 @@ fn hash_url(url: &Url) -> String {
 }
 
 /// Removes the cache leaf at `path`. No-op if the leaf does not exist.
-// NOTE: `#[expect(dead_code)]` would error under tests where these items are
-// used; cannot expect the lint to fire across all configurations.
-#[allow(dead_code)]
+#[cfg_attr(not(test), expect(dead_code, reason = "will be called by the resolver once cache management is wired up"))]
 pub(crate) fn evict(path: &Path) -> std::io::Result<()> {
     match std::fs::remove_dir_all(path) {
         Ok(()) => Ok(()),
@@ -127,9 +125,7 @@ pub(crate) fn evict(path: &Path) -> std::io::Result<()> {
 
 /// Re-hashes a cached module folder and compares against the expected
 /// content hash.
-// NOTE: `#[expect(dead_code)]` would error under tests where these items are
-// used; cannot expect the lint to fire across all configurations.
-#[allow(dead_code)]
+#[cfg_attr(not(test), expect(dead_code, reason = "will be called by the resolver once cache management is wired up"))]
 pub(crate) fn verify_integrity(leaf: &Path, expected: &ContentHash) -> Result<(), IntegrityError> {
     let observed =
         crate::hash::hash_directory(leaf).map_err(|source| IntegrityError::Hash { source })?;
@@ -143,9 +139,7 @@ pub(crate) fn verify_integrity(leaf: &Path, expected: &ContentHash) -> Result<()
 }
 
 /// An error produced by [`verify_integrity`].
-// NOTE: `#[expect(dead_code)]` would error under tests where these items are
-// used; cannot expect the lint to fire across all configurations.
-#[allow(dead_code)]
+#[cfg_attr(not(test), expect(dead_code, reason = "will be called by the resolver once cache management is wired up"))]
 #[derive(Debug, Error)]
 pub(crate) enum IntegrityError {
     /// The cached module's content hash does not match the expected
