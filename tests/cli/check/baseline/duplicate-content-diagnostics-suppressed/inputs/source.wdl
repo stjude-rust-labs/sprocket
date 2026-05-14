@@ -1,3 +1,5 @@
+#@ except: EmptyOutputs
+
 version 1.3
 
 task aa {

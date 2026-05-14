@@ -1,7 +1,7 @@
 note[RequirementsSection]: task `a_task_with_no_keys` contains a deprecated `runtime` section
-   ┌─ tests/lints/runtime-keys-wdl-1.2/source.wdl:11:5
+   ┌─ tests/lints/runtime-keys-wdl-1.2/source.wdl:13:5
    │
-11 │     runtime {}
+13 │     runtime {}
    │     ^^^^^^^
    │
    = fix: replace the `runtime` section with a `requirements` section
