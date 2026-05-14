@@ -209,6 +209,10 @@ pub(crate) fn is_non_public_ip(host: &str) -> bool {
                 || v4.octets()[0] == 100 && (v4.octets()[1] & 0xC0) == 64
         }
         IpAddr::V6(v6) => {
+            // ::ffff:0:0/96 — IPv4-mapped IPv6; check the inner v4 address
+            if let Some(mapped) = v6.to_ipv4_mapped() {
+                return is_non_public_ip(&mapped.to_string());
+            }
             // ::1
             v6.is_loopback()
                 // ff00::/8
@@ -364,6 +368,11 @@ mod tests {
             "fe80::1",
             "fc00::1",
             "ff02::1",
+            // IPv4-mapped IPv6
+            "::ffff:127.0.0.1",
+            "::ffff:169.254.169.254",
+            "::ffff:10.0.0.1",
+            "::ffff:192.168.1.1",
         ];
         for ip in denied {
             for scope in [DependencyScope::TopLevel, DependencyScope::Transitive] {
@@ -380,6 +389,10 @@ mod tests {
         let cfg = ModulesConfig::default();
         assert!(cfg.host_allowed("github.com", DependencyScope::TopLevel));
         assert!(cfg.host_allowed("github.com", DependencyScope::Transitive));
+        assert!(
+            cfg.host_allowed("::ffff:140.82.121.3", DependencyScope::TopLevel),
+            "public IPv4-mapped IPv6 should be allowed"
+        );
     }
 
     #[test]
