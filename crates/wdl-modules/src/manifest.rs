@@ -618,6 +618,7 @@ mod tests {
         );
     }
 
+    #[test]
     fn rejects_non_identifier_dep_key() {
         let err = parse(
             r#"{
