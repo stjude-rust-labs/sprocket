@@ -236,15 +236,6 @@ impl GitResolver {
                 return Err(ResolverError::Cycle { path });
             }
 
-            chain.push((name.clone(), resolved_source.clone()));
-            let inner = self
-                .resolve_deps(&manifest.dependencies, Some(&resolved_source), chain)
-                .await
-                .inspect_err(|_| {
-                    chain.pop();
-                })?;
-            chain.pop();
-
             let VerifiedModule { checksum, signer } = self
                 .verify(name, module_root.module_root().as_ref())
                 .inspect_err(|e| {
@@ -257,6 +248,16 @@ impl GitResolver {
                         );
                     }
                 })?;
+
+            chain.push((name.clone(), resolved_source.clone()));
+            let inner = self
+                .resolve_deps(&manifest.dependencies, Some(&resolved_source), chain)
+                .await
+                .inspect_err(|_| {
+                    chain.pop();
+                })?;
+            chain.pop();
+
             Ok(ResolvedDependency {
                 source: resolved_source,
                 version: manifest.version,
@@ -1289,6 +1290,47 @@ mod tests {
             matches!(err, ResolverError::RequireSignedViolation { .. }),
             "expected `RequireSignedViolation`, got: {err}"
         );
+    }
+
+    #[tokio::test]
+    async fn resolve_tree_verifies_parent_before_transitive_dependencies() {
+        let workdir = tempdir().unwrap();
+        let child_dir = workdir.path().join("child");
+        write_manifest(&child_dir, "child", "1.0.0", &[]);
+
+        let parent_dir = workdir.path().join("parent");
+        let child_src = format!("{{\"path\":\"{}\"}}", json_path(&child_dir));
+        write_manifest(&parent_dir, "parent", "1.0.0", &[("child", &child_src)]);
+
+        let consumer_dir = workdir.path().join("consumer");
+        let parent_src = format!("{{\"path\":\"{}\"}}", json_path(&parent_dir));
+        write_manifest(
+            &consumer_dir,
+            "consumer",
+            "0.1.0",
+            &[("parent", &parent_src)],
+        );
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let r = GitResolver::builder()
+            .cache_root(cache.path())
+            .trust_path(cache.path().join("trust.toml"))
+            .trust(TrustStore::default())
+            .config(ModulesConfig {
+                require_signed: true,
+                ..ModulesConfig::default()
+            })
+            .lockfile(Lockfile::default())
+            .build();
+
+        let err = r.resolve_tree(&consumer).await.unwrap_err();
+        let ResolverError::RequireSignedViolation { dep } = err else {
+            panic!("expected parent verification to run before transitive dependency traversal");
+        };
+        assert_eq!(dep, "parent");
     }
 
     #[tokio::test]
