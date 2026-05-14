@@ -248,8 +248,23 @@ where
 
     let repo = builder.clone(url.as_str(), leaf).map_err(GitError::Git)?;
 
+    // The shallow clone above fetches only the remote's default HEAD.
+    // If the resolved commit lives on a different branch or tag, it
+    // won't be present in the local object store. Fall back to an
+    // explicit fetch of the exact OID so the detach succeeds.
     let oid = git2::Oid::from_str(commit).map_err(GitError::Git)?;
-    repo.set_head_detached(oid).map_err(GitError::Git)?;
+    if repo.set_head_detached(oid).is_err() {
+        let mut fetch_opts = default_fetch_options(mode);
+        // `+<src>:<dst>`: the `+` forces the update, `<src>` is the
+        // remote OID we need, and `<dst>` parks it under a local ref so
+        // libgit2 writes the object into the local store.
+        let refspec = format!("+{commit}:refs/fetched/{commit}");
+        repo.remote_anonymous(url.as_str())
+            .map_err(GitError::Git)?
+            .fetch(&[&refspec], Some(&mut fetch_opts), None)
+            .map_err(GitError::Git)?;
+        repo.set_head_detached(oid).map_err(GitError::Git)?;
+    }
 
     enforce_tree_limits(&repo, oid, &owned, max_files, max_bytes)?;
 
@@ -727,6 +742,77 @@ mod tests {
         assert!(
             matches!(err, GitError::TreeLimitExceeded { files: 3, .. }),
             "got: {err}"
+        );
+    }
+
+    /// Verifies that `clone_with_sparse_checkout` can materialize a
+    /// commit that is not reachable from the remote's default HEAD.
+    /// The initial shallow clone fetches only the default branch, so
+    /// the selected commit must be fetched explicitly as a fallback.
+    #[test]
+    fn clones_commit_not_reachable_from_default_head() {
+        let upstream = tempdir().unwrap();
+        let repo = Repository::init(upstream.path()).unwrap();
+        let sig = Signature::now("test", "test@example.com").unwrap();
+
+        // commit on default branch (main) with only `mod_a/`
+        let mod_a = upstream.path().join("mod_a");
+        fs::create_dir_all(&mod_a).unwrap();
+        fs::write(mod_a.join("a.txt"), b"main").unwrap();
+        let mut index = repo.index().unwrap();
+        index
+            .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
+            .unwrap();
+        index.write().unwrap();
+        let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+        let main_oid = repo
+            .commit(Some("HEAD"), &sig, &sig, "main commit", &tree, &[])
+            .unwrap();
+        let main_commit = repo.find_commit(main_oid).unwrap();
+
+        // commit on a separate branch adding `mod_b/`
+        repo.branch("other", &main_commit, false).unwrap();
+        repo.set_head("refs/heads/other").unwrap();
+        let mod_b = upstream.path().join("mod_b");
+        fs::create_dir_all(&mod_b).unwrap();
+        fs::write(mod_b.join("b.txt"), b"other").unwrap();
+        let mut index = repo.index().unwrap();
+        index
+            .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
+            .unwrap();
+        index.write().unwrap();
+        let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+        let other_oid = repo
+            .commit(
+                Some("refs/heads/other"),
+                &sig,
+                &sig,
+                "other commit",
+                &tree,
+                &[&main_commit],
+            )
+            .unwrap();
+
+        // reset HEAD back to main so the shallow clone won't include `other`
+        repo.set_head("refs/heads/main").unwrap();
+
+        let leaf = tempdir().unwrap();
+        let leaf_path = leaf.path().join("checkout");
+        let url = Url::from_file_path(upstream.path()).unwrap();
+        clone_with_sparse_checkout(
+            &url,
+            &other_oid.to_string(),
+            &leaf_path,
+            ["mod_b"],
+            CredentialMode::Enabled,
+            None,
+            None,
+        )
+        .unwrap();
+
+        assert!(
+            leaf_path.join("mod_b").join("b.txt").exists(),
+            "checkout should contain the file from the non-default branch"
         );
     }
 }
