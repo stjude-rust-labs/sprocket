@@ -49,11 +49,13 @@ impl ModuleVerifier<'_> {
         Ok(VerifiedModule { checksum, signer })
     }
 
-    /// Verifies a dependency's content hash against the lockfile.
+    /// Verifies a dependency's content hash and signer against the
+    /// lockfile.
     pub fn verify_against_lockfile(
         &self,
         name: &DependencyName,
         checksum: &ContentHash,
+        signer: Option<&VerifyingKey>,
     ) -> Result<(), ResolverError> {
         let locked_entry =
             self.lockfile
@@ -68,6 +70,22 @@ impl ModuleVerifier<'_> {
                 expected: locked_entry.checksum,
                 observed: *checksum,
             });
+        }
+        match (locked_entry.signer, signer) {
+            (Some(expected), None) => {
+                return Err(ResolverError::SignatureDowngrade {
+                    dep: name.manifest().to_string(),
+                    expected_signer: Box::new(expected),
+                });
+            }
+            (Some(expected), Some(observed)) if expected != *observed => {
+                return Err(ResolverError::SignerKeyMismatch {
+                    dep: name.manifest().to_string(),
+                    expected: Box::new(expected),
+                    observed: Box::new(*observed),
+                });
+            }
+            _ => {}
         }
         Ok(())
     }

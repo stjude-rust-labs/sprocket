@@ -115,6 +115,20 @@ pub enum ResolverError {
         observed: Box<VerifyingKey>,
     },
 
+    /// A dependency was signed when the lockfile was written but is now
+    /// unsigned. This prevents a supply-chain downgrade where an
+    /// attacker strips the signature from a module whose content hash
+    /// has not changed (since `module.sig` is excluded from the hash).
+    #[error(
+        "`{dep}` was signed when locked but is now unsigned; this may indicate tampering"
+    )]
+    SignatureDowngrade {
+        /// The owning dependency.
+        dep: String,
+        /// The signer key recorded in the lockfile.
+        expected_signer: Box<VerifyingKey>,
+    },
+
     /// A Git tag or branch named in a dependency's selector does not
     /// exist on the remote.
     #[error("`{dep}` selector references unknown {kind} `{name}`")]

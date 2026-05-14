@@ -290,11 +290,13 @@ impl GitResolver {
         verifier.verify(name, module_root)
     }
 
-    /// Verifies a dependency's content hash against the lockfile.
+    /// Verifies a dependency's content hash and signer against the
+    /// lockfile.
     fn verify_against_lockfile(
         &self,
         name: &DependencyName,
         checksum: &crate::ContentHash,
+        signer: Option<&crate::VerifyingKey>,
     ) -> Result<(), ResolverError> {
         let policy = self.policy();
         let verifier = ModuleVerifier::builder()
@@ -303,7 +305,7 @@ impl GitResolver {
             .trust(&self.trust)
             .lockfile(&self.lockfile)
             .build();
-        verifier.verify_against_lockfile(name, checksum)
+        verifier.verify_against_lockfile(name, checksum, signer)
     }
 
     /// Resolves a [`GitSelector`] against the remote at `url` to a
@@ -634,7 +636,7 @@ impl Resolver for GitResolver {
 
         let root_path = module_root.module_root().as_ref();
         let verified = self.verify(name, root_path)?;
-        self.verify_against_lockfile(name, &verified.checksum)?;
+        self.verify_against_lockfile(name, &verified.checksum, verified.signer.as_ref())?;
 
         let (rel, kind) = match path.sub_path() {
             None => (
@@ -1780,5 +1782,98 @@ mod tests {
             ),
             "symlink to nested metadata must be rejected, got: {err}"
         );
+    }
+
+    #[tokio::test]
+    async fn materialize_rejects_signature_downgrade() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
+        let signer = crate::signing::test_utils::signing_key_from_seed(7);
+        write_signature(&dep_dir, &signer);
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let (_, mut lockfile) = resolve_and_lock(&cache, &consumer).await;
+        let dep_name = DependencyName::try_from("dep".to_string()).unwrap();
+        assert!(
+            lockfile.dependencies.get(&dep_name).unwrap().signer.is_some(),
+            "lockfile should record the signer"
+        );
+
+        fs::remove_file(dep_dir.join(crate::SIGNATURE_FILENAME)).unwrap();
+
+        let r = resolver_with_lockfile(&cache, lockfile);
+        let err = r
+            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::SignatureDowngrade { .. }),
+            "expected `SignatureDowngrade`, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn materialize_rejects_signer_key_change() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
+        let signer_a = crate::signing::test_utils::signing_key_from_seed(7);
+        write_signature(&dep_dir, &signer_a);
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
+
+        let signer_b = crate::signing::test_utils::signing_key_from_seed(99);
+        write_signature(&dep_dir, &signer_b);
+
+        let r = resolver_with_lockfile(&cache, lockfile);
+        let err = r
+            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::SignerKeyMismatch { .. }),
+            "expected `SignerKeyMismatch`, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn materialize_accepts_unsigned_when_lockfile_has_no_signer() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let (r, _) = resolve_and_lock(&cache, &consumer).await;
+        let mat = r
+            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .await
+            .unwrap();
+        assert!(mat.path.exists());
     }
 }
