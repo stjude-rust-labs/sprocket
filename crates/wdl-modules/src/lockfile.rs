@@ -15,6 +15,7 @@ use url::Url;
 use crate::ContentHash;
 use crate::DependencyName;
 use crate::DependencyNameError;
+use crate::GitSelector;
 use crate::VerifyingKey;
 
 /// The current lockfile schema version.
@@ -104,6 +105,12 @@ pub enum ResolvedSource {
         git: Url,
         /// The 40-character lowercase hex commit SHA.
         commit: GitCommit,
+        /// The selector from `module.json` that produced this lockfile
+        /// entry. Older lockfiles may omit this field; tag and branch
+        /// selectors require a relock when it is absent because mutable
+        /// refs cannot be validated from the resolved commit alone.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        selector: Option<GitSelector>,
         /// The sub-path within the repository where the module lives.
         /// Omitted when the module sits at the repository root.
         #[serde(default, skip_serializing_if = "Option::is_none")]

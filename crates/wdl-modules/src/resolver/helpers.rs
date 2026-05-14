@@ -112,6 +112,7 @@ mod tests {
             git: "https://github.com/x/y".parse().unwrap(),
             commit: "0000000000000000000000000000000000000000".parse().unwrap(),
             path: None,
+            selector: Some(crate::GitSelector::Tag("v1".into())),
         };
         let local_dep = DependencySource::LocalPath {
             path: "/tmp/dep".into(),

@@ -124,9 +124,7 @@ impl TryFrom<DependencySourceFields> for DependencySource {
                     // field, so one of them must match.
                     unreachable!()
                 };
-                let validated_path = git_subpath
-                    .map(GitModulePath::try_from)
-                    .transpose()?;
+                let validated_path = git_subpath.map(GitModulePath::try_from).transpose()?;
                 Ok(Self::Git {
                     url,
                     selector,
@@ -150,7 +148,8 @@ impl TryFrom<DependencySourceFields> for DependencySource {
 }
 
 /// A Git revision selector.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
 pub enum GitSelector {
     /// A semver requirement matched against the repository's tags.
     Version(VersionRequirement),

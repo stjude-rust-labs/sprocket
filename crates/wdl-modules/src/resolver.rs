@@ -32,8 +32,10 @@ use futures::future::BoxFuture;
 use futures::future::FutureExt;
 use semver::Version;
 
+use crate::DependencyEntry;
 use crate::DependencyName;
 use crate::DependencySource;
+use crate::GitCommit;
 use crate::GitModulePath;
 use crate::GitSelector;
 use crate::Lockfile;
@@ -202,7 +204,9 @@ impl GitResolver {
             };
             for (name, source) in deps {
                 if is_transitive_local_disallowed(parent, source) {
-                    return Err(ResolverError::LocalPathInTransitive { dep: name.manifest().to_string() });
+                    return Err(ResolverError::LocalPathInTransitive {
+                        dep: name.manifest().to_string(),
+                    });
                 }
                 if let DependencySource::Git { url, .. } = source {
                     self.policy().check_git_url(name, url, scope)?;
@@ -397,11 +401,11 @@ impl GitResolver {
         match source {
             DependencySource::LocalPath { path, .. } => {
                 if matches!(mode, ResolutionMode::Locked) {
-                    let locked_entry = self
-                        .lockfile
-                        .dependencies
-                        .get(name)
-                        .ok_or_else(|| ResolverError::NotInLockfile { dep: name.manifest().to_string() })?;
+                    let locked_entry = self.lockfile.dependencies.get(name).ok_or_else(|| {
+                        ResolverError::NotInLockfile {
+                            dep: name.manifest().to_string(),
+                        }
+                    })?;
                     if let ResolvedSource::Path { path: locked_path } = &locked_entry.source {
                         if path != locked_path {
                             return Err(ResolverError::LockfileSourceMismatch {
@@ -409,7 +413,9 @@ impl GitResolver {
                             });
                         }
                     } else {
-                        return Err(ResolverError::LockfileSourceMismatch { dep: name.manifest().to_string() });
+                        return Err(ResolverError::LockfileSourceMismatch {
+                            dep: name.manifest().to_string(),
+                        });
                     }
                 }
                 let manifest = read_manifest(path)?;
@@ -473,6 +479,7 @@ impl GitResolver {
                         git: url.clone(),
                         commit: plan.commit,
                         path: path.clone(),
+                        selector: Some(selector.clone()),
                     },
                     manifest,
                     MaterializedRoot::Cached {
@@ -500,23 +507,37 @@ impl GitResolver {
 
         let (selected_version, commit) = match mode {
             ResolutionMode::Locked => {
-                let locked_entry = self
-                    .lockfile
-                    .dependencies
-                    .get(name)
-                    .ok_or_else(|| ResolverError::NotInLockfile { dep: name.manifest().to_string() })?;
-                let (locked_url, locked_commit, locked_path) = match &locked_entry.source {
-                    ResolvedSource::Git {
-                        git: lu,
-                        commit: lc,
-                        path: lp,
-                    } => (lu, lc, lp),
-                    _ => {
-                        return Err(ResolverError::NotInLockfile { dep: name.manifest().to_string() });
+                let locked_entry = self.lockfile.dependencies.get(name).ok_or_else(|| {
+                    ResolverError::NotInLockfile {
+                        dep: name.manifest().to_string(),
                     }
-                };
-                if url != locked_url || path != locked_path {
-                    return Err(ResolverError::LockfileSourceMismatch { dep: name.manifest().to_string() });
+                })?;
+                let (locked_url, locked_commit, locked_path, locked_selector) =
+                    match &locked_entry.source {
+                        ResolvedSource::Git {
+                            git: lu,
+                            commit: lc,
+                            path: lp,
+                            selector: ls,
+                        } => (lu, lc, lp, ls),
+                        _ => {
+                            return Err(ResolverError::NotInLockfile {
+                                dep: name.manifest().to_string(),
+                            });
+                        }
+                    };
+                if url != locked_url
+                    || path != locked_path
+                    || !locked_selector_satisfies(
+                        locked_entry,
+                        selector,
+                        locked_commit,
+                        locked_selector.as_ref(),
+                    )
+                {
+                    return Err(ResolverError::LockfileSourceMismatch {
+                        dep: name.manifest().to_string(),
+                    });
                 }
                 (None, locked_commit.clone())
             }
@@ -542,6 +563,26 @@ impl GitResolver {
             sparse_path,
             module_path,
         })
+    }
+}
+
+/// Returns true when a lockfile entry can satisfy the current Git
+/// selector in `module.json`.
+fn locked_selector_satisfies(
+    entry: &DependencyEntry,
+    selector: &GitSelector,
+    locked_commit: &GitCommit,
+    locked_selector: Option<&GitSelector>,
+) -> bool {
+    match selector {
+        GitSelector::Version(requirement) => requirement.matches(&entry.version),
+        GitSelector::Commit(commit) => commit == locked_commit,
+        GitSelector::Tag(tag) => {
+            matches!(locked_selector, Some(GitSelector::Tag(locked)) if locked == tag)
+        }
+        GitSelector::Branch(branch) => {
+            matches!(locked_selector, Some(GitSelector::Branch(locked)) if locked == branch)
+        }
     }
 }
 
@@ -970,6 +1011,95 @@ mod tests {
             matches!(err, ResolverError::LockfileSourceMismatch { .. }),
             "expected `LockfileSourceMismatch`, got: {err}"
         );
+    }
+
+    fn locked_git_resolver(cache: &TempDir, dep: &str, entry: DependencyEntry) -> GitResolver {
+        let mut lockfile = Lockfile::default();
+        lockfile.dependencies.insert(dep.parse().unwrap(), entry);
+        resolver_with_lockfile(cache, lockfile)
+    }
+
+    fn locked_git_entry(selector: Option<GitSelector>) -> DependencyEntry {
+        DependencyEntry {
+            source: ResolvedSource::Git {
+                git: "https://github.com/openwdl/tasks".parse().unwrap(),
+                commit: "0000000000000000000000000000000000000001".parse().unwrap(),
+                path: None,
+                selector,
+            },
+            version: Version::parse("1.0.0").unwrap(),
+            checksum: checksum(),
+            signer: None,
+            dependencies: Default::default(),
+        }
+    }
+
+    #[tokio::test]
+    async fn locked_git_materialization_rejects_version_selector_mismatch() {
+        let cache = tempdir().unwrap();
+        let r = locked_git_resolver(&cache, "dep", locked_git_entry(None));
+        let dep = DependencyName::try_from("dep".to_string()).unwrap();
+        let url = "https://github.com/openwdl/tasks".parse().unwrap();
+        let selector = GitSelector::Version("^2".parse().unwrap());
+        let err = r
+            .plan_git_materialization(
+                &dep,
+                &url,
+                &selector,
+                &None,
+                DependencyScope::TopLevel,
+                ResolutionMode::Locked,
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(err, ResolverError::LockfileSourceMismatch { .. }));
+    }
+
+    #[tokio::test]
+    async fn locked_git_materialization_rejects_commit_selector_mismatch() {
+        let cache = tempdir().unwrap();
+        let r = locked_git_resolver(&cache, "dep", locked_git_entry(None));
+        let dep = DependencyName::try_from("dep".to_string()).unwrap();
+        let url = "https://github.com/openwdl/tasks".parse().unwrap();
+        let selector =
+            GitSelector::Commit("0000000000000000000000000000000000000002".parse().unwrap());
+        let err = r
+            .plan_git_materialization(
+                &dep,
+                &url,
+                &selector,
+                &None,
+                DependencyScope::TopLevel,
+                ResolutionMode::Locked,
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(err, ResolverError::LockfileSourceMismatch { .. }));
+    }
+
+    #[tokio::test]
+    async fn locked_git_materialization_rejects_tag_selector_mismatch() {
+        let cache = tempdir().unwrap();
+        let r = locked_git_resolver(
+            &cache,
+            "dep",
+            locked_git_entry(Some(GitSelector::Tag("v1.0.0".to_string()))),
+        );
+        let dep = DependencyName::try_from("dep".to_string()).unwrap();
+        let url = "https://github.com/openwdl/tasks".parse().unwrap();
+        let selector = GitSelector::Tag("v2.0.0".to_string());
+        let err = r
+            .plan_git_materialization(
+                &dep,
+                &url,
+                &selector,
+                &None,
+                DependencyScope::TopLevel,
+                ResolutionMode::Locked,
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(err, ResolverError::LockfileSourceMismatch { .. }));
     }
 
     #[tokio::test]
