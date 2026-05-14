@@ -60,9 +60,9 @@ impl GitModulePath {
         self.0.as_path()
     }
 
-    /// Consumes the [`GitModulePath`] and returns its inner
+    /// Consumes the [`GitModulePath`] and returns the underlying
     /// [`RelativePath`].
-    pub fn into_inner(self) -> RelativePath {
+    pub fn into_relative_path(self) -> RelativePath {
         self.0
     }
 }
