@@ -4,6 +4,7 @@
 //! tree.
 
 use std::collections::BTreeSet;
+use std::fs::File;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -18,6 +19,35 @@ use url::Url;
 /// File written into a cache leaf recording which module folders are
 /// currently materialized via sparse checkout.
 const SPARSE_META_FILENAME: &str = ".sparse.json";
+
+/// Advisory lock file inside each cache leaf directory.
+const LOCK_FILENAME: &str = ".lock";
+
+/// Acquires an exclusive file lock for a cache leaf directory.
+///
+/// The lock file is placed next to the leaf (in its parent directory)
+/// so it can be created before the leaf itself exists. The lock is
+/// released when the returned [`File`] handle is dropped; the lock
+/// file remains on disk to avoid delete-after-unlock races.
+fn lock_cache_leaf(leaf: &Path) -> Result<File, GitError> {
+    let parent = leaf
+        .parent()
+        .ok_or_else(|| GitError::RootLeaf(leaf.to_path_buf()))?;
+    std::fs::create_dir_all(parent).map_err(|source| GitError::Io {
+        path: parent.to_path_buf(),
+        source,
+    })?;
+    let lock_path = parent.join(LOCK_FILENAME);
+    let file = File::create(&lock_path).map_err(|source| GitError::Io {
+        path: lock_path.clone(),
+        source,
+    })?;
+    file.lock().map_err(|source| GitError::Io {
+        path: lock_path,
+        source,
+    })?;
+    Ok(file)
+}
 
 /// The module folders currently materialized in a sparse-checkout cache
 /// leaf.
@@ -294,6 +324,7 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
+    let _lock = lock_cache_leaf(leaf)?;
     if leaf.exists() {
         extend_sparse_checkout(leaf, paths, max_files, max_bytes)
     } else {
