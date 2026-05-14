@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.25.0 - 2026-05-14
+
 ### Added
 
 * `sprocket format --newline-style` and `format.newline_style` config option to control the style of newlines in

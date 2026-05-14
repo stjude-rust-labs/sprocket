@@ -1,6 +1,6 @@
 [package]
 name = "wdl-modules"
-version = "0.1.0"
+version = "0.1.1"
 description = "Implementation of the WDL module specification"
 authors.workspace = true
 rust-version.workspace = true
@@ -28,7 +28,7 @@ ssh-key = { workspace = true }
 thiserror = { workspace = true }
 unicode-normalization = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-wdl-grammar = { path = "../wdl-grammar", version = "0.21.1" }
+wdl-grammar = { path = "../wdl-grammar", version = "0.22.0" }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
