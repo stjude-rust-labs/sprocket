@@ -1,9 +1,18 @@
 //! A validated sub-path within a Git-backed dependency.
 //!
+//! A Git repository may host multiple modules in distinct subdirectories.
+//! When a consumer's `module.json` declares a Git dependency with a
+//! `path` field (e.g., `"path": "csvkit"`), that value identifies which
+//! subdirectory within the cloned repository contains the target
+//! module's `module.json`. The same path appears in the lockfile's
+//! `source` object so the resolver can locate the module after checkout.
+//!
 //! [`GitModulePath`] wraps [`RelativePath`] with one additional
 //! restriction: the path must not be `"."` (or empty), because a
 //! single-dot path is semantically equivalent to "no sub-path" and
-//! would create an ambiguous cache layout.
+//! would create an ambiguous cache layout. When a module sits at the
+//! repository root, the `path` field is omitted entirely rather than
+//! set to `"."`.
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -31,9 +40,11 @@ pub enum GitModulePathError {
 
 /// A validated, canonical sub-path within a Git-backed dependency.
 ///
-/// Wraps [`RelativePath`] and additionally rejects `"."` and empty
-/// strings, both of which are semantically equivalent to "no sub-path"
-/// in the Git cache layout.
+/// Represents the `path` field on a Git dependency source—the relative
+/// directory within the repository that contains the module's
+/// `module.json`. Wraps [`RelativePath`] and additionally rejects `"."`
+/// and empty strings, both of which are semantically equivalent to "no
+/// sub-path" (i.e., the module sits at the repository root).
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
 #[serde(into = "String", try_from = "String")]
 pub struct GitModulePath(RelativePath);
