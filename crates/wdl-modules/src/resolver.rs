@@ -702,9 +702,7 @@ impl Resolver for GitResolver {
                     return Ok(Vec::new());
                 };
                 let fetcher = self.fetcher();
-                // SAFETY: `_discovery` is a valid identifier matching
-                // `DependencyName`'s `[A-Za-z][A-Za-z0-9_]*` pattern.
-                let dep = DependencyName::try_from("_discovery".to_string()).unwrap();
+                let dep = DependencyName::try_from("discovery".to_string()).unwrap();
                 let url = url.clone();
                 let path_prefix = path.as_ref().map(GitModulePath::as_str).map(str::to_string);
                 let requirement = requirement.clone();
@@ -1804,7 +1802,12 @@ mod tests {
         let (_, mut lockfile) = resolve_and_lock(&cache, &consumer).await;
         let dep_name = DependencyName::try_from("dep".to_string()).unwrap();
         assert!(
-            lockfile.dependencies.get(&dep_name).unwrap().signer.is_some(),
+            lockfile
+                .dependencies
+                .get(&dep_name)
+                .unwrap()
+                .signer
+                .is_some(),
             "lockfile should record the signer"
         );
 
@@ -1875,5 +1878,50 @@ mod tests {
             .await
             .unwrap();
         assert!(mat.path.exists());
+    }
+
+    #[tokio::test]
+    async fn discover_versions_does_not_panic() {
+        let upstream = tempdir().unwrap();
+        let repo = git2::Repository::init(upstream.path()).unwrap();
+        let sig = git2::Signature::now("test", "test@example.com").unwrap();
+
+        write_manifest(upstream.path(), "dep", "1.0.0", &[]);
+        let mut index = repo.index().unwrap();
+        index
+            .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
+            .unwrap();
+        index.write().unwrap();
+        let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+        let oid = repo
+            .commit(Some("HEAD"), &sig, &sig, "v1.0.0", &tree, &[])
+            .unwrap();
+        repo.tag_lightweight("v1.0.0", &repo.find_object(oid.into(), None).unwrap(), false)
+            .unwrap();
+
+        let source = DependencySource::Git {
+            url: url::Url::from_file_path(upstream.path()).unwrap(),
+            selector: GitSelector::Version("^1".parse().unwrap()),
+            path: None,
+            extra: Default::default(),
+        };
+
+        let cache = tempdir().unwrap();
+        let r = GitResolver::builder()
+            .cache_root(cache.path())
+            .trust_path(cache.path().join("trust.toml"))
+            .trust(TrustStore::default())
+            .lockfile(Lockfile::default())
+            .config(ModulesConfig {
+                allowed_schemes: vec!["https".into(), "ssh".into(), "file".into()],
+                ..ModulesConfig::default()
+            })
+            .build();
+        let versions = r.discover_versions(&source).await.unwrap();
+        assert_eq!(
+            versions,
+            vec![semver::Version::parse("1.0.0").unwrap()],
+            "should discover `v1.0.0` tag"
+        );
     }
 }
