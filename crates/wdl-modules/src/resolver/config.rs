@@ -182,19 +182,31 @@ pub(crate) fn is_non_public_ip(host: &str) -> bool {
     };
     match ip {
         IpAddr::V4(v4) => {
+            // 127.0.0.0/8
             v4.is_loopback()
+                // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16 (RFC 1918)
                 || v4.is_private()
+                // 169.254.0.0/16 — includes the cloud metadata endpoint 169.254.169.254
                 || v4.is_link_local()
+                // 224.0.0.0/4
                 || v4.is_multicast()
+                // 0.0.0.0
                 || v4.is_unspecified()
+                // 255.255.255.255
                 || v4.is_broadcast()
+                // 100.64.0.0/10 — carrier-grade NAT (RFC 6598)
                 || v4.octets()[0] == 100 && (v4.octets()[1] & 0xC0) == 64
         }
         IpAddr::V6(v6) => {
+            // ::1
             v6.is_loopback()
+                // ff00::/8
                 || v6.is_multicast()
+                // ::
                 || v6.is_unspecified()
+                // fc00::/7 — unique local addresses (RFC 4193)
                 || (v6.segments()[0] & 0xFE00) == 0xFC00
+                // fe80::/10 — link-local addresses
                 || (v6.segments()[0] & 0xFFC0) == 0xFE80
         }
     }
