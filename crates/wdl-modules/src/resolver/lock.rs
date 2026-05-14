@@ -71,6 +71,35 @@ impl LockfileDiff {
     }
 }
 
+/// Recursive helper for [`LockfileDiff::compute`].
+fn walk_dep_map(
+    prev: Option<&DependencyMap>,
+    new: &DependencyMap,
+    chain: &mut Vec<DependencyName>,
+    diff: &mut LockfileDiff,
+) {
+    for (dep, entry) in new {
+        chain.push(dep.clone());
+        let prev_entry = prev.and_then(|p| p.get(dep));
+        let prev_signer = prev_entry.and_then(|e| e.signer);
+        match (entry.signer, prev_signer) {
+            (Some(new_key), Some(prev_key)) if new_key == prev_key => {}
+            (Some(new_key), _) => diff.new_signers.push(NewSigner {
+                dep_chain: chain.clone(),
+                key: new_key,
+            }),
+            (None, _) => {
+                if prev_entry.is_none() {
+                    diff.unsigned_added += 1;
+                }
+            }
+        }
+        let prev_nested = prev_entry.map(|e| &e.dependencies);
+        walk_dep_map(prev_nested, &entry.dependencies, chain, diff);
+        chain.pop();
+    }
+}
+
 /// The outcome of a [`partial_relock`] call. Contains the merged
 /// lockfile and a per-dependency summary the CLI uses to print
 /// "Updating x v1.0.0 -> v1.5.0" style output.
@@ -118,35 +147,6 @@ pub struct DependencyUpdate {
     /// The version the new entry pins to. `None` when the dependency
     /// has no recorded modules.
     pub to: Option<Version>,
-}
-
-/// Recursive helper for [`LockfileDiff::compute`].
-fn walk_dep_map(
-    prev: Option<&DependencyMap>,
-    new: &DependencyMap,
-    chain: &mut Vec<DependencyName>,
-    diff: &mut LockfileDiff,
-) {
-    for (dep, entry) in new {
-        chain.push(dep.clone());
-        let prev_entry = prev.and_then(|p| p.get(dep));
-        let prev_signer = prev_entry.and_then(|e| e.signer);
-        match (entry.signer, prev_signer) {
-            (Some(new_key), Some(prev_key)) if new_key == prev_key => {}
-            (Some(new_key), _) => diff.new_signers.push(NewSigner {
-                dep_chain: chain.clone(),
-                key: new_key,
-            }),
-            (None, _) => {
-                if prev_entry.is_none() {
-                    diff.unsigned_added += 1;
-                }
-            }
-        }
-        let prev_nested = prev_entry.map(|e| &e.dependencies);
-        walk_dep_map(prev_nested, &entry.dependencies, chain, diff);
-        chain.pop();
-    }
 }
 
 /// Performs a partial relock against an existing lockfile.
