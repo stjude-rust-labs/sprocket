@@ -12,6 +12,7 @@ use thiserror::Error;
 #[serde(default, deny_unknown_fields)]
 pub struct ModulesConfig {
     /// Override the global cache location for this project.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_path: Option<PathBuf>,
 
     /// Threshold for the large-file warning, or [`LargeFileWarning::Disabled`]
@@ -19,6 +20,7 @@ pub struct ModulesConfig {
     pub large_file_warning: LargeFileWarning,
 
     /// Reject any unsigned module in the dependency tree.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub require_signed: bool,
 
     /// TOFU policy for new signer keys.
@@ -26,13 +28,13 @@ pub struct ModulesConfig {
 
     /// URL schemes permitted for top-level Git dependencies. Defaults
     /// to `["https", "ssh"]`.
-    #[serde(default = "default_top_level_schemes")]
+    #[serde(default = "default_top_level_schemes", skip_serializing_if = "Vec::is_empty")]
     pub allowed_schemes: Vec<String>,
 
     /// URL schemes permitted for transitive Git dependencies. Defaults
     /// to `["https"]` so remote manifests cannot silently trigger SSH
     /// authentication against an attacker-controlled host.
-    #[serde(default = "default_transitive_schemes")]
+    #[serde(default = "default_transitive_schemes", skip_serializing_if = "Vec::is_empty")]
     pub allowed_transitive_schemes: Vec<String>,
 
     /// Maximum number of advertised refs accepted from a remote.
@@ -42,35 +44,35 @@ pub struct ModulesConfig {
 
     /// Hosts denied for all Git dependencies. Defaults to localhost
     /// addresses.
-    #[serde(default = "default_denied_hosts")]
+    #[serde(default = "default_denied_hosts", skip_serializing_if = "Vec::is_empty")]
     pub denied_hosts: Vec<String>,
 
     /// Hosts permitted for top-level Git dependencies. Empty means any
     /// non-denied host is allowed.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allowed_hosts: Vec<String>,
 
     /// Hosts permitted for transitive Git dependencies. Empty means
     /// any non-denied host is allowed.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allowed_transitive_hosts: Vec<String>,
 
     /// Whether transitive dependencies may use configured Git
     /// credential helpers and ssh-agent. Defaults to `false`.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub allow_transitive_credentials: bool,
 
     /// Maximum number of files allowed in a single materialized module
     /// tree. `None` (the default) disables the limit. Checked against
     /// the Git tree object after fetch but before sparse checkout; this
     /// bounds materialized content, not network transfer.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_materialized_files: Option<usize>,
 
     /// Maximum total bytes of regular files allowed in a single
     /// materialized module tree. `None` (the default) disables the
     /// limit. Same enforcement point as `max_materialized_files`.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_materialized_bytes: Option<u64>,
 }
 
