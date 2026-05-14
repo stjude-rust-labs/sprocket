@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.1.1 - 2026-05-14
+
 #### Added
 
 * Initial implementation of the `wdl-modules` crate, the pure-data-and-algorithms
