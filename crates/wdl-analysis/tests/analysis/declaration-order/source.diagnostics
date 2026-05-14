@@ -4,6 +4,6 @@ warning[MisleadingDeclarationOrder]: variable declaration appears after the `com
 10 │     String name = "World"
    │            ^^^^
    │
-   = help: tasks are evaluated in dependency order, not top-to-bottom
+   = help: this is visually misleading; tasks are evaluated in dependency order, not top-to-bottom
    = fix: move the declaration of `name` above the `command` section
 
