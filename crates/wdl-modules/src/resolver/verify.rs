@@ -59,10 +59,10 @@ impl ModuleVerifier<'_> {
             .lockfile
             .dependencies
             .get(name)
-            .ok_or_else(|| ResolverError::NotInLockfile { dep: name.clone() })?;
+            .ok_or_else(|| ResolverError::NotInLockfile { dep: name.manifest().to_string() })?;
         if locked_entry.checksum != *checksum {
             return Err(ResolverError::ChecksumMismatch {
-                dep: name.clone(),
+                dep: name.manifest().to_string(),
                 expected: locked_entry.checksum,
                 observed: *checksum,
             });
@@ -108,7 +108,7 @@ impl ModuleVerifier<'_> {
             Ok(b) => b,
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
                 if self.config.require_signed {
-                    return Err(ResolverError::RequireSignedViolation { dep: name.clone() });
+                    return Err(ResolverError::RequireSignedViolation { dep: name.manifest().to_string() });
                 }
                 return Ok(None);
             }
@@ -121,20 +121,20 @@ impl ModuleVerifier<'_> {
         };
         let sig = crate::ModuleSignature::parse(&bytes).map_err(|source| {
             ResolverError::SignatureParse {
-                dep: name.clone(),
+                dep: name.manifest().to_string(),
                 source,
             }
         })?;
         sig.verify(checksum)
             .map_err(|_| ResolverError::SignatureVerificationFailed {
-                dep: name.clone(),
+                dep: name.manifest().to_string(),
                 signer: Box::new(sig.public_key),
             })?;
         if let Some(trusted) = self.trust.lookup(name)
             && &sig.public_key != trusted
         {
             return Err(ResolverError::SignerKeyMismatch {
-                dep: name.clone(),
+                dep: name.manifest().to_string(),
                 expected: Box::new(*trusted),
                 observed: Box::new(sig.public_key),
             });
@@ -162,7 +162,7 @@ fn check_materialized_tree_limits(
             .is_some_and(|limit| stats.bytes > limit)
     {
         return Err(ResolverError::MaterializedTreeLimitExceeded {
-            dep: name.clone(),
+            dep: name.manifest().to_string(),
             files: stats.files,
             bytes: stats.bytes,
         });

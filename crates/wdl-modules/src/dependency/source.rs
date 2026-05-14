@@ -125,10 +125,7 @@ impl TryFrom<DependencySourceFields> for DependencySource {
                     unreachable!()
                 };
                 let validated_path = git_subpath
-                    .map(|p| {
-                        let s = p.to_string_lossy().to_string();
-                        GitModulePath::try_from(s)
-                    })
+                    .map(GitModulePath::try_from)
                     .transpose()?;
                 Ok(Self::Git {
                     url,

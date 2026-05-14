@@ -6,7 +6,6 @@ use semver::Version;
 use thiserror::Error;
 
 use crate::ContentHash;
-use crate::DependencyName;
 use crate::HashError;
 use crate::LockfileError;
 use crate::ManifestError;
@@ -29,7 +28,7 @@ pub enum ResolverError {
     #[error("{}", missing_file_message(.dep, .path, .kind))]
     MissingFile {
         /// The owning dependency.
-        dep: DependencyName,
+        dep: String,
         /// The relative path that was looked up.
         path: PathBuf,
         /// Which kind of lookup failed.
@@ -50,7 +49,7 @@ pub enum ResolverError {
     #[error("dependency cycle: {}", format_cycle(.path))]
     Cycle {
         /// The cycle path, in resolution order.
-        path: Vec<DependencyName>,
+        path: Vec<String>,
     },
 
     /// No discovered version satisfies the dependency's version
@@ -61,7 +60,7 @@ pub enum ResolverError {
     )]
     NoSatisfyingVersion {
         /// The dependency name.
-        dep: DependencyName,
+        dep: String,
         /// The unmet version requirement.
         requirement: VersionRequirement,
         /// The versions discovered before filtering by the requirement.
@@ -73,7 +72,7 @@ pub enum ResolverError {
     #[error("`{dep}` is not in `module-lock.json`; run `sprocket module lock` to update")]
     NotInLockfile {
         /// The missing dependency.
-        dep: DependencyName,
+        dep: String,
     },
 
     /// The manifest source for a dependency does not match the
@@ -83,7 +82,7 @@ pub enum ResolverError {
     )]
     LockfileSourceMismatch {
         /// The dependency whose source changed.
-        dep: DependencyName,
+        dep: String,
     },
 
     /// A cached module's content hash does not match the lockfile's
@@ -94,7 +93,7 @@ pub enum ResolverError {
     )]
     ChecksumMismatch {
         /// The owning dependency.
-        dep: DependencyName,
+        dep: String,
         /// The hash recorded in the lockfile.
         expected: ContentHash,
         /// The hash observed in the cache.
@@ -109,7 +108,7 @@ pub enum ResolverError {
     )]
     SignerKeyMismatch {
         /// The owning dependency.
-        dep: DependencyName,
+        dep: String,
         /// The signer key recorded in the lockfile.
         expected: Box<VerifyingKey>,
         /// The signer key observed in the cache.
@@ -121,7 +120,7 @@ pub enum ResolverError {
     #[error("`{dep}` selector references unknown {kind} `{name}`")]
     UnknownGitRef {
         /// The owning dependency.
-        dep: DependencyName,
+        dep: String,
         /// The kind of ref that was missing.
         kind: GitRefKind,
         /// The ref name as it appeared in the manifest.
@@ -133,7 +132,7 @@ pub enum ResolverError {
     #[error("`{dep}` `commit` value `{value}` is not a valid Git commit SHA")]
     InvalidCommit {
         /// The owning dependency.
-        dep: DependencyName,
+        dep: String,
         /// The unparsable value.
         value: String,
     },
@@ -146,7 +145,7 @@ pub enum ResolverError {
     )]
     SignatureVerificationFailed {
         /// The owning dependency.
-        dep: DependencyName,
+        dep: String,
         /// The signer key from the rejected `module.sig`.
         signer: Box<VerifyingKey>,
     },
@@ -155,7 +154,7 @@ pub enum ResolverError {
     #[error("`{dep}` `module.sig` failed to parse")]
     SignatureParse {
         /// The owning dependency.
-        dep: DependencyName,
+        dep: String,
         /// The underlying parse error.
         #[source]
         source: crate::SignatureFileError,
@@ -175,7 +174,7 @@ pub enum ResolverError {
     #[error("`{dep}` is unsigned but `require_signed` is enabled")]
     RequireSignedViolation {
         /// The unsigned dependency.
-        dep: DependencyName,
+        dep: String,
     },
 
     /// A transitive dependency declared a local-path source from a
@@ -186,7 +185,7 @@ pub enum ResolverError {
     )]
     LocalPathInTransitive {
         /// The offending dependency name.
-        dep: DependencyName,
+        dep: String,
     },
 
     /// A dependency declared by the consumer was missing from the
@@ -194,14 +193,14 @@ pub enum ResolverError {
     #[error("`{dep}` is declared by the consumer but absent from the freshly-resolved tree")]
     MissingFreshDependency {
         /// The missing dependency name.
-        dep: DependencyName,
+        dep: String,
     },
 
     /// A Git URL violates the configured scheme policy.
     #[error("`{dep}` git URL `{url}` uses scheme `{scheme}` which is not allowed by policy")]
     GitUrlPolicyViolation {
         /// The owning dependency.
-        dep: DependencyName,
+        dep: String,
         /// The rejected URL.
         url: String,
         /// The rejected scheme.
@@ -214,7 +213,7 @@ pub enum ResolverError {
     #[error("`{dep}` git URL `{url}` host `{host}` could not be resolved")]
     GitHostResolutionFailed {
         /// The owning dependency.
-        dep: DependencyName,
+        dep: String,
         /// The URL that failed resolution.
         url: String,
         /// The hostname that could not be resolved.
@@ -225,7 +224,7 @@ pub enum ResolverError {
     #[error("`{dep}` git URL `{url}` targets host `{host}` which is not allowed by policy")]
     GitHostPolicyViolation {
         /// The owning dependency.
-        dep: DependencyName,
+        dep: String,
         /// The rejected URL.
         url: String,
         /// The rejected host.
@@ -236,7 +235,7 @@ pub enum ResolverError {
     #[error("`{dep}` materialized tree exceeds limits (files: {files}, bytes: {bytes})")]
     MaterializedTreeLimitExceeded {
         /// The owning dependency.
-        dep: DependencyName,
+        dep: String,
         /// Number of files observed.
         files: usize,
         /// Total bytes observed.
@@ -252,7 +251,7 @@ pub enum ResolverError {
     #[error("`{dep}` materialized path escapes module root: `{path}`")]
     MaterializedSymlinkEscape {
         /// The owning dependency.
-        dep: DependencyName,
+        dep: String,
         /// The escaping path as observed before canonicalization.
         path: PathBuf,
     },
@@ -313,7 +312,7 @@ pub enum MissingFileKind {
 
 /// Renders the message for a [`ResolverError::MissingFile`].
 fn missing_file_message(
-    dep: &DependencyName,
+    dep: &str,
     path: &std::path::Path,
     kind: &MissingFileKind,
 ) -> String {
@@ -328,11 +327,8 @@ fn missing_file_message(
 }
 
 /// Renders a cycle path as a chain of arrows for error display.
-fn format_cycle(path: &[DependencyName]) -> String {
-    path.iter()
-        .map(DependencyName::manifest)
-        .collect::<Vec<_>>()
-        .join(" → ")
+fn format_cycle(path: &[String]) -> String {
+    path.join(" → ")
 }
 
 /// Renders a list of versions for error display, or `<none>` when empty.
@@ -351,8 +347,8 @@ fn format_versions(versions: &[Version]) -> String {
 mod tests {
     use super::*;
 
-    fn dep() -> DependencyName {
-        DependencyName::try_from("foo".to_string()).unwrap()
+    fn dep() -> String {
+        "foo".to_string()
     }
 
     #[test]

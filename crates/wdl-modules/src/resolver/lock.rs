@@ -184,7 +184,7 @@ pub fn partial_relock(
         }
         let Some(resolved) = freshly_resolved.dependencies.get(name) else {
             return Err(
-                crate::resolver::error::ResolverError::MissingFreshDependency { dep: name.clone() },
+                crate::resolver::error::ResolverError::MissingFreshDependency { dep: name.manifest().to_string() },
             );
         };
         let new_entry = resolved_to_lockfile_entry(resolved);

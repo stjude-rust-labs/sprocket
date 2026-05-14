@@ -202,7 +202,7 @@ impl GitResolver {
             };
             for (name, source) in deps {
                 if is_transitive_local_disallowed(parent, source) {
-                    return Err(ResolverError::LocalPathInTransitive { dep: name.clone() });
+                    return Err(ResolverError::LocalPathInTransitive { dep: name.manifest().to_string() });
                 }
                 if let DependencySource::Git { url, .. } = source {
                     self.policy().check_git_url(name, url, scope)?;
@@ -230,9 +230,9 @@ impl GitResolver {
                 .await?;
 
             if let Some(at) = chain.iter().position(|(_, s)| *s == resolved_source) {
-                let mut path: Vec<DependencyName> =
-                    chain[at..].iter().map(|(n, _)| n.clone()).collect();
-                path.push(name.clone());
+                let mut path: Vec<String> =
+                    chain[at..].iter().map(|(n, _)| n.manifest().to_string()).collect();
+                path.push(name.manifest().to_string());
                 return Err(ResolverError::Cycle { path });
             }
 
@@ -334,7 +334,7 @@ impl GitResolver {
                         requirement,
                         considered,
                     } => ResolverError::NoSatisfyingVersion {
-                        dep: name.clone(),
+                        dep: name.manifest().to_string(),
                         requirement,
                         considered,
                     },
@@ -354,7 +354,7 @@ impl GitResolver {
                     refs.get(tag)
                         .cloned()
                         .ok_or_else(|| ResolverError::UnknownGitRef {
-                            dep: name.clone(),
+                            dep: name.manifest().to_string(),
                             kind: GitRefKind::Tag,
                             name: tag.clone(),
                         })?;
@@ -373,7 +373,7 @@ impl GitResolver {
                     refs.get(branch)
                         .cloned()
                         .ok_or_else(|| ResolverError::UnknownGitRef {
-                            dep: name.clone(),
+                            dep: name.manifest().to_string(),
                             kind: GitRefKind::Branch,
                             name: branch.clone(),
                         })?;
@@ -400,15 +400,15 @@ impl GitResolver {
                         .lockfile
                         .dependencies
                         .get(name)
-                        .ok_or_else(|| ResolverError::NotInLockfile { dep: name.clone() })?;
+                        .ok_or_else(|| ResolverError::NotInLockfile { dep: name.manifest().to_string() })?;
                     if let ResolvedSource::Path { path: locked_path } = &locked_entry.source {
                         if path != locked_path {
                             return Err(ResolverError::LockfileSourceMismatch {
-                                dep: name.clone(),
+                                dep: name.manifest().to_string(),
                             });
                         }
                     } else {
-                        return Err(ResolverError::LockfileSourceMismatch { dep: name.clone() });
+                        return Err(ResolverError::LockfileSourceMismatch { dep: name.manifest().to_string() });
                     }
                 }
                 let manifest = read_manifest(path)?;
@@ -503,7 +503,7 @@ impl GitResolver {
                     .lockfile
                     .dependencies
                     .get(name)
-                    .ok_or_else(|| ResolverError::NotInLockfile { dep: name.clone() })?;
+                    .ok_or_else(|| ResolverError::NotInLockfile { dep: name.manifest().to_string() })?;
                 let (locked_url, locked_commit, locked_path) = match &locked_entry.source {
                     ResolvedSource::Git {
                         git: lu,
@@ -511,11 +511,11 @@ impl GitResolver {
                         path: lp,
                     } => (lu, lc, lp),
                     _ => {
-                        return Err(ResolverError::NotInLockfile { dep: name.clone() });
+                        return Err(ResolverError::NotInLockfile { dep: name.manifest().to_string() });
                     }
                 };
                 if url != locked_url || path != locked_path {
-                    return Err(ResolverError::LockfileSourceMismatch { dep: name.clone() });
+                    return Err(ResolverError::LockfileSourceMismatch { dep: name.manifest().to_string() });
                 }
                 (None, locked_commit.clone())
             }
@@ -607,7 +607,7 @@ impl Resolver for GitResolver {
 
         if exclude_set(&manifest.exclude)?.is_match(&rel) {
             return Err(ResolverError::MissingFile {
-                dep: name.clone(),
+                dep: name.manifest().to_string(),
                 path: rel,
                 kind: MissingFileKind::Excluded,
             });
@@ -619,7 +619,7 @@ impl Resolver for GitResolver {
                     if source.kind() == std::io::ErrorKind::NotFound =>
                 {
                     ResolverError::MissingFile {
-                        dep: name.clone(),
+                        dep: name.manifest().to_string(),
                         path: rel.clone(),
                         kind,
                     }

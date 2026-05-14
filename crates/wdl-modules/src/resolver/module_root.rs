@@ -98,7 +98,7 @@ pub(crate) fn resolve_content_file(
 
         if !target.starts_with(&canonical_root) {
             return Err(ResolverError::MaterializedSymlinkEscape {
-                dep: dep.clone(),
+                dep: dep.manifest().to_string(),
                 path: candidate,
             });
         }

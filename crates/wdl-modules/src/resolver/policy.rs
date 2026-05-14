@@ -115,7 +115,7 @@ impl ResolverPolicy {
             .any(|s| s.eq_ignore_ascii_case(url.scheme()))
         {
             return Err(ResolverError::GitUrlPolicyViolation {
-                dep: name.clone(),
+                dep: name.manifest().to_string(),
                 url: url.to_string(),
                 scheme: url.scheme().to_string(),
             });
@@ -127,14 +127,14 @@ impl ResolverPolicy {
                 .any(|h| h.eq_ignore_ascii_case(host))
             {
                 return Err(ResolverError::GitHostPolicyViolation {
-                    dep: name.clone(),
+                    dep: name.manifest().to_string(),
                     url: url.to_string(),
                     host: host.to_string(),
                 });
             }
             if super::config::is_non_public_ip(host) {
                 return Err(ResolverError::GitHostPolicyViolation {
-                    dep: name.clone(),
+                    dep: name.manifest().to_string(),
                     url: url.to_string(),
                     host: host.to_string(),
                 });
@@ -152,7 +152,7 @@ impl ResolverPolicy {
                         Ok(iter) => iter.collect(),
                         Err(_) => {
                             return Err(ResolverError::GitHostResolutionFailed {
-                                dep: name.clone(),
+                                dep: name.manifest().to_string(),
                                 url: url.to_string(),
                                 host: host.to_string(),
                             });
@@ -161,12 +161,12 @@ impl ResolverPolicy {
                 if let Err(bad_ip) = validate_resolved_addresses(&addrs) {
                     return match bad_ip {
                         Some(ip) => Err(ResolverError::GitHostPolicyViolation {
-                            dep: name.clone(),
+                            dep: name.manifest().to_string(),
                             url: url.to_string(),
                             host: format!("{host} (resolves to {ip})"),
                         }),
                         None => Err(ResolverError::GitHostResolutionFailed {
-                            dep: name.clone(),
+                            dep: name.manifest().to_string(),
                             url: url.to_string(),
                             host: host.to_string(),
                         }),
@@ -175,7 +175,7 @@ impl ResolverPolicy {
             }
             if !net.host_policy.allows(host) {
                 return Err(ResolverError::GitHostPolicyViolation {
-                    dep: name.clone(),
+                    dep: name.manifest().to_string(),
                     url: url.to_string(),
                     host: host.to_string(),
                 });

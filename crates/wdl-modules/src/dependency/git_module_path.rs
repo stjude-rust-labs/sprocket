@@ -101,6 +101,18 @@ impl TryFrom<String> for GitModulePath {
     type Error = GitModulePathError;
 
     fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::try_from(PathBuf::from(s))
+    }
+}
+
+impl TryFrom<PathBuf> for GitModulePath {
+    type Error = GitModulePathError;
+
+    fn try_from(p: PathBuf) -> Result<Self, Self::Error> {
+        let s = p
+            .to_str()
+            .ok_or(RelativePathError::NonUtf8)?
+            .to_string();
         if s.is_empty() {
             return Err(RelativePathError::Empty.into());
         }
@@ -116,7 +128,7 @@ impl FromStr for GitModulePath {
     type Err = GitModulePathError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from(s.to_string())
+        Self::try_from(PathBuf::from(s))
     }
 }
 

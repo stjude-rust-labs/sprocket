@@ -1,6 +1,5 @@
 //! Dependency-name newtype with hyphen-to-underscore normalization.
 
-use std::fmt;
 use std::str::FromStr;
 
 use serde::Deserialize;
@@ -64,12 +63,6 @@ impl DependencyName {
     /// Consumes the [`DependencyName`] and returns the identifier form.
     pub fn into_identifier(self) -> String {
         self.identifier
-    }
-}
-
-impl fmt::Display for DependencyName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.manifest)
     }
 }
 
