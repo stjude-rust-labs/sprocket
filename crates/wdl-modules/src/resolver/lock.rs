@@ -118,21 +118,20 @@ pub struct RelockStats {
     /// satisfied the consumer's source and was kept as-is.
     pub kept: usize,
     /// Dependencies introduced since the previous lockfile.
-    pub added: Vec<DependencyAddition>,
+    pub added: Vec<DependencyChange>,
     /// Dependencies dropped from the previous lockfile because the
     /// consumer no longer declares them.
-    pub removed: Vec<DependencyName>,
+    pub removed: Vec<DependencyChange>,
     /// Dependencies whose locked entry changed.
     pub updated: Vec<DependencyUpdate>,
 }
 
-/// A dependency added to the lockfile during relock.
+/// A dependency added or removed during relock.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct DependencyAddition {
+pub struct DependencyChange {
     /// The dependency name.
     pub name: DependencyName,
-    /// The version the new entry pins to. `None` when the dependency
-    /// has no recorded modules (an unusual edge case).
+    /// The version at the time of the change.
     pub version: Option<Version>,
 }
 
@@ -197,7 +196,7 @@ pub fn partial_relock(
                 from: primary_version(prev),
                 to: new_version,
             }),
-            None => stats.added.push(DependencyAddition {
+            None => stats.added.push(DependencyChange {
                 name: name.clone(),
                 version: new_version,
             }),
@@ -205,9 +204,12 @@ pub fn partial_relock(
         lockfile.dependencies.insert(name.clone(), new_entry);
     }
 
-    for name in existing.dependencies.keys() {
+    for (name, entry) in &existing.dependencies {
         if !consumer.dependencies.contains_key(name) {
-            stats.removed.push(name.clone());
+            stats.removed.push(DependencyChange {
+                name: name.clone(),
+                version: Some(entry.version.clone()),
+            });
         }
     }
 
@@ -511,7 +513,12 @@ mod tests {
             .insert(dn("removed"), entry("1.0.0", None));
         let outcome = partial_relock(&consumer, &existing, &ResolvedTree::default()).unwrap();
         assert!(outcome.lockfile.dependencies.is_empty());
-        assert_eq!(outcome.stats.removed, vec![dn("removed")]);
+        assert_eq!(outcome.stats.removed.len(), 1);
+        assert_eq!(outcome.stats.removed[0].name, dn("removed"));
+        assert_eq!(
+            outcome.stats.removed[0].version,
+            Some(Version::parse("1.0.0").unwrap())
+        );
     }
 
     #[test]

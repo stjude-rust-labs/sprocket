@@ -71,7 +71,7 @@ pub use crate::manifest::Tool;
 pub use crate::relative_path::RelativePath;
 pub use crate::relative_path::RelativePathError;
 #[cfg(feature = "resolver")]
-pub use crate::resolver::DependencyAddition;
+pub use crate::resolver::DependencyChange;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::DependencyScope;
 #[cfg(feature = "resolver")]

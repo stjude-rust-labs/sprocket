@@ -50,7 +50,7 @@ pub use crate::resolver::error::GitRefKind;
 pub use crate::resolver::error::MissingFileKind;
 pub use crate::resolver::error::ResolverError;
 use crate::resolver::fetch::GitFetcher;
-pub use crate::resolver::lock::DependencyAddition;
+pub use crate::resolver::lock::DependencyChange;
 pub use crate::resolver::lock::DependencyUpdate;
 pub use crate::resolver::lock::LockfileDiff;
 pub use crate::resolver::lock::NewSigner;
