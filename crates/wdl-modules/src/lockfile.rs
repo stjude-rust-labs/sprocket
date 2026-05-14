@@ -123,6 +123,26 @@ pub enum ResolvedSource {
     },
 }
 
+impl ResolvedSource {
+    /// Returns the source URL as a string suitable for trust-store
+    /// lookups.
+    pub fn source_url(&self) -> String {
+        match self {
+            Self::Git { git, .. } => git.to_string(),
+            Self::Path { path } => path.display().to_string(),
+        }
+    }
+
+    /// Returns the sub-path within the source, or `None` when the
+    /// module sits at the source root.
+    pub fn source_path(&self) -> Option<&str> {
+        match self {
+            Self::Git { path: Some(p), .. } => Some(p.as_str()),
+            _ => None,
+        }
+    }
+}
+
 /// A 40-character lowercase hex Git commit SHA.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
 #[serde(try_from = "String")]

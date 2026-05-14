@@ -23,6 +23,12 @@ pub struct TrustStore {
 pub struct TrustEntry {
     /// The dependency this entry covers.
     pub dep: DependencyName,
+    /// The Git URL or local path that this trust pin applies to.
+    pub source: String,
+    /// The sub-path within the source repository. `None` when the
+    /// module sits at the repository root.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub path: Option<String>,
     /// The required signer public key in OpenSSH format.
     pub key: VerifyingKey,
 }
@@ -73,9 +79,22 @@ impl TrustStore {
         })
     }
 
-    /// Looks up an explicit trust entry for the given dependency.
-    pub fn lookup(&self, dep: &DependencyName) -> Option<&VerifyingKey> {
-        self.entries.iter().find(|e| &e.dep == dep).map(|e| &e.key)
+    /// Looks up an explicit trust entry for the given dependency,
+    /// source URL, and sub-path within the source.
+    pub fn lookup(
+        &self,
+        dep: &DependencyName,
+        source_url: &str,
+        path: Option<&str>,
+    ) -> Option<&VerifyingKey> {
+        self.entries
+            .iter()
+            .find(|e| {
+                e.dep == *dep
+                    && e.source == source_url
+                    && e.path.as_deref() == path
+            })
+            .map(|e| &e.key)
     }
 }
 
@@ -135,6 +154,8 @@ mod tests {
         assert!(store.entries.is_empty());
     }
 
+    const TEST_SOURCE: &str = "https://github.com/openwdl/tasks";
+
     #[test]
     fn round_trips_via_toml() {
         let dep = DependencyName::try_from("openwdl".to_string()).unwrap();
@@ -142,13 +163,15 @@ mod tests {
         let store = TrustStore {
             entries: vec![TrustEntry {
                 dep: dep.clone(),
+                source: TEST_SOURCE.to_string(),
+                path: None,
                 key,
             }],
         };
         let s = toml::to_string_pretty(&store).unwrap();
         let parsed: TrustStore = toml::from_str(&s).unwrap();
         assert_eq!(parsed.entries.len(), 1);
-        assert!(parsed.lookup(&dep).is_some());
+        assert!(parsed.lookup(&dep, TEST_SOURCE, None).is_some());
     }
 
     #[test]
@@ -168,6 +191,8 @@ mod tests {
         let store = TrustStore {
             entries: vec![TrustEntry {
                 dep: dep.clone(),
+                source: TEST_SOURCE.to_string(),
+                path: None,
                 key,
             }],
         };
@@ -175,7 +200,74 @@ mod tests {
         assert!(path.exists());
 
         let reloaded = TrustStore::load_or_default(&path).unwrap();
-        assert!(reloaded.lookup(&dep).is_some());
+        assert!(reloaded.lookup(&dep, TEST_SOURCE, None).is_some());
+    }
+
+    #[test]
+    fn lookup_requires_matching_source() {
+        let dep = DependencyName::try_from("openwdl".to_string()).unwrap();
+        let store = TrustStore {
+            entries: vec![TrustEntry {
+                dep: dep.clone(),
+                source: TEST_SOURCE.to_string(),
+                path: None,
+                key: test_key(),
+            }],
+        };
+        assert!(store.lookup(&dep, TEST_SOURCE, None).is_some());
+        assert!(
+            store.lookup(&dep, "https://example.com/other", None).is_none(),
+            "trust pin for one source should not match a different source"
+        );
+    }
+
+    #[test]
+    fn lookup_distinguishes_paths_within_same_source() {
+        let dep = DependencyName::try_from("dep".to_string()).unwrap();
+        let store = TrustStore {
+            entries: vec![TrustEntry {
+                dep: dep.clone(),
+                source: TEST_SOURCE.to_string(),
+                path: Some("csvcut".to_string()),
+                key: test_key(),
+            }],
+        };
+        assert!(
+            store.lookup(&dep, TEST_SOURCE, Some("csvcut")).is_some(),
+            "exact path match should succeed"
+        );
+        assert!(
+            store.lookup(&dep, TEST_SOURCE, Some("csvgrep")).is_none(),
+            "trust pin for `csvcut` should not match `csvgrep` in the same repo"
+        );
+        assert!(
+            store.lookup(&dep, TEST_SOURCE, None).is_none(),
+            "trust pin for `csvcut` should not match root-level module in the same repo"
+        );
+    }
+
+    #[test]
+    fn lookup_matches_local_path_source() {
+        let dep = DependencyName::try_from("utils".to_string()).unwrap();
+        let local_source = "/home/user/projects/shared/utils";
+        let store = TrustStore {
+            entries: vec![TrustEntry {
+                dep: dep.clone(),
+                source: local_source.to_string(),
+                path: None,
+                key: test_key(),
+            }],
+        };
+        assert!(
+            store.lookup(&dep, local_source, None).is_some(),
+            "local-path trust entry should match"
+        );
+        assert!(
+            store
+                .lookup(&dep, "/home/user/projects/other/utils", None)
+                .is_none(),
+            "different local path should not match"
+        );
     }
 
     #[test]

@@ -579,7 +579,6 @@ mod tests {
     }
 
     #[test]
-    #[test]
     fn rejects_exact_duplicate_dep_keys() {
         let err = parse(
             r#"{

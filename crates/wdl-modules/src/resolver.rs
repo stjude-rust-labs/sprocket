@@ -240,8 +240,10 @@ impl GitResolver {
                 return Err(ResolverError::Cycle { path });
             }
 
+            let source_url = resolved_source.source_url();
+            let source_path = resolved_source.source_path();
             let VerifiedModule { checksum, signer } = self
-                .verify(name, module_root.module_root().as_ref())
+                .verify(name, module_root.module_root().as_ref(), Some((&source_url, source_path)))
                 .inspect_err(|e| {
                     if let MaterializedRoot::Cached { cache_leaf, .. } = &module_root {
                         tracing::warn!(
@@ -279,6 +281,7 @@ impl GitResolver {
         &self,
         name: &DependencyName,
         module_root: &Path,
+        source_id: Option<(&str, Option<&str>)>,
     ) -> Result<VerifiedModule, ResolverError> {
         let policy = self.policy();
         let verifier = ModuleVerifier::builder()
@@ -287,7 +290,7 @@ impl GitResolver {
             .trust(&self.trust)
             .lockfile(&self.lockfile)
             .build();
-        verifier.verify(name, module_root)
+        verifier.verify(name, module_root, source_id)
     }
 
     /// Verifies a dependency's content hash and signer against the
@@ -635,7 +638,9 @@ impl Resolver for GitResolver {
             .await?;
 
         let root_path = module_root.module_root().as_ref();
-        let verified = self.verify(name, root_path)?;
+        let source_url = resolved_source.source_url();
+        let source_path = resolved_source.source_path();
+        let verified = self.verify(name, root_path, Some((&source_url, source_path)))?;
         self.verify_against_lockfile(name, &verified.checksum, verified.signer.as_ref())?;
 
         let (rel, kind) = match path.sub_path() {
@@ -1297,6 +1302,8 @@ mod tests {
         let trust = TrustStore {
             entries: vec![TrustEntry {
                 dep: DependencyName::try_from("dep".to_string()).unwrap(),
+                source: dep_dir.display().to_string(),
+                path: None,
                 key: pinned,
             }],
         };
@@ -1514,6 +1521,8 @@ mod tests {
         let trust = TrustStore {
             entries: vec![TrustEntry {
                 dep: DependencyName::try_from("dep".to_string()).unwrap(),
+                source: dep_dir.display().to_string(),
+                path: None,
                 key: pinned,
             }],
         };

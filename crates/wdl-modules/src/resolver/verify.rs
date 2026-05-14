@@ -41,11 +41,12 @@ impl ModuleVerifier<'_> {
         &self,
         name: &DependencyName,
         module_root: &Path,
+        source_id: Option<(&str, Option<&str>)>,
     ) -> Result<VerifiedModule, ResolverError> {
         check_materialized_tree_limits(self.policy, name, module_root)?;
         let checksum = crate::hash::hash_directory(module_root)?;
         self.warn_on_large_files(name, module_root)?;
-        let signer = self.read_and_verify_signature(name, module_root, &checksum)?;
+        let signer = self.read_and_verify_signature(name, module_root, &checksum, source_id)?;
         Ok(VerifiedModule { checksum, signer })
     }
 
@@ -122,6 +123,7 @@ impl ModuleVerifier<'_> {
         name: &DependencyName,
         module_root: &Path,
         checksum: &ContentHash,
+        source_id: Option<(&str, Option<&str>)>,
     ) -> Result<Option<VerifyingKey>, ResolverError> {
         let sig_path = module_root.join(crate::SIGNATURE_FILENAME);
         let bytes = match std::fs::read(&sig_path) {
@@ -152,7 +154,8 @@ impl ModuleVerifier<'_> {
                 dep: name.manifest().to_string(),
                 signer: Box::new(sig.public_key),
             })?;
-        if let Some(trusted) = self.trust.lookup(name)
+        if let Some((source_url, source_path)) = source_id
+            && let Some(trusted) = self.trust.lookup(name, source_url, source_path)
             && &sig.public_key != trusted
         {
             return Err(ResolverError::SignerKeyMismatch {
