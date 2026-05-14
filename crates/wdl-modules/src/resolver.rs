@@ -587,6 +587,7 @@ fn locked_selector_satisfies(
 }
 
 /// Pre-computed materialization parameters for a Git dependency.
+#[derive(Debug)]
 struct GitMaterializationPlan {
     /// The selected version from tag resolution, if any.
     selected_version: Option<Version>,
@@ -740,6 +741,12 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
+
+    fn checksum() -> crate::ContentHash {
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+            .parse()
+            .unwrap()
+    }
 
     /// Builds a `module.json` at `dir` with the given name, version, and
     /// Converts a path to a JSON-safe string (forward slashes on all

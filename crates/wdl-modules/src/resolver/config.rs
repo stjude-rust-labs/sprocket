@@ -233,7 +233,7 @@ impl FromStr for LargeFileWarning {
     type Err = LargeFileWarningError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s.eq_ignore_ascii_case("off") {
+        if s.eq_ignore_ascii_case("none") {
             return Ok(Self::Disabled);
         }
         let bytes = s
@@ -255,7 +255,7 @@ impl TryFrom<String> for LargeFileWarning {
 impl From<LargeFileWarning> for String {
     fn from(v: LargeFileWarning) -> Self {
         match v {
-            LargeFileWarning::Disabled => "off".to_string(),
+            LargeFileWarning::Disabled => "none".to_string(),
             LargeFileWarning::Threshold(b) => bytesize::ByteSize(b).to_string(),
         }
     }
@@ -263,17 +263,28 @@ impl From<LargeFileWarning> for String {
 
 /// Error parsing a [`LargeFileWarning`] string.
 #[derive(Debug, Error)]
-#[error("`{0}` is not a valid file-size string (expected e.g. `1MiB`, `500KB`, or `off`)")]
+#[error("`{0}` is not a valid file-size string (expected e.g. `1MiB`, `500KB`, or `none`)")]
 pub struct LargeFileWarningError(String);
 
-/// TOFU policy for new signer keys.
+/// Trust-on-first-use (TOFU) policy for new signer keys.
+///
+/// When the resolver encounters a signed module whose signer key is not
+/// yet recorded in the lockfile, this setting controls whether the key
+/// is accepted silently or requires explicit user confirmation. The
+/// library computes a [`LockfileDiff`](super::lock::LockfileDiff) that
+/// flags new signers; the CLI is responsible for acting on the policy
+/// (e.g., prompting the user when `Confirm` is set).
 #[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
 pub enum TrustMode {
-    /// New signer keys are recorded in the lockfile silently.
+    /// New signer keys are recorded in the lockfile without prompting.
+    /// This is the default and is suitable for non-interactive or
+    /// CI environments where manual confirmation is impractical.
     #[default]
     Auto,
-    /// The user is prompted to confirm any newly-trusted signer key.
+    /// The CLI must prompt the user to confirm any newly-trusted signer
+    /// key before writing the lockfile. Intended for interactive use
+    /// where the user wants to review each new signer.
     Confirm,
 }
 
@@ -301,8 +312,8 @@ mod tests {
     }
 
     #[test]
-    fn parses_off_sentinel() {
-        for s in ["off", "OFF", "Off"] {
+    fn parses_none_sentinel() {
+        for s in ["none", "NONE", "None"] {
             let cfg: ModulesConfig =
                 toml::from_str(&format!(r#"large_file_warning = "{s}""#)).unwrap();
             assert!(matches!(cfg.large_file_warning, LargeFileWarning::Disabled));
@@ -327,13 +338,30 @@ mod tests {
     #[test]
     fn default_policy_denies_private_and_metadata_ips() {
         let cfg = ModulesConfig::default();
-        assert!(!cfg.host_allowed("169.254.169.254", DependencyScope::TopLevel));
-        assert!(!cfg.host_allowed("10.0.0.1", DependencyScope::TopLevel));
-        assert!(!cfg.host_allowed("192.168.1.1", DependencyScope::Transitive));
-        assert!(!cfg.host_allowed("172.16.0.1", DependencyScope::TopLevel));
-        assert!(!cfg.host_allowed("::1", DependencyScope::TopLevel));
-        assert!(!cfg.host_allowed("fe80::1", DependencyScope::Transitive));
-        assert!(!cfg.host_allowed("fc00::1", DependencyScope::TopLevel));
+        let denied = [
+            "169.254.169.254",
+            "10.0.0.1",
+            "192.168.1.1",
+            "172.16.0.1",
+            "100.64.0.1",
+            "127.0.0.1",
+            "0.0.0.0",
+            "255.255.255.255",
+            "224.0.0.1",
+            "::1",
+            "::",
+            "fe80::1",
+            "fc00::1",
+            "ff02::1",
+        ];
+        for ip in denied {
+            for scope in [DependencyScope::TopLevel, DependencyScope::Transitive] {
+                assert!(
+                    !cfg.host_allowed(ip, scope),
+                    "`{ip}` should be denied for `{scope:?}`"
+                );
+            }
+        }
     }
 
     #[test]
