@@ -1,4 +1,4 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, ShellCheck
+#@ except: MetaDescription, ExpectedRuntimeKeys, ShellCheck, EmptyOutputs
 
 ## This is a test of the `DeprecatedPlaceholder` lint.
 
