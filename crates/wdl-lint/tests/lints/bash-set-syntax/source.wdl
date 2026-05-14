@@ -46,6 +46,14 @@ task good5 {
     >>>
 }
 
+task good6 {
+    # Arguments should be fine
+    command <<<
+        set -euo pipefail -- Hello
+        echo "$1, World!"
+    >>>
+}
+
 task bad {
     command <<<
         echo "Hello, World!"
@@ -103,15 +111,30 @@ task bad8 {
 }
 
 task bad9 {
-    # Making sure we don't freak out over bad -o usage
+    # Making sure we don't freak out over this bad -o usage
     command <<<
         set -euov pipefail
     >>>
 }
 
 task bad10 {
+    # Or this one...
+    command <<<
+        set -euo
+    >>>
+}
+
+task bad11 {
     # Or get fooled by non-set commands...
     command <<<
         setcap
+    >>>
+}
+
+task bad12 {
+    # Make sure we still flag bad commands with arguments
+    command <<<
+        set -o pipefail -- Hello
+        echo "$1, World!"
     >>>
 }
