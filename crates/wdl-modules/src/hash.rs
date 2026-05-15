@@ -35,6 +35,13 @@ pub enum HashError {
     #[error("symbolic link `{0}` resolves outside the module root")]
     SymlinkEscapesRoot(String),
 
+    /// A symbolic link points to a directory.
+    ///
+    /// Directory symlinks are rejected to prevent cycles during tree
+    /// traversal.
+    #[error("symbolic link `{0}` targets a directory")]
+    DirectorySymlink(String),
+
     /// A symbolic link target resolves to non-module content (e.g.,
     /// `.git` or `.sparse.json`).
     #[error("symbolic link `{0}` targets non-module content")]
@@ -631,7 +638,9 @@ mod tests {
         assert!(
             matches!(
                 err,
-                HashError::SymlinkEscapesRoot(_) | HashError::SymlinkTargetsMetadata(_)
+                HashError::DirectorySymlink(_)
+                    | HashError::SymlinkEscapesRoot(_)
+                    | HashError::SymlinkTargetsMetadata(_)
             ),
             "directory symlink cycles must be rejected, got: {err}"
         );

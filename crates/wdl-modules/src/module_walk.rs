@@ -147,10 +147,9 @@ fn handle_symlink<E>(
         })
     })?;
     if target_meta.is_dir() {
-        return Err(WalkError::Hash(HashError::SymlinkEscapesRoot(format!(
-            "{} (directory symlinks are not supported)",
-            path.display()
-        ))));
+        return Err(WalkError::Hash(HashError::DirectorySymlink(
+            path.display().to_string(),
+        )));
     }
     if target_meta.is_file() {
         stats.files += 1;
