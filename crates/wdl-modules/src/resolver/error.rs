@@ -11,6 +11,7 @@ use crate::LockfileError;
 use crate::ManifestError;
 use crate::VerifyingKey;
 use crate::VersionRequirement;
+use crate::module_walk::ModuleWalkError;
 
 /// An error returned by the [`Resolver`](crate::Resolver) trait or any
 /// resolver-layer operation.
@@ -280,7 +281,7 @@ pub enum ResolverError {
 
     /// A module-walk error (symlink containment, metadata target, etc.).
     #[error(transparent)]
-    Walk(#[from] crate::module_walk::ModuleWalkError),
+    Walk(#[from] ModuleWalkError),
 
     /// Hashing a cache leaf or local path failed.
     #[error(transparent)]
