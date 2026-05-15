@@ -258,8 +258,12 @@ mod tests {
     /// Builds a `RemoteRefs` map from tag names, using a sentinel commit
     /// for each entry.
     fn refs(items: &[&str]) -> RemoteRefs {
-        let sentinel =
-            GitCommit::try_from("a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2".to_string()).unwrap();
+        let sentinel = GitCommit::try_from(
+            "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+                .to_string()
+                .to_string(),
+        )
+        .unwrap();
         items
             .iter()
             .map(|s| (s.to_string(), sentinel.clone()))
@@ -277,7 +281,7 @@ mod tests {
         assert_eq!(root.prefix(), None);
         assert_eq!(root.to_string(), "v0.5.0");
 
-        assert!("release-2024".parse::<VersionTag>().is_err());
+        assert!("release-2026".parse::<VersionTag>().is_err());
         assert!("vXYZ".parse::<VersionTag>().is_err());
     }
 
@@ -316,7 +320,7 @@ mod tests {
     #[test]
     fn ignores_non_semver_tags() {
         let v =
-            select_version(&refs(&["v1.0.0", "release-2024", "vXYZ"]), None, &req("^1")).unwrap();
+            select_version(&refs(&["v1.0.0", "release-2026", "vXYZ"]), None, &req("^1")).unwrap();
         assert_eq!(v, Version::parse("1.0.0").unwrap());
     }
 
@@ -352,8 +356,12 @@ mod tests {
     #[test]
     fn resolve_version_to_commit_round_trips_the_tag() {
         let mut refs = refs(&["v1.0.0", "v1.2.0", "v2.0.0"]);
-        let target =
-            GitCommit::try_from("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef".to_string()).unwrap();
+        let target = GitCommit::try_from(
+            "b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2"
+                .to_string()
+                .to_string(),
+        )
+        .unwrap();
         refs.insert("v1.2.0".to_string(), target.clone());
 
         let (version, commit) = resolve_version_to_commit(&refs, None, &req("^1")).unwrap();
