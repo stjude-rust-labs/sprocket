@@ -130,10 +130,16 @@ fn handle_symlink<E>(
         )));
     }
     if let Ok(rel) = target.strip_prefix(module_root) {
-        let targets_metadata = rel.components().any(|component| {
-            let name = component.as_os_str().to_str().unwrap_or("");
-            NON_MODULE_CONTENT.contains(&name)
-        });
+        if rel.to_str().is_none() {
+            return Err(WalkError::Hash(HashError::NonUtf8SymlinkTarget(
+                path.display().to_string(),
+            )));
+        }
+        // SAFETY: the `to_str` check above guarantees all components
+        // are valid UTF-8.
+        let targets_metadata = rel
+            .components()
+            .any(|c| NON_MODULE_CONTENT.contains(&c.as_os_str().to_str().unwrap()));
         if targets_metadata {
             return Err(WalkError::Hash(HashError::SymlinkTargetsMetadata(
                 path.display().to_string(),

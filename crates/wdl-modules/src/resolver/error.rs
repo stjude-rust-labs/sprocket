@@ -268,6 +268,13 @@ pub enum ResolverError {
         path: PathBuf,
     },
 
+    /// A symlink target resolved to a path that is not UTF-8.
+    #[error("symlink target at `{path}` is not UTF-8")]
+    NonUtf8SymlinkTarget {
+        /// The symlink whose target is not UTF-8.
+        path: PathBuf,
+    },
+
     /// An I/O error.
     #[error("i/o error at `{path}`")]
     Io {

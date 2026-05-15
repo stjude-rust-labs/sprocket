@@ -42,6 +42,10 @@ pub enum HashError {
     #[error("symbolic link `{0}` targets a directory")]
     DirectorySymlink(String),
 
+    /// A symbolic link resolves to a path that is not UTF-8.
+    #[error("symbolic link target under `{0}` is not UTF-8")]
+    NonUtf8SymlinkTarget(String),
+
     /// A symbolic link target resolves to non-module content (e.g.,
     /// `.git` or `.sparse.json`).
     #[error("symbolic link `{0}` targets non-module content")]
