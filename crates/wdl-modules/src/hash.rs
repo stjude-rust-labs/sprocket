@@ -231,7 +231,9 @@ impl Hasher {
             })?;
 
             if !canonical_abs.starts_with(&canonical_root) {
-                return Err(ModuleWalkError::SymlinkEscapesRoot(relative.as_str().to_string()).into());
+                return Err(
+                    ModuleWalkError::SymlinkEscapesRoot(relative.as_str().to_string()).into(),
+                );
             }
 
             let mut file = File::open(&canonical_abs).map_err(|source| HashError::Io {
@@ -549,7 +551,10 @@ mod tests {
         );
         let err = hash_directory(dir.path()).unwrap_err();
         assert!(
-            matches!(err, HashError::Walk(ModuleWalkError::SymlinkTargetsMetadata(_))),
+            matches!(
+                err,
+                HashError::Walk(ModuleWalkError::SymlinkTargetsMetadata(_))
+            ),
             "got: {err}"
         );
     }
@@ -582,7 +587,10 @@ mod tests {
         );
         let err = hash_directory(dir.path()).unwrap_err();
         assert!(
-            matches!(err, HashError::Walk(ModuleWalkError::SymlinkTargetsMetadata(_))),
+            matches!(
+                err,
+                HashError::Walk(ModuleWalkError::SymlinkTargetsMetadata(_))
+            ),
             "expected metadata symlink rejection, got: {err}"
         );
     }

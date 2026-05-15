@@ -394,8 +394,7 @@ mod tests {
             version: crate::LOCKFILE_VERSION,
             dependencies: deps,
         };
-        let err =
-            verify_against_lockfile(&lockfile, &dep, &checksum, Some(&key_b)).unwrap_err();
+        let err = verify_against_lockfile(&lockfile, &dep, &checksum, Some(&key_b)).unwrap_err();
         assert!(
             matches!(err, ResolverError::SignerKeyMismatch { .. }),
             "expected `SignerKeyMismatch`, got: {err}"

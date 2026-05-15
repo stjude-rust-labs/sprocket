@@ -2003,7 +2003,10 @@ mod tests {
             .await
             .unwrap_err();
         assert!(
-            matches!(err, ResolverError::Walk(ModuleWalkError::SymlinkTargetsMetadata(_))),
+            matches!(
+                err,
+                ResolverError::Walk(ModuleWalkError::SymlinkTargetsMetadata(_))
+            ),
             "expected `SymlinkTargetsMetadata`, got: {err}"
         );
     }
