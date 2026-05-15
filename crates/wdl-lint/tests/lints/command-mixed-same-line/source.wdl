@@ -1,4 +1,4 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys
+#@ except: MetaDescription, ExpectedRuntimeKeys, EmptyOutputs
 
 ## This is a test of having mixed indentation on the same line in command sections.
 

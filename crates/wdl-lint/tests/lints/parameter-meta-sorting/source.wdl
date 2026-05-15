@@ -1,4 +1,4 @@
-#@ except: MetaDescription, InputName, RequirementsSection
+#@ except: MetaDescription, InputName, RequirementsSection, EmptyOutputs
 
 version 1.3
 

@@ -1,6 +1,6 @@
 version 1.3
 
-#@ except: RequirementsSection, SnakeCase
+#@ except: RequirementsSection, SnakeCase, EmptyOutputs
 task foo {
     meta {
         description: "This is a test of disallowed input names"

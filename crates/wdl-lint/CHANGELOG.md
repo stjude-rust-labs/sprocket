@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.23.0 - 2026-05-14
+
 #### Added
 
 * Added `HostPathLiterals` lint rule to flag absolute path defaults in `File` and `Directory` declarations ([#736](https://github.com/stjude-rust-labs/sprocket/pull/736)).
+* New lint rule `EmptyOutputs` to detect `task`s with no `output`s ([#846](https://github.com/stjude-rust-labs/sprocket/pull/846)).
 
 #### Fixed
 

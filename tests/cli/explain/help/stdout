@@ -74,6 +74,7 @@ Available rules:
   - DocMetaStrings
   - DoubleQuotes
   - EmptyDocComment
+  - EmptyOutputs
   - ExceptDirectiveValid
   - ExpectedRuntimeKeys
   - HereDocCommands

@@ -2,7 +2,7 @@
 
 version 1.3
 
-#@ except: RequirementsSection
+#@ except: RequirementsSection, EmptyOutputs
 task foo {
     meta {
     }

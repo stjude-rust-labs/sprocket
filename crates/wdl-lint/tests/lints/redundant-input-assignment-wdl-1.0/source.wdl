@@ -1,5 +1,5 @@
 #@ except: MetaDescription, RuntimeSection
-#@ except: MetaSections
+#@ except: MetaSections, EmptyOutputs
 
 version 1.0
 
