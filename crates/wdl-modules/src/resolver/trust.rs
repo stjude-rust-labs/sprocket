@@ -10,8 +10,46 @@ use thiserror::Error;
 use crate::DependencyName;
 use crate::VerifyingKey;
 
+/// An error reading or writing the trust store.
+#[derive(Debug, Error)]
+pub enum TrustStoreError {
+    /// I/O error.
+    #[error("i/o error at `{path}`")]
+    Io {
+        /// The path involved.
+        path: PathBuf,
+        /// The underlying I/O error.
+        #[source]
+        source: std::io::Error,
+    },
+    /// File is not valid UTF-8.
+    #[error("trust store at `{path}` is not valid UTF-8")]
+    NonUtf8 {
+        /// The offending file.
+        path: PathBuf,
+    },
+    /// TOML parse error.
+    #[error("trust store at `{path}` is not valid TOML")]
+    Parse {
+        /// The offending file.
+        path: PathBuf,
+        /// The underlying parse error.
+        #[source]
+        source: toml::de::Error,
+    },
+    /// TOML serialization error.
+    #[error("failed to serialize trust store for `{path}`")]
+    Serialize {
+        /// The target path.
+        path: PathBuf,
+        /// The underlying serialization error.
+        #[source]
+        source: toml::ser::Error,
+    },
+}
+
 /// The user-level trust store loaded from `modules-trust.toml`.
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 pub struct TrustStore {
     /// The list of explicit trust entries.
     #[serde(default, rename = "trust", skip_serializing_if = "Vec::is_empty")]
@@ -19,7 +57,7 @@ pub struct TrustStore {
 }
 
 /// One explicit trust entry.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct TrustEntry {
     /// The dependency this entry covers.
     pub dep: DependencyName,
@@ -94,44 +132,6 @@ impl TrustStore {
     }
 }
 
-/// An error reading or writing the trust store.
-#[derive(Debug, Error)]
-pub enum TrustStoreError {
-    /// I/O error.
-    #[error("i/o error at `{path}`")]
-    Io {
-        /// The path involved.
-        path: PathBuf,
-        /// The underlying I/O error.
-        #[source]
-        source: std::io::Error,
-    },
-    /// File contains non-UTF-8 bytes.
-    #[error("trust store at `{path}` contains non-UTF-8 bytes")]
-    NonUtf8 {
-        /// The offending file.
-        path: PathBuf,
-    },
-    /// TOML parse error.
-    #[error("trust store at `{path}` is not valid TOML")]
-    Parse {
-        /// The offending file.
-        path: PathBuf,
-        /// The underlying parse error.
-        #[source]
-        source: toml::de::Error,
-    },
-    /// TOML serialization error.
-    #[error("failed to serialize trust store for `{path}`")]
-    Serialize {
-        /// The target path.
-        path: PathBuf,
-        /// The underlying serialization error.
-        #[source]
-        source: toml::ser::Error,
-    },
-}
-
 #[cfg(test)]
 mod tests {
     use std::fs;
@@ -196,7 +196,10 @@ mod tests {
         assert!(path.exists());
 
         let reloaded = TrustStore::load_or_default(&path).unwrap();
-        assert!(reloaded.lookup(&dep, TEST_SOURCE, None).is_some());
+        assert_eq!(
+            reloaded, store,
+            "reloaded store should exactly match the original"
+        );
     }
 
     #[test]
