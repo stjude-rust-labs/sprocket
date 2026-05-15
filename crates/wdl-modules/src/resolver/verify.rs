@@ -1,5 +1,12 @@
-//! Module verification. Hashes, signatures, trust, limits, and
-//! lockfile checksum enforcement.
+//! Post-materialization verification of module content.
+//!
+//! After a module tree is materialized on disk, [`ModuleVerifier`] runs
+//! every integrity and policy check before the content is accepted:
+//! resource-limit enforcement (file count and byte budget), content
+//! hashing, large-file warnings, signature parsing and Ed25519
+//! verification, trust-store key comparison, and lockfile checksum and
+//! signer matching. A single call to [`ModuleVerifier::verify`] chains
+//! these steps and returns a [`VerifiedModule`] on success.
 
 use std::path::Path;
 
@@ -14,7 +21,70 @@ use crate::resolver::error::ResolverError;
 use crate::resolver::policy::ResolverPolicy;
 use crate::resolver::trust::TrustStore;
 
+/// Walks every regular file under `root` using the shared safe
+/// module-content walker. Converts errors to [`ResolverError`].
+fn walk_module_tree(
+    root: &Path,
+    visitor: &mut dyn FnMut(&Path, u64) -> Result<(), ResolverError>,
+) -> Result<module_walk::TreeStats, ResolverError> {
+    module_walk::walk_module_tree(root, visitor).map_err(|e| match e {
+        module_walk::WalkError::Hash(h) => ResolverError::Hash(h),
+        module_walk::WalkError::Visitor(r) => r,
+    })
+}
+
+/// Walks `module_root`, emits large-file warnings, and rejects the
+/// tree if it exceeds configured file-count or byte-size limits.
+fn check_materialized_tree(
+    config: &ModulesConfig,
+    policy: &ResolverPolicy,
+    name: &DependencyName,
+    module_root: &Path,
+) -> Result<(), ResolverError> {
+    let large_file_threshold = match config.large_file_warning {
+        LargeFileWarning::Threshold(t) => Some(t),
+        LargeFileWarning::Disabled => None,
+    };
+    let has_limits =
+        policy.max_materialized_files.is_some() || policy.max_materialized_bytes.is_some();
+
+    if large_file_threshold.is_none() && !has_limits {
+        return Ok(());
+    }
+
+    let stats = walk_module_tree(module_root, &mut |entry, size| {
+        if let Some(threshold) = large_file_threshold {
+            if size >= threshold {
+                tracing::warn!(
+                    dep = name.manifest(),
+                    file = %entry.display(),
+                    size,
+                    threshold,
+                    "module contains a large file",
+                );
+            }
+        }
+        Ok(())
+    })?;
+
+    if policy
+        .max_materialized_files
+        .is_some_and(|limit| stats.files > limit)
+        || policy
+            .max_materialized_bytes
+            .is_some_and(|limit| stats.bytes > limit)
+    {
+        return Err(ResolverError::MaterializedTreeLimitExceeded {
+            dep: name.manifest().to_string(),
+            files: stats.files,
+            bytes: stats.bytes,
+        });
+    }
+    Ok(())
+}
+
 /// Artifacts produced by [`ModuleVerifier::verify`].
+#[derive(Debug)]
 pub(crate) struct VerifiedModule {
     /// The module's content hash.
     pub checksum: ContentHash,
@@ -38,83 +108,22 @@ pub(crate) struct ModuleVerifier<'a> {
 
 impl ModuleVerifier<'_> {
     /// Runs all verification checks on a materialized module root.
+    ///
+    /// Called by both `materialize` (the lockfile-replay path) and
+    /// `resolve_dependency` (the fresh-resolution path). The checks
+    /// run in order: tree walk (large-file warnings and resource
+    /// limits), content hashing, then signature verification. Each
+    /// step short-circuits on failure.
     pub fn verify(
         &self,
         name: &DependencyName,
         module_root: &Path,
         source_id: Option<(&str, Option<&str>)>,
     ) -> Result<VerifiedModule, ResolverError> {
-        check_materialized_tree_limits(self.policy, name, module_root)?;
+        check_materialized_tree(self.config, self.policy, name, module_root)?;
         let checksum = crate::hash::hash_directory(module_root)?;
-        self.warn_on_large_files(name, module_root)?;
         let signer = self.read_and_verify_signature(name, module_root, &checksum, source_id)?;
         Ok(VerifiedModule { checksum, signer })
-    }
-
-    /// Verifies a dependency's content hash and signer against the
-    /// lockfile.
-    pub fn verify_against_lockfile(
-        &self,
-        name: &DependencyName,
-        checksum: &ContentHash,
-        signer: Option<&VerifyingKey>,
-    ) -> Result<(), ResolverError> {
-        let locked_entry =
-            self.lockfile
-                .dependencies
-                .get(name)
-                .ok_or_else(|| ResolverError::NotInLockfile {
-                    dep: name.manifest().to_string(),
-                })?;
-        if locked_entry.checksum != *checksum {
-            return Err(ResolverError::ChecksumMismatch {
-                dep: name.manifest().to_string(),
-                expected: locked_entry.checksum,
-                observed: *checksum,
-            });
-        }
-        match (locked_entry.signer, signer) {
-            (Some(expected), None) => {
-                return Err(ResolverError::SignatureDowngrade {
-                    dep: name.manifest().to_string(),
-                    expected_signer: Box::new(expected),
-                });
-            }
-            (Some(expected), Some(observed)) if expected != *observed => {
-                return Err(ResolverError::SignerKeyMismatch {
-                    dep: name.manifest().to_string(),
-                    expected: Box::new(expected),
-                    observed: Box::new(*observed),
-                });
-            }
-            _ => {}
-        }
-        Ok(())
-    }
-
-    /// Emits a tracing warning for any file exceeding the configured size
-    /// threshold.
-    fn warn_on_large_files(
-        &self,
-        name: &DependencyName,
-        module_root: &Path,
-    ) -> Result<(), ResolverError> {
-        let LargeFileWarning::Threshold(threshold) = self.config.large_file_warning else {
-            return Ok(());
-        };
-        walk_module_tree(module_root, &mut |entry, size| {
-            if size >= threshold {
-                tracing::warn!(
-                    dep = name.manifest(),
-                    file = %entry.display(),
-                    size,
-                    threshold,
-                    "module contains a large file",
-                );
-            }
-            Ok(())
-        })?;
-        Ok(())
     }
 
     /// Reads the signature file from `module_root` and verifies it against
@@ -167,43 +176,414 @@ impl ModuleVerifier<'_> {
         }
         Ok(Some(sig.public_key))
     }
+
+    /// Verifies a dependency's content hash and signer against the
+    /// lockfile.
+    ///
+    /// Called only by the `materialize` path, where a lockfile already
+    /// exists and the materialized content must match the locked
+    /// expectations. The `resolve_tree` path skips this because it is
+    /// producing a fresh lockfile rather than replaying one.
+    pub fn verify_against_lockfile(
+        &self,
+        name: &DependencyName,
+        checksum: &ContentHash,
+        signer: Option<&VerifyingKey>,
+    ) -> Result<(), ResolverError> {
+        let locked_entry =
+            self.lockfile
+                .dependencies
+                .get(name)
+                .ok_or_else(|| ResolverError::NotInLockfile {
+                    dep: name.manifest().to_string(),
+                })?;
+        if locked_entry.checksum != *checksum {
+            return Err(ResolverError::ChecksumMismatch {
+                dep: name.manifest().to_string(),
+                expected: locked_entry.checksum,
+                observed: *checksum,
+            });
+        }
+        match (locked_entry.signer, signer) {
+            (Some(expected), None) => {
+                return Err(ResolverError::SignatureDowngrade {
+                    dep: name.manifest().to_string(),
+                    expected_signer: Box::new(expected),
+                });
+            }
+            (Some(expected), Some(observed)) if expected != *observed => {
+                return Err(ResolverError::SignerKeyMismatch {
+                    dep: name.manifest().to_string(),
+                    expected: Box::new(expected),
+                    observed: Box::new(*observed),
+                });
+            }
+            _ => {}
+        }
+        Ok(())
+    }
 }
 
-/// Walks `module_root` and rejects the tree if it exceeds configured
-/// file-count or byte-size limits.
-fn check_materialized_tree_limits(
-    policy: &ResolverPolicy,
-    name: &DependencyName,
-    module_root: &Path,
-) -> Result<(), ResolverError> {
-    if policy.max_materialized_files.is_none() && policy.max_materialized_bytes.is_none() {
-        return Ok(());
-    }
-    let stats = walk_module_tree(module_root, &mut |_, _| Ok(()))?;
-    if policy
-        .max_materialized_files
-        .is_some_and(|limit| stats.files > limit)
-        || policy
-            .max_materialized_bytes
-            .is_some_and(|limit| stats.bytes > limit)
-    {
-        return Err(ResolverError::MaterializedTreeLimitExceeded {
-            dep: name.manifest().to_string(),
-            files: stats.files,
-            bytes: stats.bytes,
-        });
-    }
-    Ok(())
-}
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+    use std::fs;
 
-/// Walks every regular file under `root` using the shared safe
-/// module-content walker. Converts errors to [`ResolverError`].
-fn walk_module_tree(
-    root: &Path,
-    visitor: &mut dyn FnMut(&Path, u64) -> Result<(), ResolverError>,
-) -> Result<module_walk::TreeStats, ResolverError> {
-    module_walk::walk_module_tree(root, visitor).map_err(|e| match e {
-        module_walk::WalkError::Hash(h) => ResolverError::Hash(h),
-        module_walk::WalkError::Visitor(r) => r,
-    })
+    use semver::Version;
+    use tempfile::tempdir;
+
+    use super::*;
+    use crate::DependencyEntry;
+    use crate::GitCommit;
+    use crate::ResolvedSource;
+    use crate::signing::test_utils::signing_key_from_seed;
+
+    fn test_dep() -> DependencyName {
+        DependencyName::try_from("foo".to_string()).unwrap()
+    }
+
+    fn test_source() -> ResolvedSource {
+        ResolvedSource::Git {
+            git: "https://github.com/example/foo".parse().unwrap(),
+            commit: GitCommit::try_from("a".repeat(40)).unwrap(),
+            selector: None,
+            path: None,
+        }
+    }
+
+    fn write_module(dir: &Path, content: &str) {
+        fs::write(dir.join("index.wdl"), content).unwrap();
+    }
+
+    fn write_signed_module(dir: &Path, content: &str, seed: u64) {
+        write_module(dir, content);
+        let checksum = crate::hash::hash_directory(dir).unwrap();
+        let signing_key = signing_key_from_seed(seed);
+        let sig = crate::ModuleSignature {
+            public_key: signing_key.verifying_key(),
+            signature: signing_key.sign(&checksum),
+        };
+        let mut buf = Vec::new();
+        sig.write(&mut buf).unwrap();
+        fs::write(dir.join(crate::SIGNATURE_FILENAME), buf).unwrap();
+    }
+
+    fn verifier_with_lockfile(
+        lockfile: Lockfile,
+    ) -> (ModulesConfig, ResolverPolicy, TrustStore, Lockfile) {
+        let config = ModulesConfig::default();
+        let policy = ResolverPolicy::from(&config);
+        let trust = TrustStore::default();
+        (config, policy, trust, lockfile)
+    }
+
+    #[test]
+    fn verify_unsigned_module() {
+        let dir = tempdir().unwrap();
+        write_module(dir.path(), "version 1.2\n");
+        let lockfile = Lockfile::default();
+        let (config, policy, trust, lockfile) = verifier_with_lockfile(lockfile);
+        let verifier = ModuleVerifier::builder()
+            .config(&config)
+            .policy(&policy)
+            .trust(&trust)
+            .lockfile(&lockfile)
+            .build();
+        let result = verifier.verify(&test_dep(), dir.path(), None);
+        assert!(result.is_ok(), "unsigned module should verify: {result:?}");
+        let verified = result.unwrap();
+        assert!(verified.signer.is_none());
+    }
+
+    #[test]
+    fn verify_signed_module() {
+        let dir = tempdir().unwrap();
+        write_signed_module(dir.path(), "version 1.2\n", 0xAB);
+        let lockfile = Lockfile::default();
+        let (config, policy, trust, lockfile) = verifier_with_lockfile(lockfile);
+        let verifier = ModuleVerifier::builder()
+            .config(&config)
+            .policy(&policy)
+            .trust(&trust)
+            .lockfile(&lockfile)
+            .build();
+        let result = verifier.verify(&test_dep(), dir.path(), None);
+        assert!(result.is_ok(), "signed module should verify: {result:?}");
+        let verified = result.unwrap();
+        assert!(verified.signer.is_some());
+        assert_eq!(
+            verified.signer.unwrap(),
+            signing_key_from_seed(0xAB).verifying_key()
+        );
+    }
+
+    #[test]
+    fn require_signed_rejects_unsigned() {
+        let dir = tempdir().unwrap();
+        write_module(dir.path(), "version 1.2\n");
+        let mut config = ModulesConfig::default();
+        config.require_signed = true;
+        let policy = ResolverPolicy::from(&config);
+        let trust = TrustStore::default();
+        let lockfile = Lockfile::default();
+        let verifier = ModuleVerifier::builder()
+            .config(&config)
+            .policy(&policy)
+            .trust(&trust)
+            .lockfile(&lockfile)
+            .build();
+        let err = verifier.verify(&test_dep(), dir.path(), None).unwrap_err();
+        assert!(
+            matches!(err, ResolverError::RequireSignedViolation { .. }),
+            "expected `RequireSignedViolation`, got: {err}"
+        );
+    }
+
+    #[test]
+    fn lockfile_checksum_mismatch() {
+        let dir = tempdir().unwrap();
+        write_module(dir.path(), "version 1.2\n");
+        let checksum = crate::hash::hash_directory(dir.path()).unwrap();
+
+        let wrong_checksum = ContentHash::from([0xFFu8; 32]);
+        assert_ne!(checksum, wrong_checksum);
+
+        let dep = test_dep();
+        let mut deps = BTreeMap::new();
+        deps.insert(
+            dep.clone(),
+            DependencyEntry {
+                source: test_source(),
+                version: Version::new(1, 0, 0),
+                checksum: wrong_checksum,
+                signer: None,
+                dependencies: BTreeMap::new(),
+            },
+        );
+        let lockfile = Lockfile {
+            version: crate::LOCKFILE_VERSION,
+            dependencies: deps,
+        };
+        let (config, policy, trust, lockfile) = verifier_with_lockfile(lockfile);
+        let verifier = ModuleVerifier::builder()
+            .config(&config)
+            .policy(&policy)
+            .trust(&trust)
+            .lockfile(&lockfile)
+            .build();
+        let err = verifier
+            .verify_against_lockfile(&dep, &checksum, None)
+            .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::ChecksumMismatch { .. }),
+            "expected `ChecksumMismatch`, got: {err}"
+        );
+    }
+
+    #[test]
+    fn lockfile_checksum_match() {
+        let dir = tempdir().unwrap();
+        write_module(dir.path(), "version 1.2\n");
+        let checksum = crate::hash::hash_directory(dir.path()).unwrap();
+
+        let dep = test_dep();
+        let mut deps = BTreeMap::new();
+        deps.insert(
+            dep.clone(),
+            DependencyEntry {
+                source: test_source(),
+                version: Version::new(1, 0, 0),
+                checksum,
+                signer: None,
+                dependencies: BTreeMap::new(),
+            },
+        );
+        let lockfile = Lockfile {
+            version: crate::LOCKFILE_VERSION,
+            dependencies: deps,
+        };
+        let (config, policy, trust, lockfile) = verifier_with_lockfile(lockfile);
+        let verifier = ModuleVerifier::builder()
+            .config(&config)
+            .policy(&policy)
+            .trust(&trust)
+            .lockfile(&lockfile)
+            .build();
+        let result = verifier.verify_against_lockfile(&dep, &checksum, None);
+        assert!(result.is_ok(), "matching checksum should pass: {result:?}");
+    }
+
+    #[test]
+    fn signature_downgrade_detected() {
+        let key = signing_key_from_seed(0xAB).verifying_key();
+        let checksum = ContentHash::from([0x01u8; 32]);
+        let dep = test_dep();
+        let mut deps = BTreeMap::new();
+        deps.insert(
+            dep.clone(),
+            DependencyEntry {
+                source: test_source(),
+                version: Version::new(1, 0, 0),
+                checksum,
+                signer: Some(key),
+                dependencies: BTreeMap::new(),
+            },
+        );
+        let lockfile = Lockfile {
+            version: crate::LOCKFILE_VERSION,
+            dependencies: deps,
+        };
+        let (config, policy, trust, lockfile) = verifier_with_lockfile(lockfile);
+        let verifier = ModuleVerifier::builder()
+            .config(&config)
+            .policy(&policy)
+            .trust(&trust)
+            .lockfile(&lockfile)
+            .build();
+        let err = verifier
+            .verify_against_lockfile(&dep, &checksum, None)
+            .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::SignatureDowngrade { .. }),
+            "expected `SignatureDowngrade`, got: {err}"
+        );
+    }
+
+    #[test]
+    fn signer_key_mismatch_detected() {
+        let key_a = signing_key_from_seed(0xAB).verifying_key();
+        let key_b = signing_key_from_seed(0xCD).verifying_key();
+        let checksum = ContentHash::from([0x01u8; 32]);
+        let dep = test_dep();
+        let mut deps = BTreeMap::new();
+        deps.insert(
+            dep.clone(),
+            DependencyEntry {
+                source: test_source(),
+                version: Version::new(1, 0, 0),
+                checksum,
+                signer: Some(key_a),
+                dependencies: BTreeMap::new(),
+            },
+        );
+        let lockfile = Lockfile {
+            version: crate::LOCKFILE_VERSION,
+            dependencies: deps,
+        };
+        let (config, policy, trust, lockfile) = verifier_with_lockfile(lockfile);
+        let verifier = ModuleVerifier::builder()
+            .config(&config)
+            .policy(&policy)
+            .trust(&trust)
+            .lockfile(&lockfile)
+            .build();
+        let err = verifier
+            .verify_against_lockfile(&dep, &checksum, Some(&key_b))
+            .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::SignerKeyMismatch { .. }),
+            "expected `SignerKeyMismatch`, got: {err}"
+        );
+    }
+
+    #[test]
+    fn file_count_limit_exceeded() {
+        let dir = tempdir().unwrap();
+        for i in 0..5 {
+            fs::write(dir.path().join(format!("file_{i}.wdl")), "version 1.2\n").unwrap();
+        }
+        let mut config = ModulesConfig::default();
+        config.max_materialized_files = Some(2);
+        let policy = ResolverPolicy::from(&config);
+        let trust = TrustStore::default();
+        let lockfile = Lockfile::default();
+        let verifier = ModuleVerifier::builder()
+            .config(&config)
+            .policy(&policy)
+            .trust(&trust)
+            .lockfile(&lockfile)
+            .build();
+        let err = verifier.verify(&test_dep(), dir.path(), None).unwrap_err();
+        assert!(
+            matches!(err, ResolverError::MaterializedTreeLimitExceeded { .. }),
+            "expected `MaterializedTreeLimitExceeded`, got: {err}"
+        );
+    }
+
+    #[test]
+    fn byte_limit_exceeded() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("big.wdl"), "x".repeat(1000)).unwrap();
+        let mut config = ModulesConfig::default();
+        config.max_materialized_bytes = Some(100);
+        let policy = ResolverPolicy::from(&config);
+        let trust = TrustStore::default();
+        let lockfile = Lockfile::default();
+        let verifier = ModuleVerifier::builder()
+            .config(&config)
+            .policy(&policy)
+            .trust(&trust)
+            .lockfile(&lockfile)
+            .build();
+        let err = verifier.verify(&test_dep(), dir.path(), None).unwrap_err();
+        assert!(
+            matches!(err, ResolverError::MaterializedTreeLimitExceeded { .. }),
+            "expected `MaterializedTreeLimitExceeded`, got: {err}"
+        );
+    }
+
+    #[test]
+    fn not_in_lockfile() {
+        let dep = test_dep();
+        let checksum = ContentHash::from([0x01u8; 32]);
+        let lockfile = Lockfile::default();
+        let (config, policy, trust, lockfile) = verifier_with_lockfile(lockfile);
+        let verifier = ModuleVerifier::builder()
+            .config(&config)
+            .policy(&policy)
+            .trust(&trust)
+            .lockfile(&lockfile)
+            .build();
+        let err = verifier
+            .verify_against_lockfile(&dep, &checksum, None)
+            .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::NotInLockfile { .. }),
+            "expected `NotInLockfile`, got: {err}"
+        );
+    }
+
+    #[test]
+    fn trust_store_rejects_wrong_signer() {
+        let dir = tempdir().unwrap();
+        write_signed_module(dir.path(), "version 1.2\n", 0xAB);
+
+        let trusted_key = signing_key_from_seed(0xCD).verifying_key();
+        let dep = test_dep();
+        let source_url = "https://github.com/example/foo";
+        let trust = TrustStore {
+            entries: vec![crate::resolver::trust::TrustEntry {
+                dep: dep.clone(),
+                source: source_url.to_string(),
+                path: None,
+                key: trusted_key,
+            }],
+        };
+        let config = ModulesConfig::default();
+        let policy = ResolverPolicy::from(&config);
+        let lockfile = Lockfile::default();
+        let verifier = ModuleVerifier::builder()
+            .config(&config)
+            .policy(&policy)
+            .trust(&trust)
+            .lockfile(&lockfile)
+            .build();
+        let err = verifier
+            .verify(&dep, dir.path(), Some((source_url, None)))
+            .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::SignerKeyMismatch { .. }),
+            "expected `SignerKeyMismatch` from trust store, got: {err}"
+        );
+    }
 }
