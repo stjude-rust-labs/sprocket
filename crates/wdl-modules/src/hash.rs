@@ -592,6 +592,33 @@ mod tests {
     }
 
     #[test]
+    fn windows_and_unix_paths_hash_identically() {
+        let dir = tempdir().unwrap();
+        fs::create_dir(dir.path().join("sub")).unwrap();
+        fs::write(dir.path().join("root.wdl"), b"workflow w {}").unwrap();
+        fs::write(dir.path().join("sub").join("nested.wdl"), b"task t {}").unwrap();
+
+        // Simulate Unix-style paths (as `hash_directory` would produce on Unix).
+        let mut h_unix = Hasher::new(dir.path().to_path_buf());
+        for p in ["root.wdl", "sub/nested.wdl"] {
+            h_unix.try_add(p).unwrap();
+        }
+
+        // Simulate Windows-style paths after the `\` → `/` normalization that
+        // `hash_directory` applies before calling `try_add`.
+        let mut h_win = Hasher::new(dir.path().to_path_buf());
+        for p in ["root.wdl", "sub\\nested.wdl"] {
+            h_win.try_add(p.replace('\\', "/")).unwrap();
+        }
+
+        assert_eq!(
+            h_unix.finalize().unwrap(),
+            h_win.finalize().unwrap(),
+            "digests must be platform-independent after path-separator normalization"
+        );
+    }
+
+    #[test]
     fn directory_symlink_cycle_is_rejected() {
         let dir = tempdir().unwrap();
         fs::write(dir.path().join("real.wdl"), b"version 1.2\n").unwrap();
