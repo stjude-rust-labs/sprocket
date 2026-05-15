@@ -268,13 +268,6 @@ pub enum ResolverError {
         path: PathBuf,
     },
 
-    /// A symlink target resolved to a path that is not UTF-8.
-    #[error("symlink target at `{path}` is not UTF-8")]
-    NonUtf8SymlinkTarget {
-        /// The symlink whose target is not UTF-8.
-        path: PathBuf,
-    },
-
     /// An I/O error.
     #[error("i/o error at `{path}`")]
     Io {
@@ -284,6 +277,10 @@ pub enum ResolverError {
         #[source]
         source: std::io::Error,
     },
+
+    /// A module-walk error (symlink containment, metadata target, etc.).
+    #[error(transparent)]
+    Walk(#[from] crate::module_walk::ModuleWalkError),
 
     /// Hashing a cache leaf or local path failed.
     #[error(transparent)]

@@ -26,7 +26,7 @@ fn walk_module_tree(
     visitor: &mut dyn FnMut(&Path, u64) -> Result<(), ResolverError>,
 ) -> Result<module_walk::TreeStats, ResolverError> {
     module_walk::walk_module_tree(root, visitor).map_err(|e| match e {
-        module_walk::WalkError::Hash(h) => ResolverError::Hash(h),
+        module_walk::WalkError::Walk(w) => ResolverError::Walk(w),
         module_walk::WalkError::Visitor(r) => r,
     })
 }

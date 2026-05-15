@@ -806,8 +806,8 @@ fn resolve_content_file(
         .split('/')
         .any(|name| NON_MODULE_CONTENT.contains(&name))
     {
-        return Err(ResolverError::Hash(
-            crate::HashError::SymlinkTargetsMetadata(rel.to_string()),
+        return Err(ResolverError::Walk(
+            crate::module_walk::ModuleWalkError::SymlinkTargetsMetadata(rel.to_string()),
         ));
     }
 
@@ -846,9 +846,11 @@ fn resolve_content_file(
 
         if let Ok(target_rel) = target.strip_prefix(&canonical_root) {
             if target_rel.to_str().is_none() {
-                return Err(ResolverError::NonUtf8SymlinkTarget {
-                    path: candidate,
-                });
+                return Err(ResolverError::Walk(
+                    crate::module_walk::ModuleWalkError::NonUtf8SymlinkTarget(
+                        candidate.display().to_string(),
+                    ),
+                ));
             }
             // SAFETY: the `to_str` check above guarantees all
             // components are valid UTF-8.
@@ -856,8 +858,8 @@ fn resolve_content_file(
                 .components()
                 .any(|c| NON_MODULE_CONTENT.contains(&c.as_os_str().to_str().unwrap()))
             {
-                return Err(ResolverError::Hash(
-                    crate::HashError::SymlinkTargetsMetadata(rel.to_string()),
+                return Err(ResolverError::Walk(
+                    crate::module_walk::ModuleWalkError::SymlinkTargetsMetadata(rel.to_string()),
                 ));
             }
         }
@@ -1549,7 +1551,7 @@ mod tests {
             matches!(
                 err,
                 ResolverError::MaterializedSymlinkEscape { .. }
-                    | ResolverError::Hash(crate::HashError::SymlinkEscapesRoot(_))
+                    | ResolverError::Walk(crate::module_walk::ModuleWalkError::SymlinkEscapesRoot(_))
                     | ResolverError::ChecksumMismatch { .. }
             ),
             "got: {err}"
@@ -1755,7 +1757,7 @@ mod tests {
         assert!(
             matches!(
                 err,
-                ResolverError::Hash(crate::HashError::SymlinkEscapesRoot(_))
+                ResolverError::Walk(crate::module_walk::ModuleWalkError::SymlinkEscapesRoot(_))
             ),
             "expected `Hash(SymlinkEscapesRoot)`, got: {err}"
         );
@@ -1968,7 +1970,7 @@ mod tests {
         assert!(
             matches!(
                 err,
-                ResolverError::Hash(crate::HashError::SymlinkTargetsMetadata(_))
+                ResolverError::Walk(crate::module_walk::ModuleWalkError::SymlinkTargetsMetadata(_))
                     | ResolverError::MaterializedSymlinkEscape { .. }
                     | ResolverError::ChecksumMismatch { .. }
             ),

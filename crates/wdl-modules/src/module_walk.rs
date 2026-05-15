@@ -8,10 +8,47 @@
 //! are allowed when they resolve inside the module root and do not
 //! target non-module content.
 
+use std::io;
 use std::path::Path;
+use std::path::PathBuf;
 
-use crate::hash::HashError;
+use thiserror::Error;
+
 use crate::hash::NON_MODULE_CONTENT;
+
+/// An error encountered while walking a module tree.
+#[derive(Debug, Error)]
+pub enum ModuleWalkError {
+    /// A symbolic link target resolves outside the module root.
+    #[error("symbolic link `{0}` resolves outside the module root")]
+    SymlinkEscapesRoot(String),
+
+    /// A symbolic link points to a directory.
+    ///
+    /// Directory symlinks are rejected to prevent cycles during tree
+    /// traversal.
+    #[error("symbolic link `{0}` targets a directory")]
+    DirectorySymlink(String),
+
+    /// A symbolic link resolves to a path that is not UTF-8.
+    #[error("symbolic link target under `{0}` is not UTF-8")]
+    NonUtf8SymlinkTarget(String),
+
+    /// A symbolic link target resolves to non-module content (e.g.,
+    /// `.git` or `.sparse.json`).
+    #[error("symbolic link `{0}` targets non-module content")]
+    SymlinkTargetsMetadata(String),
+
+    /// I/O failure during the walk.
+    #[error("i/o error at `{path}`")]
+    Io {
+        /// The path involved.
+        path: PathBuf,
+        /// The underlying I/O error.
+        #[source]
+        source: io::Error,
+    },
+}
 
 /// Statistics collected during a tree walk.
 #[derive(Clone, Debug, Default)]
@@ -29,9 +66,9 @@ pub struct TreeStats {
 /// Rules enforced:
 /// - Entries named `.git` or `.sparse.json` are skipped.
 /// - Symlinks whose canonical target is outside the module root are rejected
-///   with `HashError::SymlinkEscapesRoot`.
+///   with `ModuleWalkError::SymlinkEscapesRoot`.
 /// - Symlinks targeting non-module content (`.git`, `.sparse.json`) are
-///   rejected with `HashError::SymlinkTargetsMetadata`.
+///   rejected with `ModuleWalkError::SymlinkTargetsMetadata`.
 /// - Directory symlinks are rejected to prevent cycles.
 /// - Only regular files (and file symlinks to valid targets) are visited.
 pub fn walk_module_tree<E>(
@@ -39,7 +76,7 @@ pub fn walk_module_tree<E>(
     visitor: &mut dyn FnMut(&Path, u64) -> Result<(), E>,
 ) -> Result<TreeStats, WalkError<E>> {
     let canonical_root = std::fs::canonicalize(root).map_err(|source| {
-        WalkError::Hash(HashError::Io {
+        WalkError::Walk(ModuleWalkError::Io {
             path: root.to_path_buf(),
             source,
         })
@@ -49,19 +86,19 @@ pub fn walk_module_tree<E>(
     Ok(stats)
 }
 
-/// The error type for [`walk_module_tree`]. Wraps both hash-layer
+/// The error type for [`walk_module_tree`]. Wraps both walk-layer
 /// errors and visitor errors.
 #[derive(Debug)]
 pub enum WalkError<E> {
-    /// A hash/containment/metadata error.
-    Hash(HashError),
+    /// An error encountered by the walker itself.
+    Walk(ModuleWalkError),
     /// An error returned by the visitor callback.
     Visitor(E),
 }
 
-impl<E> From<HashError> for WalkError<E> {
-    fn from(e: HashError) -> Self {
-        Self::Hash(e)
+impl<E> From<ModuleWalkError> for WalkError<E> {
+    fn from(e: ModuleWalkError) -> Self {
+        Self::Walk(e)
     }
 }
 
@@ -73,14 +110,14 @@ fn walk_recursive<E>(
     stats: &mut TreeStats,
 ) -> Result<(), WalkError<E>> {
     let entries = std::fs::read_dir(dir).map_err(|source| {
-        WalkError::Hash(HashError::Io {
+        WalkError::Walk(ModuleWalkError::Io {
             path: dir.to_path_buf(),
             source,
         })
     })?;
     for entry in entries {
         let entry = entry.map_err(|source| {
-            WalkError::Hash(HashError::Io {
+            WalkError::Walk(ModuleWalkError::Io {
                 path: dir.to_path_buf(),
                 source,
             })
@@ -91,7 +128,7 @@ fn walk_recursive<E>(
         }
         let path = entry.path();
         let meta = std::fs::symlink_metadata(&path).map_err(|source| {
-            WalkError::Hash(HashError::Io {
+            WalkError::Walk(ModuleWalkError::Io {
                 path: path.to_path_buf(),
                 source,
             })
@@ -119,19 +156,19 @@ fn handle_symlink<E>(
     stats: &mut TreeStats,
 ) -> Result<(), WalkError<E>> {
     let target = std::fs::canonicalize(path).map_err(|source| {
-        WalkError::Hash(HashError::Io {
+        WalkError::Walk(ModuleWalkError::Io {
             path: path.to_path_buf(),
             source,
         })
     })?;
     if !target.starts_with(module_root) {
-        return Err(WalkError::Hash(HashError::SymlinkEscapesRoot(
+        return Err(WalkError::Walk(ModuleWalkError::SymlinkEscapesRoot(
             path.display().to_string(),
         )));
     }
     if let Ok(rel) = target.strip_prefix(module_root) {
         if rel.to_str().is_none() {
-            return Err(WalkError::Hash(HashError::NonUtf8SymlinkTarget(
+            return Err(WalkError::Walk(ModuleWalkError::NonUtf8SymlinkTarget(
                 path.display().to_string(),
             )));
         }
@@ -141,19 +178,19 @@ fn handle_symlink<E>(
             .components()
             .any(|c| NON_MODULE_CONTENT.contains(&c.as_os_str().to_str().unwrap()));
         if targets_metadata {
-            return Err(WalkError::Hash(HashError::SymlinkTargetsMetadata(
+            return Err(WalkError::Walk(ModuleWalkError::SymlinkTargetsMetadata(
                 path.display().to_string(),
             )));
         }
     }
     let target_meta = std::fs::metadata(path).map_err(|source| {
-        WalkError::Hash(HashError::Io {
+        WalkError::Walk(ModuleWalkError::Io {
             path: path.to_path_buf(),
             source,
         })
     })?;
     if target_meta.is_dir() {
-        return Err(WalkError::Hash(HashError::DirectorySymlink(
+        return Err(WalkError::Walk(ModuleWalkError::DirectorySymlink(
             path.display().to_string(),
         )));
     }

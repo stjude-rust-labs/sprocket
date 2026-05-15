@@ -16,6 +16,7 @@ use thiserror::Error;
 
 use crate::RelativePath;
 use crate::RelativePathError;
+use crate::module_walk::ModuleWalkError;
 use crate::tree::TreeError;
 
 /// An error during content hashing.
@@ -30,26 +31,6 @@ pub enum HashError {
     /// root.
     #[error("absolute path `{0}` is not under the module root")]
     AbsoluteNotUnderRoot(String),
-
-    /// A symbolic link target resolves outside the module root.
-    #[error("symbolic link `{0}` resolves outside the module root")]
-    SymlinkEscapesRoot(String),
-
-    /// A symbolic link points to a directory.
-    ///
-    /// Directory symlinks are rejected to prevent cycles during tree
-    /// traversal.
-    #[error("symbolic link `{0}` targets a directory")]
-    DirectorySymlink(String),
-
-    /// A symbolic link resolves to a path that is not UTF-8.
-    #[error("symbolic link target under `{0}` is not UTF-8")]
-    NonUtf8SymlinkTarget(String),
-
-    /// A symbolic link target resolves to non-module content (e.g.,
-    /// `.git` or `.sparse.json`).
-    #[error("symbolic link `{0}` targets non-module content")]
-    SymlinkTargetsMetadata(String),
 
     /// A new path collides under Unicode Normalization Form C (NFC) with a
     /// path that was already recorded. The spec requires the module's set
@@ -71,6 +52,10 @@ pub enum HashError {
         #[source]
         source: io::Error,
     },
+
+    /// A tree walk error (symlink containment, metadata target, etc.).
+    #[error(transparent)]
+    Walk(#[from] ModuleWalkError),
 
     /// A module file-tree validation error (reserved-filename placement,
     /// NFC duplicate paths).
@@ -246,7 +231,7 @@ impl Hasher {
             })?;
 
             if !canonical_abs.starts_with(&canonical_root) {
-                return Err(HashError::SymlinkEscapesRoot(relative.as_str().to_string()));
+                return Err(ModuleWalkError::SymlinkEscapesRoot(relative.as_str().to_string()).into());
             }
 
             let mut file = File::open(&canonical_abs).map_err(|source| HashError::Io {
@@ -300,7 +285,7 @@ pub fn hash_directory(root: impl AsRef<Path>) -> Result<ContentHash, HashError> 
         Ok(())
     })
     .map_err(|e| match e {
-        crate::module_walk::WalkError::Hash(h) => h,
+        crate::module_walk::WalkError::Walk(w) => HashError::from(w),
         crate::module_walk::WalkError::Visitor(h) => h,
     })?;
 
@@ -564,7 +549,7 @@ mod tests {
         );
         let err = hash_directory(dir.path()).unwrap_err();
         assert!(
-            matches!(err, HashError::SymlinkTargetsMetadata(_)),
+            matches!(err, HashError::Walk(ModuleWalkError::SymlinkTargetsMetadata(_))),
             "got: {err}"
         );
     }
@@ -597,7 +582,7 @@ mod tests {
         );
         let err = hash_directory(dir.path()).unwrap_err();
         assert!(
-            matches!(err, HashError::SymlinkTargetsMetadata(_)),
+            matches!(err, HashError::Walk(ModuleWalkError::SymlinkTargetsMetadata(_))),
             "expected metadata symlink rejection, got: {err}"
         );
     }
@@ -642,9 +627,11 @@ mod tests {
         assert!(
             matches!(
                 err,
-                HashError::DirectorySymlink(_)
-                    | HashError::SymlinkEscapesRoot(_)
-                    | HashError::SymlinkTargetsMetadata(_)
+                HashError::Walk(
+                    ModuleWalkError::DirectorySymlink(_)
+                        | ModuleWalkError::SymlinkEscapesRoot(_)
+                        | ModuleWalkError::SymlinkTargetsMetadata(_)
+                )
             ),
             "directory symlink cycles must be rejected, got: {err}"
         );
