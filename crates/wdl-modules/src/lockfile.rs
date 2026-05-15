@@ -15,6 +15,7 @@ use url::Url;
 use crate::ContentHash;
 use crate::DependencyName;
 use crate::DependencyNameError;
+use crate::GitModulePath;
 use crate::GitSelector;
 use crate::VerifyingKey;
 
@@ -105,16 +106,17 @@ pub enum ResolvedSource {
         git: Url,
         /// The 40-character lowercase hex commit SHA.
         commit: GitCommit,
-        /// The selector from `module.json` that produced this lockfile
-        /// entry. Older lockfiles may omit this field; tag and branch
-        /// selectors require a relock when it is absent because mutable
-        /// refs cannot be validated from the resolved commit alone.
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        selector: Option<GitSelector>,
+        /// The selector from `module.json` that produced this entry.
+        ///
+        /// Tag and branch selectors carry mutable refs that cannot be
+        /// validated from the resolved commit alone, so this field is
+        /// required to allow integrity checks without a full relock.
+        selector: GitSelector,
         /// The sub-path within the repository where the module lives.
+        ///
         /// Omitted when the module sits at the repository root.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        path: Option<crate::GitModulePath>,
+        path: Option<GitModulePath>,
     },
     /// A local filesystem source.
     Path {
@@ -213,7 +215,8 @@ mod tests {
                     "spellbook": {
                         "source": {
                             "git": "https://github.com/openwdl/spellbook",
-                            "commit": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+                            "commit": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+                            "selector": {"version": "^1"}
                         },
                         "version": "1.2.0",
                         "checksum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -221,7 +224,8 @@ mod tests {
                             "common": {
                                 "source": {
                                     "git": "https://github.com/openwdl/common",
-                                    "commit": "d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5"
+                                    "commit": "d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5",
+                                    "selector": {"version": "^0.3"}
                                 },
                                 "version": "0.3.0",
                                 "checksum": "sha256:4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
@@ -309,7 +313,8 @@ mod tests {
                     "spellbook": {
                         "source": {
                             "git": "https://x/y",
-                            "commit": "not-a-sha"
+                            "commit": "not-a-sha",
+                            "selector": {"tag": "v1"}
                         },
                         "version": "1.0.0",
                         "checksum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -351,6 +356,7 @@ mod tests {
                         "source": {
                             "git": "https://github.com/openwdl/tasks",
                             "commit": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+                            "selector": {"tag": "v1.2.0"},
                             "path": "csvcut"
                         },
                         "version": "1.2.0",

@@ -235,6 +235,7 @@ mod tests {
     use super::*;
     use crate::DependencyEntry;
     use crate::GitCommit;
+    use crate::GitSelector;
     use crate::ResolvedSource;
     use crate::signing::test_utils::signing_key_from_seed;
 
@@ -246,7 +247,7 @@ mod tests {
         ResolvedSource::Git {
             git: "https://github.com/example/foo".parse().unwrap(),
             commit: GitCommit::try_from("a".repeat(40)).unwrap(),
-            selector: None,
+            selector: GitSelector::Version("^1".parse().unwrap()),
             path: None,
         }
     }

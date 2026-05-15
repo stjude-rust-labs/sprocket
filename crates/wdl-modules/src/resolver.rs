@@ -475,7 +475,7 @@ impl GitResolver {
                         git: url.clone(),
                         commit: plan.commit,
                         path: path.clone(),
-                        selector: Some(selector.clone()),
+                        selector: selector.clone(),
                     },
                     manifest,
                     MaterializedRoot::Cached {
@@ -528,7 +528,7 @@ impl GitResolver {
                         locked_entry,
                         selector,
                         locked_commit,
-                        locked_selector.as_ref(),
+                        locked_selector,
                     )
                 {
                     return Err(ResolverError::LockfileSourceMismatch {
@@ -568,16 +568,16 @@ fn locked_selector_satisfies(
     entry: &DependencyEntry,
     selector: &GitSelector,
     locked_commit: &GitCommit,
-    locked_selector: Option<&GitSelector>,
+    locked_selector: &GitSelector,
 ) -> bool {
     match selector {
         GitSelector::Version(requirement) => requirement.matches(&entry.version),
         GitSelector::Commit(commit) => commit == locked_commit,
         GitSelector::Tag(tag) => {
-            matches!(locked_selector, Some(GitSelector::Tag(locked)) if locked == tag)
+            matches!(locked_selector, GitSelector::Tag(locked) if locked == tag)
         }
         GitSelector::Branch(branch) => {
-            matches!(locked_selector, Some(GitSelector::Branch(locked)) if locked == branch)
+            matches!(locked_selector, GitSelector::Branch(locked) if locked == branch)
         }
     }
 }
@@ -1202,7 +1202,7 @@ mod tests {
         resolver_with_lockfile(cache, lockfile)
     }
 
-    fn locked_git_entry(selector: Option<GitSelector>) -> DependencyEntry {
+    fn locked_git_entry(selector: GitSelector) -> DependencyEntry {
         DependencyEntry {
             source: ResolvedSource::Git {
                 git: "https://github.com/openwdl/tasks".parse().unwrap(),
@@ -1220,7 +1220,7 @@ mod tests {
     #[tokio::test]
     async fn locked_git_materialization_rejects_version_selector_mismatch() {
         let cache = tempdir().unwrap();
-        let r = locked_git_resolver(&cache, "dep", locked_git_entry(None));
+        let r = locked_git_resolver(&cache, "dep", locked_git_entry(GitSelector::Version("^1".parse().unwrap())));
         let dep = DependencyName::try_from("dep".to_string()).unwrap();
         let url = "https://github.com/openwdl/tasks".parse().unwrap();
         let selector = GitSelector::Version("^2".parse().unwrap());
@@ -1241,7 +1241,7 @@ mod tests {
     #[tokio::test]
     async fn locked_git_materialization_rejects_commit_selector_mismatch() {
         let cache = tempdir().unwrap();
-        let r = locked_git_resolver(&cache, "dep", locked_git_entry(None));
+        let r = locked_git_resolver(&cache, "dep", locked_git_entry(GitSelector::Version("^1".parse().unwrap())));
         let dep = DependencyName::try_from("dep".to_string()).unwrap();
         let url = "https://github.com/openwdl/tasks".parse().unwrap();
         let selector =
@@ -1266,7 +1266,7 @@ mod tests {
         let r = locked_git_resolver(
             &cache,
             "dep",
-            locked_git_entry(Some(GitSelector::Tag("v1.0.0".to_string()))),
+            locked_git_entry(GitSelector::Tag("v1.0.0".to_string())),
         );
         let dep = DependencyName::try_from("dep".to_string()).unwrap();
         let url = "https://github.com/openwdl/tasks".parse().unwrap();
@@ -2118,7 +2118,7 @@ mod tests {
             git: "https://github.com/x/y".parse().unwrap(),
             commit: "0000000000000000000000000000000000000000".parse().unwrap(),
             path: None,
-            selector: Some(crate::GitSelector::Tag("v1".into())),
+            selector: crate::GitSelector::Tag("v1".into()),
         };
         let local_dep = DependencySource::LocalPath {
             path: "/home/user/projects/dep".into(),
