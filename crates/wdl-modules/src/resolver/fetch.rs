@@ -33,7 +33,7 @@ impl GitFetcher {
     ) -> Result<RemoteRefs, ResolverError> {
         self.policy.check_git_url(dep, url, scope)?;
         let net = self.policy.git_policy(scope);
-        crate::resolver::versions::list_remote_refs(
+        crate::resolver::versions::discover_remote_tags(
             url,
             net.max_advertised_refs,
             net.credential_mode,
@@ -51,7 +51,7 @@ impl GitFetcher {
     ) -> Result<RemoteRefs, ResolverError> {
         self.policy.check_git_url(dep, url, scope)?;
         let net = self.policy.git_policy(scope);
-        crate::resolver::versions::list_remote_branches(
+        crate::resolver::versions::discover_remote_branches(
             url,
             net.max_advertised_refs,
             net.credential_mode,
