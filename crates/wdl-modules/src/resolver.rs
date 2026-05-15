@@ -66,7 +66,6 @@ pub use crate::resolver::types::MaterializedFile;
 pub use crate::resolver::types::ResolvedDependency;
 pub use crate::resolver::types::ResolvedModule;
 pub use crate::resolver::types::ResolvedTree;
-use crate::resolver::verify::ModuleVerifier;
 use crate::resolver::verify::VerifiedModule;
 
 /// Resolves WDL module imports to concrete files on disk.
@@ -126,17 +125,13 @@ pub struct GitResolver {
     /// leaves are materialized.
     #[builder(into)]
     cache_root: PathBuf,
-    /// Path of the user-level trust store (`modules-trust.toml`),
-    /// recorded for diagnostic output. Loading is the caller's
-    /// responsibility; `trust` carries the loaded contents.
-    #[builder(into)]
-    trust_path: PathBuf,
-    /// The project's `[modules]` configuration.
+    /// The resolved policy, derived from [`ModulesConfig`] at construction.
     #[builder(default)]
-    config: ModulesConfig,
+    policy: ResolverPolicy,
     /// The user-level trust store, loaded by the caller.
     trust: TrustStore,
     /// The lockfile to verify materialized dependencies against.
+    ///
     /// `materialize` compares each dependency's observed content hash
     /// against the locked checksum and rejects mismatches.
     lockfile: Lockfile,
@@ -148,29 +143,14 @@ impl GitResolver {
         &self.cache_root
     }
 
-    /// Returns the trust-store path.
-    pub fn trust_path(&self) -> &Path {
-        &self.trust_path
-    }
-
-    /// Returns the active `[modules]` configuration.
-    pub fn config(&self) -> &ModulesConfig {
-        &self.config
-    }
-
     /// Returns the active trust store.
     pub fn trust_store(&self) -> &TrustStore {
         &self.trust
     }
 
-    /// Returns the resolved policy.
-    fn policy(&self) -> ResolverPolicy {
-        ResolverPolicy::from(&self.config)
-    }
-
     /// Returns a policy-enforcing Git fetcher.
     fn fetcher(&self) -> GitFetcher {
-        GitFetcher::new(self.policy())
+        GitFetcher::new(self.policy.clone())
     }
 
     /// Returns the lockfile.
@@ -178,40 +158,13 @@ impl GitResolver {
         &self.lockfile
     }
 
-    /// Resolves every entry in `deps`, threading the cycle-detection
-    /// `chain` of `(name, source)` pairs through each recursion step.
-    fn resolve_deps<'a>(
-        &'a self,
-        deps: &'a BTreeMap<DependencyName, DependencySource>,
-        parent: Option<&'a ResolvedSource>,
-        chain: &'a mut Vec<(DependencyName, ResolvedSource)>,
-    ) -> BoxFuture<'a, Result<BTreeMap<DependencyName, ResolvedDependency>, ResolverError>> {
-        async move {
-            let mut out = BTreeMap::new();
-            let scope = if parent.is_some() {
-                DependencyScope::Transitive
-            } else {
-                DependencyScope::TopLevel
-            };
-            for (name, source) in deps {
-                if is_transitive_local_disallowed(parent, source) {
-                    return Err(ResolverError::LocalPathInTransitive {
-                        dep: name.manifest().to_string(),
-                    });
-                }
-                if let DependencySource::Git { url, .. } = source {
-                    self.policy().check_git_url(name, url, scope)?;
-                }
-                let resolved = self.resolve_dependency(name, source, scope, chain).await?;
-                out.insert(name.clone(), resolved);
-            }
-            Ok(out)
-        }
-        .boxed()
-    }
 
-    /// Resolves a single dependency, recursing into its own
-    /// `dependencies`. Detects cycles using `chain`.
+    /// Resolves a single named dependency to a [`ResolvedDependency`].
+    ///
+    /// Materializes the source on disk, verifies its content hash and
+    /// signature, checks for cycles in `chain`, then recurses into the
+    /// dependency's own transitive dependencies via
+    /// [`resolve_dependencies`](Self::resolve_dependencies).
     fn resolve_dependency<'a>(
         &'a self,
         name: &'a DependencyName,
@@ -233,8 +186,14 @@ impl GitResolver {
 
             let source_url = resolved_source.source_url();
             let source_path = resolved_source.source_path();
-            let VerifiedModule { checksum, signer } = self
-                .verify(name, module_root.module_root().as_ref(), Some((&source_url, source_path)))
+            let VerifiedModule { checksum, signer } =
+                crate::resolver::verify::verify(
+                    &self.policy,
+                    &self.trust,
+                    name,
+                    module_root.module_root().as_ref(),
+                    Some((&source_url, source_path)),
+                )
                 .inspect_err(|e| {
                     if let MaterializedRoot::Cached { cache_leaf, .. } = &module_root {
                         tracing::warn!(
@@ -248,7 +207,7 @@ impl GitResolver {
 
             chain.push((name.clone(), resolved_source.clone()));
             let inner = self
-                .resolve_deps(&manifest.dependencies, Some(&resolved_source), chain)
+                .resolve_dependencies(&manifest.dependencies, Some(&resolved_source), chain)
                 .await
                 .inspect_err(|_| {
                     chain.pop();
@@ -266,44 +225,56 @@ impl GitResolver {
         .boxed()
     }
 
-    /// Returns a verifier that borrows this resolver's config, trust
-    /// store, and lockfile.
-    fn verify(
-        &self,
-        name: &DependencyName,
-        module_root: &Path,
-        source_id: Option<(&str, Option<&str>)>,
-    ) -> Result<VerifiedModule, ResolverError> {
-        let policy = self.policy();
-        let verifier = ModuleVerifier::builder()
-            .config(&self.config)
-            .policy(&policy)
-            .trust(&self.trust)
-            .lockfile(&self.lockfile)
-            .build();
-        verifier.verify(name, module_root, source_id)
+    /// Resolves every entry in `deps` and returns the flattened map.
+    ///
+    /// Iterates the dependency map, rejects local-path deps under Git
+    /// parents, enforces URL scheme policy, and delegates each entry
+    /// to [`resolve_dependency`](Self::resolve_dependency). The
+    /// `chain` parameter threads through the recursion for cycle
+    /// detection.
+    fn resolve_dependencies<'a>(
+        &'a self,
+        deps: &'a BTreeMap<DependencyName, DependencySource>,
+        parent: Option<&'a ResolvedSource>,
+        chain: &'a mut Vec<(DependencyName, ResolvedSource)>,
+    ) -> BoxFuture<'a, Result<BTreeMap<DependencyName, ResolvedDependency>, ResolverError>> {
+        async move {
+            let mut out = BTreeMap::new();
+            let scope = if parent.is_some() {
+                DependencyScope::Transitive
+            } else {
+                DependencyScope::TopLevel
+            };
+            for (name, source) in deps {
+                // Local-path deps under a Git parent are disallowed:
+                // the path would be meaningless outside the original
+                // machine, making the resolution non-reproducible.
+                if matches!(source, DependencySource::LocalPath { .. })
+                    && matches!(parent, Some(ResolvedSource::Git { .. }))
+                {
+                    return Err(ResolverError::LocalPathInTransitive {
+                        dep: name.manifest().to_string(),
+                    });
+                }
+
+                if let DependencySource::Git { url, .. } = source {
+                    self.policy.check_git_url(name, url, scope)?;
+                }
+
+                let resolved = self.resolve_dependency(name, source, scope, chain).await?;
+                out.insert(name.clone(), resolved);
+            }
+            Ok(out)
+        }
+        .boxed()
     }
 
-    /// Verifies a dependency's content hash and signer against the
-    /// lockfile.
-    fn verify_against_lockfile(
-        &self,
-        name: &DependencyName,
-        checksum: &crate::ContentHash,
-        signer: Option<&crate::VerifyingKey>,
-    ) -> Result<(), ResolverError> {
-        let policy = self.policy();
-        let verifier = ModuleVerifier::builder()
-            .config(&self.config)
-            .policy(&policy)
-            .trust(&self.trust)
-            .lockfile(&self.lockfile)
-            .build();
-        verifier.verify_against_lockfile(name, checksum, signer)
-    }
-
-    /// Resolves a [`GitSelector`] against the remote at `url` to a
-    /// concrete commit SHA.
+    /// Resolves a [`GitSelector`] to a concrete commit SHA.
+    ///
+    /// Queries the remote at `url` for tags or branches (depending on
+    /// the selector variant), then maps the result to a commit. For
+    /// version selectors, also returns the matched semver version so
+    /// callers can verify it against the manifest.
     async fn resolve_git_selector(
         &self,
         name: &DependencyName,
@@ -385,8 +356,12 @@ impl GitResolver {
     }
 
     /// Materializes a dependency on disk and parses its manifest.
-    /// Returns the resolved source, the parsed manifest, and the
-    /// absolute path to the directory containing `module.json`.
+    ///
+    /// For local-path sources, validates the path against the lockfile
+    /// (in locked mode) and reads the manifest directly. For Git
+    /// sources, computes a materialization plan, ensures the sparse
+    /// checkout is present in the cache, and verifies the tag version
+    /// against the manifest.
     async fn materialize_dependency(
         &self,
         name: &DependencyName,
@@ -487,9 +462,13 @@ impl GitResolver {
         }
     }
 
-    /// Computes the materialization plan for a Git dependency: resolves
-    /// the commit (locked or fresh), derives cache paths, and validates
-    /// lockfile consistency when in locked mode.
+    /// Computes the materialization plan for a Git dependency.
+    ///
+    /// Resolves the commit (locked or fresh), derives cache paths from
+    /// the URL and commit, and validates lockfile consistency when in
+    /// locked mode. The returned plan carries everything
+    /// [`materialize_dependency`](Self::materialize_dependency) needs
+    /// to run the sparse checkout and verify the result.
     async fn plan_git_materialization(
         &self,
         name: &DependencyName,
@@ -562,45 +541,10 @@ impl GitResolver {
     }
 }
 
-/// Returns true when a lockfile entry can satisfy the current Git
-/// selector in `module.json`.
-fn locked_selector_satisfies(
-    entry: &DependencyEntry,
-    selector: &GitSelector,
-    locked_commit: &GitCommit,
-    locked_selector: &GitSelector,
-) -> bool {
-    match selector {
-        GitSelector::Version(requirement) => requirement.matches(&entry.version),
-        GitSelector::Commit(commit) => commit == locked_commit,
-        GitSelector::Tag(tag) => {
-            matches!(locked_selector, GitSelector::Tag(locked) if locked == tag)
-        }
-        GitSelector::Branch(branch) => {
-            matches!(locked_selector, GitSelector::Branch(locked) if locked == branch)
-        }
-    }
-}
+////////////////////////////////////////////////////////////////////////////////////////
+// Resolver trait implementation
+////////////////////////////////////////////////////////////////////////////////////////
 
-/// Pre-computed materialization parameters for a Git dependency.
-#[derive(Debug)]
-struct GitMaterializationPlan {
-    /// The selected version from tag resolution, if any.
-    selected_version: Option<Version>,
-    /// The resolved commit SHA.
-    commit: crate::GitCommit,
-    /// The path prefix (from [`GitModulePath`]) for tag-version matching.
-    path_prefix: Option<String>,
-    /// The absolute path to the cache leaf directory.
-    leaf: PathBuf,
-    /// The sparse-checkout path (`path_prefix` or `"."`).
-    sparse_path: String,
-    /// The absolute path to the module root within the cache leaf.
-    module_path: PathBuf,
-}
-
-/// Compiles a manifest's `exclude` patterns into a [`globset::GlobSet`]
-/// for gitignore-style matching against import sub-paths.
 #[async_trait]
 impl Resolver for GitResolver {
     async fn materialize(
@@ -622,7 +566,7 @@ impl Resolver for GitResolver {
         // deps, and transitive resolution goes through `resolve_tree`.
         let scope = DependencyScope::TopLevel;
         if let DependencySource::Git { url, .. } = source {
-            self.policy().check_git_url(name, url, scope)?;
+            self.policy.check_git_url(name, url, scope)?;
         }
         let (resolved_source, manifest, module_root) = self
             .materialize_dependency(name, source, scope, ResolutionMode::Locked)
@@ -631,8 +575,19 @@ impl Resolver for GitResolver {
         let root_path = module_root.module_root().as_ref();
         let source_url = resolved_source.source_url();
         let source_path = resolved_source.source_path();
-        let verified = self.verify(name, root_path, Some((&source_url, source_path)))?;
-        self.verify_against_lockfile(name, &verified.checksum, verified.signer.as_ref())?;
+        let verified = crate::resolver::verify::verify(
+            &self.policy,
+            &self.trust,
+            name,
+            root_path,
+            Some((&source_url, source_path)),
+        )?;
+        crate::resolver::verify::verify_against_lockfile(
+            &self.lockfile,
+            name,
+            &verified.checksum,
+            verified.signer.as_ref(),
+        )?;
 
         let (rel, kind) = match path.sub_path() {
             None => (
@@ -677,7 +632,7 @@ impl Resolver for GitResolver {
     async fn resolve_tree(&self, consumer: &Manifest) -> Result<ResolvedTree, ResolverError> {
         let mut chain: Vec<(DependencyName, ResolvedSource)> = Vec::new();
         let dependencies = self
-            .resolve_deps(&consumer.dependencies, None, &mut chain)
+            .resolve_dependencies(&consumer.dependencies, None, &mut chain)
             .await?;
         Ok(ResolvedTree { dependencies })
     }
@@ -729,6 +684,27 @@ impl Resolver for GitResolver {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////////////
+// Helper types
+////////////////////////////////////////////////////////////////////////////////////////
+
+/// Pre-computed materialization parameters for a Git dependency.
+#[derive(Debug)]
+struct GitMaterializationPlan {
+    /// The selected version from tag resolution, if any.
+    selected_version: Option<Version>,
+    /// The resolved commit SHA.
+    commit: crate::GitCommit,
+    /// The path prefix (from [`GitModulePath`]) for tag-version matching.
+    path_prefix: Option<String>,
+    /// The absolute path to the cache leaf directory.
+    leaf: PathBuf,
+    /// The sparse-checkout path (`path_prefix` or `"."`).
+    sparse_path: String,
+    /// The absolute path to the module root within the cache leaf.
+    module_path: PathBuf,
+}
+
 /// The filesystem path to a module's content directory. Hashing,
 /// signing, and tree validation accept this path and skip
 /// non-module entries (`.git`, `module.sig`, `module-lock.json`)
@@ -769,6 +745,30 @@ impl MaterializedRoot {
         match self {
             Self::Local(root) => root,
             Self::Cached { module_root, .. } => module_root,
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////////
+// Free functions
+////////////////////////////////////////////////////////////////////////////////////////
+
+/// Returns true when a lockfile entry can satisfy the current Git
+/// selector in `module.json`.
+fn locked_selector_satisfies(
+    entry: &DependencyEntry,
+    selector: &GitSelector,
+    locked_commit: &GitCommit,
+    locked_selector: &GitSelector,
+) -> bool {
+    match selector {
+        GitSelector::Version(requirement) => requirement.matches(&entry.version),
+        GitSelector::Commit(commit) => commit == locked_commit,
+        GitSelector::Tag(tag) => {
+            matches!(locked_selector, GitSelector::Tag(locked) if locked == tag)
+        }
+        GitSelector::Branch(branch) => {
+            matches!(locked_selector, GitSelector::Branch(locked) if locked == branch)
         }
     }
 }
@@ -844,16 +844,6 @@ fn resolve_content_file(
                 source,
             })
     }
-}
-
-/// Returns `true` if `child` is a local-path source declared by a
-/// non-local parent.
-fn is_transitive_local_disallowed(
-    parent: Option<&ResolvedSource>,
-    child: &DependencySource,
-) -> bool {
-    matches!(child, DependencySource::LocalPath { .. })
-        && matches!(parent, Some(ResolvedSource::Git { .. }))
 }
 
 /// Reads and parses `module.json` from `dir`.
@@ -954,7 +944,6 @@ mod tests {
     fn resolver_with_lockfile(cache: &TempDir, lockfile: Lockfile) -> GitResolver {
         GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(TrustStore::default())
             .lockfile(lockfile)
             .build()
@@ -965,7 +954,7 @@ mod tests {
         resolve_and_lock_with_config(
             cache,
             consumer,
-            ModulesConfig::default(),
+            ResolverPolicy::default(),
             TrustStore::default(),
         )
         .await
@@ -974,7 +963,7 @@ mod tests {
     async fn resolve_and_lock_with_config(
         cache: &TempDir,
         consumer: &Manifest,
-        config: ModulesConfig,
+        policy: ResolverPolicy,
         trust: TrustStore,
     ) -> (GitResolver, Lockfile) {
         let r = resolver(cache);
@@ -983,10 +972,9 @@ mod tests {
             crate::resolver::lock::partial_relock(consumer, &Lockfile::default(), &tree).unwrap();
         let locked = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(trust)
             .lockfile(outcome.lockfile.clone())
-            .config(config)
+            .policy(policy)
             .build();
         (locked, outcome.lockfile)
     }
@@ -1008,15 +996,12 @@ mod tests {
     #[test]
     fn builds_with_explicit_paths() {
         let cache = tempdir().unwrap();
-        let trust_path = tempdir().unwrap().path().join("trust.toml");
         let r = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(&trust_path)
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
             .build();
         assert_eq!(r.cache_root(), cache.path());
-        assert_eq!(r.trust_path(), trust_path);
         assert!(r.trust_store().entries.is_empty());
     }
 
@@ -1220,7 +1205,11 @@ mod tests {
     #[tokio::test]
     async fn locked_git_materialization_rejects_version_selector_mismatch() {
         let cache = tempdir().unwrap();
-        let r = locked_git_resolver(&cache, "dep", locked_git_entry(GitSelector::Version("^1".parse().unwrap())));
+        let r = locked_git_resolver(
+            &cache,
+            "dep",
+            locked_git_entry(GitSelector::Version("^1".parse().unwrap())),
+        );
         let dep = DependencyName::try_from("dep".to_string()).unwrap();
         let url = "https://github.com/openwdl/tasks".parse().unwrap();
         let selector = GitSelector::Version("^2".parse().unwrap());
@@ -1241,7 +1230,11 @@ mod tests {
     #[tokio::test]
     async fn locked_git_materialization_rejects_commit_selector_mismatch() {
         let cache = tempdir().unwrap();
-        let r = locked_git_resolver(&cache, "dep", locked_git_entry(GitSelector::Version("^1".parse().unwrap())));
+        let r = locked_git_resolver(
+            &cache,
+            "dep",
+            locked_git_entry(GitSelector::Version("^1".parse().unwrap())),
+        );
         let dep = DependencyName::try_from("dep".to_string()).unwrap();
         let url = "https://github.com/openwdl/tasks".parse().unwrap();
         let selector =
@@ -1397,10 +1390,10 @@ mod tests {
         let (r, _) = resolve_and_lock_with_config(
             &cache,
             &consumer,
-            ModulesConfig {
+            ResolverPolicy::from(&ModulesConfig {
                 require_signed: true,
                 ..ModulesConfig::default()
-            },
+            }),
             TrustStore::default(),
         )
         .await;
@@ -1480,7 +1473,7 @@ mod tests {
         };
         let cache = tempdir().unwrap();
         let (r, _) =
-            resolve_and_lock_with_config(&cache, &consumer, ModulesConfig::default(), trust).await;
+            resolve_and_lock_with_config(&cache, &consumer, ResolverPolicy::default(), trust).await;
         let err = r
             .materialize(&consumer, &"dep".to_string().try_into().unwrap())
             .await
@@ -1592,12 +1585,11 @@ mod tests {
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(TrustStore::default())
-            .config(ModulesConfig {
+            .policy(ResolverPolicy::from(&ModulesConfig {
                 require_signed: true,
                 ..ModulesConfig::default()
-            })
+            }))
             .lockfile(Lockfile::default())
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
@@ -1632,12 +1624,11 @@ mod tests {
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(TrustStore::default())
-            .config(ModulesConfig {
+            .policy(ResolverPolicy::from(&ModulesConfig {
                 require_signed: true,
                 ..ModulesConfig::default()
-            })
+            }))
             .lockfile(Lockfile::default())
             .build();
 
@@ -1700,7 +1691,6 @@ mod tests {
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(trust)
             .lockfile(Lockfile::default())
             .build();
@@ -1762,13 +1752,12 @@ mod tests {
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
-            .config(ModulesConfig {
+            .policy(ResolverPolicy::from(&ModulesConfig {
                 max_materialized_files: Some(1),
                 ..ModulesConfig::default()
-            })
+            }))
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
         assert!(
@@ -1794,13 +1783,12 @@ mod tests {
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
-            .config(ModulesConfig {
+            .policy(ResolverPolicy::from(&ModulesConfig {
                 max_materialized_bytes: Some(100),
                 ..ModulesConfig::default()
-            })
+            }))
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
         assert!(
@@ -1827,13 +1815,12 @@ mod tests {
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
-            .config(ModulesConfig {
+            .policy(ResolverPolicy::from(&ModulesConfig {
                 max_materialized_files: Some(1),
                 ..ModulesConfig::default()
-            })
+            }))
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
         assert!(matches!(
@@ -2093,13 +2080,12 @@ mod tests {
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
-            .config(ModulesConfig {
+            .policy(ResolverPolicy::from(&ModulesConfig {
                 allowed_schemes: vec!["https".into(), "ssh".into(), "file".into()],
                 ..ModulesConfig::default()
-            })
+            }))
             .build();
         let versions = r.discover_versions(&source).await.unwrap();
         assert_eq!(
@@ -2107,33 +2093,6 @@ mod tests {
             vec![semver::Version::parse("1.0.0").unwrap()],
             "should discover `v1.0.0` tag"
         );
-    }
-
-    #[test]
-    fn local_in_transitive_classifies_correctly() {
-        let local = ResolvedSource::Path {
-            path: "/home/user/projects/local".into(),
-        };
-        let git = ResolvedSource::Git {
-            git: "https://github.com/x/y".parse().unwrap(),
-            commit: "0000000000000000000000000000000000000000".parse().unwrap(),
-            path: None,
-            selector: crate::GitSelector::Tag("v1".into()),
-        };
-        let local_dep = DependencySource::LocalPath {
-            path: "/home/user/projects/dep".into(),
-            extra: Default::default(),
-        };
-        let git_dep = DependencySource::Git {
-            url: "https://github.com/x/y".parse().unwrap(),
-            selector: crate::GitSelector::Tag("v1".into()),
-            path: None,
-            extra: Default::default(),
-        };
-        assert!(!is_transitive_local_disallowed(Some(&local), &local_dep));
-        assert!(is_transitive_local_disallowed(Some(&git), &local_dep));
-        assert!(!is_transitive_local_disallowed(None, &local_dep));
-        assert!(!is_transitive_local_disallowed(Some(&git), &git_dep));
     }
 
     #[test]

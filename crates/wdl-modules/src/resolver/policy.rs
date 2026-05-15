@@ -13,6 +13,7 @@
 use url::Url;
 
 use crate::DependencyName;
+use crate::resolver::config::LargeFileWarning;
 use crate::resolver::config::ModulesConfig;
 use crate::resolver::error::ResolverError;
 use crate::resolver::git::CredentialMode;
@@ -65,6 +66,16 @@ pub(crate) struct ResolverPolicy {
     pub(crate) max_materialized_files: Option<usize>,
     /// Maximum materialized bytes per module tree.
     pub(crate) max_materialized_bytes: Option<u64>,
+    /// Large-file warning threshold.
+    pub(crate) large_file_warning: LargeFileWarning,
+    /// Whether unsigned modules are rejected.
+    pub(crate) require_signed: bool,
+}
+
+impl Default for ResolverPolicy {
+    fn default() -> Self {
+        Self::from(&ModulesConfig::default())
+    }
 }
 
 impl From<&ModulesConfig> for ResolverPolicy {
@@ -99,6 +110,8 @@ impl From<&ModulesConfig> for ResolverPolicy {
             denied_hosts: config.denied_hosts.clone(),
             max_materialized_files: config.max_materialized_files,
             max_materialized_bytes: config.max_materialized_bytes,
+            large_file_warning: config.large_file_warning,
+            require_signed: config.require_signed,
         }
     }
 }
