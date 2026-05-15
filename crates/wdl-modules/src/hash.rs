@@ -527,10 +527,7 @@ mod tests {
 
         let hash2 = hash_directory(dir.path()).unwrap();
 
-        assert_eq!(
-            hash1, hash2,
-            "`.git` must not affect the content hash"
-        );
+        assert_eq!(hash1, hash2, "`.git` must not affect the content hash");
     }
 
     fn symlink_file(target: &std::path::Path, link: &std::path::Path) {

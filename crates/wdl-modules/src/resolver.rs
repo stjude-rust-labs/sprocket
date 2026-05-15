@@ -14,7 +14,6 @@ mod git;
 pub(crate) mod lock;
 pub(crate) mod policy;
 pub(crate) mod scope;
-pub(crate) mod tree_walk;
 pub(crate) mod trust;
 pub(crate) mod types;
 pub(crate) mod verify;
@@ -40,6 +39,7 @@ use crate::Lockfile;
 use crate::Manifest;
 use crate::ResolvedSource;
 use crate::SymbolicPath;
+use crate::hash::NON_MODULE_CONTENT;
 use crate::resolver::cache::CacheKey;
 pub use crate::resolver::config::LargeFileWarning;
 pub use crate::resolver::config::LargeFileWarningError;
@@ -56,7 +56,6 @@ pub use crate::resolver::lock::NewSigner;
 pub use crate::resolver::lock::RelockOutcome;
 pub use crate::resolver::lock::RelockStats;
 pub use crate::resolver::lock::partial_relock;
-use crate::hash::NON_MODULE_CONTENT;
 use crate::resolver::policy::ResolverPolicy;
 pub use crate::resolver::scope::DependencyScope;
 use crate::resolver::scope::ResolutionMode;
@@ -891,9 +890,7 @@ fn check_tag_manifest_match(
 }
 
 /// Compiles a manifest's `exclude` patterns into a [`globset::GlobSet`].
-fn exclude_set(
-    patterns: &[crate::RelativePath],
-) -> Result<globset::GlobSet, ResolverError> {
+fn exclude_set(patterns: &[crate::RelativePath]) -> Result<globset::GlobSet, ResolverError> {
     if patterns.is_empty() {
         return Ok(globset::GlobSet::empty());
     }
@@ -2079,8 +2076,12 @@ mod tests {
         let oid = repo
             .commit(Some("HEAD"), &sig, &sig, "v1.0.0", &tree, &[])
             .unwrap();
-        repo.tag_lightweight("v1.0.0", &repo.find_object(oid.into(), None).unwrap(), false)
-            .unwrap();
+        repo.tag_lightweight(
+            "v1.0.0",
+            &repo.find_object(oid.into(), None).unwrap(),
+            false,
+        )
+        .unwrap();
 
         let source = DependencySource::Git {
             url: url::Url::from_file_path(upstream.path()).unwrap(),

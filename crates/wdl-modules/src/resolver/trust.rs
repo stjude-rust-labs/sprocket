@@ -89,11 +89,7 @@ impl TrustStore {
     ) -> Option<&VerifyingKey> {
         self.entries
             .iter()
-            .find(|e| {
-                e.dep == *dep
-                    && e.source == source_url
-                    && e.path.as_deref() == path
-            })
+            .find(|e| e.dep == *dep && e.source == source_url && e.path.as_deref() == path)
             .map(|e| &e.key)
     }
 }
@@ -216,7 +212,9 @@ mod tests {
         };
         assert!(store.lookup(&dep, TEST_SOURCE, None).is_some());
         assert!(
-            store.lookup(&dep, "https://example.com/other", None).is_none(),
+            store
+                .lookup(&dep, "https://example.com/other", None)
+                .is_none(),
             "trust pin for one source should not match a different source"
         );
     }

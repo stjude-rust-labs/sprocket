@@ -119,9 +119,7 @@ pub enum ResolverError {
     /// unsigned. This prevents a supply-chain downgrade where an
     /// attacker strips the signature from a module whose content hash
     /// has not changed (since `module.sig` is excluded from the hash).
-    #[error(
-        "`{dep}` was signed when locked but is now unsigned; this may indicate tampering"
-    )]
+    #[error("`{dep}` was signed when locked but is now unsigned; this may indicate tampering")]
     SignatureDowngrade {
         /// The owning dependency.
         dep: String,

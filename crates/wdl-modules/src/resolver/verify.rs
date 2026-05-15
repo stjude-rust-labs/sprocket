@@ -7,6 +7,7 @@ use crate::ContentHash;
 use crate::DependencyName;
 use crate::Lockfile;
 use crate::VerifyingKey;
+use crate::module_walk;
 use crate::resolver::config::LargeFileWarning;
 use crate::resolver::config::ModulesConfig;
 use crate::resolver::error::ResolverError;
@@ -101,7 +102,7 @@ impl ModuleVerifier<'_> {
         let LargeFileWarning::Threshold(threshold) = self.config.large_file_warning else {
             return Ok(());
         };
-        crate::resolver::tree_walk::walk_module_tree(module_root, &mut |entry, size| {
+        walk_module_tree(module_root, &mut |entry, size| {
             if size >= threshold {
                 tracing::warn!(
                     dep = name.manifest(),
@@ -178,7 +179,7 @@ fn check_materialized_tree_limits(
     if policy.max_materialized_files.is_none() && policy.max_materialized_bytes.is_none() {
         return Ok(());
     }
-    let stats = crate::resolver::tree_walk::walk_module_tree(module_root, &mut |_, _| Ok(()))?;
+    let stats = walk_module_tree(module_root, &mut |_, _| Ok(()))?;
     if policy
         .max_materialized_files
         .is_some_and(|limit| stats.files > limit)
@@ -193,4 +194,16 @@ fn check_materialized_tree_limits(
         });
     }
     Ok(())
+}
+
+/// Walks every regular file under `root` using the shared safe
+/// module-content walker. Converts errors to [`ResolverError`].
+fn walk_module_tree(
+    root: &Path,
+    visitor: &mut dyn FnMut(&Path, u64) -> Result<(), ResolverError>,
+) -> Result<module_walk::TreeStats, ResolverError> {
+    module_walk::walk_module_tree(root, visitor).map_err(|e| match e {
+        module_walk::WalkError::Hash(h) => ResolverError::Hash(h),
+        module_walk::WalkError::Visitor(r) => r,
+    })
 }
