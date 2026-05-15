@@ -294,6 +294,10 @@ pub enum ResolverError {
     /// A `Lockfile` parse or validation error.
     #[error(transparent)]
     Lockfile(#[from] LockfileError),
+
+    /// A `RelativePath` validation error.
+    #[error(transparent)]
+    RelativePath(#[from] crate::RelativePathError),
 }
 
 /// The kind of Git reference named in a [`ResolverError::UnknownGitRef`].

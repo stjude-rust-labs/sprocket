@@ -32,6 +32,7 @@ use semver::Version;
 use crate::DependencyEntry;
 use crate::DependencyName;
 use crate::DependencySource;
+use crate::GitCommit;
 use crate::GitModulePath;
 use crate::GitSelector;
 use crate::Lockfile;
@@ -40,7 +41,7 @@ use crate::RelativePath;
 use crate::ResolvedSource;
 use crate::SymbolicPath;
 use crate::hash::NON_MODULE_CONTENT;
-use ModuleWalkError;
+use crate::module_walk::ModuleWalkError;
 use crate::resolver::cache::CacheKey;
 pub use crate::resolver::config::LargeFileWarning;
 pub use crate::resolver::config::LargeFileWarningError;
@@ -57,7 +58,7 @@ pub use crate::resolver::lock::NewSigner;
 pub use crate::resolver::lock::RelockOutcome;
 pub use crate::resolver::lock::RelockStats;
 pub use crate::resolver::lock::partial_relock;
-use crate::resolver::policy::ResolverPolicy;
+pub use crate::resolver::policy::ResolverPolicy;
 pub use crate::resolver::scope::DependencyScope;
 use crate::resolver::scope::ResolutionMode;
 pub use crate::resolver::trust::TrustEntry;
@@ -68,7 +69,6 @@ pub use crate::resolver::types::ResolvedDependency;
 pub use crate::resolver::types::ResolvedModule;
 pub use crate::resolver::types::ResolvedTree;
 use crate::resolver::verify::VerifiedModule;
-use GitCommit;
 
 /// Resolves WDL module imports to concrete files on disk.
 #[async_trait]
@@ -847,11 +847,9 @@ fn resolve_content_file(
 
         if let Ok(target_rel) = target.strip_prefix(&canonical_root) {
             if target_rel.to_str().is_none() {
-                return Err(ResolverError::Walk(
-                    ModuleWalkError::NonUtf8SymlinkTarget(
-                        candidate.display().to_string(),
-                    ),
-                ));
+                return Err(ResolverError::Walk(ModuleWalkError::NonUtf8SymlinkTarget(
+                    candidate.display().to_string(),
+                )));
             }
             // SAFETY: the `to_str` check above guarantees all
             // components are valid UTF-8.
@@ -1332,6 +1330,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn materialize_resolves_named_entrypoint() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        fs::create_dir_all(&dep_dir).unwrap();
+        // Manifest declares an explicit `entrypoint` other than the
+        // default `index.wdl`.
+        fs::write(
+            dep_dir.join(crate::MANIFEST_FILENAME),
+            br#"{"name":"dep","version":"1.0.0","license":"MIT","entrypoint":"main.wdl"}"#,
+        )
+        .unwrap();
+        fs::write(dep_dir.join("main.wdl"), b"workflow w {}").unwrap();
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let (r, _) = resolve_and_lock(&cache, &consumer).await;
+        let mat = r
+            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .await
+            .unwrap();
+        assert_eq!(mat.path, dep_dir.join("main.wdl").canonicalize().unwrap());
+        assert!(matches!(mat.source, ResolvedSource::Path { .. }));
+    }
+
+    #[tokio::test]
     async fn materialize_resolves_sub_path_to_wdl_file() {
         let workdir = tempdir().unwrap();
         let dep_dir = workdir.path().join("dep");
@@ -1351,10 +1380,11 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(mat.path, dep_dir.join("cut.wdl").canonicalize().unwrap());
+        assert!(matches!(mat.source, ResolvedSource::Path { .. }));
     }
 
     #[tokio::test]
-    async fn invalid_commit_selector_rejected_at_parse_time() {
+    async fn manifest_parse_rejects_invalid_commit_sha() {
         let workdir = tempdir().unwrap();
         let consumer_dir = workdir.path().join("consumer");
         let bad_src = "{\"git\":\"https://example.com/repo.git\",\"commit\":\"not-a-sha\"}";
@@ -1416,17 +1446,21 @@ mod tests {
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
 
+        // Lock with `require_signed` disabled so the unsigned dep can
+        // be recorded in the lockfile. The replay below then enforces
+        // `require_signed` and must reject the locked unsigned dep.
         let cache = tempdir().unwrap();
-        let (r, _) = resolve_and_lock_with_config(
-            &cache,
-            &consumer,
-            ResolverPolicy::from(&ModulesConfig {
+        let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
+
+        let r = GitResolver::builder()
+            .cache_root(cache.path())
+            .trust(TrustStore::default())
+            .policy(ResolverPolicy::from(&ModulesConfig {
                 require_signed: true,
                 ..ModulesConfig::default()
-            }),
-            TrustStore::default(),
-        )
-        .await;
+            }))
+            .lockfile(lockfile)
+            .build();
         let err = r
             .materialize(&consumer, &"dep".to_string().try_into().unwrap())
             .await
@@ -1515,7 +1549,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn materialize_rejects_symlinked_entrypoint_outside_root() {
+    async fn materialize_rejects_entrypoint_symlink_escaping_dep_root() {
         let workdir = tempdir().unwrap();
         let outside = workdir.path().join("outside");
         fs::create_dir_all(&outside).unwrap();
@@ -1600,7 +1634,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn require_signed_rejects_unsigned_dependency() {
+    async fn resolve_tree_rejects_unsigned_when_require_signed() {
         let workdir = tempdir().unwrap();
         let dep_dir = workdir.path().join("dep");
         write_manifest(&dep_dir, "dep", "1.0.0", &[]);
@@ -1670,7 +1704,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn tampered_content_fails_signature_verification() {
+    async fn resolve_tree_rejects_tampered_signed_dependency() {
         let workdir = tempdir().unwrap();
         let dep_dir = workdir.path().join("dep");
         write_manifest(&dep_dir, "dep", "1.0.0", &[]);
@@ -1695,7 +1729,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn trust_pin_mismatch_errors() {
+    async fn resolve_tree_rejects_trust_pin_mismatch() {
         let workdir = tempdir().unwrap();
         let dep_dir = workdir.path().join("dep");
         write_manifest(&dep_dir, "dep", "1.0.0", &[]);
@@ -1969,13 +2003,8 @@ mod tests {
             .await
             .unwrap_err();
         assert!(
-            matches!(
-                err,
-                ResolverError::Walk(ModuleWalkError::SymlinkTargetsMetadata(_))
-                    | ResolverError::MaterializedSymlinkEscape { .. }
-                    | ResolverError::ChecksumMismatch { .. }
-            ),
-            "symlink to nested metadata must be rejected, got: {err}"
+            matches!(err, ResolverError::Walk(ModuleWalkError::SymlinkTargetsMetadata(_))),
+            "expected `SymlinkTargetsMetadata`, got: {err}"
         );
     }
 
@@ -1996,7 +2025,7 @@ mod tests {
                 .unwrap();
 
         let cache = tempdir().unwrap();
-        let (_, mut lockfile) = resolve_and_lock(&cache, &consumer).await;
+        let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
         let dep_name = DependencyName::try_from("dep".to_string()).unwrap();
         assert!(
             lockfile
@@ -2078,7 +2107,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn discover_versions_does_not_panic() {
+    async fn discover_versions_returns_matching_tags() {
         let upstream = tempdir().unwrap();
         let repo = git2::Repository::init(upstream.path()).unwrap();
         let sig = git2::Signature::now("test", "test@example.com").unwrap();
@@ -2142,13 +2171,13 @@ mod tests {
     }
 
     #[test]
-    fn tag_manifest_mismatch_ok_when_agree() {
+    fn check_tag_manifest_match_succeeds_when_versions_agree() {
         let v = semver::Version::parse("1.2.3").unwrap();
         check_tag_manifest_match(Some("csvkit"), Some(&v), &v).unwrap();
     }
 
     #[test]
-    fn tag_manifest_mismatch_ok_when_no_expected() {
+    fn check_tag_manifest_match_succeeds_when_no_expected_version() {
         check_tag_manifest_match(None, None, &semver::Version::parse("0.0.1").unwrap()).unwrap();
     }
 }

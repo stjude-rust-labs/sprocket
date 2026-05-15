@@ -50,16 +50,16 @@ fn check_materialized_tree(
     }
 
     let stats = walk_module_tree(module_root, &mut |entry, size| {
-        if let Some(threshold) = large_file_threshold {
-            if size >= threshold {
-                tracing::warn!(
-                    dep = name.manifest(),
-                    file = %entry.display(),
-                    size,
-                    threshold,
-                    "module contains a large file",
-                );
-            }
+        if let Some(threshold) = large_file_threshold
+            && size >= threshold
+        {
+            tracing::warn!(
+                dep = name.manifest(),
+                file = %entry.display(),
+                size,
+                threshold,
+                "module contains a large file",
+            );
         }
         Ok(())
     })?;

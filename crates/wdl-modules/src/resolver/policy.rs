@@ -55,7 +55,7 @@ pub(crate) struct GitNetworkPolicy {
 
 /// The full resolver policy, derived from config at construction.
 #[derive(Clone, Debug)]
-pub(crate) struct ResolverPolicy {
+pub struct ResolverPolicy {
     /// Network policy applied to top-level dependencies.
     top_level: GitNetworkPolicy,
     /// Network policy applied to transitive dependencies.
