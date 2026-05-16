@@ -1,7 +1,7 @@
 error: type mismatch: expected type `Int`, but found type `String`
-   ┌─ tests/analysis/forward-reference/source.wdl:14:17
+   ┌─ tests/analysis/forward-reference/source.wdl:12:17
    │
-14 │         Int y = z
+12 │         Int y = z
    │             -   ^ this is type `String`
    │             │    
    │             this expects type `Int`

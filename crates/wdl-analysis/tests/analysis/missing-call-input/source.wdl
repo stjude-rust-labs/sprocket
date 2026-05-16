@@ -1,5 +1,6 @@
-#@ except: UnusedInput, UnusedDeclaration, UnusedCall
 ## This is a test of a missing required call inputs.
+
+#@ except: UnusedCall, UnusedDeclaration, UnusedInput
 
 version 1.1
 
@@ -21,8 +22,14 @@ workflow my_workflow {
     call my_task
 
     # OK
-    call my_task as my_task2 { input: required = "required" }
+    call my_task as my_task2 { input:
+        required = "required",
+    }
 
     # OK
-    call my_task as my_task3 { input: required = "required", optional = "optional", defaulted = "defaulted" }
+    call my_task as my_task3 { input:
+        required = "required",
+        optional = "optional",
+        defaulted = "defaulted",
+    }
 }

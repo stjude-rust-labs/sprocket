@@ -4,5 +4,4 @@ version 1.1
 
 import "https://www.google.com/404" as foo
 
-workflow test {
-}
+workflow test {}

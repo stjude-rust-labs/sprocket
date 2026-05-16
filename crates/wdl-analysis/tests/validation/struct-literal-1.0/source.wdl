@@ -7,6 +7,6 @@ struct Foo {
 
 workflow repro {
     Foo foo = Foo {
-        bar: 0
+        bar: 0,
     }
 }

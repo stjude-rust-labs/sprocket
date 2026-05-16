@@ -1,6 +1,7 @@
-#@ except: UnusedInput, UnusedCall
 ## This is a test of allowed nested inputs in 1.2.
 ## This should be accepted without diagnostics.
+
+#@ except: UnusedCall, UnusedInput
 
 version 1.2
 
@@ -18,16 +19,23 @@ task my_task {
 }
 
 workflow my_workflow {
-    hints {
-        allow_nested_inputs: true
-    }
 
     # Missing required input
     call my_task
 
     # OK
-    call my_task as my_task2 { input: required = "required" }
+    call my_task as my_task2 { input:
+        required = "required",
+    }
 
     # OK
-    call my_task as my_task3 { input: required = "required", optional = "optional", defaulted = "defaulted" }
+    call my_task as my_task3 { input:
+        required = "required",
+        optional = "optional",
+        defaulted = "defaulted",
+    }
+
+    hints {
+        allow_nested_inputs: true
+    }
 }

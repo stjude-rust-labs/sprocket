@@ -2,14 +2,8 @@
 
 version 1.1
 
-workflow foo {
+workflow foo {}
 
-}
+workflow bar {}
 
-workflow bar {
-
-}
-
-workflow baz {
-
-}
+workflow baz {}

@@ -1,6 +1,13 @@
 error: type mismatch: argument to function `write_tsv` expects type `Array[Array[String]]` or generic type `Array[S]` where `S`: any structure containing only primitive types, but found type `Array[Bar]`
-   ┌─ tests/analysis/primitive-type-structs/source.wdl:18:26
-   │
-18 │     File bad = write_tsv([Bar { foo: Foo { foo: "hi" } }])
-   │                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this is type `Array[Bar]`
+   ┌─ tests/analysis/primitive-type-structs/source.wdl:22:26
+   │  
+22 │       File bad = write_tsv([
+   │ ╭──────────────────────────^
+23 │ │         Bar {
+24 │ │             foo: Foo {
+25 │ │                 foo: "hi",
+26 │ │             },
+27 │ │         },
+28 │ │     ])
+   │ ╰─────^ this is type `Array[Bar]`
 
