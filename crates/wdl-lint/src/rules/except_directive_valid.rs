@@ -87,7 +87,6 @@ impl Rule for ExceptDirectiveValidRule {
                 snippet: r#"version 1.2
 
 workflow example {
-
     output {
         # MatchingOutputMeta exceptions aren't valid
         # in this context
@@ -103,7 +102,6 @@ workflow example {
 
 #@ except: MatchingOutputMeta
 workflow example {
-
     output {
         String name = "Jimmy"
     }
