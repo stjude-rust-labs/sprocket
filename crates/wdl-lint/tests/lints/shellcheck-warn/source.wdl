@@ -1,6 +1,7 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, ParameterMetaMatched, HereDocCommands, EmptyOutputs
-
 ## This is a test of having shellcheck warnings
+
+#@ except: EmptyOutputs, ExpectedRuntimeKeys, HereDocCommands, MetaDescription
+#@ except: ParameterMetaMatched
 
 version 1.1
 
@@ -10,13 +11,13 @@ task test1 {
     parameter_meta {}
 
     input {
-      Int placeholder
+        Int placeholder
     }
 
     command <<<
-      foo="foo bar baz"
-      somecommand.py "$dynamic_var_name~{placeholder}"
-      somecommand.py [ -f "$foo" ] ~{placeholder}
+        foo="foo bar baz"
+        somecommand.py "$dynamic_var_name~{placeholder}"
+        somecommand.py [ -f "$foo" ] ~{placeholder}
     >>>
 
     output {}
@@ -30,13 +31,13 @@ task test2 {
     parameter_meta {}
 
     input {
-      Int placeholder
+        Int placeholder
     }
 
-    command {
-      somecommand.py [ -f "$bad_test" ] ~{placeholder}
-      somecommand.py [ -f "$trailing_space" ] ~{placeholder}
-    }
+    command <<<
+        somecommand.py [ -f "$bad_test" ] ~{placeholder}
+        somecommand.py [ -f "$trailing_space" ] ~{placeholder}
+    >>>
 
     output {}
 
@@ -49,12 +50,12 @@ task test3 {
     parameter_meta {}
 
     input {
-      Int placeholder
+        Int placeholder
     }
 
     command <<<           # weird whitespace
-      ~{placeholder} "$trailing_pholder" ~{placeholder}
-      ~{placeholder} somecommand.py "$leading_pholder"
+        ~{placeholder} "$trailing_pholder" ~{placeholder}
+        ~{placeholder} somecommand.py "$leading_pholder"
     >>>
 
     output {}
@@ -68,13 +69,13 @@ task test4 {
     parameter_meta {}
 
     input {
-      Int placeholder
+        Int placeholder
     }
 
     command <<<
-            # other weird whitespace
-      ~{placeholder} "$trailing_pholder" ~{placeholder}
-      ~{placeholder} somecommand.py "$leading_pholder"
+              # other weird whitespace
+        ~{placeholder} "$trailing_pholder" ~{placeholder}
+        ~{placeholder} somecommand.py "$leading_pholder"
     >>>
 
     output {}
@@ -88,40 +89,41 @@ task test5 {
     parameter_meta {}
 
     input {
-      Int placeholder
+        Int placeholder
     }
 
     String by = "by"
     String myself = "myself"
     Int multiline = 3
 
-    command <<<      weird stuff "$firstlinelint"
-            # other weird whitespace
-      ~{placeholder} "$trailing_pholder" ~{placeholder}
-      ~{by + myself}
-      ~{placeholder} somecommand.py "$leading_pholder"
+    command <<<
+        weird stuff "$firstlinelint"
+              # other weird whitespace
+        ~{placeholder} "$trailing_pholder" ~{placeholder}
+        ~{by + myself}
+        ~{placeholder} somecommand.py "$leading_pholder"
 
         ~{
-          multiline +
-          placeholder
+            multiline +
+            placeholder
         }
-      $occurs_after_multiline
+        $occurs_after_multiline
 
-      $(echo This is a 
-        very long string that should be quoted)
-      
-      $(echo This is an
-        even longer very long string that should really 
-        be quoted)
-      
-      $(echo This is an
-        even longer very long string that should really
-        really really really 
-        ought to be quoted)
+        $(echo This is a 
+          very long string that should be quoted)
 
-      $(echo this is a $lint146 that occurs in a \
-        multiline command \
-        with line breaks)
+        $(echo This is an
+          even longer very long string that should really 
+          be quoted)
+
+        $(echo This is an
+          even longer very long string that should really
+          really really really 
+          ought to be quoted)
+
+        $(echo this is a $lint146 that occurs in a \
+          multiline command \
+          with line breaks)
     >>>
 
     output {}
@@ -135,13 +137,13 @@ task test6 {
     parameter_meta {}
 
     input {
-      Int placeholder
+        Int placeholder
     }
 
     command <<<
-      version=`uname -r`
+        version=`uname -r`
 
-      cd "DIR"
+        cd "DIR"
     >>>
 
     output {}
@@ -169,7 +171,7 @@ task test7 {
           ln -s $file
           bams+=" $(basename $file)"
         done
-        
+
         if ! ~{succeed_on_errors} \
             && [ "$(grep -Ec "$GREP_PATTERN" $outfile_name)" -gt 0 ]
         then
@@ -177,7 +179,6 @@ task test7 {
             >&2 grep -E "$GREP_PATTERN" ~{outfile_name}
             exit $rc
         fi
-
 
 
     >>>
