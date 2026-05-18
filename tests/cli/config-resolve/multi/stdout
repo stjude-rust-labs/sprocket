@@ -4,6 +4,7 @@ max_line_length = 90
 sort_imports = true
 sort_inputs = false
 trailing_commas = true
+newline_style = "auto"
 
 [check]
 except = []
@@ -139,9 +140,12 @@ report_mode = "full"
 [common.wdl]
 fallback_version = "none"
 
+[common.wdl.feature_flags]
+wdl_1_3 = true
+wdl_1_4 = false
+
 [modules]
 large_file_warning = "1.0 MiB"
-require_signed = false
 trust_mode = "auto"
 allowed_schemes = [
     "https",
@@ -155,7 +159,4 @@ denied_hosts = [
     "::1",
     "0.0.0.0",
 ]
-allowed_hosts = []
-allowed_transitive_hosts = []
-allow_transitive_credentials = false
 

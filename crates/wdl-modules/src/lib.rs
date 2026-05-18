@@ -1,12 +1,35 @@
-//! Implementation of the WDL module specification. Covers manifest and lockfile
-//! parsing, symbolic-path parsing, deterministic content hashing, Ed25519
-//! signing and verification, and SPDX license validation.
+//! Implementation of the WDL module specification.
 //!
-//! The crate handles every part of the module specification that does not
-//! require networking or process spawning.
+//! `wdl-modules` provides the local, deterministic pieces of WDL module
+//! handling: `module.json` manifest parsing, `module-lock.json` lockfile
+//! parsing, symbolic import paths, deterministic content hashing, Ed25519
+//! `module.sig` signing and verification, SPDX license validation, and
+//! module file-tree checks.
+//!
+//! # Quickstart
+//!
+//! Parse `module.json` with [`Manifest::parse`], parse `module-lock.json` with
+//! [`Lockfile::parse`], and compute a content hash with
+//! [`hash::hash_directory`]. These entry points reject duplicate JSON object
+//! keys, invalid relative paths, invalid dependency declarations, and module
+//! trees that violate the reserved-filename or Unicode-normalization rules.
+//!
+//! ```rust
+//! use wdl_modules::Manifest;
+//!
+//! let manifest = Manifest::parse(
+//!     br#"{
+//!         "name": "spellbook",
+//!         "version": "1.0.0",
+//!         "license": "MIT"
+//!     }"#,
+//! )?;
+//!
+//! assert_eq!(manifest.name, "spellbook");
+//! # Ok::<(), Box<dyn std::error::Error>>(())
+//! ```
 
-pub mod dependency_name;
-pub mod dependency_source;
+pub mod dependency;
 pub mod hash;
 pub mod license;
 pub mod lockfile;
@@ -20,13 +43,13 @@ pub mod symbolic_path;
 pub mod tree;
 pub mod version_requirement;
 
-pub use crate::dependency_name::DependencyName;
-pub use crate::dependency_name::DependencyNameError;
-pub use crate::dependency_source::DependencySource;
-pub use crate::dependency_source::DependencySourceError;
-pub use crate::dependency_source::GitModulePath;
-pub use crate::dependency_source::GitModulePathError;
-pub use crate::dependency_source::GitSelector;
+pub use crate::dependency::DependencyName;
+pub use crate::dependency::DependencyNameError;
+pub use crate::dependency::DependencySource;
+pub use crate::dependency::DependencySourceError;
+pub use crate::dependency::GitModulePath;
+pub use crate::dependency::GitModulePathError;
+pub use crate::dependency::GitSelector;
 pub use crate::hash::ContentHash;
 pub use crate::hash::HashError;
 pub use crate::hash::Hasher;
@@ -37,10 +60,8 @@ pub use crate::lockfile::DependencyMap;
 pub use crate::lockfile::GitCommit;
 pub use crate::lockfile::GitCommitError;
 pub use crate::lockfile::LOCKFILE_VERSION;
-pub use crate::lockfile::LockedModule;
 pub use crate::lockfile::Lockfile;
 pub use crate::lockfile::LockfileError;
-pub use crate::lockfile::ModulePath;
 pub use crate::lockfile::ResolvedSource;
 pub use crate::manifest::Manifest;
 pub use crate::manifest::ManifestError;
@@ -49,7 +70,7 @@ pub use crate::manifest::Tool;
 pub use crate::relative_path::RelativePath;
 pub use crate::relative_path::RelativePathError;
 #[cfg(feature = "resolver")]
-pub use crate::resolver::DependencyAddition;
+pub use crate::resolver::DependencyChange;
 pub use crate::resolver::DependencyScope;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::DependencyUpdate;
@@ -74,6 +95,8 @@ pub use crate::resolver::RelockOutcome;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::RelockStats;
 pub use crate::resolver::ResolvedDependency;
+#[cfg(feature = "resolver")]
+pub use crate::resolver::ResolverPolicy;
 pub use crate::resolver::ResolvedModule;
 pub use crate::resolver::ResolvedTree;
 pub use crate::resolver::Resolver;

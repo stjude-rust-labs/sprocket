@@ -90,7 +90,7 @@ use super::StructType;
 use super::Type;
 use super::TypeNameResolver;
 use crate::Exceptable;
-use crate::UNNECESSARY_FUNCTION_CALL;
+use crate::UnnecessaryFunctionCall;
 use crate::config::DiagnosticsConfig;
 use crate::diagnostics::Io;
 use crate::diagnostics::ambiguous_argument;
@@ -1561,7 +1561,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         Ok(binding) => {
                             if let Some(severity) =
                                 self.context.diagnostics_config().unnecessary_function_call
-                                && !expr.inner().is_rule_excepted(UNNECESSARY_FUNCTION_CALL)
+                                && !expr
+                                    .inner()
+                                    .ancestors()
+                                    .any(|node| node.is_rule_excepted(UnnecessaryFunctionCall::ID))
                             {
                                 self.check_unnecessary_call(
                                     &target,

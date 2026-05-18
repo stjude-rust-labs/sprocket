@@ -306,10 +306,9 @@ pub fn build_resolver(
 
     let resolver = wdl_modules::GitResolver::builder()
         .cache_root(cache_root)
-        .trust_path(trust_path)
         .trust(trust)
         .lockfile(lockfile)
-        .config(modules_config.clone())
+        .policy(wdl_modules::ResolverPolicy::from(modules_config))
         .build();
 
     Ok(Some((Arc::new(resolver), manifest_path.to_path_buf())))
@@ -375,12 +374,17 @@ fn get_lint_visitor(
     exceptions: &HashSet<String>,
     lint_config: &wdl::lint::Config,
 ) -> Linter {
-    Linter::new(wdl::lint::rules(lint_config).into_iter().filter(|rule| {
-        is_rule_enabled(
-            enabled_lint_tags,
-            disabled_lint_tags,
-            exceptions,
-            rule.as_ref(),
-        )
-    }))
+    Linter::new(
+        wdl::lint::rules(lint_config)
+            .into_iter()
+            .filter_map(|rule| {
+                is_rule_enabled(
+                    enabled_lint_tags,
+                    disabled_lint_tags,
+                    exceptions,
+                    rule.as_ref(),
+                )
+                .then_some(rule as Box<dyn Rule>)
+            }),
+    )
 }

@@ -1,9 +1,19 @@
-//! Resolver policy types derived from
-//! [`ModulesConfig`](super::config::ModulesConfig).
+//! Network and resource enforcement policy for the module resolver.
+//!
+//! This module translates a [`ModulesConfig`](super::config::ModulesConfig)
+//! into a [`ResolverPolicy`] that is evaluated at fetch time. Each Git URL is
+//! checked against the policy before any network activity occurs: the URL
+//! scheme must appear in the configured allowlist, the hostname must not be on
+//! the explicit deny list, the hostname must not be a non-public IP address or
+//! resolve to one, and the hostname must satisfy the per-scope host policy
+//! (open or allowlisted). Top-level and transitive dependencies carry separate
+//! [`GitNetworkPolicy`] instances, which allows stricter rules for code pulled
+//! in transitively (e.g., no SSH, no credentials).
 
 use url::Url;
 
 use crate::DependencyName;
+use crate::resolver::config::LargeFileWarning;
 use crate::resolver::config::ModulesConfig;
 use crate::resolver::error::ResolverError;
 use crate::resolver::git::CredentialMode;
@@ -12,7 +22,9 @@ use crate::resolver::scope::DependencyScope;
 /// Host access policy for a dependency scope.
 #[derive(Clone, Debug)]
 pub(crate) enum HostPolicy {
-    /// Any host is allowed (deny list and IP-range checks still apply).
+    /// Any host is allowed.
+    ///
+    /// Note that deny list and IP-range checks still apply.
     Any,
     /// Only these specific hosts are allowed.
     AllowList(Vec<String>),
@@ -32,18 +44,18 @@ impl HostPolicy {
 #[derive(Clone, Debug)]
 pub(crate) struct GitNetworkPolicy {
     /// Permitted URL schemes.
-    pub allowed_schemes: Vec<String>,
+    pub(crate) allowed_schemes: Vec<String>,
     /// Host access policy.
-    pub host_policy: HostPolicy,
+    pub(crate) host_policy: HostPolicy,
     /// Whether credentials are enabled.
-    pub credential_mode: CredentialMode,
+    pub(crate) credential_mode: CredentialMode,
     /// Maximum advertised refs.
-    pub max_advertised_refs: usize,
+    pub(crate) max_advertised_refs: usize,
 }
 
 /// The full resolver policy, derived from config at construction.
 #[derive(Clone, Debug)]
-pub(crate) struct ResolverPolicy {
+pub struct ResolverPolicy {
     /// Network policy applied to top-level dependencies.
     top_level: GitNetworkPolicy,
     /// Network policy applied to transitive dependencies.
@@ -51,9 +63,19 @@ pub(crate) struct ResolverPolicy {
     /// Hosts explicitly denied for all scopes.
     denied_hosts: Vec<String>,
     /// Maximum materialized files per module tree.
-    pub max_materialized_files: Option<usize>,
+    pub(crate) max_materialized_files: Option<usize>,
     /// Maximum materialized bytes per module tree.
-    pub max_materialized_bytes: Option<u64>,
+    pub(crate) max_materialized_bytes: Option<u64>,
+    /// Large-file warning threshold.
+    pub(crate) large_file_warning: LargeFileWarning,
+    /// Whether unsigned modules are rejected.
+    pub(crate) require_signed: bool,
+}
+
+impl Default for ResolverPolicy {
+    fn default() -> Self {
+        Self::from(&ModulesConfig::default())
+    }
 }
 
 impl From<&ModulesConfig> for ResolverPolicy {
@@ -88,6 +110,8 @@ impl From<&ModulesConfig> for ResolverPolicy {
             denied_hosts: config.denied_hosts.clone(),
             max_materialized_files: config.max_materialized_files,
             max_materialized_bytes: config.max_materialized_bytes,
+            large_file_warning: config.large_file_warning,
+            require_signed: config.require_signed,
         }
     }
 }
@@ -115,7 +139,7 @@ impl ResolverPolicy {
             .any(|s| s.eq_ignore_ascii_case(url.scheme()))
         {
             return Err(ResolverError::GitUrlPolicyViolation {
-                dep: name.clone(),
+                dep: name.manifest().to_string(),
                 url: url.to_string(),
                 scheme: url.scheme().to_string(),
             });
@@ -127,32 +151,38 @@ impl ResolverPolicy {
                 .any(|h| h.eq_ignore_ascii_case(host))
             {
                 return Err(ResolverError::GitHostPolicyViolation {
-                    dep: name.clone(),
+                    dep: name.manifest().to_string(),
                     url: url.to_string(),
                     host: host.to_string(),
                 });
             }
             if super::config::is_non_public_ip(host) {
                 return Err(ResolverError::GitHostPolicyViolation {
-                    dep: name.clone(),
+                    dep: name.manifest().to_string(),
                     url: url.to_string(),
                     host: host.to_string(),
                 });
             }
-            // Resolve the hostname and reject if any resolved address
-            // is non-public. Both DNS failure and empty results are
-            // treated as rejection (fail-closed). libgit2 re-resolves
-            // during connect/clone, so a DNS rebinding attack between
-            // this check and the fetch remains possible; fully
-            // preventing it would require peer-IP validation in a
-            // custom transport.
+            // Resolve the hostname to IP addresses and reject if any
+            // resolved address is non-public.
+            //
+            // Port 443 is passed only because `to_socket_addrs` requires
+            // a port; the DNS result is identical for any port value.
+            // The policy does not restrict which port the URL itself
+            // uses—that is left to the caller's URL.
+            //
+            // Both DNS failure and empty results are treated as rejection
+            // (fail-closed). libgit2 re-resolves during connect/clone, so
+            // a DNS rebinding attack between this check and the fetch
+            // remains possible; fully preventing it would require
+            // peer-IP validation in a custom transport.
             if host.parse::<std::net::IpAddr>().is_err() && url.scheme() != "file" {
                 let addrs: Vec<std::net::SocketAddr> =
                     match std::net::ToSocketAddrs::to_socket_addrs(&(host, 443)) {
                         Ok(iter) => iter.collect(),
                         Err(_) => {
                             return Err(ResolverError::GitHostResolutionFailed {
-                                dep: name.clone(),
+                                dep: name.manifest().to_string(),
                                 url: url.to_string(),
                                 host: host.to_string(),
                             });
@@ -161,12 +191,12 @@ impl ResolverPolicy {
                 if let Err(bad_ip) = validate_resolved_addresses(&addrs) {
                     return match bad_ip {
                         Some(ip) => Err(ResolverError::GitHostPolicyViolation {
-                            dep: name.clone(),
+                            dep: name.manifest().to_string(),
                             url: url.to_string(),
                             host: format!("{host} (resolves to {ip})"),
                         }),
                         None => Err(ResolverError::GitHostResolutionFailed {
-                            dep: name.clone(),
+                            dep: name.manifest().to_string(),
                             url: url.to_string(),
                             host: host.to_string(),
                         }),
@@ -175,7 +205,7 @@ impl ResolverPolicy {
             }
             if !net.host_policy.allows(host) {
                 return Err(ResolverError::GitHostPolicyViolation {
-                    dep: name.clone(),
+                    dep: name.manifest().to_string(),
                     url: url.to_string(),
                     host: host.to_string(),
                 });

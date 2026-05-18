@@ -64,7 +64,6 @@ Available rules:
   - CallInputKeyword
   - CommandSectionIndentation
   - ConciseInput
-  - ConsistentNewlines
   - ContainerUri
   - DeclarationName
   - DenyGlobStar
@@ -75,15 +74,18 @@ Available rules:
   - DocMetaStrings
   - DoubleQuotes
   - EmptyDocComment
+  - EmptyOutputs
   - ExceptDirectiveValid
   - ExpectedRuntimeKeys
   - HereDocCommands
+  - HostPathLiterals
   - ImportPlacement
   - InputName
   - KnownRules
   - MatchingOutputMeta
   - MetaDescription
   - MetaSections
+  - MisleadingDeclarationOrder
   - OutputName
   - ParameterDescription
   - ParameterMetaMatched

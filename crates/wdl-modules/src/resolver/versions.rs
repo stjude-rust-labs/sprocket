@@ -1,4 +1,10 @@
-//! Tag enumeration, semver matching, and version selection.
+//! Version discovery, tag parsing, and semver selection.
+//!
+//! This module bridges the Git ref advertisement layer and the
+//! resolver's version-requirement matching. It discovers tags and
+//! branches from a remote, parses semver version tags (optionally
+//! scoped to a path prefix for multi-module repositories), and
+//! selects the highest-precedence version satisfying a requirement.
 
 use std::collections::HashMap;
 use std::fmt;
@@ -10,74 +16,36 @@ use url::Url;
 
 use crate::GitCommit;
 use crate::VersionRequirement;
+use crate::resolver::git::CredentialMode;
+use crate::resolver::git::GitError;
+use crate::resolver::git::list_advertised_refs;
 
-/// The Git ref namespace prefix for tags.
-const REF_TAG_PREFIX: &str = "refs/tags/";
-
-/// The Git ref namespace prefix for branches (heads).
-const REF_HEAD_PREFIX: &str = "refs/heads/";
-
-/// Suffix the smart-protocol ref advertisement appends to annotated tag
-/// names when reporting the underlying commit (the "peeled" form).
-const PEELED_TAG_SUFFIX: &str = "^{}";
-
-/// A map of tag name to the commit the tag resolves to.
-pub type RemoteRefs = HashMap<String, GitCommit>;
-
-/// Lists the tags advertised by the remote at `url` together with the
-/// commit each one points at. No clone is performed.
-///
-/// Annotated tags advertise twice. Once as the tag-object OID under
-/// the base name, and once as the underlying commit OID under the
-/// `^{}` peeled name. The peeled entry carries the commit rather than
-/// the tag-object, so it overwrites any earlier base entry for the
-/// same tag.
-pub fn list_remote_refs(
-    url: &Url,
-    max_refs: usize,
-    mode: crate::resolver::git::CredentialMode,
-) -> Result<RemoteRefs, crate::resolver::git::GitError> {
-    let advertised = crate::resolver::git::list_advertised_refs(url, max_refs, mode)?;
-    let mut refs = HashMap::new();
-    for (name, oid) in advertised {
-        let Some(stripped) = name.strip_prefix(REF_TAG_PREFIX) else {
-            continue;
-        };
-        let (base, peeled) = match stripped.strip_suffix(PEELED_TAG_SUFFIX) {
-            Some(b) => (b, true),
-            None => (stripped, false),
-        };
-        let Ok(commit) = GitCommit::try_from(oid) else {
-            continue;
-        };
-        // Peeled entries always win; they carry the commit OID rather
-        // than the tag-object OID.
-        if peeled || !refs.contains_key(base) {
-            refs.insert(base.to_string(), commit);
-        }
-    }
-    Ok(refs)
+/// Errors produced by version selection.
+#[derive(Debug, Error)]
+pub enum VersionError {
+    /// No discovered tag satisfies the requirement.
+    #[error(
+        "no version satisfies requirement `{requirement}` (considered: {})",
+        format_versions(.considered)
+    )]
+    NoSatisfyingVersion {
+        /// The unmet version requirement.
+        requirement: VersionRequirement,
+        /// The versions discovered before filtering.
+        considered: Vec<Version>,
+    },
 }
 
-/// Lists the branches advertised by the remote at `url`, mapping each
-/// branch name to the commit it points at. No clone is performed.
-pub fn list_remote_branches(
-    url: &Url,
-    max_refs: usize,
-    mode: crate::resolver::git::CredentialMode,
-) -> Result<RemoteRefs, crate::resolver::git::GitError> {
-    let advertised = crate::resolver::git::list_advertised_refs(url, max_refs, mode)?;
-    let mut refs = HashMap::new();
-    for (name, oid) in advertised {
-        let Some(stripped) = name.strip_prefix(REF_HEAD_PREFIX) else {
-            continue;
-        };
-        let Ok(commit) = GitCommit::try_from(oid) else {
-            continue;
-        };
-        refs.insert(stripped.to_string(), commit);
+/// Renders a list of versions for error display, or `<none>` when empty.
+fn format_versions(versions: &[Version]) -> String {
+    if versions.is_empty() {
+        return "<none>".to_string();
     }
-    Ok(refs)
+    versions
+        .iter()
+        .map(ToString::to_string)
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// A semver tag scoped to an optional path prefix, e.g. `v1.2.3` or
@@ -99,12 +67,6 @@ impl VersionTag {
     /// Returns the path prefix, or `None` for a root tag.
     pub fn prefix(&self) -> Option<&str> {
         self.prefix.as_deref()
-    }
-
-    /// Returns the parsed version.
-    #[cfg(test)]
-    pub(crate) fn version(&self) -> &Version {
-        &self.version
     }
 
     /// Consumes the tag and returns the version.
@@ -149,6 +111,75 @@ impl FromStr for VersionTag {
 #[derive(Debug, Error)]
 #[error("`{0}` is not a valid version tag (expected `v<semver>` or `<prefix>/v<semver>`)")]
 pub struct VersionTagError(String);
+
+/// The Git ref namespace prefix for tags.
+const REF_TAG_PREFIX: &str = "refs/tags/";
+
+/// The Git ref namespace prefix for branches (heads).
+const REF_HEAD_PREFIX: &str = "refs/heads/";
+
+/// Suffix the smart-protocol ref advertisement appends to annotated tag
+/// names when reporting the underlying commit (the "peeled" form).
+const PEELED_TAG_SUFFIX: &str = "^{}";
+
+/// A map of ref name to the commit it resolves to.
+pub type RemoteRefs = HashMap<String, GitCommit>;
+
+/// Discovers the tags advertised by the remote at `url` together with
+/// the commit each one points at. No clone is performed.
+///
+/// Annotated tags advertise twice. Once as the tag-object OID under
+/// the base name, and once as the underlying commit OID under the
+/// `^{}` peeled name. The peeled entry carries the commit rather than
+/// the tag-object, so it overwrites any earlier base entry for the
+/// same tag.
+pub fn discover_remote_tags(
+    url: &Url,
+    max_refs: usize,
+    mode: CredentialMode,
+) -> Result<RemoteRefs, GitError> {
+    let advertised = list_advertised_refs(url, max_refs, mode)?;
+    let mut refs = HashMap::new();
+    for (name, oid) in advertised {
+        let Some(stripped) = name.strip_prefix(REF_TAG_PREFIX) else {
+            continue;
+        };
+        let (base, peeled) = match stripped.strip_suffix(PEELED_TAG_SUFFIX) {
+            Some(b) => (b, true),
+            None => (stripped, false),
+        };
+        let Ok(commit) = GitCommit::try_from(oid) else {
+            continue;
+        };
+        // Peeled entries always win; they carry the commit OID rather
+        // than the tag-object OID.
+        if peeled || !refs.contains_key(base) {
+            refs.insert(base.to_string(), commit);
+        }
+    }
+    Ok(refs)
+}
+
+/// Discovers the branches advertised by the remote at `url`, mapping
+/// each branch name to the commit it points at. No clone is performed.
+pub fn discover_remote_branches(
+    url: &Url,
+    max_refs: usize,
+    mode: CredentialMode,
+) -> Result<RemoteRefs, GitError> {
+    let advertised = list_advertised_refs(url, max_refs, mode)?;
+    let mut refs = HashMap::new();
+    for (name, oid) in advertised {
+        let Some(stripped) = name.strip_prefix(REF_HEAD_PREFIX) else {
+            continue;
+        };
+        let Ok(commit) = GitCommit::try_from(oid) else {
+            continue;
+        };
+        refs.insert(stripped.to_string(), commit);
+    }
+    Ok(refs)
+}
 
 /// Returns every semver-parsed tag matching `path_prefix` (or root tags
 /// when `path_prefix` is `None`) in descending precedence order.
@@ -216,34 +247,6 @@ pub fn resolve_version_to_commit(
     Ok((version, commit))
 }
 
-/// Errors produced by the `versions` module.
-#[derive(Debug, Error)]
-pub enum VersionError {
-    /// No discovered tag satisfies the requirement.
-    #[error(
-        "no version satisfies requirement `{requirement}` (considered: {})",
-        format_versions(.considered)
-    )]
-    NoSatisfyingVersion {
-        /// The unmet version requirement.
-        requirement: VersionRequirement,
-        /// The versions discovered before filtering.
-        considered: Vec<Version>,
-    },
-}
-
-/// Renders a list of versions for error display, or `<none>` when empty.
-fn format_versions(versions: &[Version]) -> String {
-    if versions.is_empty() {
-        return "<none>".to_string();
-    }
-    versions
-        .iter()
-        .map(ToString::to_string)
-        .collect::<Vec<_>>()
-        .join(", ")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -255,12 +258,41 @@ mod tests {
     /// Builds a `RemoteRefs` map from tag names, using a sentinel commit
     /// for each entry.
     fn refs(items: &[&str]) -> RemoteRefs {
-        let sentinel =
-            GitCommit::try_from("a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2".to_string()).unwrap();
+        let sentinel = GitCommit::try_from(
+            "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+                .to_string()
+                .to_string(),
+        )
+        .unwrap();
         items
             .iter()
             .map(|s| (s.to_string(), sentinel.clone()))
             .collect()
+    }
+
+    #[test]
+    fn version_tag_round_trips() {
+        let parsed: VersionTag = "csvkit/v1.2.3".parse().unwrap();
+        assert_eq!(parsed.prefix(), Some("csvkit"));
+        assert_eq!(parsed.to_string(), "csvkit/v1.2.3");
+        assert_eq!(parsed.into_version(), Version::parse("1.2.3").unwrap());
+
+        let root: VersionTag = "v0.5.0".parse().unwrap();
+        assert_eq!(root.prefix(), None);
+        assert_eq!(root.to_string(), "v0.5.0");
+
+        assert!("release-2026".parse::<VersionTag>().is_err());
+        assert!("vXYZ".parse::<VersionTag>().is_err());
+    }
+
+    #[test]
+    fn version_tag_new_displays_correctly() {
+        let v = Version::parse("1.2.3").unwrap();
+        assert_eq!(VersionTag::new(None, v.clone()).to_string(), "v1.2.3");
+        assert_eq!(
+            VersionTag::new(Some("csvkit".to_string()), v).to_string(),
+            "csvkit/v1.2.3"
+        );
     }
 
     #[test]
@@ -288,7 +320,7 @@ mod tests {
     #[test]
     fn ignores_non_semver_tags() {
         let v =
-            select_version(&refs(&["v1.0.0", "release-2024", "vXYZ"]), None, &req("^1")).unwrap();
+            select_version(&refs(&["v1.0.0", "release-2026", "vXYZ"]), None, &req("^1")).unwrap();
         assert_eq!(v, Version::parse("1.0.0").unwrap());
     }
 
@@ -315,46 +347,25 @@ mod tests {
     }
 
     #[test]
-    fn version_tag_round_trips() {
-        let parsed: VersionTag = "csvkit/v1.2.3".parse().unwrap();
-        assert_eq!(parsed.prefix(), Some("csvkit"));
-        assert_eq!(parsed.version(), &Version::parse("1.2.3").unwrap());
-        assert_eq!(parsed.to_string(), "csvkit/v1.2.3");
-
-        let root: VersionTag = "v0.5.0".parse().unwrap();
-        assert_eq!(root.prefix(), None);
-        assert_eq!(root.to_string(), "v0.5.0");
-
-        assert!("release-2024".parse::<VersionTag>().is_err());
-        assert!("vXYZ".parse::<VersionTag>().is_err());
-    }
-
-    #[test]
-    fn version_tag_new_displays_correctly() {
-        let v = Version::parse("1.2.3").unwrap();
-        assert_eq!(VersionTag::new(None, v.clone()).to_string(), "v1.2.3");
-        assert_eq!(
-            VersionTag::new(Some("csvkit".to_string()), v).to_string(),
-            "csvkit/v1.2.3"
-        );
+    fn path_selector_ignores_root_tags() {
+        let err =
+            select_version(&refs(&["v1.0.0", "v2.0.0"]), Some("csvkit"), &req("^1")).unwrap_err();
+        assert!(matches!(err, VersionError::NoSatisfyingVersion { .. }));
     }
 
     #[test]
     fn resolve_version_to_commit_round_trips_the_tag() {
         let mut refs = refs(&["v1.0.0", "v1.2.0", "v2.0.0"]);
-        let target =
-            GitCommit::try_from("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef".to_string()).unwrap();
+        let target = GitCommit::try_from(
+            "b1c2d3e4f5a6b1c2d3e4f5a6b1c2d3e4f5a6b1c2"
+                .to_string()
+                .to_string(),
+        )
+        .unwrap();
         refs.insert("v1.2.0".to_string(), target.clone());
 
         let (version, commit) = resolve_version_to_commit(&refs, None, &req("^1")).unwrap();
         assert_eq!(version, Version::parse("1.2.0").unwrap());
         assert_eq!(commit, target);
-    }
-
-    #[test]
-    fn path_selector_ignores_root_tags() {
-        let err =
-            select_version(&refs(&["v1.0.0", "v2.0.0"]), Some("csvkit"), &req("^1")).unwrap_err();
-        assert!(matches!(err, VersionError::NoSatisfyingVersion { .. }));
     }
 }

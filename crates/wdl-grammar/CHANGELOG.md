@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.22.0 - 2026-05-14
+
 #### Added
 
 * Initial support for WDL 1.4 (`V1::Four`) ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
@@ -24,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
+* Keywords can no longer be used as identifiers ([#751](https://github.com/stjude-rust-labs/sprocket/pull/751)).
 * The `from` keyword is now lexed as `Token::FromKeyword` for every WDL
   version. The parser still accepts `from` in identifier positions through
   `ANY_IDENT`, so pre-`1.4` documents that use `from` as a struct member,

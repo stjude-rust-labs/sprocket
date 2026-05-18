@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Analysis now emits diagnostics for task variable declarations that appear after `command` sections ([#844](https://github.com/stjude-rust-labs/sprocket/pull/844)).
+
+## 0.20.0 - 2026-05-14
+
+#### Added
+
 * `FeatureFlags::wdl_1_4` behind `feature_flags.wdl_1_4` in
   `sprocket.toml`, defaulting to `false` ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 * `VersionVisitor` diagnostic when a document declares `version 1.4`

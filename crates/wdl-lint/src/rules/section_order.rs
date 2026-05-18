@@ -1,6 +1,8 @@
 //! A lint rule for section ordering.
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -83,12 +85,16 @@ For structs, if present, the following sections must be in this order: meta, par
          members."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow hello {
+    output {
+    }
+
     input {
         String name
     }
@@ -102,10 +108,8 @@ workflow hello {
     }
 
     call say_hello {
-        name
+        name,
     }
-
-    output {}
 }
 
 task say_hello {
@@ -117,11 +121,11 @@ task say_hello {
         String name
     }
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow hello {
     meta {
@@ -137,10 +141,11 @@ workflow hello {
     }
 
     call say_hello {
-        name
+        name,
     }
 
-    output {}
+    output {
+    }
 }
 
 task say_hello {
@@ -152,8 +157,9 @@ task say_hello {
         echo "Hello, ~{name}!"
     >>>
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

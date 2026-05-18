@@ -43,6 +43,7 @@ use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_MODIFIERS;
 use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_TYPES;
 use wdl_analysis::path_to_uri;
 use wdl_lint::Linter;
+use wdl_lint::Rule;
 
 use crate::proto;
 
@@ -417,7 +418,8 @@ impl ServerOptions {
                     validator.add_visitor(Linter::new(
                         wdl_lint::rules(&wdl_lint_config)
                             .into_iter()
-                            .filter(|r| !exceptions.contains(&r.id().into())),
+                            .filter(|r| !exceptions.contains(&r.id().into()))
+                            .map(|r| r as Box<dyn Rule>),
                     ));
                 }
                 validator

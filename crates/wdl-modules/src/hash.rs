@@ -16,6 +16,7 @@ use thiserror::Error;
 
 use crate::RelativePath;
 use crate::RelativePathError;
+use crate::module_walk::ModuleWalkError;
 use crate::tree::TreeError;
 
 /// An error during content hashing.
@@ -30,15 +31,6 @@ pub enum HashError {
     /// root.
     #[error("absolute path `{0}` is not under the module root")]
     AbsoluteNotUnderRoot(String),
-
-    /// A symbolic link target resolves outside the module root.
-    #[error("symbolic link `{0}` resolves outside the module root")]
-    SymlinkEscapesRoot(String),
-
-    /// A symbolic link target resolves to non-module content (e.g.,
-    /// `.git` or `.sparse.json`).
-    #[error("symbolic link `{0}` targets non-module content")]
-    SymlinkTargetsMetadata(String),
 
     /// A new path collides under Unicode Normalization Form C (NFC) with a
     /// path that was already recorded. The spec requires the module's set
@@ -60,6 +52,10 @@ pub enum HashError {
         #[source]
         source: io::Error,
     },
+
+    /// A tree walk error (symlink containment, metadata target, etc.).
+    #[error(transparent)]
+    Walk(#[from] ModuleWalkError),
 
     /// A module file-tree validation error (reserved-filename placement,
     /// NFC duplicate paths).
@@ -213,6 +209,8 @@ impl Hasher {
     /// rule. Without this check, a symbolic link inside the module could
     /// pull bytes from elsewhere on the filesystem into the digest.
     pub fn finalize(self) -> Result<ContentHash, HashError> {
+        crate::tree::validate_tree(self.paths())?;
+
         let canonical_root = std::fs::canonicalize(&self.root).map_err(|source| HashError::Io {
             path: self.root.clone(),
             source,
@@ -233,7 +231,9 @@ impl Hasher {
             })?;
 
             if !canonical_abs.starts_with(&canonical_root) {
-                return Err(HashError::SymlinkEscapesRoot(relative.as_str().to_string()));
+                return Err(
+                    ModuleWalkError::SymlinkEscapesRoot(relative.as_str().to_string()).into(),
+                );
             }
 
             let mut file = File::open(&canonical_abs).map_err(|source| HashError::Io {
@@ -262,10 +262,8 @@ impl Hasher {
 /// Computes the content hash of a directory by walking it (excluding the
 /// spec-mandated exclusions `module.sig` and `module-lock.json`).
 /// Directory and file names that are not module content and should
-/// be excluded from hashing, limit checks, and content walks. Includes
-/// Git infrastructure (`.git`) and resolver cache metadata
-/// (`.sparse.json`).
-pub(crate) const NON_MODULE_CONTENT: &[&str] = &[".git", ".sparse.json"];
+/// be excluded from hashing, limit checks, and content walks.
+pub(crate) const NON_MODULE_CONTENT: &[&str] = &[".git"];
 
 /// Walks `root` and computes the deterministic content hash of the
 /// module directory, skipping non-module content and spec-defined
@@ -289,7 +287,7 @@ pub fn hash_directory(root: impl AsRef<Path>) -> Result<ContentHash, HashError> 
         Ok(())
     })
     .map_err(|e| match e {
-        crate::module_walk::WalkError::Hash(h) => h,
+        crate::module_walk::WalkError::Walk(w) => HashError::from(w),
         crate::module_walk::WalkError::Visitor(h) => h,
     })?;
 
@@ -457,6 +455,28 @@ mod tests {
     }
 
     #[test]
+    fn finalize_validates_reserved_filenames() {
+        let dir = tempdir().unwrap();
+        fs::create_dir(dir.path().join("nested")).unwrap();
+        fs::write(
+            dir.path().join("nested").join(crate::SIGNATURE_FILENAME),
+            b"x",
+        )
+        .unwrap();
+
+        let mut h = Hasher::new(dir.path().to_path_buf());
+        h.try_add("nested/module.sig").unwrap();
+        let err = h.finalize().unwrap_err();
+        assert!(matches!(
+            err,
+            HashError::Tree(crate::TreeError::ReservedFilename {
+                name: crate::SIGNATURE_FILENAME,
+                ..
+            })
+        ));
+    }
+
+    #[test]
     fn rejects_paths_colliding_under_nfc() {
         let dir = tempdir().unwrap();
         let mut h = Hasher::new(dir.path().to_path_buf());
@@ -502,14 +522,10 @@ mod tests {
             b"ref: refs/heads/main",
         )
         .unwrap();
-        fs::write(dir.path().join(".sparse.json"), b"[]").unwrap();
 
         let hash2 = hash_directory(dir.path()).unwrap();
 
-        assert_eq!(
-            hash1, hash2,
-            "`.git` and `.sparse.json` must not affect the content hash"
-        );
+        assert_eq!(hash1, hash2, "`.git` must not affect the content hash");
     }
 
     fn symlink_file(target: &std::path::Path, link: &std::path::Path) {
@@ -535,7 +551,10 @@ mod tests {
         );
         let err = hash_directory(dir.path()).unwrap_err();
         assert!(
-            matches!(err, HashError::SymlinkTargetsMetadata(_)),
+            matches!(
+                err,
+                HashError::Walk(ModuleWalkError::SymlinkTargetsMetadata(_))
+            ),
             "got: {err}"
         );
     }
@@ -568,24 +587,38 @@ mod tests {
         );
         let err = hash_directory(dir.path()).unwrap_err();
         assert!(
-            matches!(err, HashError::SymlinkTargetsMetadata(_)),
+            matches!(
+                err,
+                HashError::Walk(ModuleWalkError::SymlinkTargetsMetadata(_))
+            ),
             "expected metadata symlink rejection, got: {err}"
         );
     }
 
     #[test]
-    fn symlink_to_nested_sparse_json_is_rejected() {
+    fn windows_and_unix_paths_hash_identically() {
         let dir = tempdir().unwrap();
-        fs::create_dir_all(dir.path().join("nested")).unwrap();
-        fs::write(dir.path().join("nested").join(".sparse.json"), b"[]").unwrap();
-        symlink_file(
-            &dir.path().join("nested").join(".sparse.json"),
-            &dir.path().join("index.wdl"),
-        );
-        let err = hash_directory(dir.path()).unwrap_err();
-        assert!(
-            matches!(err, HashError::SymlinkTargetsMetadata(_)),
-            "expected metadata symlink rejection, got: {err}"
+        fs::create_dir(dir.path().join("sub")).unwrap();
+        fs::write(dir.path().join("root.wdl"), b"workflow w {}").unwrap();
+        fs::write(dir.path().join("sub").join("nested.wdl"), b"task t {}").unwrap();
+
+        // Simulate Unix-style paths (as `hash_directory` would produce on Unix).
+        let mut h_unix = Hasher::new(dir.path().to_path_buf());
+        for p in ["root.wdl", "sub/nested.wdl"] {
+            h_unix.try_add(p).unwrap();
+        }
+
+        // Simulate Windows-style paths after the `\` → `/` normalization that
+        // `hash_directory` applies before calling `try_add`.
+        let mut h_win = Hasher::new(dir.path().to_path_buf());
+        for p in ["root.wdl", "sub\\nested.wdl"] {
+            h_win.try_add(p.replace('\\', "/")).unwrap();
+        }
+
+        assert_eq!(
+            h_unix.finalize().unwrap(),
+            h_win.finalize().unwrap(),
+            "digests must be platform-independent after path-separator normalization"
         );
     }
 
@@ -602,7 +635,11 @@ mod tests {
         assert!(
             matches!(
                 err,
-                HashError::SymlinkEscapesRoot(_) | HashError::SymlinkTargetsMetadata(_)
+                HashError::Walk(
+                    ModuleWalkError::DirectorySymlink(_)
+                        | ModuleWalkError::SymlinkEscapesRoot(_)
+                        | ModuleWalkError::SymlinkTargetsMetadata(_)
+                )
             ),
             "directory symlink cycles must be rejected, got: {err}"
         );

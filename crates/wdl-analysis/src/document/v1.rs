@@ -21,6 +21,7 @@ use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
+use wdl_ast::TreeNode;
 use wdl_ast::TreeToken;
 use wdl_ast::v1::Ast;
 use wdl_ast::v1::CallStatement;
@@ -61,10 +62,11 @@ use super::TASK_VAR_NAME;
 use super::Task;
 use super::Workflow;
 use crate::Exceptable;
-use crate::UNUSED_CALL_RULE_ID;
-use crate::UNUSED_DECL_RULE_ID;
-use crate::UNUSED_IMPORT_RULE_ID;
-use crate::UNUSED_INPUT_RULE_ID;
+use crate::MisleadingDeclarationOrderRule;
+use crate::UnusedCallRule;
+use crate::UnusedDeclarationRule;
+use crate::UnusedImportRule;
+use crate::UnusedInputRule;
 use crate::config::Config;
 use crate::config::DiagnosticsConfig;
 use crate::diagnostics::Context;
@@ -84,6 +86,7 @@ use crate::diagnostics::imported_enum_conflict;
 use crate::diagnostics::imported_struct_conflict;
 use crate::diagnostics::incompatible_import;
 use crate::diagnostics::invalid_relative_import;
+use crate::diagnostics::misleading_declaration_order;
 use crate::diagnostics::missing_call_input;
 use crate::diagnostics::name_conflict;
 use crate::diagnostics::namespace_conflict;
@@ -278,7 +281,7 @@ fn add_namespace(
                         source: uri.clone(),
                         document: imported.clone(),
                         used: false,
-                        excepted: import.inner().is_rule_excepted(UNUSED_IMPORT_RULE_ID),
+                        excepted: import.inner().is_rule_excepted(UnusedImportRule::ID),
                     },
                 );
                 ns
@@ -1017,6 +1020,14 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
         outputs,
     };
 
+    let command_section_span = graph.node_weights().find_map(|node| {
+        if let TaskGraphNode::Command(section) = node {
+            Some(section.span())
+        } else {
+            None
+        }
+    });
+
     let mut output_scope = None;
     let mut command_scope = None;
     let mut requirements_scope = None;
@@ -1045,7 +1056,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     let mut edges = graph.edges_directed(index, Direction::Outgoing);
 
                     if let (Some(true), None) = (edges.next().map(|e| e.weight()), edges.next())
-                        && !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID)
+                        && !decl.inner().is_rule_excepted(UnusedInputRule::ID)
                     {
                         let name = decl.name();
 
@@ -1056,6 +1067,21 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 }
             }
             TaskGraphNode::Decl(decl) => {
+                let name = decl.name();
+
+                if let Some(command_section_span) = command_section_span
+                    && decl.inner().span().start() > command_section_span.end()
+                    && let Some(severity) = config.diagnostics_config().misleading_declaration_order
+                    && !decl
+                        .inner()
+                        .is_rule_excepted(MisleadingDeclarationOrderRule::ID)
+                {
+                    document.analysis_diagnostics.push(
+                        misleading_declaration_order(name.text(), name.span())
+                            .with_severity(severity),
+                    );
+                }
+
                 if !add_decl(
                     config,
                     document,
@@ -1068,14 +1094,13 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
 
                 // Check for unused declaration
                 if let Some(severity) = config.diagnostics_config().unused_declaration {
-                    let name = decl.name();
                     // Don't warn for environment variables as they are always implicitly used
                     if decl.env().is_none()
                         && graph
                             .edges_directed(index, Direction::Outgoing)
                             .next()
                             .is_none()
-                        && !decl.inner().is_rule_excepted(UNUSED_DECL_RULE_ID)
+                        && !decl.inner().is_rule_excepted(UnusedDeclarationRule::ID)
                     {
                         document.analysis_diagnostics.push(
                             unused_declaration(name.text(), name.span()).with_severity(severity),
@@ -1341,7 +1366,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                         .edges_directed(index, Direction::Outgoing)
                         .next()
                         .is_none()
-                    && !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID)
+                    && !decl.inner().is_rule_excepted(UnusedInputRule::ID)
                 {
                     let name = decl.name();
 
@@ -1373,7 +1398,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                         .edges_directed(index, Direction::Outgoing)
                         .next()
                         .is_none()
-                        && !decl.inner().is_rule_excepted(UNUSED_DECL_RULE_ID)
+                        && !decl.inner().is_rule_excepted(UnusedDeclarationRule::ID)
                     {
                         document.analysis_diagnostics.push(
                             unused_declaration(name.text(), name.span()).with_severity(severity),
@@ -1778,7 +1803,7 @@ fn add_call_statement(
         // Check for unused call
         if let Some(severity) = config.diagnostics_config().unused_call
             && !is_used
-            && !statement.inner().is_rule_excepted(UNUSED_CALL_RULE_ID)
+            && !statement.inner().is_rule_excepted(UnusedCallRule::ID)
             && let Some(ty) = ty.as_call()
             && !ty.outputs().is_empty()
         {

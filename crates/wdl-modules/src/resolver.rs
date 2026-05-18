@@ -16,18 +16,9 @@ pub(crate) mod error;
 pub(crate) mod fetch;
 #[cfg(feature = "resolver")]
 mod git;
-#[cfg(feature = "resolver")]
-pub(crate) mod helpers;
-#[cfg(feature = "resolver")]
 pub(crate) mod lock;
-#[cfg(feature = "resolver")]
-pub(crate) mod module_root;
-#[cfg(feature = "resolver")]
 pub(crate) mod policy;
 pub(crate) mod scope;
-#[cfg(feature = "resolver")]
-pub(crate) mod tree_walk;
-#[cfg(feature = "resolver")]
 pub(crate) mod trust;
 pub(crate) mod types;
 #[cfg(feature = "resolver")]
@@ -51,22 +42,21 @@ use futures::future::BoxFuture;
 use futures::future::FutureExt;
 use semver::Version;
 
-#[cfg(feature = "resolver")]
+use crate::DependencyEntry;
 use crate::DependencyName;
 use crate::DependencySource;
-#[cfg(feature = "resolver")]
+use crate::GitCommit;
 use crate::GitModulePath;
 #[cfg(feature = "resolver")]
 use crate::GitSelector;
 #[cfg(feature = "resolver")]
 use crate::Lockfile;
 use crate::Manifest;
-#[cfg(feature = "resolver")]
-use crate::ModulePath;
-#[cfg(feature = "resolver")]
+use crate::RelativePath;
 use crate::ResolvedSource;
 use crate::SymbolicPath;
-#[cfg(feature = "resolver")]
+use crate::hash::NON_MODULE_CONTENT;
+use crate::module_walk::ModuleWalkError;
 use crate::resolver::cache::CacheKey;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::config::LargeFileWarning;
@@ -81,17 +71,7 @@ pub use crate::resolver::error::MissingFileKind;
 pub use crate::resolver::error::ResolverError;
 #[cfg(feature = "resolver")]
 use crate::resolver::fetch::GitFetcher;
-#[cfg(feature = "resolver")]
-use crate::resolver::helpers::check_tag_manifest_match;
-#[cfg(feature = "resolver")]
-use crate::resolver::helpers::exclude_set;
-#[cfg(feature = "resolver")]
-use crate::resolver::helpers::is_transitive_local_disallowed;
-#[cfg(feature = "resolver")]
-use crate::resolver::helpers::read_manifest;
-#[cfg(feature = "resolver")]
-pub use crate::resolver::lock::DependencyAddition;
-#[cfg(feature = "resolver")]
+pub use crate::resolver::lock::DependencyChange;
 pub use crate::resolver::lock::DependencyUpdate;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::lock::LockfileDiff;
@@ -103,14 +83,7 @@ pub use crate::resolver::lock::RelockOutcome;
 pub use crate::resolver::lock::RelockStats;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::lock::partial_relock;
-#[cfg(feature = "resolver")]
-use crate::resolver::module_root::MaterializedRoot;
-#[cfg(feature = "resolver")]
-use crate::resolver::module_root::ModuleRoot;
-#[cfg(feature = "resolver")]
-use crate::resolver::module_root::resolve_content_file;
-#[cfg(feature = "resolver")]
-use crate::resolver::policy::ResolverPolicy;
+pub use crate::resolver::policy::ResolverPolicy;
 pub use crate::resolver::scope::DependencyScope;
 #[cfg(feature = "resolver")]
 use crate::resolver::scope::ResolutionMode;
@@ -125,9 +98,6 @@ pub use crate::resolver::types::NullResolver;
 pub use crate::resolver::types::ResolvedDependency;
 pub use crate::resolver::types::ResolvedModule;
 pub use crate::resolver::types::ResolvedTree;
-#[cfg(feature = "resolver")]
-use crate::resolver::verify::ModuleVerifier;
-#[cfg(feature = "resolver")]
 use crate::resolver::verify::VerifiedModule;
 
 /// Resolves WDL module imports to concrete files on disk.
@@ -171,7 +141,9 @@ pub trait Resolver: Send + Sync {
     /// resolves to.
     async fn discover_versions(
         &self,
+        name: &DependencyName,
         source: &DependencySource,
+        scope: DependencyScope,
     ) -> Result<Vec<Version>, ResolverError>;
 }
 
@@ -188,17 +160,13 @@ pub struct GitResolver {
     /// leaves are materialized.
     #[builder(into)]
     cache_root: PathBuf,
-    /// Path of the user-level trust store (`modules-trust.toml`),
-    /// recorded for diagnostic output. Loading is the caller's
-    /// responsibility; `trust` carries the loaded contents.
-    #[builder(into)]
-    trust_path: PathBuf,
-    /// The project's `[modules]` configuration.
+    /// The resolved policy, derived from [`ModulesConfig`] at construction.
     #[builder(default)]
-    config: ModulesConfig,
+    policy: ResolverPolicy,
     /// The user-level trust store, loaded by the caller.
     trust: TrustStore,
     /// The lockfile to verify materialized dependencies against.
+    ///
     /// `materialize` compares each dependency's observed content hash
     /// against the locked checksum and rejects mismatches.
     lockfile: Lockfile,
@@ -211,29 +179,14 @@ impl GitResolver {
         &self.cache_root
     }
 
-    /// Returns the trust-store path.
-    pub fn trust_path(&self) -> &Path {
-        &self.trust_path
-    }
-
-    /// Returns the active `[modules]` configuration.
-    pub fn config(&self) -> &ModulesConfig {
-        &self.config
-    }
-
     /// Returns the active trust store.
     pub fn trust_store(&self) -> &TrustStore {
         &self.trust
     }
 
-    /// Returns the resolved policy.
-    fn policy(&self) -> ResolverPolicy {
-        ResolverPolicy::from(&self.config)
-    }
-
     /// Returns a policy-enforcing Git fetcher.
     fn fetcher(&self) -> GitFetcher {
-        GitFetcher::new(self.policy())
+        GitFetcher::new(self.policy.clone())
     }
 
     /// Returns the lockfile.
@@ -241,9 +194,91 @@ impl GitResolver {
         &self.lockfile
     }
 
-    /// Resolves every entry in `deps`, threading the cycle-detection
-    /// `chain` of `(name, source)` pairs through each recursion step.
-    fn resolve_deps<'a>(
+    /// Checks that a locked local-path dep matches the manifest declaration.
+    fn validate_locked_local(
+        &self,
+        name: &DependencyName,
+        path: &Path,
+    ) -> Result<(), ResolverError> {
+        let locked_entry =
+            self.lockfile
+                .dependencies
+                .get(name)
+                .ok_or_else(|| ResolverError::NotInLockfile {
+                    dep: name.manifest().to_string(),
+                })?;
+        if let ResolvedSource::Path { path: locked_path } = &locked_entry.source {
+            if path != locked_path {
+                return Err(ResolverError::LockfileSourceMismatch {
+                    dep: name.manifest().to_string(),
+                });
+            }
+        } else {
+            return Err(ResolverError::LockfileSourceMismatch {
+                dep: name.manifest().to_string(),
+            });
+        }
+        Ok(())
+    }
+
+    /// Runs the sparse checkout for a Git dependency and returns its root.
+    ///
+    /// On failure, cleans up the cache leaf so a corrupt partial
+    /// checkout does not persist.
+    async fn materialize_git(
+        &self,
+        name: &DependencyName,
+        url: &url::Url,
+        scope: DependencyScope,
+        plan: &GitMaterializationPlan,
+    ) -> Result<MaterializedRoot, ResolverError> {
+        let fetcher = self.fetcher();
+        let dep_for_clone = name.clone();
+        let url_for_clone = url.clone();
+        let leaf_for_clone = plan.leaf.clone();
+        let commit_for_clone = plan.commit.clone();
+        let sparse_path = plan.sparse_path.clone();
+        let result = tokio::task::spawn_blocking(move || {
+            fetcher.ensure_materialized(
+                &dep_for_clone,
+                &url_for_clone,
+                commit_for_clone.as_str(),
+                &[sparse_path.as_str()],
+                scope,
+                &leaf_for_clone,
+            )
+        })
+        .await
+        // SAFETY: the closure performs only libgit2 work and
+        // does not panic; a `JoinError` would only fire on
+        // runtime shutdown.
+        .unwrap();
+
+        if let Err(err) = result {
+            if plan.leaf.starts_with(&self.cache_root)
+                && plan.leaf.exists()
+                && let Err(io_err) = std::fs::remove_dir_all(&plan.leaf)
+            {
+                tracing::warn!(
+                    path = %plan.leaf.display(),
+                    error = %io_err,
+                    "failed to clean up cache leaf after materialization failure",
+                );
+            }
+            return Err(err);
+        }
+
+        Ok(MaterializedRoot::Cached {
+            module_root: plan.module_path.clone(),
+            cache_leaf: plan.leaf.clone(),
+        })
+    }
+
+    /// Recursively resolves a dependency map for `resolve_tree`.
+    ///
+    /// Each iteration: policy check, materialize, read manifest, cycle
+    /// check, verify, recurse into transitive deps, assemble result.
+    fn resolve_dependencies<'a>(
         &'a self,
         deps: &'a BTreeMap<DependencyName, DependencySource>,
         parent: Option<&'a ResolvedSource>,
@@ -256,114 +291,120 @@ impl GitResolver {
             } else {
                 DependencyScope::TopLevel
             };
+
             for (name, source) in deps {
-                if is_transitive_local_disallowed(parent, source) {
-                    return Err(ResolverError::LocalPathInTransitive { dep: name.clone() });
+                // Local-path deps under a Git parent are disallowed:
+                // the path would be meaningless outside the original
+                // machine, making the resolution non-reproducible.
+                if matches!(source, DependencySource::LocalPath { .. })
+                    && matches!(parent, Some(ResolvedSource::Git { .. }))
+                {
+                    return Err(ResolverError::LocalPathInTransitive {
+                        dep: name.manifest().to_string(),
+                    });
                 }
+
+                // Enforce URL scheme and host policy.
                 if let DependencySource::Git { url, .. } = source {
-                    self.policy().check_git_url(name, url, scope)?;
+                    self.policy.check_git_url(name, url, scope)?;
                 }
-                let resolved = self.resolve_dependency(name, source, scope, chain).await?;
-                out.insert(name.clone(), resolved);
+
+                // Materialize the dependency on disk and read its manifest.
+                let (resolved_source, manifest, module_root) = match source {
+                    DependencySource::LocalPath { path, .. } => {
+                        let manifest = read_manifest(path)?;
+                        let resolved = ResolvedSource::Path { path: path.clone() };
+                        let root = MaterializedRoot::Local(path.clone());
+                        (resolved, manifest, root)
+                    }
+                    DependencySource::Git {
+                        url,
+                        selector,
+                        path,
+                        ..
+                    } => {
+                        let plan = self
+                            .plan_git_materialization(
+                                name, url, selector, path, scope,
+                                ResolutionMode::Fresh,
+                            )
+                            .await?;
+                        let root = self.materialize_git(name, url, scope, &plan).await?;
+                        let manifest = read_manifest(&plan.module_path)?;
+                        check_tag_manifest_match(
+                            plan.path_prefix.as_deref(),
+                            plan.selected_version.as_ref(),
+                            &manifest.version,
+                        )?;
+                        let resolved = ResolvedSource::Git {
+                            git: url.clone(),
+                            commit: plan.commit,
+                            path: path.clone(),
+                            selector: selector.clone(),
+                        };
+                        (resolved, manifest, root)
+                    }
+                };
+
+                // Detect cycles before recursing.
+                if let Some(at) = chain.iter().position(|(_, s)| *s == resolved_source) {
+                    let mut path: Vec<String> =
+                        chain[at..].iter().map(|(n, _)| n.manifest().to_string()).collect();
+                    path.push(name.manifest().to_string());
+                    return Err(ResolverError::Cycle { path });
+                }
+
+                // Verify content hash, signature, and trust pin.
+                let source_url = resolved_source.source_url();
+                let source_path = resolved_source.source_path();
+                let VerifiedModule { checksum, signer } =
+                    crate::resolver::verify::verify(
+                        &self.policy,
+                        &self.trust,
+                        name,
+                        module_root.module_root(),
+                        Some((&source_url, source_path)),
+                    )
+                    .inspect_err(|e| {
+                        if let MaterializedRoot::Cached { cache_leaf, .. } = &module_root {
+                            tracing::warn!(
+                                dep = name.manifest(),
+                                cache_leaf = %cache_leaf.display(),
+                                error = %e,
+                                "verification failed; run `sprocket module clean` to remove the cached module",
+                            );
+                        }
+                    })?;
+
+                // Recurse into transitive dependencies.
+                chain.push((name.clone(), resolved_source.clone()));
+                let inner = self
+                    .resolve_dependencies(&manifest.dependencies, Some(&resolved_source), chain)
+                    .await
+                    .inspect_err(|_| {
+                        chain.pop();
+                    })?;
+                chain.pop();
+
+                out.insert(name.clone(), ResolvedDependency {
+                    source: resolved_source,
+                    version: manifest.version,
+                    checksum,
+                    signer,
+                    dependencies: inner,
+                });
             }
             Ok(out)
         }
         .boxed()
     }
 
-    /// Resolves a single dependency, recursing into its own
-    /// `dependencies`. Detects cycles using `chain`.
-    fn resolve_dependency<'a>(
-        &'a self,
-        name: &'a DependencyName,
-        source: &'a DependencySource,
-        scope: DependencyScope,
-        chain: &'a mut Vec<(DependencyName, ResolvedSource)>,
-    ) -> BoxFuture<'a, Result<ResolvedDependency, ResolverError>> {
-        async move {
-            let (resolved_source, manifest, module_root) = self
-                .materialize_dependency(name, source, scope, ResolutionMode::Fresh)
-                .await?;
-
-            if let Some(at) = chain.iter().position(|(_, s)| *s == resolved_source) {
-                let mut path: Vec<DependencyName> =
-                    chain[at..].iter().map(|(n, _)| n.clone()).collect();
-                path.push(name.clone());
-                return Err(ResolverError::Cycle { path });
-            }
-
-            chain.push((name.clone(), resolved_source.clone()));
-            let inner = self
-                .resolve_deps(&manifest.dependencies, Some(&resolved_source), chain)
-                .await
-                .inspect_err(|_| {
-                    chain.pop();
-                })?;
-            chain.pop();
-
-            let VerifiedModule { checksum, signer } = self
-                .verify(name, module_root.module_root().as_ref())
-                .inspect_err(|e| {
-                    if let MaterializedRoot::Cached { cache_leaf, .. } = &module_root {
-                        tracing::warn!(
-                            dep = %name,
-                            cache_leaf = %cache_leaf.display(),
-                            error = %e,
-                            "verification failed; run `sprocket module clean` to remove the cached module",
-                        );
-                    }
-                })?;
-            Ok(ResolvedDependency {
-                source: resolved_source,
-                modules: BTreeMap::from([(
-                    ModulePath::Root,
-                    ResolvedModule {
-                        version: manifest.version,
-                        checksum,
-                        signer,
-                        dependencies: inner,
-                    },
-                )]),
-            })
-        }
-        .boxed()
-    }
-
-    /// Returns a verifier that borrows this resolver's config, trust
-    /// store, and lockfile.
-    fn verify(
-        &self,
-        name: &DependencyName,
-        module_root: &Path,
-    ) -> Result<VerifiedModule, ResolverError> {
-        let policy = self.policy();
-        let verifier = ModuleVerifier::builder()
-            .config(&self.config)
-            .policy(&policy)
-            .trust(&self.trust)
-            .lockfile(&self.lockfile)
-            .build();
-        verifier.verify(name, module_root)
-    }
-
-    /// Verifies a dependency's content hash against the lockfile.
-    fn verify_against_lockfile(
-        &self,
-        name: &DependencyName,
-        checksum: &crate::ContentHash,
-    ) -> Result<(), ResolverError> {
-        let policy = self.policy();
-        let verifier = ModuleVerifier::builder()
-            .config(&self.config)
-            .policy(&policy)
-            .trust(&self.trust)
-            .lockfile(&self.lockfile)
-            .build();
-        verifier.verify_against_lockfile(name, checksum)
-    }
-
-    /// Resolves a [`GitSelector`] against the remote at `url` to a
-    /// concrete commit SHA.
+    /// Resolves a [`GitSelector`] to a concrete commit SHA.
+    ///
+    /// Queries the remote at `url` for tags or branches (depending on
+    /// the selector variant), then maps the result to a commit. For
+    /// version selectors, also returns the matched semver version so
+    /// callers can verify it against the manifest.
     async fn resolve_git_selector(
         &self,
         name: &DependencyName,
@@ -371,7 +412,7 @@ impl GitResolver {
         selector: &GitSelector,
         path_prefix: Option<&str>,
         scope: DependencyScope,
-    ) -> Result<(Option<Version>, crate::GitCommit), ResolverError> {
+    ) -> Result<(Option<Version>, GitCommit), ResolverError> {
         let fetcher = self.fetcher();
         match selector {
             GitSelector::Version(requirement) => {
@@ -395,7 +436,7 @@ impl GitResolver {
                         requirement,
                         considered,
                     } => ResolverError::NoSatisfyingVersion {
-                        dep: name.clone(),
+                        dep: name.manifest().to_string(),
                         requirement,
                         considered,
                     },
@@ -415,7 +456,7 @@ impl GitResolver {
                     refs.get(tag)
                         .cloned()
                         .ok_or_else(|| ResolverError::UnknownGitRef {
-                            dep: name.clone(),
+                            dep: name.manifest().to_string(),
                             kind: GitRefKind::Tag,
                             name: tag.clone(),
                         })?;
@@ -434,134 +475,23 @@ impl GitResolver {
                     refs.get(branch)
                         .cloned()
                         .ok_or_else(|| ResolverError::UnknownGitRef {
-                            dep: name.clone(),
+                            dep: name.manifest().to_string(),
                             kind: GitRefKind::Branch,
                             name: branch.clone(),
                         })?;
                 Ok((None, commit))
             }
-            GitSelector::Commit(commit) => {
-                let commit = crate::GitCommit::try_from(commit.clone()).map_err(|_| {
-                    ResolverError::InvalidCommit {
-                        dep: name.clone(),
-                        value: commit.clone(),
-                    }
-                })?;
-                Ok((None, commit))
-            }
+            GitSelector::Commit(commit) => Ok((None, commit.clone())),
         }
     }
 
-    /// Materializes a dependency on disk and parses its manifest.
-    /// Returns the resolved source, the parsed manifest, and the
-    /// absolute path to the directory containing `module.json`.
-    async fn materialize_dependency(
-        &self,
-        name: &DependencyName,
-        source: &DependencySource,
-        scope: DependencyScope,
-        mode: ResolutionMode,
-    ) -> Result<(ResolvedSource, Manifest, MaterializedRoot), ResolverError> {
-        match source {
-            DependencySource::LocalPath { path, .. } => {
-                if matches!(mode, ResolutionMode::Locked) {
-                    let locked_entry = self
-                        .lockfile
-                        .dependencies
-                        .get(name)
-                        .ok_or_else(|| ResolverError::NotInLockfile { dep: name.clone() })?;
-                    if let ResolvedSource::Path { path: locked_path } = &locked_entry.source {
-                        if path != locked_path {
-                            return Err(ResolverError::LockfileSourceMismatch {
-                                dep: name.clone(),
-                            });
-                        }
-                    } else {
-                        return Err(ResolverError::LockfileSourceMismatch { dep: name.clone() });
-                    }
-                }
-                let manifest = read_manifest(path)?;
-                Ok((
-                    ResolvedSource::Path { path: path.clone() },
-                    manifest,
-                    MaterializedRoot::Local(ModuleRoot::new(path.clone())),
-                ))
-            }
-            DependencySource::Git {
-                url,
-                selector,
-                path,
-                ..
-            } => {
-                tracing::debug!(dep = %name, url = %url, "planning git materialization");
-                let plan = self
-                    .plan_git_materialization(name, url, selector, path, scope, mode)
-                    .await?;
-
-                tracing::debug!(
-                    dep = %name,
-                    commit = %plan.commit,
-                    leaf = %plan.leaf.display(),
-                    "materialization plan ready; cloning",
-                );
-                let fetcher = self.fetcher();
-                let dep_for_clone = name.clone();
-                let url_for_clone = url.clone();
-                let leaf_for_clone = plan.leaf.clone();
-                let commit_for_clone = plan.commit.clone();
-                let sparse_path = plan.sparse_path.clone();
-                let materialize_result = tokio::task::spawn_blocking(move || {
-                    fetcher.ensure_materialized(
-                        &dep_for_clone,
-                        &url_for_clone,
-                        commit_for_clone.inner(),
-                        &[sparse_path.as_str()],
-                        scope,
-                        &leaf_for_clone,
-                    )
-                })
-                .await
-                .unwrap();
-
-                if let Err(err) = materialize_result {
-                    if plan.leaf.starts_with(&self.cache_root)
-                        && plan.leaf.exists()
-                        && let Err(io_err) = std::fs::remove_dir_all(&plan.leaf)
-                    {
-                        tracing::warn!(
-                            path = %plan.leaf.display(),
-                            error = %io_err,
-                            "failed to clean up cache leaf after materialization failure",
-                        );
-                    }
-                    return Err(err);
-                }
-
-                let manifest = read_manifest(&plan.module_path)?;
-                check_tag_manifest_match(
-                    plan.path_prefix.as_deref(),
-                    plan.selected_version.as_ref(),
-                    &manifest.version,
-                )?;
-                Ok((
-                    ResolvedSource::Git {
-                        git: url.clone(),
-                        commit: plan.commit,
-                        path: path.clone(),
-                    },
-                    manifest,
-                    MaterializedRoot::Cached {
-                        module_root: ModuleRoot::new(plan.module_path),
-                        cache_leaf: plan.leaf,
-                    },
-                ))
-            }
-        }
-    }
-
-    /// Computes the materialization plan for a Git dependency: resolves
-    /// the commit (locked or fresh), derives cache paths, and validates
-    /// lockfile consistency when in locked mode.
+    /// Computes the materialization plan for a Git dependency.
+    ///
+    /// Resolves the commit (locked or fresh), derives cache paths from
+    /// the URL and commit, and validates lockfile consistency when in
+    /// locked mode. The returned plan carries everything
+    /// [`materialize_dependency`](Self::materialize_dependency) needs
+    /// to run the sparse checkout and verify the result.
     async fn plan_git_materialization(
         &self,
         name: &DependencyName,
@@ -575,23 +505,37 @@ impl GitResolver {
 
         let (selected_version, commit) = match mode {
             ResolutionMode::Locked => {
-                let locked_entry = self
-                    .lockfile
-                    .dependencies
-                    .get(name)
-                    .ok_or_else(|| ResolverError::NotInLockfile { dep: name.clone() })?;
-                let (locked_url, locked_commit, locked_path) = match &locked_entry.source {
-                    ResolvedSource::Git {
-                        git: lu,
-                        commit: lc,
-                        path: lp,
-                    } => (lu, lc, lp),
-                    _ => {
-                        return Err(ResolverError::NotInLockfile { dep: name.clone() });
+                let locked_entry = self.lockfile.dependencies.get(name).ok_or_else(|| {
+                    ResolverError::NotInLockfile {
+                        dep: name.manifest().to_string(),
                     }
-                };
-                if url != locked_url || path != locked_path {
-                    return Err(ResolverError::LockfileSourceMismatch { dep: name.clone() });
+                })?;
+                let (locked_url, locked_commit, locked_path, locked_selector) =
+                    match &locked_entry.source {
+                        ResolvedSource::Git {
+                            git: lu,
+                            commit: lc,
+                            path: lp,
+                            selector: ls,
+                        } => (lu, lc, lp, ls),
+                        _ => {
+                            return Err(ResolverError::NotInLockfile {
+                                dep: name.manifest().to_string(),
+                            });
+                        }
+                    };
+                if url != locked_url
+                    || path != locked_path
+                    || !locked_selector_satisfies(
+                        locked_entry,
+                        selector,
+                        locked_commit,
+                        locked_selector,
+                    )
+                {
+                    return Err(ResolverError::LockfileSourceMismatch {
+                        dep: name.manifest().to_string(),
+                    });
                 }
                 (None, locked_commit.clone())
             }
@@ -601,9 +545,9 @@ impl GitResolver {
             }
         };
 
-        let key = CacheKey::from_url(url, &commit);
+        let key = CacheKey::from_git_url(url, &commit);
         let leaf = key.absolute_path(&self.cache_root);
-        let sparse_path = path_prefix.clone().unwrap_or_else(|| ".".to_string());
+        let sparse_path = path_prefix.clone().unwrap_or(".".to_string());
         let module_path = match path.as_ref() {
             Some(p) => leaf.join(p.as_path()),
             None => leaf.clone(),
@@ -620,26 +564,6 @@ impl GitResolver {
     }
 }
 
-#[cfg(feature = "resolver")]
-/// Pre-computed materialization parameters for a Git dependency.
-struct GitMaterializationPlan {
-    /// The selected version from tag resolution, if any.
-    selected_version: Option<Version>,
-    /// The resolved commit SHA.
-    commit: crate::GitCommit,
-    /// The path prefix (from [`GitModulePath`]) for tag-version matching.
-    path_prefix: Option<String>,
-    /// The absolute path to the cache leaf directory.
-    leaf: PathBuf,
-    /// The sparse-checkout path (`path_prefix` or `"."`).
-    sparse_path: String,
-    /// The absolute path to the module root within the cache leaf.
-    module_path: PathBuf,
-}
-
-/// Compiles a manifest's `exclude` patterns into a [`globset::GlobSet`]
-/// for gitignore-style matching against import sub-paths.
-#[cfg(feature = "resolver")]
 #[async_trait]
 impl Resolver for GitResolver {
     async fn materialize(
@@ -647,59 +571,122 @@ impl Resolver for GitResolver {
         consumer: &Manifest,
         path: &SymbolicPath,
     ) -> Result<MaterializedFile, ResolverError> {
+        // Look up the dependency declaration in the consumer's manifest.
         let name = path.dep_name();
-        tracing::debug!(dep = %name, "materializing symbolic import");
+        tracing::debug!(dep = %name.manifest(), "materializing symbolic import");
+        let scope = DependencyScope::TopLevel;
         let source =
             consumer
                 .dependencies
                 .get(name)
                 .ok_or_else(|| ResolverError::NotADependency {
-                    name: name.inner().to_string(),
+                    name: name.manifest().to_string(),
                 })?;
 
-        // Materialization through the trait is always top-level (not
-        // transitive); the analyzer materializes the consumer's direct
-        // deps, and transitive resolution goes through `resolve_tree`.
-        let scope = DependencyScope::TopLevel;
+        // Enforce URL scheme and host policy before any network access.
         if let DependencySource::Git { url, .. } = source {
-            self.policy().check_git_url(name, url, scope)?;
+            self.policy.check_git_url(name, url, scope)?;
         }
-        let (resolved_source, manifest, module_root) = self
-            .materialize_dependency(name, source, scope, ResolutionMode::Locked)
-            .await?;
 
-        let root_path = module_root.module_root().as_ref();
-        let verified = self.verify(name, root_path)?;
-        self.verify_against_lockfile(name, &verified.checksum)?;
-
-        let (rel, kind) = match path.sub_path() {
-            None => (
-                manifest.entrypoint_filename().to_path_buf(),
-                MissingFileKind::Entrypoint,
-            ),
-            Some(sub) => {
-                let mut p = sub.to_path_buf();
-                p.set_extension("wdl");
-                (p, MissingFileKind::SubPath)
+        // Materialize the dependency on disk and read its manifest.
+        let (resolved_source, manifest, module_root) = match source {
+            DependencySource::LocalPath { path, .. } => {
+                self.validate_locked_local(name, path)?;
+                let manifest = read_manifest(path)?;
+                let resolved = ResolvedSource::Path { path: path.clone() };
+                let root = MaterializedRoot::Local(path.clone());
+                (resolved, manifest, root)
+            }
+            DependencySource::Git {
+                url,
+                selector,
+                path,
+                ..
+            } => {
+                let plan = self
+                    .plan_git_materialization(
+                        name,
+                        url,
+                        selector,
+                        path,
+                        scope,
+                        ResolutionMode::Locked,
+                    )
+                    .await?;
+                let root = self.materialize_git(name, url, scope, &plan).await?;
+                let manifest = read_manifest(&plan.module_path)?;
+                check_tag_manifest_match(
+                    plan.path_prefix.as_deref(),
+                    plan.selected_version.as_ref(),
+                    &manifest.version,
+                )?;
+                let resolved = ResolvedSource::Git {
+                    git: url.clone(),
+                    commit: plan.commit,
+                    path: path.clone(),
+                    selector: selector.clone(),
+                };
+                (resolved, manifest, root)
             }
         };
 
-        if exclude_set(&manifest.exclude)?.is_match(&rel) {
+        // Verify the content hash, signature, and trust pin.
+        let root_path = module_root.module_root();
+        let source_url = resolved_source.source_url();
+        let source_path = resolved_source.source_path();
+        let verified = crate::resolver::verify::verify(
+            &self.policy,
+            &self.trust,
+            name,
+            root_path,
+            Some((&source_url, source_path)),
+        )?;
+
+        // Confirm the on-disk content matches the lockfile expectations.
+        crate::resolver::verify::verify_against_lockfile(
+            &self.lockfile,
+            name,
+            &verified.checksum,
+            verified.signer.as_ref(),
+        )?;
+
+        // Resolve the symbolic path to a concrete `.wdl` file path.
+        let (rel, kind) = match path.sub_path() {
+            None => {
+                let p = manifest.entrypoint_filename();
+                (
+                    RelativePath::try_from(Path::new(p))?,
+                    MissingFileKind::Entrypoint,
+                )
+            }
+            Some(sub) => {
+                let s = sub.display().to_string().replace('\\', "/");
+                let wdl = format!("{s}.wdl");
+                (
+                    RelativePath::try_from(Path::new(&wdl))?,
+                    MissingFileKind::SubPath,
+                )
+            }
+        };
+
+        // Reject paths that match the manifest's exclude globs.
+        if exclude_set(&manifest.exclude)?.is_match(rel.as_path()) {
             return Err(ResolverError::MissingFile {
-                dep: name.clone(),
-                path: rel,
+                dep: name.manifest().to_string(),
+                path: rel.as_path().to_path_buf(),
                 kind: MissingFileKind::Excluded,
             });
         }
 
+        // Canonicalize the path, enforcing symlink containment.
         let canonical =
             resolve_content_file(module_root.module_root(), &rel, name).map_err(|e| match e {
                 ResolverError::Io { source, .. }
                     if source.kind() == std::io::ErrorKind::NotFound =>
                 {
                     ResolverError::MissingFile {
-                        dep: name.clone(),
-                        path: rel.clone(),
+                        dep: name.manifest().to_string(),
+                        path: rel.as_path().to_path_buf(),
                         kind,
                     }
                 }
@@ -714,16 +701,20 @@ impl Resolver for GitResolver {
     }
 
     async fn resolve_tree(&self, consumer: &Manifest) -> Result<ResolvedTree, ResolverError> {
+        // Walk every transitive dependency starting from the consumer's
+        // direct dependencies, collecting the full resolved tree.
         let mut chain: Vec<(DependencyName, ResolvedSource)> = Vec::new();
         let dependencies = self
-            .resolve_deps(&consumer.dependencies, None, &mut chain)
+            .resolve_dependencies(&consumer.dependencies, None, &mut chain)
             .await?;
         Ok(ResolvedTree { dependencies })
     }
 
     async fn discover_versions(
         &self,
+        name: &DependencyName,
         source: &DependencySource,
+        scope: DependencyScope,
     ) -> Result<Vec<Version>, ResolverError> {
         match source {
             DependencySource::Git {
@@ -732,14 +723,17 @@ impl Resolver for GitResolver {
                 path,
                 ..
             } => {
-                let scope = DependencyScope::TopLevel;
+                // Only version selectors produce a meaningful version list;
+                // tag, branch, and commit selectors resolve to at most one
+                // version that is not yet known.
                 let GitSelector::Version(requirement) = selector else {
                     return Ok(Vec::new());
                 };
+
+                // List remote tags and filter to those satisfying the
+                // semver requirement.
                 let fetcher = self.fetcher();
-                // SAFETY: `_discovery` is a valid identifier matching
-                // `DependencyName`'s `[A-Za-z][A-Za-z0-9_]*` pattern.
-                let dep = DependencyName::try_from("_discovery".to_string()).unwrap();
+                let dep = name.clone();
                 let url = url.clone();
                 let path_prefix = path.as_ref().map(GitModulePath::as_str).map(str::to_string);
                 let requirement = requirement.clone();
@@ -758,6 +752,8 @@ impl Resolver for GitResolver {
                 .unwrap()
             }
             DependencySource::LocalPath { path, .. } => {
+                // For local paths, read the manifest and return its
+                // single declared version.
                 let manifest_path = path.join(crate::MANIFEST_FILENAME);
                 let bytes = std::fs::read(&manifest_path).map_err(|source| ResolverError::Io {
                     path: manifest_path.clone(),
@@ -770,7 +766,202 @@ impl Resolver for GitResolver {
     }
 }
 
-#[cfg(all(test, feature = "resolver"))]
+/// Pre-computed materialization parameters for a Git dependency.
+#[derive(Debug)]
+struct GitMaterializationPlan {
+    /// The selected version from tag resolution, if any.
+    selected_version: Option<Version>,
+    /// The resolved commit SHA.
+    commit: GitCommit,
+    /// The path prefix (from [`GitModulePath`]) for tag-version matching.
+    path_prefix: Option<String>,
+    /// The absolute path to the cache leaf directory.
+    leaf: PathBuf,
+    /// The sparse-checkout path (`path_prefix` or `"."`).
+    sparse_path: String,
+    /// The absolute path to the module root within the cache leaf.
+    module_path: PathBuf,
+}
+
+/// Distinguishes resolver-owned cache paths from user-owned local
+/// paths. Only `Cached` variants may be evicted.
+#[derive(Clone, Debug)]
+enum MaterializedRoot {
+    /// A user's local module directory. Must never be evicted.
+    Local(PathBuf),
+    /// A resolver-owned cache leaf.
+    Cached {
+        /// The module content root inside the cache leaf.
+        module_root: PathBuf,
+        /// The resolver-owned cache leaf directory for this module.
+        cache_leaf: PathBuf,
+    },
+}
+
+impl MaterializedRoot {
+    /// Returns the module root regardless of ownership.
+    fn module_root(&self) -> &Path {
+        match self {
+            Self::Local(root) => root,
+            Self::Cached { module_root, .. } => module_root,
+        }
+    }
+}
+
+/// Returns true when a lockfile entry can satisfy the current Git
+/// selector in `module.json`.
+fn locked_selector_satisfies(
+    entry: &DependencyEntry,
+    selector: &GitSelector,
+    locked_commit: &GitCommit,
+    locked_selector: &GitSelector,
+) -> bool {
+    match selector {
+        GitSelector::Version(requirement) => requirement.matches(&entry.version),
+        GitSelector::Commit(commit) => commit == locked_commit,
+        GitSelector::Tag(tag) => {
+            matches!(locked_selector, GitSelector::Tag(locked) if locked == tag)
+        }
+        GitSelector::Branch(branch) => {
+            matches!(locked_selector, GitSelector::Branch(locked) if locked == branch)
+        }
+    }
+}
+
+/// Resolves a relative content path under `root`, enforcing the same
+/// metadata exclusions and containment rules used by
+/// [`module_walk`](crate::module_walk).
+fn resolve_content_file(
+    root: &Path,
+    rel: &crate::RelativePath,
+    dep: &DependencyName,
+) -> Result<PathBuf, ResolverError> {
+    if rel
+        .as_str()
+        .split('/')
+        .any(|name| NON_MODULE_CONTENT.contains(&name))
+    {
+        return Err(ResolverError::Walk(
+            ModuleWalkError::SymlinkTargetsMetadata(rel.to_string()),
+        ));
+    }
+
+    let candidate = root.join(rel.as_path());
+    if !candidate.exists() {
+        return Err(ResolverError::Io {
+            path: candidate,
+            source: std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                "materialized content file does not exist",
+            ),
+        });
+    }
+
+    let meta = std::fs::symlink_metadata(&candidate).map_err(|source| ResolverError::Io {
+        path: candidate.clone(),
+        source,
+    })?;
+
+    if meta.file_type().is_symlink() {
+        let canonical_root = std::fs::canonicalize(root).map_err(|source| ResolverError::Io {
+            path: root.to_path_buf(),
+            source,
+        })?;
+        let target = std::fs::canonicalize(&candidate).map_err(|source| ResolverError::Io {
+            path: candidate.clone(),
+            source,
+        })?;
+
+        if !target.starts_with(&canonical_root) {
+            return Err(ResolverError::MaterializedSymlinkEscape {
+                dep: dep.manifest().to_string(),
+                path: candidate,
+            });
+        }
+
+        if let Ok(target_rel) = target.strip_prefix(&canonical_root) {
+            if target_rel.to_str().is_none() {
+                return Err(ResolverError::Walk(ModuleWalkError::NonUtf8SymlinkTarget(
+                    candidate.display().to_string(),
+                )));
+            }
+            // SAFETY: the `to_str` check above guarantees all
+            // components are valid UTF-8.
+            if target_rel
+                .components()
+                .any(|c| NON_MODULE_CONTENT.contains(&c.as_os_str().to_str().unwrap()))
+            {
+                return Err(ResolverError::Walk(
+                    ModuleWalkError::SymlinkTargetsMetadata(rel.to_string()),
+                ));
+            }
+        }
+
+        Ok(target)
+    } else {
+        candidate
+            .canonicalize()
+            .map_err(|source| ResolverError::Io {
+                path: candidate,
+                source,
+            })
+    }
+}
+
+/// Reads and parses `module.json` from `dir`.
+fn read_manifest(dir: &Path) -> Result<Manifest, ResolverError> {
+    let path = dir.join(crate::MANIFEST_FILENAME);
+    let bytes = std::fs::read(&path).map_err(|source| ResolverError::Io {
+        path: path.clone(),
+        source,
+    })?;
+    Manifest::parse(&bytes).map_err(ResolverError::from)
+}
+
+/// Returns `Err(TagManifestMismatch)` when a Git tag's selected
+/// semver `expected` does not equal the manifest's `declared` version.
+fn check_tag_manifest_match(
+    path_prefix: Option<&str>,
+    expected: Option<&semver::Version>,
+    declared: &semver::Version,
+) -> Result<(), ResolverError> {
+    if let Some(exp) = expected
+        && exp != declared
+    {
+        let tag = crate::resolver::versions::VersionTag::new(
+            path_prefix.map(str::to_string),
+            exp.clone(),
+        )
+        .to_string();
+        return Err(ResolverError::TagManifestMismatch {
+            tag,
+            declared: declared.clone(),
+        });
+    }
+    Ok(())
+}
+
+/// Compiles a manifest's `exclude` patterns into a [`globset::GlobSet`].
+fn exclude_set(patterns: &[crate::RelativePath]) -> Result<globset::GlobSet, ResolverError> {
+    if patterns.is_empty() {
+        return Ok(globset::GlobSet::empty());
+    }
+    let mut builder = globset::GlobSetBuilder::new();
+    for p in patterns {
+        let s: &str = p.as_ref();
+        let glob = globset::Glob::new(s).map_err(|source| ResolverError::InvalidExclude {
+            pattern: s.to_string(),
+            source,
+        })?;
+        builder.add(glob);
+    }
+    // SAFETY: `GlobSetBuilder::build` only consolidates already-compiled
+    // globs; `Glob::new` above is the validating step, so by the time
+    // we reach this call there is nothing left for `build` to reject.
+    Ok(builder.build().unwrap())
+}
+
+#[cfg(test)]
 mod tests {
     use std::fs;
 
@@ -778,6 +969,12 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
+
+    fn checksum() -> crate::ContentHash {
+        "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+            .parse()
+            .unwrap()
+    }
 
     /// Builds a `module.json` at `dir` with the given name, version, and
     /// Converts a path to a JSON-safe string (forward slashes on all
@@ -809,7 +1006,6 @@ mod tests {
     fn resolver_with_lockfile(cache: &TempDir, lockfile: Lockfile) -> GitResolver {
         GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(TrustStore::default())
             .lockfile(lockfile)
             .build()
@@ -820,7 +1016,7 @@ mod tests {
         resolve_and_lock_with_config(
             cache,
             consumer,
-            ModulesConfig::default(),
+            ResolverPolicy::default(),
             TrustStore::default(),
         )
         .await
@@ -829,7 +1025,7 @@ mod tests {
     async fn resolve_and_lock_with_config(
         cache: &TempDir,
         consumer: &Manifest,
-        config: ModulesConfig,
+        policy: ResolverPolicy,
         trust: TrustStore,
     ) -> (GitResolver, Lockfile) {
         let r = resolver(cache);
@@ -838,10 +1034,9 @@ mod tests {
             crate::resolver::lock::partial_relock(consumer, &Lockfile::default(), &tree).unwrap();
         let locked = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(trust)
             .lockfile(outcome.lockfile.clone())
-            .config(config)
+            .policy(policy)
             .build();
         (locked, outcome.lockfile)
     }
@@ -863,15 +1058,12 @@ mod tests {
     #[test]
     fn builds_with_explicit_paths() {
         let cache = tempdir().unwrap();
-        let trust_path = tempdir().unwrap().path().join("trust.toml");
         let r = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(&trust_path)
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
             .build();
         assert_eq!(r.cache_root(), cache.path());
-        assert_eq!(r.trust_path(), trust_path);
         assert!(r.trust_store().entries.is_empty());
     }
 
@@ -895,9 +1087,8 @@ mod tests {
             .get(&DependencyName::try_from("dep".to_string()).unwrap())
             .unwrap();
         assert!(matches!(&dep.source, ResolvedSource::Path { .. }));
-        let module = dep.modules.get(&ModulePath::Root).unwrap();
-        assert!(module.dependencies.is_empty());
-        assert_eq!(module.version, Version::parse("1.0.0").unwrap());
+        assert!(dep.dependencies.is_empty());
+        assert_eq!(dep.version, Version::parse("1.0.0").unwrap());
     }
 
     fn hash_from_byte(byte: u8) -> crate::ContentHash {
@@ -948,14 +1139,7 @@ mod tests {
         let cache = tempdir().unwrap();
         let (_, mut lockfile) = resolve_and_lock(&cache, &consumer).await;
         let dep_name = DependencyName::try_from("dep".to_string()).unwrap();
-        lockfile
-            .dependencies
-            .get_mut(&dep_name)
-            .unwrap()
-            .modules
-            .get_mut(&ModulePath::Root)
-            .unwrap()
-            .checksum = hash_from_byte(42);
+        lockfile.dependencies.get_mut(&dep_name).unwrap().checksum = hash_from_byte(42);
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
             .materialize(&consumer, &"dep".to_string().try_into().unwrap())
@@ -1059,6 +1243,103 @@ mod tests {
         );
     }
 
+    fn locked_git_resolver(cache: &TempDir, dep: &str, entry: DependencyEntry) -> GitResolver {
+        let mut lockfile = Lockfile::default();
+        lockfile.dependencies.insert(dep.parse().unwrap(), entry);
+        resolver_with_lockfile(cache, lockfile)
+    }
+
+    fn locked_git_entry(selector: GitSelector) -> DependencyEntry {
+        DependencyEntry {
+            source: ResolvedSource::Git {
+                git: "https://github.com/openwdl/tasks".parse().unwrap(),
+                commit: "0000000000000000000000000000000000000001".parse().unwrap(),
+                path: None,
+                selector,
+            },
+            version: Version::parse("1.0.0").unwrap(),
+            checksum: checksum(),
+            signer: None,
+            dependencies: Default::default(),
+        }
+    }
+
+    #[tokio::test]
+    async fn locked_git_materialization_rejects_version_selector_mismatch() {
+        let cache = tempdir().unwrap();
+        let r = locked_git_resolver(
+            &cache,
+            "dep",
+            locked_git_entry(GitSelector::Version("^1".parse().unwrap())),
+        );
+        let dep = DependencyName::try_from("dep".to_string()).unwrap();
+        let url = "https://github.com/openwdl/tasks".parse().unwrap();
+        let selector = GitSelector::Version("^2".parse().unwrap());
+        let err = r
+            .plan_git_materialization(
+                &dep,
+                &url,
+                &selector,
+                &None,
+                DependencyScope::TopLevel,
+                ResolutionMode::Locked,
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(err, ResolverError::LockfileSourceMismatch { .. }));
+    }
+
+    #[tokio::test]
+    async fn locked_git_materialization_rejects_commit_selector_mismatch() {
+        let cache = tempdir().unwrap();
+        let r = locked_git_resolver(
+            &cache,
+            "dep",
+            locked_git_entry(GitSelector::Version("^1".parse().unwrap())),
+        );
+        let dep = DependencyName::try_from("dep".to_string()).unwrap();
+        let url = "https://github.com/openwdl/tasks".parse().unwrap();
+        let selector =
+            GitSelector::Commit("0000000000000000000000000000000000000002".parse().unwrap());
+        let err = r
+            .plan_git_materialization(
+                &dep,
+                &url,
+                &selector,
+                &None,
+                DependencyScope::TopLevel,
+                ResolutionMode::Locked,
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(err, ResolverError::LockfileSourceMismatch { .. }));
+    }
+
+    #[tokio::test]
+    async fn locked_git_materialization_rejects_tag_selector_mismatch() {
+        let cache = tempdir().unwrap();
+        let r = locked_git_resolver(
+            &cache,
+            "dep",
+            locked_git_entry(GitSelector::Tag("v1.0.0".to_string())),
+        );
+        let dep = DependencyName::try_from("dep".to_string()).unwrap();
+        let url = "https://github.com/openwdl/tasks".parse().unwrap();
+        let selector = GitSelector::Tag("v2.0.0".to_string());
+        let err = r
+            .plan_git_materialization(
+                &dep,
+                &url,
+                &selector,
+                &None,
+                DependencyScope::TopLevel,
+                ResolutionMode::Locked,
+            )
+            .await
+            .unwrap_err();
+        assert!(matches!(err, ResolverError::LockfileSourceMismatch { .. }));
+    }
+
     #[tokio::test]
     async fn materialize_resolves_default_entrypoint() {
         let workdir = tempdir().unwrap();
@@ -1083,6 +1364,37 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn materialize_resolves_named_entrypoint() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        fs::create_dir_all(&dep_dir).unwrap();
+        // Manifest declares an explicit `entrypoint` other than the
+        // default `index.wdl`.
+        fs::write(
+            dep_dir.join(crate::MANIFEST_FILENAME),
+            br#"{"name":"dep","version":"1.0.0","license":"MIT","entrypoint":"main.wdl"}"#,
+        )
+        .unwrap();
+        fs::write(dep_dir.join("main.wdl"), b"workflow w {}").unwrap();
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let (r, _) = resolve_and_lock(&cache, &consumer).await;
+        let mat = r
+            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .await
+            .unwrap();
+        assert_eq!(mat.path, dep_dir.join("main.wdl").canonicalize().unwrap());
+        assert!(matches!(mat.source, ResolvedSource::Path { .. }));
+    }
+
+    #[tokio::test]
     async fn materialize_resolves_sub_path_to_wdl_file() {
         let workdir = tempdir().unwrap();
         let dep_dir = workdir.path().join("dep");
@@ -1102,22 +1414,20 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(mat.path, dep_dir.join("cut.wdl").canonicalize().unwrap());
+        assert!(matches!(mat.source, ResolvedSource::Path { .. }));
     }
 
     #[tokio::test]
-    async fn invalid_commit_selector_produces_invalid_commit_error() {
+    async fn manifest_parse_rejects_invalid_commit_sha() {
         let workdir = tempdir().unwrap();
         let consumer_dir = workdir.path().join("consumer");
         let bad_src = "{\"git\":\"https://example.com/repo.git\",\"commit\":\"not-a-sha\"}";
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", bad_src)]);
         let bytes = fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap();
-        let consumer = Manifest::parse(&bytes).unwrap();
-
-        let cache = tempdir().unwrap();
-        let err = resolver(&cache).resolve_tree(&consumer).await.unwrap_err();
+        let err = Manifest::parse(&bytes).unwrap_err();
         assert!(
-            matches!(err, ResolverError::InvalidCommit { .. }),
-            "expected `InvalidCommit`, got: {err}"
+            matches!(err, crate::ManifestError::InvalidJson(_)),
+            "expected `InvalidJson` from manifest parse, got: {err}"
         );
     }
 
@@ -1170,17 +1480,21 @@ mod tests {
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
 
+        // Lock with `require_signed` disabled so the unsigned dep can
+        // be recorded in the lockfile. The replay below then enforces
+        // `require_signed` and must reject the locked unsigned dep.
         let cache = tempdir().unwrap();
-        let (r, _) = resolve_and_lock_with_config(
-            &cache,
-            &consumer,
-            ModulesConfig {
+        let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
+
+        let r = GitResolver::builder()
+            .cache_root(cache.path())
+            .trust(TrustStore::default())
+            .policy(ResolverPolicy::from(&ModulesConfig {
                 require_signed: true,
                 ..ModulesConfig::default()
-            },
-            TrustStore::default(),
-        )
-        .await;
+            }))
+            .lockfile(lockfile)
+            .build();
         let err = r
             .materialize(&consumer, &"dep".to_string().try_into().unwrap())
             .await
@@ -1250,12 +1564,14 @@ mod tests {
         let trust = TrustStore {
             entries: vec![TrustEntry {
                 dep: DependencyName::try_from("dep".to_string()).unwrap(),
+                source: json_path(&dep_dir),
+                path: None,
                 key: pinned,
             }],
         };
         let cache = tempdir().unwrap();
         let (r, _) =
-            resolve_and_lock_with_config(&cache, &consumer, ModulesConfig::default(), trust).await;
+            resolve_and_lock_with_config(&cache, &consumer, ResolverPolicy::default(), trust).await;
         let err = r
             .materialize(&consumer, &"dep".to_string().try_into().unwrap())
             .await
@@ -1267,7 +1583,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn materialize_rejects_symlinked_entrypoint_outside_root() {
+    async fn materialize_rejects_entrypoint_symlink_escaping_dep_root() {
         let workdir = tempdir().unwrap();
         let outside = workdir.path().join("outside");
         fs::create_dir_all(&outside).unwrap();
@@ -1304,7 +1620,7 @@ mod tests {
             matches!(
                 err,
                 ResolverError::MaterializedSymlinkEscape { .. }
-                    | ResolverError::Hash(crate::HashError::SymlinkEscapesRoot(_))
+                    | ResolverError::Walk(ModuleWalkError::SymlinkEscapesRoot(_))
                     | ResolverError::ChecksumMismatch { .. }
             ),
             "got: {err}"
@@ -1348,12 +1664,11 @@ mod tests {
             .dependencies
             .get(&DependencyName::try_from("dep".to_string()).unwrap())
             .unwrap();
-        let module = dep.modules.get(&ModulePath::Root).unwrap();
-        assert_eq!(module.signer.as_ref(), Some(&signer.verifying_key()));
+        assert_eq!(dep.signer.as_ref(), Some(&signer.verifying_key()));
     }
 
     #[tokio::test]
-    async fn require_signed_rejects_unsigned_dependency() {
+    async fn resolve_tree_rejects_unsigned_when_require_signed() {
         let workdir = tempdir().unwrap();
         let dep_dir = workdir.path().join("dep");
         write_manifest(&dep_dir, "dep", "1.0.0", &[]);
@@ -1368,12 +1683,11 @@ mod tests {
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(TrustStore::default())
-            .config(ModulesConfig {
+            .policy(ResolverPolicy::from(&ModulesConfig {
                 require_signed: true,
                 ..ModulesConfig::default()
-            })
+            }))
             .lockfile(Lockfile::default())
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
@@ -1384,7 +1698,47 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn tampered_content_fails_signature_verification() {
+    async fn resolve_tree_verifies_parent_before_transitive_dependencies() {
+        let workdir = tempdir().unwrap();
+        let child_dir = workdir.path().join("child");
+        write_manifest(&child_dir, "child", "1.0.0", &[]);
+
+        let parent_dir = workdir.path().join("parent");
+        let child_src = format!("{{\"path\":\"{}\"}}", json_path(&child_dir));
+        write_manifest(&parent_dir, "parent", "1.0.0", &[("child", &child_src)]);
+
+        let consumer_dir = workdir.path().join("consumer");
+        let parent_src = format!("{{\"path\":\"{}\"}}", json_path(&parent_dir));
+        write_manifest(
+            &consumer_dir,
+            "consumer",
+            "0.1.0",
+            &[("parent", &parent_src)],
+        );
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let r = GitResolver::builder()
+            .cache_root(cache.path())
+            .trust(TrustStore::default())
+            .policy(ResolverPolicy::from(&ModulesConfig {
+                require_signed: true,
+                ..ModulesConfig::default()
+            }))
+            .lockfile(Lockfile::default())
+            .build();
+
+        let err = r.resolve_tree(&consumer).await.unwrap_err();
+        let ResolverError::RequireSignedViolation { dep } = err else {
+            panic!("expected parent verification to run before transitive dependency traversal");
+        };
+        assert_eq!(dep, "parent");
+    }
+
+    #[tokio::test]
+    async fn resolve_tree_rejects_tampered_signed_dependency() {
         let workdir = tempdir().unwrap();
         let dep_dir = workdir.path().join("dep");
         write_manifest(&dep_dir, "dep", "1.0.0", &[]);
@@ -1409,7 +1763,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn trust_pin_mismatch_errors() {
+    async fn resolve_tree_rejects_trust_pin_mismatch() {
         let workdir = tempdir().unwrap();
         let dep_dir = workdir.path().join("dep");
         write_manifest(&dep_dir, "dep", "1.0.0", &[]);
@@ -1427,13 +1781,14 @@ mod tests {
         let trust = TrustStore {
             entries: vec![TrustEntry {
                 dep: DependencyName::try_from("dep".to_string()).unwrap(),
+                source: json_path(&dep_dir),
+                path: None,
                 key: pinned,
             }],
         };
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(trust)
             .lockfile(Lockfile::default())
             .build();
@@ -1471,7 +1826,7 @@ mod tests {
         assert!(
             matches!(
                 err,
-                ResolverError::Hash(crate::HashError::SymlinkEscapesRoot(_))
+                ResolverError::Walk(ModuleWalkError::SymlinkEscapesRoot(_))
             ),
             "expected `Hash(SymlinkEscapesRoot)`, got: {err}"
         );
@@ -1495,13 +1850,12 @@ mod tests {
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
-            .config(ModulesConfig {
+            .policy(ResolverPolicy::from(&ModulesConfig {
                 max_materialized_files: Some(1),
                 ..ModulesConfig::default()
-            })
+            }))
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
         assert!(
@@ -1527,13 +1881,12 @@ mod tests {
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
-            .config(ModulesConfig {
+            .policy(ResolverPolicy::from(&ModulesConfig {
                 max_materialized_bytes: Some(100),
                 ..ModulesConfig::default()
-            })
+            }))
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
         assert!(
@@ -1560,13 +1913,12 @@ mod tests {
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
             .cache_root(cache.path())
-            .trust_path(cache.path().join("trust.toml"))
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
-            .config(ModulesConfig {
+            .policy(ResolverPolicy::from(&ModulesConfig {
                 max_materialized_files: Some(1),
                 ..ModulesConfig::default()
-            })
+            }))
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
         assert!(matches!(
@@ -1601,9 +1953,6 @@ mod tests {
             .dependencies
             .get(&DependencyName::try_from("dep".to_string()).unwrap())
             .unwrap()
-            .modules
-            .get(&ModulePath::Root)
-            .unwrap()
             .checksum;
 
         fs::write(dep_dir.join("index.wdl"), b"workflow changed {}").unwrap();
@@ -1612,9 +1961,6 @@ mod tests {
         let v2_checksum = lockfile_v2
             .dependencies
             .get(&DependencyName::try_from("dep".to_string()).unwrap())
-            .unwrap()
-            .modules
-            .get(&ModulePath::Root)
             .unwrap()
             .checksum;
 
@@ -1693,11 +2039,182 @@ mod tests {
         assert!(
             matches!(
                 err,
-                ResolverError::Hash(crate::HashError::SymlinkTargetsMetadata(_))
-                    | ResolverError::MaterializedSymlinkEscape { .. }
-                    | ResolverError::ChecksumMismatch { .. }
+                ResolverError::Walk(ModuleWalkError::SymlinkTargetsMetadata(_))
             ),
-            "symlink to nested metadata must be rejected, got: {err}"
+            "expected `SymlinkTargetsMetadata`, got: {err}"
         );
+    }
+
+    #[tokio::test]
+    async fn materialize_rejects_signature_downgrade() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
+        let signer = crate::signing::test_utils::signing_key_from_seed(7);
+        write_signature(&dep_dir, &signer);
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
+        let dep_name = DependencyName::try_from("dep".to_string()).unwrap();
+        assert!(
+            lockfile
+                .dependencies
+                .get(&dep_name)
+                .unwrap()
+                .signer
+                .is_some(),
+            "lockfile should record the signer"
+        );
+
+        fs::remove_file(dep_dir.join(crate::SIGNATURE_FILENAME)).unwrap();
+
+        let r = resolver_with_lockfile(&cache, lockfile);
+        let err = r
+            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::SignatureDowngrade { .. }),
+            "expected `SignatureDowngrade`, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn materialize_rejects_signer_key_change() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
+        let signer_a = crate::signing::test_utils::signing_key_from_seed(7);
+        write_signature(&dep_dir, &signer_a);
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
+
+        let signer_b = crate::signing::test_utils::signing_key_from_seed(99);
+        write_signature(&dep_dir, &signer_b);
+
+        let r = resolver_with_lockfile(&cache, lockfile);
+        let err = r
+            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::SignerKeyMismatch { .. }),
+            "expected `SignerKeyMismatch`, got: {err}"
+        );
+    }
+
+    #[tokio::test]
+    async fn materialize_accepts_unsigned_when_lockfile_has_no_signer() {
+        let workdir = tempdir().unwrap();
+        let dep_dir = workdir.path().join("dep");
+        write_manifest(&dep_dir, "dep", "1.0.0", &[]);
+        fs::write(dep_dir.join("index.wdl"), b"workflow w {}").unwrap();
+
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_src = format!("{{\"path\":\"{}\"}}", json_path(&dep_dir));
+        write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
+        let consumer =
+            Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+                .unwrap();
+
+        let cache = tempdir().unwrap();
+        let (r, _) = resolve_and_lock(&cache, &consumer).await;
+        let mat = r
+            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .await
+            .unwrap();
+        assert!(mat.path.exists());
+    }
+
+    #[tokio::test]
+    async fn discover_versions_returns_matching_tags() {
+        let upstream = tempdir().unwrap();
+        let repo = git2::Repository::init(upstream.path()).unwrap();
+        let sig = git2::Signature::now("test", "test@example.com").unwrap();
+
+        write_manifest(upstream.path(), "dep", "1.0.0", &[]);
+        let mut index = repo.index().unwrap();
+        index
+            .add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)
+            .unwrap();
+        index.write().unwrap();
+        let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+        let oid = repo
+            .commit(Some("HEAD"), &sig, &sig, "v1.0.0", &tree, &[])
+            .unwrap();
+        repo.tag_lightweight(
+            "v1.0.0",
+            &repo.find_object(oid.into(), None).unwrap(),
+            false,
+        )
+        .unwrap();
+
+        let source = DependencySource::Git {
+            url: url::Url::from_file_path(upstream.path()).unwrap(),
+            selector: GitSelector::Version("^1".parse().unwrap()),
+            path: None,
+            extra: Default::default(),
+        };
+
+        let cache = tempdir().unwrap();
+        let r = GitResolver::builder()
+            .cache_root(cache.path())
+            .trust(TrustStore::default())
+            .lockfile(Lockfile::default())
+            .policy(ResolverPolicy::from(&ModulesConfig {
+                allowed_schemes: vec!["https".into(), "ssh".into(), "file".into()],
+                ..ModulesConfig::default()
+            }))
+            .build();
+        let dep = DependencyName::try_from("tasks".to_string()).unwrap();
+        let versions = r
+            .discover_versions(&dep, &source, DependencyScope::TopLevel)
+            .await
+            .unwrap();
+        assert_eq!(
+            versions,
+            vec![semver::Version::parse("1.0.0").unwrap()],
+            "should discover `v1.0.0` tag"
+        );
+    }
+
+    #[test]
+    fn tag_manifest_mismatch_errors_on_disagreement() {
+        let v_expected = semver::Version::parse("2.0.0").unwrap();
+        let v_declared = semver::Version::parse("1.0.0").unwrap();
+        let err = check_tag_manifest_match(None, Some(&v_expected), &v_declared).unwrap_err();
+        let ResolverError::TagManifestMismatch { tag, declared } = err else {
+            panic!("got: {err:?}");
+        };
+        assert_eq!(tag, "v2.0.0");
+        assert_eq!(declared, v_declared);
+    }
+
+    #[test]
+    fn check_tag_manifest_match_succeeds_when_versions_agree() {
+        let v = semver::Version::parse("1.2.3").unwrap();
+        check_tag_manifest_match(Some("csvkit"), Some(&v), &v).unwrap();
+    }
+
+    #[test]
+    fn check_tag_manifest_match_succeeds_when_no_expected_version() {
+        check_tag_manifest_match(None, None, &semver::Version::parse("0.0.1").unwrap()).unwrap();
     }
 }
