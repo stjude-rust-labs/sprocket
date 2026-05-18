@@ -567,7 +567,7 @@ pub async fn run(
             }
         })
         .modules_config(config.modules.clone())
-        .feature_flags(config.common.wdl.feature_flags.clone())
+        .feature_flags(config.common.wdl.feature_flags)
         .run()
         .await
         .map_err(CommandError::from)?;

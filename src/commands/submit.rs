@@ -104,7 +104,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         &args.run_request_args.source,
         config.common.wdl.fallback_version.inner().cloned(),
         config.modules.clone(),
-        config.common.wdl.feature_flags.clone(),
+        config.common.wdl.feature_flags,
     )
     .await?;
 

@@ -327,6 +327,7 @@ pub struct Analyzer<Context> {
     /// The config to use during analysis.
     config: Config,
     /// The module resolver used for resolving WDL module imports.
+    #[expect(dead_code)]
     resolver: Arc<dyn wdl_modules::Resolver>,
     /// The path to the manifest file, if any.
     manifest_path: Option<PathBuf>,

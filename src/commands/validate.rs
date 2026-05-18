@@ -165,7 +165,7 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
         &args.source,
         config.common.wdl.fallback_version.inner().cloned(),
         config.modules.clone(),
-        config.common.wdl.feature_flags.clone(),
+        config.common.wdl.feature_flags,
     )
     .await?;
 

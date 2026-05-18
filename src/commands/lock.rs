@@ -57,7 +57,7 @@ pub async fn lock(args: Args, config: Config) -> CommandResult<()> {
         .add_source(s)
         .fallback_version(config.common.wdl.fallback_version.inner().cloned())
         .modules_config(config.modules.clone())
-        .feature_flags(config.common.wdl.feature_flags.clone())
+        .feature_flags(config.common.wdl.feature_flags)
         .run()
         .await
         .map_err(CommandError::from)?;
