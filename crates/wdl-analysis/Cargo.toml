@@ -43,8 +43,8 @@ wdl-modules = { path = "../wdl-modules", version = "0.1.0" }
 async-trait = { workspace = true }
 codespan-reporting = { workspace = true }
 libtest-mimic = { workspace = true }
-semver = { workspace = true }
 pretty_assertions = { workspace = true }
+semver = { workspace = true }
 tempfile = { workspace = true }
 toml = { workspace = true }
 tracing-subscriber = { workspace = true }
