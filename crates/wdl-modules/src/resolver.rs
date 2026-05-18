@@ -627,10 +627,10 @@ impl Resolver for GitResolver {
                 )
             }
             Some(sub) => {
-                let mut p = sub.to_path_buf();
-                p.set_extension("wdl");
+                let s = sub.display().to_string().replace('\\', "/");
+                let wdl = format!("{s}.wdl");
                 (
-                    RelativePath::try_from(p.as_path())?,
+                    RelativePath::try_from(Path::new(&wdl))?,
                     MissingFileKind::SubPath,
                 )
             }
@@ -1530,7 +1530,7 @@ mod tests {
         let trust = TrustStore {
             entries: vec![TrustEntry {
                 dep: DependencyName::try_from("dep".to_string()).unwrap(),
-                source: dep_dir.display().to_string(),
+                source: json_path(&dep_dir),
                 path: None,
                 key: pinned,
             }],
@@ -1747,7 +1747,7 @@ mod tests {
         let trust = TrustStore {
             entries: vec![TrustEntry {
                 dep: DependencyName::try_from("dep".to_string()).unwrap(),
-                source: dep_dir.display().to_string(),
+                source: json_path(&dep_dir),
                 path: None,
                 key: pinned,
             }],
