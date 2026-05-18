@@ -1298,7 +1298,9 @@ workflow test {
 
             async fn discover_versions(
                 &self,
+                _name: &wdl_modules::DependencyName,
                 _source: &wdl_modules::DependencySource,
+                _scope: wdl_modules::DependencyScope,
             ) -> Result<Vec<semver::Version>, ResolverError> {
                 Ok(Vec::new())
             }
