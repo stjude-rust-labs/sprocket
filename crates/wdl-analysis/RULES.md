@@ -8,6 +8,7 @@ information may be out of sync with released packages.
 
 | Name                       | Description                                                                                               |
 |:---------------------------|:----------------------------------------------------------------------------------------------------------|
+| KnownRules                 | Ensures only known rules are used in `except` directives.                                                 |
 | MeaninglessLintDirective   | Warns if an `#@ except:` comment doesn't actually suppress any lints.                                     |
 | MisleadingDeclarationOrder | Warns if task variable declarations appear after a `command` section.                                     |
 | UnnecessaryFunctionCall    | Ensures that function calls are necessary.                                                                |

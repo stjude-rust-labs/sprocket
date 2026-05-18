@@ -100,9 +100,12 @@ pub struct Args {
 ///
 /// Submits a workflow to a Sprocket server based on the Args / Config.
 pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+    let report_mode = args.run_request_args.report_mode.unwrap_or_default();
     let document = analyze_source(
         &args.run_request_args.source,
         config.common.wdl.fallback_version.inner().cloned(),
+        report_mode,
+        colorize,
     )
     .await?;
 

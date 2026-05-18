@@ -9084,6 +9084,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:146:20: note[KnownRules]: unknown rule `LineWidth`"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/arriba.wdl/#L146"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:326:14: warning[UnusedInput]: unused input `bam_index`"
 permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/arriba.wdl/#L326"
 
@@ -9114,8 +9119,18 @@ permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:124:16: note[KnownRules]: unknown rule `LineWidth`"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/gatk4.wdl/#L124"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:179:14: warning[UnusedInput]: unused input `bam_index`"
 permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/gatk4.wdl/#L179"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:191:16: note[KnownRules]: unknown rule `LineWidth`"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/gatk4.wdl/#L191"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
@@ -9136,6 +9151,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:263:14: warning[UnusedInput]: unused input `dbSNP_vcf_index`"
 permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/gatk4.wdl/#L263"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:278:16: note[KnownRules]: unknown rule `LineWidth`"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/gatk4.wdl/#L278"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
@@ -9168,9 +9188,39 @@ message = "gatk4.wdl:342:14: warning[UnusedInput]: unused input `dict`"
 permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/gatk4.wdl/#L342"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/tools/kraken2.wdl"
+message = "kraken2.wdl:99:16: note[KnownRules]: unknown rule `ExpressionSpacing`"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/kraken2.wdl/#L99"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:898:21: warning[UnusedInput]: unused input `vcfs_indexes`"
 permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/picard.wdl/#L898"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
+message = "chipseq-standard.wdl:11:12: note[KnownRules]: unknown rule `LineWidth`"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/workflows/chipseq/chipseq-standard.wdl/#L11"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
+message = "chipseq-standard.wdl:13:12: note[KnownRules]: unknown rule `LineWidth`"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/workflows/chipseq/chipseq-standard.wdl/#L13"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
+message = "chipseq-standard.wdl:15:12: note[KnownRules]: unknown rule `LineWidth`"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/workflows/chipseq/chipseq-standard.wdl/#L15"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/general/alignment-post.wdl"
+message = "alignment-post.wdl:6:12: note[KnownRules]: unknown rule `LineWidth`"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/workflows/general/alignment-post.wdl/#L6"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
+message = "quality-check-standard.wdl:128:20: note[KnownRules]: unknown rule `LineWidth`"
+permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/workflows/qc/quality-check-standard.wdl/#L128"
 
 [[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/alignment/task_bwa.wdl"

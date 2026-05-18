@@ -75,6 +75,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::<UsingFallbackVersion>::default(),
         Box::<MisleadingDeclarationOrderRule>::default(),
         Box::<MeaninglessLintDirective>::default(),
+        Box::<KnownRulesRule>::default(),
     ];
 
     // Ensure all the rule ids are unique and pascal case
@@ -738,6 +739,79 @@ task greet {
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
         Self::EXCEPTABLE_NODES
+    }
+
+    fn deny(&mut self) {
+        self.0 = Severity::Error;
+    }
+
+    fn severity(&self) -> Severity {
+        self.0
+    }
+}
+
+/// Detects unknown rules within lint directives.
+#[derive(Debug, Clone, Copy)]
+pub struct KnownRulesRule(Severity);
+
+impl KnownRulesRule {
+    /// See [`Self::exceptable_nodes()`].
+    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> =
+        Some(&[SyntaxKind::VersionStatementNode]);
+    /// The rule identifier for known rules warnings.
+    pub const ID: &str = "KnownRules";
+
+    /// Creates a new "known rules" rule.
+    pub fn new() -> Self {
+        Self(Severity::Note)
+    }
+}
+
+impl Default for KnownRulesRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Rule for KnownRulesRule {
+    fn id(&self) -> &'static str {
+        Self::ID
+    }
+
+    fn description(&self) -> &'static str {
+        "Ensures only known rules are used in `except` directives."
+    }
+
+    fn explanation(&self) -> &'static str {
+        "When writing WDL, `except` directives are used to suppress certain rules. If a rule is \
+         unknown, nothing will be suppressed. This rule flags unknown rules as they are often \
+         mistakes."
+    }
+
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"#@ except: LintThatDoesNotExist
+version 1.2
+
+workflow example {
+}
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
+
+workflow example {
+}
+"#,
+            }),
+        }]
+    }
+
+    fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
+        Some(&[SyntaxKind::VersionStatementNode])
     }
 
     fn deny(&mut self) {

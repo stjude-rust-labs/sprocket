@@ -31,6 +31,7 @@ use tracing::subscriber::NoSubscriber;
 use wdl::analysis::AnalysisResult;
 use wdl::ast::AstNode;
 use wdl::diagnostics::DiagnosticCounts;
+use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
@@ -122,6 +123,9 @@ pub struct Args {
     /// Do not print results as tests complete.
     #[clap(long)]
     pub no_status: bool,
+    /// The report mode for any emitted diagnostics.
+    #[arg(short = 'm', long, value_name = "MODE", global = true)]
+    pub report_mode: Option<Mode>,
 }
 
 fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
@@ -735,6 +739,7 @@ async fn summarize_results(
 
 /// Performs the `test` command.
 pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
+    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     let source = args.source.unwrap_or_default();
     let parallelism = args.parallelism.unwrap_or(config.test.parallelism);
     let (source, workspace) = match (&source, args.workspace) {
@@ -761,7 +766,7 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
     let analysis_results = Analysis::default()
         .add_source(source.clone())
         .fallback_version(config.common.wdl.fallback_version.inner().cloned())
-        .run()
+        .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
 

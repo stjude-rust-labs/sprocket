@@ -85,6 +85,10 @@ pub enum VisitReason {
 #[allow(unused_variables)]
 pub trait Visitor {
     /// Get all lint rules known to this `Visitor`.
+    ///
+    /// Note that [`Validator`]s will expect this value to be static.
+    ///
+    /// [`Validator`]: crate::Validator
     fn known_rules(&self) -> HashSet<String> {
         HashSet::new()
     }

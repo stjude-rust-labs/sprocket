@@ -8,6 +8,7 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
 use crate::Exceptable as _;
+use crate::KnownRulesRule;
 use crate::MeaninglessLintDirective;
 use crate::MisleadingDeclarationOrderRule;
 use crate::Rule;
@@ -295,6 +296,10 @@ pub struct DiagnosticsConfig {
     ///
     /// A value of `None` disables the diagnostic.
     pub meaningless_lint_directive: Option<Severity>,
+    /// The severity for the known rules diagnostic.
+    ///
+    /// A value of `None` disables the diagnostic.
+    pub known_rules: Option<Severity>,
 }
 
 impl Default for DiagnosticsConfig {
@@ -314,6 +319,7 @@ impl DiagnosticsConfig {
         let mut using_fallback_version = None;
         let mut misleading_declaration_order = None;
         let mut meaningless_lint_directive = None;
+        let mut known_rules = None;
 
         for rule in rules {
             let rule = rule.as_ref();
@@ -328,6 +334,7 @@ impl DiagnosticsConfig {
                     misleading_declaration_order = Some(rule.severity())
                 }
                 MeaninglessLintDirective::ID => meaningless_lint_directive = Some(rule.severity()),
+                KnownRulesRule::ID => known_rules = Some(rule.severity()),
                 unrecognized => {
                     warn!(unrecognized, "unrecognized rule");
                     if cfg!(test) {
@@ -346,6 +353,7 @@ impl DiagnosticsConfig {
             using_fallback_version,
             misleading_declaration_order,
             meaningless_lint_directive,
+            known_rules,
         }
     }
 
@@ -364,6 +372,7 @@ impl DiagnosticsConfig {
                 UsingFallbackVersion::ID => self.using_fallback_version = None,
                 MisleadingDeclarationOrderRule::ID => self.misleading_declaration_order = None,
                 MeaninglessLintDirective::ID => self.meaningless_lint_directive = None,
+                KnownRulesRule::ID => self.known_rules = None,
                 _ => {}
             }
         }
@@ -382,6 +391,7 @@ impl DiagnosticsConfig {
             using_fallback_version: None,
             misleading_declaration_order: None,
             meaningless_lint_directive: None,
+            known_rules: None,
         }
     }
 }

@@ -2218,11 +2218,6 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
-message = "chipseq-standard.wdl:149:16: note[MeaninglessLintDirective]: unnecessary `except` directive for lint rule `UnusedCall`"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/chipseq/chipseq-standard.wdl/#L149"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
 message = "chipseq-standard.wdl:15:12: note[KnownRules]: unknown rule `LineWidth`"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/chipseq/chipseq-standard.wdl/#L15"
 

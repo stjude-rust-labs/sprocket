@@ -3,6 +3,8 @@
 
 version 1.3
 
+# Shouldn't collide with `ExceptDirectiveValid`
+#@ except: UnusedCall
 task do_work {
     command <<<>>>
 
@@ -11,6 +13,8 @@ task do_work {
     }
 }
 
+# Shouldn't collide with `KnownRules`
+#@ except: WhatIsThisMysteriousRule
 workflow calculate {
     # Unnecessary, the result is used
     #@ except: UnusedCall

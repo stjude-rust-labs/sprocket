@@ -3,19 +3,27 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+use rowan::Direction;
+use strsim::levenshtein;
 use wdl_ast::AstNode;
+use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
+use wdl_ast::Directive;
 use wdl_ast::ExceptRule;
 use wdl_ast::SupportedVersion;
 use wdl_ast::TreeNode;
 use wdl_ast::VersionStatement;
 use wdl_ast::Whitespace;
 use wdl_ast::v1;
+use wdl_grammar::Span;
+use wdl_grammar::SyntaxElement;
 use wdl_grammar::SyntaxKind;
 
+use crate::ALL_RULE_IDS;
 use crate::Config;
 use crate::Exceptable;
+use crate::KnownRulesRule;
 use crate::VisitReason;
 use crate::Visitor;
 use crate::diagnostics::meaningless_lint_directive;
@@ -30,6 +38,43 @@ mod numbers;
 mod requirements;
 mod strings;
 mod version;
+
+/// Finds the nearest known rule ID to the given unknown rule ID,
+/// or `None` if no rule ID is close enough.
+pub fn find_nearest_rule<'a>(
+    known_rules: impl IntoIterator<Item = &'a str>,
+    unknown_rule_id: &str,
+) -> Option<String> {
+    let threshold = if unknown_rule_id.len() <= 3 {
+        1
+    } else if unknown_rule_id.len() <= 10 {
+        unknown_rule_id.len() / 3 + 1
+    } else {
+        5
+    };
+
+    known_rules
+        .into_iter()
+        .map(|rule_id| (rule_id, levenshtein(unknown_rule_id, rule_id)))
+        .filter(|(_, distance)| *distance <= threshold)
+        .min_by_key(|(_, distance)| *distance)
+        .map(|(rule_id, _)| rule_id.to_string())
+}
+
+/// Creates an "unknown rule" diagnostic.
+fn unknown_rule(id: &str, nearest_rule: Option<String>, span: Span) -> Diagnostic {
+    let mut diagnostic = Diagnostic::note(format!("unknown rule `{id}`"))
+        .with_rule(KnownRulesRule::ID)
+        .with_label("cannot make an exception for this rule", span);
+
+    if let Some(nearest_rule) = nearest_rule {
+        diagnostic = diagnostic.with_fix(format!("did you mean `{nearest_rule}`?"));
+    } else {
+        diagnostic = diagnostic.with_fix("remove the unknown rule from the exception list");
+    }
+
+    diagnostic
+}
 
 /// Represents a collection of validation diagnostics.
 ///
@@ -158,24 +203,36 @@ impl From<Diagnostics> for Vec<Diagnostic> {
 pub struct Validator {
     /// The set of validation visitors.
     visitors: Vec<Box<dyn Visitor>>,
+    /// All rules known by the visitors.
+    known_rules: HashSet<String>,
 }
 
 impl Validator {
     /// Creates a validator with an empty visitors set.
-    pub const fn empty() -> Self {
+    pub fn empty() -> Self {
         Self {
             visitors: Vec::new(),
+            // Analysis rules are always known
+            known_rules: ALL_RULE_IDS.iter().cloned().collect(),
         }
     }
 
     /// Adds a visitor to the validator.
     pub fn add_visitor<V: Visitor + 'static>(&mut self, visitor: V) {
-        self.visitors.push(Box::new(visitor));
+        self.add_visitors(std::iter::once(Box::new(visitor) as Box<dyn Visitor>));
     }
 
     /// Adds multiple visitors to the validator.
     pub fn add_visitors(&mut self, visitors: impl IntoIterator<Item = Box<dyn Visitor>>) {
-        self.visitors.extend(visitors)
+        for visitor in visitors {
+            self.known_rules.extend(visitor.known_rules());
+            self.visitors.push(visitor);
+        }
+    }
+
+    /// Adds rule names to the validator's known rules set.
+    pub fn extend_known_rules(&mut self, rules: impl IntoIterator<Item = String>) {
+        self.known_rules.extend(rules);
     }
 
     /// Validates the given document and returns the validation errors upon
@@ -189,10 +246,14 @@ impl Validator {
 
         let mut meaningless_lint_directives = Diagnostics::new();
 
-        // Try not to clash with `KnownRules`
-        let known_rules = self.known_rules();
+        let visitor_known_rules = self.known_rules();
         for (exception, applied) in &diagnostics.exceptions {
-            if *applied || !known_rules.contains(&exception.name) {
+            if *applied
+                // If none of the visitors know the rule, it can't ever fire
+                || !visitor_known_rules.contains(&exception.name)
+                // Try not to clash with `KnownRules`
+                || !self.known_rules.contains(&exception.name)
+            {
                 continue;
             }
 
@@ -211,37 +272,39 @@ impl Validator {
             Err(diagnostics)
         }
     }
+
+    /// Finds the nearest known rule ID to the given unknown rule ID,
+    /// or `None` if no rule ID is close enough.
+    pub fn find_nearest_rule(&self, unknown_rule_id: &str) -> Option<String> {
+        find_nearest_rule(self.known_rules.iter().map(String::as_str), unknown_rule_id)
+    }
 }
 
 impl Default for Validator {
     /// Creates a validator with the default validation visitors.
     fn default() -> Self {
-        Self {
-            visitors: vec![
-                Box::new(strings::LiteralTextVisitor),
-                Box::<counts::CountingVisitor>::default(),
-                Box::<keys::UniqueKeysVisitor>::default(),
-                Box::<numbers::NumberVisitor>::default(),
-                Box::<version::VersionVisitor>::default(),
-                Box::<requirements::RequirementsVisitor>::default(),
-                Box::<exprs::ScopedExprVisitor>::default(),
-                Box::<imports::ImportsVisitor>::default(),
-                Box::<env::EnvVisitor>::default(),
-            ],
-        }
+        let mut validator = Self::empty();
+        validator.add_visitors([
+            Box::new(strings::LiteralTextVisitor) as Box<dyn Visitor>,
+            Box::<counts::CountingVisitor>::default(),
+            Box::<keys::UniqueKeysVisitor>::default(),
+            Box::<numbers::NumberVisitor>::default(),
+            Box::<version::VersionVisitor>::default(),
+            Box::<requirements::RequirementsVisitor>::default(),
+            Box::<exprs::ScopedExprVisitor>::default(),
+            Box::<imports::ImportsVisitor>::default(),
+            Box::<env::EnvVisitor>::default(),
+        ]);
+        validator
     }
 }
 
 impl Visitor for Validator {
     fn known_rules(&self) -> HashSet<String> {
-        let mut known_rules: HashSet<String> = crate::ALL_RULE_IDS
-            .iter()
-            .map(ToString::to_string)
-            .collect();
-        for visitor in self.visitors.iter() {
+        let mut known_rules = HashSet::new();
+        for visitor in &self.visitors {
             known_rules.extend(visitor.known_rules());
         }
-
         known_rules
     }
 
@@ -276,6 +339,37 @@ impl Visitor for Validator {
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
+        if let Some(Directive::Except(except)) = comment.directive() {
+            for rule in except {
+                if self.known_rules.contains(&rule.name) {
+                    continue;
+                }
+
+                let diagnostic =
+                    unknown_rule(&rule.name, self.find_nearest_rule(&rule.name), rule.span);
+
+                if let Some(target) = comment
+                    .inner()
+                    .siblings_with_tokens(Direction::Next)
+                    .find_map(|sibling| {
+                        if let SyntaxElement::Node(node) = sibling {
+                            Some(node)
+                        } else {
+                            None
+                        }
+                    })
+                {
+                    diagnostics.exceptable_add(
+                        diagnostic,
+                        &target,
+                        &KnownRulesRule::EXCEPTABLE_NODES,
+                    );
+                } else {
+                    diagnostics.add(diagnostic);
+                }
+            }
+        }
+
         for visitor in self.visitors.iter_mut() {
             visitor.comment(diagnostics, comment);
         }
@@ -581,5 +675,39 @@ impl Visitor for Validator {
         for visitor in self.visitors.iter_mut() {
             visitor.call_statement(diagnostics, reason, stmt);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_find_nearest_rule() {
+        let validator = Validator::default();
+
+        // Test exact match
+        let nearest = validator.find_nearest_rule("UnusedInput");
+        pretty_assertions::assert_eq!(nearest.as_deref(), Some("UnusedInput"));
+
+        // Test close match
+        let nearest = validator.find_nearest_rule("UnusedInputt");
+        pretty_assertions::assert_eq!(nearest.as_deref(), Some("UnusedInput"));
+
+        // Test another exact match
+        let nearest = validator.find_nearest_rule("UnusedCall");
+        pretty_assertions::assert_eq!(nearest.as_deref(), Some("UnusedCall"));
+
+        // Test a typo
+        let nearest = validator.find_nearest_rule("UnusedKall");
+        pretty_assertions::assert_eq!(nearest.as_deref(), Some("UnusedCall"));
+
+        // Test a more significant typo
+        let nearest = validator.find_nearest_rule("UnnecessaryFunctionAl");
+        pretty_assertions::assert_eq!(nearest.as_deref(), Some("UnnecessaryFunctionCall"));
+
+        // Test a completely different string
+        let nearest = validator.find_nearest_rule("CompletelyDifferentRule");
+        pretty_assertions::assert_eq!(nearest.as_deref(), None);
     }
 }

@@ -165,7 +165,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
             let results = Analysis::default()
                 .extend_sources(sources.clone())
                 .fallback_version(fallback_version)
-                .run()
+                .run(report_mode, colorize)
                 .await
                 .map_err(CommandError::from)?;
             let sources = sources.iter().collect::<Vec<_>>();
@@ -224,7 +224,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
             let results = Analysis::default()
                 .add_source(source.clone())
                 .fallback_version(fallback_version)
-                .run()
+                .run(report_mode, colorize)
                 .await
                 .map_err(CommandError::from)?;
             let result = results.filter(&[&source]).next().unwrap();
@@ -256,7 +256,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
             let results = Analysis::default()
                 .extend_sources(sources.clone())
                 .fallback_version(fallback_version)
-                .run()
+                .run(report_mode, colorize)
                 .await
                 .map_err(CommandError::from)?;
             let sources = sources.iter().collect::<Vec<_>>();

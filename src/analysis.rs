@@ -4,15 +4,17 @@ use std::collections::HashSet;
 use std::sync::Arc;
 
 use anyhow::Error;
+use codespan_reporting::diagnostic::Diagnostic;
+use codespan_reporting::files::SimpleFiles;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use tracing::info;
-use tracing::warn;
 use wdl::analysis::Analyzer;
 use wdl::analysis::DiagnosticsConfig;
 use wdl::analysis::ProgressKind;
 use wdl::analysis::Validator;
 use wdl::analysis::config::FeatureFlags;
+use wdl::analysis::find_nearest_rule;
 use wdl::ast::SupportedVersion;
 use wdl::lint::Linter;
 
@@ -21,6 +23,8 @@ mod source;
 
 pub use results::AnalysisResults;
 pub use source::*;
+use wdl::diagnostics::Mode;
+use wdl::diagnostics::get_diagnostics_display_config;
 use wdl::lint::Rule;
 use wdl::lint::TagSet;
 
@@ -129,8 +133,12 @@ impl Analysis {
     }
 
     /// Runs the analysis and returns all results (if any exist).
-    pub async fn run(self) -> std::result::Result<AnalysisResults, NonEmpty<Arc<Error>>> {
-        warn_unknown_rules(&self.exceptions);
+    pub async fn run(
+        self,
+        report_mode: Mode,
+        colorize: bool,
+    ) -> std::result::Result<AnalysisResults, NonEmpty<Arc<Error>>> {
+        warn_unknown_rules(&self.exceptions, report_mode, colorize);
         if self.enabled_lint_tags.count() > 0 && tracing::enabled!(tracing::Level::INFO) {
             let mut enabled_rules = vec![];
             let mut disabled_rules = vec![];
@@ -168,6 +176,10 @@ impl Analysis {
                     &self.lint_config,
                 );
                 validator.add_visitor(visitor);
+            } else {
+                // So the validator is always *aware* of `wdl-lint` rules, even when the linter
+                // isn't added. Keeps `KnownRules` from firing unnecessarily.
+                validator.extend_known_rules(wdl::lint::ALL_RULE_IDS.iter().cloned());
             }
 
             validator
@@ -212,8 +224,8 @@ impl Default for Analysis {
 }
 
 /// Warns about any unknown rules.
-fn warn_unknown_rules(exceptions: &HashSet<String>) {
-    let names = wdl::analysis::ALL_RULE_IDS
+fn warn_unknown_rules(exceptions: &HashSet<String>, report_mode: Mode, colorize: bool) {
+    let known_rules = wdl::analysis::ALL_RULE_IDS
         .iter()
         .chain(wdl::lint::ALL_RULE_IDS.iter())
         .map(ToString::to_string)
@@ -221,18 +233,48 @@ fn warn_unknown_rules(exceptions: &HashSet<String>) {
 
     let mut unknown = exceptions
         .iter()
-        .filter(|rule| !names.iter().any(|name| name.eq_ignore_ascii_case(rule)))
-        .map(|rule| format!("`{rule}`"))
+        .filter(|rule| {
+            !known_rules
+                .iter()
+                .any(|name| name.eq_ignore_ascii_case(rule))
+        })
+        .map(|rule| {
+            (
+                rule,
+                find_nearest_rule(known_rules.iter().map(String::as_str), rule),
+            )
+        })
         .collect::<Vec<_>>();
 
-    if !unknown.is_empty() {
-        unknown.sort();
+    if unknown.is_empty() {
+        return;
+    }
 
-        warn!(
-            "ignoring unknown excepted rule{s}: {rules}",
-            s = if unknown.len() == 1 { "" } else { "s" },
-            rules = unknown.join(", ")
-        );
+    unknown.sort();
+
+    let (config, writer) = get_diagnostics_display_config(report_mode, colorize);
+    let mut writer = writer.lock();
+    let files = SimpleFiles::<String, String>::new();
+
+    for (unknown_rule, nearest_rule) in unknown {
+        let mut notes = Vec::new();
+
+        if let Some(nearest_rule) = nearest_rule {
+            notes.push(format!("fix: did you mean the `{nearest_rule}` rule?"));
+        }
+
+        notes.push(String::from(
+            "run `sprocket explain --help` to see available rules",
+        ));
+
+        let warning = Diagnostic::warning()
+            .with_message(format!(
+                "ignoring unknown rule provided via --except: {unknown_rule}",
+            ))
+            .with_notes(notes);
+
+        codespan_reporting::term::emit_to_write_style(&mut writer, config, &files, &warning)
+            .expect("failed to emit unknown rule warning");
     }
 }
 
