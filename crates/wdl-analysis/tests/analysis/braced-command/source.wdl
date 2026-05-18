@@ -3,10 +3,10 @@
 version 1.1
 
 task test {
+    String x = "hi"
+
     command {
         echo ${x}
         echo ~{unknown}
     }
-
-    String x = "hi"
 }
