@@ -35,9 +35,9 @@ tracing = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
 wdl-ast = { path = "../wdl-ast", version = "0.23.0" }
-wdl-modules = { path = "../wdl-modules", version = "0.1.0" }
 wdl-format = { path = "../wdl-format", version = "0.18.0" }
 wdl-grammar = { path = "../wdl-grammar", version = "0.22.0" }
+wdl-modules = { path = "../wdl-modules", version = "0.1.0" }
 
 [dev-dependencies]
 async-trait = { workspace = true }

@@ -95,12 +95,12 @@ pub use crate::resolver::RelockOutcome;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::RelockStats;
 pub use crate::resolver::ResolvedDependency;
-#[cfg(feature = "resolver")]
-pub use crate::resolver::ResolverPolicy;
 pub use crate::resolver::ResolvedModule;
 pub use crate::resolver::ResolvedTree;
 pub use crate::resolver::Resolver;
 pub use crate::resolver::ResolverError;
+#[cfg(feature = "resolver")]
+pub use crate::resolver::ResolverPolicy;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::TrustEntry;
 #[cfg(feature = "resolver")]
