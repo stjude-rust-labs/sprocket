@@ -1,0 +1,9 @@
+warning[MisleadingDeclarationOrder]: variable declaration appears after the `command` section
+   ┌─ tests/analysis/declaration-order/source.wdl:10:12
+   │
+10 │     String name = "World"
+   │            ^^^^
+   │
+   = help: this is visually misleading; tasks are evaluated in dependency order, not top-to-bottom
+   = fix: move the declaration of `name` above the `command` section
+

@@ -1228,6 +1228,21 @@ message = "fastqc.wdl:63:58: error: unknown escape sequence `/.`"
 permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9332fe53ba1/fastqc.wdl/#L63"
 
 [[diagnostics]]
+document = "biowdl/tasks:/fastqsplitter.wdl"
+message = "fastqsplitter.wdl:59:11: warning[MisleadingDeclarationOrder]: variable declaration appears after the `command` section"
+permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9332fe53ba1/fastqsplitter.wdl/#L59"
+
+[[diagnostics]]
+document = "biowdl/tasks:/fastqsplitter.wdl"
+message = "fastqsplitter.wdl:60:9: warning[MisleadingDeclarationOrder]: variable declaration appears after the `command` section"
+permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9332fe53ba1/fastqsplitter.wdl/#L60"
+
+[[diagnostics]]
+document = "biowdl/tasks:/fastqsplitter.wdl"
+message = "fastqsplitter.wdl:62:9: warning[MisleadingDeclarationOrder]: variable declaration appears after the `command` section"
+permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9332fe53ba1/fastqsplitter.wdl/#L62"
+
+[[diagnostics]]
 document = "biowdl/tasks:/gatk.wdl"
 message = "gatk.wdl:1236:22: warning[UnusedInput]: unused input `inputBamsIndex`"
 permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9332fe53ba1/gatk.wdl/#L1236"
@@ -1526,6 +1541,31 @@ permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9
 document = "biowdl/tasks:/gatk.wdl"
 message = "gatk.wdl:996:15: warning[UnusedInput]: unused input `dbsnpVCFIndex`"
 permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9332fe53ba1/gatk.wdl/#L996"
+
+[[diagnostics]]
+document = "biowdl/tasks:/gffcompare.wdl"
+message = "gffcompare.wdl:100:13: warning[MisleadingDeclarationOrder]: variable declaration appears after the `command` section"
+permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9332fe53ba1/gffcompare.wdl/#L100"
+
+[[diagnostics]]
+document = "biowdl/tasks:/gffcompare.wdl"
+message = "gffcompare.wdl:90:9: warning[MisleadingDeclarationOrder]: variable declaration appears after the `command` section"
+permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9332fe53ba1/gffcompare.wdl/#L90"
+
+[[diagnostics]]
+document = "biowdl/tasks:/gffcompare.wdl"
+message = "gffcompare.wdl:93:9: warning[MisleadingDeclarationOrder]: variable declaration appears after the `command` section"
+permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9332fe53ba1/gffcompare.wdl/#L93"
+
+[[diagnostics]]
+document = "biowdl/tasks:/gffcompare.wdl"
+message = "gffcompare.wdl:94:13: warning[MisleadingDeclarationOrder]: variable declaration appears after the `command` section"
+permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9332fe53ba1/gffcompare.wdl/#L94"
+
+[[diagnostics]]
+document = "biowdl/tasks:/gffcompare.wdl"
+message = "gffcompare.wdl:95:12: warning[MisleadingDeclarationOrder]: variable declaration appears after the `command` section"
+permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9332fe53ba1/gffcompare.wdl/#L95"
 
 [[diagnostics]]
 document = "biowdl/tasks:/gffread.wdl"
@@ -1886,6 +1926,11 @@ permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9
 document = "biowdl/tasks:/mosdepth.wdl"
 message = "mosdepth.wdl:26:14: warning[UnusedInput]: unused input `bamIndex`"
 permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9332fe53ba1/mosdepth.wdl/#L26"
+
+[[diagnostics]]
+document = "biowdl/tasks:/multiqc.wdl"
+message = "multiqc.wdl:137:12: warning[MisleadingDeclarationOrder]: variable declaration appears after the `command` section"
+permalink = "https://github.com/biowdl/tasks/blob/31d6845927dc0b8a783e86801cc4b9332fe53ba1/multiqc.wdl/#L137"
 
 [[diagnostics]]
 document = "biowdl/tasks:/multiqc.wdl"

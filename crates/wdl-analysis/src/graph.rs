@@ -36,8 +36,8 @@ use wdl_ast::SyntaxNode;
 
 use crate::Config;
 use crate::IncrementalChange;
+use crate::UsingFallbackVersion;
 use crate::document::Document;
-use crate::rules::USING_FALLBACK_VERSION;
 
 /// Represents space for a DFS search of a document graph.
 pub type DfsSpace =
@@ -404,7 +404,7 @@ impl DocumentGraphNode {
                                 "unsupported WDL version `{unrecognized}`; interpreting document \
                                  as version `{fallback}`"
                             ))
-                            .with_rule(USING_FALLBACK_VERSION)
+                            .with_rule(UsingFallbackVersion::ID)
                             .with_severity(severity)
                             .with_label(
                                 "this version of WDL is not supported",

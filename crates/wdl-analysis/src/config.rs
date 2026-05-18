@@ -8,13 +8,14 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
 use crate::Exceptable as _;
+use crate::MisleadingDeclarationOrderRule;
 use crate::Rule;
-use crate::UNNECESSARY_FUNCTION_CALL;
-use crate::UNUSED_CALL_RULE_ID;
-use crate::UNUSED_DECL_RULE_ID;
-use crate::UNUSED_IMPORT_RULE_ID;
-use crate::UNUSED_INPUT_RULE_ID;
-use crate::USING_FALLBACK_VERSION;
+use crate::UnnecessaryFunctionCall;
+use crate::UnusedCallRule;
+use crate::UnusedDeclarationRule;
+use crate::UnusedImportRule;
+use crate::UnusedInputRule;
+use crate::UsingFallbackVersion;
 use crate::rules;
 
 /// Configuration for `wdl-analysis`.
@@ -285,6 +286,10 @@ pub struct DiagnosticsConfig {
     /// configured with [`Config::with_fallback_version()`], this diagnostic
     /// will not be emitted.
     pub using_fallback_version: Option<Severity>,
+    /// The severity for the misleading declaration order diagnostic.
+    ///
+    /// A value of `None` disables the diagnostic.
+    pub misleading_declaration_order: Option<Severity>,
 }
 
 impl Default for DiagnosticsConfig {
@@ -302,16 +307,20 @@ impl DiagnosticsConfig {
         let mut unused_call = None;
         let mut unnecessary_function_call = None;
         let mut using_fallback_version = None;
+        let mut misleading_declaration_order = None;
 
         for rule in rules {
             let rule = rule.as_ref();
             match rule.id() {
-                UNUSED_IMPORT_RULE_ID => unused_import = Some(rule.severity()),
-                UNUSED_INPUT_RULE_ID => unused_input = Some(rule.severity()),
-                UNUSED_DECL_RULE_ID => unused_declaration = Some(rule.severity()),
-                UNUSED_CALL_RULE_ID => unused_call = Some(rule.severity()),
-                UNNECESSARY_FUNCTION_CALL => unnecessary_function_call = Some(rule.severity()),
-                USING_FALLBACK_VERSION => using_fallback_version = Some(rule.severity()),
+                UnusedImportRule::ID => unused_import = Some(rule.severity()),
+                UnusedInputRule::ID => unused_input = Some(rule.severity()),
+                UnusedDeclarationRule::ID => unused_declaration = Some(rule.severity()),
+                UnusedCallRule::ID => unused_call = Some(rule.severity()),
+                UnnecessaryFunctionCall::ID => unnecessary_function_call = Some(rule.severity()),
+                UsingFallbackVersion::ID => using_fallback_version = Some(rule.severity()),
+                MisleadingDeclarationOrderRule::ID => {
+                    misleading_declaration_order = Some(rule.severity())
+                }
                 unrecognized => {
                     warn!(unrecognized, "unrecognized rule");
                     if cfg!(test) {
@@ -328,6 +337,7 @@ impl DiagnosticsConfig {
             unused_call,
             unnecessary_function_call,
             using_fallback_version,
+            misleading_declaration_order,
         }
     }
 
@@ -336,27 +346,27 @@ impl DiagnosticsConfig {
     pub fn excepted_for_node(mut self, node: &SyntaxNode) -> Self {
         let exceptions = node.rule_exceptions();
 
-        if exceptions.contains(UNUSED_IMPORT_RULE_ID) {
+        if exceptions.contains(UnusedImportRule::ID) {
             self.unused_import = None;
         }
 
-        if exceptions.contains(UNUSED_INPUT_RULE_ID) {
+        if exceptions.contains(UnusedInputRule::ID) {
             self.unused_input = None;
         }
 
-        if exceptions.contains(UNUSED_DECL_RULE_ID) {
+        if exceptions.contains(UnusedDeclarationRule::ID) {
             self.unused_declaration = None;
         }
 
-        if exceptions.contains(UNUSED_CALL_RULE_ID) {
+        if exceptions.contains(UnusedCallRule::ID) {
             self.unused_call = None;
         }
 
-        if exceptions.contains(UNNECESSARY_FUNCTION_CALL) {
+        if exceptions.contains(UnnecessaryFunctionCall::ID) {
             self.unnecessary_function_call = None;
         }
 
-        if exceptions.contains(USING_FALLBACK_VERSION) {
+        if exceptions.contains(UsingFallbackVersion::ID) {
             self.using_fallback_version = None;
         }
 
@@ -372,6 +382,7 @@ impl DiagnosticsConfig {
             unused_call: None,
             unnecessary_function_call: None,
             using_fallback_version: None,
+            misleading_declaration_order: None,
         }
     }
 }
