@@ -153,7 +153,6 @@ fallback_version = "none"
 
 [modules]
 large_file_warning = "1.0 MiB"
-require_signed = false
 trust_mode = "auto"
 allowed_schemes = [
     "https",
@@ -167,7 +166,4 @@ denied_hosts = [
     "::1",
     "0.0.0.0",
 ]
-allowed_hosts = []
-allowed_transitive_hosts = []
-allow_transitive_credentials = false
 
