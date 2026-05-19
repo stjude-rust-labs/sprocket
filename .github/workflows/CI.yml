@@ -98,7 +98,7 @@ jobs:
         run: cargo llvm-cov nextest --profile=ci --workspace --locked --all-targets --all-features --no-fail-fast --codecov --output-path codecov.json && cargo test --workspace --doc
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: codecov.json
@@ -154,7 +154,7 @@ jobs:
           cargo llvm-cov nextest --profile=ci --ignore-default-filter -E "not (kind(bench))" --locked -p wdl-engine -p sprocket --all-features --no-fail-fast --codecov --output-path codecov.json
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: codecov.json
