@@ -72,7 +72,7 @@ jobs:
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
       # Disabling cache as the size is now consistently running out of disk for certain actions
-      # - uses: actions/cache@v4
+      # - uses: actions/cache@v5
       #   with:
       #     path: |
       #       ~/.cargo/bin/
@@ -118,7 +118,7 @@ jobs:
         run: rustup update stable && rustup default stable && rustup component add llvm-tools
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
-      - uses: actions/cache@v4
+      - uses: actions/cache@v5
         with:
           path: |
             ~/.cargo/bin/
