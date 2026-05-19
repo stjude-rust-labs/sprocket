@@ -17,8 +17,10 @@ pub(crate) mod fetch;
 #[cfg(feature = "resolver")]
 mod git;
 pub(crate) mod lock;
+#[cfg(feature = "resolver")]
 pub(crate) mod policy;
 pub(crate) mod scope;
+#[cfg(feature = "resolver")]
 pub(crate) mod trust;
 pub(crate) mod types;
 #[cfg(feature = "resolver")]
@@ -42,21 +44,29 @@ use futures::future::BoxFuture;
 use futures::future::FutureExt;
 use semver::Version;
 
+#[cfg(feature = "resolver")]
 use crate::DependencyEntry;
 use crate::DependencyName;
 use crate::DependencySource;
+#[cfg(feature = "resolver")]
 use crate::GitCommit;
+#[cfg(feature = "resolver")]
 use crate::GitModulePath;
 #[cfg(feature = "resolver")]
 use crate::GitSelector;
 #[cfg(feature = "resolver")]
 use crate::Lockfile;
 use crate::Manifest;
+#[cfg(feature = "resolver")]
 use crate::RelativePath;
+#[cfg(feature = "resolver")]
 use crate::ResolvedSource;
 use crate::SymbolicPath;
+#[cfg(feature = "resolver")]
 use crate::hash::NON_MODULE_CONTENT;
+#[cfg(feature = "resolver")]
 use crate::module_walk::ModuleWalkError;
+#[cfg(feature = "resolver")]
 use crate::resolver::cache::CacheKey;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::config::LargeFileWarning;
@@ -83,6 +93,7 @@ pub use crate::resolver::lock::RelockOutcome;
 pub use crate::resolver::lock::RelockStats;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::lock::partial_relock;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::policy::ResolverPolicy;
 pub use crate::resolver::scope::DependencyScope;
 #[cfg(feature = "resolver")]
@@ -98,6 +109,7 @@ pub use crate::resolver::types::NullResolver;
 pub use crate::resolver::types::ResolvedDependency;
 pub use crate::resolver::types::ResolvedModule;
 pub use crate::resolver::types::ResolvedTree;
+#[cfg(feature = "resolver")]
 use crate::resolver::verify::VerifiedModule;
 
 /// Resolves WDL module imports to concrete files on disk.
@@ -564,6 +576,7 @@ impl GitResolver {
     }
 }
 
+#[cfg(feature = "resolver")]
 #[async_trait]
 impl Resolver for GitResolver {
     async fn materialize(
@@ -766,6 +779,7 @@ impl Resolver for GitResolver {
     }
 }
 
+#[cfg(feature = "resolver")]
 /// Pre-computed materialization parameters for a Git dependency.
 #[derive(Debug)]
 struct GitMaterializationPlan {
@@ -783,6 +797,7 @@ struct GitMaterializationPlan {
     module_path: PathBuf,
 }
 
+#[cfg(feature = "resolver")]
 /// Distinguishes resolver-owned cache paths from user-owned local
 /// paths. Only `Cached` variants may be evicted.
 #[derive(Clone, Debug)]
@@ -798,6 +813,7 @@ enum MaterializedRoot {
     },
 }
 
+#[cfg(feature = "resolver")]
 impl MaterializedRoot {
     /// Returns the module root regardless of ownership.
     fn module_root(&self) -> &Path {
@@ -808,6 +824,7 @@ impl MaterializedRoot {
     }
 }
 
+#[cfg(feature = "resolver")]
 /// Returns true when a lockfile entry can satisfy the current Git
 /// selector in `module.json`.
 fn locked_selector_satisfies(
@@ -828,6 +845,7 @@ fn locked_selector_satisfies(
     }
 }
 
+#[cfg(feature = "resolver")]
 /// Resolves a relative content path under `root`, enforcing the same
 /// metadata exclusions and containment rules used by
 /// [`module_walk`](crate::module_walk).
@@ -908,6 +926,7 @@ fn resolve_content_file(
     }
 }
 
+#[cfg(feature = "resolver")]
 /// Reads and parses `module.json` from `dir`.
 fn read_manifest(dir: &Path) -> Result<Manifest, ResolverError> {
     let path = dir.join(crate::MANIFEST_FILENAME);
@@ -918,6 +937,7 @@ fn read_manifest(dir: &Path) -> Result<Manifest, ResolverError> {
     Manifest::parse(&bytes).map_err(ResolverError::from)
 }
 
+#[cfg(feature = "resolver")]
 /// Returns `Err(TagManifestMismatch)` when a Git tag's selected
 /// semver `expected` does not equal the manifest's `declared` version.
 fn check_tag_manifest_match(
@@ -941,6 +961,7 @@ fn check_tag_manifest_match(
     Ok(())
 }
 
+#[cfg(feature = "resolver")]
 /// Compiles a manifest's `exclude` patterns into a [`globset::GlobSet`].
 fn exclude_set(patterns: &[crate::RelativePath]) -> Result<globset::GlobSet, ResolverError> {
     if patterns.is_empty() {
