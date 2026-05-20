@@ -43,7 +43,9 @@ jobs:
       - name: Update Rust
         run: rustup update stable
       - name: Install `cargo-sort`
-        run: cargo install cargo-sort
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-sort@2
       - name: Check for sorted `Cargo.toml`
         run: cargo --locked sort -w --check
 
@@ -208,7 +210,10 @@ jobs:
       - uses: actions/checkout@v6
       - name: Update Rust
         run: rustup update stable && rustup default stable
-      - run: cargo --locked install cargo-deny
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.19
       - run: cargo --locked deny check
 
   msrv:
@@ -232,6 +237,8 @@ jobs:
       - name: Update Rust
         run: rustup update nightly && rustup default nightly
       - name: Install cargo-udeps
-        run: cargo --locked install cargo-udeps
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-udeps@0.1
       - name: Ensure no unused dependencies
         run: cargo --locked udeps
