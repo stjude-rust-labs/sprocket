@@ -97,13 +97,13 @@ jobs:
         shell: bash
         run: cargo llvm-cov nextest --profile=ci --workspace --locked --all-targets --all-features --no-fail-fast --codecov --output-path codecov.json && cargo test --workspace --doc
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v6
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: codecov.json
-          fail_ci_if_error: true
-          exclude: "crates/gauntlet"
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v6
+      #   with:
+      #     token: ${{ secrets.CODECOV_TOKEN }}
+      #     files: codecov.json
+      #     fail_ci_if_error: true
+      #     exclude: "crates/gauntlet"
 
   engine-test:
     runs-on: ${{ matrix.os }}
@@ -153,12 +153,12 @@ jobs:
           fi
           cargo llvm-cov nextest --profile=ci --ignore-default-filter -E "not (kind(bench))" --locked -p wdl-engine -p sprocket --all-features --no-fail-fast --codecov --output-path codecov.json
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v6
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: codecov.json
-          fail_ci_if_error: true
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v6
+      #   with:
+      #     token: ${{ secrets.CODECOV_TOKEN }}
+      #     files: codecov.json
+      #     fail_ci_if_error: true
 
   docs:
     runs-on: ubuntu-latest
