@@ -85,7 +85,8 @@ const LOG_FILE_NAME: &str = "output.log";
 pub struct Args {
     /// The WDL source file to run.
     ///
-    /// The source file may be specified by either a local file path or a URL.
+    /// The source file may be specified by either a local file path, a URL, or
+    /// a WDL module directory containing a `module.json`.
     #[clap(value_name = "SOURCE")]
     pub source: Source,
 
@@ -519,9 +520,12 @@ pub async fn run(
     colorize: bool,
     handle: FileReloadHandle,
 ) -> CommandResult<()> {
-    if let Source::Directory(_) = args.source {
-        return Err(anyhow!("directory sources are not supported for the `run` command").into());
-    }
+    let source = match args.source {
+        Source::Directory(ref dir) => {
+            crate::analysis::resolve_module_entrypoint(dir, config.common.wdl.feature_flags)?
+        }
+        ref other => other.clone(),
+    };
 
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     args.apply_engine_config(&mut config.run.engine);
@@ -538,7 +542,7 @@ pub async fn run(
     let start = std::time::Instant::now();
 
     let results = Analysis::default()
-        .add_source(args.source.clone())
+        .add_source(source.clone())
         .fallback_version(config.common.wdl.fallback_version.inner().cloned())
         .init({
             let progress_bar = progress_bar.clone();
@@ -603,7 +607,7 @@ pub async fn run(
         .into());
     }
 
-    let document = results.filter(&[&args.source]).next().unwrap().document();
+    let document = results.filter(&[&source]).next().unwrap().document();
 
     // Parse and resolve inputs. The `into_resolved_json()` method resolves
     // relative paths using per-input origins before serializing to JSON.
@@ -697,7 +701,7 @@ pub async fn run(
     let (run_id, run_name, _run) = create_run_record(
         db.as_ref(),
         session.uuid,
-        &args.source,
+        &source,
         Some(target.name()),
         &inputs_to_json(target.name(), &inputs).context("failed to serialize inputs")?,
     )

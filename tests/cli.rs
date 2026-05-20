@@ -541,11 +541,23 @@ fn compare_test_results(
     let expected_exit_code_file = test_path.join("exit_code");
     let expects_outputs = expected_output_dir.is_dir();
 
+    let working_dir_str = working_test_directory.to_string_lossy();
+    let canonical_working_dir = working_test_directory
+        .canonicalize()
+        .unwrap_or_else(|_| working_test_directory.to_path_buf());
+    let canonical_working_dir_str = canonical_working_dir.to_string_lossy();
+    let stderr = command_output
+        .stderr
+        .replace(canonical_working_dir_str.as_ref(), "_WORKDIR_")
+        .replace(working_dir_str.as_ref(), "_WORKDIR_");
+    let stdout = command_output
+        .stdout
+        .replace(canonical_working_dir_str.as_ref(), "_WORKDIR_")
+        .replace(working_dir_str.as_ref(), "_WORKDIR_");
+
     if env::var_os("BLESS").is_some() {
-        fs::write(&expected_stderr_file, &command_output.stderr)
-            .context("failed to write stderr output")?;
-        fs::write(&expected_stdout_file, &command_output.stdout)
-            .context("failed to write stdout output")?;
+        fs::write(&expected_stderr_file, &stderr).context("failed to write stderr output")?;
+        fs::write(&expected_stdout_file, &stdout).context("failed to write stdout output")?;
         fs::remove_dir_all(&expected_output_dir).unwrap_or_default();
         fs::write(
             &expected_exit_code_file,
@@ -562,8 +574,8 @@ fn compare_test_results(
                 .context("failed to normalize expected outputs")?;
         }
     }
-    compare_results(&expected_stderr_file, &command_output.stderr)?;
-    compare_results(&expected_stdout_file, &command_output.stdout)?;
+    compare_results(&expected_stderr_file, &stderr)?;
+    compare_results(&expected_stdout_file, &stdout)?;
 
     if expects_outputs {
         recursive_compare(&expected_output_dir, working_test_directory)?;
