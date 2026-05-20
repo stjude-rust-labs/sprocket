@@ -79,8 +79,6 @@ jobs:
       - name: Cache build artifacts
         uses: Swatinem/rust-cache@v2
         with:
-          # Use a shared key so that the `engine-test` job can use this job's cache.
-          shared-key: test
           # Only save cache on the main branch, as caches saved on other branches cannot be shared.
           # <https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache>
           save-if: ${{ github.ref == 'refs/heads/main' }}
