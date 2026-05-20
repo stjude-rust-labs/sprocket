@@ -16,6 +16,7 @@ use wdl_ast::TreeNode;
 use wdl_ast::VersionStatement;
 use wdl_ast::Whitespace;
 use wdl_ast::v1;
+use wdl_grammar::Severity;
 use wdl_grammar::Span;
 use wdl_grammar::SyntaxElement;
 use wdl_grammar::SyntaxKind;
@@ -235,6 +236,41 @@ impl Validator {
         self.known_rules.extend(rules);
     }
 
+    /// Catch any unapplied lint exceptions.
+    fn check_meaningless_lint_directives(&self, diagnostics: &mut Diagnostics, severity: Severity) {
+        let mut meaningless_lint_directives = Diagnostics::new();
+
+        let visitor_known_rules = self.known_rules();
+        let invalid_directives = diagnostics
+            .iter()
+            .filter_map(|d| {
+                if d.rule() == Some("ExceptDirectiveValid") {
+                    d.labels().next()
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+        for (exception, applied) in &diagnostics.exceptions {
+            if *applied
+                // Try not to clash with `ExceptDirectiveValid`
+                || invalid_directives.iter().any(|label| label.span() == exception.span)
+                // If none of the visitors know the rule, it can't ever fire
+                || (!ALL_RULE_IDS.iter().any(|r| r == &exception.name) && !visitor_known_rules.contains(&exception.name))
+            {
+                continue;
+            }
+
+            meaningless_lint_directives.add(meaningless_lint_directive(
+                &exception.name,
+                exception.span,
+                severity,
+            ));
+        }
+
+        diagnostics.extend(meaningless_lint_directives.diagnostics);
+    }
+
     /// Validates the given document and returns the validation errors upon
     /// failure.
     pub fn validate(&mut self, document: &Document, config: &Config) -> Result<(), Diagnostics> {
@@ -244,24 +280,13 @@ impl Validator {
         self.register(config);
         document.visit(&mut diagnostics, self);
 
-        let mut meaningless_lint_directives = Diagnostics::new();
-
-        let visitor_known_rules = self.known_rules();
-        for (exception, applied) in &diagnostics.exceptions {
-            if *applied
-                // If none of the visitors know the rule, it can't ever fire
-                || !visitor_known_rules.contains(&exception.name)
-                // Try not to clash with `KnownRules`
-                || !self.known_rules.contains(&exception.name)
-            {
-                continue;
-            }
-
-            meaningless_lint_directives
-                .add(meaningless_lint_directive(&exception.name, exception.span));
+        if let Some(severity) = document
+            .config()
+            .diagnostics_config()
+            .meaningless_lint_directive
+        {
+            self.check_meaningless_lint_directives(&mut diagnostics, severity);
         }
-
-        diagnostics.extend(meaningless_lint_directives.diagnostics);
 
         self.reset();
 
