@@ -41,8 +41,20 @@ use crate::UsingFallbackVersion;
 use crate::document::Document;
 
 /// Represents space for a DFS search of a document graph.
-pub type DfsSpace =
-    petgraph::algo::DfsSpace<NodeIndex, <StableDiGraph<DocumentGraphNode, ()> as Visitable>::Map>;
+pub type DfsSpace = petgraph::algo::DfsSpace<
+    NodeIndex,
+    <StableDiGraph<DocumentGraphNode, EdgeKind> as Visitable>::Map,
+>;
+
+/// The kind of dependency edge between two documents in the graph.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EdgeKind {
+    /// A URI import (e.g., `import "https://example.com/foo.wdl"`).
+    Uri,
+    /// A symbolic import (e.g., `import spellbook`); the value is the
+    /// symbolic path text.
+    Symbolic(String),
+}
 
 /// Represents the parse state of a document graph node.
 #[derive(Debug, Clone)]
@@ -112,6 +124,9 @@ pub struct DocumentGraphNode {
     document: Option<Document>,
     /// An error that occurred during the analysis phase for this node
     analysis_error: Option<Arc<anyhow::Error>>,
+    /// Symbolic imports that this node attempted but failed to resolve, keyed
+    /// by the symbolic path text. The value is the resolver's error message.
+    failed_symbolic_imports: HashMap<String, String>,
 }
 
 impl DocumentGraphNode {
@@ -123,6 +138,7 @@ impl DocumentGraphNode {
             change: None,
             parse_state: ParseState::NotParsed,
             document: None,
+            failed_symbolic_imports: HashMap::new(),
             analysis_error: None,
         }
     }
@@ -472,7 +488,7 @@ pub struct DocumentGraph {
     ///
     /// Edges in the graph denote inverse dependency relationships (i.e. "is
     /// depended upon by").
-    inner: StableDiGraph<DocumentGraphNode, ()>,
+    inner: StableDiGraph<DocumentGraphNode, EdgeKind>,
     /// Map from document URI to graph node index.
     indexes: IndexMap<Arc<Url>, NodeIndex>,
     /// The current set of rooted nodes in the graph.
@@ -492,9 +508,6 @@ pub struct DocumentGraph {
     /// import relationship exists in this set, a diagnostic will be added and
     /// the import otherwise ignored.
     cycles: HashSet<(NodeIndex, NodeIndex)>,
-    /// Maps `(importer_index, symbolic_path_text)` to the resolved file
-    /// URI for symbolic imports materialized by the queue.
-    resolved_symbolic_imports: HashMap<(NodeIndex, String), Arc<Url>>,
 }
 
 impl DocumentGraph {
@@ -506,7 +519,6 @@ impl DocumentGraph {
             indexes: IndexMap::new(),
             roots: IndexSet::new(),
             cycles: HashSet::new(),
-            resolved_symbolic_imports: HashMap::new(),
         }
     }
 
@@ -638,25 +650,40 @@ impl DocumentGraph {
             .map(|e| e.source())
     }
 
-    /// Records a resolved symbolic import.
-    pub fn insert_resolved_symbolic_import(
-        &mut self,
-        importer: NodeIndex,
-        path_text: String,
-        uri: Arc<Url>,
-    ) {
-        self.resolved_symbolic_imports
-            .insert((importer, path_text), uri);
-    }
-
-    /// Looks up a previously resolved symbolic import.
+    /// Looks up a previously resolved symbolic import by walking the
+    /// outgoing edges of the importer.
+    ///
+    /// Edges are stored reversed (dependent → dependency), so the walk
+    /// runs over **incoming** edges in the underlying graph.
     pub fn get_resolved_symbolic_import(
         &self,
         importer: NodeIndex,
         path_text: &str,
     ) -> Option<&Arc<Url>> {
-        self.resolved_symbolic_imports
-            .get(&(importer, path_text.to_string()))
+        self.inner
+            .edges_directed(importer, Direction::Incoming)
+            .find(|edge| matches!(edge.weight(), EdgeKind::Symbolic(name) if name == path_text))
+            .map(|edge| &self.inner[edge.source()].uri)
+    }
+
+    /// Records a failed symbolic import resolution on the importer node.
+    pub fn insert_failed_symbolic_import(
+        &mut self,
+        importer: NodeIndex,
+        path_text: String,
+        error: String,
+    ) {
+        self.inner[importer]
+            .failed_symbolic_imports
+            .insert(path_text, error);
+    }
+
+    /// Looks up a previously failed symbolic import on the importer node.
+    pub fn get_failed_symbolic_import(&self, importer: NodeIndex, path_text: &str) -> Option<&str> {
+        self.inner[importer]
+            .failed_symbolic_imports
+            .get(path_text)
+            .map(String::as_str)
     }
 
     /// Removes all dependency edges from the given node.
@@ -672,7 +699,13 @@ impl DocumentGraph {
     /// Adds a dependency edge from one document to another.
     ///
     /// If a dependency edge already exists, this is a no-op.
-    pub fn add_dependency_edge(&mut self, from: NodeIndex, to: NodeIndex, space: &mut DfsSpace) {
+    pub fn add_dependency_edge(
+        &mut self,
+        from: NodeIndex,
+        to: NodeIndex,
+        kind: EdgeKind,
+        space: &mut DfsSpace,
+    ) {
         // Check to see if there is already a path between the nodes; if so, there's a
         // cycle
         if has_path_connecting(&self.inner, from, to, Some(space)) {
@@ -692,7 +725,7 @@ impl DocumentGraph {
 
             // Note that we store inverse dependency edges in the graph, so the relationship
             // is reversed
-            self.inner.add_edge(to, from, ());
+            self.inner.add_edge(to, from, kind);
         }
     }
 
@@ -755,7 +788,7 @@ impl DocumentGraph {
     }
 
     /// Gets the inner stable dependency graph.
-    pub(crate) fn inner(&self) -> &StableDiGraph<DocumentGraphNode, ()> {
+    pub(crate) fn inner(&self) -> &StableDiGraph<DocumentGraphNode, EdgeKind> {
         &self.inner
     }
 }

@@ -55,6 +55,7 @@ use crate::config::Config;
 use crate::document::Document;
 use crate::graph::DfsSpace;
 use crate::graph::DocumentGraph;
+use crate::graph::EdgeKind;
 use crate::graph::ParseState;
 use crate::handlers;
 use crate::rayon::RayonHandle;
@@ -1141,7 +1142,12 @@ where
                                 let import_index = graph
                                     .get_index(&import_uri)
                                     .unwrap_or_else(|| graph.add_node(import_uri, false));
-                                graph.add_dependency_edge(index, import_index, space);
+                                graph.add_dependency_edge(
+                                    index,
+                                    import_index,
+                                    EdgeKind::Uri,
+                                    space,
+                                );
                                 subgraph.insert(import_index);
                             }
                             ImportSource::ModulePath(module_path) => {
@@ -1184,23 +1190,23 @@ where
                                             .or_insert_with(|| materialized.manifest.clone());
 
                                         let import_uri = Arc::new(import_uri);
-                                        graph.insert_resolved_symbolic_import(
-                                            index,
-                                            module_path.text(),
-                                            import_uri.clone(),
-                                        );
                                         let import_index =
                                             graph.get_index(&import_uri).unwrap_or_else(|| {
                                                 graph.add_node((*import_uri).clone(), false)
                                             });
-                                        graph.add_dependency_edge(index, import_index, space);
+                                        graph.add_dependency_edge(
+                                            index,
+                                            import_index,
+                                            EdgeKind::Symbolic(module_path.text()),
+                                            space,
+                                        );
                                         subgraph.insert(import_index);
                                     }
                                     Err(e) => {
-                                        tracing::warn!(
-                                            path = %module_path.text(),
-                                            error = %e,
-                                            "symbolic import resolution failed",
+                                        graph.insert_failed_symbolic_import(
+                                            index,
+                                            module_path.text(),
+                                            e.to_string(),
                                         );
                                         continue;
                                     }

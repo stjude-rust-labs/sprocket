@@ -394,6 +394,8 @@ impl InputProcessor {
                             let document = document
                                 .namespace(ns)
                                 .expect("referenced namespace should be present")
+                                .namespace()
+                                .expect("referenced namespace should be resolved")
                                 .document();
 
                             let task = get_task_def(document, name)?;
@@ -415,6 +417,8 @@ impl InputProcessor {
                                     .expect("subworkflows will always have a namespace"),
                             )
                             .expect("referenced namespace should be present")
+                            .namespace()
+                            .expect("referenced namespace should be resolved")
                             .document();
 
                         let ast = document

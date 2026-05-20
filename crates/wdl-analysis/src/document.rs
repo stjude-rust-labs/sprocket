@@ -39,20 +39,62 @@ pub mod v1;
 /// WDL 1.2.
 pub const TASK_VAR_NAME: &str = "task";
 
-/// Represents a namespace introduced by an import.
+/// An entry in a document's namespace table.
+///
+/// An entry exists for every import statement, whether the import resolved
+/// successfully or not. Failed entries are kept so that downstream references
+/// to the imported name (e.g., `import spellbook` followed by
+/// `call spellbook.fireball`) don't produce cascading "unknown namespace"
+/// diagnostics.
+#[derive(Debug)]
+pub enum NamespaceEntry {
+    /// The import resolved successfully.
+    Resolved(Namespace),
+    /// The import failed to resolve.
+    Failed(Span),
+}
+
+impl NamespaceEntry {
+    /// Gets the span of the import that introduced this entry.
+    pub fn span(&self) -> Span {
+        match self {
+            NamespaceEntry::Resolved(ns) => ns.span,
+            NamespaceEntry::Failed(span) => *span,
+        }
+    }
+
+    /// Returns the resolved namespace, if the import succeeded.
+    pub fn namespace(&self) -> Option<&Namespace> {
+        match self {
+            NamespaceEntry::Resolved(ns) => Some(ns),
+            NamespaceEntry::Failed(_) => None,
+        }
+    }
+
+    /// Returns a mutable reference to the resolved namespace, if the import
+    /// succeeded.
+    pub fn namespace_mut(&mut self) -> Option<&mut Namespace> {
+        match self {
+            NamespaceEntry::Resolved(ns) => Some(ns),
+            NamespaceEntry::Failed(_) => None,
+        }
+    }
+}
+
+/// A successfully resolved namespace introduced by an import.
 #[derive(Debug)]
 pub struct Namespace {
     /// The span of the import that introduced the namespace.
-    span: Span,
+    pub(crate) span: Span,
     /// The URI of the imported document that introduced the namespace.
     source: Arc<Url>,
     /// The namespace's document.
     document: Document,
     /// Whether or not the namespace is used (i.e. referenced) in the document.
-    used: bool,
+    pub(crate) used: bool,
     /// Whether or not the namespace is excepted from the "unused import"
     /// diagnostic.
-    excepted: bool,
+    pub(crate) excepted: bool,
 }
 
 impl Namespace {
@@ -667,8 +709,9 @@ pub(crate) struct DocumentData {
     uri: Arc<Url>,
     /// The version of the document.
     version: Option<SupportedVersion>,
-    /// The namespaces in the document.
-    namespaces: IndexMap<String, Namespace>,
+    /// The namespaces in the document, keyed by name. Each entry is either a
+    /// resolved namespace or a failed import marker.
+    namespaces: IndexMap<String, NamespaceEntry>,
     /// The tasks in the document.
     tasks: IndexMap<String, Task>,
     /// The singular workflow in the document.
@@ -822,12 +865,11 @@ impl Document {
                 ..
             } = &mut data;
 
-            analysis_diagnostics.extend(
-                namespaces
-                    .iter()
-                    .filter(|(_, ns)| !ns.used && !ns.excepted)
-                    .map(|(name, ns)| unused_import(name, ns.span()).with_severity(severity)),
-            );
+            analysis_diagnostics.extend(namespaces.iter().filter_map(|(name, ns)| {
+                let resolved = ns.namespace()?;
+                (!resolved.used && !resolved.excepted)
+                    .then(|| unused_import(name, resolved.span()).with_severity(severity))
+            }));
         }
 
         Self {
@@ -920,13 +962,14 @@ impl Document {
         self.data.version
     }
 
-    /// Gets the namespaces in the document.
-    pub fn namespaces(&self) -> impl Iterator<Item = (&str, &Namespace)> {
+    /// Gets the namespace entries in the document. Each entry is either a
+    /// resolved [`Namespace`] or a failed import marker.
+    pub fn namespaces(&self) -> impl Iterator<Item = (&str, &NamespaceEntry)> {
         self.data.namespaces.iter().map(|(n, ns)| (n.as_str(), ns))
     }
 
-    /// Gets a namespace in the document by name.
-    pub fn namespace(&self, name: &str) -> Option<&Namespace> {
+    /// Gets a namespace entry in the document by name.
+    pub fn namespace(&self, name: &str) -> Option<&NamespaceEntry> {
         self.data.namespaces.get(name)
     }
 
@@ -1119,8 +1162,10 @@ impl Document {
 
         // Check every imported document for errors
         for (_, ns) in self.namespaces() {
-            if ns.document.has_errors() {
-                return true;
+            if let Some(resolved) = ns.namespace() {
+                if resolved.document().has_errors() {
+                    return true;
+                }
             }
         }
 

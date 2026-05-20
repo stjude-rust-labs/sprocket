@@ -553,6 +553,8 @@ impl WorkflowInputs {
                     document
                         .namespace(ns)
                         .expect("namespace should be present")
+                        .namespace()
+                        .expect("namespace should be resolved for input validation")
                         .document()
                 })
                 .unwrap_or(document);
@@ -660,6 +662,8 @@ impl WorkflowInputs {
                         document
                             .namespace(ns)
                             .expect("namespace should be present")
+                            .namespace()
+                            .expect("namespace should be resolved for input validation")
                             .document()
                     })
                     .unwrap_or(document);

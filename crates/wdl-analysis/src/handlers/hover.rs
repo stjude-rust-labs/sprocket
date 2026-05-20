@@ -144,10 +144,10 @@ fn resolve_hover_content(
         return Ok(Some(content));
     }
 
-    for (_, ns) in document.namespaces() {
-        // SAFETY: we know `get_index` will return `Some` as `ns.source` comes from
-        // `document.namespaces` which only contains namespaces for documents that
-        // are guaranteed to be present in the graph.
+    for (_, ns) in document
+        .namespaces()
+        .filter_map(|(n, ns)| Some((n, ns.namespace()?)))
+    {
         let node = graph.get(graph.get_index(ns.source()).unwrap());
         let Some(imported_doc) = node.document() else {
             continue;
@@ -174,10 +174,10 @@ fn resolve_hover_by_context(
         SyntaxKind::TypeRefNode | SyntaxKind::LiteralStructNode => {
             if let Some(s) = document.struct_by_name(token.text()) {
                 let root = if let Some(ns_name) = s.namespace() {
-                    // SAFETY: we just found a struct with this namespace name and the document
-                    // guarantees that `document.namespaces` contains a corresponding entry for
-                    // `ns_name`.
-                    let ns = document.namespace(ns_name).unwrap();
+                    let ns = document
+                        .namespace(ns_name)
+                        .and_then(|n| n.namespace())
+                        .unwrap();
                     let node = graph.get(graph.get_index(ns.source()).unwrap());
                     node.document().unwrap().root()
                 } else {
@@ -187,10 +187,10 @@ fn resolve_hover_by_context(
             }
             if let Some(e) = document.enum_by_name(token.text()) {
                 let root = if let Some(ns_name) = e.namespace() {
-                    // SAFETY: we just found an enum with this namespace name and the document
-                    // guarantees that `document.namespaces` contains a corresponding entry for
-                    // `ns_name`.
-                    let ns = document.namespace(ns_name).unwrap();
+                    let ns = document
+                        .namespace(ns_name)
+                        .and_then(|n| n.namespace())
+                        .unwrap();
                     let node = graph.get(graph.get_index(ns.source()).unwrap());
                     node.document().unwrap().root()
                 } else {
@@ -228,8 +228,9 @@ fn resolve_hover_by_context(
                     if token.span() == name.span() {
                         (Some(ns), name)
                     } else if token.span() == ns.span() {
-                        // namespace identifier hovered
-                        if let Some(ns) = document.namespace(token.text()) {
+                        if let Some(ns) =
+                            document.namespace(token.text()).and_then(|n| n.namespace())
+                        {
                             return Ok(Some(format!(
                                 "```wdl\n(import) {}\n```\nImports from `{}`",
                                 token.text(),
@@ -247,13 +248,11 @@ fn resolve_hover_by_context(
             };
 
             let target_doc = if let Some(ns_name) = ns_name {
-                // SAFETY: we just found a call with this namespace name and the document
-                // guarantees that `document.namespaces` contains a corresponding entry for
-                // `ns_name`.
-                let ns = document.namespace(ns_name.text()).unwrap();
+                let ns = document
+                    .namespace(ns_name.text())
+                    .and_then(|n| n.namespace())
+                    .unwrap();
 
-                // SAFETY: `ns.source` comes from a valid namespace entry which guarantees the
-                // document exists in the graph.
                 let node = graph.get(graph.get_index(ns.source()).unwrap());
                 node.document().unwrap()
             } else {
@@ -335,13 +334,11 @@ fn resolve_hover_by_context(
                 Type::Compound(CompoundType::Custom(CustomType::Struct(s)), _) => {
                     let target_doc = if let Some(s) = document.struct_by_name(s.name()) {
                         if let Some(ns_name) = s.namespace() {
-                            // SAFETY: we just found a struct with this namespace name and the
-                            // document guarantees that `document.namespaces` contains a
-                            // corresponding entry for `ns_name`.
-                            let ns = document.namespace(ns_name).unwrap();
+                            let ns = document
+                                .namespace(ns_name)
+                                .and_then(|n| n.namespace())
+                                .unwrap();
 
-                            // SAFETY: `ns.source` comes from a valid namespace entry which
-                            // guarantees the document exists in the graph.
                             let node = graph.get(graph.get_index(ns.source()).unwrap());
                             node.document().unwrap()
                         } else {

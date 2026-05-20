@@ -51,6 +51,7 @@ use super::ImportedTask;
 use super::ImportedWorkflow;
 use super::Input;
 use super::Namespace;
+use super::NamespaceEntry;
 use super::Output;
 use super::Scope;
 use super::ScopeIndex;
@@ -256,6 +257,11 @@ fn add_namespace(
         Ok(resolved) => resolved,
         Err(Some(diagnostic)) => {
             document.analysis_diagnostics.push(diagnostic);
+            if let Some((ns, _)) = import.namespace() {
+                document
+                    .namespaces
+                    .insert(ns, NamespaceEntry::Failed(import.source().span()));
+            }
             return;
         }
         Err(None) => return,
@@ -268,7 +274,7 @@ fn add_namespace(
                 document.analysis_diagnostics.push(namespace_conflict(
                     &ns,
                     span,
-                    prev.span,
+                    prev.span(),
                     import.explicit_namespace().is_none(),
                 ));
                 return;
@@ -276,13 +282,13 @@ fn add_namespace(
             None => {
                 document.namespaces.insert(
                     ns.clone(),
-                    Namespace {
+                    NamespaceEntry::Resolved(Namespace {
                         span,
                         source: uri.clone(),
                         document: imported.clone(),
                         used: false,
                         excepted: import.inner().is_rule_excepted(UnusedImportRule::ID),
-                    },
+                    }),
                 );
                 ns
             }
@@ -860,7 +866,9 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
         fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
             if let Some(s) = self.0.structs.get(name) {
                 if let Some(ns) = &s.namespace {
-                    self.0.namespaces[ns].used = true;
+                    if let Some(resolved) = self.0.namespaces[ns].namespace_mut() {
+                        resolved.used = true;
+                    }
                 }
                 return Ok(s.ty().expect("struct should have type").clone());
             }
@@ -870,7 +878,9 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
                 && e.ty().is_some()
             {
                 if let Some(ns) = &e.namespace {
-                    self.0.namespaces[ns].used = true;
+                    if let Some(resolved) = self.0.namespaces[ns].namespace_mut() {
+                        resolved.used = true;
+                    }
                 }
 
                 // SAFETY: we just checked to make sure the type was
@@ -1842,8 +1852,13 @@ fn resolve_call_type(
         }
 
         match document.namespaces.get_mut(target.text()) {
+            Some(NamespaceEntry::Failed(_)) => {
+                return None;
+            }
             Some(ns) => {
-                ns.used = true;
+                if let Some(resolved) = ns.namespace_mut() {
+                    resolved.used = true;
+                }
                 namespace = Some(&document.namespaces[target.text()])
             }
             None => {
@@ -1856,7 +1871,8 @@ fn resolve_call_type(
     }
 
     let target = namespace
-        .map(|ns| ns.document.data.as_ref())
+        .and_then(|ns| ns.namespace())
+        .map(|ns| ns.document().data.as_ref())
         .unwrap_or(document);
     let name = name.expect("should have name");
     if namespace.is_none() && name.text() == workflow_name {
@@ -1898,7 +1914,7 @@ fn resolve_call_type(
             }
             _ => {
                 document.analysis_diagnostics.push(unknown_task_or_workflow(
-                    namespace.map(|ns| ns.span),
+                    namespace.map(|ns| ns.span()),
                     name.text(),
                     name.span(),
                 ));
@@ -1963,13 +1979,16 @@ fn resolve_import(
                     (span, index, path_text)
                 }
                 None => {
-                    return Err(Some(
-                        Diagnostic::error(
-                            "symbolic imports are only resolvable from within a module; run \
-                             `sprocket module init` to create one",
-                        )
-                        .with_highlight(span),
-                    ));
+                    let message = if let Some(error) =
+                        graph.get_failed_symbolic_import(importer_index, &path_text)
+                    {
+                        format!("failed to resolve symbolic import `{path_text}`: {error}")
+                    } else {
+                        "symbolic imports are only resolvable from within a module; run `sprocket \
+                         module init` to create one"
+                            .to_string()
+                    };
+                    return Err(Some(Diagnostic::error(message).with_highlight(span)));
                 }
             }
         }
@@ -2055,7 +2074,9 @@ fn set_struct_types(document: &mut DocumentData) {
                 Some(s) => {
                     // Mark the struct's namespace as used
                     if let Some(ns) = &s.namespace {
-                        self.document.namespaces[ns].used = true;
+                        if let Some(resolved) = self.document.namespaces[ns].namespace_mut() {
+                            resolved.used = true;
+                        }
                     }
 
                     Ok(s.ty().cloned().unwrap_or(Type::Union))
@@ -2404,7 +2425,9 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
     fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         if let Some(s) = self.document.structs.get(name) {
             if let Some(ns) = &s.namespace {
-                self.document.namespaces[ns].used = true;
+                if let Some(resolved) = self.document.namespaces[ns].namespace_mut() {
+                    resolved.used = true;
+                }
             }
 
             return Ok(s.ty().expect("struct should have type").clone());
@@ -2412,7 +2435,9 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
 
         if let Some(e) = self.document.enums.get(name) {
             if let Some(ns) = &e.namespace {
-                self.document.namespaces[ns].used = true;
+                if let Some(resolved) = self.document.namespaces[ns].namespace_mut() {
+                    resolved.used = true;
+                }
             }
 
             return Ok(e.ty().expect("enum should have type").clone());

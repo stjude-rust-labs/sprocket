@@ -1678,7 +1678,11 @@ impl State {
         let inputs = self.inputs.calls().get(alias.text()).cloned();
         let document = namespace
             .as_ref()
-            .map(|(_, ns)| ns.document())
+            .map(|(_, ns)| {
+                ns.namespace()
+                    .expect("workflow execution should not see failed namespaces")
+                    .document()
+            })
             .unwrap_or(&self.document);
         let (mut inputs, call_target) = match document.task_by_name(target.text()) {
             Some(task) => (

@@ -34,7 +34,7 @@ pub fn get_imported_doc_context<'a>(
     analysis_doc: &'a Document,
     graph: &'a DocumentGraph,
 ) -> Option<ImportedDocContext<'a>> {
-    let ns = analysis_doc.namespace(namespace_name)?;
+    let ns = analysis_doc.namespace(namespace_name)?.namespace()?;
     let node = graph.get(graph.get_index(ns.source())?);
     let doc = node.document()?;
     let lines = node.parse_state().lines()?;
