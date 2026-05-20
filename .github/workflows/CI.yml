@@ -69,8 +69,6 @@ jobs:
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
         run: rustup update stable && rustup default stable && rustup component add llvm-tools
-      - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov
       # Disabling cache as the size is now consistently running out of disk for certain actions
       # - uses: actions/cache@v5
       #   with:
@@ -82,10 +80,12 @@ jobs:
       #       target/
       #     key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install cargo-nextest
+      - name: Install cargo-llvm-cov and cargo-nextest
         uses: taiki-e/install-action@v2
         with:
-          tool: nextest
+          tool: |
+            cargo-llvm-cov  
+            nextest
 
       # Pre-warm the npx cache so parallel tests don't race to install it.
       - name: Install Pagefind
@@ -116,8 +116,6 @@ jobs:
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
         run: rustup update stable && rustup default stable && rustup component add llvm-tools
-      - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov
       - uses: actions/cache@v5
         with:
           path: |
@@ -128,10 +126,12 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install cargo-nextest
+      - name: Install cargo-llvm-cov and cargo-nextest
         uses: taiki-e/install-action@v2
         with:
-          tool: nextest
+          tool: |
+            cargo-llvm-cov  
+            nextest
 
       # See the `test` job
       - name: Install Pagefind
