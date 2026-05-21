@@ -395,6 +395,16 @@ pub fn recursive_struct(name: &str, span: Span, member: Span) -> Diagnostic {
         .with_label("this struct member participates in the recursion", member)
 }
 
+/// Creates a "recursive enum" diagnostic.
+pub fn recursive_enum(name: &str, span: Span, ty: wdl_ast::v1::Type) -> Diagnostic {
+    Diagnostic::error(format!("enum `{name}` has a recursive definition"))
+        .with_highlight(span)
+        .with_help(format!(
+            "the type `{}` participates in the recursion",
+            ty.inner().text()
+        ))
+}
+
 /// Creates an "unknown type" diagnostic.
 pub fn unknown_type(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(format!("unknown type name `{name}`")).with_highlight(span)

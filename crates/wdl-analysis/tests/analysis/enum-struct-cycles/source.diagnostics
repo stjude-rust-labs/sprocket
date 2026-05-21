@@ -1,0 +1,8 @@
+error: enum `Foo` has a recursive definition
+  ┌─ tests/analysis/enum-struct-cycles/source.wdl:3:6
+  │
+3 │ enum Foo[Bar] {}
+  │      ^^^
+  │
+  = help: the type `Bar` participates in the recursion
+

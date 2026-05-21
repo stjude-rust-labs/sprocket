@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Analysis now emits diagnostics for task variable declarations that appear after `command` sections ([#844](https://github.com/stjude-rust-labs/sprocket/pull/844)).
 
+#### Fixed
+
+* Enum types for struct members will no longer error ([#866](https://github.com/stjude-rust-labs/sprocket/pull/866)).
+
 ## 0.20.0 - 2026-05-14
 
 #### Added

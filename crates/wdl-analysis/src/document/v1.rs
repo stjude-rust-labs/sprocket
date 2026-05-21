@@ -90,6 +90,7 @@ use crate::diagnostics::namespace_conflict;
 use crate::diagnostics::non_empty_array_assignment;
 use crate::diagnostics::non_literal_enum_value;
 use crate::diagnostics::only_one_namespace;
+use crate::diagnostics::recursive_enum;
 use crate::diagnostics::recursive_struct;
 use crate::diagnostics::recursive_workflow_call;
 use crate::diagnostics::struct_conflicts_with_import;
@@ -202,11 +203,8 @@ pub(crate) fn populate_document(
         }
     }
 
-    // Populate the struct types now that all structs have been processed
-    set_struct_types(document);
-
-    // Populate the enum types now that all enums have been processed
-    set_enum_types(document);
+    // Populate the types now that all structs and enums have been processed
+    populate_types(document);
 
     // Now process the tasks and workflows
     let mut workflow = None;
@@ -605,20 +603,14 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
                 if let Some(ns) = &s.namespace {
                     self.0.namespaces[ns].used = true;
                 }
-                return Ok(s.ty().expect("struct should have type").clone());
+                return Ok(s.ty().cloned().unwrap_or(Type::Union));
             }
 
-            if let Some(e) = self.0.enums.get(name)
-                // Ensure the inner type has been successfully calculated
-                && e.ty().is_some()
-            {
+            if let Some(e) = self.0.enums.get(name) {
                 if let Some(ns) = &e.namespace {
                     self.0.namespaces[ns].used = true;
                 }
-
-                // SAFETY: we just checked to make sure the type was
-                // successfully calculated above.
-                return Ok(e.ty().unwrap().clone());
+                return Ok(e.ty().cloned().unwrap_or(Type::Union));
             }
 
             Err(unknown_type(name, span))
@@ -1744,8 +1736,14 @@ fn resolve_import(
     Ok((imported_node.uri().clone(), imported_document))
 }
 
-/// Sets the struct types in the document.
-fn set_struct_types(document: &mut DocumentData) {
+/// Sets struct and enum types in the document.
+fn populate_types(document: &mut DocumentData) {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+    enum TypeIndex {
+        Struct(usize),
+        Enum(usize),
+    }
+
     /// Used to resolve a type name from a document.
     struct Resolver<'a> {
         /// The document to resolve the type name from.
@@ -1756,32 +1754,34 @@ fn set_struct_types(document: &mut DocumentData) {
 
     impl TypeNameResolver for Resolver<'_> {
         fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
-            match self.document.structs.get(name) {
-                Some(s) => {
-                    // Mark the struct's namespace as used
-                    if let Some(ns) = &s.namespace {
-                        self.document.namespaces[ns].used = true;
-                    }
-
-                    Ok(s.ty().cloned().unwrap_or(Type::Union))
+            if let Some(s) = self.document.structs.get(name) {
+                if let Some(ns) = &s.namespace {
+                    self.document.namespaces[ns].used = true;
                 }
-                _ => {
-                    self.document.analysis_diagnostics.push(unknown_type(
-                        name,
-                        Span::new(span.start() + self.offset, span.len()),
-                    ));
-                    Ok(Type::Union)
-                }
+                return Ok(s.ty().cloned().unwrap_or(Type::Union));
             }
+
+            if let Some(e) = self.document.enums.get(name) {
+                if let Some(ns) = &e.namespace {
+                    self.document.namespaces[ns].used = true;
+                }
+                return Ok(e.ty().cloned().unwrap_or(Type::Union));
+            }
+
+            self.document.analysis_diagnostics.push(unknown_type(
+                name,
+                Span::new(span.start() + self.offset, span.len()),
+            ));
+            Ok(Type::Union)
         }
     }
 
-    if document.structs.is_empty() {
+    if document.structs.is_empty() && document.enums.is_empty() {
         return;
     }
 
-    /// Recursively finds all nested struct type dependencies to build
-    /// dependency graphs
+    /// Recursively finds all nested type dependencies to build dependency
+    /// graphs
     fn find_type_refs(ty: &wdl_ast::v1::Type, deps: &mut Vec<TypeRef>) {
         match ty {
             wdl_ast::v1::Type::Ref(r) => deps.push(r.clone()),
@@ -1805,13 +1805,16 @@ fn set_struct_types(document: &mut DocumentData) {
     // into diagnostics.
     let mut graph: DiGraphMap<_, _, RandomState> = DiGraphMap::new();
     let mut space = Default::default();
+
+    // Map struct dependencies
     for (from, s) in document.structs.values().enumerate() {
         // Only look at locally defined structs
         if s.namespace.is_some() {
             continue;
         }
 
-        graph.add_node(from);
+        let from_idx = TypeIndex::Struct(from);
+        graph.add_node(from_idx);
         let definition: StructDefinition =
             StructDefinition::cast(SyntaxNode::new_root(s.node.clone())).expect("node should cast");
         for member in definition.members() {
@@ -1819,127 +1822,159 @@ fn set_struct_types(document: &mut DocumentData) {
             find_type_refs(&member.ty(), &mut deps);
 
             for dep in deps {
-                // Add an edge to the referenced struct
-                if let Some(to) = document.structs.get_index_of(dep.name().text()) {
+                let name = dep.name();
+                let to_idx = if let Some(to) = document.structs.get_index_of(name.text())
                     // Only add an edge to another local struct definition
-                    if document.structs[to].namespace.is_some() {
-                        continue;
-                    }
+                    && document.structs[to].namespace.is_none()
+                {
+                    TypeIndex::Struct(to)
+                } else if let Some(to) = document.enums.get_index_of(name.text())
+                    && document.enums[to].namespace.is_none()
+                {
+                    TypeIndex::Enum(to)
+                } else {
+                    continue;
+                };
 
-                    // Check to see if the edge would form a cycle
-                    if has_path_connecting(&graph, from, to, Some(&mut space)) {
-                        let name = definition.name();
-                        let name_span = name.span();
-                        let member_span = member.name().span();
-                        document.analysis_diagnostics.push(recursive_struct(
-                            name.text(),
-                            Span::new(name_span.start() + s.offset, name_span.len()),
-                            Span::new(member_span.start() + s.offset, member_span.len()),
-                        ));
-                    } else {
-                        graph.add_edge(to, from, ());
-                    }
+                if has_path_connecting(&graph, from_idx, to_idx, Some(&mut space)) {
+                    let def_name = definition.name();
+                    let def_span = def_name.span();
+                    let member_span = member.name().span();
+                    document.analysis_diagnostics.push(recursive_struct(
+                        def_name.text(),
+                        Span::new(def_span.start() + s.offset, def_span.len()),
+                        Span::new(member_span.start() + s.offset, member_span.len()),
+                    ));
+                } else {
+                    graph.add_edge(to_idx, from_idx, ());
                 }
             }
         }
     }
 
-    // At this point the graph is guaranteed acyclic; now calculate the struct types
-    // in topological order
-    for index in toposort(&graph, Some(&mut space)).expect("graph should be acyclic") {
-        let definition =
-            StructDefinition::cast(SyntaxNode::new_root(document.structs[index].node.clone()))
-                .expect("node should cast");
-
-        let offset = document.structs[index].offset;
-        let mut converter = AstTypeConverter::new(Resolver { document, offset });
-        match converter.convert_struct_type(&definition) {
-            Ok(ty) => {
-                let s = &mut document.structs[index];
-                assert!(s.ty.is_none(), "type should not already be present");
-                s.ty = Some(ty.into());
-            }
-            Err(mut diagnostic) => {
-                // Adjust each label in the diagnostic based on the struct offset
-                for label in diagnostic.labels_mut() {
-                    let span = label.span();
-                    label.set_span(Span::new(span.start() + offset, span.len()));
-                }
-
-                document.analysis_diagnostics.push(diagnostic);
-            }
-        }
-    }
-}
-
-/// Populates enum types for all locally defined enums in the document.
-fn set_enum_types(document: &mut DocumentData) {
-    if document.enums.is_empty() {
-        return;
-    }
-
-    // Calculate the underlying type for every enum in the document
-    for index in 0..document.enums.len() {
-        let e = &document.enums[index];
-
+    // Map enum dependencies
+    for (from, e) in document.enums.values().enumerate() {
         // Only look at locally defined enums
         if e.namespace.is_some() {
             continue;
         }
 
+        let from_idx = TypeIndex::Enum(from);
+        graph.add_node(from_idx);
         let definition = e.definition();
-        let mut variants = Vec::new();
-        let mut variant_spans = Vec::new();
+        if let Some(type_param) = definition.type_parameter() {
+            let mut deps = Vec::new();
+            find_type_refs(&type_param.ty(), &mut deps);
 
-        // Populate the variants and their spans
-        for variant in definition.variants() {
-            let variant_name = variant.name().text().to_string();
-            let variant_type = if let Some(value_expr) = variant.value() {
-                // Validate that the value is a literal expression
-                match parse_literal_value(&document.structs, &value_expr) {
-                    Some(ty) => ty,
-                    None => {
-                        let span = value_expr.span();
-                        let adjusted_span = Span::new(span.start() + e.offset, span.len());
-                        document
-                            .analysis_diagnostics
-                            .push(non_literal_enum_value(adjusted_span));
-                        Type::Union
+            for dep in deps {
+                let name = dep.name();
+                let to_idx = if let Some(to) = document.structs.get_index_of(name.text())
+                    && document.structs[to].namespace.is_none()
+                {
+                    TypeIndex::Struct(to)
+                } else if let Some(to) = document.enums.get_index_of(name.text())
+                    && document.enums[to].namespace.is_none()
+                {
+                    TypeIndex::Enum(to)
+                } else {
+                    continue;
+                };
+
+                if has_path_connecting(&graph, from_idx, to_idx, Some(&mut space)) {
+                    let def_name = definition.name();
+                    let def_span = def_name.span();
+                    document.analysis_diagnostics.push(recursive_enum(
+                        def_name.text(),
+                        Span::new(def_span.start() + e.offset, def_span.len()),
+                        type_param.ty(),
+                    ));
+                } else {
+                    graph.add_edge(to_idx, from_idx, ());
+                }
+            }
+        }
+    }
+
+    // At this point the graph is guaranteed acyclic; now calculate the struct and
+    // enum types in topological order
+    for index in toposort(&graph, Some(&mut space)).expect("graph should be acyclic") {
+        match index {
+            TypeIndex::Struct(index) => {
+                let definition = StructDefinition::cast(SyntaxNode::new_root(
+                    document.structs[index].node.clone(),
+                ))
+                .expect("node should cast");
+
+                let offset = document.structs[index].offset;
+                let mut converter = AstTypeConverter::new(Resolver { document, offset });
+                match converter.convert_struct_type(&definition) {
+                    Ok(ty) => {
+                        let s = &mut document.structs[index];
+                        assert!(s.ty.is_none(), "type should not already be present");
+                        s.ty = Some(ty.into());
+                    }
+                    Err(mut diagnostic) => {
+                        for label in diagnostic.labels_mut() {
+                            let span = label.span();
+                            label.set_span(Span::new(span.start() + offset, span.len()));
+                        }
+                        document.analysis_diagnostics.push(diagnostic);
                     }
                 }
-            } else {
-                // Default to `String` type if no value is specified
-                PrimitiveType::String.into()
-            };
-
-            variants.push((variant_name, variant_type));
-            variant_spans.push(Span::new(
-                variant.span().start() + e.offset(),
-                variant.span().len(),
-            ));
-        }
-
-        // Check for explicit type parameter or infer if one was not specified
-        let result = if let Some(type_param) = definition.type_parameter().map(|t| t.ty()) {
-            let type_param = convert_ast_type(document, &type_param);
-            let e = &document.enums[index];
-            EnumType::new(
-                e.name.clone(),
-                e.name_span,
-                type_param,
-                variants,
-                &variant_spans,
-            )
-        } else {
-            EnumType::infer(document.enums[index].name.clone(), variants, &variant_spans)
-        };
-
-        match result {
-            Ok(enum_ty) => {
-                document.enums[index].ty = Some(enum_ty.into());
             }
-            Err(diagnostic) => {
-                document.analysis_diagnostics.push(diagnostic);
+            TypeIndex::Enum(index) => {
+                let e = &document.enums[index];
+                let definition = e.definition();
+                let mut variants = Vec::new();
+                let mut variant_spans = Vec::new();
+
+                for variant in definition.variants() {
+                    let variant_name = variant.name().text().to_string();
+                    let variant_type = if let Some(value_expr) = variant.value() {
+                        match parse_literal_value(&document.structs, &value_expr) {
+                            Some(ty) => ty,
+                            None => {
+                                let span = value_expr.span();
+                                let adjusted_span = Span::new(span.start() + e.offset, span.len());
+                                document
+                                    .analysis_diagnostics
+                                    .push(non_literal_enum_value(adjusted_span));
+                                Type::Union
+                            }
+                        }
+                    } else {
+                        PrimitiveType::String.into()
+                    };
+
+                    variants.push((variant_name, variant_type));
+                    variant_spans.push(Span::new(
+                        variant.span().start() + e.offset(),
+                        variant.span().len(),
+                    ));
+                }
+
+                let result = if let Some(type_param) = definition.type_parameter().map(|t| t.ty()) {
+                    let type_param = convert_ast_type(document, &type_param);
+                    let e = &document.enums[index];
+                    EnumType::new(
+                        e.name.clone(),
+                        e.name_span,
+                        type_param,
+                        variants,
+                        &variant_spans,
+                    )
+                } else {
+                    EnumType::infer(document.enums[index].name.clone(), variants, &variant_spans)
+                };
+
+                match result {
+                    Ok(enum_ty) => {
+                        document.enums[index].ty = Some(enum_ty.into());
+                    }
+                    Err(diagnostic) => {
+                        document.analysis_diagnostics.push(diagnostic);
+                    }
+                }
             }
         }
     }
