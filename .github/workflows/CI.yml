@@ -42,10 +42,10 @@ jobs:
       - uses: actions/checkout@v6
       - name: Update Rust
         run: rustup update stable
+      - name: Install `cargo-binstall`
+        uses: cargo-bins/cargo-binstall@main
       - name: Install `cargo-sort`
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-sort@2
+        run: cargo binstall -y cargo-sort
       - name: Check for sorted `Cargo.toml`
         run: cargo --locked sort -w --check
 
@@ -85,12 +85,10 @@ jobs:
           # Do not cache bins, as we already install pre-built binaries.
           cache-bin: false
 
-      - name: Install cargo-llvm-cov and cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: |
-            cargo-llvm-cov@0.8
-            nextest@0.9
+      - name: Install `cargo-binstall`
+        uses: cargo-bins/cargo-binstall@main
+      - name: Install `cargo-llvm-cov` and `cargo-nextest`
+        run: cargo binstall -y cargo-llvm-cov cargo-nextest
 
       # Pre-warm the npx cache so parallel tests don't race to install it.
       - name: Install Pagefind
@@ -122,12 +120,10 @@ jobs:
       - name: Update Rust
         run: rustup update stable && rustup default stable && rustup component add llvm-tools
 
-      - name: Install cargo-llvm-cov and cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: |
-            cargo-llvm-cov@0.8
-            nextest@0.9
+      - name: Install `cargo-binstall`
+        uses: cargo-bins/cargo-binstall@main
+      - name: Install `cargo-llvm-cov` and `cargo-nextest`
+        run: cargo binstall -y cargo-llvm-cov cargo-nextest
 
       # See the `test` job
       - name: Install Pagefind
@@ -199,7 +195,10 @@ jobs:
       - uses: actions/checkout@v6
       - name: Update Rust
         run: rustup update stable && rustup default stable
-      - run: cargo --locked install cargo-workspace-lints
+      - name: Install `cargo-binstall`
+        uses: cargo-bins/cargo-binstall@main
+      - name: Install `cargo-workspace-lints`
+        run: cargo binstall -y cargo-workspace-lints
       - run: cargo --locked workspace-lints
 
   deny:
@@ -208,10 +207,10 @@ jobs:
       - uses: actions/checkout@v6
       - name: Update Rust
         run: rustup update stable && rustup default stable
-      - name: Install cargo-deny
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-deny@0.19
+      - name: Install `cargo-binstall`
+        uses: cargo-bins/cargo-binstall@main
+      - name: Install `cargo-deny`
+        run: cargo binstall -y cargo-deny
       - run: cargo --locked deny check
 
   msrv:
@@ -220,10 +219,10 @@ jobs:
       - uses: actions/checkout@v6
       - name: Update Rust
         run: rustup update stable && rustup default stable
-      - name: Install cargo-binstall
-        run: curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
-      - name: Install cargo-msrv
-        run: cargo --locked binstall -y --version 0.16.0-beta.23 cargo-msrv
+      - name: Install `cargo-binstall`
+        uses: cargo-bins/cargo-binstall@main
+      - name: Install `cargo-msrv`
+        run: cargo binstall -y cargo-msrv
       - name: Verify the MSRV
         working-directory: ./crates/wdl
         run: cargo --locked msrv verify --output-format minimal --all-features
@@ -234,9 +233,9 @@ jobs:
       - uses: actions/checkout@v6
       - name: Update Rust
         run: rustup update nightly && rustup default nightly
-      - name: Install cargo-udeps
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-udeps@0.1
+      - name: Install `cargo-binstall`
+        uses: cargo-bins/cargo-binstall@main
+      - name: Install `cargo-udeps`
+        run: cargo binstall -y cargo-udeps
       - name: Ensure no unused dependencies
         run: cargo --locked udeps
