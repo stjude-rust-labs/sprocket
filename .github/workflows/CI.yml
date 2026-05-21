@@ -12,6 +12,10 @@ env:
   CARGO_TERM_COLOR: always
   GH_TOKEN: ${{ github.token }}
   IN_CI: 1
+  # Only include the debug info necessary for backtraces (file names and line numbers). Any extra
+  # debug info provided by `debuginfo=1` or `debuginfo=2` require an interactive debugger like
+  # `lldb` or `gdb`.
+  RUSTFLAGS: -C debuginfo=line-tables-only
 
 jobs:
   spelling:
@@ -39,7 +43,9 @@ jobs:
       - name: Update Rust
         run: rustup update stable
       - name: Install `cargo-sort`
-        run: cargo install cargo-sort
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-sort@2
       - name: Check for sorted `Cargo.toml`
         run: cargo --locked sort -w --check
 
@@ -69,23 +75,22 @@ jobs:
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
         run: rustup update stable && rustup default stable && rustup component add llvm-tools
-      - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov
-      # Disabling cache as the size is now consistently running out of disk for certain actions
-      # - uses: actions/cache@v5
-      #   with:
-      #     path: |
-      #       ~/.cargo/bin/
-      #       ~/.cargo/registry/index/
-      #       ~/.cargo/registry/cache/
-      #       ~/.cargo/git/db/
-      #       target/
-      #     key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install cargo-nextest
+      - name: Cache build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          # Only save cache on the main branch, as caches saved on other branches cannot be shared.
+          # <https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache>
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          # Do not cache bins, as we already install pre-built binaries.
+          cache-bin: false
+
+      - name: Install cargo-llvm-cov and cargo-nextest
         uses: taiki-e/install-action@v2
         with:
-          tool: nextest
+          tool: |
+            cargo-llvm-cov@0.8
+            nextest@0.9
 
       # Pre-warm the npx cache so parallel tests don't race to install it.
       - name: Install Pagefind
@@ -116,22 +121,13 @@ jobs:
       - uses: ./.github/actions/install-shellcheck
       - name: Update Rust
         run: rustup update stable && rustup default stable && rustup component add llvm-tools
-      - name: Install cargo-llvm-cov
-        run: cargo install cargo-llvm-cov
-      - uses: actions/cache@v5
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Install cargo-nextest
+      - name: Install cargo-llvm-cov and cargo-nextest
         uses: taiki-e/install-action@v2
         with:
-          tool: nextest
+          tool: |
+            cargo-llvm-cov@0.8
+            nextest@0.9
 
       # See the `test` job
       - name: Install Pagefind
@@ -149,7 +145,7 @@ jobs:
         shell: bash
         run: |
           if [[ "${{ runner.os }}" != "Linux" ]]; then
-            export RUSTFLAGS="--cfg docker_tests_disabled"
+            export RUSTFLAGS="--cfg docker_tests_disabled ${RUSTFLAGS}"
           fi
           cargo llvm-cov nextest --profile=ci --ignore-default-filter -E "not (kind(bench))" --locked -p wdl-engine -p sprocket --all-features --no-fail-fast --codecov --output-path codecov.json
 
@@ -212,7 +208,10 @@ jobs:
       - uses: actions/checkout@v6
       - name: Update Rust
         run: rustup update stable && rustup default stable
-      - run: cargo --locked install cargo-deny
+      - name: Install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.19
       - run: cargo --locked deny check
 
   msrv:
@@ -236,6 +235,8 @@ jobs:
       - name: Update Rust
         run: rustup update nightly && rustup default nightly
       - name: Install cargo-udeps
-        run: cargo --locked install cargo-udeps
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-udeps@0.1
       - name: Ensure no unused dependencies
         run: cargo --locked udeps
