@@ -865,10 +865,10 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
     impl TypeNameResolver for Resolver<'_> {
         fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
             if let Some(s) = self.0.structs.get(name) {
-                if let Some(ns) = &s.namespace {
-                    if let Some(resolved) = self.0.namespaces[ns].namespace_mut() {
-                        resolved.used = true;
-                    }
+                if let Some(ns) = &s.namespace
+                    && let Some(resolved) = self.0.namespaces[ns].namespace_mut()
+                {
+                    resolved.used = true;
                 }
                 return Ok(s.ty().expect("struct should have type").clone());
             }
@@ -877,10 +877,10 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
                 // Ensure the inner type has been successfully calculated
                 && e.ty().is_some()
             {
-                if let Some(ns) = &e.namespace {
-                    if let Some(resolved) = self.0.namespaces[ns].namespace_mut() {
-                        resolved.used = true;
-                    }
+                if let Some(ns) = &e.namespace
+                    && let Some(resolved) = self.0.namespaces[ns].namespace_mut()
+                {
+                    resolved.used = true;
                 }
 
                 // SAFETY: we just checked to make sure the type was
@@ -2073,10 +2073,10 @@ fn set_struct_types(document: &mut DocumentData) {
             match self.document.structs.get(name) {
                 Some(s) => {
                     // Mark the struct's namespace as used
-                    if let Some(ns) = &s.namespace {
-                        if let Some(resolved) = self.document.namespaces[ns].namespace_mut() {
-                            resolved.used = true;
-                        }
+                    if let Some(ns) = &s.namespace
+                        && let Some(resolved) = self.document.namespaces[ns].namespace_mut()
+                    {
+                        resolved.used = true;
                     }
 
                     Ok(s.ty().cloned().unwrap_or(Type::Union))
@@ -2424,20 +2424,20 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
 
     fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         if let Some(s) = self.document.structs.get(name) {
-            if let Some(ns) = &s.namespace {
-                if let Some(resolved) = self.document.namespaces[ns].namespace_mut() {
-                    resolved.used = true;
-                }
+            if let Some(ns) = &s.namespace
+                && let Some(resolved) = self.document.namespaces[ns].namespace_mut()
+            {
+                resolved.used = true;
             }
 
             return Ok(s.ty().expect("struct should have type").clone());
         }
 
         if let Some(e) = self.document.enums.get(name) {
-            if let Some(ns) = &e.namespace {
-                if let Some(resolved) = self.document.namespaces[ns].namespace_mut() {
-                    resolved.used = true;
-                }
+            if let Some(ns) = &e.namespace
+                && let Some(resolved) = self.document.namespaces[ns].namespace_mut()
+            {
+                resolved.used = true;
             }
 
             return Ok(e.ty().expect("enum should have type").clone());

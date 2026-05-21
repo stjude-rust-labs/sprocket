@@ -1162,10 +1162,10 @@ impl Document {
 
         // Check every imported document for errors
         for (_, ns) in self.namespaces() {
-            if let Some(resolved) = ns.namespace() {
-                if resolved.document().has_errors() {
-                    return true;
-                }
+            if let Some(resolved) = ns.namespace()
+                && resolved.document().has_errors()
+            {
+                return true;
             }
         }
 
