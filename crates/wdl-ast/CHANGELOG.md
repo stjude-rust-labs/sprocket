@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Replaced `Comment::is_{directive,doc_comment}` with `Comment::Kind` ([#867](https://github.com/stjude-rust-labs/sprocket/pull/867)).
+
 ## 0.23.0 - 2026-05-14
 
 #### Added

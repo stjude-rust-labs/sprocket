@@ -632,6 +632,7 @@ impl<S: 'static> LanguageServer for Server<S> {
                 }),
                 inlay_hint_provider: Some(OneOf::Left(true)),
                 call_hierarchy_provider: Some(CallHierarchyServerCapability::Simple(true)),
+                folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
                 ..Default::default()
             },
             server_info: Some(self.info().await),
@@ -1070,6 +1071,27 @@ impl<S: 'static> LanguageServer for Server<S> {
             })?;
 
         Ok(result)
+    }
+
+    async fn folding_range(
+        &self,
+        mut params: FoldingRangeParams,
+    ) -> RpcResult<Option<Vec<FoldingRange>>> {
+        let config = self.config.read().await;
+
+        normalize_uri_path(&mut params.text_document.uri);
+
+        debug!("received `textDocument/foldingRange` request: {params:#?}");
+
+        config
+            .analyzer
+            .folding_range(params.text_document.uri)
+            .await
+            .map_err(|e| RpcError {
+                code: ErrorCode::InternalError,
+                message: e.to_string().into(),
+                data: None,
+            })
     }
 
     async fn goto_definition(

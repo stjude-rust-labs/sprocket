@@ -23,6 +23,7 @@ use crate::AstNode;
 use crate::AstToken;
 use crate::Comment;
 use crate::Documented;
+use crate::HasBlock;
 use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
@@ -175,6 +176,8 @@ impl Documented<SyntaxNode> for WorkflowDefinition<SyntaxNode> {
         Some(crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia()).collect())
     }
 }
+
+impl HasBlock for WorkflowDefinition<SyntaxNode> {}
 
 /// Represents an item in a workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1126,6 +1129,8 @@ impl<N: TreeNode> AstNode<N> for WorkflowHintsSection<N> {
         &self.0
     }
 }
+
+impl HasBlock for WorkflowHintsSection<SyntaxNode> {}
 
 /// Represents an item in a workflow hints section.
 #[derive(Clone, Debug, PartialEq, Eq)]

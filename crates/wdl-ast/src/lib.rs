@@ -36,6 +36,7 @@ use std::str::FromStr;
 
 pub use rowan::Direction;
 use rowan::NodeOrToken;
+use rowan::TextRange;
 use v1::CloseBrace;
 use v1::CloseHeredoc;
 use v1::OpenBrace;
@@ -88,6 +89,45 @@ pub fn doc_comments<N: TreeNode>(
                 None
             }
         })
+}
+
+/// A node with an associated block.
+pub trait HasBlock: AstNode<SyntaxNode> {
+    /// Get the [`TextRange`] of the associated block, including the open/close
+    /// delimiters.
+    fn block_range(&self) -> TextRange {
+        let (open, close) = get_block::<Self, OpenBrace, CloseBrace>(self);
+        TextRange::new(
+            open.inner().text_range().start(),
+            close.inner().text_range().end(),
+        )
+    }
+}
+
+/// Implementation for [`HasBlock::block_range()`].
+pub(crate) fn get_block<
+    T: AstNode<SyntaxNode>,
+    OpenDelimiter: AstToken<<SyntaxNode as TreeNode>::Token>,
+    CloseDelimiter: AstToken<<SyntaxNode as TreeNode>::Token>,
+>(
+    node: &T,
+) -> (OpenDelimiter, CloseDelimiter) {
+    let open_brace = node
+        .token::<OpenDelimiter>()
+        .expect("should have an open brace");
+    let close_brace = open_brace
+        .inner()
+        .siblings_with_tokens(Direction::Next)
+        .find_map(|sibling| {
+            let SyntaxElement::Token(token) = sibling else {
+                return None;
+            };
+
+            CloseDelimiter::cast(token)
+        })
+        .expect("should have a close brace");
+
+    (open_brace, close_brace)
 }
 
 /// A trait that abstracts the underlying representation of a syntax tree node.
@@ -671,6 +711,18 @@ impl FromStr for Directive {
     }
 }
 
+/// The type of a [`Comment`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum CommentKind {
+    /// The comment is a normal line comment
+    Line,
+    /// The comment is a [`Directive`] (starts with
+    /// [`DIRECTIVE_COMMENT_PREFIX`]).
+    Directive,
+    /// The comment is a doc comment (starts with [`DOC_COMMENT_PREFIX`]).
+    Documentation,
+}
+
 /// The prefix for doc comments.
 pub const DOC_COMMENT_PREFIX: &str = "##";
 
@@ -696,19 +748,20 @@ impl<T: TreeToken> AstToken<T> for Comment<T> {
 }
 
 impl Comment {
-    /// Gets whether the comment starts with DIRECTIVE_COMMENT_PREFIX.
-    pub fn is_directive(&self) -> bool {
-        self.text().starts_with(DIRECTIVE_COMMENT_PREFIX)
-    }
-
     /// Try to parse the comment as a directive.
     pub fn directive(&self) -> Option<Directive> {
         self.text().parse::<Directive>().ok()
     }
 
-    /// Gets whether comment starts with [`DOC_COMMENT_PREFIX`].
-    pub fn is_doc_comment(&self) -> bool {
-        self.text().starts_with(DOC_COMMENT_PREFIX)
+    /// The type of comment.
+    pub fn kind(&self) -> CommentKind {
+        if self.text().starts_with(DOC_COMMENT_PREFIX) {
+            return CommentKind::Documentation;
+        } else if self.text().starts_with(DIRECTIVE_COMMENT_PREFIX) {
+            return CommentKind::Directive;
+        }
+
+        CommentKind::Line
     }
 
     /// Gets whether the comment is an inline comment or not.
