@@ -1,0 +1,13 @@
+error: failed to resolve symbolic import `cafe_menu`: `cafe_menu` manifest source differs from the lockfile; run `sprocket module lock` to update
+  ┌─ main.wdl:3:44
+  │
+3 │ import { make_espresso as brew_shot } from cafe_menu
+  │                                            ^^^^^^^^^
+
+error: unknown task or workflow `brew_shot`
+  ┌─ main.wdl:6:10
+  │
+6 │     call brew_shot {
+  │          ^^^^^^^^^
+
+error: failing due to 2 errors

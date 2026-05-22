@@ -75,6 +75,16 @@ pub enum ManifestError {
     /// The `license` field is not a valid SPDX expression.
     #[error(transparent)]
     License(#[from] LicenseError),
+
+    /// An I/O error occurred reading the manifest from disk.
+    #[error("failed to read `{path}`")]
+    Io {
+        /// The path that failed to read.
+        path: PathBuf,
+        /// The underlying I/O error.
+        #[source]
+        source: std::io::Error,
+    },
 }
 
 /// The `readme` field of a manifest.

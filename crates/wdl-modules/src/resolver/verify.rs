@@ -164,14 +164,14 @@ fn read_and_verify_signature(
 /// expectations.
 pub(crate) fn verify_against_lockfile(
     lockfile: &Lockfile,
+    scope: &[DependencyName],
     name: &DependencyName,
     checksum: &ContentHash,
     signer: Option<&VerifyingKey>,
 ) -> Result<(), ResolverError> {
     let locked_entry =
         lockfile
-            .dependencies
-            .get(name)
+            .find_scoped(scope, name)
             .ok_or_else(|| ResolverError::NotInLockfile {
                 dep: name.manifest().to_string(),
             })?;
@@ -313,7 +313,7 @@ mod tests {
             version: crate::LOCKFILE_VERSION,
             dependencies: deps,
         };
-        let err = verify_against_lockfile(&lockfile, &dep, &checksum, None).unwrap_err();
+        let err = verify_against_lockfile(&lockfile, &[], &dep, &checksum, None).unwrap_err();
         assert!(
             matches!(err, ResolverError::ChecksumMismatch { .. }),
             "expected `ChecksumMismatch`, got: {err}"
@@ -342,7 +342,7 @@ mod tests {
             version: crate::LOCKFILE_VERSION,
             dependencies: deps,
         };
-        let result = verify_against_lockfile(&lockfile, &dep, &checksum, None);
+        let result = verify_against_lockfile(&lockfile, &[], &dep, &checksum, None);
         assert!(result.is_ok(), "matching checksum should pass: {result:?}");
     }
 
@@ -366,7 +366,7 @@ mod tests {
             version: crate::LOCKFILE_VERSION,
             dependencies: deps,
         };
-        let err = verify_against_lockfile(&lockfile, &dep, &checksum, None).unwrap_err();
+        let err = verify_against_lockfile(&lockfile, &[], &dep, &checksum, None).unwrap_err();
         assert!(
             matches!(err, ResolverError::SignatureDowngrade { .. }),
             "expected `SignatureDowngrade`, got: {err}"
@@ -394,7 +394,8 @@ mod tests {
             version: crate::LOCKFILE_VERSION,
             dependencies: deps,
         };
-        let err = verify_against_lockfile(&lockfile, &dep, &checksum, Some(&key_b)).unwrap_err();
+        let err =
+            verify_against_lockfile(&lockfile, &[], &dep, &checksum, Some(&key_b)).unwrap_err();
         assert!(
             matches!(err, ResolverError::SignerKeyMismatch { .. }),
             "expected `SignerKeyMismatch`, got: {err}"
@@ -438,7 +439,7 @@ mod tests {
         let dep = test_dep();
         let checksum = ContentHash::from([0x01u8; 32]);
         let lockfile = Lockfile::default();
-        let err = verify_against_lockfile(&lockfile, &dep, &checksum, None).unwrap_err();
+        let err = verify_against_lockfile(&lockfile, &[], &dep, &checksum, None).unwrap_err();
         assert!(
             matches!(err, ResolverError::NotInLockfile { .. }),
             "expected `NotInLockfile`, got: {err}"

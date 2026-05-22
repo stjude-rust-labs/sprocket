@@ -636,82 +636,244 @@ fn add_selected_import(
             .alias()
             .map(|a| a.text().to_string())
             .unwrap_or_else(|| member_name.text().to_string());
+        let member_span = member
+            .alias()
+            .map(|a| a.span())
+            .unwrap_or(member_name.span());
 
-        let found_struct = imported.data.structs.get(member_name.text());
-        let found_enum = imported.data.enums.get(member_name.text());
-        let found_task = imported.data.tasks.get(member_name.text());
-        let found_workflow = imported
-            .data
-            .workflow
-            .as_ref()
-            .filter(|w| w.name == member_name.text());
+        let mut found_any = false;
+        if import_selected_struct(
+            document,
+            &imported,
+            member_name.text(),
+            &local_name,
+            member_span,
+        ) {
+            found_any = true;
+        }
+        if import_selected_enum(
+            document,
+            &imported,
+            member_name.text(),
+            &local_name,
+            member_span,
+        ) {
+            found_any = true;
+        }
+        if import_selected_task(
+            document,
+            &imported,
+            &uri,
+            member_name.text(),
+            &local_name,
+            member_span,
+            span,
+        ) {
+            found_any = true;
+        }
+        if import_selected_workflow(
+            document,
+            &imported,
+            &uri,
+            member_name.text(),
+            &local_name,
+            member_span,
+            span,
+        ) {
+            found_any = true;
+        }
 
-        if found_struct.is_none()
-            && found_enum.is_none()
-            && found_task.is_none()
-            && found_workflow.is_none()
-        {
+        if !found_any {
             document
                 .analysis_diagnostics
                 .push(selected_member_not_found(
                     member_name.text(),
                     member_name.span(),
                 ));
-            continue;
-        }
-
-        if let Some(s) = found_struct {
-            document.structs.insert(
-                local_name.clone(),
-                Struct {
-                    name_span: member_name.span(),
-                    name: local_name.clone(),
-                    offset: s.offset,
-                    node: s.node.clone(),
-                    namespace: None,
-                    ty: s.ty.clone(),
-                },
-            );
-        }
-
-        if let Some(e) = found_enum {
-            document.enums.insert(
-                local_name.clone(),
-                Enum {
-                    name_span: member_name.span(),
-                    name: local_name.clone(),
-                    offset: e.offset,
-                    node: e.node.clone(),
-                    namespace: None,
-                    ty: e.ty.clone(),
-                },
-            );
-        }
-
-        if let Some(task) = found_task {
-            document.imported_tasks.insert(
-                local_name.clone(),
-                ImportedTask {
-                    span,
-                    source: uri.clone(),
-                    inputs: task.inputs.clone(),
-                    outputs: task.outputs.clone(),
-                },
-            );
-        }
-
-        if let Some(workflow) = found_workflow {
-            document.imported_workflows.insert(
-                local_name.clone(),
-                ImportedWorkflow {
-                    span,
-                    source: uri.clone(),
-                    inputs: workflow.inputs.clone(),
-                    outputs: workflow.outputs.clone(),
-                },
-            );
         }
     }
+}
+
+/// Imports a struct member into the document. Returns `true` when a
+/// struct by that name exists in the imported module.
+fn import_selected_struct(
+    document: &mut DocumentData,
+    imported: &Document,
+    member_name: &str,
+    local_name: &str,
+    member_span: Span,
+) -> bool {
+    let Some(s) = imported.data.structs.get(member_name) else {
+        return false;
+    };
+    if let Some(prev) = document.structs.get(local_name) {
+        let a = StructDefinition::cast(SyntaxNode::new_root(prev.node.clone()))
+            .expect("node should cast");
+        let b =
+            StructDefinition::cast(SyntaxNode::new_root(s.node.clone())).expect("node should cast");
+        if !are_structs_equal(&a, &b) {
+            document.analysis_diagnostics.push(selected_import_conflict(
+                local_name,
+                member_span,
+                prev.name_span,
+            ));
+        }
+    } else {
+        document.structs.insert(
+            local_name.to_string(),
+            Struct {
+                name_span: member_span,
+                name: local_name.to_string(),
+                offset: s.offset,
+                node: s.node.clone(),
+                namespace: None,
+                ty: s.ty.clone(),
+            },
+        );
+    }
+    true
+}
+
+/// Imports an enum member into the document. Returns `true` when an
+/// enum by that name exists in the imported module.
+fn import_selected_enum(
+    document: &mut DocumentData,
+    imported: &Document,
+    member_name: &str,
+    local_name: &str,
+    member_span: Span,
+) -> bool {
+    let Some(e) = imported.data.enums.get(member_name) else {
+        return false;
+    };
+    if let Some(prev) = document.enums.get(local_name) {
+        let a = prev.definition();
+        let b = e.definition();
+        if !are_enums_equal(&a, &b) {
+            document.analysis_diagnostics.push(selected_import_conflict(
+                local_name,
+                member_span,
+                prev.name_span,
+            ));
+        }
+    } else {
+        document.enums.insert(
+            local_name.to_string(),
+            Enum {
+                name_span: member_span,
+                name: local_name.to_string(),
+                offset: e.offset,
+                node: e.node.clone(),
+                namespace: None,
+                ty: e.ty.clone(),
+            },
+        );
+    }
+    true
+}
+
+/// Imports a task or re-exported task by name. Returns `true` when
+/// the imported module exposes a task by that name (either a locally
+/// declared task or one selectively imported and thus re-exported).
+fn import_selected_task(
+    document: &mut DocumentData,
+    imported: &Document,
+    uri: &Arc<Url>,
+    member_name: &str,
+    local_name: &str,
+    member_span: Span,
+    span: Span,
+) -> bool {
+    let entry = if let Some(task) = imported.data.tasks.get(member_name) {
+        ImportedTask {
+            span,
+            source: uri.clone(),
+            inputs: task.inputs.clone(),
+            outputs: task.outputs.clone(),
+        }
+    } else if let Some(task) = imported.data.imported_tasks.get(member_name) {
+        ImportedTask {
+            span,
+            source: task.source.clone(),
+            inputs: task.inputs.clone(),
+            outputs: task.outputs.clone(),
+        }
+    } else {
+        return false;
+    };
+
+    if document.tasks.contains_key(local_name) || document.imported_tasks.contains_key(local_name) {
+        let prev_span = document
+            .tasks
+            .get(local_name)
+            .map(|t| t.name_span)
+            .or_else(|| document.imported_tasks.get(local_name).map(|t| t.span))
+            .unwrap_or(span);
+        document.analysis_diagnostics.push(selected_import_conflict(
+            local_name,
+            member_span,
+            prev_span,
+        ));
+        return true;
+    }
+    document
+        .imported_tasks
+        .insert(local_name.to_string(), entry);
+    true
+}
+
+/// Imports a workflow or re-exported workflow by name. Returns `true`
+/// when the imported module exposes a workflow by that name.
+fn import_selected_workflow(
+    document: &mut DocumentData,
+    imported: &Document,
+    uri: &Arc<Url>,
+    member_name: &str,
+    local_name: &str,
+    member_span: Span,
+    span: Span,
+) -> bool {
+    let entry = if let Some(workflow) = imported
+        .data
+        .workflow
+        .as_ref()
+        .filter(|w| w.name == member_name)
+    {
+        ImportedWorkflow {
+            span,
+            source: uri.clone(),
+            inputs: workflow.inputs.clone(),
+            outputs: workflow.outputs.clone(),
+        }
+    } else if let Some(workflow) = imported.data.imported_workflows.get(member_name) {
+        ImportedWorkflow {
+            span,
+            source: workflow.source.clone(),
+            inputs: workflow.inputs.clone(),
+            outputs: workflow.outputs.clone(),
+        }
+    } else {
+        return false;
+    };
+
+    if document.workflow.is_some() || document.imported_workflows.contains_key(local_name) {
+        let prev_span = document
+            .workflow
+            .as_ref()
+            .map(|w| w.name_span)
+            .or_else(|| document.imported_workflows.get(local_name).map(|w| w.span))
+            .unwrap_or(span);
+        document.analysis_diagnostics.push(selected_import_conflict(
+            local_name,
+            member_span,
+            prev_span,
+        ));
+        return true;
+    }
+    document
+        .imported_workflows
+        .insert(local_name.to_string(), entry);
+    true
 }
 
 /// Creates a diagnostic for a wildcard import conflict.
@@ -727,6 +889,15 @@ fn wildcard_import_conflict(name: &str, import_span: Span, prev_span: Span) -> D
 fn selected_member_not_found(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(format!("`{name}` does not exist in the imported module"))
         .with_highlight(span)
+}
+
+/// Creates a diagnostic for a selected import conflict.
+fn selected_import_conflict(name: &str, import_span: Span, prev_span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "import of `{name}` conflicts with an existing definition"
+    ))
+    .with_label("imported here", import_span)
+    .with_label("previous definition", prev_span)
 }
 
 /// Adds a struct to the document.
@@ -1247,6 +1418,15 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
 
     // Sort the scopes
     sort_scopes(&mut task.scopes);
+
+    if let Some(prev) = document.imported_tasks.get(name.text()) {
+        document.analysis_diagnostics.push(selected_import_conflict(
+            name.text(),
+            name.span(),
+            prev.span,
+        ));
+    }
+
     document.tasks.insert(name.text().to_string(), task);
 }
 

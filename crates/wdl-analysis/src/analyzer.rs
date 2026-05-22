@@ -469,6 +469,21 @@ where
             if let Some(ignore_filename) = config.ignore_filename() {
                 walker.add_custom_ignore_filename(ignore_filename);
             }
+            // Stop descending into subdirectories that declare their own
+            // module via a `module.json` file. Those directories belong to
+            // a different module (a local-path dependency) and their WDL
+            // files reach the analyzer through symbolic-import
+            // materialization, not directory scanning.
+            let root_for_filter = path.clone();
+            walker.filter_entry(move |entry| {
+                if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                    return true;
+                }
+                if entry.path() == root_for_filter {
+                    return true;
+                }
+                !wdl_modules::is_module_root(entry.path())
+            });
             let walker = walker
                 .standard_filters(false)
                 .parents(true)
@@ -1266,7 +1281,7 @@ workflow test {
         impl wdl_modules::Resolver for MockResolver {
             async fn materialize(
                 &self,
-                _consumer: &Manifest,
+                _consumer: &wdl_modules::Module,
                 path: &wdl_modules::SymbolicPath,
             ) -> Result<MaterializedFile, ResolverError> {
                 let rel = match path.sub_path() {
@@ -1291,7 +1306,7 @@ workflow test {
 
             async fn resolve_tree(
                 &self,
-                _consumer: &Manifest,
+                _consumer: &wdl_modules::Module,
             ) -> Result<ResolvedTree, ResolverError> {
                 Ok(ResolvedTree::default())
             }

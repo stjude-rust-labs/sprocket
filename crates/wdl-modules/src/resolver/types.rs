@@ -69,7 +69,7 @@ pub struct NullResolver;
 impl super::Resolver for NullResolver {
     async fn materialize(
         &self,
-        _: &crate::Manifest,
+        _: &crate::Module,
         _: &crate::SymbolicPath,
     ) -> Result<MaterializedFile, super::error::ResolverError> {
         Err(super::error::ResolverError::NotADependency {
@@ -79,7 +79,7 @@ impl super::Resolver for NullResolver {
 
     async fn resolve_tree(
         &self,
-        _: &crate::Manifest,
+        _: &crate::Module,
     ) -> Result<ResolvedTree, super::error::ResolverError> {
         Ok(ResolvedTree::default())
     }

@@ -57,6 +57,7 @@ use crate::GitSelector;
 #[cfg(feature = "resolver")]
 use crate::Lockfile;
 use crate::Manifest;
+use crate::Module;
 #[cfg(feature = "resolver")]
 use crate::RelativePath;
 #[cfg(feature = "resolver")]
@@ -124,26 +125,27 @@ pub trait Resolver: Send + Sync {
     /// to, then parses the result with the existing import machinery as
     /// if the user had written `import "<that path>"`.
     ///
-    /// - `consumer` is the manifest of the importing module.
-    /// - `path` is the parsed symbolic path.
-    ///
-    /// The resolver looks up the head component in
-    /// `consumer.dependencies`, materializes the dep's module folder if
-    /// not yet cached, and resolves either the manifest's `entrypoint`
-    /// (when the symbolic path has no sub-path) or `<sub-path>.wdl`
-    /// under the module folder.
+    /// `consumer` is the importing module: its manifest declares the
+    /// symbolic path's head component, and its root rebases any
+    /// relative `LocalPath` dependencies. `path` is the parsed
+    /// symbolic path. The resolver looks up the head component in
+    /// `consumer.manifest.dependencies`, materializes the dep's module
+    /// folder if not yet cached, and resolves either the manifest's
+    /// `entrypoint` (when the symbolic path has no sub-path) or
+    /// `<sub-path>.wdl` under the module folder.
     async fn materialize(
         &self,
-        consumer: &Manifest,
+        consumer: &Module,
         path: &SymbolicPath,
     ) -> Result<MaterializedFile, ResolverError>;
 
     /// Resolves every transitive dependency declared by `consumer`.
     ///
-    /// Walks the consumer's `dependencies` map, recurses into each dep's
+    /// Walks `consumer.manifest.dependencies`, recurses into each dep's
     /// own manifest, and records every module visited along the way.
-    /// Detects cycles.
-    async fn resolve_tree(&self, consumer: &Manifest) -> Result<ResolvedTree, ResolverError>;
+    /// Relative `LocalPath` entries are resolved against the declaring
+    /// module's root. Detects cycles.
+    async fn resolve_tree(&self, consumer: &Module) -> Result<ResolvedTree, ResolverError>;
 
     /// Lists discovered versions for a dependency source that satisfy
     /// the requirement, in descending semver order.
@@ -209,13 +211,13 @@ impl GitResolver {
     /// Checks that a locked local-path dep matches the manifest declaration.
     fn validate_locked_local(
         &self,
+        scope: &[DependencyName],
         name: &DependencyName,
         path: &Path,
     ) -> Result<(), ResolverError> {
         let locked_entry =
             self.lockfile
-                .dependencies
-                .get(name)
+                .find_scoped(scope, name)
                 .ok_or_else(|| ResolverError::NotInLockfile {
                     dep: name.manifest().to_string(),
                 })?;
@@ -293,6 +295,7 @@ impl GitResolver {
     fn resolve_dependencies<'a>(
         &'a self,
         deps: &'a BTreeMap<DependencyName, DependencySource>,
+        parent_root: &'a Path,
         parent: Option<&'a ResolvedSource>,
         chain: &'a mut Vec<(DependencyName, ResolvedSource)>,
     ) -> BoxFuture<'a, Result<BTreeMap<DependencyName, ResolvedDependency>, ResolverError>> {
@@ -324,9 +327,16 @@ impl GitResolver {
                 // Materialize the dependency on disk and read its manifest.
                 let (resolved_source, manifest, module_root) = match source {
                     DependencySource::LocalPath { path, .. } => {
-                        let manifest = read_manifest(path)?;
-                        let resolved = ResolvedSource::Path { path: path.clone() };
-                        let root = MaterializedRoot::Local(path.clone());
+                        let resolved_path = if path.is_absolute() {
+                            path.clone()
+                        } else {
+                            parent_root.join(path)
+                        };
+                        let manifest = read_manifest(&resolved_path)?;
+                        let resolved = ResolvedSource::Path {
+                            path: resolved_path.clone(),
+                        };
+                        let root = MaterializedRoot::Local(resolved_path);
                         (resolved, manifest, root)
                     }
                     DependencySource::Git {
@@ -388,10 +398,18 @@ impl GitResolver {
                         }
                     })?;
 
-                // Recurse into transitive dependencies.
+                // Recurse into transitive dependencies. Pass this dep's
+                // module root so that relative `LocalPath` entries in its
+                // own manifest resolve against the right directory.
+                let child_root = module_root.module_root();
                 chain.push((name.clone(), resolved_source.clone()));
                 let inner = self
-                    .resolve_dependencies(&manifest.dependencies, Some(&resolved_source), chain)
+                    .resolve_dependencies(
+                        &manifest.dependencies,
+                        child_root,
+                        Some(&resolved_source),
+                        chain,
+                    )
                     .await
                     .inspect_err(|_| {
                         chain.pop();
@@ -581,20 +599,18 @@ impl GitResolver {
 impl Resolver for GitResolver {
     async fn materialize(
         &self,
-        consumer: &Manifest,
+        consumer: &Module,
         path: &SymbolicPath,
     ) -> Result<MaterializedFile, ResolverError> {
         // Look up the dependency declaration in the consumer's manifest.
         let name = path.dep_name();
         tracing::debug!(dep = %name.manifest(), "materializing symbolic import");
         let scope = DependencyScope::TopLevel;
-        let source =
-            consumer
-                .dependencies
-                .get(name)
-                .ok_or_else(|| ResolverError::NotADependency {
-                    name: name.manifest().to_string(),
-                })?;
+        let source = consumer.manifest.dependencies.get(name).ok_or_else(|| {
+            ResolverError::NotADependency {
+                name: name.manifest().to_string(),
+            }
+        })?;
 
         // Enforce URL scheme and host policy before any network access.
         if let DependencySource::Git { url, .. } = source {
@@ -604,10 +620,13 @@ impl Resolver for GitResolver {
         // Materialize the dependency on disk and read its manifest.
         let (resolved_source, manifest, module_root) = match source {
             DependencySource::LocalPath { path, .. } => {
-                self.validate_locked_local(name, path)?;
-                let manifest = read_manifest(path)?;
-                let resolved = ResolvedSource::Path { path: path.clone() };
-                let root = MaterializedRoot::Local(path.clone());
+                let resolved_path = consumer.resolve_local_path(path);
+                self.validate_locked_local(&consumer.lockfile_scope, name, &resolved_path)?;
+                let manifest = read_manifest(&resolved_path)?;
+                let resolved = ResolvedSource::Path {
+                    path: resolved_path.clone(),
+                };
+                let root = MaterializedRoot::Local(resolved_path);
                 (resolved, manifest, root)
             }
             DependencySource::Git {
@@ -658,6 +677,7 @@ impl Resolver for GitResolver {
         // Confirm the on-disk content matches the lockfile expectations.
         crate::resolver::verify::verify_against_lockfile(
             &self.lockfile,
+            &consumer.lockfile_scope,
             name,
             &verified.checksum,
             verified.signer.as_ref(),
@@ -713,12 +733,17 @@ impl Resolver for GitResolver {
         })
     }
 
-    async fn resolve_tree(&self, consumer: &Manifest) -> Result<ResolvedTree, ResolverError> {
+    async fn resolve_tree(&self, consumer: &Module) -> Result<ResolvedTree, ResolverError> {
         // Walk every transitive dependency starting from the consumer's
         // direct dependencies, collecting the full resolved tree.
         let mut chain: Vec<(DependencyName, ResolvedSource)> = Vec::new();
         let dependencies = self
-            .resolve_dependencies(&consumer.dependencies, None, &mut chain)
+            .resolve_dependencies(
+                &consumer.manifest.dependencies,
+                &consumer.root,
+                None,
+                &mut chain,
+            )
             .await?;
         Ok(ResolvedTree { dependencies })
     }
@@ -985,11 +1010,18 @@ fn exclude_set(patterns: &[crate::RelativePath]) -> Result<globset::GlobSet, Res
 #[cfg(test)]
 mod tests {
     use std::fs;
+    use std::sync::Arc;
 
     use tempfile::TempDir;
     use tempfile::tempdir;
 
     use super::*;
+
+    /// Builds a `Module` from a parsed `Manifest` and the directory it
+    /// lives in.
+    fn module(manifest: Manifest, root: &Path) -> Module {
+        Module::new(Arc::new(manifest), root.to_path_buf())
+    }
 
     fn checksum() -> crate::ContentHash {
         "sha256:0000000000000000000000000000000000000000000000000000000000000000"
@@ -1033,7 +1065,7 @@ mod tests {
     }
 
     /// Resolves a consumer's tree and builds a lockfile from it.
-    async fn resolve_and_lock(cache: &TempDir, consumer: &Manifest) -> (GitResolver, Lockfile) {
+    async fn resolve_and_lock(cache: &TempDir, consumer: &Module) -> (GitResolver, Lockfile) {
         resolve_and_lock_with_config(
             cache,
             consumer,
@@ -1045,14 +1077,15 @@ mod tests {
 
     async fn resolve_and_lock_with_config(
         cache: &TempDir,
-        consumer: &Manifest,
+        consumer: &Module,
         policy: ResolverPolicy,
         trust: TrustStore,
     ) -> (GitResolver, Lockfile) {
         let r = resolver(cache);
         let tree = r.resolve_tree(consumer).await.unwrap();
         let outcome =
-            crate::resolver::lock::partial_relock(consumer, &Lockfile::default(), &tree).unwrap();
+            crate::resolver::lock::partial_relock(&consumer.manifest, &Lockfile::default(), &tree)
+                .unwrap();
         let locked = GitResolver::builder()
             .cache_root(cache.path())
             .trust(trust)
@@ -1100,6 +1133,7 @@ mod tests {
 
         let bytes = fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap();
         let consumer = Manifest::parse(&bytes).unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let tree = resolver(&cache).resolve_tree(&consumer).await.unwrap();
@@ -1131,6 +1165,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let err = resolver(&cache)
@@ -1156,6 +1191,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let (_, mut lockfile) = resolve_and_lock(&cache, &consumer).await;
@@ -1185,6 +1221,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
@@ -1208,6 +1245,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
@@ -1239,6 +1277,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
@@ -1252,6 +1291,7 @@ mod tests {
         let consumer2 =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer2 = module(consumer2, &consumer_dir);
 
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
@@ -1373,6 +1413,7 @@ mod tests {
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let bytes = fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap();
         let consumer = Manifest::parse(&bytes).unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
@@ -1404,6 +1445,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
@@ -1427,6 +1469,7 @@ mod tests {
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("dep", &dep_src)]);
         let bytes = fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap();
         let consumer = Manifest::parse(&bytes).unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
@@ -1471,6 +1514,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
@@ -1500,6 +1544,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         // Lock with `require_signed` disabled so the unsigned dep can
         // be recorded in the lockfile. The replay below then enforces
@@ -1541,6 +1586,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
@@ -1580,6 +1626,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let pinned = crate::signing::test_utils::signing_key_from_seed(99).verifying_key();
         let trust = TrustStore {
@@ -1620,6 +1667,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
@@ -1655,6 +1703,7 @@ mod tests {
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[]);
         let bytes = fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap();
         let consumer = Manifest::parse(&bytes).unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let err = resolver(&cache)
@@ -1678,6 +1727,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let tree = resolver(&cache).resolve_tree(&consumer).await.unwrap();
@@ -1700,6 +1750,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
@@ -1739,6 +1790,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
@@ -1774,6 +1826,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let err = resolver(&cache).resolve_tree(&consumer).await.unwrap_err();
@@ -1797,6 +1850,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let pinned = crate::signing::test_utils::signing_key_from_seed(99).verifying_key();
         let trust = TrustStore {
@@ -1841,6 +1895,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let err = resolver(&cache).resolve_tree(&consumer).await.unwrap_err();
@@ -1867,6 +1922,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
@@ -1898,6 +1954,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
@@ -1930,6 +1987,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let r = GitResolver::builder()
@@ -1967,6 +2025,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let (_, lockfile_v1) = resolve_and_lock(&cache, &consumer).await;
@@ -2004,6 +2063,7 @@ mod tests {
         write_manifest(&consumer_dir, "consumer", "0.1.0", &[("loop", &self_src)]);
         let bytes = fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap();
         let consumer = Manifest::parse(&bytes).unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let err = resolver(&cache).resolve_tree(&consumer).await.unwrap_err();
@@ -2026,6 +2086,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
@@ -2081,6 +2142,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
@@ -2123,6 +2185,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
@@ -2154,6 +2217,7 @@ mod tests {
         let consumer =
             Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
                 .unwrap();
+        let consumer = module(consumer, &consumer_dir);
 
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;

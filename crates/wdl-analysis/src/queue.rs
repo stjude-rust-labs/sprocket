@@ -5,6 +5,7 @@ use std::marker::PhantomData;
 use std::ops::Range;
 use std::panic;
 use std::panic::AssertUnwindSafe;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
@@ -43,7 +44,7 @@ use wdl_ast::Severity;
 use wdl_ast::v1::ImportSource;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
-use wdl_modules::Manifest;
+use wdl_modules::Module;
 use wdl_modules::SymbolicPath;
 
 use crate::AnalysisResult;
@@ -289,10 +290,11 @@ pub struct AnalysisQueue<Progress, Context, Return, Validator> {
     client: Client,
     /// The module resolver used for resolving WDL module imports.
     resolver: Arc<dyn wdl_modules::Resolver>,
-    /// The path to the manifest file, if any.
-    manifest_path: Option<PathBuf>,
-    /// Cached manifests keyed by directory path.
-    manifests: parking_lot::Mutex<HashMap<PathBuf, Arc<Manifest>>>,
+    /// The consumer's [`Module`], if a `module.json` was found.
+    consumer_module: Option<Module>,
+    /// Maps each document URI to the [`Module`] that governs it.
+    /// Populated at resolution time so the lookup is direct.
+    document_modules: parking_lot::Mutex<HashMap<Url, Module>>,
     /// The progress callback to use.
     progress: Arc<Progress>,
     /// The validator callback to use.
@@ -317,13 +319,17 @@ where
         progress: Progress,
         validator: Validator,
     ) -> Self {
+        let consumer_module = manifest_path
+            .as_ref()
+            .and_then(|p| Module::load_from_path(p.parent()?).ok());
+
         Self {
             graph: Arc::new(RwLock::new(DocumentGraph::new(config.clone()))),
             config,
             tokio,
             resolver,
-            manifest_path,
-            manifests: parking_lot::Mutex::new(HashMap::new()),
+            consumer_module,
+            document_modules: parking_lot::Mutex::new(HashMap::new()),
             progress: Arc::new(progress),
             marker: PhantomData,
             client: Default::default(),
@@ -805,6 +811,11 @@ where
     fn add_documents(&self, documents: IndexSet<Url>) {
         let mut graph = self.graph.write();
         for document in documents {
+            if let Some(ref module) = self.consumer_module {
+                self.document_modules
+                    .lock()
+                    .insert(document.clone(), module.clone());
+            }
             graph.add_node(document, true);
         }
     }
@@ -1151,8 +1162,8 @@ where
                                 subgraph.insert(import_index);
                             }
                             ImportSource::ModulePath(module_path) => {
-                                let manifest =
-                                    match self.find_manifest_for_document(graph.get(index).uri()) {
+                                let consumer_module =
+                                    match self.find_module_for_document(graph.get(index).uri()) {
                                         Some(m) => m,
                                         None => continue,
                                     };
@@ -1167,10 +1178,9 @@ where
                                     path = %module_path.text(),
                                     "resolving symbolic import",
                                 );
-                                match self
-                                    .tokio
-                                    .block_on(self.resolver.materialize(&manifest, &symbolic_path))
-                                {
+                                match self.tokio.block_on(
+                                    self.resolver.materialize(&consumer_module, &symbolic_path),
+                                ) {
                                     Ok(materialized) => {
                                         let Some(import_uri) =
                                             Url::from_file_path(&materialized.path).ok()
@@ -1178,16 +1188,29 @@ where
                                             continue;
                                         };
 
-                                        self.manifests
+                                        // The materialized dependency's
+                                        // manifest sits in the parent of the
+                                        // materialized file. Build a child
+                                        // [`Module`] that extends the
+                                        // consumer's lockfile scope by the
+                                        // dep name so transitive imports
+                                        // from this file resolve their own
+                                        // relative paths and lockfile
+                                        // entries correctly.
+                                        let import_manifest_dir = materialized
+                                            .path
+                                            .parent()
+                                            .map(Path::to_path_buf)
+                                            .unwrap_or_else(|| materialized.path.clone());
+                                        let import_module = consumer_module.child(
+                                            symbolic_path.dep_name().clone(),
+                                            materialized.manifest.clone(),
+                                            import_manifest_dir,
+                                        );
+
+                                        self.document_modules
                                             .lock()
-                                            .entry(
-                                                materialized
-                                                    .path
-                                                    .parent()
-                                                    .unwrap_or(&materialized.path)
-                                                    .to_path_buf(),
-                                            )
-                                            .or_insert_with(|| materialized.manifest.clone());
+                                            .insert(import_uri.clone(), import_module);
 
                                         let import_uri = Arc::new(import_uri);
                                         let import_index =
@@ -1281,18 +1304,9 @@ where
         (index, document)
     }
 
-    /// Looks up (or lazily loads) the [`Manifest`] that governs `_uri`.
-    fn find_manifest_for_document(&self, _uri: &Url) -> Option<Arc<Manifest>> {
-        let manifest_path = self.manifest_path.as_ref()?;
-        let mut manifests = self.manifests.lock();
-        if let Some(m) = manifests.get(manifest_path) {
-            return Some(m.clone());
-        }
-        let bytes = std::fs::read(manifest_path).ok()?;
-        let manifest = Manifest::parse(&bytes).ok()?;
-        let arc = Arc::new(manifest);
-        manifests.insert(manifest_path.clone(), arc.clone());
-        Some(arc)
+    /// Returns the [`Module`] that governs the document at `uri`.
+    fn find_module_for_document(&self, uri: &Url) -> Option<Module> {
+        self.document_modules.lock().get(uri).cloned()
     }
 }
 

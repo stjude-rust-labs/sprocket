@@ -34,6 +34,7 @@ pub mod hash;
 pub mod license;
 pub mod lockfile;
 pub mod manifest;
+pub mod module;
 pub mod module_walk;
 pub mod relative_path;
 pub mod resolver;
@@ -67,6 +68,8 @@ pub use crate::manifest::Manifest;
 pub use crate::manifest::ManifestError;
 pub use crate::manifest::Readme;
 pub use crate::manifest::Tool;
+pub use crate::module::Module;
+pub use crate::module::is_module_root;
 pub use crate::relative_path::RelativePath;
 pub use crate::relative_path::RelativePathError;
 #[cfg(feature = "resolver")]

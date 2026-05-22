@@ -670,7 +670,6 @@ pub(crate) struct ImportedTask {
     /// The span of the import statement that introduced this task.
     pub span: Span,
     /// The source URI the task came from.
-    #[expect(dead_code)]
     pub source: Arc<Url>,
     /// The inputs of the task.
     pub inputs: Arc<IndexMap<String, Input>>,
@@ -684,7 +683,6 @@ pub(crate) struct ImportedWorkflow {
     /// The span of the import statement.
     pub span: Span,
     /// The source URI.
-    #[expect(dead_code)]
     pub source: Arc<Url>,
     /// The inputs of the workflow.
     pub inputs: Arc<IndexMap<String, Input>>,

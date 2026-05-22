@@ -79,6 +79,29 @@ impl Lockfile {
 /// A `dependencies` map keyed by consumer-chosen dependency names.
 pub type DependencyMap = BTreeMap<DependencyName, DependencyEntry>;
 
+impl Lockfile {
+    /// Looks up the entry for `name` in the lockfile slice identified
+    /// by `scope`. The scope walks the nested `dependencies` tree from
+    /// the top-level lockfile to the parent dependency that contains
+    /// the entry being looked up.
+    ///
+    /// An empty scope looks up `name` directly in
+    /// [`Lockfile::dependencies`], matching the top-level case. A
+    /// scope of `[cafe_menu]` looks up `name` in
+    /// `dependencies["cafe_menu"].dependencies`.
+    pub fn find_scoped(
+        &self,
+        scope: &[DependencyName],
+        name: &DependencyName,
+    ) -> Option<&DependencyEntry> {
+        let mut current = &self.dependencies;
+        for parent in scope {
+            current = &current.get(parent)?.dependencies;
+        }
+        current.get(name)
+    }
+}
+
 /// One entry in a [`DependencyMap`].
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
