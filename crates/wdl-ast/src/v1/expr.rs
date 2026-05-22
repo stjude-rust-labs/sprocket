@@ -907,11 +907,26 @@ impl<N: TreeNode> Expr<N> {
     /// Determines if the expression is an empty array literal or any number of
     /// parenthesized expressions that terminate with an empty array literal.
     pub fn is_empty_array_literal(&self) -> bool {
-        match self {
-            Self::Parenthesized(expr) => expr.expr().is_empty_array_literal(),
-            Self::Literal(LiteralExpr::Array(expr)) => expr.elements().next().is_none(),
-            _ => false,
+        if let Self::Literal(LiteralExpr::Array(expr)) = self.clone().strip_parenthesized() {
+            return expr.elements().next().is_none();
         }
+
+        false
+    }
+
+    /// Strip all layers of [`Expr::Parenthesized`] and return the inner
+    /// expression.
+    pub fn strip_parenthesized(self) -> Self {
+        let mut expr = self;
+        loop {
+            if let Self::Parenthesized(inner) = expr {
+                expr = inner.expr();
+                continue;
+            }
+
+            break;
+        }
+        expr
     }
 }
 
@@ -3367,6 +3382,18 @@ impl<N: TreeNode> AccessExpr<N> {
         let name = Ident::cast(self.0.last_token().expect("expected a last token"))
             .expect("expected an ident token");
         (operand, name)
+    }
+
+    /// Whether this is an access on the `task` variable.
+    pub fn is_task_access(&self) -> bool {
+        let (target, _) = self.operands();
+        if let Expr::NameRef(expr) = target.strip_parenthesized()
+            && expr.name().text() == "task"
+        {
+            return true;
+        }
+
+        false
     }
 }
 

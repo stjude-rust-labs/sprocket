@@ -19,6 +19,7 @@ use rowan::WalkEvent;
 use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
+use wdl_ast::Comment;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
@@ -29,7 +30,13 @@ use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::CallTarget;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::EnumDefinition;
+use wdl_ast::v1::EnumVariant;
+use wdl_ast::v1::Expr;
 use wdl_ast::v1::ImportStatement;
+use wdl_ast::v1::LiteralStruct;
+use wdl_ast::v1::LiteralStructItem;
+use wdl_ast::v1::MetadataObjectItem;
+use wdl_ast::v1::ParameterMetadataSection;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TypeRef;
@@ -51,6 +58,7 @@ pub const WDL_SEMANTIC_TOKEN_TYPES: &[SemanticTokenType] = &[
     SemanticTokenType::PROPERTY, // expression members
     SemanticTokenType::STRUCT,
     SemanticTokenType::ENUM,
+    SemanticTokenType::ENUM_MEMBER,
     SemanticTokenType::TYPE,
     SemanticTokenType::STRING,
     SemanticTokenType::NUMBER,
@@ -64,6 +72,10 @@ pub const WDL_SEMANTIC_TOKEN_MODIFIERS: &[SemanticTokenModifier] = &[
     SemanticTokenModifier::ASYNC,
     SemanticTokenModifier::DEPRECATED,
     SemanticTokenModifier::DECLARATION,
+    SemanticTokenModifier::DEFAULT_LIBRARY,
+    SemanticTokenModifier::DEFINITION,
+    SemanticTokenModifier::DOCUMENTATION,
+    SemanticTokenModifier::READONLY,
 ];
 
 /// Handles a semantic token request for a full document.
@@ -216,26 +228,27 @@ fn token_ty(token: &SyntaxToken, document: &Document) -> Option<(SemanticTokenTy
     }
 
     let ty = match kind {
-        SyntaxKind::Comment => Some(SemanticTokenType::COMMENT),
+        SyntaxKind::Comment => {
+            let comment = Comment::cast(token.clone()).expect("should cast");
+            if comment.is_doc_comment() {
+                add_modifier(&mut modifiers, SemanticTokenModifier::DOCUMENTATION);
+            }
+
+            Some(SemanticTokenType::COMMENT)
+        },
         SyntaxKind::LiteralStringText
         | SyntaxKind::SingleQuote
-        | SyntaxKind::DoubleQuote
-        | SyntaxKind::OpenHeredoc
-        | SyntaxKind::CloseHeredoc
-        | SyntaxKind::LiteralCommandText => Some(SemanticTokenType::STRING),
-        SyntaxKind::Integer | SyntaxKind::Float => Some(SemanticTokenType::NUMBER),
+        | SyntaxKind::DoubleQuote => Some(SemanticTokenType::STRING),
+        SyntaxKind::OpenHeredoc
+        | SyntaxKind::CloseHeredoc if parent.kind() == SyntaxKind::LiteralStringNode => Some(SemanticTokenType::STRING),
+        SyntaxKind::Integer
+        | SyntaxKind::Float
+        // The version may not be an actual number (e.g., 1.3), but it still
+        // logically maps to a version number.
+        | SyntaxKind::Version => Some(SemanticTokenType::NUMBER),
         k if k.is_keyword() => Some(SemanticTokenType::KEYWORD),
         k if k.is_operator() => Some(SemanticTokenType::OPERATOR),
-        SyntaxKind::BooleanTypeKeyword
-        | SyntaxKind::IntTypeKeyword
-        | SyntaxKind::FloatTypeKeyword
-        | SyntaxKind::StringTypeKeyword
-        | SyntaxKind::FileTypeKeyword
-        | SyntaxKind::DirectoryTypeKeyword
-        | SyntaxKind::ArrayTypeKeyword
-        | SyntaxKind::PairTypeKeyword
-        | SyntaxKind::MapTypeKeyword
-        | SyntaxKind::ObjectTypeKeyword => Some(SemanticTokenType::TYPE),
+        k if k.is_type() => Some(SemanticTokenType::TYPE),
         SyntaxKind::Ident => resolve_identifier_ty(token, &parent, document, &mut modifiers),
         _ => None,
     };
@@ -264,29 +277,49 @@ fn resolve_identifier_ty(
     if let Some(t) = TaskDefinition::cast(parent.clone())
         && t.name().inner() == token
     {
-        add_modifier(modifiers, SemanticTokenModifier::DECLARATION);
+        add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
         return Some(SemanticTokenType::FUNCTION);
     }
 
     if let Some(w) = WorkflowDefinition::cast(parent.clone())
         && w.name().inner() == token
     {
-        add_modifier(modifiers, SemanticTokenModifier::DECLARATION);
+        add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
         return Some(SemanticTokenType::FUNCTION);
     }
 
     if let Some(s) = StructDefinition::cast(parent.clone())
         && s.name().inner() == token
     {
-        add_modifier(modifiers, SemanticTokenModifier::DECLARATION);
+        add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
         return Some(SemanticTokenType::STRUCT);
+    }
+
+    if let Some(s) = LiteralStruct::cast(parent.clone())
+        && s.name().inner() == token
+    {
+        return Some(SemanticTokenType::STRUCT);
+    }
+
+    if let Some(s) = LiteralStructItem::cast(parent.clone()) {
+        let (name, _) = s.name_value();
+        if name.inner() == token {
+            return Some(SemanticTokenType::PROPERTY);
+        }
     }
 
     if let Some(e) = EnumDefinition::cast(parent.clone())
         && e.name().inner() == token
     {
-        add_modifier(modifiers, SemanticTokenModifier::DECLARATION);
+        add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
         return Some(SemanticTokenType::ENUM);
+    }
+
+    if let Some(e) = EnumVariant::cast(parent.clone())
+        && e.name().inner() == token
+    {
+        add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
+        return Some(SemanticTokenType::ENUM_MEMBER);
     }
 
     if let Some(d) = Decl::cast(parent.clone())
@@ -304,6 +337,18 @@ fn resolve_identifier_ty(
         }
     }
 
+    if let Some(m) = MetadataObjectItem::cast(parent.clone())
+        && m.name().inner() == token
+    {
+        add_modifier(modifiers, SemanticTokenModifier::READONLY);
+        return if m.parent::<ParameterMetadataSection>().is_some() {
+            Some(SemanticTokenType::PARAMETER)
+        } else {
+            // I guess?
+            Some(SemanticTokenType::PROPERTY)
+        };
+    }
+
     if let Some(ty_ref) = TypeRef::cast(parent.clone())
         && ty_ref.name().inner() == token
     {
@@ -319,58 +364,85 @@ fn resolve_identifier_ty(
     if let Some(c) = CallExpr::cast(parent.clone())
         && c.target().inner() == token
     {
+        add_modifier(modifiers, SemanticTokenModifier::DEFAULT_LIBRARY);
         return Some(SemanticTokenType::FUNCTION);
     }
 
     if let Some(i) = parent.ancestors().find_map(ImportStatement::cast)
         && i.explicit_namespace().is_some_and(|ns| ns.inner() == token)
     {
+        add_modifier(modifiers, SemanticTokenModifier::DECLARATION);
         return Some(SemanticTokenType::NAMESPACE);
     }
 
     if let Some(ct) = CallTarget::cast(parent.clone()) {
         let names: Vec<_> = ct.names().collect();
-        if names.len() > 1 && names[0].inner() == token {
-            return Some(SemanticTokenType::NAMESPACE);
-        }
         if names.last().is_some_and(|n| n.inner() == token) {
             return Some(SemanticTokenType::FUNCTION);
         }
+
+        return Some(SemanticTokenType::NAMESPACE);
     }
 
     if let Some(a) = parent.ancestors().find_map(AccessExpr::cast) {
-        let (_, member) = a.operands();
-        if member.inner() == token {
+        let (target, member) = a.operands();
+
+        let ident_targets_rhs = member.inner() == token;
+        if let Expr::NameRef(name_expr) = target.strip_parenthesized() {
+            let ident_targets_lhs = token == name_expr.name().inner();
+            if document.struct_by_name(name_expr.name().text()).is_some() {
+                return Some(SemanticTokenType::STRUCT);
+            } else if let Some(e) = document.enum_by_name(name_expr.name().text()) {
+                if ident_targets_lhs {
+                    return Some(SemanticTokenType::ENUM);
+                } else if ident_targets_rhs
+                    && e.definition()
+                        .variants()
+                        .any(|v| v.name().text() == token.text())
+                {
+                    return Some(SemanticTokenType::ENUM_MEMBER);
+                }
+            }
+        }
+
+        if a.is_task_access() {
+            add_modifier(modifiers, SemanticTokenModifier::DEFAULT_LIBRARY);
+            add_modifier(modifiers, SemanticTokenModifier::READONLY);
+        }
+
+        if ident_targets_rhs {
             return Some(SemanticTokenType::PROPERTY);
         }
+    }
+
+    match parent.kind() {
+        SyntaxKind::UnboundDeclNode => {
+            for ancestor in parent.ancestors() {
+                match ancestor.kind() {
+                    SyntaxKind::InputSectionNode => {
+                        add_modifier(modifiers, SemanticTokenModifier::READONLY);
+                        return Some(SemanticTokenType::PARAMETER);
+                    }
+                    SyntaxKind::StructDefinitionNode => return Some(SemanticTokenType::PROPERTY),
+                    _ => {}
+                }
+            }
+
+            return None;
+        }
+        SyntaxKind::EnumVariantNode => {
+            return Some(SemanticTokenType::ENUM_MEMBER);
+        }
+        SyntaxKind::BoundDeclNode => return Some(SemanticTokenType::VARIABLE),
+        _ => {}
     }
 
     // Fallback to scope lookup
     if let Some(scope) = document.find_scope_by_position(token.span().start())
         && let Some(name_info) = scope.lookup(token.text())
+        && matches!(name_info.ty(), Type::Call(_))
     {
-        return match name_info.ty() {
-            Type::Call(_) => Some(SemanticTokenType::VARIABLE),
-            _ => {
-                let offset = name_info.span().start().try_into().ok()?;
-                let root = document.root();
-                let def_token = root
-                    .inner()
-                    .token_at_offset(offset)
-                    .find(|t| t.span() == name_info.span() && t.kind() == SyntaxKind::Ident)?;
-                let def_parent = def_token.parent()?;
-                if def_parent.kind() == SyntaxKind::UnboundDeclNode
-                    && def_parent
-                        .ancestors()
-                        .any(|n| n.kind() == SyntaxKind::InputSectionNode)
-                {
-                    add_modifier(modifiers, SemanticTokenModifier::READONLY);
-                    Some(SemanticTokenType::PARAMETER)
-                } else {
-                    Some(SemanticTokenType::VARIABLE)
-                }
-            }
-        };
+        return Some(SemanticTokenType::VARIABLE);
     }
 
     None

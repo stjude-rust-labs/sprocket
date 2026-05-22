@@ -597,42 +597,34 @@ impl SyntaxKind {
     }
 
     /// Returns whether the [`SyntaxKind`] is a keyword.
+    ///
+    /// NOTE: This does not include types, see [`Self::is_type()`].
     pub fn is_keyword(&self) -> bool {
         matches!(
             self,
             SyntaxKind::AfterKeyword
                 | SyntaxKind::AliasKeyword
-                | SyntaxKind::ArrayTypeKeyword
                 | SyntaxKind::AsKeyword
-                | SyntaxKind::BooleanTypeKeyword
                 | SyntaxKind::CallKeyword
                 | SyntaxKind::CommandKeyword
-                | SyntaxKind::DirectoryTypeKeyword
                 | SyntaxKind::ElseKeyword
                 | SyntaxKind::EnvKeyword
                 | SyntaxKind::FalseKeyword
-                | SyntaxKind::FileTypeKeyword
-                | SyntaxKind::FloatTypeKeyword
                 | SyntaxKind::FromKeyword
                 | SyntaxKind::HintsKeyword
                 | SyntaxKind::IfKeyword
                 | SyntaxKind::ImportKeyword
                 | SyntaxKind::InKeyword
                 | SyntaxKind::InputKeyword
-                | SyntaxKind::IntTypeKeyword
-                | SyntaxKind::MapTypeKeyword
                 | SyntaxKind::MetaKeyword
                 | SyntaxKind::NoneKeyword
                 | SyntaxKind::NullKeyword
                 | SyntaxKind::ObjectKeyword
-                | SyntaxKind::ObjectTypeKeyword
                 | SyntaxKind::OutputKeyword
-                | SyntaxKind::PairTypeKeyword
                 | SyntaxKind::ParameterMetaKeyword
                 | SyntaxKind::RequirementsKeyword
                 | SyntaxKind::RuntimeKeyword
                 | SyntaxKind::ScatterKeyword
-                | SyntaxKind::StringTypeKeyword
                 | SyntaxKind::StructKeyword
                 | SyntaxKind::EnumKeyword
                 | SyntaxKind::TaskKeyword
@@ -640,6 +632,23 @@ impl SyntaxKind {
                 | SyntaxKind::TrueKeyword
                 | SyntaxKind::VersionKeyword
                 | SyntaxKind::WorkflowKeyword
+        )
+    }
+
+    /// Returns whether the [`SyntaxKind`] is a predefined type keyword.
+    pub fn is_type(&self) -> bool {
+        matches!(
+            self,
+            SyntaxKind::ArrayTypeKeyword
+                | SyntaxKind::BooleanTypeKeyword
+                | SyntaxKind::DirectoryTypeKeyword
+                | SyntaxKind::FileTypeKeyword
+                | SyntaxKind::FloatTypeKeyword
+                | SyntaxKind::IntTypeKeyword
+                | SyntaxKind::MapTypeKeyword
+                | SyntaxKind::ObjectTypeKeyword
+                | SyntaxKind::PairTypeKeyword
+                | SyntaxKind::StringTypeKeyword
         )
     }
 
