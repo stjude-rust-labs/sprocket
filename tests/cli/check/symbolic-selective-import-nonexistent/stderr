@@ -1,8 +1,8 @@
-error: failed to resolve symbolic import `coffeeshop`: `coffeeshop` manifest source differs from the lockfile; run `sprocket module lock` to update
-  ┌─ main.wdl:3:31
+error: `brew_kombucha` does not exist in the imported module
+  ┌─ main.wdl:3:10
   │
 3 │ import { brew_kombucha } from coffeeshop
-  │                               ^^^^^^^^^^
+  │          ^^^^^^^^^^^^^
 
 error: unknown task or workflow `brew_kombucha`
   ┌─ main.wdl:6:10

@@ -211,18 +211,23 @@ impl GitResolver {
     /// Checks that a locked local-path dep matches the manifest declaration.
     fn validate_locked_local(
         &self,
-        scope: &[DependencyName],
+        consumer: &Module,
         name: &DependencyName,
         path: &Path,
     ) -> Result<(), ResolverError> {
-        let locked_entry =
-            self.lockfile
-                .find_scoped(scope, name)
-                .ok_or_else(|| ResolverError::NotInLockfile {
-                    dep: name.manifest().to_string(),
-                })?;
+        let locked_entry = self
+            .lockfile
+            .find_scoped(&consumer.lockfile_scope, name)
+            .ok_or_else(|| ResolverError::NotInLockfile {
+                dep: name.manifest().to_string(),
+            })?;
         if let ResolvedSource::Path { path: locked_path } = &locked_entry.source {
-            if path != locked_path {
+            // The lockfile may store either an absolute path or one
+            // written relative to the declaring `module.json`. Rebase
+            // both sides through the consumer so the comparison is
+            // independent of how the path was originally written.
+            let locked_resolved = consumer.resolve_local_path(locked_path);
+            if path != locked_resolved {
                 return Err(ResolverError::LockfileSourceMismatch {
                     dep: name.manifest().to_string(),
                 });
@@ -621,7 +626,7 @@ impl Resolver for GitResolver {
         let (resolved_source, manifest, module_root) = match source {
             DependencySource::LocalPath { path, .. } => {
                 let resolved_path = consumer.resolve_local_path(path);
-                self.validate_locked_local(&consumer.lockfile_scope, name, &resolved_path)?;
+                self.validate_locked_local(consumer, name, &resolved_path)?;
                 let manifest = read_manifest(&resolved_path)?;
                 let resolved = ResolvedSource::Path {
                     path: resolved_path.clone(),
