@@ -1382,4 +1382,142 @@ workflow test {
             errors.iter().map(|d| d.message()).collect::<Vec<_>>()
         );
     }
+
+    #[tokio::test]
+    async fn concurrent_symbolic_imports_faster_than_serial() {
+        use std::time::Duration;
+        use std::time::Instant;
+
+        use wdl_modules::Manifest;
+        use wdl_modules::MaterializedFile;
+        use wdl_modules::ResolvedSource;
+        use wdl_modules::ResolvedTree;
+        use wdl_modules::ResolverError;
+
+        /// A resolver that sleeps 200 ms per `materialize` call so that N
+        /// serial calls would take N × 200 ms, but N concurrent calls should
+        /// finish in roughly 200 ms.
+        struct SlowMockResolver {
+            dep_path: PathBuf,
+            delay: Duration,
+        }
+
+        #[async_trait::async_trait]
+        impl wdl_modules::Resolver for SlowMockResolver {
+            async fn materialize(
+                &self,
+                _consumer: &wdl_modules::Module,
+                path: &wdl_modules::SymbolicPath,
+            ) -> Result<MaterializedFile, ResolverError> {
+                tokio::time::sleep(self.delay).await;
+                let rel = match path.sub_path() {
+                    Some(sub) => {
+                        let mut p = sub.to_path_buf();
+                        p.set_extension("wdl");
+                        p
+                    }
+                    None => std::path::PathBuf::from("index.wdl"),
+                };
+                let file_path = self.dep_path.join(rel);
+                let manifest_bytes = fs::read(self.dep_path.join("module.json")).unwrap();
+                let manifest = Manifest::parse(&manifest_bytes).unwrap();
+                Ok(MaterializedFile {
+                    path: file_path,
+                    source: ResolvedSource::Path {
+                        path: self.dep_path.clone(),
+                    },
+                    manifest: Arc::new(manifest),
+                })
+            }
+
+            async fn resolve_tree(
+                &self,
+                _consumer: &wdl_modules::Module,
+            ) -> Result<ResolvedTree, ResolverError> {
+                Ok(ResolvedTree::default())
+            }
+
+            async fn discover_versions(
+                &self,
+                _name: &wdl_modules::DependencyName,
+                _source: &wdl_modules::DependencySource,
+                _scope: wdl_modules::DependencyScope,
+            ) -> Result<Vec<semver::Version>, ResolverError> {
+                Ok(Vec::new())
+            }
+        }
+
+        const IMPORT_COUNT: usize = 8;
+        const DELAY_MS: u64 = 200;
+        // Serial wall-clock would be IMPORT_COUNT × DELAY_MS.
+        // Concurrent should finish in roughly DELAY_MS; allow 4× headroom for
+        // CI.
+        const MAX_ALLOWED_MS: u64 = DELAY_MS * 4;
+
+        let dir = TempDir::new().expect("failed to create temporary directory");
+
+        let dep_dir = dir.path().join("slowdep");
+        fs::create_dir_all(&dep_dir).unwrap();
+        fs::write(
+            dep_dir.join("module.json"),
+            r#"{"name":"slowdep","version":"1.0.0","license":"MIT"}"#,
+        )
+        .unwrap();
+        for i in 0..IMPORT_COUNT {
+            fs::write(
+                dep_dir.join(format!("sub{i}.wdl")),
+                "version 1.4\n\ntask noop {\n    command <<<>>>\n}\n",
+            )
+            .unwrap();
+        }
+        fs::write(
+            dep_dir.join("index.wdl"),
+            "version 1.4\n\ntask noop {\n    command <<<>>>\n}\n",
+        )
+        .unwrap();
+
+        let consumer_dir = dir.path().join("slowconsumer");
+        fs::create_dir_all(&consumer_dir).unwrap();
+        let dep_path_json = dep_dir.display().to_string().replace('\\', "/");
+        fs::write(
+            consumer_dir.join("module.json"),
+            format!(
+                r#"{{"name":"slowconsumer","version":"0.1.0","license":"MIT","dependencies":{{"slowdep":{{"path":"{dep_path_json}"}}}}}}"#
+            ),
+        )
+        .unwrap();
+
+        let mut source = "version 1.4\n\n".to_string();
+        for i in 0..IMPORT_COUNT {
+            source.push_str(&format!("import slowdep/sub{i}\n"));
+        }
+        source.push_str("\nworkflow main {}\n");
+        fs::write(consumer_dir.join("source.wdl"), &source).unwrap();
+
+        let config = Config::default()
+            .with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+        let resolver: Arc<dyn wdl_modules::Resolver> = Arc::new(SlowMockResolver {
+            dep_path: dep_dir.clone(),
+            delay: Duration::from_millis(DELAY_MS),
+        });
+        let manifest_path = consumer_dir.join("module.json");
+        let analyzer = Analyzer::new(config, resolver, Some(manifest_path), |(), _, _, _| async {
+        });
+        analyzer
+            .add_document(path_to_uri(&consumer_dir.join("source.wdl")).expect("should convert"))
+            .await
+            .expect("should add document");
+
+        let start = Instant::now();
+        let results = analyzer.analyze(()).await.unwrap();
+        let elapsed = start.elapsed();
+
+        assert!(!results.is_empty(), "should have analysis results");
+        assert!(
+            elapsed.as_millis() < MAX_ALLOWED_MS as u128,
+            "`{IMPORT_COUNT}` concurrent symbolic imports should complete in under \
+             {MAX_ALLOWED_MS} ms; took {elapsed:?} (serial would be ~{serial_ms} ms)",
+            serial_ms = IMPORT_COUNT as u64 * DELAY_MS,
+        );
+    }
 }

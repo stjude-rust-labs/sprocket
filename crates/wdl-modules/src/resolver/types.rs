@@ -72,9 +72,7 @@ impl super::Resolver for NullResolver {
         _: &crate::Module,
         _: &crate::SymbolicPath,
     ) -> Result<MaterializedFile, super::error::ResolverError> {
-        Err(super::error::ResolverError::NotADependency {
-            name: "symbolic imports require a module context".into(),
-        })
+        Err(super::error::ResolverError::NoModuleContext)
     }
 
     async fn resolve_tree(

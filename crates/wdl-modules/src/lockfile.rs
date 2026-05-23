@@ -89,6 +89,18 @@ impl Lockfile {
     /// [`Lockfile::dependencies`], matching the top-level case. A
     /// scope of `[cafe_menu]` looks up `name` in
     /// `dependencies["cafe_menu"].dependencies`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use wdl_modules::Lockfile;
+    ///
+    /// let lockfile = Lockfile::default();
+    /// let name = "my_dep".parse().unwrap();
+    ///
+    /// // An empty lockfile returns `None` for any lookup.
+    /// assert!(lockfile.find_scoped(&[], &name).is_none());
+    /// ```
     pub fn find_scoped(
         &self,
         scope: &[DependencyName],
@@ -367,6 +379,71 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(err, LockfileError::InvalidJson(_)));
+    }
+
+    fn make_entry(checksum_byte: u8) -> DependencyEntry {
+        DependencyEntry {
+            source: ResolvedSource::Path {
+                path: "../stub".into(),
+            },
+            version: "0.1.0".parse().unwrap(),
+            checksum: ContentHash::from([checksum_byte; 32]),
+            signer: None,
+            dependencies: DependencyMap::new(),
+        }
+    }
+
+    fn dep(name: &str) -> DependencyName {
+        DependencyName::try_from(name.to_string()).unwrap()
+    }
+
+    #[test]
+    fn find_scoped_empty_scope_top_level_hit() {
+        let mut lockfile = Lockfile::default();
+        lockfile.dependencies.insert(dep("alpha"), make_entry(0x01));
+        let result = lockfile.find_scoped(&[], &dep("alpha"));
+        assert!(
+            result.is_some(),
+            "`find_scoped` should return the top-level entry"
+        );
+        assert_eq!(result.unwrap().checksum, ContentHash::from([0x01u8; 32]));
+    }
+
+    #[test]
+    fn find_scoped_empty_scope_miss() {
+        let lockfile = Lockfile::default();
+        let result = lockfile.find_scoped(&[], &dep("missing"));
+        assert!(
+            result.is_none(),
+            "`find_scoped` on empty lockfile should return `None`"
+        );
+    }
+
+    #[test]
+    fn find_scoped_nested_hit() {
+        let mut child_deps = DependencyMap::new();
+        child_deps.insert(dep("beta"), make_entry(0x02));
+        let mut parent = make_entry(0x01);
+        parent.dependencies = child_deps;
+        let mut lockfile = Lockfile::default();
+        lockfile.dependencies.insert(dep("alpha"), parent);
+        let result = lockfile.find_scoped(&[dep("alpha")], &dep("beta"));
+        assert!(
+            result.is_some(),
+            "`find_scoped` should find `beta` under `alpha`"
+        );
+        assert_eq!(result.unwrap().checksum, ContentHash::from([0x02u8; 32]));
+    }
+
+    #[test]
+    fn find_scoped_missing_parent_returns_none() {
+        let mut lockfile = Lockfile::default();
+        lockfile.dependencies.insert(dep("alpha"), make_entry(0x01));
+        let result = lockfile.find_scoped(&[dep("ghost")], &dep("alpha"));
+        assert!(
+            result.is_none(),
+            "`find_scoped` should short-circuit when parent `ghost` is absent"
+        );
     }
 
     #[test]

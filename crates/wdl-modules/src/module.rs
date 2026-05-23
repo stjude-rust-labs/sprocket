@@ -28,6 +28,21 @@ use crate::manifest::ManifestError;
 /// Directory walkers use this to recognize module boundaries: a
 /// directory that owns a `module.json` is the entrypoint of a separate
 /// module and should not be analyzed as part of an ancestor module.
+///
+/// # Examples
+///
+/// ```
+/// use wdl_modules::is_module_root;
+///
+/// let dir = tempfile::tempdir().unwrap();
+///
+/// // A directory without `module.json` is not a module root.
+/// assert!(!is_module_root(dir.path()));
+///
+/// // Creating `module.json` inside it makes it a module root.
+/// std::fs::write(dir.path().join("module.json"), b"{}").unwrap();
+/// assert!(is_module_root(dir.path()));
+/// ```
 pub fn is_module_root(dir: &Path) -> bool {
     dir.join(crate::MANIFEST_FILENAME).is_file()
 }

@@ -1,6 +1,7 @@
 //! Facilities for performing a typical analysis using the `wdl-*` crates.
 
 use std::collections::HashSet;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -148,14 +149,23 @@ impl Analysis {
     /// Checks the current working directory for a `module.json` and
     /// constructs a resolver if one is found and `modules_config` is
     /// set.
-    fn build_resolver_from_cwd(&self) -> (Arc<dyn wdl_modules::Resolver>, Option<PathBuf>) {
+    ///
+    /// Returns an error if a `module.json` is present but malformed.
+    fn build_resolver_from_cwd(
+        &self,
+    ) -> anyhow::Result<(Arc<dyn wdl_modules::Resolver>, Option<PathBuf>)> {
         let Some(ref modules_config) = self.modules_config else {
-            return (Arc::new(wdl_modules::NullResolver), None);
+            return Ok((Arc::new(wdl_modules::NullResolver), None));
         };
 
-        let manifest_path = match std::env::current_dir() {
-            Ok(cwd) => cwd.join(wdl_modules::MANIFEST_FILENAME),
-            Err(_) => return (Arc::new(wdl_modules::NullResolver), None),
+        let cwd = match std::env::current_dir() {
+            Ok(cwd) => cwd,
+            Err(_) => return Ok((Arc::new(wdl_modules::NullResolver), None)),
+        };
+
+        let manifest_path = match discover_manifest(&cwd)? {
+            Some((path, _)) => path,
+            None => return Ok((Arc::new(wdl_modules::NullResolver), None)),
         };
 
         match build_resolver(modules_config, &manifest_path) {
@@ -164,13 +174,10 @@ impl Analysis {
                     manifest = %path.display(),
                     "found `module.json`; symbolic imports will resolve through the module system"
                 );
-                (resolver, Some(path))
+                Ok((resolver, Some(path)))
             }
-            Ok(None) => (Arc::new(wdl_modules::NullResolver), None),
-            Err(e) => {
-                warn!(error = %e, "failed to construct module resolver; symbolic imports will not resolve");
-                (Arc::new(wdl_modules::NullResolver), None)
-            }
+            Ok(None) => Ok((Arc::new(wdl_modules::NullResolver), None)),
+            Err(e) => Err(e),
         }
     }
 
@@ -195,7 +202,9 @@ impl Analysis {
             info!("enabled lint rules: {:?}", enabled_rules);
             info!("disabled lint rules: {:?}", disabled_rules);
         }
-        let (resolver, manifest_path) = self.build_resolver_from_cwd();
+        let (resolver, manifest_path) = self
+            .build_resolver_from_cwd()
+            .map_err(|e| NonEmpty::new(Arc::new(e)))?;
 
         let config = wdl::analysis::Config::default()
             .with_fallback_version(self.fallback_version)
@@ -262,6 +271,68 @@ impl Default for Analysis {
     }
 }
 
+/// Returns the default cache root, anchored to `manifest_dir` when present.
+///
+/// Precedence: `manifest_dir/.sprocket/cache/modules` →
+/// `config_root/cache/modules` → `dirs::cache_dir()/sprocket/modules` →
+/// `.sprocket/cache/modules` (CWD-relative last resort).
+pub(crate) fn default_cache_root(manifest_dir: Option<&Path>) -> PathBuf {
+    if let Some(dir) = manifest_dir {
+        return dir.join(".sprocket").join("cache").join("modules");
+    }
+    if let Some(root) = crate::config::config_root() {
+        return root.join("cache").join("modules");
+    }
+    if let Some(cache) = dirs::cache_dir() {
+        return cache.join("sprocket").join("modules");
+    }
+    PathBuf::from(".sprocket/cache/modules")
+}
+
+/// Returns the default trust-store path, anchored to `manifest_dir` when
+/// present.
+///
+/// Precedence: `manifest_dir/.sprocket/modules-trust.toml` →
+/// `config_root/modules-trust.toml` →
+/// `dirs::config_dir()/sprocket/modules-trust.toml` →
+/// `modules-trust.toml` (CWD-relative last resort).
+pub(crate) fn default_trust_path(manifest_dir: Option<&Path>) -> PathBuf {
+    if let Some(dir) = manifest_dir {
+        return dir.join(".sprocket").join("modules-trust.toml");
+    }
+    if let Some(root) = crate::config::config_root() {
+        return root.join("modules-trust.toml");
+    }
+    if let Some(cfg) = dirs::config_dir() {
+        return cfg.join("sprocket").join("modules-trust.toml");
+    }
+    PathBuf::from("modules-trust.toml")
+}
+
+/// Discovers a `module.json` in the given directory.
+///
+/// Returns `Ok(None)` if no manifest file exists in `cwd`. Returns the
+/// manifest path and the parsed [`wdl_modules::Manifest`] on success, or an
+/// error if the file exists but cannot be read or parsed.
+pub(crate) fn discover_manifest(
+    cwd: &Path,
+) -> anyhow::Result<Option<(PathBuf, wdl_modules::Manifest)>> {
+    use anyhow::Context as _;
+
+    let manifest_path = cwd.join(wdl_modules::MANIFEST_FILENAME);
+
+    if !manifest_path.exists() {
+        return Ok(None);
+    }
+
+    let bytes = std::fs::read(&manifest_path)
+        .with_context(|| format!("reading `{}`", manifest_path.display()))?;
+    let manifest = wdl_modules::Manifest::parse(&bytes)
+        .with_context(|| format!("parsing `{}`", manifest_path.display()))?;
+
+    Ok(Some((manifest_path, manifest)))
+}
+
 /// Constructs a [`GitResolver`](wdl_modules::GitResolver) from the given
 /// `[modules]` config and a `module.json` path. Returns `None` if the
 /// manifest file does not exist; returns an error if the file exists but
@@ -276,11 +347,6 @@ pub fn build_resolver(
         return Ok(None);
     }
 
-    let bytes = std::fs::read(manifest_path)
-        .with_context(|| format!("reading `{}`", manifest_path.display()))?;
-    let _manifest = wdl_modules::Manifest::parse(&bytes)
-        .with_context(|| format!("parsing `{}`", manifest_path.display()))?;
-
     let lockfile_path = manifest_path.with_file_name(wdl_modules::LOCKFILE_FILENAME);
     let lockfile = if lockfile_path.exists() {
         let lock_bytes = std::fs::read(&lockfile_path)
@@ -291,15 +357,14 @@ pub fn build_resolver(
         wdl_modules::Lockfile::default()
     };
 
+    let manifest_dir = manifest_path.parent();
+
     let cache_root = modules_config
         .cache_path
         .clone()
-        .or_else(|| crate::config::config_root().map(|r| r.join("cache").join("modules")))
-        .unwrap_or_else(|| PathBuf::from(".sprocket/cache/modules"));
+        .unwrap_or_else(|| default_cache_root(manifest_dir));
 
-    let trust_path = crate::config::config_root()
-        .map(|r| r.join("modules-trust.toml"))
-        .unwrap_or_else(|| PathBuf::from("modules-trust.toml"));
+    let trust_path = default_trust_path(manifest_dir);
 
     let trust = wdl_modules::TrustStore::load_or_default(&trust_path)
         .with_context(|| format!("loading trust store at `{}`", trust_path.display()))?;
@@ -387,4 +452,75 @@ fn get_lint_visitor(
                 .then_some(rule as Box<dyn Rule>)
             }),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::default_cache_root;
+    use super::default_trust_path;
+
+    #[test]
+    fn cache_root_uses_manifest_dir() {
+        let dir = Path::new("/some/project");
+        let result = default_cache_root(Some(dir));
+        assert_eq!(
+            result,
+            Path::new("/some/project/.sprocket/cache/modules"),
+            "`default_cache_root` with `Some(manifest_dir)` should be manifest-anchored"
+        );
+    }
+
+    #[test]
+    fn trust_path_uses_manifest_dir() {
+        let dir = Path::new("/some/project");
+        let result = default_trust_path(Some(dir));
+        assert_eq!(
+            result,
+            Path::new("/some/project/.sprocket/modules-trust.toml"),
+            "`default_trust_path` with `Some(manifest_dir)` should be manifest-anchored"
+        );
+    }
+
+    #[test]
+    fn cache_root_none_falls_back_to_os_or_string() {
+        let result = default_cache_root(None);
+        // The path always ends with `cache/modules` regardless of which
+        // fallback branch was taken.
+        assert!(
+            result.ends_with("cache/modules"),
+            "`default_cache_root(None)` should end with `cache/modules`, got `{}`",
+            result.display()
+        );
+        // When any OS/config dir is available the path must be absolute.
+        if crate::config::config_root().is_some() || dirs::cache_dir().is_some() {
+            assert!(
+                result.is_absolute(),
+                "`default_cache_root(None)` should be absolute, got `{}`",
+                result.display()
+            );
+        }
+    }
+
+    #[test]
+    fn trust_path_none_falls_back_to_os_or_string() {
+        let result = default_trust_path(None);
+        let file_name = result.file_name().map(|n| n.to_string_lossy().into_owned());
+        assert_eq!(
+            file_name.as_deref(),
+            Some("modules-trust.toml"),
+            "`default_trust_path(None)` should always end with `modules-trust.toml`, got `{}`",
+            result.display()
+        );
+        // Must not be CWD-relative when an OS config dir is available.
+        if dirs::config_dir().is_some() {
+            assert!(
+                result.is_absolute(),
+                "`default_trust_path(None)` should be absolute when `dirs::config_dir()` is \
+                 available, got `{}`",
+                result.display()
+            );
+        }
+    }
 }

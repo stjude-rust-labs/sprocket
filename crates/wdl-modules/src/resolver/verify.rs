@@ -447,6 +447,45 @@ mod tests {
     }
 
     #[test]
+    fn verify_against_lockfile_with_scope() {
+        let checksum = ContentHash::from([0x42u8; 32]);
+        let parent = DependencyName::try_from("parent_dep".to_string()).unwrap();
+        let child = DependencyName::try_from("child_dep".to_string()).unwrap();
+
+        let mut child_deps = BTreeMap::new();
+        child_deps.insert(
+            child.clone(),
+            DependencyEntry {
+                source: test_source(),
+                version: Version::new(1, 0, 0),
+                checksum,
+                signer: None,
+                dependencies: BTreeMap::new(),
+            },
+        );
+        let mut top_deps = BTreeMap::new();
+        top_deps.insert(
+            parent.clone(),
+            DependencyEntry {
+                source: test_source(),
+                version: Version::new(2, 0, 0),
+                checksum: ContentHash::from([0x01u8; 32]),
+                signer: None,
+                dependencies: child_deps,
+            },
+        );
+        let lockfile = Lockfile {
+            version: crate::LOCKFILE_VERSION,
+            dependencies: top_deps,
+        };
+        let result = verify_against_lockfile(&lockfile, &[parent], &child, &checksum, None);
+        assert!(
+            result.is_ok(),
+            "scoped lockfile lookup should pass: {result:?}"
+        );
+    }
+
+    #[test]
     fn trust_store_rejects_wrong_signer() {
         let dir = tempdir().unwrap();
         write_signed_module(dir.path(), "version 1.2\n", 0xAB);
