@@ -1117,158 +1117,251 @@ where
         range: Range<usize>,
         space: &mut DfsSpace,
     ) -> Result<()> {
-        let mut graph = self.graph.write();
+        // A work item collected during Phase A that requires an async
+        // `materialize` call in Phase B.
+        struct SymbolicWorkItem {
+            /// The node that contains the import statement.
+            importer: NodeIndex,
+            /// The resolved consumer module for the importer.
+            consumer_module: wdl_modules::Module,
+            /// The parsed symbolic path from the import statement.
+            symbolic_path: SymbolicPath,
+            /// The raw text of the module-path token, used as the edge label
+            /// and for error messages.
+            path_text: String,
+        }
 
-        // Start by updating the parsed nodes
-        for (index, state) in parsed {
-            let node = graph.get_mut(index);
-            let state = state
-                .with_context(|| format!("failed to parse document `{uri}`", uri = node.uri()))?;
-            node.parse_completed(state);
+        // Phase A: under graph.write(), handle parse completion and URI
+        // imports. Symbolic imports are collected as work items instead of
+        // being driven serially here, so the write lock is held for as short a
+        // time as possible.
+        let (parsed_indices, symbolic_work): (Vec<NodeIndex>, Vec<SymbolicWorkItem>) = {
+            let mut graph = self.graph.write();
+            let mut indices = Vec::new();
+            let mut work = Vec::new();
 
-            // Remove all dependency edges from the node as the imports might have changed
-            graph.remove_dependency_edges(index);
+            for (index, state) in parsed {
+                let node = graph.get_mut(index);
+                let state = state.with_context(|| {
+                    format!("failed to parse document `{uri}`", uri = node.uri())
+                })?;
+                node.parse_completed(state);
 
-            // Add back dependency edges for the document's imports
-            match graph
-                .get(index)
-                .root()
-                .map(|d| d.ast_with_version_fallback(self.config.fallback_version()))
-            {
-                None | Some(Ast::Unsupported) => {}
-                Some(Ast::V1(ast)) => {
-                    for import in ast.imports() {
-                        match import.source() {
-                            ImportSource::Uri(uri) => {
-                                let text = match uri.text() {
-                                    Some(text) => text,
-                                    None => continue,
-                                };
+                // Remove all dependency edges from the node as the imports
+                // might have changed, and clear any stale
+                // failed-symbolic-import diagnostics at the same time so they
+                // do not survive into the re-analysis pass.
+                graph.remove_dependency_edges(index);
+                graph.get_mut(index).clear_failed_symbolic_imports();
 
-                                let import_uri = match graph.get(index).uri().join(text.text()) {
-                                    Ok(uri) => uri,
-                                    Err(_) => continue,
-                                };
+                // Add back dependency edges for URI imports; queue symbolic
+                // imports for concurrent materialization.
+                match graph
+                    .get(index)
+                    .root()
+                    .map(|d| d.ast_with_version_fallback(self.config.fallback_version()))
+                {
+                    None | Some(Ast::Unsupported) => {}
+                    Some(Ast::V1(ast)) => {
+                        for import in ast.imports() {
+                            match import.source() {
+                                ImportSource::Uri(uri) => {
+                                    let text = match uri.text() {
+                                        Some(text) => text,
+                                        None => continue,
+                                    };
 
-                                let import_index = graph
-                                    .get_index(&import_uri)
-                                    .unwrap_or_else(|| graph.add_node(import_uri, false));
-                                graph.add_dependency_edge(
-                                    index,
-                                    import_index,
-                                    EdgeKind::Uri,
-                                    space,
-                                );
-                                subgraph.insert(import_index);
-                            }
-                            ImportSource::ModulePath(module_path) => {
-                                let consumer_module =
-                                    match self.find_module_for_document(graph.get(index).uri()) {
+                                    let import_uri = match graph.get(index).uri().join(text.text())
+                                    {
+                                        Ok(uri) => uri,
+                                        Err(_) => continue,
+                                    };
+
+                                    let import_index = graph
+                                        .get_index(&import_uri)
+                                        .unwrap_or_else(|| graph.add_node(import_uri, false));
+                                    graph.add_dependency_edge(
+                                        index,
+                                        import_index,
+                                        EdgeKind::Uri,
+                                        space,
+                                    );
+                                    subgraph.insert(import_index);
+                                }
+                                ImportSource::ModulePath(module_path) => {
+                                    let consumer_module = match self
+                                        .find_module_for_document(graph.get(index).uri())
+                                    {
                                         Some(m) => m,
                                         None => continue,
                                     };
 
-                                let Ok(symbolic_path): Result<SymbolicPath, _> =
-                                    module_path.text().try_into()
-                                else {
-                                    continue;
-                                };
-
-                                tracing::debug!(
-                                    path = %module_path.text(),
-                                    "resolving symbolic import",
-                                );
-                                match self.tokio.block_on(
-                                    self.resolver.materialize(&consumer_module, &symbolic_path),
-                                ) {
-                                    Ok(materialized) => {
-                                        let Some(import_uri) =
-                                            Url::from_file_path(&materialized.path).ok()
-                                        else {
-                                            continue;
-                                        };
-
-                                        // The materialized dependency's
-                                        // manifest sits in the parent of the
-                                        // materialized file. Build a child
-                                        // [`Module`] that extends the
-                                        // consumer's lockfile scope by the
-                                        // dep name so transitive imports
-                                        // from this file resolve their own
-                                        // relative paths and lockfile
-                                        // entries correctly.
-                                        let import_manifest_dir = materialized
-                                            .path
-                                            .parent()
-                                            .map(Path::to_path_buf)
-                                            .unwrap_or_else(|| materialized.path.clone());
-                                        let import_module = consumer_module.child(
-                                            symbolic_path.dep_name().clone(),
-                                            materialized.manifest.clone(),
-                                            import_manifest_dir,
-                                        );
-
-                                        self.document_modules
-                                            .lock()
-                                            .insert(import_uri.clone(), import_module);
-
-                                        let import_uri = Arc::new(import_uri);
-                                        let import_index =
-                                            graph.get_index(&import_uri).unwrap_or_else(|| {
-                                                graph.add_node((*import_uri).clone(), false)
-                                            });
-                                        graph.add_dependency_edge(
-                                            index,
-                                            import_index,
-                                            EdgeKind::Symbolic(module_path.text()),
-                                            space,
-                                        );
-                                        subgraph.insert(import_index);
-                                    }
-                                    Err(e) => {
-                                        graph.insert_failed_symbolic_import(
-                                            index,
-                                            module_path.text(),
-                                            e.to_string(),
-                                        );
+                                    let Ok(symbolic_path): Result<SymbolicPath, _> =
+                                        module_path.text().try_into()
+                                    else {
                                         continue;
-                                    }
+                                    };
+
+                                    work.push(SymbolicWorkItem {
+                                        importer: index,
+                                        consumer_module,
+                                        symbolic_path,
+                                        path_text: module_path.text().to_string(),
+                                    });
                                 }
                             }
                         }
                     }
                 }
+
+                indices.push(index);
             }
 
-            // Because of the way WDL works by implicitly introducing import names into
-            // document scope, any change to a file must cause all transitive dependencies
-            // to be reanalyzed; therefore, do a BFS from the parsed node and add any
-            // discovered nodes to the subgraph
-            graph.bfs_mut(index, |graph, dependent: NodeIndex| {
-                if index == dependent {
-                    return;
-                }
+            (indices, work)
+        };
+        // graph write lock is released here.
 
-                let node = graph.get_mut(dependent);
-                if !subgraph.contains(&dependent) {
-                    trace!(
-                        "adding dependent document `{uri}` for analysis",
-                        uri = node.uri()
-                    );
-                    subgraph.insert(dependent);
-                }
+        // Phase B: drive all `materialize` calls concurrently.
+        //
+        // Each future yields `(importer, path_text, result)` so that Phase C
+        // can stitch the results back into the graph without holding the lock
+        // during I/O.
+        type MaterializeOutcome = (
+            NodeIndex,
+            String,
+            Result<wdl_modules::MaterializedFile, wdl_modules::ResolverError>,
+        );
 
-                node.reanalyze();
-            });
+        let materialized_results: Vec<MaterializeOutcome> = if symbolic_work.is_empty() {
+            Vec::new()
+        } else {
+            tracing::debug!(
+                count = symbolic_work.len(),
+                "resolving symbolic imports concurrently",
+            );
+            let resolver = Arc::clone(&self.resolver);
+            let futures: FuturesUnordered<_> = symbolic_work
+                .into_iter()
+                .map(|item| {
+                    let resolver = Arc::clone(&resolver);
+                    async move {
+                        tracing::debug!(path = %item.path_text, "resolving symbolic import");
+                        let result = resolver
+                            .materialize(&item.consumer_module, &item.symbolic_path)
+                            .await;
+                        (item.importer, item.path_text, result)
+                    }
+                })
+                .collect();
+
+            self.tokio
+                .block_on(futures.collect::<Vec<MaterializeOutcome>>())
+        };
+
+        // Phase C: under graph.write(), stitch materialization results and run
+        // the BFS pass for all parsed nodes.
+        {
+            let mut graph = self.graph.write();
+
+            for (importer, path_text, outcome) in materialized_results {
+                match outcome {
+                    Ok(materialized) => {
+                        let import_uri = match Url::from_file_path(&materialized.path) {
+                            Ok(u) => u,
+                            Err(()) => {
+                                graph.insert_failed_symbolic_import(
+                                    importer,
+                                    path_text,
+                                    format!(
+                                        "materialized path is not absolute: `{}`",
+                                        materialized.path.display()
+                                    ),
+                                );
+                                continue;
+                            }
+                        };
+
+                        // The materialized dependency's manifest sits in the
+                        // parent of the materialized file. Build a child
+                        // [`Module`] that extends the consumer's lockfile
+                        // scope by the dep name so transitive imports from
+                        // this file resolve their own relative paths and
+                        // lockfile entries correctly.
+                        let symbolic_path: SymbolicPath = match path_text.parse() {
+                            Ok(p) => p,
+                            Err(_) => continue,
+                        };
+                        let import_manifest_dir = materialized
+                            .path
+                            .parent()
+                            .map(Path::to_path_buf)
+                            .unwrap_or_else(|| materialized.path.clone());
+                        let consumer_module = self
+                            .find_module_for_document(graph.get(importer).uri())
+                            .expect("consumer module must exist; was present in Phase A");
+                        let import_module = consumer_module.child(
+                            symbolic_path.dep_name().clone(),
+                            materialized.manifest.clone(),
+                            import_manifest_dir,
+                        );
+
+                        self.document_modules
+                            .lock()
+                            .insert(import_uri.clone(), import_module);
+
+                        let import_uri = Arc::new(import_uri);
+                        let import_index = graph
+                            .get_index(&import_uri)
+                            .unwrap_or_else(|| graph.add_node((*import_uri).clone(), false));
+                        graph.add_dependency_edge(
+                            importer,
+                            import_index,
+                            EdgeKind::Symbolic(path_text),
+                            space,
+                        );
+                        subgraph.insert(import_index);
+                    }
+                    Err(e) => {
+                        graph.insert_failed_symbolic_import(importer, path_text, e.to_string());
+                    }
+                }
+            }
+
+            // Because of the way WDL works by implicitly introducing import
+            // names into document scope, any change to a file must cause all
+            // transitive dependents to be reanalyzed; therefore, do a BFS
+            // from each parsed node and add any discovered nodes to the
+            // subgraph.
+            for index in &parsed_indices {
+                let index = *index;
+                graph.bfs_mut(index, |graph, dependent: NodeIndex| {
+                    if index == dependent {
+                        return;
+                    }
+
+                    let node = graph.get_mut(dependent);
+                    if !subgraph.contains(&dependent) {
+                        trace!(
+                            "adding dependent document `{uri}` for analysis",
+                            uri = node.uri()
+                        );
+                        subgraph.insert(dependent);
+                    }
+
+                    node.reanalyze();
+                });
+            }
+
+            // Add the direct dependencies of the subgraph slice to the
+            // subgraph.
+            let mut dependencies = Vec::new();
+            for index in subgraph.get_range(range).expect("range should be valid") {
+                dependencies.extend(graph.dependencies(*index));
+            }
+
+            subgraph.extend(dependencies);
         }
 
-        // Add the direct dependencies of the subgraph slice to the subgraph
-        let mut dependencies = Vec::new();
-        for index in subgraph.get_range(range).expect("range should be valid") {
-            dependencies.extend(graph.dependencies(*index));
-        }
-
-        subgraph.extend(dependencies);
         Ok(())
     }
 

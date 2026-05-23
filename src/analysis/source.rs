@@ -164,10 +164,8 @@ pub fn resolve_module_entrypoint(
         );
     }
 
-    let bytes = std::fs::read(&manifest_path)
-        .with_context(|| format!("reading `{}`", manifest_path.display()))?;
-    let manifest = wdl_modules::Manifest::parse(&bytes)
-        .with_context(|| format!("parsing `{}`", manifest_path.display()))?;
+    let (_, manifest) = crate::analysis::discover_manifest(dir)?
+        .expect("manifest existence was already verified above");
 
     let entrypoint = dir.join(manifest.entrypoint_filename());
     anyhow::ensure!(

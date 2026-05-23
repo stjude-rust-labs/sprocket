@@ -583,14 +583,38 @@ fn add_wildcard_import(
         );
     }
 
+    for (name, task) in &imported.data.imported_tasks {
+        if document.tasks.contains_key(name) || document.imported_tasks.contains_key(name) {
+            document.analysis_diagnostics.push(wildcard_import_conflict(
+                name,
+                span,
+                document
+                    .tasks
+                    .get(name)
+                    .map(|t| t.name_span)
+                    .or_else(|| document.imported_tasks.get(name).map(|t| t.span))
+                    .unwrap_or(span),
+            ));
+            continue;
+        }
+        document.imported_tasks.insert(
+            name.clone(),
+            ImportedTask {
+                span,
+                source: task.source.clone(),
+                inputs: task.inputs.clone(),
+                outputs: task.outputs.clone(),
+            },
+        );
+    }
+
     if let Some(workflow) = &imported.data.workflow {
         let name = &workflow.name;
-        if document.workflow.is_some() || document.imported_workflows.contains_key(name) {
+        if document.imported_workflows.contains_key(name) {
             let prev_span = document
-                .workflow
-                .as_ref()
-                .map(|w| w.name_span)
-                .or_else(|| document.imported_workflows.get(name).map(|w| w.span))
+                .imported_workflows
+                .get(name)
+                .map(|w| w.span)
                 .unwrap_or(span);
             document
                 .analysis_diagnostics
@@ -606,6 +630,29 @@ fn add_wildcard_import(
                 },
             );
         }
+    }
+
+    for (name, workflow) in &imported.data.imported_workflows {
+        if document.imported_workflows.contains_key(name) {
+            let prev_span = document
+                .imported_workflows
+                .get(name)
+                .map(|w| w.span)
+                .unwrap_or(span);
+            document
+                .analysis_diagnostics
+                .push(wildcard_import_conflict(name, span, prev_span));
+            continue;
+        }
+        document.imported_workflows.insert(
+            name.clone(),
+            ImportedWorkflow {
+                span,
+                source: workflow.source.clone(),
+                inputs: workflow.inputs.clone(),
+                outputs: workflow.outputs.clone(),
+            },
+        );
     }
 }
 
@@ -856,12 +903,11 @@ fn import_selected_workflow(
         return false;
     };
 
-    if document.workflow.is_some() || document.imported_workflows.contains_key(local_name) {
+    if document.imported_workflows.contains_key(local_name) {
         let prev_span = document
-            .workflow
-            .as_ref()
-            .map(|w| w.name_span)
-            .or_else(|| document.imported_workflows.get(local_name).map(|w| w.span))
+            .imported_workflows
+            .get(local_name)
+            .map(|w| w.span)
             .unwrap_or(span);
         document.analysis_diagnostics.push(selected_import_conflict(
             local_name,

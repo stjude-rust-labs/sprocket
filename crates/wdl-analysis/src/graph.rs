@@ -47,7 +47,7 @@ pub type DfsSpace = petgraph::algo::DfsSpace<
 >;
 
 /// The kind of dependency edge between two documents in the graph.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EdgeKind {
     /// A URI import (e.g., `import "https://example.com/foo.wdl"`).
     Uri,
@@ -57,7 +57,7 @@ pub enum EdgeKind {
 }
 
 /// Represents the parse state of a document graph node.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub enum ParseState {
     /// The document is not parsed.
     NotParsed,
@@ -213,6 +213,14 @@ impl DocumentGraphNode {
 
         // Clear any document change
         self.change = None;
+    }
+
+    /// Clears all failed symbolic import entries for this node.
+    ///
+    /// Call this alongside [`DocumentGraph::remove_dependency_edges`] so that
+    /// stale failure diagnostics do not survive a re-analysis pass.
+    pub fn clear_failed_symbolic_imports(&mut self) {
+        self.failed_symbolic_imports.clear();
     }
 
     /// Gets the analyzed document for the node.
