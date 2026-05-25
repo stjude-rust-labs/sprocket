@@ -8,6 +8,7 @@ use crate::diagnostics;
 use crate::document::ScopeRef;
 use crate::types::v1::EvaluationContext;
 
+mod call_hierarchy;
 mod common;
 mod completions;
 mod document_symbol;
@@ -21,6 +22,7 @@ mod signature_help;
 pub(crate) mod snippets;
 mod workspace_symbol;
 
+pub use call_hierarchy::*;
 pub use completions::*;
 pub use document_symbol::*;
 pub use find_all_references::*;

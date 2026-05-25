@@ -9,6 +9,7 @@
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
+use line_index::LineIndex;
 use lsp_types::Location;
 use url::Url;
 use wdl_ast::AstNode;
@@ -17,6 +18,7 @@ use wdl_ast::TreeToken;
 
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
+use crate::document::Document;
 use crate::graph::DocumentGraph;
 use crate::handlers;
 use crate::handlers::common::location_from_span;
@@ -32,6 +34,59 @@ struct TargetDefinition {
     location: Location,
 }
 
+/// The enclosing scope of a reference site.
+#[derive(Clone, Debug)]
+pub struct EnclosingScope {
+    /// The kind of the enclosing scope.
+    pub kind: EnclosingScopeKind,
+    /// The name of the enclosing task or workflow.
+    pub name: String,
+    /// The location of the enclosing scope's name declaration.
+    pub location: Location,
+}
+
+/// Represents the kind of an enclosing scope.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EnclosingScopeKind {
+    /// The reference is inside a task.
+    Task,
+    /// The reference is inside a workflow.
+    Workflow,
+}
+
+/// A reference location paired with its enclosing scope, if any.
+#[derive(Clone, Debug)]
+pub struct ReferenceWithScope {
+    /// The location of the reference.
+    pub location: Location,
+    /// The enclosing task or workflow scope that contains this reference.
+    ///
+    /// This is `None` for references at the document top-level (e.g., struct
+    /// definitions or import statements).
+    pub enclosing_scope: Option<EnclosingScope>,
+}
+
+/// The result of a find-all-references query.
+#[derive(Clone, Debug)]
+pub struct ScopedReferences {
+    /// The name of the target symbol.
+    pub target: String,
+    /// All references, each paired with their enclosing scope.
+    pub references: Vec<ReferenceWithScope>,
+}
+
+impl ScopedReferences {
+    /// Returns just the locations, discarding scope information.
+    pub fn locations(&self) -> Vec<Location> {
+        self.references.iter().map(|r| r.location.clone()).collect()
+    }
+
+    /// Whether this contains any references.
+    pub fn is_empty(&self) -> bool {
+        self.references.is_empty()
+    }
+}
+
 /// Finds all references to the identifier at the given position.
 ///
 /// It first resolves the definition of the identifier at the specified
@@ -43,7 +98,7 @@ pub fn find_all_references(
     position: SourcePosition,
     encoding: SourcePositionEncoding,
     include_declaration: bool,
-) -> Result<Vec<Location>> {
+) -> Result<ScopedReferences> {
     let definition_location = handlers::goto_definition(graph, document_uri, position, encoding)
         .context("failed to resolve symbol definition")?
         .ok_or_else(|| {
@@ -93,33 +148,69 @@ pub fn find_all_references(
     // TODO: better search scope for performance.
     let search_scope: Vec<_> = graph.transitive_dependents(doc_index).collect();
 
-    let mut locations = Vec::new();
+    let mut references = Vec::new();
     for doc_index in search_scope {
-        collect_references_from_document(graph, doc_index, &target, encoding, &mut locations)
+        collect_references_from_document(graph, doc_index, &target, encoding, &mut references)
             .with_context(|| {
                 format!("failed to collect references from document at index {doc_index:?}")
             })?;
     }
 
     if !include_declaration {
-        locations.retain(|loc| *loc != target.location);
+        references.retain(|r| r.location != target.location);
     }
 
-    Ok(locations)
+    Ok(ScopedReferences {
+        target: target.name,
+        references,
+    })
 }
 
-/// Collects references to the target symbol form a single document.
+/// Resolves the enclosing task or workflow scope.
+fn resolve_enclosing_scope(
+    document: &Document,
+    document_uri: &Url,
+    offset: usize,
+    lines: &LineIndex,
+) -> Option<EnclosingScope> {
+    if let Some(workflow) = document.workflow()
+        && workflow.scope().span().contains(offset)
+    {
+        let location = location_from_span(document_uri, workflow.name_span(), lines).ok()?;
+        return Some(EnclosingScope {
+            kind: EnclosingScopeKind::Workflow,
+            name: workflow.name().to_string(),
+            location,
+        });
+    }
+
+    for task in document.tasks() {
+        if task.scope().span().contains(offset) {
+            let location = location_from_span(document_uri, task.name_span(), lines).ok()?;
+            return Some(EnclosingScope {
+                kind: EnclosingScopeKind::Task,
+                name: task.name().to_string(),
+                location,
+            });
+        }
+    }
+
+    None
+}
+
+/// Collects references to the target symbol from a single document.
 ///
 /// 1. Traverse all tokens in the document's CST
 /// 2. Filter for identifier tokens matching the target name
 /// 3. For each match, resolve its definition using goto definition
 /// 4. If the resolved definition matches the target, add the reference location
+///    together with its enclosing scope
 fn collect_references_from_document(
     graph: &DocumentGraph,
     doc_index: petgraph::graph::NodeIndex,
     target: &TargetDefinition,
     encoding: SourcePositionEncoding,
-    locations: &mut Vec<Location>,
+    references: &mut Vec<ReferenceWithScope>,
 ) -> Result<()> {
     let node = graph.get(doc_index);
     let document = match node.document() {
@@ -133,6 +224,7 @@ fn collect_references_from_document(
     };
 
     let root = document.root().inner().clone();
+    let document_uri = document.uri().as_ref().clone();
 
     for token in root
         .descendants_with_tokens()
@@ -154,13 +246,9 @@ fn collect_references_from_document(
                 .context("failed to convert token position")?;
             let source_pos = SourcePosition::new(token_pos.line, token_pos.character);
 
-            let resolved_location = handlers::goto_definition(
-                graph,
-                document.uri().as_ref().clone(),
-                source_pos,
-                encoding,
-            )
-            .context("failed to resolve token definition")?;
+            let resolved_location =
+                handlers::goto_definition(graph, document_uri.clone(), source_pos, encoding)
+                    .context("failed to resolve token definition")?;
 
             if let Some(location) = resolved_location
                 && location == target.location
@@ -168,7 +256,14 @@ fn collect_references_from_document(
                 let reference_location = location_from_span(document.uri(), token.span(), lines)
                     .context("failed to create reference location")?;
 
-                locations.push(reference_location);
+                let token_offset = usize::from(token.text_range().start());
+                let enclosing_scope =
+                    resolve_enclosing_scope(document, &document_uri, token_offset, lines);
+
+                references.push(ReferenceWithScope {
+                    location: reference_location,
+                    enclosing_scope,
+                });
             }
         }
     }

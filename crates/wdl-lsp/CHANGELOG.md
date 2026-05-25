@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added support for the `textDocument/prepareCallHierarchy`, `callHierarchy/incomingCalls`, and
+  `callHierarchy/outgoingCalls` requests ([#874](https://github.com/stjude-rust-labs/sprocket/pull/874)).
+
 ## 0.19.1 - 2026-05-14
 
 ## 0.19.0 - 2026-04-22
