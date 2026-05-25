@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+* Added hover support for doc comments, allowing editors to render preamble comments and give more surface area
+  to render item docs ([#873](https://github.com/stjude-rust-labs/sprocket/pull/873)).
+
 ## 0.19.1 - 2026-05-14
 
 ## 0.19.0 - 2026-04-22
