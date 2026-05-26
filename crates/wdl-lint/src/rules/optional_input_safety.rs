@@ -3,6 +3,8 @@
 
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_analysis::diagnostics::unknown_type;
@@ -149,17 +151,9 @@ fn placeholder_subject_name(expr: &Expr) -> Option<String> {
 fn optional_placeholder_diagnostic(expr: &Expr, placeholder: &Placeholder) -> Diagnostic {
     let span = placeholder.span();
     let message = if let Some(name) = placeholder_subject_name(expr) {
-        format!(
-            "optional value `{name}` used in command placeholder without a guard; use `if \
-             defined()`, `select_first()`, `select_all()`, or an `if`/`else` expression to handle \
-             the `None` case explicitly"
-        )
+        format!("optional value {name} used in command placeholder without a guard")
     } else {
-        String::from(
-            "optional value used in command placeholder without a guard; use `if defined()`, \
-             `select_first()`, `select_all()`, or an `if`/`else` expression to handle the `None` \
-             case explicitly",
-        )
+        String::from("optional value used in command placeholder without a guard")
     };
 
     Diagnostic::warning(message)
@@ -195,6 +189,42 @@ impl Rule for OptionalInputSafetyRule {
          makes intent obvious and avoids subtle command-line bugs."
     }
 
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.3
+
+task say_hello {
+    input {
+        String? name
+    }
+
+    command <<<
+        # Prints "Hello, " if `name` is `None`!
+        echo "Hello, ~{name}!"
+    >>>
+}
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: Some("Consider explicitly handling the `None` case"),
+                snippet: r#"version 1.3
+
+task say_hello {
+    input {
+        String? name
+    }
+
+    command <<<
+        echo "Hello, ~{if defined(name) then name else "World"}!"
+    >>>
+}
+"#,
+            }),
+        }]
+    }
+
     fn tags(&self) -> TagSet {
         TagSet::new(&[Tag::Correctness])
     }
@@ -208,7 +238,7 @@ impl Rule for OptionalInputSafetyRule {
         ])
     }
 
-    fn related_rules(&self) -> &[&'static str] {
+    fn related_rules(&self) -> &'static [&'static str] {
         &["DeprecatedPlaceholder", "ShellCheck"]
     }
 }
