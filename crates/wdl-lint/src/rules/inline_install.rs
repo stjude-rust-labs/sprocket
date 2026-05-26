@@ -3,6 +3,8 @@
 
 use regex::Regex;
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -16,8 +18,8 @@ use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
 
-/// The identifier for the NoInlineInstall rule.
-const ID: &str = "NoInlineInstall";
+/// The identifier for the InlineInstall rule.
+const ID: &str = "InlineInstall";
 
 /// Regex pattern to match inline installations.
 const INSTALL_REGEX: &str = r"(?im)(apt-get|apt|pip|pip3|yum|dnf|brew|npm|gem|cargo|go)(?:\s+(-[\w-])+)*\s+install|(conda|mamba)(?:\s+(-[\w-])+)*\s+(?:install|create)|(apk)(?:\s+(-[\w-])+)*\s+\s*(add)\b";
@@ -39,9 +41,9 @@ fn inline_install_diagnostic(span: Span) -> Diagnostic {
 /// A lint rule for disallowing the use of inline installations in command
 /// sections.
 #[derive(Clone, Copy, Debug, Default)]
-pub struct NoInlineInstall;
+pub struct InlineInstall;
 
-impl Rule for NoInlineInstall {
+impl Rule for InlineInstall {
     fn id(&self) -> &'static str {
         ID
     }
@@ -52,27 +54,46 @@ impl Rule for NoInlineInstall {
 
     fn explanation(&self) -> &'static str {
         "All required software should be installed in the execution environment before the \
-         workflow is run. Inline installations can lead to lack of reproducibility,portability, \
+         workflow is run. Inline installations can lead to lack of reproducibility, portability, \
          and incur a performance cost, as software must be downloaded and installed every \
          invocation."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.3
 
 task say_hello {
-    meta {}
-
     command <<<
-        pip install --user pandas
-        curl -sL https://example.com/install.sh | bash
+        sudo apt install python3
+
+        python3 -c "print('Hello, world!')"
     >>>
+
+    requirements {
+        container: "debian:trixie"
+    }
 }
-```"#,
-            r#"Avoid inline installations in command sections"#,
-        ]
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: Some("Consider using a dedicated container image"),
+                snippet: r#"version 1.3
+
+task say_hello {
+    command <<<
+        python3 -c "print('Hello, world!')"
+    >>>
+
+    requirements {
+        container: "python:trixie"
+    }
+}
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {
@@ -91,7 +112,7 @@ task say_hello {
     }
 }
 
-impl Visitor for NoInlineInstall {
+impl Visitor for InlineInstall {
     fn reset(&mut self) {
         *self = Self;
     }

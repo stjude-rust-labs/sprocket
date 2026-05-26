@@ -6696,6 +6696,7 @@ dependencies = [
  "path-clean",
  "pretty_assertions",
  "rand 0.9.4",
+ "regex",
  "rowan",
  "serde",
  "serde_json",
