@@ -9,9 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Changed
 
-* Renamed enum terminology from `variant` to `choice` across `wdl-ast`,
-  `wdl-analysis`, and `wdl-engine`, including public APIs such as `EnumChoice`,
-  `choices()`, and related field names.
+* Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
 
 ## 0.15.0 - 2026-06-03
 
