@@ -50,6 +50,20 @@ task bad_install {
         pip3 install test
         yum install test
 
+        # Should catch the various R package installation methods
+        Rscript -e 'install.packages("ggplot2")'
+        Rscript -e 'remotes::install_github("tidyverse/ggplot2")'
+        Rscript -e 'devtools::install_version("ggplot2", version="4.0.3")'
+
+        # Even in embedded R scripts!
+        cat > foo.R << EOF
+        if("SeqArray" %in% rownames(installed.packages()) == FALSE) {
+            if (!requireNamespace("BiocManager", quietly=TRUE))
+                install.packages("BiocManager")
+            BiocManager::install("SeqArray")
+        }
+        EOF
+
         # Should also catch commands with flags
         apt --yes install
         npm i test

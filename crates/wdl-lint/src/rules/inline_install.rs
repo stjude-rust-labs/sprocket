@@ -25,7 +25,18 @@ const ID: &str = "InlineInstall";
 
 /// Regex pattern to match inline installations.
 static INSTALL_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?im)\b(?:sudo\s+)?(?:(apt(?:-get)?|pip[23]?|yum|dnf|brew|npm|gem|cargo|go)(?:\s+-[\w-]+)*\s+(?:install|i)|(conda|mamba)(?:\s+-[\w-]+)*\s+(?:install|create)|(apk)(?:\s+-[\w-]+)*\s+add)\b").unwrap()
+    // Basic `{x} install` commands
+    const GENERIC_PACKAGE_MANAGERS: &str = r"(?:apt(?:-get)?|pip[23]?|yum|dnf|brew|npm|gem|cargo|go)(?:\s+-[\w-]+)*\s+(?:install|i)";
+
+    const CONDA: &str = r"(conda|mamba)(?:\s+-[\w-]+)*\s+(?:install|create)";
+    const ALPINE: &str = r"(apk)(?:\s+-[\w-]+)*\s+add";
+
+    // R is special, as we might be dealing with CLI package installations with `Rscript`, or
+    // embedded R scripts. So it gets its own `r_cmd` group, so we *only* match on the installation itself.
+    const R: &str = r"(?P<r_cmd>install\.packages|\w+::install(?:_\w+)?)";
+    let r = format!(r"(?:(?:Rscript|R)(?:\s+-[\w-]+)*\s+.*?)?{R}");
+
+    Regex::new(&format!(r"(?im)\b(?:sudo\s+)?(?:(?P<cmd>{GENERIC_PACKAGE_MANAGERS}|{CONDA}|{ALPINE})|{r})\b")).unwrap()
 });
 
 /// Regex pattern to match piped installations.
@@ -134,7 +145,8 @@ impl Visitor for InlineInstall {
 
         let text = section.text().to_string();
         for mat in INSTALL_REGEX
-            .find_iter(&text)
+            .captures_iter(&text)
+            .filter_map(|caps| caps.name("cmd").or_else(|| caps.name("r_cmd")))
             .chain(PIPED_INSTALL_REGEX.find_iter(&text))
         {
             diagnostics.exceptable_add(
