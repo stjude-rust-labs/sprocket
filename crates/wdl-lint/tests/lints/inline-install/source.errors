@@ -153,7 +153,7 @@ warning[InlineInstall]: inline installation of packages is discouraged
 warning[InlineInstall]: inline installation of packages is discouraged
    ┌─ tests/lints/inline-install/source.wdl:56:21
    │
-56 │         Rscript -e 'devtools::install_version("ggplot2", version="3.4.0")'
+56 │         Rscript -e 'devtools::install_version("ggplot2", version="4.0.3")'
    │                     ^^^^^^^^^^^^^^^^^^^^^^^^^
    │
    = fix: consider using a more robust dependency management approach, such as a container image
