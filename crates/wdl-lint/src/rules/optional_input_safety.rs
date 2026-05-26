@@ -217,7 +217,10 @@ task say_hello {
     }
 
     command <<<
-        echo "Hello, ~{if defined(name) then name else "World"}!"
+        echo "Hello, ~{if defined(name)
+            then name
+            else "World"
+        }!"
     >>>
 }
 "#,
