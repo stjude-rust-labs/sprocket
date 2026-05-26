@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* New lint rule `OptionalInputSafety` to warn when optional values appear in task command placeholders without an explicit `None` guard ([#715](https://github.com/stjude-rust-labs/sprocket/pull/715)).
+
 ## 0.23.0 - 2026-05-14
 
 #### Added
@@ -35,7 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* New lint rule `OptionalInputSafety` to warn when optional values appear in task command placeholders without an explicit `None` guard ([#715](https://github.com/stjude-rust-labs/sprocket/pull/715)).
 * New lint rule `EmptyDocComment` to detect and flag empty documentation comments that serve no purpose ([#634](https://github.com/stjude-rust-labs/sprocket/pull/634)).
 * New lint rule `ParameterDescription` to ensure parameters and outputs have proper descriptions ([#449](https://github.com/stjude-rust-labs/sprocket/pull/449)).
 * New lint rule `DenyGlobStar` ([#749](https://github.com/stjude-rust-labs/sprocket/pull/749)).
