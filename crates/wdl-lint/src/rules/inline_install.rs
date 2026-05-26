@@ -1,6 +1,8 @@
 //! A lint rule for disallowing the use of inline installations in command
 //! sections.
 
+use std::sync::LazyLock;
+
 use regex::Regex;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Example;
@@ -22,10 +24,13 @@ use crate::TagSet;
 const ID: &str = "InlineInstall";
 
 /// Regex pattern to match inline installations.
-const INSTALL_REGEX: &str = r"(?im)(apt-get|apt|pip|pip3|yum|dnf|brew|npm|gem|cargo|go)(?:\s+(-[\w-])+)*\s+install|(conda|mamba)(?:\s+(-[\w-])+)*\s+(?:install|create)|(apk)(?:\s+(-[\w-])+)*\s+\s*(add)\b";
+static INSTALL_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?im)(apt-get|apt|pip|pip3|yum|dnf|brew|npm|gem|cargo|go)(?:\s+(-[\w-])+)*\s+install|(conda|mamba)(?:\s+(-[\w-])+)*\s+(?:install|create)|(apk)(?:\s+(-[\w-])+)*\s+\s*(add)\b").unwrap()
+});
 
 /// Regex pattern to match piped installations.
-const PIPED_INSTALL_REGEX: &str = r"(?im)(curl|wget)\b.*\|\s*(bash|sh|python3?)\b";
+static PIPED_INSTALL_REGEX: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?im)(curl|wget)\b.*\|\s*(bash|sh|python3?)\b").unwrap());
 
 /// Creates a diagnostic for an inline installation in a command section.
 fn inline_install_diagnostic(span: Span) -> Diagnostic {
@@ -127,20 +132,11 @@ impl Visitor for InlineInstall {
             return;
         }
 
-        let inline_regex = Regex::new(INSTALL_REGEX).unwrap();
-        let piped_regex = Regex::new(PIPED_INSTALL_REGEX).unwrap();
         let text = section.text().to_string();
-        for mat in inline_regex.find_iter(&text) {
-            diagnostics.exceptable_add(
-                inline_install_diagnostic(Span::new(
-                    section.span().start() + mat.start(),
-                    mat.end() - mat.start(),
-                )),
-                SyntaxElement::from(section.inner().clone()),
-                &self.exceptable_nodes(),
-            );
-        }
-        for mat in piped_regex.find_iter(&text) {
+        for mat in INSTALL_REGEX
+            .find_iter(&text)
+            .chain(PIPED_INSTALL_REGEX.find_iter(&text))
+        {
             diagnostics.exceptable_add(
                 inline_install_diagnostic(Span::new(
                     section.span().start() + mat.start(),
