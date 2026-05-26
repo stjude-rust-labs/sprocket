@@ -1349,6 +1349,36 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn materialize_uses_top_level_git_policy_for_top_level_module()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let workdir = tempdir()?;
+        let consumer_dir = workdir.path().join("consumer");
+        let ssh_dep = r#"{"git":"ssh://git@github.com/openwdl/tasks","commit":"0000000000000000000000000000000000000001"}"#;
+        write_manifest(&consumer_dir, "consumer", "1.0.0", &[("dep", ssh_dep)]);
+        let consumer = Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME))?)?;
+        let consumer = module(consumer, &consumer_dir);
+        assert!(
+            consumer.lockfile_scope.is_empty(),
+            "consumer must be a top-level `Module`"
+        );
+
+        let cache = tempdir()?;
+        let symbolic_path = "dep".to_string().try_into()?;
+        let err = match resolver(&cache)
+            .materialize(&consumer, &symbolic_path)
+            .await
+        {
+            Ok(_) => panic!("expected lockfile rejection, not git policy rejection"),
+            Err(err) => err,
+        };
+        assert!(
+            !matches!(err, ResolverError::GitUrlPolicyViolation { .. }),
+            "top-level `ssh://` dep must pass `DependencyScope::TopLevel` policy; got: {err}"
+        );
+        Ok(())
+    }
+
     fn locked_git_resolver(cache: &TempDir, dep: &str, entry: DependencyEntry) -> GitResolver {
         let mut lockfile = Lockfile::default();
         lockfile.dependencies.insert(dep.parse().unwrap(), entry);
