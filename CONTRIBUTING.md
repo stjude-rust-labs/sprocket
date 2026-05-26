@@ -61,7 +61,7 @@ That being said, we will not assign issues to external contributors, and
 commenting on an issue does not guarantee exclusive rights to work on that
 issue. If multiple PRs are received for the same issue, the PR that (a) most
 thoroughly addresses the problem being solved and (b) has the best
-implementation by judgement of the St. Jude Rust Labs team will be accepted in
+implementation by judgment of the St. Jude Rust Labs team will be accepted in
 favor of the other submitted PRs.
 
 ### Review Policy

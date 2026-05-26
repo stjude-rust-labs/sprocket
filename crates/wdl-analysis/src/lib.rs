@@ -11,7 +11,7 @@
 //! #[tokio::main]
 //! async fn main() {
 //!     let analyzer = Analyzer::default();
-//!     // Add a docuement to the analyzer
+//!     // Add a document to the analyzer
 //!     analyzer
 //!         .add_document(Url::parse("file:///path/to/file.wdl").unwrap())
 //!         .await

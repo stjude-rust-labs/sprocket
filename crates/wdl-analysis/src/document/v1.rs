@@ -21,6 +21,7 @@ use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
+use wdl_ast::TreeNode;
 use wdl_ast::TreeToken;
 use wdl_ast::v1::Ast;
 use wdl_ast::v1::CallStatement;
@@ -31,6 +32,7 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::Expr;
+use wdl_ast::v1::ImportSource;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::LiteralExpr;
 use wdl_ast::v1::ScatterStatement;
@@ -57,10 +59,11 @@ use super::TASK_VAR_NAME;
 use super::Task;
 use super::Workflow;
 use crate::Exceptable;
-use crate::UNUSED_CALL_RULE_ID;
-use crate::UNUSED_DECL_RULE_ID;
-use crate::UNUSED_IMPORT_RULE_ID;
-use crate::UNUSED_INPUT_RULE_ID;
+use crate::MisleadingDeclarationOrderRule;
+use crate::UnusedCallRule;
+use crate::UnusedDeclarationRule;
+use crate::UnusedImportRule;
+use crate::UnusedInputRule;
 use crate::config::Config;
 use crate::config::DiagnosticsConfig;
 use crate::diagnostics::Context;
@@ -80,6 +83,7 @@ use crate::diagnostics::imported_enum_conflict;
 use crate::diagnostics::imported_struct_conflict;
 use crate::diagnostics::incompatible_import;
 use crate::diagnostics::invalid_relative_import;
+use crate::diagnostics::misleading_declaration_order;
 use crate::diagnostics::missing_call_input;
 use crate::diagnostics::name_conflict;
 use crate::diagnostics::namespace_conflict;
@@ -246,8 +250,7 @@ fn add_namespace(
         Err(None) => return,
     };
 
-    // Check for conflicting namespaces
-    let span = import.uri().span();
+    let span = import.source().span();
     let ns = match import.namespace() {
         Some((ns, span)) => match document.namespaces.get(&ns) {
             Some(prev) => {
@@ -267,7 +270,7 @@ fn add_namespace(
                         source: uri.clone(),
                         document: imported.clone(),
                         used: false,
-                        excepted: import.inner().is_rule_excepted(UNUSED_IMPORT_RULE_ID),
+                        excepted: import.inner().is_rule_excepted(UnusedImportRule::ID),
                     },
                 );
                 ns
@@ -760,6 +763,14 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
         outputs,
     };
 
+    let command_section_span = graph.node_weights().find_map(|node| {
+        if let TaskGraphNode::Command(section) = node {
+            Some(section.span())
+        } else {
+            None
+        }
+    });
+
     let mut output_scope = None;
     let mut command_scope = None;
     let mut requirements_scope = None;
@@ -788,7 +799,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     let mut edges = graph.edges_directed(index, Direction::Outgoing);
 
                     if let (Some(true), None) = (edges.next().map(|e| e.weight()), edges.next())
-                        && !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID)
+                        && !decl.inner().is_rule_excepted(UnusedInputRule::ID)
                     {
                         let name = decl.name();
 
@@ -799,6 +810,21 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 }
             }
             TaskGraphNode::Decl(decl) => {
+                let name = decl.name();
+
+                if let Some(command_section_span) = command_section_span
+                    && decl.inner().span().start() > command_section_span.end()
+                    && let Some(severity) = config.diagnostics_config().misleading_declaration_order
+                    && !decl
+                        .inner()
+                        .is_rule_excepted(MisleadingDeclarationOrderRule::ID)
+                {
+                    document.analysis_diagnostics.push(
+                        misleading_declaration_order(name.text(), name.span())
+                            .with_severity(severity),
+                    );
+                }
+
                 if !add_decl(
                     config,
                     document,
@@ -811,14 +837,13 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
 
                 // Check for unused declaration
                 if let Some(severity) = config.diagnostics_config().unused_declaration {
-                    let name = decl.name();
                     // Don't warn for environment variables as they are always implicitly used
                     if decl.env().is_none()
                         && graph
                             .edges_directed(index, Direction::Outgoing)
                             .next()
                             .is_none()
-                        && !decl.inner().is_rule_excepted(UNUSED_DECL_RULE_ID)
+                        && !decl.inner().is_rule_excepted(UnusedDeclarationRule::ID)
                     {
                         document.analysis_diagnostics.push(
                             unused_declaration(name.text(), name.span()).with_severity(severity),
@@ -1084,7 +1109,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                         .edges_directed(index, Direction::Outgoing)
                         .next()
                         .is_none()
-                    && !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID)
+                    && !decl.inner().is_rule_excepted(UnusedInputRule::ID)
                 {
                     let name = decl.name();
 
@@ -1116,7 +1141,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                         .edges_directed(index, Direction::Outgoing)
                         .next()
                         .is_none()
-                        && !decl.inner().is_rule_excepted(UNUSED_DECL_RULE_ID)
+                        && !decl.inner().is_rule_excepted(UnusedDeclarationRule::ID)
                     {
                         document.analysis_diagnostics.push(
                             unused_declaration(name.text(), name.span()).with_severity(severity),
@@ -1427,58 +1452,54 @@ fn add_call_statement(
         .unwrap_or_else(|| target_name.clone());
 
     let ty = match resolve_call_type(document, workflow_name, statement) {
-        Some(ty) => {
+        Some(call_ty) => {
             // Type check the call inputs
             let mut seen = HashSet::new();
             for input in statement.inputs() {
                 let input_name = input.name();
 
-                let (expected_ty, required) = ty
+                let (expected_input_ty, required) = call_ty
                     .inputs()
                     .get(input_name.text())
                     .map(|i| (i.ty.clone(), i.required))
                     .unwrap_or_else(|| {
                         document.analysis_diagnostics.push(unknown_call_io(
-                            &ty,
+                            &call_ty,
                             &input_name,
                             Io::Input,
                         ));
                         (Type::Union, true)
                     });
 
+                // We accept optional types for the input even if the input's
+                // type is non-optional; if the runtime value is `None` for a
+                // non-optional input, the default expression will be evaluated
+                // instead.
+                let expected_input_ty = if !required {
+                    expected_input_ty.optional()
+                } else {
+                    expected_input_ty
+                };
+
                 match input.expr() {
                     Some(expr) => {
-                        // For WDL 1.2, we accept optional types for the input even if the input's
-                        // type is non-optional; if the runtime value is `None` for a non-optional
-                        // input, the default expression will be evaluated instead.
-                        let expected_ty = if !required
-                            && document
-                                .version
-                                .map(|v| v >= SupportedVersion::V1(V1::Two))
-                                .unwrap_or(false)
-                        {
-                            expected_ty.optional()
-                        } else {
-                            expected_ty
-                        };
-
                         type_check_expr(
                             config,
                             document,
                             scope.as_scope_ref(),
                             &expr,
-                            &expected_ty,
+                            &expected_input_ty,
                             input_name.span(),
                         );
                     }
                     None => match scope.lookup(input_name.text()) {
                         Some(name) => {
-                            if !matches!(expected_ty, Type::Union)
-                                && !name.ty.is_coercible_to(&expected_ty)
+                            if !matches!(expected_input_ty, Type::Union)
+                                && !name.ty.is_coercible_to(&expected_input_ty)
                             {
                                 document.analysis_diagnostics.push(call_input_type_mismatch(
                                     &input_name,
-                                    &expected_ty,
+                                    &expected_input_ty,
                                     &name.ty,
                                 ));
                             }
@@ -1494,10 +1515,10 @@ fn add_call_statement(
                 seen.insert(input_name.hashable());
             }
 
-            for (name, input) in ty.inputs() {
+            for (name, input) in call_ty.inputs() {
                 if input.required && !seen.contains(name.as_str()) {
                     document.analysis_diagnostics.push(missing_call_input(
-                        ty.kind(),
+                        call_ty.kind(),
                         &target_name,
                         name,
                         nested_inputs_allowed,
@@ -1512,10 +1533,10 @@ fn add_call_statement(
                 .expect("should have workflow")
                 .calls;
             if !calls.contains_key(name.text()) {
-                calls.insert(name.text().to_string(), ty.clone());
+                calls.insert(name.text().to_string(), call_ty.clone());
             }
 
-            ty.into()
+            call_ty.into()
         }
         _ => Type::Union,
     };
@@ -1525,7 +1546,7 @@ fn add_call_statement(
         // Check for unused call
         if let Some(severity) = config.diagnostics_config().unused_call
             && !is_used
-            && !statement.inner().is_rule_excepted(UNUSED_CALL_RULE_ID)
+            && !statement.inner().is_rule_excepted(UnusedCallRule::ID)
             && let Some(ty) = ty.as_call()
             && !ty.outputs().is_empty()
         {
@@ -1634,7 +1655,14 @@ fn resolve_import(
     stmt: &ImportStatement,
     importer_index: NodeIndex,
 ) -> Result<(Arc<Url>, Document), Option<Diagnostic>> {
-    let uri = stmt.uri();
+    let uri = match stmt.source() {
+        ImportSource::Uri(uri) => uri,
+        ImportSource::ModulePath(_) => {
+            // Symbolic module paths do not resolve through the quoted-URI
+            // graph; the module resolver handles them separately.
+            return Err(None);
+        }
+    };
     let span = uri.span();
     let text = match uri.text() {
         Some(text) => text,

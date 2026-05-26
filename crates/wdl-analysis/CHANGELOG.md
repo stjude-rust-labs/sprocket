@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Analysis now emits diagnostics for task variable declarations that appear after `command` sections ([#844](https://github.com/stjude-rust-labs/sprocket/pull/844)).
+
+## 0.20.0 - 2026-05-14
+
+#### Added
+
+* `FeatureFlags::wdl_1_4` behind `feature_flags.wdl_1_4` in
+  `sprocket.toml`, defaulting to `false` ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+* `VersionVisitor` diagnostic when a document declares `version 1.4`
+  without the `wdl_1_4` feature flag enabled ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+
+## 0.19.1 - 2026-04-22
+
+#### Fixed
+
+* Optional-to-default call input coercion (passing an optional value to
+  a non-optional input with a default) is no longer gated behind WDL
+  1.2+, matching Cromwell and miniwdl behavior
+  ([#814](https://github.com/stjude-rust-labs/sprocket/pull/814)).
+
+## 0.19.0 - 2026-04-02
+
 #### Changed
 
 * Type mismatch diagnostics now distinguish between custom types and references

@@ -1,6 +1,7 @@
-## This is a test of calls with `None` values in 1.2
+## This is a test of the optional-to-default coercion in WDL 1.2+.
 ## See: https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#optional-inputs-with-defaults
-## Four diagnostics are expected for this test
+
+#@ except: UnusedInput, UnusedDeclaration, UnusedCall
 version 1.3
 
 import "w.wdl"
@@ -36,11 +37,11 @@ workflow test {
         input1 = None,
         input2 = None,
         input3 = None,
-        input4 = None, # Error
+        input4 = 42,
     }
 
-    # Should have an error for missing required input
     call t as t3 {
+        input4 = 42,
     }
 
     call w.w as w1 {
@@ -54,11 +55,11 @@ workflow test {
         input1 = None,
         input2 = None,
         input3 = None,
-        input4 = None, # Error
+        input4 = 42,
     }
 
-    # Should have an error for missing required input
     call w.w as w3 {
+        input4 = 42,
     }
 
     output {
@@ -66,7 +67,7 @@ workflow test {
         Int? t1_output2 = t1.output2
         Int? t1_output3 = t1.output3
         Int t1_output4 = t1.output4
-        
+
         Int t2_output1 = t2.output1
         Int? t2_output2 = t2.output2
         Int? t2_output3 = t2.output3
@@ -81,7 +82,7 @@ workflow test {
         Int? w1_output2 = w1.output2
         Int? w1_output3 = w1.output3
         Int w1_output4 = w1.output4
-        
+
         Int w2_output1 = w2.output1
         Int? w2_output2 = w2.output2
         Int? w2_output3 = w2.output3

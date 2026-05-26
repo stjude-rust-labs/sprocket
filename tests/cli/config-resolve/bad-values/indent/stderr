@@ -1,0 +1,4 @@
+error: parsing `bad.toml`
+
+Caused by:
+    `100` is more than the maximum allowed number of spaces (16) for key `format.indent`

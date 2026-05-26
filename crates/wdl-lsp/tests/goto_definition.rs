@@ -312,7 +312,7 @@ async fn should_goto_local_variable_for_abbreviated_call_input_syntax() {
 }
 
 #[tokio::test]
-async fn lhs_and_rhs_navigation_in_call_inputs_should_goto_correct_definintions() {
+async fn lhs_and_rhs_navigation_in_call_inputs_should_goto_correct_definitions() {
     let mut ctx = setup().await;
 
     // Position of LHS `name`  in `call greet as t1 { input: name = name }`

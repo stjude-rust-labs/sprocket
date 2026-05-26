@@ -1,0 +1,4 @@
+error: parsing `bad.toml`
+
+Caused by:
+    expected a positive number or `unlimited`, got `foobar` for key `server.max_concurrent_runs`

@@ -1,3 +1,5 @@
+#@ except: EmptyOutputs
+
 version 1.1
 
 task a_task_with_multiple_runtimes {

@@ -18,6 +18,8 @@ use serde_json;
 use tracing::debug;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_analysis::diagnostics::unknown_type;
@@ -236,35 +238,33 @@ impl Rule for ShellCheckRule {
          Following its recommendations will increase the robustness of your command sections."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task say_hello {
-    meta {}
-
     # Triggers SC2154
     command <<<
         echo "Hello $name"
     >>>
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task say_hello {
-    meta {}
-
     command <<<
         name=World
         echo "Hello $name"
     >>>
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {
@@ -466,13 +466,11 @@ fn is_quoted(expr: &Expr) -> bool {
                     }
                 }
             }
-            Expr::NameRef(_) => {
-                if !placeholders.contains(&c) {
-                    if !opened {
-                        return false;
-                    }
-                    name = true;
+            Expr::NameRef(_) if !placeholders.contains(&c) => {
+                if !opened {
+                    return false;
                 }
+                name = true;
             }
             _ => {}
         }
@@ -547,10 +545,8 @@ fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
                     true,
                 );
             }
-            PrimitiveType::String => {
-                if evaluates_to_bash_literal(&placeholder.expr()) {
-                    return ("a".repeat(placeholder_len), true);
-                }
+            PrimitiveType::String if evaluates_to_bash_literal(&placeholder.expr()) => {
+                return ("a".repeat(placeholder_len), true);
             }
             _ => {}
         }
@@ -888,7 +884,7 @@ task test {{
 }}
 "#
         );
-        let (document, _diagnostics) = Document::parse(&source);
+        let (document, _diagnostics) = Document::parse(&source, None);
         document
             .ast()
             .as_v1()

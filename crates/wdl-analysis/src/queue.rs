@@ -38,6 +38,7 @@ use url::Url;
 use wdl_ast::Ast;
 use wdl_ast::Node;
 use wdl_ast::Severity;
+use wdl_ast::v1::ImportSource;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
 
@@ -171,7 +172,7 @@ pub struct FindAllReferencesRequest {
     pub position: SourcePosition,
     /// The encoding used for the position.
     pub encoding: SourcePositionEncoding,
-    /// Wether to include the declaration in the results.
+    /// Whether to include the declaration in the results.
     pub include_declaration: bool,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Vec<Location>>,
@@ -1105,7 +1106,13 @@ where
                 None | Some(Ast::Unsupported) => {}
                 Some(Ast::V1(ast)) => {
                     for import in ast.imports() {
-                        let text = match import.uri().text() {
+                        // Only quoted imports contribute dependency edges;
+                        // symbolic imports resolve through the module
+                        // resolver and do not add graph nodes here.
+                        let ImportSource::Uri(uri) = import.source() else {
+                            continue;
+                        };
+                        let text = match uri.text() {
                             Some(text) => text,
                             None => continue,
                         };

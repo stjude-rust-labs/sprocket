@@ -1,0 +1,4 @@
+error: parsing `bad.toml`
+
+Caused by:
+    expected a positive number, got `0` for key `run`

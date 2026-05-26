@@ -1,0 +1,1 @@
+lint --hide-warnings source.wdl

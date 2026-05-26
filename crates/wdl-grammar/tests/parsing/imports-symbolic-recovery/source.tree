@@ -1,0 +1,25 @@
+RootNode@0..56
+  VersionStatementNode@0..11
+    VersionKeyword@0..7 "version"
+    Whitespace@7..8 " "
+    Version@8..11 "1.4"
+  Whitespace@11..13 "\n\n"
+  ImportKeyword@13..19 "import"
+  Whitespace@19..20 " "
+  FromKeyword@20..24 "from"
+  Whitespace@24..25 "\n"
+  TaskDefinitionNode@25..55
+    TaskKeyword@25..29 "task"
+    Whitespace@29..30 " "
+    Ident@30..32 "ok"
+    Whitespace@32..33 " "
+    OpenBrace@33..34 "{"
+    Whitespace@34..39 "\n    "
+    CommandSectionNode@39..53
+      CommandKeyword@39..46 "command"
+      Whitespace@46..47 " "
+      OpenHeredoc@47..50 "<<<"
+      CloseHeredoc@50..53 ">>>"
+    Whitespace@53..54 "\n"
+    CloseBrace@54..55 "}"
+  Whitespace@55..56 "\n"

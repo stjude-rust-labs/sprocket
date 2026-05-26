@@ -173,6 +173,12 @@ pub enum Node<N: TreeNode = SyntaxNode> {
     ImportAlias(ImportAlias<N>),
     /// An import statement.
     ImportStatement(ImportStatement<N>),
+    /// A single selected member in a symbolic import.
+    ImportMember(ImportMember<N>),
+    /// The braced selected-members clause in a symbolic import.
+    ImportMembers(ImportMembers<N>),
+    /// The unquoted path of a symbolic import.
+    SymbolicModulePath(SymbolicModulePath<N>),
     /// An index expression.
     IndexExpr(IndexExpr<N>),
     /// An inequality expression.
@@ -336,6 +342,9 @@ ast_element_impl!(
         if_expr(): IfExprNode => IfExpr => IfExpr,
         import_alias(): ImportAliasNode => ImportAlias => ImportAlias,
         import_statement(): ImportStatementNode => ImportStatement => ImportStatement,
+        import_member(): ImportMemberNode => ImportMember => ImportMember,
+        import_members(): ImportMembersNode => ImportMembers => ImportMembers,
+        symbolic_module_path(): SymbolicModulePathNode => SymbolicModulePath => SymbolicModulePath,
         index_expr(): IndexExprNode => IndexExpr => IndexExpr,
         inequality_expr(): InequalityExprNode => InequalityExpr => InequalityExpr,
         input_section(): InputSectionNode => InputSection => InputSection,
@@ -469,6 +478,8 @@ pub enum Token<T: TreeToken = SyntaxToken> {
     Float(Float<T>),
     /// The `Float` type keyword.
     FloatTypeKeyword(FloatTypeKeyword<T>),
+    /// The `from` keyword.
+    FromKeyword(FromKeyword<T>),
     /// The `>` symbol.
     Greater(Greater<T>),
     /// The `>=` symbol.
@@ -602,6 +613,7 @@ ast_element_impl!(
         file_type_keyword(): FileTypeKeyword => FileTypeKeyword => FileTypeKeyword,
         float(): Float => Float => Float,
         float_type_keyword(): FloatTypeKeyword => FloatTypeKeyword => FloatTypeKeyword,
+        from_keyword(): FromKeyword => FromKeyword => FromKeyword,
         greater(): Greater => Greater => Greater,
         greater_equal(): GreaterEqual => GreaterEqual => GreaterEqual,
         hints_keyword(): HintsKeyword => HintsKeyword => HintsKeyword,

@@ -1,4 +1,4 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, ParameterMetaMatched, HereDocCommands
+#@ except: MetaDescription, ExpectedRuntimeKeys, ParameterMetaMatched, HereDocCommands, EmptyOutputs
 
 ## This is a test of having shellcheck warnings
 
@@ -72,7 +72,7 @@ task test4 {
     }
 
     command <<<
-            # other weird whitspace
+            # other weird whitespace
       ~{placeholder} "$trailing_pholder" ~{placeholder}
       ~{placeholder} somecommand.py "$leading_pholder"
     >>>

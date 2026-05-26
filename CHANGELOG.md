@@ -7,18 +7,71 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.25.0 - 2026-05-14
+
 ### Added
 
-* Added support for configuring the `doc` subcommand via `sprocket.toml` ([#773](https://github.com/stjude-rust-labs/sprocket/pull/773))
-
-### Fixed
-
-* Lazy cancellation (first ctrl+c in Slow mode) now preserves evaluation
-  results for in-flight tasks instead of discarding them as `Canceled`
-  ([#744](https://github.com/stjude-rust-labs/sprocket/pull/744)).
+* `sprocket format --newline-style` and `format.newline_style` config option to control the style of newlines in
+  `sprocket format` output ([#795](https://github.com/stjude-rust-labs/sprocket/pull/795)).
+* Initial WDL 1.4 support in `wdl-grammar` and `wdl-ast`, including the
+  reserved `from` keyword and the three import forms from
+  [`openwdl/wdl#765`](https://github.com/openwdl/wdl/pull/765). WDL 1.4
+  is gated behind the `feature_flags.wdl_1_4` analysis flag (default
+  `false`). See the per-crate changelogs for details ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+* `sprocket explain` now includes WDL snippets for lint rules ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)).
 
 ### Changed
 
+* The `examples` field of `sprocket explain --format json` has changed from Markdown codeblocks to the following
+  structure ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)):
+
+  ```ts
+  type LabeledSnippet = { label?: String, snippet: String };
+  type Example = { negative: LabeledSnippet, revised?: LabeledSnippet }
+  ```
+
+### Fixed
+
+* `dev test` will now cancel execution on `CTRL+C` ([#839](https://github.com/stjude-rust-labs/sprocket/pull/839)).
+
+## 0.24.0 - 2026-04-22
+
+### Added
+
+* Repeated keys collect into arrays (e.g., `task.files=a.txt
+  task.files=b.txt`), trailing bare arguments append to the preceding
+  key (e.g., `task.files=a.txt b.txt c.txt`), and scalar values are
+  auto-wrapped into single-element arrays when the WDL type expects
+  `Array[T]` ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
+
+### Changed
+
+* Input files (JSON/YAML) must now be prefixed with `@`
+  (e.g., `@inputs.json`) to disambiguate them from bare array values
+  ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
+
+### Fixed
+
+* When a task's `container` requirement is an array, Sprocket now tries
+  each entry in order until one succeeds instead of silently using only
+  the first entry
+  ([#698](https://github.com/stjude-rust-labs/sprocket/pull/698)).
+
+## 0.23.0 - 2026-04-02
+
+### Added
+
+* New `--hide-warnings` flag to `check`/`lint` with a corresponding `check.hide_warnings` option in `sprocket.toml` ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* Added support for configuring the `doc` subcommand via `sprocket.toml` ([#773](https://github.com/stjude-rust-labs/sprocket/pull/773))
+
+### Changed
+
+* Changed how defaults for many `sprocket.toml` entries are serialized and deserialized; non-default config value serialization is unchanged ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* `format` table in `sprocket.toml` has been refactored and expanded with new options ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* Removed the `--prioritize-workflows-view` flag to `doc` subcommand ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* `--homepage` argument and config field for `doc` has been renamed to
+  `--index-page` to disambiguate it from `homepage_url` ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
+* Changed the `--javascript-*` arguments for `doc` to more adaptable `--html-*` options ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * The outputs path message is now printed to stderr instead of stdout so
   that stdout contains only the JSON outputs
   ([#732](https://github.com/stjude-rust-labs/sprocket/pull/732)).
@@ -28,9 +81,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Renamed `--output-directory` (`-o`) to `--output-dir` (`-o`) on the `dev server`
   subcommand and `server.output_directory` to `server.output_dir` in `sprocket.toml`
   ([#777](https://github.com/stjude-rust-labs/sprocket/pull/777)).
+* The following config paths are now shell-expanded: `run.output_dir`,
+  `run.task.cache_dir`, `run.http.cache_dir`, `server.output_dir`, `server.engine.http.cache_dir`,
+  `server.engine.task.cache_dir` ([#728](https://github.com/stjude-rust-labs/sprocket/pull/728)).
 
 ### Fixed
 
+* `PrimitiveValue::Display` now escapes special characters in `String`,
+  `File`, and `Directory` values
+  ([#768](https://github.com/stjude-rust-labs/sprocket/pull/768)).
+* Lazy cancellation (first ctrl+c in Slow mode) now preserves evaluation
+  results for in-flight tasks instead of discarding them as `Canceled`
+  ([#744](https://github.com/stjude-rust-labs/sprocket/pull/744)).
 * Fixed a bug where `--target` did not prefix input file keys, causing
   `expected the key to be prefixed` errors when rerunning a task with
   unprefixed inputs ([#745](https://github.com/stjude-rust-labs/sprocket/pull/745)).
@@ -46,6 +108,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Increased SQLite `busy_timeout` from 5s to 30s and added retry with
   exponential backoff when opening the database
   ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
+* Fixed a bug where the `format`, `run`, `lock` and `inputs` commands would not 
+  utilize the configured `fallback_version`
+  ([#784](https://github.com/stjude-rust-labs/sprocket/pull/784)).
 
 ## 0.22.0 - 2026-03-12
 

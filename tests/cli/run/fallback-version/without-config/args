@@ -1,0 +1,1 @@
+run test.wdl -t test

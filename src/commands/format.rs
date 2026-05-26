@@ -12,10 +12,13 @@ use tracing::warn;
 use wdl::analysis::Document;
 use wdl::ast::AstNode;
 use wdl::ast::Node;
+use wdl::diagnostics::Mode;
+use wdl::diagnostics::emit_diagnostics;
 use wdl::format::Config as FormatConfig;
 use wdl::format::Formatter;
 use wdl::format::Indent;
 use wdl::format::MaxLineLength;
+use wdl::format::NewlineStyle;
 use wdl::format::element::node::AstNodeFormatExt;
 
 use crate::Config;
@@ -23,8 +26,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::diagnostics::Mode;
-use crate::diagnostics::emit_diagnostics;
 
 /// Arguments for the `format` subcommand.
 #[derive(Parser, Debug)]
@@ -51,7 +52,11 @@ pub struct Args {
     /// The maximum line length (default is 90). 0 means do not use a maximum
     /// line length.
     #[arg(long, value_name = "LENGTH", global = true)]
-    pub max_line_length: Option<usize>,
+    pub max_line_length: Option<String>,
+
+    /// The newline style to use.
+    #[arg(long, value_name = "STYLE", global = true, value_parser = ["auto", "unix", "windows"])]
+    pub newline_style: Option<NewlineStyle>,
 
     /// Subcommand for the `format` command.
     #[command(subcommand)]
@@ -100,13 +105,13 @@ fn format_document(
         .collect::<Vec<_>>();
     if !diagnostics.is_empty() {
         let path = document.path();
-        emit_diagnostics(&path, source.clone(), diagnostics, &[], mode, colorize)?;
+        emit_diagnostics(&path, &source, diagnostics, mode, colorize)?;
         return Err(anyhow!("cannot format a malformed document"));
     }
 
     let ast = document
         .root()
-        .ast()
+        .ast_with_version_fallback(document.config().fallback_version())
         .into_v1()
         .expect("only WDL v1.x documents are supported");
     let element = Node::Ast(ast).into_format_element();
@@ -116,28 +121,37 @@ fn format_document(
 /// Runs the `format` command.
 pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
-    let fallback_version = config.common.wdl.fallback_version;
+    let fallback_version = config.common.wdl.fallback_version.inner().cloned();
 
-    let indent = {
-        let with_tabs = args.with_tabs || config.format.with_tabs;
-        let num_spaces = args
-            .indentation_size
-            .unwrap_or(config.format.indentation_size);
-        Indent::try_new(with_tabs, if with_tabs { None } else { Some(num_spaces) })
+    let indent = if args.with_tabs || args.indentation_size.is_some() {
+        Indent::try_new(args.with_tabs, args.indentation_size)
             .context("failed to create indentation configuration")?
+    } else {
+        config.format.indent
     };
 
-    let max_line_length = MaxLineLength::try_new(
-        args.max_line_length
-            .unwrap_or(config.format.max_line_length),
-    )
-    .context("failed to create max line length configuration")?;
+    let max_line_length = if let Some(max) = args.max_line_length {
+        let max = match max.as_str() {
+            "none" => None,
+            _ => Some(
+                max.parse::<usize>()
+                    .context("`--max-line-length` must be an integer")?,
+            ),
+        };
+        MaxLineLength::try_new(max).context("failed to create max line length configuration")?
+    } else {
+        config.format.max_line_length
+    };
+
+    let newline_style = args.newline_style.unwrap_or(config.format.newline_style);
 
     let config = FormatConfig::default()
         .indent(indent)
         .max_line_length(max_line_length)
-        .sort_imports(config.format.sort_inputs)
-        .trailing_commas(config.format.trailing_commas);
+        .sort_inputs(config.format.sort_inputs)
+        .sort_imports(config.format.sort_imports)
+        .trailing_commas(config.format.trailing_commas)
+        .newline_style(newline_style);
     let formatter = Formatter::new(config);
 
     let mut errors = 0;

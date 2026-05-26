@@ -3,6 +3,9 @@
 use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
+use wdl::analysis::Document;
+use wdl::ast::SupportedVersion;
+use wdl::diagnostics::Mode;
 use wdl::engine::Inputs as EngineInputs;
 
 use crate::Config;
@@ -10,7 +13,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::diagnostics::Mode;
 use crate::inputs::Invocation;
 
 /// Arguments for the `validate` subcommand.
@@ -39,8 +41,9 @@ pub struct Args {
 
     /// The inputs for the task or workflow.
     ///
-    /// These inputs can be either paths to files containing inputs or key-value
-    /// pairs passed in on the command line.
+    /// An input can be a key-value pair (e.g., `task.name=value`), an input
+    /// file prefixed with `@` (e.g., `@inputs.json`), or a bare value that
+    /// is appended to the preceding key's array.
     pub inputs: Vec<String>,
 
     /// The report mode.
@@ -48,31 +51,63 @@ pub struct Args {
     pub report_mode: Option<Mode>,
 }
 
-/// The main function for the `validate` subcommand.
-pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
-    if let Source::Directory(_) = args.source {
-        return Err(
-            anyhow!("directory sources are not supported for the `validate` command").into(),
-        );
-    }
-
+/// Runs analysis on a single source and returns the resulting document.
+pub async fn analyze_source(
+    source: &Source,
+    fallback_version: Option<SupportedVersion>,
+) -> CommandResult<Document> {
     let results = Analysis::default()
-        .add_source(args.source.clone())
-        .fallback_version(config.common.wdl.fallback_version)
+        .add_source(source.clone())
+        .fallback_version(fallback_version)
         .run()
         .await
         .map_err(CommandError::from)?;
 
-    // SAFETY: this must exist, as we added it as the only source to be analyzed
-    // above.
-    let document = results.filter(&[&args.source]).next().unwrap().document();
+    // SAFETY: this must exist, as we added it as the only source to be
+    // analyzed above.
+    Ok(results.filter(&[source]).next().unwrap().document().clone())
+}
 
-    let (target, inputs) = match Invocation::coalesce(&args.inputs, args.target.clone())
+/// Resolves the target and inputs against an already-analyzed document,
+/// then validates them.
+pub async fn validate_inputs(
+    document: &Document,
+    input_args: &[String],
+    target_arg: Option<String>,
+) -> CommandResult<(String, EngineInputs)> {
+    let (target, inputs) = resolve_target_and_inputs(input_args, target_arg, document).await?;
+
+    match &inputs {
+        EngineInputs::Task(inputs) => {
+            // SAFETY: we wouldn't have a task inputs if a task didn't exist
+            // that matched the user's criteria.
+            let task = document.task_by_name(&target).unwrap();
+            inputs.validate(document, task, None)?
+        }
+        EngineInputs::Workflow(inputs) => {
+            // SAFETY: we wouldn't have a workflow inputs if a workflow didn't
+            // exist that matched the user's criteria.
+            let workflow = document.workflow().unwrap();
+            inputs.validate(document, workflow, None)?
+        }
+    }
+
+    Ok((target, inputs))
+}
+
+/// Accepts an optional target and set of inputs, and resolves them for
+/// validation.
+async fn resolve_target_and_inputs(
+    input_args: &[String],
+    target_arg: Option<String>,
+    document: &Document,
+) -> CommandResult<(String, EngineInputs)> {
+    let (target, inputs) = match Invocation::coalesce(input_args, target_arg.clone())
         .await
         .with_context(|| {
             format!(
                 "failed to parse inputs from `{sources}`",
-                sources = args.inputs.join("`, `")
+                sources = input_args.join("`, `")
             )
         })?
         .into_engine_inputs(document)
@@ -80,7 +115,7 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
     {
         Some((target, inputs)) => (target, inputs),
         None => {
-            if let Some(name) = args.target {
+            if let Some(name) = target_arg {
                 match (document.task_by_name(&name), document.workflow()) {
                     (Some(_), _) => (name, EngineInputs::Task(Default::default())),
                     (None, Some(workflow)) => {
@@ -111,20 +146,24 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
         }
     };
 
-    match inputs {
-        EngineInputs::Task(inputs) => {
-            // SAFETY: we wouldn't have a task inputs if a task didn't exist
-            // that matched the user's criteria.
-            let task = document.task_by_name(&target).unwrap();
-            inputs.validate(document, task, None)?
-        }
-        EngineInputs::Workflow(inputs) => {
-            // SAFETY: we wouldn't have a workflow inputs if a workflow didn't
-            // exist that matched the user's criteria.
-            let workflow = document.workflow().unwrap();
-            inputs.validate(document, workflow, None)?
-        }
+    Ok((target, inputs))
+}
+
+/// The main function for the `validate` subcommand.
+pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
+    if let Source::Directory(_) = args.source {
+        return Err(
+            anyhow!("directory sources are not supported for the `validate` command").into(),
+        );
     }
+
+    let document = analyze_source(
+        &args.source,
+        config.common.wdl.fallback_version.inner().cloned(),
+    )
+    .await?;
+
+    validate_inputs(&document, &args.inputs, args.target).await?;
 
     Ok(())
 }

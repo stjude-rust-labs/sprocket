@@ -36,8 +36,8 @@ use wdl_ast::SyntaxNode;
 
 use crate::Config;
 use crate::IncrementalChange;
+use crate::UsingFallbackVersion;
 use crate::document::Document;
-use crate::rules::USING_FALLBACK_VERSION;
 
 /// Represents space for a DFS search of a document graph.
 pub type DfsSpace =
@@ -374,7 +374,8 @@ impl DocumentGraphNode {
 
         // Reparse from the source
         let start = Instant::now();
-        let (document, mut diagnostics) = wdl_ast::Document::parse(&source);
+        let (document, mut diagnostics) =
+            wdl_ast::Document::parse(&source, self.config.fallback_version());
         debug!(
             "parsing of `{uri}` completed in {elapsed:?}",
             uri = self.uri,
@@ -403,7 +404,7 @@ impl DocumentGraphNode {
                                 "unsupported WDL version `{unrecognized}`; interpreting document \
                                  as version `{fallback}`"
                             ))
-                            .with_rule(USING_FALLBACK_VERSION)
+                            .with_rule(UsingFallbackVersion::ID)
                             .with_severity(severity)
                             .with_label(
                                 "this version of WDL is not supported",
@@ -413,16 +414,8 @@ impl DocumentGraphNode {
                     }
                     wdl_version = Some(fallback);
                 }
-                // Add an error diagnostic if the version is unsupported and don't overwrite
-                // `wdl_version`
-                (Err(unrecognized), None) => {
-                    diagnostics.push(
-                        Diagnostic::error(format!("unsupported WDL version `{unrecognized}`"))
-                            .with_label(
-                                "this version of WDL is not supported",
-                                version_token.span(),
-                            ),
-                    );
+                (Err(_), None) => {
+                    // Diagnostic already emitted by wdl-grammar
                 }
             };
         }
@@ -491,7 +484,7 @@ pub struct DocumentGraph {
     /// Represents dependency edges that, if they were added to the document
     /// graph, would form a cycle.
     ///
-    /// The first in the pair is the dependant node and the second is the
+    /// The first in the pair is the dependent node and the second is the
     /// depended node.
     ///
     /// This is used to break import cycles; when analyzing the document, if the

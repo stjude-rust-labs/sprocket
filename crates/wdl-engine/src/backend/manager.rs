@@ -268,7 +268,7 @@ impl TaskManager {
                     }
                 };
 
-                // Run the task, waiting for it to be unparked if neccessary
+                // Run the task, waiting for it to be unparked if necessary
                 let res = match &mut parked {
                     Some((notify, _)) => {
                         if let Some(sender) = limits.events.engine() {

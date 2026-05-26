@@ -5,6 +5,8 @@
 //! `runtime`/`requirements` sections.
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -117,10 +119,11 @@ impl Rule for ContainerUriRule {
 - An array of container URIs with a single element should be changed to a single string value."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task say_hello {
     input {
@@ -146,15 +149,18 @@ task say_goodbye {
         echo "Goodbye, ~{name}!"
     >>>
 
+    # Unnecessary array
     requirements {
-        container: ["ubuntu:latest"]
+        container: [
+            "ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1",
+        ]
     }
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task say_hello {
     input {
@@ -166,7 +172,7 @@ task say_hello {
     >>>
 
     requirements {
-        container: "ubuntu:latest"
+        container: "ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1"
     }
 }
 
@@ -180,11 +186,12 @@ task say_goodbye {
     >>>
 
     requirements {
-        container: "ubuntu:latest"
+        container: "ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1"
     }
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

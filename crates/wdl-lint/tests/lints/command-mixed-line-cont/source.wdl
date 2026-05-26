@@ -1,4 +1,4 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys
+#@ except: MetaDescription, ExpectedRuntimeKeys, EmptyOutputs
 
 ## This is a test of having mixed indentation in a line continuation.
 

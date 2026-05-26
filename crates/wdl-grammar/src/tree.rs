@@ -12,6 +12,7 @@ use rowan::GreenNodeData;
 use strum::VariantArray;
 
 use super::Diagnostic;
+use super::SupportedVersion;
 use super::grammar;
 use super::lexer::Lexer;
 use super::parser::Event;
@@ -88,6 +89,8 @@ pub enum SyntaxKind {
     EnvKeyword,
     /// The `false` keyword token.
     FalseKeyword,
+    /// The `from` keyword token.
+    FromKeyword,
     /// The `if` keyword token.
     IfKeyword,
     /// The `in` keyword token.
@@ -206,6 +209,12 @@ pub enum SyntaxKind {
     VersionStatementNode,
     /// Represents an import statement node.
     ImportStatementNode,
+    /// Represents the braced selected-members clause in an import statement.
+    ImportMembersNode,
+    /// Represents a single selected member in a symbolic import.
+    ImportMemberNode,
+    /// Represents the unquoted module path `Ident ("/" Ident)*`.
+    SymbolicModulePathNode,
     /// Represents an import alias node.
     ImportAliasNode,
     /// Represents a struct definition node.
@@ -433,6 +442,7 @@ impl SyntaxKind {
             Self::ElseKeyword => "`else` keyword",
             Self::EnvKeyword => "`env` keyword",
             Self::FalseKeyword => "`false` keyword",
+            Self::FromKeyword => "`from` keyword",
             Self::IfKeyword => "`if` keyword",
             Self::InKeyword => "`in` keyword",
             Self::ImportKeyword => "`import` keyword",
@@ -488,6 +498,9 @@ impl SyntaxKind {
             Self::RootNode => "root node",
             Self::VersionStatementNode => "version statement",
             Self::ImportStatementNode => "import statement",
+            Self::ImportMembersNode => "selected members clause",
+            Self::ImportMemberNode => "selected member",
+            Self::SymbolicModulePathNode => "symbolic module path",
             Self::ImportAliasNode => "import alias",
             Self::StructDefinitionNode => "struct definition",
             Self::EnumDefinitionNode => "enum definition",
@@ -600,6 +613,7 @@ impl SyntaxKind {
                 | SyntaxKind::FalseKeyword
                 | SyntaxKind::FileTypeKeyword
                 | SyntaxKind::FloatTypeKeyword
+                | SyntaxKind::FromKeyword
                 | SyntaxKind::HintsKeyword
                 | SyntaxKind::IfKeyword
                 | SyntaxKind::ImportKeyword
@@ -746,6 +760,9 @@ pub struct SyntaxTree(SyntaxNode);
 impl SyntaxTree {
     /// Parses WDL source to produce a syntax tree.
     ///
+    /// This optionally takes a `fallback_version`, which will be used if a
+    /// [`SupportedVersion`] cannot be determined from the document.
+    ///
     /// A syntax tree is always returned, even for invalid WDL documents.
     ///
     /// Additionally, the list of diagnostics encountered during the parse is
@@ -758,13 +775,16 @@ impl SyntaxTree {
     ///
     /// ```rust
     /// # use wdl_grammar::SyntaxTree;
-    /// let (tree, diagnostics) = SyntaxTree::parse("version 1.1");
+    /// let (tree, diagnostics) = SyntaxTree::parse("version 1.1", None);
     /// assert!(diagnostics.is_empty());
     /// println!("{tree:#?}");
     /// ```
-    pub fn parse(source: &str) -> (Self, Vec<Diagnostic>) {
+    pub fn parse(
+        source: &str,
+        fallback_version: Option<SupportedVersion>,
+    ) -> (Self, Vec<Diagnostic>) {
         let parser = Parser::new(Lexer::new(source));
-        let (events, mut diagnostics) = grammar::document(parser);
+        let (events, mut diagnostics) = grammar::document(parser, fallback_version);
         diagnostics.sort();
         (Self(construct_tree(source, events)), diagnostics)
     }
@@ -898,6 +918,7 @@ task foo {} # This comment should not be included
 workflow foo {} # This should not be collected.
 
 # This comment should not be included either.",
+            None,
         );
 
         assert!(diagnostics.is_empty());
@@ -930,6 +951,7 @@ task foo {}
 workflow foo {} # Here is a comment that should be collected.
 
 # This comment should not be included either.",
+            None,
         );
 
         assert!(diagnostics.is_empty());

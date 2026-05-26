@@ -115,6 +115,26 @@ impl fmt::Display for HostPath {
     }
 }
 
+/// Writes a string as the body of a double-quoted WDL literal.
+fn write_escaped_wdl_string(f: &mut fmt::Formatter<'_>, s: &str) -> fmt::Result {
+    let mut chars = s.char_indices().peekable();
+    while let Some((_, c)) = chars.next() {
+        let next_is_brace = chars.peek().map(|(_, n)| *n == '{').unwrap_or(false);
+        match c {
+            '\\' => f.write_str(r"\\")?,
+            '\n' => f.write_str(r"\n")?,
+            '\r' => f.write_str(r"\r")?,
+            '\t' => f.write_str(r"\t")?,
+            '"' => f.write_str("\\\"")?,
+            '$' if next_is_brace => f.write_str(r"\$")?,
+            '~' if next_is_brace => f.write_str(r"\~")?,
+            c if c.is_control() => write!(f, "\\x{code:02X}", code = c as u32)?,
+            c => write!(f, "{c}")?,
+        }
+    }
+    Ok(())
+}
+
 impl From<Arc<String>> for HostPath {
     fn from(path: Arc<String>) -> Self {
         Self(path)
@@ -1450,8 +1470,9 @@ impl fmt::Display for PrimitiveValue {
             Self::Integer(v) => write!(f, "{v}"),
             Self::Float(v) => write!(f, "{v:.6?}"),
             Self::String(s) | Self::File(HostPath(s)) | Self::Directory(HostPath(s)) => {
-                // TODO: handle necessary escape sequences
-                write!(f, "\"{s}\"")
+                f.write_str("\"")?;
+                write_escaped_wdl_string(f, s.as_str())?;
+                f.write_str("\"")
             }
         }
     }
@@ -3066,7 +3087,8 @@ impl Coercible for HiddenValue {
 /// Contains all evaluated requirement fields.
 #[derive(Debug, Clone)]
 pub(crate) struct TaskPostEvaluationData {
-    /// The container of the task.
+    /// The container image that was actually used for execution, if the task
+    /// runs in a container.
     container: Option<Arc<String>>,
     /// The allocated number of cpus for the task.
     cpu: f64,
@@ -3352,10 +3374,11 @@ impl TaskPostEvaluationValue {
             name: Arc::new(name.into()),
             id: Arc::new(id.into()),
             data: Arc::new(TaskPostEvaluationData {
-                container: constraints
-                    .container
-                    .as_ref()
-                    .map(|c| Arc::new(c.to_string())),
+                // NOTE: initialized as `None` because the actual container
+                // used is not known until after execution completes. It is
+                // set via `set_container()` once the backend resolves which
+                // candidate image was pulled.
+                container: None,
                 cpu: constraints.cpu,
                 memory: constraints
                     .memory
@@ -3483,6 +3506,12 @@ impl TaskPostEvaluationValue {
     /// Gets the task's extension metadata.
     pub fn ext(&self) -> &Object {
         &self.0.ext
+    }
+
+    /// Sets the container image after task execution has completed.
+    pub(crate) fn set_container(&mut self, container: String) {
+        let inner = Arc::get_mut(&mut self.0).expect("task value must be uniquely owned to mutate");
+        Arc::make_mut(&mut inner.data).container = Some(Arc::new(container));
     }
 
     /// Sets the return code after the task execution has completed.
@@ -4187,6 +4216,17 @@ mod test {
     fn string_display() {
         let value = PrimitiveValue::new_string("hello world!");
         assert_eq!(value.to_string(), "\"hello world!\"");
+    }
+
+    #[test]
+    fn string_display_escapes_special_characters() {
+        let value = PrimitiveValue::new_string(
+            "\u{1b}[31m${name} ~{color} \"quoted\" \\\\ tab\tline\ncarriage\r$HOME ~user",
+        );
+        assert_eq!(
+            value.to_string(),
+            r#""\x1B[31m\${name} \~{color} \"quoted\" \\\\ tab\tline\ncarriage\r$HOME ~user""#
+        );
     }
 
     #[test]

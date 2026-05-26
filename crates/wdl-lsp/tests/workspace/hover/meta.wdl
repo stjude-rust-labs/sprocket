@@ -30,3 +30,29 @@ workflow hover_meta {
         name: "foo",
     }
 }
+
+task object_meta {
+    parameter_meta {
+        name: {
+            description: "The name of the person to greet",
+            something_else: true
+        }
+        message: {
+            description: "Text to be printed",
+            help: "Use double quotes for multi-word values."
+        }
+        only_help: {
+            help: "Only the help string is provided here."
+        }
+    }
+
+    input {
+        String name
+        String message
+        String only_help
+    }
+
+    command <<<
+        echo "~{name} ~{message} ~{only_help}"
+    >>>
+}
