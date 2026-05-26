@@ -151,7 +151,7 @@ fn placeholder_subject_name(expr: &Expr) -> Option<String> {
 fn optional_placeholder_diagnostic(expr: &Expr, placeholder: &Placeholder) -> Diagnostic {
     let span = placeholder.span();
     let message = if let Some(name) = placeholder_subject_name(expr) {
-        format!("optional value {name} used in command placeholder without a guard")
+        format!("optional value `{name}` used in command placeholder without a guard")
     } else {
         String::from("optional value used in command placeholder without a guard")
     };

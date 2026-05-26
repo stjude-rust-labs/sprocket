@@ -1,4 +1,4 @@
-warning[OptionalInputSafety]: optional value optional_flag used in command placeholder without a guard
+warning[OptionalInputSafety]: optional value `optional_flag` used in command placeholder without a guard
    ┌─ tests/lints/optional-input-safety/source.wdl:14:23
    │
 14 │         samtools sort ~{optional_flag} ~{input_bam}
@@ -6,7 +6,7 @@ warning[OptionalInputSafety]: optional value optional_flag used in command place
    │
    = fix: wrap the optional in `if defined(...) then ... else ...`, or use `select_first()` / `select_all()` so `None` is handled explicitly
 
-warning[OptionalInputSafety]: optional value optional_flag used in command placeholder without a guard
+warning[OptionalInputSafety]: optional value `optional_flag` used in command placeholder without a guard
    ┌─ tests/lints/optional-input-safety/source.wdl:27:24
    │
 27 │         samtools sort "~{optional_flag}" ~{input_bam}
