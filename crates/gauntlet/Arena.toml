@@ -513,7 +513,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
-message = "testrun.wdl:76:5: warning[NoInlineInstall]: inline installation of packages is discouraged"
+message = "testrun.wdl:76:5: warning[InlineInstall]: inline installation of packages is discouraged"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/testrun.wdl/#L76"
 
 [[diagnostics]]
@@ -1623,7 +1623,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
-message = "ww-tritonnp.wdl:116:16: warning[NoInlineInstall]: inline installation of packages is discouraged"
+message = "ww-tritonnp.wdl:116:16: warning[InlineInstall]: inline installation of packages is discouraged"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/ww-tritonnp.wdl/#L116"
 
 [[diagnostics]]
@@ -1633,7 +1633,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
-message = "ww-tritonnp.wdl:55:16: warning[NoInlineInstall]: inline installation of packages is discouraged"
+message = "ww-tritonnp.wdl:55:16: warning[InlineInstall]: inline installation of packages is discouraged"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/ww-tritonnp.wdl/#L55"
 
 [[diagnostics]]

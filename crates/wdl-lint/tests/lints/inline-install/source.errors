@@ -1,0 +1,200 @@
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:35:9
+   │
+35 │         apk add test
+   │         ^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:36:9
+   │
+36 │         apt install test
+   │         ^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:37:9
+   │
+37 │         apt-get install test
+   │         ^^^^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:38:9
+   │
+38 │         brew install test
+   │         ^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:39:9
+   │
+39 │         cargo install test
+   │         ^^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:40:9
+   │
+40 │         conda create test
+   │         ^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:41:9
+   │
+41 │         conda install test
+   │         ^^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:42:9
+   │
+42 │         dnf install test
+   │         ^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:43:9
+   │
+43 │         gem install test
+   │         ^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:44:9
+   │
+44 │         go install test
+   │         ^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:45:9
+   │
+45 │         mamba create test
+   │         ^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:46:9
+   │
+46 │         mamba install test
+   │         ^^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:47:9
+   │
+47 │         npm -g install test
+   │         ^^^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:48:9
+   │
+48 │         pip install test
+   │         ^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:49:9
+   │
+49 │         pip2 install test
+   │         ^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:50:9
+   │
+50 │         pip3 install test
+   │         ^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:51:9
+   │
+51 │         yum install test
+   │         ^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:54:9
+   │
+54 │         apt --yes install
+   │         ^^^^^^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:55:9
+   │
+55 │         npm i test
+   │         ^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:58:9
+   │
+58 │         sudo apt install test
+   │         ^^^^^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:68:9
+   │
+68 │         curl https://example.com/install.sh | bash
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:69:9
+   │
+69 │         wget https://example.com/install.sh | bash
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:71:9
+   │
+71 │         curl https://example.com/script.py | python
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:72:9
+   │
+72 │         curl https://example.com/script.py | python2
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+
+warning[InlineInstall]: inline installation of packages is discouraged
+   ┌─ tests/lints/inline-install/source.wdl:73:9
+   │
+73 │         curl https://example.com/script.py | python3
+   │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │
+   = fix: consider using a more robust dependency management approach, such as a container image
+

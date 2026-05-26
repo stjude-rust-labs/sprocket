@@ -25,12 +25,12 @@ const ID: &str = "InlineInstall";
 
 /// Regex pattern to match inline installations.
 static INSTALL_REGEX: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?im)(apt-get|apt|pip|pip3|yum|dnf|brew|npm|gem|cargo|go)(?:\s+(-[\w-])+)*\s+install|(conda|mamba)(?:\s+(-[\w-])+)*\s+(?:install|create)|(apk)(?:\s+(-[\w-])+)*\s+\s*(add)\b").unwrap()
+    Regex::new(r"(?im)\b(?:sudo\s+)?(?:(apt(?:-get)?|pip[23]?|yum|dnf|brew|npm|gem|cargo|go)(?:\s+-[\w-]+)*\s+(?:install|i)|(conda|mamba)(?:\s+-[\w-]+)*\s+(?:install|create)|(apk)(?:\s+-[\w-]+)*\s+add)\b").unwrap()
 });
 
 /// Regex pattern to match piped installations.
 static PIPED_INSTALL_REGEX: LazyLock<Regex> =
-    LazyLock::new(|| Regex::new(r"(?im)(curl|wget)\b.*\|\s*(bash|sh|python3?)\b").unwrap());
+    LazyLock::new(|| Regex::new(r"(?im)\b(curl|wget)\b.*\|\s*(bash|sh|python[23]?)\b").unwrap());
 
 /// Creates a diagnostic for an inline installation in a command section.
 fn inline_install_diagnostic(span: Span) -> Diagnostic {
