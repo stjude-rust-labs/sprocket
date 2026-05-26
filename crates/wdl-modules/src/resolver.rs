@@ -352,7 +352,11 @@ impl GitResolver {
                     } => {
                         let plan = self
                             .plan_git_materialization(
-                                name, url, selector, path, scope,
+                                name,
+                                url,
+                                selector,
+                                path,
+                                scope,
                                 ResolutionMode::Fresh,
                             )
                             .await?;
@@ -534,17 +538,18 @@ impl GitResolver {
         selector: &GitSelector,
         path: &Option<GitModulePath>,
         scope: DependencyScope,
-        mode: ResolutionMode,
+        mode: ResolutionMode<'_>,
     ) -> Result<GitMaterializationPlan, ResolverError> {
         let path_prefix = path.as_ref().map(GitModulePath::as_str).map(str::to_string);
 
         let (selected_version, commit) = match mode {
-            ResolutionMode::Locked => {
-                let locked_entry = self.lockfile.dependencies.get(name).ok_or_else(|| {
-                    ResolverError::NotInLockfile {
-                        dep: name.manifest().to_string(),
-                    }
-                })?;
+            ResolutionMode::Locked { lockfile_scope } => {
+                let locked_entry =
+                    self.lockfile
+                        .find_scoped(lockfile_scope, name)
+                        .ok_or_else(|| ResolverError::NotInLockfile {
+                            dep: name.manifest().to_string(),
+                        })?;
                 let (locked_url, locked_commit, locked_path, locked_selector) =
                     match &locked_entry.source {
                         ResolvedSource::Git {
@@ -610,7 +615,11 @@ impl Resolver for GitResolver {
         // Look up the dependency declaration in the consumer's manifest.
         let name = path.dep_name();
         tracing::debug!(dep = %name.manifest(), "materializing symbolic import");
-        let scope = DependencyScope::TopLevel;
+        let scope = if consumer.lockfile_scope.is_empty() {
+            DependencyScope::TopLevel
+        } else {
+            DependencyScope::Transitive
+        };
         let source = consumer.manifest.dependencies.get(name).ok_or_else(|| {
             ResolverError::NotADependency {
                 name: name.manifest().to_string(),
@@ -647,7 +656,9 @@ impl Resolver for GitResolver {
                         selector,
                         path,
                         scope,
-                        ResolutionMode::Locked,
+                        ResolutionMode::Locked {
+                            lockfile_scope: &consumer.lockfile_scope,
+                        },
                     )
                     .await?;
                 let root = self.materialize_git(name, url, scope, &plan).await?;
@@ -1309,6 +1320,35 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn materialize_checks_transitive_git_policy_for_child_module()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let workdir = tempdir()?;
+        let child_dir = workdir.path().join("child");
+        let ssh_dep = r#"{"git":"ssh://git@github.com/openwdl/tasks","commit":"0000000000000000000000000000000000000001"}"#;
+        write_manifest(&child_dir, "child", "1.0.0", &[("dep", ssh_dep)]);
+        let child = Manifest::parse(&fs::read(child_dir.join(crate::MANIFEST_FILENAME))?)?;
+
+        let parent_dir = workdir.path().join("parent");
+        write_manifest(&parent_dir, "parent", "1.0.0", &[]);
+        let parent = Manifest::parse(&fs::read(parent_dir.join(crate::MANIFEST_FILENAME))?)?;
+        let parent = module(parent, &parent_dir);
+        let child_name = DependencyName::try_from("child".to_string())?;
+        let child = parent.child(child_name, Arc::new(child), child_dir);
+
+        let cache = tempdir()?;
+        let symbolic_path = "dep".to_string().try_into()?;
+        let err = match resolver(&cache).materialize(&child, &symbolic_path).await {
+            Ok(_) => panic!("expected transitive git policy rejection"),
+            Err(err) => err,
+        };
+        assert!(
+            matches!(err, ResolverError::GitUrlPolicyViolation { .. }),
+            "expected `GitUrlPolicyViolation`, got: {err}"
+        );
+        Ok(())
+    }
+
     fn locked_git_resolver(cache: &TempDir, dep: &str, entry: DependencyEntry) -> GitResolver {
         let mut lockfile = Lockfile::default();
         lockfile.dependencies.insert(dep.parse().unwrap(), entry);
@@ -1348,7 +1388,9 @@ mod tests {
                 &selector,
                 &None,
                 DependencyScope::TopLevel,
-                ResolutionMode::Locked,
+                ResolutionMode::Locked {
+                    lockfile_scope: &[],
+                },
             )
             .await
             .unwrap_err();
@@ -1374,7 +1416,9 @@ mod tests {
                 &selector,
                 &None,
                 DependencyScope::TopLevel,
-                ResolutionMode::Locked,
+                ResolutionMode::Locked {
+                    lockfile_scope: &[],
+                },
             )
             .await
             .unwrap_err();
@@ -1399,11 +1443,56 @@ mod tests {
                 &selector,
                 &None,
                 DependencyScope::TopLevel,
-                ResolutionMode::Locked,
+                ResolutionMode::Locked {
+                    lockfile_scope: &[],
+                },
             )
             .await
             .unwrap_err();
         assert!(matches!(err, ResolverError::LockfileSourceMismatch { .. }));
+    }
+
+    #[tokio::test]
+    async fn locked_git_materialization_uses_scoped_lockfile_entry()
+    -> Result<(), Box<dyn std::error::Error>> {
+        let cache = tempdir()?;
+        let parent_dir = cache.path().join("parent");
+        let parent = DependencyName::try_from("parent".to_string())?;
+        let dep = DependencyName::try_from("dep".to_string())?;
+        let selector = GitSelector::Commit("0000000000000000000000000000000000000001".parse()?);
+
+        let mut parent_entry = DependencyEntry {
+            source: ResolvedSource::Path { path: parent_dir },
+            version: Version::parse("1.0.0")?,
+            checksum: checksum(),
+            signer: None,
+            dependencies: Default::default(),
+        };
+        parent_entry
+            .dependencies
+            .insert(dep.clone(), locked_git_entry(selector.clone()));
+
+        let mut lockfile = Lockfile::default();
+        lockfile.dependencies.insert(parent.clone(), parent_entry);
+        let r = resolver_with_lockfile(&cache, lockfile);
+        let url = "https://github.com/openwdl/tasks".parse()?;
+        let plan = r
+            .plan_git_materialization(
+                &dep,
+                &url,
+                &selector,
+                &None,
+                DependencyScope::Transitive,
+                ResolutionMode::Locked {
+                    lockfile_scope: &[parent],
+                },
+            )
+            .await?;
+        assert_eq!(
+            plan.commit,
+            "0000000000000000000000000000000000000001".parse()?
+        );
+        Ok(())
     }
 
     #[tokio::test]

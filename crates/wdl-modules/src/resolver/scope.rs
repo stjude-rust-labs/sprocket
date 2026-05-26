@@ -14,11 +14,14 @@ pub enum DependencyScope {
 /// a locked commit.
 #[cfg(feature = "resolver")]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum ResolutionMode {
+pub enum ResolutionMode<'a> {
     /// Resolve mutable selectors against the remote. Used by
     /// `resolve_tree` when computing a fresh dependency graph.
     Fresh,
     /// Replay the locked commit from the lockfile. Used by
     /// `materialize` when reproducing a previously-locked dependency.
-    Locked,
+    Locked {
+        /// The lockfile path that contains the dependency entry.
+        lockfile_scope: &'a [crate::DependencyName],
+    },
 }
