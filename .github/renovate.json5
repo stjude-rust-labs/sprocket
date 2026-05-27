@@ -1,0 +1,73 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+  ],
+  timezone: "America/Chicago",
+  schedule: [
+    "before 6am",
+  ],
+  prHourlyLimit: 4,
+  prConcurrentLimit: 10,
+  minimumReleaseAge: "14 days",
+  rangeStrategy: "update-lockfile",
+  automerge: true,
+  automergeType: "pr",
+  automergeStrategy: "squash",
+  platformAutomerge: true,
+  lockFileMaintenance: {
+    enabled: true,
+    schedule: [
+      "before 6am on monday",
+    ],
+    automerge: true,
+  },
+  packageRules: [
+    {
+      matchManagers: [
+        "cargo",
+      ],
+      matchUpdateTypes: [
+        "major",
+      ],
+      automerge: false,
+      addLabels: [
+        "dependencies",
+        "major-update",
+      ],
+    },
+    {
+      matchManagers: [
+        "cargo",
+      ],
+      matchUpdateTypes: [
+        "minor",
+        "patch",
+      ],
+      addLabels: [
+        "dependencies",
+      ],
+    },
+    {
+      matchManagers: [
+        "github-actions",
+      ],
+      addLabels: [
+        "github-actions",
+      ],
+    },
+  ],
+  vulnerabilityAlerts: {
+    enabled: true,
+    minimumReleaseAge: null,
+    schedule: [
+      "at any time",
+    ],
+    labels: [
+      "security",
+    ],
+  },
+  osvVulnerabilityAlerts: true,
+}
