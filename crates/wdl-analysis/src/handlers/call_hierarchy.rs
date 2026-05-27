@@ -344,20 +344,14 @@ pub fn outgoing_calls(
             &from_doc
         };
 
-        let source_index = graph.get_index(to_doc.uri()).ok_or_else(|| {
-            anyhow!(
-                "document `{uri}` not found in graph",
-                uri = to_doc.uri()
-            )
-        })?;
+        let source_index = graph
+            .get_index(to_doc.uri())
+            .ok_or_else(|| anyhow!("document `{uri}` not found in graph", uri = to_doc.uri()))?;
 
         let source_node = graph.get(source_index);
         let lines = match source_node.parse_state() {
             ParseState::Parsed { lines, .. } => lines.clone(),
-            _ => bail!(
-                "document `{uri}` has not been parsed",
-                uri = to_doc.uri()
-            ),
+            _ => bail!("document `{uri}` has not been parsed", uri = to_doc.uri()),
         };
 
         let Some(from_span) = scope.lookup(ident).map(|s| s.span()) else {
