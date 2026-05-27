@@ -477,6 +477,14 @@ impl<N: TreeNode> AstNode<N> for Document<N> {
     }
 }
 
+impl Documented<SyntaxNode> for Document<SyntaxNode> {
+    fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
+        let version_statement = self.child::<VersionStatement>()?;
+        let version_keyword = version_statement.keyword();
+        Some(doc_comments::<SyntaxNode>(version_keyword.inner().preceding_trivia()).collect())
+    }
+}
+
 impl Document {
     /// Parses a document from the given source.
     ///
