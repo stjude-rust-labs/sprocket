@@ -12,6 +12,7 @@ members = [
     "crates/wdl-lint",
     "crates/wdl-lsp",
     "crates/wdl-modules",
+    "crates/sprocket_py",
 ]
 resolver = "2"
 
