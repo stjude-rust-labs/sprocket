@@ -523,6 +523,8 @@ pub struct Task {
     name_span: Span,
     /// The name of the task.
     name: String,
+    /// The span of the task definition.
+    span: Span,
     /// The scopes contained in the task.
     ///
     /// The first scope will always be the task's scope.
@@ -544,6 +546,11 @@ impl Task {
     /// Gets the span of the name.
     pub fn name_span(&self) -> Span {
         self.name_span
+    }
+
+    /// Gets the span of the workflow definition.
+    pub fn span(&self) -> Span {
+        self.span
     }
 
     /// Gets the scope of the task.
@@ -569,6 +576,8 @@ pub struct Workflow {
     name_span: Span,
     /// The name of the workflow.
     name: String,
+    /// The span of the workflow definition.
+    span: Span,
     /// The scopes contained in the workflow.
     ///
     /// The first scope will always be the workflow's scope.
@@ -594,6 +603,11 @@ impl Workflow {
     /// Gets the span of the name.
     pub fn name_span(&self) -> Span {
         self.name_span
+    }
+
+    /// Gets the span of the workflow definition.
+    pub fn span(&self) -> Span {
+        self.span
     }
 
     /// Gets the scope of the workflow.

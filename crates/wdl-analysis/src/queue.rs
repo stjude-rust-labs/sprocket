@@ -544,7 +544,7 @@ where
                     );
 
                     let graph = self.graph.read();
-                    match handlers::goto_definition(&graph, document, position, encoding) {
+                    match handlers::goto_definition(&graph, &document, position, encoding) {
                         Ok(result) => {
                             debug!(
                                 "goto definition request completed in {elapsed:?}",
@@ -580,7 +580,7 @@ where
                     let graph = self.graph.read();
                     match handlers::find_all_references(
                         &graph,
-                        document,
+                        &document,
                         position,
                         encoding,
                         include_declaration,
@@ -591,7 +591,7 @@ where
                                 elapsed = start.elapsed()
                             );
 
-                            completed.send(result.locations()).ok();
+                            completed.send(result).ok();
                         }
                         Err(err) => {
                             error!("find all references request failed: {err:?}");
@@ -685,7 +685,7 @@ where
                     );
 
                     let graph = self.graph.read();
-                    match handlers::rename(&graph, document, position, encoding, new_name) {
+                    match handlers::rename(&graph, &document, position, encoding, new_name) {
                         Ok(result) => {
                             debug!(
                                 "rename request completed in {elapsed:?}",
@@ -814,7 +814,7 @@ where
                     );
 
                     let graph = self.graph.read();
-                    match handlers::incoming_calls(&graph, document, position, encoding) {
+                    match handlers::incoming_calls(&graph, &document, position, encoding) {
                         Ok(result) => {
                             debug!(
                                 "incoming calls request completed in {elapsed:?}",
@@ -846,7 +846,7 @@ where
                     );
 
                     let graph = self.graph.read();
-                    match handlers::outgoing_calls(&graph, document, position, encoding) {
+                    match handlers::outgoing_calls(&graph, &document, position, encoding) {
                         Ok(result) => {
                             debug!(
                                 "outgoing calls request completed in {elapsed:?}",

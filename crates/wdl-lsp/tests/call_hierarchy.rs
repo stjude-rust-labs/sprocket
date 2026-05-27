@@ -121,13 +121,13 @@ fn verify_call_hierarchy(
         if let Some(index) = matched {
             expected.remove(index);
         } else {
-            panic!("Unexpected call hierarchy item returned: {item:?}");
+            panic!("unexpected call hierarchy item returned: {item:?}");
         }
     }
 
     assert!(
         expected.is_empty(),
-        "Some expected items were not returned: {expected:?}"
+        "some expected items were not returned: {expected:?}"
     );
 }
 
@@ -154,13 +154,13 @@ fn verify_outgoing_calls(
         if let Some(index) = matched {
             expected.remove(index);
         } else {
-            panic!("Unexpected outgoing call returned: {call:?}");
+            panic!("unexpected outgoing call returned: {call:?}");
         }
     }
 
     assert!(
         expected.is_empty(),
-        "Some expected items were not returned: {expected:?}"
+        "some expected items were not returned: {expected:?}"
     );
 }
 
@@ -182,13 +182,13 @@ fn verify_incoming_calls(
         if let Some(index) = matched {
             expected.remove(index);
         } else {
-            panic!("Unexpected incoming call returned: {call:?}");
+            panic!("unexpected incoming call returned: {call:?}");
         }
     }
 
     assert!(
         expected.is_empty(),
-        "Some expected items were not returned: {expected:?}"
+        "some expected items were not returned: {expected:?}"
     );
 }
 
@@ -307,7 +307,7 @@ async fn should_determine_incoming_calls() {
     let item = hierarchy.remove(0);
     let incoming_calls = incoming_calls_request(&mut ctx, item)
         .await
-        .expect("should return outgoing calls");
+        .expect("should return incoming calls");
 
     verify_incoming_calls(
         vec![
