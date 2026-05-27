@@ -20,14 +20,12 @@ use lsp_types::Location;
 use lsp_types::Range;
 use lsp_types::SymbolKind;
 use url::Url;
-use wdl_grammar::Span;
 use wdl_grammar::SyntaxNode;
 
 use crate::Document;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
-use crate::document::Task;
-use crate::document::Workflow;
+use crate::document::Callable;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::handlers::common::find_identifier_token_at_offset;
@@ -35,43 +33,21 @@ use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
 use crate::handlers::find_all_references;
 use crate::handlers::goto_definition;
-use crate::types::CallKind;
 
-/// A callable item.
-#[derive(Debug)]
-enum Callable<'a> {
-    /// A workflow.
-    Workflow(&'a Workflow),
-    /// A task.
-    Task(&'a Task),
+/// Call hierarchy-specific extensions for [`Callable`].
+trait CallableExt {
+    /// Get the [`SymbolKind`] for this callable.
+    fn symbol_kind(&self) -> SymbolKind;
+
+    /// Attempt to convert this callable to a [`CallHierarchyItem`].
+    fn as_call_hierarchy_item(
+        &self,
+        analysis_doc: &Document,
+        lines: &LineIndex,
+    ) -> Result<CallHierarchyItem>;
 }
 
-impl Callable<'_> {
-    /// Get the name of this callable.
-    fn name(&self) -> &str {
-        match self {
-            Callable::Workflow(w) => w.name(),
-            Callable::Task(t) => t.name(),
-        }
-    }
-
-    /// Get the [`Span`] of the callable's name.
-    fn name_span(&self) -> Span {
-        match self {
-            Callable::Workflow(w) => w.name_span(),
-            Callable::Task(t) => t.name_span(),
-        }
-    }
-
-    /// Get the [`Span`] of the callable's full definition.
-    fn span(&self) -> Span {
-        match self {
-            Callable::Workflow(w) => w.span(),
-            Callable::Task(t) => t.span(),
-        }
-    }
-
-    /// Get the [`SymbolKind`] for this callable.
+impl CallableExt for Callable<'_> {
     fn symbol_kind(&self) -> SymbolKind {
         match self {
             Callable::Workflow(_) => SymbolKind::FUNCTION,
@@ -79,7 +55,6 @@ impl Callable<'_> {
         }
     }
 
-    /// Attempt to convert this callable to a [`CallHierarchyItem`].
     fn as_call_hierarchy_item(
         &self,
         analysis_doc: &Document,
@@ -144,21 +119,10 @@ fn find_callable_at_position<'a>(
     )?
     .into();
 
-    if let Some(workflow) = analysis_doc.workflow()
-        && workflow.name() == token.text()
-        && workflow.name_span().contains(definition_offset as usize)
+    if let Some(callable) = analysis_doc.callable_by_name(token.text())
+        && callable.name_span().contains(definition_offset as usize)
     {
-        return Ok(Some((
-            analysis_doc.clone(),
-            lines,
-            Callable::Workflow(workflow),
-        )));
-    }
-
-    if let Some(task) = analysis_doc.task_by_name(token.text())
-        && task.name_span().contains(definition_offset as usize)
-    {
-        return Ok(Some((analysis_doc.clone(), lines, Callable::Task(task))));
+        return Ok(Some((analysis_doc.clone(), lines, callable)));
     }
 
     Ok(None)
@@ -357,7 +321,7 @@ pub fn outgoing_calls(
     position: SourcePosition,
     encoding: SourcePositionEncoding,
 ) -> Result<Option<Vec<CallHierarchyOutgoingCall>>> {
-    let Some((analysis_doc, lines, callable)) =
+    let Some((from_doc, from_doc_lines, callable)) =
         find_callable_at_position(graph, document_uri, position, encoding)?
     else {
         return Ok(None);
@@ -371,72 +335,47 @@ pub fn outgoing_calls(
     let scope = workflow.scope();
 
     for (ident, call) in workflow.calls() {
-        let source_doc = if let Some(ns) = call.namespace() {
-            let Some(ns) = analysis_doc.namespace(ns) else {
+        let to_doc = if let Some(ns) = call.namespace() {
+            let Some(ns) = from_doc.namespace(ns) else {
                 continue;
             };
             ns.document()
         } else {
-            &analysis_doc
+            &from_doc
         };
 
-        let source_index = graph.get_index(source_doc.uri()).ok_or_else(|| {
+        let source_index = graph.get_index(to_doc.uri()).ok_or_else(|| {
             anyhow!(
                 "document `{uri}` not found in graph",
-                uri = source_doc.uri()
+                uri = to_doc.uri()
             )
         })?;
 
         let source_node = graph.get(source_index);
-        let source_lines = match source_node.parse_state() {
+        let lines = match source_node.parse_state() {
             ParseState::Parsed { lines, .. } => lines.clone(),
             _ => bail!(
                 "document `{uri}` has not been parsed",
-                uri = source_doc.uri()
+                uri = to_doc.uri()
             ),
         };
 
         let Some(from_span) = scope.lookup(ident).map(|s| s.span()) else {
             continue;
         };
-        let from_range = location_from_span(analysis_doc.uri(), from_span, &lines)?.range;
+        let from_range = location_from_span(from_doc.uri(), from_span, &from_doc_lines)?.range;
 
-        let (kind, def_span, def_name_span) = match call.kind() {
-            CallKind::Task => {
-                let Some(task) = source_doc.task_by_name(call.name()) else {
-                    continue;
-                };
-                (SymbolKind::METHOD, task.span(), task.name_span())
-            }
-            CallKind::Workflow => {
-                let Some(workflow) = source_doc.workflow() else {
-                    continue;
-                };
-                (SymbolKind::FUNCTION, workflow.span(), workflow.name_span())
-            }
+        let Some(callable) = to_doc.callable_by_name(call.name()) else {
+            continue;
         };
 
-        let to_range = location_from_span(source_doc.uri(), def_span, &source_lines)?.range;
-
-        let to_selection_range =
-            location_from_span(source_doc.uri(), def_name_span, &source_lines)?.range;
-
-        match calls.entry(((**source_doc.uri()).clone(), call.name().to_string())) {
+        match calls.entry(((**to_doc.uri()).clone(), call.name().to_string())) {
             Entry::Occupied(mut entry) => {
                 entry.get_mut().1.push(from_range);
             }
             Entry::Vacant(entry) => {
                 entry.insert((
-                    CallHierarchyItem {
-                        name: call.name().to_string(),
-                        kind,
-                        tags: None,
-                        detail: None,
-                        uri: (**source_doc.uri()).clone(),
-                        range: to_range,
-                        selection_range: to_selection_range,
-                        data: None,
-                    },
+                    callable.as_call_hierarchy_item(to_doc, &lines)?,
                     vec![from_range],
                 ));
             }

@@ -636,6 +636,41 @@ impl Workflow {
     }
 }
 
+/// A callable item.
+#[derive(Debug)]
+pub enum Callable<'a> {
+    /// A workflow.
+    Workflow(&'a Workflow),
+    /// A task.
+    Task(&'a Task),
+}
+
+impl Callable<'_> {
+    /// Get the name of this callable.
+    pub fn name(&self) -> &str {
+        match self {
+            Callable::Workflow(w) => w.name(),
+            Callable::Task(t) => t.name(),
+        }
+    }
+
+    /// Get the [`Span`] of the callable's name.
+    pub fn name_span(&self) -> Span {
+        match self {
+            Callable::Workflow(w) => w.name_span(),
+            Callable::Task(t) => t.name_span(),
+        }
+    }
+
+    /// Get the [`Span`] of the callable's full definition.
+    pub fn span(&self) -> Span {
+        match self {
+            Callable::Workflow(w) => w.span(),
+            Callable::Task(t) => t.span(),
+        }
+    }
+}
+
 /// Represents analysis data about a WDL document.
 #[derive(Debug)]
 pub(crate) struct DocumentData {
@@ -925,6 +960,24 @@ impl Document {
     /// Returns `None` if the document did not contain a workflow.
     pub fn workflow(&self) -> Option<&Workflow> {
         self.data.workflow.as_ref()
+    }
+
+    /// Gets a [`Callable`] in the document by name.
+    ///
+    /// Returns `None` if the document did not contain a callable definition
+    /// with the given name.
+    pub fn callable_by_name(&self, name: &str) -> Option<Callable<'_>> {
+        if let Some(workflow) = self.workflow()
+            && workflow.name() == name
+        {
+            return Some(Callable::Workflow(workflow));
+        }
+
+        if let Some(task) = self.task_by_name(name) {
+            return Some(Callable::Task(task));
+        }
+
+        None
     }
 
     /// Gets the structs in the document.
