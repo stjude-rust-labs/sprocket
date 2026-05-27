@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Fixed
-
-* Fixed shared lock acquisition to reopen new lock files read-only before locking.
-
 ## 0.25.0 - 2026-05-14
 
 ### Added
