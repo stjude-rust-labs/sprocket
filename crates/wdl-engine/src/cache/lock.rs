@@ -27,60 +27,39 @@ impl LockedFile {
     /// returned.
     pub async fn acquire_shared(path: impl AsRef<Path>, create: bool) -> Result<Option<Self>> {
         let path = path.as_ref();
-        let file = if create {
-            match fs::File::open(path) {
-                Ok(file) => file,
-                Err(e) if e.kind() == io::ErrorKind::NotFound => {
-                    let mut options = fs::OpenOptions::new();
-                    options.create_new(true).write(true);
+        let file = match fs::File::open(path) {
+            Ok(file) => file,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                if !create {
+                    return Ok(None);
+                }
 
-                    match options.open(path) {
-                        Ok(file) => drop(file),
-                        Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {}
-                        Err(e) => {
-                            return Err(e).with_context(|| {
-                                format!(
-                                    "failed to create call cache entry file `{path}`",
-                                    path = path.display()
-                                )
-                            });
-                        }
+                // Create the file, which requires writable access
+                let mut options = fs::OpenOptions::new();
+                options.create_new(true).write(true);
+
+                match options.open(path) {
+                    Ok(file) => drop(file),
+                    Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
+                        // Another process created the file after our initial open failed
                     }
+                    Err(e) => {
+                        return Err(e).with_context(|| {
+                            format!("failed to create file `{path}`", path = path.display())
+                        });
+                    }
+                }
 
-                    fs::File::open(path).with_context(|| {
-                        format!(
-                            "failed to open call cache entry file `{path}`",
-                            path = path.display()
-                        )
-                    })?
-                }
-                Err(e) => {
-                    return Err(e).with_context(|| {
-                        format!(
-                            "failed to open call cache entry file `{path}`",
-                            path = path.display()
-                        )
-                    });
-                }
+                // Re-open the file as readable as the lock is shared and we don't want the file
+                // to be writable
+                fs::File::open(path).with_context(|| {
+                    format!("failed to open file `{path}`", path = path.display())
+                })?
             }
-        } else {
-            match fs::File::open(path)
-                .map(Some)
-                .or_else(|e| {
-                    if e.kind() == io::ErrorKind::NotFound {
-                        Ok(None)
-                    } else {
-                        Err(e)
-                    }
-                })
-                .with_context(|| {
-                    format!(
-                        "failed to open call cache entry file `{path}`",
-                        path = path.display()
-                    )
-                })? {
-                Some(file) => file,
-                None => return Ok(None),
+            Err(e) => {
+                return Err(e).with_context(|| {
+                    format!("failed to open file `{path}`", path = path.display())
+                });
             }
         };
 

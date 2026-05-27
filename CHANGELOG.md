@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Fixed shared lock acquisition to reopen new lock files read-only before locking.
+
 ## 0.25.0 - 2026-05-14
 
 ### Added
@@ -108,7 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Increased SQLite `busy_timeout` from 5s to 30s and added retry with
   exponential backoff when opening the database
   ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
-* Fixed a bug where the `format`, `run`, `lock` and `inputs` commands would not 
+* Fixed a bug where the `format`, `run`, `lock` and `inputs` commands would not
   utilize the configured `fallback_version`
   ([#784](https://github.com/stjude-rust-labs/sprocket/pull/784)).
 
@@ -270,7 +274,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Apptainer-based backends now store converted container images within each run directory, rather than in a user-specified directory ([#463](https://github.com/stjude-rust-labs/sprocket/pull/463)).
 * `sprocket run` now writes a `.sprocketignore` file directly to the `runs/` directory instead of the `runs/<entrypoint>/` directory ([#481](https://github.com/stjude-rust-labs/sprocket/pull/481)).
 
-
 ### Fixed
 
 * Fixed a bug in `sprocket config init` where `sprocket.toml` was unnecessarily loaded and would fail if malformed ([#473](https://github.com/stjude-rust-labs/sprocket/pull/473)).
@@ -346,9 +349,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Added support for `.sprocketignore` files ([#158](https://github.com/stjude-rust-labs/sprocket/pull/158)).
-    * the semantics of these new "ignorefiles" are similar to `.gitignore` files
-    * the commands `analyzer`, `check`/`lint`, and `doc` all respect these files
-    * both parent and child directories of the current working directory are searched for `.sprocketignore` files
+  * the semantics of these new "ignorefiles" are similar to `.gitignore` files
+  * the commands `analyzer`, `check`/`lint`, and `doc` all respect these files
+  * both parent and child directories of the current working directory are searched for `.sprocketignore` files
 * Added support for custom logos in `sprocket dev doc` ([#156](https://github.com/stjude-rust-labs/sprocket/pull/156)).
 
 ## 0.15.0 - 07-31-2025
@@ -361,15 +364,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added new default output directory logic ([#149](https://github.com/stjude-rust-labs/sprocket/pull/149)).
 * Individual analysis and lint rules can now be excepted when running the `
   analyzer` command ([#150](https://github.com/stjude-rust-labs/sprocket/pull/150)).
-    * both command line flags and TOML config are supported
+  * both command line flags and TOML config are supported
 
 ### Changed
 
 * The `UnusedCall` analysis rule no longer emits a diagnostic for tasks and
   workflows if they have an empty or missing `output` section ([wdl:#532](https://github.com/stjude-rust-labs/wdl/pull/532)).
 * `--name` option renamed to `--entrypoint` for `validate` and `run` ([#147](https://github.com/stjude-rust-labs/sprocket/pull/147)).
-    * `--entrypoint` is now required if no inputs are provided.
-    * `--entrypoint` will be prefixed to the key of any key-value pairs
+  * `--entrypoint` is now required if no inputs are provided.
+  * `--entrypoint` will be prefixed to the key of any key-value pairs
       supplied on the command line.
 
 ### Removed
@@ -472,10 +475,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * Updated WDL crates to latest ([#79](https://github.com/stjude-rust-labs/sprocket/pull/79)). This added many features and fixes. Some highlights:
-    * Fixed certain misplaced highlights from the `ShellCheck` lint.
-    * Relaxed the `CommentWhitespace` lint rule so it doesn't trigger for as
+  * Fixed certain misplaced highlights from the `ShellCheck` lint.
+  * Relaxed the `CommentWhitespace` lint rule so it doesn't trigger for as
       many comments.
-    * The `ImportSort` lint rule now supplies the correct order of imports in
+  * The `ImportSort` lint rule now supplies the correct order of imports in
       the `fix` message.
 * By default, when checking a local file, suppress diagnostics from remote
   files. Added a `--show-remote-diagnostics` flag to recreate the older
