@@ -97,7 +97,7 @@ fn find_callable_at_position<'a>(
     };
 
     let Some(analysis_doc) = node.document() else {
-        bail!("document analysis data not available for {document_uri}");
+        bail!("document analysis data not available for `{document_uri}`");
     };
 
     let offset = position_to_offset(&lines, position, encoding)?;
@@ -256,7 +256,7 @@ pub fn incoming_calls(
         };
 
         let Some(doc) = node.document() else {
-            bail!("document analysis data not available for {uri}");
+            bail!("document analysis data not available for `{uri}`");
         };
 
         for range in ranges {
