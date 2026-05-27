@@ -344,6 +344,7 @@ async fn should_render_docs_on_comment_hover() {
     // Hovering over doc comments should produce the same content as hovering
     // over the item name.
     let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(5, 4)).await;
+    assert_hover_content(&response, "task doc_only");
     assert_hover_content(&response, "Greets someone by name.");
     assert_hover_content(&response, "Used for hover doc tests.");
 }
@@ -354,4 +355,19 @@ async fn should_render_preamble_on_hover() {
     // Hovering over preamble should render like hovering over an item
     let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(0, 4)).await;
     assert_hover_content(&response, "This is a preamble comment");
+}
+
+#[tokio::test]
+async fn should_not_render_standalone_docs_on_hover() {
+    let mut ctx = setup().await;
+    // Only ever render doc comments when they're attached to a node
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(95, 4)).await;
+    assert!(response.is_none());
+}
+
+#[tokio::test]
+async fn should_not_render_line_comments_on_hover() {
+    let mut ctx = setup().await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(97, 4)).await;
+    assert!(response.is_none());
 }

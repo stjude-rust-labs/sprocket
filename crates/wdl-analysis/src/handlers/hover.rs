@@ -19,17 +19,16 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Documented;
+use wdl_ast::Ident;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 use wdl_ast::SyntaxToken;
 use wdl_ast::TreeNode;
 use wdl_ast::TreeToken;
 use wdl_ast::v1::AccessExpr;
-use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::CallTarget;
 use wdl_ast::v1::Decl;
-use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::EnumVariant;
 use wdl_ast::v1::LiteralStruct;
 use wdl_ast::v1::LiteralStructItem;
@@ -37,9 +36,6 @@ use wdl_ast::v1::MetadataObject;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::ParameterMetadataSection;
 use wdl_ast::v1::StructDefinition;
-use wdl_ast::v1::TaskDefinition;
-use wdl_ast::v1::UnboundDecl;
-use wdl_ast::v1::WorkflowDefinition;
 use wdl_grammar::SyntaxElement;
 
 use crate::Document;
@@ -98,7 +94,7 @@ pub fn hover(
     let hovered_token = root
         .token_at_offset(offset)
         .find(|t| t.kind() == SyntaxKind::Ident || t.kind() == SyntaxKind::Comment)
-        .ok_or_else(|| anyhow!("no token found at offset"))?;
+        .ok_or_else(|| anyhow!("no hoverable token found at offset"))?;
 
     let parent_node = hovered_token.parent().expect("token has no parent");
 
@@ -180,7 +176,7 @@ fn resolve_hover_by_context(
     document: &Document,
     graph: &DocumentGraph,
 ) -> Result<Option<String>> {
-    // Hovering doc comments of an item produces the same content as hoving the
+    // Hovering doc comments of an item produces the same content as hovering the
     // identifier of the item
     if token.kind() == SyntaxKind::Comment {
         let comment = Comment::cast(token.clone()).expect("should cast");
@@ -201,35 +197,22 @@ fn resolve_hover_by_context(
                 _ => break,
             };
 
-            let item_name = match target.kind() {
-                SyntaxKind::VersionStatementNode => {
-                    return match document.root().doc_comments() {
-                        Some(comments) if !comments.is_empty() => Ok(comments_to_string(comments)),
-                        _ => Ok(None),
-                    };
+            if target.kind() == SyntaxKind::VersionStatementNode {
+                return match document.root().doc_comments() {
+                    Some(comments) if !comments.is_empty() => Ok(comments_to_string(comments)),
+                    _ => Ok(None),
+                };
+            }
+
+            let Some(item_name) = target.descendants_with_tokens().find_map(|element| {
+                if let SyntaxElement::Token(token) = element
+                    && let Some(ident) = Ident::cast(token)
+                {
+                    return Some(ident);
                 }
-                SyntaxKind::StructDefinitionNode => StructDefinition::cast(target.clone())
-                    .expect("should cast")
-                    .name(),
-                SyntaxKind::EnumDefinitionNode => EnumDefinition::cast(target.clone())
-                    .expect("should cast")
-                    .name(),
-                SyntaxKind::EnumVariantNode => EnumVariant::cast(target.clone())
-                    .expect("should cast")
-                    .name(),
-                SyntaxKind::TaskDefinitionNode => TaskDefinition::cast(target.clone())
-                    .expect("should cast")
-                    .name(),
-                SyntaxKind::WorkflowDefinitionNode => WorkflowDefinition::cast(target.clone())
-                    .expect("should cast")
-                    .name(),
-                SyntaxKind::UnboundDeclNode => UnboundDecl::cast(target.clone())
-                    .expect("should cast")
-                    .name(),
-                SyntaxKind::BoundDeclNode => {
-                    BoundDecl::cast(target.clone()).expect("should cast").name()
-                }
-                _ => break,
+                None
+            }) else {
+                break;
             };
 
             return resolve_hover_content(&target, item_name.inner(), document, graph);

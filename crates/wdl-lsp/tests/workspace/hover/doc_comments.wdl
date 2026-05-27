@@ -92,3 +92,7 @@ enum DocStatus {
 task blank_line_doc {
     command <<<>>>
 }
+
+## I'm not attached to anything...
+
+# And I'm a plain line comment
