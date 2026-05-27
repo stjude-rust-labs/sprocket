@@ -237,7 +237,7 @@ async fn should_hover_enum_variant() {
 async fn should_hover_task_doc_comment_only() {
     let mut ctx = setup().await;
     // Position of `doc_only` in `task doc_only`
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(4, 7)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(6, 7)).await;
     assert_hover_content(&response, "task doc_only");
     assert_hover_content(
         &response,
@@ -249,7 +249,7 @@ async fn should_hover_task_doc_comment_only() {
 async fn should_hover_task_doc_comment_over_meta() {
     let mut ctx = setup().await;
     // Position of `doc_and_meta` in `task doc_and_meta`
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(20, 7)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(22, 7)).await;
     assert_hover_content(&response, "task doc_and_meta");
     assert_hover_content(&response, "This doc comment should win over meta.");
 }
@@ -272,7 +272,7 @@ fn assert_hover_not_content(hover: &Option<Hover>, unexpected: &str) {
 #[tokio::test]
 async fn should_hover_task_doc_comment_not_meta() {
     let mut ctx = setup().await;
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(20, 7)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(22, 7)).await;
     assert_hover_not_content(&response, "This meta description should NOT appear");
 }
 
@@ -280,7 +280,7 @@ async fn should_hover_task_doc_comment_not_meta() {
 async fn should_hover_task_meta_fallback() {
     let mut ctx = setup().await;
     // Position of `meta_only` in `task meta_only`
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(38, 7)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(40, 7)).await;
     assert_hover_content(&response, "task meta_only");
     assert_hover_content(&response, "A simple greeting task");
 }
@@ -289,7 +289,7 @@ async fn should_hover_task_meta_fallback() {
 async fn should_hover_input_doc_comment() {
     let mut ctx = setup().await;
     // Position of `name` in `String name` inside doc_only task input
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(7, 15)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(9, 15)).await;
     assert_hover_content(&response, "(variable) name: String");
     assert_hover_content(&response, "The person's name to greet");
 }
@@ -297,7 +297,7 @@ async fn should_hover_input_doc_comment() {
 async fn should_hover_workflow_doc_comment() {
     let mut ctx = setup().await;
     // Position of `doc_workflow` in `workflow doc_workflow`
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(58, 9)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(60, 9)).await;
     assert_hover_content(&response, "workflow doc_workflow");
     assert_hover_content(
         &response,
@@ -309,7 +309,7 @@ async fn should_hover_workflow_doc_comment() {
 async fn should_hover_struct_doc_comment() {
     let mut ctx = setup().await;
     // Position of `DocPerson` in `struct DocPerson`
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(73, 7)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(75, 7)).await;
     assert_hover_content(&response, "struct DocPerson");
     assert_hover_content(
         &response,
@@ -321,7 +321,7 @@ async fn should_hover_struct_doc_comment() {
 async fn should_hover_enum_doc_comment() {
     let mut ctx = setup().await;
     // Position of `DocStatus` in `enum DocStatus`
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(81, 5)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(83, 5)).await;
     assert_hover_content(&response, "enum DocStatus");
     assert_hover_content(&response, "A status indicator enum.");
 }
@@ -332,8 +332,42 @@ async fn should_hover_blank_line_doc_merges_paragraphs() {
     // Position of `blank_line_doc` in `task blank_line_doc`
     // Doc comments separated by a blank `##` line are all collected.
     // This documents the current behavior: blank separator lines are included.
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(89, 5)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(91, 5)).await;
     assert_hover_content(&response, "task blank_line_doc");
     assert_hover_content(&response, "First paragraph of doc.");
     assert_hover_content(&response, "Second paragraph after blank line.");
+}
+
+#[tokio::test]
+async fn should_render_docs_on_comment_hover() {
+    let mut ctx = setup().await;
+    // Hovering over doc comments should produce the same content as hovering
+    // over the item name.
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(5, 4)).await;
+    assert_hover_content(&response, "task doc_only");
+    assert_hover_content(&response, "Greets someone by name.");
+    assert_hover_content(&response, "Used for hover doc tests.");
+}
+
+#[tokio::test]
+async fn should_render_preamble_on_hover() {
+    let mut ctx = setup().await;
+    // Hovering over preamble should render like hovering over an item
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(0, 4)).await;
+    assert_hover_content(&response, "This is a preamble comment");
+}
+
+#[tokio::test]
+async fn should_not_render_standalone_docs_on_hover() {
+    let mut ctx = setup().await;
+    // Only ever render doc comments when they're attached to a node
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(95, 4)).await;
+    assert!(response.is_none());
+}
+
+#[tokio::test]
+async fn should_not_render_line_comments_on_hover() {
+    let mut ctx = setup().await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(97, 4)).await;
+    assert!(response.is_none());
 }
