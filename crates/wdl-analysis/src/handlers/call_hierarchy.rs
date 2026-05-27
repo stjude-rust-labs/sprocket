@@ -396,16 +396,22 @@ pub fn outgoing_calls(
             ),
         };
 
-        let from_span = scope.lookup(ident).expect("should be in scope").span();
+        let Some(from_span) = scope.lookup(ident).map(|s| s.span()) else {
+            continue;
+        };
         let from_range = location_from_span(analysis_doc.uri(), from_span, &lines)?.range;
 
         let (kind, def_span, def_name_span) = match call.kind() {
             CallKind::Task => {
-                let task = source_doc.task_by_name(call.name()).expect("should exist");
+                let Some(task) = source_doc.task_by_name(call.name()) else {
+                    continue;
+                };
                 (SymbolKind::METHOD, task.span(), task.name_span())
             }
             CallKind::Workflow => {
-                let workflow = source_doc.workflow().expect("should exist");
+                let Some(workflow) = source_doc.workflow() else {
+                    continue;
+                };
                 (SymbolKind::FUNCTION, workflow.span(), workflow.name_span())
             }
         };
