@@ -100,6 +100,7 @@ use crate::HiddenValue;
 use crate::HintsValue;
 use crate::InputValue;
 use crate::Map;
+use crate::NoneValue;
 use crate::Object;
 use crate::OutputValue;
 use crate::Pair;
@@ -142,6 +143,9 @@ pub(crate) struct ExprEvaluator<C> {
     /// Tracks whether or not a `None`-resulting expression was evaluated during
     /// a placeholder evaluation.
     evaluated_none: bool,
+    /// Whether or not unknown object members will evaluate to `None` instead of
+    /// being treated as an error.
+    allow_unknown_object_members: bool,
 }
 
 impl<C: EvaluationContext> ExprEvaluator<C> {
@@ -151,7 +155,17 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             context,
             placeholders: 0,
             evaluated_none: false,
+            allow_unknown_object_members: false,
         }
+    }
+
+    /// Used to allow unknown object members during evaluation.
+    ///
+    /// An unknown object member will evaluate to `None` instead of causing an
+    /// error.
+    pub(crate) fn allow_unknown_object_members(mut self) -> Self {
+        self.allow_unknown_object_members = true;
+        self
     }
 
     /// Gets the context associated with the evaluator.
@@ -952,7 +966,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 self.context.version()
             }
 
-            fn resolve_name(&self, name: &str, span: Span) -> Option<Type> {
+            fn resolve_name(&mut self, name: &str, span: Span) -> Option<Type> {
                 self.context.resolve_name(name, span).map(|v| v.ty()).ok()
             }
 
@@ -1439,7 +1453,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     .expect("should be a map type")
                     .key_type()
                     .as_primitive()
-                    .expect("key type should be primitive");
+                    .ok_or_else(|| map_key_not_found(index.span()))?;
 
                 let key = match self.evaluate_expr(&index).await? {
                     Value::Primitive(key) if key.ty().is_coercible_to(&key_type.into()) => key,
@@ -1484,6 +1498,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             },
             Value::Compound(CompoundValue::Object(object)) => match object.get(name.text()) {
                 Some(value) => Ok(value.clone()),
+                None if self.allow_unknown_object_members => Ok(NoneValue::untyped().into()),
                 None => Err(not_an_object_member(&name)),
             },
             Value::Hidden(HiddenValue::TaskPreEvaluation(task)) => match task.field(name.text()) {
@@ -3732,5 +3747,16 @@ pub(crate) mod test {
             .await
             .unwrap_err();
         assert_eq!(diagnostic.message(), "cannot access type `Int`");
+    }
+
+    #[tokio::test]
+    async fn empty_map_access() {
+        // This test will to ensure accessing an empty map does not panic
+        let env = TestEnv::default();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, "{}['foo']").await.unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "the map does not contain an entry for the specified key"
+        );
     }
 }

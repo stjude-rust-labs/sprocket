@@ -967,6 +967,12 @@ impl Coercible for Value {
     }
 }
 
+impl From<NoneValue> for Value {
+    fn from(value: NoneValue) -> Self {
+        Self::None(value)
+    }
+}
+
 impl From<bool> for Value {
     fn from(value: bool) -> Self {
         Self::Primitive(value.into())
@@ -1969,7 +1975,7 @@ impl fmt::Display for Map {
 /// Represents an `Object` value.
 ///
 /// Objects are cheap to clone.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct Object {
     /// The members of the object.
     pub(crate) members: Arc<IndexMap<String, Value>>,
@@ -1987,7 +1993,7 @@ impl Object {
 
     /// Returns an empty object.
     pub fn empty() -> Self {
-        Self::new(IndexMap::default())
+        Self::default()
     }
 
     /// Creates an object from an iterator of V1 AST metadata items.

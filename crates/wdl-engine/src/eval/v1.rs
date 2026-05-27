@@ -86,12 +86,17 @@ impl Evaluator {
         cancellation: CancellationContext,
         events: Events,
     ) -> Result<Self> {
-        config.validate().await?;
+        config
+            .validate()
+            .await
+            .context("failed to validate configuration")?;
 
         let root_dir = root_dir.as_ref();
         let backend = config
             .create_backend(root_dir, events.clone(), cancellation.clone())
-            .await?;
+            .await
+            .context("failed to create task execution backend")?;
+
         let transferer = Arc::new(HttpTransferer::new(
             config.clone(),
             cancellation.first(),
