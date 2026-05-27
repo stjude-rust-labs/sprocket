@@ -36,19 +36,10 @@ impl LockedFile {
 
                 // Create the file, which requires writable access
                 let mut options = fs::OpenOptions::new();
-                options.create_new(true).write(true);
-
-                match options.open(path) {
-                    Ok(file) => drop(file),
-                    Err(e) if e.kind() == io::ErrorKind::AlreadyExists => {
-                        // Another process created the file after our initial open failed
-                    }
-                    Err(e) => {
-                        return Err(e).with_context(|| {
-                            format!("failed to create file `{path}`", path = path.display())
-                        });
-                    }
-                }
+                options.create(true).write(true);
+                options.open(path).with_context(|| {
+                    format!("failed to create file `{path}`", path = path.display())
+                })?;
 
                 // Re-open the file as readable as the lock is shared and we don't want the file
                 // to be writable
