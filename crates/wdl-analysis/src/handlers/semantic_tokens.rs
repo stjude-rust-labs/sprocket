@@ -77,6 +77,7 @@ pub const WDL_SEMANTIC_TOKEN_MODIFIERS: &[SemanticTokenModifier] = &[
     SemanticTokenModifier::DEFINITION,
     SemanticTokenModifier::DOCUMENTATION,
     SemanticTokenModifier::READONLY,
+    SemanticTokenModifier::STATIC,
 ];
 
 /// Handles a semantic token request for a full document.
@@ -334,6 +335,7 @@ fn resolve_identifier_ty(
         SyntaxKind::MetadataObjectItemNode => {
             let metadata_item = MetadataObjectItem::cast(parent.clone()).expect("should cast");
             if metadata_item.name().inner() == token {
+                add_modifier(modifiers, SemanticTokenModifier::STATIC);
                 add_modifier(modifiers, SemanticTokenModifier::READONLY);
                 return if metadata_item.parent::<ParameterMetadataSection>().is_some() {
                     Some(SemanticTokenType::PARAMETER)

@@ -573,7 +573,7 @@ async fn should_provide_semantic_tokens() {
             delta_start: 8,
             length: 11,
             token_type: token_type_index(SemanticTokenType::PROPERTY),
-            token_modifiers_bitset: modifiers(&[SemanticTokenModifier::READONLY]),
+            token_modifiers_bitset: modifiers(&[SemanticTokenModifier::READONLY, SemanticTokenModifier::STATIC]),
         },
         // `description` property value
         SemanticToken {
@@ -613,7 +613,7 @@ async fn should_provide_semantic_tokens() {
             delta_start: 8,
             length: 4,
             token_type: token_type_index(SemanticTokenType::PARAMETER),
-            token_modifiers_bitset: modifiers(&[SemanticTokenModifier::READONLY]),
+            token_modifiers_bitset: modifiers(&[SemanticTokenModifier::READONLY, SemanticTokenModifier::STATIC]),
         },
         // `name` entry value
         SemanticToken {
