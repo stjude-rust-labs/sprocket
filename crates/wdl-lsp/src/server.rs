@@ -3,6 +3,7 @@
 use std::ffi::OsStr;
 use std::fmt::Formatter;
 use std::mem;
+use std::ops::ControlFlow;
 use std::path::Component;
 use std::path::PathBuf;
 use std::path::Prefix;
@@ -10,25 +11,31 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::sync::OnceLock;
 
-use anyhow::Result;
-use notification::Progress;
-use parking_lot::RwLock;
-use request::WorkDoneProgressCreate;
+use async_lsp::ClientSocket;
+use async_lsp::ErrorCode;
+use async_lsp::LanguageClient;
+use async_lsp::LanguageServer;
+use async_lsp::ResponseError;
+use async_lsp::client_monitor::ClientProcessMonitorLayer;
+use async_lsp::concurrency::ConcurrencyLayer;
+use async_lsp::lsp_types::notification::Progress;
+use async_lsp::lsp_types::request::WorkDoneProgressCreate;
+use async_lsp::lsp_types::request::WorkspaceConfiguration;
+use async_lsp::lsp_types::*;
+use async_lsp::panic::CatchUnwindLayer;
+use async_lsp::router::Router;
+use async_lsp::server::LifecycleLayer;
+use async_lsp::tracing::TracingLayer;
+use futures::future::BoxFuture;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde_json::to_value;
 use struct_patch::Patch;
-use tower_lsp::Client;
-use tower_lsp::LanguageServer;
-use tower_lsp::LspService;
-use tower_lsp::jsonrpc::Error as RpcError;
-use tower_lsp::jsonrpc::ErrorCode;
-use tower_lsp::jsonrpc::Result as RpcResult;
-use tower_lsp::lsp_types::request::WorkspaceConfiguration;
-use tower_lsp::lsp_types::*;
+use tower::ServiceBuilder;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
+use url::Url;
 use uuid::Uuid;
 use wdl_analysis::Analyzer;
 use wdl_analysis::Config as AnalysisConfig;
@@ -153,14 +160,14 @@ impl ProgressToken {
     ///
     /// If progress tokens aren't supported by the client, this will return a
     /// no-op token.
-    pub async fn new(client: &Client, client_supported: bool) -> Self {
+    pub async fn new(client: &ClientSocket, client_supported: bool) -> Self {
         if !client_supported {
             return Self(None);
         }
 
         let token = Uuid::new_v4().to_string();
         if client
-            .send_request::<WorkDoneProgressCreate>(WorkDoneProgressCreateParams {
+            .request::<WorkDoneProgressCreate>(WorkDoneProgressCreateParams {
                 token: NumberOrString::String(token.clone()),
             })
             .await
@@ -173,89 +180,85 @@ impl ProgressToken {
     }
 
     /// Starts the work progress.
-    pub async fn start(
+    pub fn start(
         &self,
-        client: &Client,
+        client: &ClientSocket,
         title: impl Into<String>,
         message: impl Into<String>,
-    ) {
-        if let Some(token) = &self.0 {
-            client
-                .send_notification::<Progress>(ProgressParams {
-                    token: NumberOrString::String(token.clone()),
-                    value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(
-                        WorkDoneProgressBegin {
-                            title: title.into(),
-                            cancellable: None,
-                            message: Some(message.into()),
-                            percentage: Some(0),
-                        },
-                    )),
-                })
-                .await;
-        }
+    ) -> async_lsp::Result<()> {
+        let Some(token) = &self.0 else {
+            return Ok(());
+        };
+
+        client.notify::<Progress>(ProgressParams {
+            token: NumberOrString::String(token.clone()),
+            value: ProgressParamsValue::WorkDone(WorkDoneProgress::Begin(WorkDoneProgressBegin {
+                title: title.into(),
+                cancellable: None,
+                message: Some(message.into()),
+                percentage: Some(0),
+            })),
+        })
     }
 
     /// Updates the work progress.
-    pub async fn update(&self, client: &Client, message: impl Into<String>, percentage: u32) {
-        if let Some(token) = &self.0 {
-            client
-                .send_notification::<Progress>(ProgressParams {
-                    token: NumberOrString::String(token.clone()),
-                    value: ProgressParamsValue::WorkDone(WorkDoneProgress::Report(
-                        WorkDoneProgressReport {
-                            cancellable: None,
-                            message: Some(message.into()),
-                            percentage: Some(percentage),
-                        },
-                    )),
-                })
-                .await;
-        }
+    pub fn update(
+        &self,
+        client: &ClientSocket,
+        message: impl Into<String>,
+        percentage: u32,
+    ) -> async_lsp::Result<()> {
+        let Some(token) = &self.0 else {
+            return Ok(());
+        };
+
+        client.notify::<Progress>(ProgressParams {
+            token: NumberOrString::String(token.clone()),
+            value: ProgressParamsValue::WorkDone(WorkDoneProgress::Report(
+                WorkDoneProgressReport {
+                    cancellable: None,
+                    message: Some(message.into()),
+                    percentage: Some(percentage),
+                },
+            )),
+        })
     }
 
     /// Completes the work progress.
-    pub async fn complete(self, client: &Client, message: impl Into<String>) {
-        if let Some(token) = self.0 {
-            client
-                .send_notification::<Progress>(ProgressParams {
-                    token: NumberOrString::String(token),
-                    value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(
-                        WorkDoneProgressEnd {
-                            message: Some(message.into()),
-                        },
-                    )),
-                })
-                .await;
-        }
+    pub fn complete(
+        self,
+        client: &ClientSocket,
+        message: impl Into<String>,
+    ) -> async_lsp::Result<()> {
+        let Some(token) = self.0 else {
+            return Ok(());
+        };
+
+        client.notify::<Progress>(ProgressParams {
+            token: NumberOrString::String(token),
+            value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(WorkDoneProgressEnd {
+                message: Some(message.into()),
+            })),
+        })
     }
 }
 
 // NOTE: Renamed camelCase to make it play nicely with the vscode extension.
 /// Represents options for running the LSP server.
-#[derive(Debug, Clone, Patch)]
-#[patch(attribute(derive(Debug, Default, Deserialize)))]
-#[patch(attribute(serde(rename_all = "camelCase")))]
-#[patch(attribute(allow(missing_docs)))]
+#[derive(Debug, Clone)]
 pub struct ServerOptions {
     /// The name of the server.
     ///
     /// Defaults to `wdl-lsp` crate name.
-    #[patch(skip)]
     pub name: String,
 
     /// The version of the server.
     ///
     /// Defaults to the version of the `wdl-lsp` crate.
-    #[patch(skip)]
     pub version: String,
 
-    /// The verbosity level of the server.
-    pub log_level: LevelFilter,
-
-    /// The options for linting.
-    #[patch(nesting)]
-    pub lint: LintOptions,
+    /// Feature flags for enabling experimental features.
+    pub feature_flags: FeatureFlags,
 
     /// Analysis or lint rule IDs to except (ignore).
     pub exceptions: Vec<String>,
@@ -263,12 +266,7 @@ pub struct ServerOptions {
     /// Basename for any ignorefiles which should be respected.
     pub ignore_filename: Option<String>,
 
-    /// Feature flags for enabling experimental features.
-    #[patch(skip)]
-    pub feature_flags: FeatureFlags,
-
     /// The diagnostic baseline for suppressing known diagnostics.
-    #[patch(skip)]
     pub baseline: Option<wdl_lint::Baseline>,
 }
 
@@ -277,12 +275,33 @@ impl Default for ServerOptions {
         Self {
             name: String::from(env!("CARGO_CRATE_NAME")),
             version: String::from(env!("CARGO_PKG_VERSION")),
-            log_level: LevelFilter(tracing::metadata::LevelFilter::ERROR),
-            lint: Default::default(),
             exceptions: Vec::new(),
             ignore_filename: None,
             feature_flags: Default::default(),
             baseline: None,
+        }
+    }
+}
+
+/// User-controlled options for the server.
+#[derive(Debug, Clone, Patch)]
+#[patch(attribute(derive(Debug, Default, Deserialize)))]
+#[patch(attribute(serde(rename_all = "camelCase")))]
+#[patch(attribute(allow(missing_docs)))]
+pub struct UserOptions {
+    /// The verbosity level of the server.
+    pub log_level: LevelFilter,
+
+    /// The options for linting.
+    #[patch(nesting)]
+    pub lint: LintOptions,
+}
+
+impl Default for UserOptions {
+    fn default() -> Self {
+        Self {
+            log_level: LevelFilter(tracing::metadata::LevelFilter::ERROR),
+            lint: Default::default(),
         }
     }
 }
@@ -343,34 +362,67 @@ where
 pub type FilterReloadHandle<S> =
     tracing_subscriber::reload::Handle<tracing::metadata::LevelFilter, S>;
 
+/// Mutable server state.
+#[derive(Debug)]
+struct ServerState<S> {
+    /// The current set of workspace folders.
+    folders: Vec<WorkspaceFolder>,
+    /// Mutable configuration fields.
+    config: ServerConfig,
+    /// Level filter reload handle.
+    log_handle: Option<FilterReloadHandle<S>>,
+}
+
+impl<S> ServerState<S> {
+    /// Patch the config with the new values from the client.
+    fn apply_config_patch(
+        &mut self,
+        client: ClientSocket,
+        options: &ServerOptions,
+        patch: UserOptionsPatch,
+    ) {
+        if let Some(log_level) = patch.log_level
+            && let Some(reload_handle) = self.log_handle.as_ref()
+            && let Err(e) = reload_handle.modify(|filter| *filter = log_level.0)
+        {
+            error!("failed to set log level: {e:?}");
+        }
+
+        self.config.options.apply(patch);
+        self.config.analyzer = options.analyzer(client.clone(), &self.config.options.lint);
+    }
+}
+
 /// Represents an LSP server for analyzing WDL documents.
 #[derive(Debug)]
 pub struct Server<S> {
     /// The LSP client connected to the server.
-    client: Client,
+    client: ClientSocket,
     /// The features supported by the LSP client.
-    client_support: OnceLock<ClientSupport>,
-    /// The current set of workspace folders.
-    folders: Arc<RwLock<Vec<WorkspaceFolder>>>,
-    /// Mutable configuration fields.
-    config: Arc<tokio::sync::RwLock<ServerConfig>>,
-    /// Level filter reload handle.
-    log_handle: Option<FilterReloadHandle<S>>,
+    client_support: OnceLock<Arc<ClientSupport>>,
+    /// Static server options.
+    options: Arc<ServerOptions>,
+    /// Mutable server state.
+    state: Arc<tokio::sync::RwLock<ServerState<S>>>,
 }
 
 /// The server config and dependent fields.
 #[derive(Debug)]
 struct ServerConfig {
-    /// The options for the server.
-    options: ServerOptions,
+    /// User-controlled options for the server.
+    options: UserOptions,
     /// The analyzer used to analyze documents.
     analyzer: Analyzer<ProgressToken>,
 }
 
 impl ServerOptions {
     /// Create an [`Analyzer`] based on this config.
-    fn analyzer(&self, client: Client) -> Analyzer<ProgressToken> {
-        let linting_enabled = self.lint.enabled;
+    fn analyzer(
+        &self,
+        client: ClientSocket,
+        lint_options: &LintOptions,
+    ) -> Analyzer<ProgressToken> {
+        let linting_enabled = lint_options.enabled;
         let exceptions = self.exceptions.clone();
         let ignore_name = self.ignore_filename.clone();
         let analyzer_client = client.clone();
@@ -396,7 +448,7 @@ impl ServerOptions {
             .with_all_rules(all_rules)
             .with_feature_flags(self.feature_flags);
 
-        let wdl_lint_config = self.lint.config.clone();
+        let wdl_lint_config = lint_options.config.clone();
         Analyzer::<ProgressToken>::new_with_validator(
             analyzer_config,
             move |token, kind, current, total| {
@@ -407,7 +459,7 @@ impl ServerOptions {
                         s = if total > 1 { "s" } else { "" }
                     );
                     let percentage = ((current * 100) as f64 / total as f64) as u32;
-                    token.update(&client, message, percentage).await
+                    let _ = token.update(&client, message, percentage);
                 }
             },
             move || {
@@ -431,32 +483,25 @@ impl<S: 'static> Server<S> {
     ///
     /// `log_handle` can be provided to enable dynamic log level setting.
     pub fn new(
-        client: Client,
+        client: ClientSocket,
         options: ServerOptions,
+        user_options: UserOptions,
         log_handle: Option<FilterReloadHandle<S>>,
     ) -> Self {
-        let analyzer = options.analyzer(client.clone());
+        let analyzer = options.analyzer(client.clone(), &user_options.lint);
         Self {
             client,
             client_support: Default::default(),
-            folders: Default::default(),
-            config: Arc::new(tokio::sync::RwLock::new(ServerConfig { options, analyzer })),
-            log_handle,
+            options: Arc::new(options),
+            state: Arc::new(tokio::sync::RwLock::new(ServerState {
+                folders: Default::default(),
+                config: ServerConfig {
+                    options: user_options,
+                    analyzer,
+                },
+                log_handle,
+            })),
         }
-    }
-
-    /// Patch the config with the new values from the client.
-    async fn apply_config_patch(&self, patch: ServerOptionsPatch) {
-        let mut config = self.config.write().await;
-        if let Some(log_level) = patch.log_level
-            && let Some(reload_handle) = self.log_handle.as_ref()
-            && let Err(e) = reload_handle.modify(|filter| *filter = log_level.0)
-        {
-            error!("failed to set log level: {e:?}");
-        }
-
-        config.options.apply(patch);
-        config.analyzer = config.options.analyzer(self.client.clone());
     }
 
     /// Runs the server until a request is received to shut down.
@@ -464,230 +509,848 @@ impl<S: 'static> Server<S> {
     /// See also: [`Self::new()`]
     pub async fn run(
         options: ServerOptions,
+        user_options: UserOptions,
         log_handle: Option<FilterReloadHandle<S>>,
-    ) -> Result<()> {
+    ) -> anyhow::Result<()> {
         debug!("running LSP server: {options:#?}");
 
-        let (service, socket) = LspService::new(|client| Self::new(client, options, log_handle));
+        let (server, _) = async_lsp::MainLoop::new_server(|client| {
+            ServiceBuilder::new()
+                .layer(TracingLayer::default())
+                .layer(LifecycleLayer::default())
+                .layer(CatchUnwindLayer::default())
+                .layer(ConcurrencyLayer::default())
+                .layer(ClientProcessMonitorLayer::new(client.clone()))
+                .service(Router::from_language_server(Self::new(
+                    client,
+                    options,
+                    user_options,
+                    log_handle,
+                )))
+        });
 
-        let stdin = tokio::io::stdin();
-        let stdout = tokio::io::stdout();
-        tower_lsp::Server::new(stdin, stdout, socket)
-            .serve(service)
-            .await;
+        // Prefer truly asynchronous piped stdin/stdout without blocking tasks.
+        #[cfg(unix)]
+        let (stdin, stdout) = (
+            async_lsp::stdio::PipeStdin::lock_tokio()?,
+            async_lsp::stdio::PipeStdout::lock_tokio()?,
+        );
 
-        Ok(())
+        // Fallback to spawn blocking read/write otherwise.
+        #[cfg(not(unix))]
+        let (stdin, stdout) = (
+            tokio_util::compat::TokioAsyncReadCompatExt::compat(tokio::io::stdin()),
+            tokio_util::compat::TokioAsyncWriteCompatExt::compat_write(tokio::io::stdout()),
+        );
+
+        server.run_buffered(stdin, stdout).await.map_err(Into::into)
     }
 
     /// Get info about the server.
-    async fn info(&self) -> ServerInfo {
-        let config = self.config.read().await;
-
+    fn info(&self) -> ServerInfo {
         ServerInfo {
-            name: config.options.name.clone(),
-            version: Some(config.options.version.clone()),
+            name: self.options.name.clone(),
+            version: Some(self.options.version.clone()),
         }
-    }
-
-    /// Registers a generic watcher for all files/directories in the workspace.
-    async fn register_capabilities(&self, client_support: &ClientSupport) {
-        let mut registrations = Vec::new();
-        if client_support.watched_files {
-            registrations.push(Registration {
-                id: Uuid::new_v4().to_string(),
-                method: "workspace/didChangeWatchedFiles".into(),
-                register_options: Some(
-                    to_value(DidChangeWatchedFilesRegistrationOptions {
-                        watchers: vec![FileSystemWatcher {
-                            // We use a generic glob so we can be notified for when directories,
-                            // which might contain WDL documents, are deleted
-                            glob_pattern: GlobPattern::String("**/*".to_string()),
-                            kind: None,
-                        }],
-                    })
-                    .expect("should convert to value"),
-                ),
-            });
-        }
-
-        if client_support.did_change_configuration {
-            registrations.push(Registration {
-                id: Uuid::new_v4().to_string(),
-                method: "workspace/didChangeConfiguration".into(),
-                register_options: None,
-            });
-        }
-
-        if registrations.is_empty() {
-            return;
-        }
-
-        self.client
-            .register_capability(registrations)
-            .await
-            .expect("failed to register capabilities with client");
     }
 }
 
-#[tower_lsp::async_trait]
 impl<S: 'static> LanguageServer for Server<S> {
-    async fn initialize(&self, params: InitializeParams) -> RpcResult<InitializeResult> {
+    type Error = ResponseError;
+    type NotifyResult = ControlFlow<async_lsp::Result<()>>;
+
+    fn initialize(
+        &mut self,
+        params: InitializeParams,
+    ) -> BoxFuture<'static, Result<InitializeResult, Self::Error>> {
         debug!("received `initialize` request: {params:#?}");
 
-        if let Some(folders) = params.workspace_folders {
-            let config = self.config.read().await;
-            for mut folder in folders {
-                normalize_uri_path(&mut folder.uri);
-                self.folders.write().push(folder.clone());
-                if let Ok(path) = folder.uri.to_file_path()
-                    && let Err(e) = config.analyzer.add_directory(path).await
-                {
-                    error!(
-                        "failed to add initial workspace directory {uri}: {e}",
-                        uri = folder.uri
-                    );
+        let client_support = ClientSupport::new(&params.capabilities);
+
+        if !client_support.pull_diagnostics {
+            return Box::pin(async move {
+                Err(ResponseError::new(
+                    ErrorCode::REQUEST_FAILED,
+                    "LSP server currently requires support for pulling diagnostics",
+                ))
+            });
+        }
+
+        // This is guaranteed to be called once anyway
+        let _ = self.client_support.set(Arc::new(client_support));
+
+        let state = self.state.clone();
+        let info = self.info();
+        Box::pin(async move {
+            let mut state = state.write().await;
+
+            if let Some(folders) = params.workspace_folders {
+                for mut folder in folders {
+                    normalize_uri_path(&mut folder.uri);
+                    state.folders.push(folder.clone());
+                    if let Ok(path) = folder.uri.to_file_path()
+                        && let Err(e) = state.config.analyzer.add_directory(path).await
+                    {
+                        error!(
+                            "failed to add initial workspace directory {uri}: {e}",
+                            uri = folder.uri
+                        );
+                    }
                 }
             }
-        }
 
-        {
-            let client_support = ClientSupport::new(&params.capabilities);
-
-            if !client_support.pull_diagnostics {
-                return Err(RpcError {
-                    code: ErrorCode::ServerError(0),
-                    message: "LSP server currently requires support for pulling diagnostics".into(),
-                    data: None,
-                });
-            }
-
-            // This is guaranteed to be called once anyway
-            let _ = self.client_support.set(client_support);
-        }
-
-        Ok(InitializeResult {
-            capabilities: ServerCapabilities {
-                text_document_sync: Some(TextDocumentSyncCapability::Options(
-                    TextDocumentSyncOptions {
-                        open_close: Some(true),
-                        change: Some(TextDocumentSyncKind::INCREMENTAL),
-                        ..Default::default()
-                    },
-                )),
-                workspace: Some(WorkspaceServerCapabilities {
-                    workspace_folders: Some(WorkspaceFoldersServerCapabilities {
-                        supported: Some(true),
-                        change_notifications: Some(OneOf::Left(true)),
-                    }),
-                    ..Default::default()
-                }),
-                workspace_symbol_provider: Some(OneOf::Left(true)),
-                diagnostic_provider: Some(DiagnosticServerCapabilities::Options(
-                    DiagnosticOptions {
-                        inter_file_dependencies: true,
-                        workspace_diagnostics: true,
-                        // Intentionally disabled as currently VS code doesn't send a work done
-                        // token on the diagnostic requests, only one for partial results; instead,
-                        // we'll use a token created by the server to report progress.
-                        // work_done_progress_options: WorkDoneProgressOptions {
-                        //     work_done_progress: Some(true),
-                        // },
-                        ..Default::default()
-                    },
-                )),
-                document_symbol_provider: Some(OneOf::Left(true)),
-                document_formatting_provider: Some(OneOf::Left(true)),
-                definition_provider: Some(OneOf::Left(true)),
-                references_provider: Some(OneOf::Left(true)),
-                completion_provider: Some(CompletionOptions {
-                    resolve_provider: Some(false),
-                    trigger_characters: Some(vec![
-                        ".".to_string(),
-                        "[".to_string(),
-                        "#".to_string(),
-                    ]),
-                    ..Default::default()
-                }),
-                hover_provider: Some(HoverProviderCapability::Simple(true)),
-                rename_provider: Some(OneOf::Left(true)),
-                semantic_tokens_provider: Some(
-                    SemanticTokensServerCapabilities::SemanticTokensOptions(
-                        SemanticTokensOptions {
-                            work_done_progress_options: Default::default(),
-                            legend: SemanticTokensLegend {
-                                token_types: WDL_SEMANTIC_TOKEN_TYPES.to_vec(),
-                                token_modifiers: WDL_SEMANTIC_TOKEN_MODIFIERS.to_vec(),
-                            },
-                            range: Some(false),
-                            full: Some(SemanticTokensFullOptions::Bool(true)),
+            Ok(InitializeResult {
+                capabilities: ServerCapabilities {
+                    text_document_sync: Some(TextDocumentSyncCapability::Options(
+                        TextDocumentSyncOptions {
+                            open_close: Some(true),
+                            change: Some(TextDocumentSyncKind::INCREMENTAL),
+                            ..Default::default()
                         },
+                    )),
+                    workspace: Some(WorkspaceServerCapabilities {
+                        workspace_folders: Some(WorkspaceFoldersServerCapabilities {
+                            supported: Some(true),
+                            change_notifications: Some(OneOf::Left(true)),
+                        }),
+                        ..Default::default()
+                    }),
+                    workspace_symbol_provider: Some(OneOf::Left(true)),
+                    diagnostic_provider: Some(DiagnosticServerCapabilities::Options(
+                        DiagnosticOptions {
+                            inter_file_dependencies: true,
+                            workspace_diagnostics: true,
+                            // Intentionally disabled as currently VS code doesn't send a work done
+                            // token on the diagnostic requests, only one for partial results;
+                            // instead, we'll use a token created by the
+                            // server to report progress.
+                            // work_done_progress_options: WorkDoneProgressOptions {
+                            //     work_done_progress: Some(true),
+                            // },
+                            ..Default::default()
+                        },
+                    )),
+                    document_symbol_provider: Some(OneOf::Left(true)),
+                    document_formatting_provider: Some(OneOf::Left(true)),
+                    definition_provider: Some(OneOf::Left(true)),
+                    references_provider: Some(OneOf::Left(true)),
+                    completion_provider: Some(CompletionOptions {
+                        resolve_provider: Some(false),
+                        trigger_characters: Some(vec![
+                            ".".to_string(),
+                            "[".to_string(),
+                            "#".to_string(),
+                        ]),
+                        ..Default::default()
+                    }),
+                    hover_provider: Some(HoverProviderCapability::Simple(true)),
+                    rename_provider: Some(OneOf::Left(true)),
+                    semantic_tokens_provider: Some(
+                        SemanticTokensServerCapabilities::SemanticTokensOptions(
+                            SemanticTokensOptions {
+                                work_done_progress_options: Default::default(),
+                                legend: SemanticTokensLegend {
+                                    token_types: WDL_SEMANTIC_TOKEN_TYPES.to_vec(),
+                                    token_modifiers: WDL_SEMANTIC_TOKEN_MODIFIERS.to_vec(),
+                                },
+                                range: Some(false),
+                                full: Some(SemanticTokensFullOptions::Bool(true)),
+                            },
+                        ),
                     ),
-                ),
-                signature_help_provider: Some(SignatureHelpOptions {
-                    trigger_characters: Some(vec!["(".to_string(), ",".to_string()]),
-                    retrigger_characters: None,
-                    work_done_progress_options: WorkDoneProgressOptions {
-                        work_done_progress: Some(false),
-                    },
-                }),
-                inlay_hint_provider: Some(OneOf::Left(true)),
-                call_hierarchy_provider: Some(CallHierarchyServerCapability::Simple(true)),
-                folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
-                ..Default::default()
-            },
-            server_info: Some(self.info().await),
+                    signature_help_provider: Some(SignatureHelpOptions {
+                        trigger_characters: Some(vec!["(".to_string(), ",".to_string()]),
+                        retrigger_characters: None,
+                        work_done_progress_options: WorkDoneProgressOptions {
+                            work_done_progress: Some(false),
+                        },
+                    }),
+                    inlay_hint_provider: Some(OneOf::Left(true)),
+                    call_hierarchy_provider: Some(CallHierarchyServerCapability::Simple(true)),
+                    folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
+                    ..Default::default()
+                },
+                server_info: Some(info),
+            })
         })
     }
 
-    async fn initialized(&self, _: InitializedParams) {
-        let client_support = self.client_support.get().expect("should exist");
-        self.register_capabilities(client_support).await;
+    fn shutdown(&mut self, _: ()) -> BoxFuture<'static, Result<(), Self::Error>> {
+        Box::pin(async move { Ok(()) })
+    }
 
-        let info = self.info().await;
+    fn semantic_tokens_full(
+        &mut self,
+        mut params: SemanticTokensParams,
+    ) -> BoxFuture<'static, Result<Option<SemanticTokensResult>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        debug!("received `textDocument/semanticTokens/full` request: {params:#?}");
+
+        let state = self.state.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+            let result = state
+                .config
+                .analyzer
+                .semantic_tokens(params.text_document.uri)
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+
+            Ok(result)
+        })
+    }
+
+    fn inlay_hint(
+        &mut self,
+        mut params: InlayHintParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<InlayHint>>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        debug!("received `textDocument/inlayHint` request: {params:#?}");
+
+        let state = self.state.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+
+            // Analyze the document first to ensure we have up-to-date information
+            state
+                .config
+                .analyzer
+                .analyze(ProgressToken(None))
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+
+            let result = state
+                .config
+                .analyzer
+                .inlay_hints(params.text_document.uri, params.range)
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+
+            Ok(result)
+        })
+    }
+
+    fn document_diagnostic(
+        &mut self,
+        mut params: DocumentDiagnosticParams,
+    ) -> BoxFuture<'static, Result<DocumentDiagnosticReportResult, Self::Error>> {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        debug!("received `textDocument/diagnostic` request: {params:#?}");
+
+        let name = self.info().name;
+        let state = self.state.clone();
+        let options = self.options.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+
+            let results: Vec<wdl_analysis::AnalysisResult> = state
+                .config
+                .analyzer
+                .analyze_document(ProgressToken::default(), params.text_document.uri.clone())
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+
+            let mut matcher = options.baseline.as_ref().map(|b| b.matcher());
+            proto::document_diagnostic_report(params, results, &name, matcher.as_mut()).ok_or_else(
+                || {
+                    ResponseError::new(
+                        ErrorCode::UNKNOWN_ERROR_CODE,
+                        "no diagnostic report produced",
+                    )
+                },
+            )
+        })
+    }
+
+    fn workspace_diagnostic(
+        &mut self,
+        params: WorkspaceDiagnosticParams,
+    ) -> BoxFuture<'static, Result<WorkspaceDiagnosticReportResult, Self::Error>> {
+        debug!("received `workspace/diagnostic` request: {params:#?}");
+
+        let client = self.client.clone();
+        let name = self.info().name;
+        let client_support = self.client_support.get().cloned().expect("should exist");
+        let state = self.state.clone();
+        let options = self.options.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+
+            let progress = ProgressToken::new(&client, client_support.work_done_progress).await;
+            let _ = progress.start(&client, name.clone(), "analyzing...");
+            let results = state
+                .config
+                .analyzer
+                .analyze(progress.clone())
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+            let _ = progress.complete(&client, "analysis complete");
+
+            let mut matcher = options.baseline.as_ref().map(|b| b.matcher());
+            Ok(proto::workspace_diagnostic_report(
+                params,
+                results,
+                &name,
+                matcher.as_mut(),
+            ))
+        })
+    }
+
+    fn completion(
+        &mut self,
+        mut params: CompletionParams,
+    ) -> BoxFuture<'static, Result<Option<CompletionResponse>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document_position.text_document.uri);
+
+        debug!("received `textDocument/completion` request: {params:#?}");
+
+        let position = SourcePosition::new(
+            params.text_document_position.position.line,
+            params.text_document_position.position.character,
+        );
+
+        let state = self.state.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+            let result = state
+                .config
+                .analyzer
+                .completion(
+                    ProgressToken::default(),
+                    params.text_document_position.text_document.uri,
+                    position,
+                    SourcePositionEncoding::UTF16,
+                )
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+
+            Ok(result)
+        })
+    }
+
+    fn prepare_call_hierarchy(
+        &mut self,
+        mut params: CallHierarchyPrepareParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyItem>>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+
+        debug!("received `textDocument/prepareCallHierarchy` request: {params:#?}");
+
+        let position = SourcePosition::new(
+            params.text_document_position_params.position.line,
+            params.text_document_position_params.position.character,
+        );
+
+        let state = self.state.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+            let result = state
+                .config
+                .analyzer
+                .call_hierarchy(
+                    params.text_document_position_params.text_document.uri,
+                    position,
+                    SourcePositionEncoding::UTF16,
+                )
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+
+            Ok(result)
+        })
+    }
+
+    fn incoming_calls(
+        &mut self,
+        mut params: CallHierarchyIncomingCallsParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyIncomingCall>>, Self::Error>> {
+        normalize_uri_path(&mut params.item.uri);
+
+        debug!("received `callHierarchy/incomingCalls` request: {params:#?}");
+
+        let position = SourcePosition::new(
+            params.item.selection_range.start.line,
+            params.item.selection_range.start.character,
+        );
+
+        let state = self.state.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+            let result = state
+                .config
+                .analyzer
+                .incoming_calls(params.item.uri, position, SourcePositionEncoding::UTF16)
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+
+            Ok(result)
+        })
+    }
+
+    fn outgoing_calls(
+        &mut self,
+        mut params: CallHierarchyOutgoingCallsParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyOutgoingCall>>, Self::Error>> {
+        normalize_uri_path(&mut params.item.uri);
+
+        debug!("received `callHierarchy/outgoingCalls` request: {params:#?}");
+
+        let position = SourcePosition::new(
+            params.item.selection_range.start.line,
+            params.item.selection_range.start.character,
+        );
+
+        let state = self.state.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+
+            let result = state
+                .config
+                .analyzer
+                .outgoing_calls(params.item.uri, position, SourcePositionEncoding::UTF16)
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+
+            Ok(result)
+        })
+    }
+
+    fn hover(
+        &mut self,
+        mut params: HoverParams,
+    ) -> BoxFuture<'static, Result<Option<Hover>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+
+        debug!("received `textDocument/hover` request: {params:#?}");
+
+        let position = SourcePosition::new(
+            params.text_document_position_params.position.line,
+            params.text_document_position_params.position.character,
+        );
+
+        let state = self.state.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+            let result = state
+                .config
+                .analyzer
+                .hover(
+                    params.text_document_position_params.text_document.uri,
+                    position,
+                    SourcePositionEncoding::UTF16,
+                )
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+            Ok(result)
+        })
+    }
+
+    fn signature_help(
+        &mut self,
+        mut params: SignatureHelpParams,
+    ) -> BoxFuture<'static, Result<Option<SignatureHelp>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+
+        debug!("received `textDocument/signatureHelp` request: {params:#?}");
+
+        let position = SourcePosition::new(
+            params.text_document_position_params.position.line,
+            params.text_document_position_params.position.character,
+        );
+
+        let state = self.state.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+            let result = state
+                .config
+                .analyzer
+                .signature_help(
+                    params.text_document_position_params.text_document.uri,
+                    position,
+                    SourcePositionEncoding::UTF16,
+                )
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+
+            Ok(result)
+        })
+    }
+
+    fn folding_range(
+        &mut self,
+        mut params: FoldingRangeParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<FoldingRange>>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        debug!("received `textDocument/foldingRange` request: {params:#?}");
+
+        let state = self.state.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+            state
+                .config
+                .analyzer
+                .folding_range(params.text_document.uri)
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))
+        })
+    }
+
+    fn definition(
+        &mut self,
+        mut params: GotoDefinitionParams,
+    ) -> BoxFuture<'static, Result<Option<GotoDefinitionResponse>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+
+        debug!("received `textDocument/gotoDefinition` request: {params:#?}");
+
+        let position = SourcePosition::new(
+            params.text_document_position_params.position.line,
+            params.text_document_position_params.position.character,
+        );
+
+        let state = self.state.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+            let result = state
+                .config
+                .analyzer
+                .goto_definition(
+                    params.text_document_position_params.text_document.uri,
+                    position,
+                    SourcePositionEncoding::UTF16,
+                )
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+
+            Ok(result)
+        })
+    }
+
+    fn references(
+        &mut self,
+        mut params: ReferenceParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<Location>>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document_position.text_document.uri);
+
+        debug!("received `textDocument/references` request: {params:#?}");
+
+        let position = SourcePosition::new(
+            params.text_document_position.position.line,
+            params.text_document_position.position.character,
+        );
+
+        let state = self.state.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+            let result = state
+                .config
+                .analyzer
+                .find_all_references(
+                    params.text_document_position.text_document.uri,
+                    position,
+                    SourcePositionEncoding::UTF16,
+                    params.context.include_declaration,
+                )
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+
+            Ok(Some(result))
+        })
+    }
+
+    fn document_symbol(
+        &mut self,
+        mut params: DocumentSymbolParams,
+    ) -> BoxFuture<'static, Result<Option<DocumentSymbolResponse>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        debug!("received `textDocument/documentSymbol` request: {params:#?}");
+
+        let state = self.state.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+
+            let result = state
+                .config
+                .analyzer
+                .document_symbol(params.text_document.uri)
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+
+            Ok(result)
+        })
+    }
+
+    fn symbol(
+        &mut self,
+        params: WorkspaceSymbolParams,
+    ) -> BoxFuture<'static, Result<Option<WorkspaceSymbolResponse>, Self::Error>> {
+        debug!("received `workspace/symbol` request: {params:#?}");
+
+        let state = self.state.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+
+            let result = state
+                .config
+                .analyzer
+                .workspace_symbol(params.query)
+                .await
+                .map(|opt| opt.map(WorkspaceSymbolResponse::Flat))
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+
+            Ok(result)
+        })
+    }
+
+    fn formatting(
+        &mut self,
+        mut params: DocumentFormattingParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<TextEdit>>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        debug!("received `textDocument/formatting` request: {params:#?}");
+
+        let state = self.state.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+
+            let result = state
+                .config
+                .analyzer
+                .format_document(params.text_document.uri)
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?
+                .map(|(end_line, end_col, formatted)| {
+                    vec![TextEdit {
+                        range: Range {
+                            // NOTE: always replace the full set of text starting at the
+                            // very first position.
+                            start: Position {
+                                line: 0,
+                                character: 0,
+                            },
+                            end: Position {
+                                line: end_line,
+                                character: end_col,
+                            },
+                        },
+                        new_text: formatted,
+                    }]
+                });
+
+            Ok(result)
+        })
+    }
+
+    fn rename(
+        &mut self,
+        mut params: RenameParams,
+    ) -> BoxFuture<'static, Result<Option<WorkspaceEdit>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document_position.text_document.uri);
+
+        debug!("received `textDocument/rename` request: {params:#?}");
+
+        let position = SourcePosition::new(
+            params.text_document_position.position.line,
+            params.text_document_position.position.character,
+        );
+
+        let state = self.state.clone();
+        Box::pin(async move {
+            let state = state.read().await;
+
+            let result = state
+                .config
+                .analyzer
+                .rename(
+                    params.text_document_position.text_document.uri,
+                    position,
+                    SourcePositionEncoding::UTF16,
+                    params.new_name,
+                )
+                .await
+                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
+
+            Ok(result)
+        })
+    }
+
+    fn initialized(&mut self, _: InitializedParams) -> Self::NotifyResult {
+        let info = self.info();
+        let mut client = self.client.clone();
+        let client_support = self.client_support.get().cloned().expect("should exist");
+        tokio::task::spawn(async move {
+            let mut registrations = Vec::new();
+            if client_support.watched_files {
+                registrations.push(Registration {
+                    id: Uuid::new_v4().to_string(),
+                    method: "workspace/didChangeWatchedFiles".into(),
+                    register_options: Some(
+                        to_value(DidChangeWatchedFilesRegistrationOptions {
+                            watchers: vec![FileSystemWatcher {
+                                // We use a generic glob so we can be notified for when directories,
+                                // which might contain WDL documents, are deleted
+                                glob_pattern: GlobPattern::String("**/*".to_string()),
+                                kind: None,
+                            }],
+                        })
+                        .expect("should convert to value"),
+                    ),
+                });
+            }
+
+            if client_support.did_change_configuration {
+                registrations.push(Registration {
+                    id: Uuid::new_v4().to_string(),
+                    method: "workspace/didChangeConfiguration".into(),
+                    register_options: None,
+                });
+            }
+
+            if registrations.is_empty() {
+                return;
+            }
+
+            client
+                .register_capability(RegistrationParams { registrations })
+                .await
+                .expect("failed to register capabilities with client");
+        });
+
         info!(
             "{name} (v{version}) server initialized",
             name = info.name,
             version = info.version.expect("should exist")
         );
+
+        ControlFlow::Continue(())
     }
 
-    async fn shutdown(&self) -> RpcResult<()> {
-        Ok(())
+    fn did_change_workspace_folders(
+        &mut self,
+        params: DidChangeWorkspaceFoldersParams,
+    ) -> Self::NotifyResult {
+        debug!("received `workspace/didChangeWorkspaceFolders` request: {params:#?}");
+
+        let state = self.state.clone();
+        tokio::task::spawn(async move {
+            let state = state.read().await;
+
+            // Process the removed folders
+            if !params.event.removed.is_empty()
+                && let Err(e) = state
+                    .config
+                    .analyzer
+                    .remove_documents(
+                        params
+                            .event
+                            .removed
+                            .into_iter()
+                            .map(|mut f| {
+                                normalize_uri_path(&mut f.uri);
+                                f.uri
+                            })
+                            .collect(),
+                    )
+                    .await
+            {
+                error!("failed to remove documents from analyzer: {e}");
+            }
+
+            // Progress the added folders
+            if !params.event.added.is_empty() {
+                for folder in &params.event.added {
+                    if let Err(e) = state
+                        .config
+                        .analyzer
+                        .add_directory(folder.uri.to_file_path().expect("should be a file path"))
+                        .await
+                    {
+                        error!("failed to add documents from directory to analyzer: {e}");
+                    }
+                }
+            }
+        });
+
+        ControlFlow::Continue(())
     }
 
-    async fn did_open(&self, mut params: DidOpenTextDocumentParams) {
+    fn did_change_configuration(
+        &mut self,
+        params: DidChangeConfigurationParams,
+    ) -> Self::NotifyResult {
+        debug!("received `workspace/didChangeConfiguration` notification: {params:#?}");
+
+        let state = self.state.clone();
+        let options = self.options.clone();
+        let client = self.client.clone();
+        tokio::task::spawn(async move {
+            let mut state = state.write().await;
+
+            let workspace_configs = client
+                .request::<WorkspaceConfiguration>(ConfigurationParams {
+                    items: vec![ConfigurationItem {
+                        scope_uri: None,
+                        section: Some(String::from("sprocket.server")),
+                    }],
+                })
+                .await;
+
+            match workspace_configs {
+                Ok(mut configs) if !configs.is_empty() => {
+                    match serde_json::from_value::<UserOptionsPatch>(configs.remove(0)) {
+                        Ok(patch) => state.apply_config_patch(client, &options, patch),
+                        Err(e) => error!("failed to deserialize `UserOptionsPatch`: {e:?}"),
+                    }
+                }
+                Ok(_) => error!("client returned no configuration"),
+                Err(e) => error!("failed to fetch workspace configuration: {e}"),
+            }
+        });
+
+        ControlFlow::Continue(())
+    }
+
+    fn did_open(&mut self, mut params: DidOpenTextDocumentParams) -> Self::NotifyResult {
         normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/didOpen` request: {params:#?}");
 
-        let config = self.config.read().await;
-        if let Err(e) = config
-            .analyzer
-            .add_document(params.text_document.uri.clone())
-            .await
-        {
-            error!(
-                "failed to add document {uri}: {e}",
-                uri = params.text_document.uri
-            );
-            return;
-        }
+        let state = self.state.clone();
+        tokio::task::spawn(async move {
+            let state = state.read().await;
+            if let Err(e) = state
+                .config
+                .analyzer
+                .add_document(params.text_document.uri.clone())
+                .await
+            {
+                error!(
+                    "failed to add document {uri}: {e}",
+                    uri = params.text_document.uri
+                );
+            }
 
-        if let Err(e) = config.analyzer.notify_incremental_change(
-            params.text_document.uri,
-            IncrementalChange {
-                version: params.text_document.version,
-                start: Some(params.text_document.text),
-                edits: Vec::new(),
-            },
-        ) {
-            error!("failed to notify incremental change: {e}");
-        }
+            if let Err(e) = state.config.analyzer.notify_incremental_change(
+                params.text_document.uri,
+                IncrementalChange {
+                    version: params.text_document.version,
+                    start: Some(params.text_document.text),
+                    edits: Vec::new(),
+                },
+            ) {
+                error!("failed to notify incremental change: {e}");
+            }
+        });
+
+        ControlFlow::Continue(())
     }
 
-    async fn did_change(&self, mut params: DidChangeTextDocumentParams) {
-        let config = self.config.read().await;
-
+    fn did_change(&mut self, mut params: DidChangeTextDocumentParams) -> Self::NotifyResult {
         normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/didChange` request: {params:#?}");
@@ -698,187 +1361,74 @@ impl<S: 'static> LanguageServer for Server<S> {
             version = params.text_document.version
         );
 
-        // Look for the last full change (one without a range) and start there
-        let (start, changes) = match params
-            .content_changes
-            .iter()
-            .rposition(|change| change.range.is_none())
-        {
-            Some(idx) => (
-                Some(mem::take(&mut params.content_changes[idx].text)),
-                &mut params.content_changes[idx + 1..],
-            ),
-            None => (None, &mut params.content_changes[..]),
-        };
-
         // Notify the analyzer that the document has changed
-        if let Err(e) = config.analyzer.notify_incremental_change(
-            params.text_document.uri,
-            IncrementalChange {
-                version: params.text_document.version,
-                start,
-                edits: changes
-                    .iter_mut()
-                    .map(|e| {
-                        let range = e.range.expect("edit should be after the last full change");
-                        SourceEdit::new(
-                            SourcePosition::new(range.start.line, range.start.character)
-                                ..SourcePosition::new(range.end.line, range.end.character),
-                            SourcePositionEncoding::UTF16,
-                            mem::take(&mut e.text),
-                        )
-                    })
-                    .collect(),
-            },
-        ) {
-            error!("failed to notify incremental change: {e}");
-        }
+        let state = self.state.clone();
+        tokio::task::spawn(async move {
+            let state = state.read().await;
+
+            // Look for the last full change (one without a range) and start there
+            let (start, changes) = match params
+                .content_changes
+                .iter()
+                .rposition(|change| change.range.is_none())
+            {
+                Some(idx) => (
+                    Some(mem::take(&mut params.content_changes[idx].text)),
+                    &mut params.content_changes[idx + 1..],
+                ),
+                None => (None, &mut params.content_changes[..]),
+            };
+
+            if let Err(e) = state.config.analyzer.notify_incremental_change(
+                params.text_document.uri,
+                IncrementalChange {
+                    version: params.text_document.version,
+                    start,
+                    edits: changes
+                        .iter_mut()
+                        .map(|e| {
+                            let range = e.range.expect("edit should be after the last full change");
+                            SourceEdit::new(
+                                SourcePosition::new(range.start.line, range.start.character)
+                                    ..SourcePosition::new(range.end.line, range.end.character),
+                                SourcePositionEncoding::UTF16,
+                                mem::take(&mut e.text),
+                            )
+                        })
+                        .collect(),
+                },
+            ) {
+                error!("failed to notify incremental change: {e}");
+            }
+        });
+
+        ControlFlow::Continue(())
     }
 
-    async fn did_close(&self, mut params: DidCloseTextDocumentParams) {
-        let config = self.config.read().await;
-
+    fn did_close(&mut self, mut params: DidCloseTextDocumentParams) -> Self::NotifyResult {
         normalize_uri_path(&mut params.text_document.uri);
 
         debug!("received `textDocument/didClose` request: {params:#?}");
-        if let Err(e) = config
-            .analyzer
-            .notify_change(params.text_document.uri, true)
-        {
-            error!("failed to notify change: {e}");
-        }
-    }
 
-    async fn diagnostic(
-        &self,
-        mut params: DocumentDiagnosticParams,
-    ) -> RpcResult<DocumentDiagnosticReportResult> {
-        let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document.uri);
-
-        debug!("received `textDocument/diagnostic` request: {params:#?}");
-
-        let results: Vec<wdl_analysis::AnalysisResult> = config
-            .analyzer
-            .analyze_document(ProgressToken::default(), params.text_document.uri.clone())
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-
-        drop(config);
-        let name = self.info().await.name;
-        let config = self.config.read().await;
-        let mut matcher = config.options.baseline.as_ref().map(|b| b.matcher());
-        proto::document_diagnostic_report(params, results, &name, matcher.as_mut())
-            .ok_or_else(RpcError::request_cancelled)
-    }
-
-    async fn workspace_diagnostic(
-        &self,
-        params: WorkspaceDiagnosticParams,
-    ) -> RpcResult<WorkspaceDiagnosticReportResult> {
-        let config = self.config.read().await;
-
-        debug!("received `workspace/diagnostic` request: {params:#?}");
-
-        let name = self.info().await.name;
-
-        let client_support = self.client_support.get().expect("should exist");
-        let progress = ProgressToken::new(&self.client, client_support.work_done_progress).await;
-        progress
-            .start(&self.client, name.clone(), "analyzing...")
-            .await;
-        let results = config
-            .analyzer
-            .analyze(progress.clone())
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-        progress.complete(&self.client, "analysis complete").await;
-
-        let mut matcher = config.options.baseline.as_ref().map(|b| b.matcher());
-        Ok(proto::workspace_diagnostic_report(
-            params,
-            results,
-            &name,
-            matcher.as_mut(),
-        ))
-    }
-
-    async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
-        let config = self.config.read().await;
-
-        debug!("received `workspace/didChangeWorkspaceFolders` request: {params:#?}");
-
-        // Process the removed folders
-        if !params.event.removed.is_empty()
-            && let Err(e) = config
+        let state = self.state.clone();
+        tokio::task::spawn(async move {
+            let state = state.read().await;
+            if let Err(e) = state
+                .config
                 .analyzer
-                .remove_documents(
-                    params
-                        .event
-                        .removed
-                        .into_iter()
-                        .map(|mut f| {
-                            normalize_uri_path(&mut f.uri);
-                            f.uri
-                        })
-                        .collect(),
-                )
-                .await
-        {
-            error!("failed to remove documents from analyzer: {e}");
-        }
-
-        // Progress the added folders
-        if !params.event.added.is_empty() {
-            for folder in &params.event.added {
-                if let Err(e) = config
-                    .analyzer
-                    .add_directory(folder.uri.to_file_path().expect("should be a file path"))
-                    .await
-                {
-                    error!("failed to add documents from directory to analyzer: {e}");
-                }
+                .notify_change(params.text_document.uri, true)
+            {
+                error!("failed to notify change: {e}");
             }
-        }
+        });
+
+        ControlFlow::Continue(())
     }
 
-    async fn did_change_configuration(&self, params: DidChangeConfigurationParams) {
-        debug!("received `workspace/didChangeConfiguration` notification: {params:#?}");
-
-        let workspace_configs = self
-            .client
-            .send_request::<WorkspaceConfiguration>(ConfigurationParams {
-                items: vec![ConfigurationItem {
-                    scope_uri: None,
-                    section: Some(String::from("sprocket.server")),
-                }],
-            })
-            .await;
-
-        match workspace_configs {
-            Ok(mut configs) if !configs.is_empty() => {
-                match serde_json::from_value::<ServerOptionsPatch>(configs.remove(0)) {
-                    Ok(patch) => self.apply_config_patch(patch).await,
-                    Err(e) => error!("failed to deserialize `ServerOptionsPatch`: {e:?}"),
-                }
-            }
-            Ok(_) => error!("client returned no configuration"),
-            Err(e) => error!("failed to fetch workspace configuration: {e}"),
-        }
-    }
-
-    async fn did_change_watched_files(&self, params: DidChangeWatchedFilesParams) {
-        let config = self.config.read().await;
-
+    fn did_change_watched_files(
+        &mut self,
+        params: DidChangeWatchedFilesParams,
+    ) -> Self::NotifyResult {
         debug!("received `workspace/didChangeWatchedFiles` request: {params:#?}");
 
         /// Converts a URI into a WDL file path.
@@ -893,487 +1443,61 @@ impl<S: 'static> LanguageServer for Server<S> {
             None
         }
 
-        let mut added = Vec::new();
-        let mut deleted = Vec::new();
+        let state = self.state.clone();
+        let update_files_task = async move {
+            let state = state.read().await;
 
-        for mut event in params.changes {
-            normalize_uri_path(&mut event.uri);
+            let mut added = Vec::new();
+            let mut deleted = Vec::new();
+            for mut event in params.changes {
+                normalize_uri_path(&mut event.uri);
 
-            match event.typ {
-                FileChangeType::CREATED => {
-                    if let Some(path) = to_wdl_file_path(&event.uri) {
+                match event.typ {
+                    FileChangeType::CREATED => {
+                        let Some(path) = to_wdl_file_path(&event.uri) else {
+                            continue;
+                        };
+
                         debug!("document `{uri}` has been created", uri = event.uri);
-                        added.push(path);
+                        added.push(path_to_uri(&path).expect("should convert to uri"));
                     }
-                }
-                FileChangeType::CHANGED => {
-                    if to_wdl_file_path(&event.uri).is_some() {
-                        debug!("document `{uri}` has been changed", uri = event.uri);
-                        if let Err(e) = config.analyzer.notify_change(event.uri, false) {
-                            error!("failed to notify change: {e}");
+                    FileChangeType::CHANGED => {
+                        if to_wdl_file_path(&event.uri).is_some() {
+                            debug!("document `{uri}` has been changed", uri = event.uri);
+                            if let Err(e) = state.config.analyzer.notify_change(event.uri, false) {
+                                error!("failed to notify change: {e}");
+                            }
                         }
                     }
-                }
-                FileChangeType::DELETED => {
-                    if to_wdl_file_path(&event.uri).is_some() {
+                    FileChangeType::DELETED => {
+                        if to_wdl_file_path(&event.uri).is_none() {
+                            continue;
+                        }
+
                         debug!("document `{uri}` has been deleted", uri = event.uri);
                         deleted.push(event.uri);
                     }
-                }
-                _ => continue,
-            }
-        }
-
-        // Add any documents to the analyzer
-        if !added.is_empty() {
-            for file in added {
-                if let Err(e) = config
-                    .analyzer
-                    .add_document(path_to_uri(&file).expect("should convert to uri"))
-                    .await
-                {
-                    error!("failed to add documents to analyzer: {e}");
+                    _ => {}
                 }
             }
-        }
 
-        // Remove any documents from the analyzer
-        if !deleted.is_empty()
-            && let Err(e) = config.analyzer.remove_documents(deleted).await
-        {
-            error!("failed to remove documents from analyzer: {e}");
-        }
-    }
-
-    async fn formatting(
-        &self,
-        mut params: DocumentFormattingParams,
-    ) -> RpcResult<Option<Vec<TextEdit>>> {
-        let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document.uri);
-
-        debug!("received `textDocument/formatting` request: {params:#?}");
-
-        let result = config
-            .analyzer
-            .format_document(params.text_document.uri)
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?
-            .map(|(end_line, end_col, formatted)| {
-                vec![TextEdit {
-                    range: Range {
-                        // NOTE: always replace the full set of text starting at the
-                        // very first position.
-                        start: Position {
-                            line: 0,
-                            character: 0,
-                        },
-                        end: Position {
-                            line: end_line,
-                            character: end_col,
-                        },
-                    },
-                    new_text: formatted,
-                }]
-            });
-
-        Ok(result)
-    }
-
-    async fn prepare_call_hierarchy(
-        &self,
-        mut params: CallHierarchyPrepareParams,
-    ) -> RpcResult<Option<Vec<CallHierarchyItem>>> {
-        let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
-        debug!("received `textDocument/prepareCallHierarchy` request: {params:#?}");
-
-        let position = SourcePosition::new(
-            params.text_document_position_params.position.line,
-            params.text_document_position_params.position.character,
-        );
-
-        let result = config
-            .analyzer
-            .call_hierarchy(
-                params.text_document_position_params.text_document.uri,
-                position,
-                SourcePositionEncoding::UTF16,
-            )
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-
-        Ok(result)
-    }
-
-    async fn incoming_calls(
-        &self,
-        mut params: CallHierarchyIncomingCallsParams,
-    ) -> RpcResult<Option<Vec<CallHierarchyIncomingCall>>> {
-        let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.item.uri);
-
-        debug!("received `callHierarchy/incomingCalls` request: {params:#?}");
-
-        let position = SourcePosition::new(
-            params.item.selection_range.start.line,
-            params.item.selection_range.start.character,
-        );
-
-        let result = config
-            .analyzer
-            .incoming_calls(params.item.uri, position, SourcePositionEncoding::UTF16)
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-
-        Ok(result)
-    }
-
-    async fn outgoing_calls(
-        &self,
-        mut params: CallHierarchyOutgoingCallsParams,
-    ) -> RpcResult<Option<Vec<CallHierarchyOutgoingCall>>> {
-        let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.item.uri);
-
-        debug!("received `callHierarchy/outgoingCalls` request: {params:#?}");
-
-        let position = SourcePosition::new(
-            params.item.selection_range.start.line,
-            params.item.selection_range.start.character,
-        );
-
-        let result = config
-            .analyzer
-            .outgoing_calls(params.item.uri, position, SourcePositionEncoding::UTF16)
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-
-        Ok(result)
-    }
-
-    async fn folding_range(
-        &self,
-        mut params: FoldingRangeParams,
-    ) -> RpcResult<Option<Vec<FoldingRange>>> {
-        let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document.uri);
-
-        debug!("received `textDocument/foldingRange` request: {params:#?}");
-
-        config
-            .analyzer
-            .folding_range(params.text_document.uri)
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })
-    }
-
-    async fn goto_definition(
-        &self,
-        mut params: GotoDefinitionParams,
-    ) -> RpcResult<Option<GotoDefinitionResponse>> {
-        let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
-        debug!("received `textDocument/gotoDefinition` request: {params:#?}");
-
-        let position = SourcePosition::new(
-            params.text_document_position_params.position.line,
-            params.text_document_position_params.position.character,
-        );
-
-        let result = config
-            .analyzer
-            .goto_definition(
-                params.text_document_position_params.text_document.uri,
-                position,
-                SourcePositionEncoding::UTF16,
-            )
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-
-        Ok(result)
-    }
-
-    async fn references(&self, mut params: ReferenceParams) -> RpcResult<Option<Vec<Location>>> {
-        let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
-
-        debug!("received `textDocument/references` request: {params:#?}");
-
-        let position = SourcePosition::new(
-            params.text_document_position.position.line,
-            params.text_document_position.position.character,
-        );
-
-        let result = config
-            .analyzer
-            .find_all_references(
-                params.text_document_position.text_document.uri,
-                position,
-                SourcePositionEncoding::UTF16,
-                params.context.include_declaration,
-            )
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-
-        Ok(Some(result))
-    }
-
-    async fn completion(
-        &self,
-        mut params: CompletionParams,
-    ) -> RpcResult<Option<CompletionResponse>> {
-        let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
-
-        debug!("received `textDocument/completion` request: {params:#?}");
-
-        let position = SourcePosition::new(
-            params.text_document_position.position.line,
-            params.text_document_position.position.character,
-        );
-
-        let result = config
-            .analyzer
-            .completion(
-                ProgressToken::default(),
-                params.text_document_position.text_document.uri,
-                position,
-                SourcePositionEncoding::UTF16,
-            )
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-
-        Ok(result)
-    }
-
-    async fn hover(&self, mut params: HoverParams) -> RpcResult<Option<Hover>> {
-        let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
-        debug!("received `textDocument/hover` request: {params:#?}");
-
-        let position = SourcePosition::new(
-            params.text_document_position_params.position.line,
-            params.text_document_position_params.position.character,
-        );
-
-        let result = config
-            .analyzer
-            .hover(
-                params.text_document_position_params.text_document.uri,
-                position,
-                SourcePositionEncoding::UTF16,
-            )
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-        Ok(result)
-    }
-
-    async fn rename(&self, mut params: RenameParams) -> RpcResult<Option<WorkspaceEdit>> {
-        let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
-
-        debug!("received `textDocument/rename` request: {params:#?}");
-
-        let position = SourcePosition::new(
-            params.text_document_position.position.line,
-            params.text_document_position.position.character,
-        );
-
-        let result = config
-            .analyzer
-            .rename(
-                params.text_document_position.text_document.uri,
-                position,
-                SourcePositionEncoding::UTF16,
-                params.new_name,
-            )
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-
-        Ok(result)
-    }
-
-    async fn semantic_tokens_full(
-        &self,
-        mut params: SemanticTokensParams,
-    ) -> RpcResult<Option<SemanticTokensResult>> {
-        let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document.uri);
-
-        debug!("received `textDocument/semanticTokens/full` request: {params:#?}");
-
-        let result = config
-            .analyzer
-            .semantic_tokens(params.text_document.uri)
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-
-        Ok(result)
-    }
-
-    async fn document_symbol(
-        &self,
-        mut params: DocumentSymbolParams,
-    ) -> RpcResult<Option<DocumentSymbolResponse>> {
-        let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document.uri);
-
-        debug!("received `textDocument/documentSymbol` request: {params:#?}");
-
-        let result = config
-            .analyzer
-            .document_symbol(params.text_document.uri)
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-
-        Ok(result)
-    }
-
-    async fn symbol(
-        &self,
-        params: WorkspaceSymbolParams,
-    ) -> RpcResult<Option<Vec<SymbolInformation>>> {
-        let config = self.config.read().await;
-
-        debug!("received `workspace/symbol` request: {params:#?}");
-
-        let result = config
-            .analyzer
-            .workspace_symbol(params.query)
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-
-        Ok(result)
-    }
-
-    async fn signature_help(
-        &self,
-        mut params: SignatureHelpParams,
-    ) -> RpcResult<Option<SignatureHelp>> {
-        let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
-        debug!("received `textDocument/signatureHelp` request: {params:#?}");
-
-        let position = SourcePosition::new(
-            params.text_document_position_params.position.line,
-            params.text_document_position_params.position.character,
-        );
-
-        let result = config
-            .analyzer
-            .signature_help(
-                params.text_document_position_params.text_document.uri,
-                position,
-                SourcePositionEncoding::UTF16,
-            )
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-
-        Ok(result)
-    }
-
-    async fn inlay_hint(&self, mut params: InlayHintParams) -> RpcResult<Option<Vec<InlayHint>>> {
-        let config = self.config.read().await;
-
-        normalize_uri_path(&mut params.text_document.uri);
-
-        debug!("received `textDocument/inlayHint` request: {params:#?}");
-
-        // Analyze the document first to ensure we have up-to-date information
-        config
-            .analyzer
-            .analyze(ProgressToken(None))
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-
-        let result = config
-            .analyzer
-            .inlay_hints(params.text_document.uri, params.range)
-            .await
-            .map_err(|e| RpcError {
-                code: ErrorCode::InternalError,
-                message: e.to_string().into(),
-                data: None,
-            })?;
-
-        Ok(result)
+            if !added.is_empty() {
+                for uri in added {
+                    if let Err(e) = state.config.analyzer.add_document(uri).await {
+                        error!("failed to add documents to analyzer: {e}");
+                    }
+                }
+            }
+
+            if !deleted.is_empty()
+                && let Err(e) = state.config.analyzer.remove_documents(deleted).await
+            {
+                error!("failed to remove documents from analyzer: {e}");
+            }
+        };
+
+        tokio::task::spawn(update_files_task);
+
+        ControlFlow::Continue(())
     }
 }

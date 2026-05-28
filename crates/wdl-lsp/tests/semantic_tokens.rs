@@ -1,19 +1,20 @@
 //! Integration tests for the `textDocument/semanticTokens` request.
 
+use async_lsp::ErrorCode;
+use async_lsp::lsp_types::SemanticToken;
+use async_lsp::lsp_types::SemanticTokenModifier;
+use async_lsp::lsp_types::SemanticTokenType;
+use async_lsp::lsp_types::SemanticTokensDeltaParams;
+use async_lsp::lsp_types::SemanticTokensFullDeltaResult;
+use async_lsp::lsp_types::SemanticTokensParams;
+use async_lsp::lsp_types::SemanticTokensRangeParams;
+use async_lsp::lsp_types::SemanticTokensRangeResult;
+use async_lsp::lsp_types::SemanticTokensResult;
+use async_lsp::lsp_types::TextDocumentIdentifier;
+use async_lsp::lsp_types::request::SemanticTokensFullDeltaRequest;
+use async_lsp::lsp_types::request::SemanticTokensFullRequest;
+use async_lsp::lsp_types::request::SemanticTokensRangeRequest;
 use pretty_assertions::assert_eq;
-use tower_lsp::lsp_types::SemanticToken;
-use tower_lsp::lsp_types::SemanticTokenModifier;
-use tower_lsp::lsp_types::SemanticTokenType;
-use tower_lsp::lsp_types::SemanticTokensDeltaParams;
-use tower_lsp::lsp_types::SemanticTokensFullDeltaResult;
-use tower_lsp::lsp_types::SemanticTokensParams;
-use tower_lsp::lsp_types::SemanticTokensRangeParams;
-use tower_lsp::lsp_types::SemanticTokensRangeResult;
-use tower_lsp::lsp_types::SemanticTokensResult;
-use tower_lsp::lsp_types::TextDocumentIdentifier;
-use tower_lsp::lsp_types::request::SemanticTokensFullDeltaRequest;
-use tower_lsp::lsp_types::request::SemanticTokensFullRequest;
-use tower_lsp::lsp_types::request::SemanticTokensRangeRequest;
 use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_MODIFIERS;
 use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_TYPES;
 
@@ -24,7 +25,7 @@ mod common;
 async fn semantic_tokens_full_request(
     ctx: &mut TestContext,
     path: &str,
-) -> Option<SemanticTokensResult> {
+) -> async_lsp::Result<Option<SemanticTokensResult>> {
     ctx.request::<SemanticTokensFullRequest>(SemanticTokensParams {
         text_document: TextDocumentIdentifier {
             uri: ctx.doc_uri(path),
@@ -38,7 +39,7 @@ async fn semantic_tokens_full_request(
 async fn semantic_tokens_full_delta_request(
     ctx: &mut TestContext,
     path: &str,
-) -> Option<SemanticTokensFullDeltaResult> {
+) -> async_lsp::Result<Option<SemanticTokensFullDeltaResult>> {
     ctx.request::<SemanticTokensFullDeltaRequest>(SemanticTokensDeltaParams {
         text_document: TextDocumentIdentifier {
             uri: ctx.doc_uri(path),
@@ -53,7 +54,7 @@ async fn semantic_tokens_full_delta_request(
 async fn semantic_tokens_range_request(
     ctx: &mut TestContext,
     path: &str,
-) -> Option<SemanticTokensRangeResult> {
+) -> async_lsp::Result<Option<SemanticTokensRangeResult>> {
     ctx.request::<SemanticTokensRangeRequest>(SemanticTokensRangeParams {
         text_document: TextDocumentIdentifier {
             uri: ctx.doc_uri(path),
@@ -98,6 +99,7 @@ async fn should_provide_semantic_tokens() {
     let mut ctx = setup().await;
     let result = semantic_tokens_full_request(&mut ctx, "source.wdl")
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let SemanticTokensResult::Tokens(tokens) = result else {
@@ -769,6 +771,7 @@ async fn should_mark_deprecated_items() {
     let mut ctx = setup().await;
     let result = semantic_tokens_full_request(&mut ctx, "deprecated.wdl")
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let SemanticTokensResult::Tokens(tokens) = result else {
@@ -812,15 +815,25 @@ async fn should_mark_deprecated_items() {
 }
 
 #[tokio::test]
-#[should_panic(expected = "MethodNotFound")]
 async fn should_not_support_full_delta_requests() {
     let mut ctx = setup().await;
-    let _result = semantic_tokens_full_delta_request(&mut ctx, "source.wdl").await;
+    match semantic_tokens_full_delta_request(&mut ctx, "source.wdl")
+        .await
+        .expect_err("request should fail")
+    {
+        async_lsp::Error::Response(err) if err.code == ErrorCode::METHOD_NOT_FOUND => {}
+        e => panic!("unexpected error type: {e}"),
+    }
 }
 
 #[tokio::test]
-#[should_panic(expected = "MethodNotFound")]
 async fn should_not_support_range_requests() {
     let mut ctx = setup().await;
-    let _result = semantic_tokens_range_request(&mut ctx, "source.wdl").await;
+    match semantic_tokens_range_request(&mut ctx, "source.wdl")
+        .await
+        .expect_err("request should fail")
+    {
+        async_lsp::Error::Response(err) if err.code == ErrorCode::METHOD_NOT_FOUND => {}
+        e => panic!("unexpected error type: {e}"),
+    }
 }

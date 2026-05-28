@@ -2,8 +2,8 @@
 
 mod common;
 
-use tower_lsp::lsp_types::WorkspaceDiagnosticReportResult;
-use tower_lsp::lsp_types::WorkspaceDocumentDiagnosticReport;
+use async_lsp::lsp_types::WorkspaceDiagnosticReportResult;
+use async_lsp::lsp_types::WorkspaceDocumentDiagnosticReport;
 use wdl_lint::Baseline;
 use wdl_lint::BaselineEntry;
 
@@ -25,7 +25,7 @@ fn diagnostic_codes(report: &WorkspaceDiagnosticReportResult) -> Vec<String> {
             WorkspaceDocumentDiagnosticReport::Unchanged(_) => Vec::new(),
         })
         .filter_map(|d| match d.code {
-            Some(tower_lsp::lsp_types::NumberOrString::String(s)) => Some(s),
+            Some(async_lsp::lsp_types::NumberOrString::String(s)) => Some(s),
             _ => None,
         })
         .collect()
@@ -40,14 +40,19 @@ async fn baseline_suppresses_matching_diagnostics() {
             BaselineEntry::new("UnusedInput", "source.wdl", hash),
         ])
         .with_base_dir(workspace.to_path_buf());
-        wdl_lsp::ServerOptions {
-            lint: wdl_lsp::LintOptions {
-                enabled: true,
+        (
+            wdl_lsp::ServerOptions {
+                baseline: Some(baseline),
                 ..Default::default()
             },
-            baseline: Some(baseline),
-            ..Default::default()
-        }
+            wdl_lsp::UserOptions {
+                lint: wdl_lsp::LintOptions {
+                    enabled: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        )
     });
     let (_, report) = ctx.initialize().await;
     let codes = diagnostic_codes(&report);
@@ -95,14 +100,19 @@ async fn baseline_still_suppresses_after_repeated_pulls() {
             BaselineEntry::new("UnusedInput", "source.wdl", hash),
         ])
         .with_base_dir(workspace.to_path_buf());
-        wdl_lsp::ServerOptions {
-            lint: wdl_lsp::LintOptions {
-                enabled: true,
+        (
+            wdl_lsp::ServerOptions {
+                baseline: Some(baseline),
                 ..Default::default()
             },
-            baseline: Some(baseline),
-            ..Default::default()
-        }
+            wdl_lsp::UserOptions {
+                lint: wdl_lsp::LintOptions {
+                    enabled: true,
+                    ..Default::default()
+                },
+                ..Default::default()
+            },
+        )
     });
 
     let (_, first) = ctx.initialize().await;
