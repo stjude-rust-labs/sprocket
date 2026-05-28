@@ -5095,7 +5095,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "sprocket_py"
+name = "sprocket-py"
 version = "0.1.0"
 dependencies = [
  "pyo3",

@@ -1,7 +1,7 @@
 [workspace]
 members = [
     "crates/gauntlet",
-    "crates/sprocket_py",
+    "crates/sprocket-py",
     "crates/wdl",
     "crates/wdl-analysis",
     "crates/wdl-ast",

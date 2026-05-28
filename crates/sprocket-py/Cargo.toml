@@ -1,5 +1,5 @@
 [package]
-name = "sprocket_py"
+name = "sprocket-py"
 version = "0.1.0"
 # This crate is not published on crates.io, rather it is bundled in a Python package that is
 # published to PyPI.
