@@ -675,7 +675,8 @@ where
 
         rx.await.map_err(|_| {
             anyhow!(
-                "failed to send folding range request to the queue because the channel has closed"
+                "failed to receive folding range response from analysis queue because the channel \
+                 has closed"
             )
         })
     }

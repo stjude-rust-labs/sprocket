@@ -36,7 +36,6 @@ use std::str::FromStr;
 
 pub use rowan::Direction;
 use rowan::NodeOrToken;
-use rowan::TextRange;
 use v1::CloseBrace;
 use v1::CloseHeredoc;
 use v1::OpenBrace;
@@ -89,45 +88,6 @@ pub fn doc_comments<N: TreeNode>(
                 None
             }
         })
-}
-
-/// A node with an associated block.
-pub trait HasBlock: AstNode<SyntaxNode> {
-    /// Get the [`TextRange`] of the associated block, including the open/close
-    /// delimiters.
-    fn block_range(&self) -> TextRange {
-        let (open, close) = get_block::<Self, OpenBrace, CloseBrace>(self);
-        TextRange::new(
-            open.inner().text_range().start(),
-            close.inner().text_range().end(),
-        )
-    }
-}
-
-/// Implementation for [`HasBlock::block_range()`].
-pub(crate) fn get_block<
-    T: AstNode<SyntaxNode>,
-    OpenDelimiter: AstToken<<SyntaxNode as TreeNode>::Token>,
-    CloseDelimiter: AstToken<<SyntaxNode as TreeNode>::Token>,
->(
-    node: &T,
-) -> (OpenDelimiter, CloseDelimiter) {
-    let open_brace = node
-        .token::<OpenDelimiter>()
-        .expect("should have an open brace");
-    let close_brace = open_brace
-        .inner()
-        .siblings_with_tokens(Direction::Next)
-        .find_map(|sibling| {
-            let SyntaxElement::Token(token) = sibling else {
-                return None;
-            };
-
-            CloseDelimiter::cast(token)
-        })
-        .expect("should have a close brace");
-
-    (open_brace, close_brace)
 }
 
 /// A trait that abstracts the underlying representation of a syntax tree node.
@@ -290,7 +250,7 @@ pub trait AstNode<N: TreeNode>: Sized {
     ///
     /// Returns `None` if the node does not contain the open and close tokens as
     /// children.
-    fn scope_span<O, C>(&self) -> Option<Span>
+    fn scope_span<O, C>(&self, include_braces: bool) -> Option<Span>
     where
         O: AstToken<N::Token>,
         C: AstToken<N::Token>,
@@ -298,30 +258,38 @@ pub trait AstNode<N: TreeNode>: Sized {
         let open = self.token::<O>()?.span();
         let close = self.last_token::<C>()?.span();
 
-        // The span starts after the opening brace and after the closing brace
-        Some(Span::new(open.end(), close.end() - open.end()))
+        let start = if include_braces {
+            open.start()
+        } else {
+            open.end()
+        };
+        Some(Span::new(start, close.end() - start))
     }
 
     /// Gets the interior span of child opening and closing brace tokens for the
     /// node.
     ///
-    /// The span starts from immediately after the opening brace token and ends
-    /// immediately before the closing brace token.
+    /// If `include_braces` is true, the returned [`Span`] will include both the
+    /// opening and closing braces. Otherwise, the span starts from
+    /// immediately after the opening brace token and ends immediately
+    /// before the closing brace token.
     ///
     /// Returns `None` if the node does not contain child brace tokens.
-    fn braced_scope_span(&self) -> Option<Span> {
-        self.scope_span::<OpenBrace<N::Token>, CloseBrace<N::Token>>()
+    fn braced_scope_span(&self, include_braces: bool) -> Option<Span> {
+        self.scope_span::<OpenBrace<N::Token>, CloseBrace<N::Token>>(include_braces)
     }
 
     /// Gets the interior span of child opening and closing heredoc tokens for
     /// the node.
     ///
-    /// The span starts from immediately after the opening heredoc token and
-    /// ends immediately before the closing heredoc token.
+    /// If `include_braces` is true, the returned [`Span`] will include both the
+    /// opening and closing braces. Otherwise, the span starts from
+    /// immediately after the opening brace token and ends immediately
+    /// before the closing brace token.
     ///
     /// Returns `None` if the node does not contain child heredoc tokens.
-    fn heredoc_scope_span(&self) -> Option<Span> {
-        self.scope_span::<OpenHeredoc<N::Token>, CloseHeredoc<N::Token>>()
+    fn heredoc_scope_span(&self, include_braces: bool) -> Option<Span> {
+        self.scope_span::<OpenHeredoc<N::Token>, CloseHeredoc<N::Token>>(include_braces)
     }
 
     /// Gets the node descendants (including self) from this node that can be

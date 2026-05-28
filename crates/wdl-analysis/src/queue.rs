@@ -164,7 +164,7 @@ pub struct NotifyChangeRequest {
 
 /// Represents a request to get all folding ranges in a document.
 pub struct FoldingRangeRequest {
-    /// The document to be formatted.
+    /// The document to get folding ranges for.
     pub document: Url,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<FoldingRange>>>,

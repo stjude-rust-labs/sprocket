@@ -1,19 +1,15 @@
 //! V1 AST representation for task definitions.
 
 use rowan::NodeOrToken;
-use rowan::TextRange;
 use wdl_grammar::SyntaxTokenExt;
 
 use super::BoundDecl;
-use super::CloseBrace;
-use super::CloseHeredoc;
 use super::Decl;
 use super::Expr;
 use super::LiteralBoolean;
 use super::LiteralFloat;
 use super::LiteralInteger;
 use super::LiteralString;
-use super::OpenBrace;
 use super::OpenHeredoc;
 use super::Placeholder;
 use super::StructDefinition;
@@ -23,14 +19,12 @@ use crate::AstNode;
 use crate::AstToken;
 use crate::Comment;
 use crate::Documented;
-use crate::HasBlock;
 use crate::Ident;
 use crate::SyntaxKind;
 use crate::SyntaxNode;
 use crate::SyntaxToken;
 use crate::TreeNode;
 use crate::TreeToken;
-use crate::get_block;
 use crate::v1::CommandKeyword;
 use crate::v1::MetaKeyword;
 use crate::v1::ParameterMetaKeyword;
@@ -441,8 +435,6 @@ impl Documented<SyntaxNode> for TaskDefinition<SyntaxNode> {
         Some(crate::doc_comments::<SyntaxNode>(self.keyword().inner().preceding_trivia()).collect())
     }
 }
-
-impl HasBlock for TaskDefinition<SyntaxNode> {}
 
 /// Represents an item in a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -978,8 +970,6 @@ impl<N: TreeNode> AstNode<N> for InputSection<N> {
     }
 }
 
-impl HasBlock for InputSection<SyntaxNode> {}
-
 /// Represents an output section in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OutputSection<N: TreeNode = SyntaxNode>(N);
@@ -1013,8 +1003,6 @@ impl<N: TreeNode> AstNode<N> for OutputSection<N> {
         &self.0
     }
 }
-
-impl HasBlock for OutputSection<SyntaxNode> {}
 
 /// A command part stripped of leading whitespace.
 ///
@@ -1260,24 +1248,6 @@ impl<N: TreeNode> AstNode<N> for CommandSection<N> {
     }
 }
 
-impl HasBlock for CommandSection<SyntaxNode> {
-    fn block_range(&self) -> TextRange {
-        if self.is_heredoc() {
-            let (open, close) = get_block::<Self, OpenHeredoc, CloseHeredoc>(self);
-            TextRange::new(
-                open.inner().text_range().start(),
-                close.inner().text_range().end(),
-            )
-        } else {
-            let (open, close) = get_block::<Self, OpenBrace, CloseBrace>(self);
-            TextRange::new(
-                open.inner().text_range().start(),
-                close.inner().text_range().end(),
-            )
-        }
-    }
-}
-
 /// Represents a textual part of a command.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CommandText<T: TreeToken = SyntaxToken>(T);
@@ -1403,8 +1373,6 @@ impl<N: TreeNode> AstNode<N> for RequirementsSection<N> {
     }
 }
 
-impl HasBlock for RequirementsSection<SyntaxNode> {}
-
 /// Represents an item in a requirements section.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RequirementsItem<N: TreeNode = SyntaxNode>(N);
@@ -1477,8 +1445,6 @@ impl<N: TreeNode> AstNode<N> for TaskHintsSection<N> {
         &self.0
     }
 }
-
-impl HasBlock for TaskHintsSection<SyntaxNode> {}
 
 /// Represents an item in a task hints section.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1554,8 +1520,6 @@ impl<N: TreeNode> AstNode<N> for RuntimeSection<N> {
         &self.0
     }
 }
-
-impl HasBlock for RuntimeSection<SyntaxNode> {}
 
 /// Represents an item in a runtime section.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1634,8 +1598,6 @@ impl<N: TreeNode> AstNode<N> for MetadataSection<N> {
         &self.0
     }
 }
-
-impl HasBlock for MetadataSection<SyntaxNode> {}
 
 /// Represents a metadata object item.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -1931,8 +1893,6 @@ impl<N: TreeNode> AstNode<N> for ParameterMetadataSection<N> {
         &self.0
     }
 }
-
-impl HasBlock for ParameterMetadataSection<SyntaxNode> {}
 
 #[cfg(test)]
 mod test {

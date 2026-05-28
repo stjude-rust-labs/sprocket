@@ -1,5 +1,9 @@
 version 1.3
 
+# Separate import groups
+import "foo.wdl"
+import "bar.wdl"
+
 import "foo.wdl"
 import "bar.wdl"
 
@@ -27,6 +31,45 @@ task baz {
     }
 
     command <<<
-        echo "Commands too"
+        echo "Commands too ~{"single line placeholders shouldn't count"}"
+
+        ~{
+            "but"
+            + "multiline"
+            + "ones"
+            + "should"
+        }
     >>>
+
+    # Nested comment blocks should
+    # be collapsible
+
+    ## As should
+    ## nested doc comments
+
+    requirements {
+
+    }
 }
+
+task qux {
+    command {
+        ${
+            "curly"
+            + "commands"
+            + "should"
+            + "also count"
+        }
+    }
+
+    hints {
+
+    }
+
+    runtime {
+
+    }
+}
+
+# Let's also collapse this EOF comment
+# block

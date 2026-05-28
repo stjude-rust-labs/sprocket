@@ -18,20 +18,22 @@ use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
-use wdl_ast::HasBlock;
 use wdl_ast::Whitespace;
+use wdl_ast::v1::CloseBrace;
 use wdl_ast::v1::CommandSection;
 use wdl_ast::v1::InputSection;
 use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::OutputSection;
 use wdl_ast::v1::ParameterMetadataSection;
 use wdl_ast::v1::Placeholder;
+use wdl_ast::v1::PlaceholderOpen;
 use wdl_ast::v1::RequirementsSection;
 use wdl_ast::v1::RuntimeSection;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TaskHintsSection;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::v1::WorkflowHintsSection;
+use wdl_grammar::Span;
 use wdl_grammar::SyntaxElement;
 use wdl_grammar::SyntaxKind;
 use wdl_grammar::SyntaxNode;
@@ -65,12 +67,17 @@ pub fn folding_range(graph: &DocumentGraph, document_uri: Url) -> Result<Vec<Fol
     let mut ctx = FoldingContext::default();
     let mut ranges = Vec::new();
     for element in root.descendants_with_tokens() {
-        let Some((range, kind)) = determine_folding_range(&mut ctx, element) else {
+        let Some((range, kind, collapsed_text)) = determine_folding_range(&mut ctx, element) else {
             continue;
         };
 
         let start_pos = position(&lines, range.start())?;
         let end_pos = position(&lines, range.end())?;
+
+        // Single line ranges don't make sense
+        if start_pos.line == end_pos.line {
+            continue;
+        }
 
         ranges.push(FoldingRange {
             start_line: start_pos.line,
@@ -78,24 +85,34 @@ pub fn folding_range(graph: &DocumentGraph, document_uri: Url) -> Result<Vec<Fol
             end_line: end_pos.line,
             end_character: Some(end_pos.character),
             kind,
-            collapsed_text: None,
+            collapsed_text: collapsed_text.map(Into::into),
         });
     }
 
     Ok(ranges)
 }
 
+/// The [`FoldingRange`] collapsed text for braced blocks.
+pub const BRACED_COLLAPSED_TEXT: &str = "{...}";
+/// The [`FoldingRange`] collapsed text for heredoc command blocks.
+pub const HEREDOC_COLLAPSED_TEXT: &str = "<<<...>>>";
+/// The [`FoldingRange`] collapsed text for tilde placeholder blocks.
+pub const TILDE_PLACEHOLDER_COLLAPSED_TEXT: &str = "~{...}";
+/// The [`FoldingRange`] collapsed text for dollar placeholder blocks.
+pub const DOLLAR_PLACEHOLDER_COLLAPSED_TEXT: &str = "${...}";
+
 /// Calculates the folding range for the given `element`.
 fn determine_folding_range(
     ctx: &mut FoldingContext,
     element: SyntaxElement,
-) -> Option<(TextRange, Option<FoldingRangeKind>)> {
+) -> Option<(TextRange, Option<FoldingRangeKind>, Option<&'static str>)> {
     if ctx.visited_elements.contains(&element) {
         return None;
     }
 
     let mut range = element.text_range();
     let mut folding_kind = None;
+    let mut collapsed_text = None;
     match element {
         SyntaxElement::Token(token) => {
             let comment = Comment::cast(token.clone())?;
@@ -121,7 +138,7 @@ fn determine_folding_range(
                     // # Qux
                     //
                     // Would be two comment groups
-                    if whitespace.text().lines().count() > 1 {
+                    if whitespace.text().chars().filter(|&c| c == '\n').count() > 1 {
                         break;
                     }
 
@@ -142,65 +159,86 @@ fn determine_folding_range(
                     .insert(SyntaxElement::Token(sibling_comment.inner().clone()));
             }
         }
-        SyntaxElement::Node(node) => match node.kind() {
-            SyntaxKind::ImportStatementNode => {
+        SyntaxElement::Node(node) => {
+            if node.kind() == SyntaxKind::ImportStatementNode {
                 range = collect_contiguous_elements_of_type(ctx, node);
                 folding_kind = Some(FoldingRangeKind::Imports);
-            }
-            SyntaxKind::TaskDefinitionNode => {
-                let task = TaskDefinition::cast(node).expect("should cast");
-                range = task.block_range();
-            }
-            SyntaxKind::WorkflowDefinitionNode => {
-                let workflow = WorkflowDefinition::cast(node).expect("should cast");
-                range = workflow.block_range();
-            }
-            SyntaxKind::MetadataSectionNode => {
-                let meta = MetadataSection::cast(node).expect("should cast");
-                range = meta.block_range();
-            }
-            SyntaxKind::ParameterMetadataSectionNode => {
-                let meta = ParameterMetadataSection::cast(node).expect("should cast");
-                range = meta.block_range();
-            }
-            SyntaxKind::InputSectionNode => {
-                let input = InputSection::cast(node).expect("should cast");
-                range = input.block_range();
-            }
-            SyntaxKind::OutputSectionNode => {
-                let output = OutputSection::cast(node).expect("should cast");
-                range = output.block_range();
-            }
-            SyntaxKind::CommandSectionNode => {
-                let command = CommandSection::cast(node).expect("should cast");
-                range = command.block_range();
-            }
-            SyntaxKind::RequirementsSectionNode => {
-                let requirements = RequirementsSection::cast(node).expect("should cast");
-                range = requirements.block_range();
-            }
-            SyntaxKind::TaskHintsSectionNode => {
-                let hints = TaskHintsSection::cast(node).expect("should cast");
-                range = hints.block_range();
-            }
-            SyntaxKind::WorkflowHintsSectionNode => {
-                let hints = WorkflowHintsSection::cast(node).expect("should cast");
-                range = hints.block_range();
-            }
-            SyntaxKind::RuntimeSectionNode => {
-                let runtime = RuntimeSection::cast(node).expect("should cast");
-                range = runtime.block_range();
-            }
-            SyntaxKind::PlaceholderNode => {
-                let placeholder = Placeholder::cast(node).expect("should cast");
-                range = placeholder.expr().inner().text_range();
-            }
+            } else {
+                collapsed_text = Some(BRACED_COLLAPSED_TEXT);
+                let scope_span = match node.kind() {
+                    SyntaxKind::TaskDefinitionNode => {
+                        let task = TaskDefinition::cast(node).expect("should cast");
+                        task.braced_scope_span(true)?
+                    }
+                    SyntaxKind::WorkflowDefinitionNode => {
+                        let workflow = WorkflowDefinition::cast(node).expect("should cast");
+                        workflow.braced_scope_span(true)?
+                    }
+                    SyntaxKind::MetadataSectionNode => {
+                        let meta = MetadataSection::cast(node).expect("should cast");
+                        meta.braced_scope_span(true)?
+                    }
+                    SyntaxKind::ParameterMetadataSectionNode => {
+                        let meta = ParameterMetadataSection::cast(node).expect("should cast");
+                        meta.braced_scope_span(true)?
+                    }
+                    SyntaxKind::InputSectionNode => {
+                        let input = InputSection::cast(node).expect("should cast");
+                        input.braced_scope_span(true)?
+                    }
+                    SyntaxKind::OutputSectionNode => {
+                        let output = OutputSection::cast(node).expect("should cast");
+                        output.braced_scope_span(true)?
+                    }
+                    SyntaxKind::CommandSectionNode => {
+                        let command = CommandSection::cast(node).expect("should cast");
+                        if command.is_heredoc() {
+                            collapsed_text = Some(HEREDOC_COLLAPSED_TEXT);
+                            command.heredoc_scope_span(true)?
+                        } else {
+                            command.braced_scope_span(true)?
+                        }
+                    }
+                    SyntaxKind::RequirementsSectionNode => {
+                        let requirements = RequirementsSection::cast(node).expect("should cast");
+                        requirements.braced_scope_span(true)?
+                    }
+                    SyntaxKind::TaskHintsSectionNode => {
+                        let hints = TaskHintsSection::cast(node).expect("should cast");
+                        hints.braced_scope_span(true)?
+                    }
+                    SyntaxKind::WorkflowHintsSectionNode => {
+                        let hints = WorkflowHintsSection::cast(node).expect("should cast");
+                        hints.braced_scope_span(true)?
+                    }
+                    SyntaxKind::RuntimeSectionNode => {
+                        let runtime = RuntimeSection::cast(node).expect("should cast");
+                        runtime.braced_scope_span(true)?
+                    }
+                    SyntaxKind::PlaceholderNode => {
+                        let placeholder = Placeholder::cast(node).expect("should cast");
+                        if placeholder.has_tilde() {
+                            collapsed_text = Some(TILDE_PLACEHOLDER_COLLAPSED_TEXT);
+                        } else {
+                            collapsed_text = Some(DOLLAR_PLACEHOLDER_COLLAPSED_TEXT);
+                        }
 
-            _ => return None,
-        },
+                        let open = placeholder.token::<PlaceholderOpen>()?;
+                        let close = placeholder.last_token::<CloseBrace>()?;
+                        Span::new(
+                            open.span().start(),
+                            close.span().end() - open.span().start(),
+                        )
+                    }
+                    _ => return None,
+                };
+
+                range = scope_span.try_into().ok()?;
+            }
+        }
     }
 
-    Some((range, folding_kind))
+    Some((range, folding_kind, collapsed_text))
 }
 
 /// Find all nodes of the same type that are separated by at most one newline.
@@ -210,7 +248,7 @@ fn collect_contiguous_elements_of_type(ctx: &mut FoldingContext, first: SyntaxNo
         match sibling {
             SyntaxElement::Token(token) => {
                 if let Some(whitespace) = Whitespace::cast(token) {
-                    if whitespace.text().lines().count() > 1 {
+                    if whitespace.text().chars().filter(|&c| c == '\n').count() > 1 {
                         break;
                     }
 
