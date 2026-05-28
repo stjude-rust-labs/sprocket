@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/gauntlet",
+    "crates/sprocket_py",
     "crates/wdl",
     "crates/wdl-analysis",
     "crates/wdl-ast",
@@ -12,7 +13,6 @@ members = [
     "crates/wdl-lint",
     "crates/wdl-lsp",
     "crates/wdl-modules",
-    "crates/sprocket_py",
 ]
 resolver = "2"
 
