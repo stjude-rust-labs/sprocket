@@ -916,17 +916,11 @@ impl<N: TreeNode> Expr<N> {
 
     /// Strip all layers of [`Expr::Parenthesized`] and return the inner
     /// expression.
-    pub fn strip_parenthesized(self) -> Self {
-        let mut expr = self;
-        loop {
-            if let Self::Parenthesized(inner) = expr {
-                expr = inner.expr();
-                continue;
-            }
-
-            break;
+    pub fn strip_parenthesized(mut self) -> Self {
+        while let Self::Parenthesized(inner) = self {
+            self = inner.expr();
         }
-        expr
+        self
     }
 }
 

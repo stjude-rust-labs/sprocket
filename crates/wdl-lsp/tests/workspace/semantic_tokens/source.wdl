@@ -2,7 +2,7 @@
 
 version 1.3
 
-import "foo.wdl"
+import "foo.wdl" as bar
 
 struct Foo {
     Int bar
@@ -24,10 +24,34 @@ task do_work {
 workflow wf {
     call do_work
     
-    call foo.bar
+    call bar.bar
 
     Hello h = Hello.World
     Foo f = Foo {
         bar: 1
+    }
+
+    scatter (ignored in []) {}
+}
+
+task say_hello {
+    meta {
+        description: "Greet a person by name"
+    }
+
+    parameter_meta {
+        name: "The name to greet"
+    }
+
+    input {
+        String name
+    }
+
+    command <<<
+        echo "Hello, ~{name}!"
+    >>>
+
+    output {
+        Int? return_code = task.return_code
     }
 }

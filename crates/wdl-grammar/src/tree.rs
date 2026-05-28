@@ -674,7 +674,6 @@ impl SyntaxKind {
                 | SyntaxKind::Assignment
                 | SyntaxKind::QuestionMark
                 | SyntaxKind::Dot
-                | SyntaxKind::Colon
         )
     }
 }

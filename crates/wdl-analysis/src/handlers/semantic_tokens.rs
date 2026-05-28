@@ -28,7 +28,6 @@ use wdl_ast::TreeToken;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::CallTarget;
-use wdl_ast::v1::Decl;
 use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::EnumVariant;
 use wdl_ast::v1::Expr;
@@ -37,6 +36,8 @@ use wdl_ast::v1::LiteralStruct;
 use wdl_ast::v1::LiteralStructItem;
 use wdl_ast::v1::MetadataObjectItem;
 use wdl_ast::v1::ParameterMetadataSection;
+use wdl_ast::v1::RequirementsItem;
+use wdl_ast::v1::RuntimeItem;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TypeRef;
@@ -212,17 +213,9 @@ fn token_ty(token: &SyntaxToken, document: &Document) -> Option<(SemanticTokenTy
     }
 
     if let Some(version) = document.version()
-        && version == SupportedVersion::V1(V1::Two)
+        && version >= SupportedVersion::V1(V1::Two)
         && kind == SyntaxKind::RuntimeKeyword
         && parent.kind() == SyntaxKind::RuntimeSectionNode
-    {
-        add_modifier(&mut modifiers, SemanticTokenModifier::DEPRECATED)
-    }
-
-    if token.text() == "docker"
-        && parent
-            .ancestors()
-            .any(|n| n.kind() == SyntaxKind::RuntimeSectionNode)
     {
         add_modifier(&mut modifiers, SemanticTokenModifier::DEPRECATED)
     }
@@ -274,149 +267,8 @@ fn resolve_identifier_ty(
     document: &Document,
     modifiers: &mut u32,
 ) -> Option<SemanticTokenType> {
-    if let Some(t) = TaskDefinition::cast(parent.clone())
-        && t.name().inner() == token
-    {
-        add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
-        return Some(SemanticTokenType::FUNCTION);
-    }
-
-    if let Some(w) = WorkflowDefinition::cast(parent.clone())
-        && w.name().inner() == token
-    {
-        add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
-        return Some(SemanticTokenType::FUNCTION);
-    }
-
-    if let Some(s) = StructDefinition::cast(parent.clone())
-        && s.name().inner() == token
-    {
-        add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
-        return Some(SemanticTokenType::STRUCT);
-    }
-
-    if let Some(s) = LiteralStruct::cast(parent.clone())
-        && s.name().inner() == token
-    {
-        return Some(SemanticTokenType::STRUCT);
-    }
-
-    if let Some(s) = LiteralStructItem::cast(parent.clone()) {
-        let (name, _) = s.name_value();
-        if name.inner() == token {
-            return Some(SemanticTokenType::PROPERTY);
-        }
-    }
-
-    if let Some(e) = EnumDefinition::cast(parent.clone())
-        && e.name().inner() == token
-    {
-        add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
-        return Some(SemanticTokenType::ENUM);
-    }
-
-    if let Some(e) = EnumVariant::cast(parent.clone())
-        && e.name().inner() == token
-    {
-        add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
-        return Some(SemanticTokenType::ENUM_MEMBER);
-    }
-
-    if let Some(d) = Decl::cast(parent.clone())
-        && d.name().inner() == token
-    {
-        if parent
-            .parent()
-            .map(|p| p.kind() == SyntaxKind::InputSectionNode)
-            .unwrap_or(false)
-        {
-            add_modifier(modifiers, SemanticTokenModifier::READONLY);
-            return Some(SemanticTokenType::PARAMETER);
-        } else {
-            return Some(SemanticTokenType::VARIABLE);
-        }
-    }
-
-    if let Some(m) = MetadataObjectItem::cast(parent.clone())
-        && m.name().inner() == token
-    {
-        add_modifier(modifiers, SemanticTokenModifier::READONLY);
-        return if m.parent::<ParameterMetadataSection>().is_some() {
-            Some(SemanticTokenType::PARAMETER)
-        } else {
-            // I guess?
-            Some(SemanticTokenType::PROPERTY)
-        };
-    }
-
-    if let Some(ty_ref) = TypeRef::cast(parent.clone())
-        && ty_ref.name().inner() == token
-    {
-        if document.struct_by_name(token.text()).is_some() {
-            return Some(SemanticTokenType::STRUCT);
-        }
-        if document.enum_by_name(token.text()).is_some() {
-            return Some(SemanticTokenType::ENUM);
-        }
-        return Some(SemanticTokenType::TYPE);
-    }
-
-    if let Some(c) = CallExpr::cast(parent.clone())
-        && c.target().inner() == token
-    {
-        add_modifier(modifiers, SemanticTokenModifier::DEFAULT_LIBRARY);
-        return Some(SemanticTokenType::FUNCTION);
-    }
-
-    if let Some(i) = parent.ancestors().find_map(ImportStatement::cast)
-        && i.explicit_namespace().is_some_and(|ns| ns.inner() == token)
-    {
-        add_modifier(modifiers, SemanticTokenModifier::DECLARATION);
-        return Some(SemanticTokenType::NAMESPACE);
-    }
-
-    if let Some(ct) = CallTarget::cast(parent.clone()) {
-        let names: Vec<_> = ct.names().collect();
-        if names.last().is_some_and(|n| n.inner() == token) {
-            return Some(SemanticTokenType::FUNCTION);
-        }
-
-        return Some(SemanticTokenType::NAMESPACE);
-    }
-
-    if let Some(a) = parent.ancestors().find_map(AccessExpr::cast) {
-        let (target, member) = a.operands();
-
-        let ident_targets_rhs = member.inner() == token;
-        if let Expr::NameRef(name_expr) = target.strip_parenthesized() {
-            let ident_targets_lhs = token == name_expr.name().inner();
-            if document.struct_by_name(name_expr.name().text()).is_some() {
-                return Some(SemanticTokenType::STRUCT);
-            } else if let Some(e) = document.enum_by_name(name_expr.name().text()) {
-                if ident_targets_lhs {
-                    return Some(SemanticTokenType::ENUM);
-                } else if ident_targets_rhs
-                    && e.definition()
-                        .variants()
-                        .any(|v| v.name().text() == token.text())
-                {
-                    return Some(SemanticTokenType::ENUM_MEMBER);
-                }
-            }
-        }
-
-        if a.is_task_access() {
-            add_modifier(modifiers, SemanticTokenModifier::DEFAULT_LIBRARY);
-            add_modifier(modifiers, SemanticTokenModifier::READONLY);
-        }
-
-        if ident_targets_rhs {
-            return Some(SemanticTokenType::PROPERTY);
-        }
-    }
-
     match parent.kind() {
-        SyntaxKind::UnboundDeclNode => {
+        SyntaxKind::UnboundDeclNode | SyntaxKind::BoundDeclNode => {
             for ancestor in parent.ancestors() {
                 match ancestor.kind() {
                     SyntaxKind::InputSectionNode => {
@@ -428,21 +280,184 @@ fn resolve_identifier_ty(
                 }
             }
 
-            return None;
+            return Some(SemanticTokenType::VARIABLE);
         }
         SyntaxKind::EnumVariantNode => {
-            return Some(SemanticTokenType::ENUM_MEMBER);
+            let variant = EnumVariant::cast(parent.clone()).expect("should cast");
+            if variant.name().inner() == token {
+                add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
+                return Some(SemanticTokenType::ENUM_MEMBER);
+            }
         }
-        SyntaxKind::BoundDeclNode => return Some(SemanticTokenType::VARIABLE),
-        _ => {}
+        SyntaxKind::TaskDefinitionNode => {
+            let task = TaskDefinition::cast(parent.clone()).expect("should cast");
+            if task.name().inner() == token {
+                add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
+                return Some(SemanticTokenType::FUNCTION);
+            }
+        }
+        SyntaxKind::WorkflowDefinitionNode => {
+            let workflow = WorkflowDefinition::cast(parent.clone()).expect("should cast");
+            if workflow.name().inner() == token {
+                add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
+                return Some(SemanticTokenType::FUNCTION);
+            }
+        }
+        SyntaxKind::StructDefinitionNode => {
+            let struct_def = StructDefinition::cast(parent.clone()).expect("should cast");
+            if struct_def.name().inner() == token {
+                add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
+                return Some(SemanticTokenType::STRUCT);
+            }
+        }
+        SyntaxKind::LiteralStructNode => {
+            let struct_def = LiteralStruct::cast(parent.clone()).expect("should cast");
+            if struct_def.name().inner() == token {
+                return Some(SemanticTokenType::STRUCT);
+            }
+        }
+        SyntaxKind::LiteralStructItemNode => {
+            let (name, _) = LiteralStructItem::cast(parent.clone())
+                .expect("should cast")
+                .name_value();
+            if name.inner() == token {
+                return Some(SemanticTokenType::PROPERTY);
+            }
+        }
+        SyntaxKind::EnumDefinitionNode => {
+            let enum_def = EnumDefinition::cast(parent.clone()).expect("should cast");
+            if enum_def.name().inner() == token {
+                add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
+                return Some(SemanticTokenType::ENUM);
+            }
+        }
+        SyntaxKind::MetadataObjectItemNode => {
+            let metadata_item = MetadataObjectItem::cast(parent.clone()).expect("should cast");
+            if metadata_item.name().inner() == token {
+                add_modifier(modifiers, SemanticTokenModifier::READONLY);
+                return if metadata_item.parent::<ParameterMetadataSection>().is_some() {
+                    Some(SemanticTokenType::PARAMETER)
+                } else {
+                    // I guess?
+                    Some(SemanticTokenType::PROPERTY)
+                };
+            }
+        }
+        SyntaxKind::RequirementsItemNode => {
+            let item = RequirementsItem::cast(parent.clone()).expect("should cast");
+            if item.name().inner() == token {
+                if token.text() == "docker" {
+                    add_modifier(modifiers, SemanticTokenModifier::DEPRECATED)
+                }
+
+                add_modifier(modifiers, SemanticTokenModifier::READONLY);
+                return Some(SemanticTokenType::PROPERTY);
+            }
+        }
+        SyntaxKind::RuntimeItemNode => {
+            let item = RuntimeItem::cast(parent.clone()).expect("should cast");
+            if item.name().inner() == token {
+                add_modifier(modifiers, SemanticTokenModifier::READONLY);
+                return Some(SemanticTokenType::PROPERTY);
+            }
+        }
+        SyntaxKind::TypeRefNode => {
+            let ty_ref = TypeRef::cast(parent.clone()).expect("should cast");
+            if ty_ref.name().inner() == token {
+                if document.struct_by_name(token.text()).is_some() {
+                    return Some(SemanticTokenType::STRUCT);
+                }
+                if document.enum_by_name(token.text()).is_some() {
+                    return Some(SemanticTokenType::ENUM);
+                }
+                return Some(SemanticTokenType::TYPE);
+            }
+        }
+        SyntaxKind::CallExprNode => {
+            let c = CallExpr::cast(parent.clone()).expect("should cast");
+            if c.target().inner() == token {
+                add_modifier(modifiers, SemanticTokenModifier::DEFAULT_LIBRARY);
+                return Some(SemanticTokenType::FUNCTION);
+            }
+        }
+        SyntaxKind::CallTargetNode => {
+            let ct = CallTarget::cast(parent.clone()).expect("should cast");
+            let names: Vec<_> = ct.names().collect();
+            if names.last().is_some_and(|n| n.inner() == token) {
+                return Some(SemanticTokenType::FUNCTION);
+            }
+
+            return Some(SemanticTokenType::NAMESPACE);
+        }
+        _ => {
+            if let Some(a) = parent.ancestors().find_map(AccessExpr::cast) {
+                let (target, member) = a.operands();
+
+                let ident_targets_rhs = member.inner() == token;
+                if let Expr::NameRef(name_expr) = target.strip_parenthesized() {
+                    let ident_targets_lhs = token == name_expr.name().inner();
+                    if document.struct_by_name(name_expr.name().text()).is_some()
+                        && ident_targets_lhs
+                    {
+                        return Some(SemanticTokenType::STRUCT);
+                    } else if let Some(e) = document.enum_by_name(name_expr.name().text()) {
+                        if ident_targets_lhs {
+                            return Some(SemanticTokenType::ENUM);
+                        } else if ident_targets_rhs
+                            && e.definition()
+                                .variants()
+                                .any(|v| v.name().text() == token.text())
+                        {
+                            return Some(SemanticTokenType::ENUM_MEMBER);
+                        }
+                    }
+                }
+
+                if a.is_task_access() {
+                    add_modifier(modifiers, SemanticTokenModifier::DEFAULT_LIBRARY);
+                    add_modifier(modifiers, SemanticTokenModifier::READONLY);
+                }
+
+                if ident_targets_rhs {
+                    return Some(SemanticTokenType::PROPERTY);
+                }
+            }
+
+            if let Some(i) = parent.ancestors().find_map(ImportStatement::cast)
+                && i.explicit_namespace().is_some_and(|ns| ns.inner() == token)
+            {
+                add_modifier(modifiers, SemanticTokenModifier::DECLARATION);
+                return Some(SemanticTokenType::NAMESPACE);
+            }
+        }
     }
 
     // Fallback to scope lookup
     if let Some(scope) = document.find_scope_by_position(token.span().start())
         && let Some(name_info) = scope.lookup(token.text())
-        && matches!(name_info.ty(), Type::Call(_))
     {
-        return Some(SemanticTokenType::VARIABLE);
+        return match name_info.ty() {
+            Type::Call(_) => Some(SemanticTokenType::VARIABLE),
+            _ => {
+                let offset = name_info.span().start().try_into().ok()?;
+                let root = document.root();
+                let def_token = root
+                    .inner()
+                    .token_at_offset(offset)
+                    .find(|t| t.span() == name_info.span() && t.kind() == SyntaxKind::Ident)?;
+                let def_parent = def_token.parent()?;
+                if def_parent.kind() == SyntaxKind::UnboundDeclNode
+                    && def_parent
+                        .ancestors()
+                        .any(|n| n.kind() == SyntaxKind::InputSectionNode)
+                {
+                    add_modifier(modifiers, SemanticTokenModifier::READONLY);
+                    Some(SemanticTokenType::PARAMETER)
+                } else {
+                    Some(SemanticTokenType::VARIABLE)
+                }
+            }
+        };
     }
 
     None
