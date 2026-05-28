@@ -1,4 +1,4 @@
-//! This crate is a Python extension that exposes a subset `wdl`'s API in Python
+//! This crate is a Python extension that exposes a subset of `wdl`'s API
 //! using [`pyo3`].
 //!
 //! This crate is not meant to be imported directly. Instead, import the
@@ -8,6 +8,6 @@
 use pyo3::prelude::*;
 
 /// Python bindings to [Sprocket](https://sprocket.bio), a bioinformatics toolkit for Workflow
-/// Description Language (WDL)
+/// Description Language (WDL).
 #[pymodule]
 mod sprocket_py {}
