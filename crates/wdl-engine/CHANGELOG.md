@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Fixed shared lock acquisition to reopen new lock files read-only before locking ([#869](https://github.com/stjude-rust-labs/sprocket/pull/869)).
+
 ## 0.14.0 - 2026-05-14
 
 ## 0.13.2 - 2026-04-22
@@ -197,7 +201,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Removed
 
 * Removed the `codespan` cargo feature in favor of enabling codespan reporting always ([#462](https://github.com/stjude-rust-labs/sprocket/pull/462)).
-
 
 ## 0.9.0 - 10-14-2025
 
