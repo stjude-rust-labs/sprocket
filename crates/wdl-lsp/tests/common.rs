@@ -76,7 +76,7 @@ pub struct TestContext {
     /// The join handle for the running client task.
     pub _client_handle: tokio::task::JoinHandle<()>,
     /// Handle to communicate with the client.
-    #[expect(dead_code, reason = "No server -> client notifications are tested yet")]
+    #[allow(unused, reason = "No server -> client notifications are tested yet")]
     pub client: ClientSocket,
     /// Handle to communicate with the server.
     pub server: ServerSocket,
@@ -182,12 +182,14 @@ impl TestContext {
     }
 
     /// Creates a file URI for a path within the temporary workspace.
+    #[allow(unused)]
     pub fn doc_uri(&self, path: &str) -> Url {
         Url::from_file_path(self.workspace.path().join(path)).unwrap()
     }
 
     /// Performs the LSP initialization handshake and returns the initial
     /// workspace diagnostic report alongside the initialization result.
+    #[allow(unused)]
     pub async fn initialize(
         &mut self,
     ) -> (lsp_types::InitializeResult, WorkspaceDiagnosticReportResult) {
@@ -221,6 +223,7 @@ impl TestContext {
             ..Default::default()
         };
 
+        #[allow(deprecated)]
         let params = InitializeParams {
             process_id: None,
             root_uri: Some(workspace_url.clone()),

@@ -1,7 +1,12 @@
 //! Configuration for max line length formatting.
 
-use serde::Deserialize;
-use serde::Serialize;
+use toml_spanner::Arena;
+use toml_spanner::Context;
+use toml_spanner::Failed;
+use toml_spanner::FromToml;
+use toml_spanner::Item;
+use toml_spanner::ToToml;
+use toml_spanner::ToTomlError;
 
 /// Error while creating a max line length configuration.
 #[derive(thiserror::Error, Debug)]
@@ -52,38 +57,39 @@ impl Default for MaxLineLength {
     }
 }
 
-impl Serialize for MaxLineLength {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            MaxLineLength(None) => SENTINEL.serialize(serializer),
-            MaxLineLength(Some(n)) => n.serialize(serializer),
+impl<'de> FromToml<'de> for MaxLineLength {
+    fn from_toml(ctx: &mut Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
+        if let Some(s) = item.as_str()
+            && s == SENTINEL
+        {
+            return Ok(Self(None));
         }
+
+        if let Some(n) = item.as_u64().and_then(|n| usize::try_from(n).ok())
+            && (MIN_MAX_LINE_LENGTH..=MAX_MAX_LINE_LENGTH).contains(&n)
+        {
+            return Ok(Self(Some(n)));
+        }
+
+        Err(ctx.report_custom_error(
+            format!(
+                "expected a positive integer between {MIN_MAX_LINE_LENGTH} and \
+                 {MAX_MAX_LINE_LENGTH} or `{SENTINEL}` for max line length value"
+            ),
+            item,
+        ))
     }
 }
 
-impl<'de> Deserialize<'de> for MaxLineLength {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum Value {
-            Num(usize),
-            Str(String),
-            Null,
-        }
-
-        match Value::deserialize(deserializer)? {
-            Value::Num(n) => MaxLineLength::try_new(Some(n)).map_err(serde::de::Error::custom),
-            Value::Str(s) if s == SENTINEL => Ok(MaxLineLength(None)),
-            Value::Str(s) => Err(serde::de::Error::custom(format!(
-                "expected a number or \"{SENTINEL}\", got \"{s}\""
-            ))),
-            Value::Null => Ok(MaxLineLength(None)),
+impl ToToml for MaxLineLength {
+    fn to_toml<'a>(&'a self, _: &'a Arena) -> Result<Item<'a>, ToTomlError> {
+        match &self.0 {
+            Some(n) => Ok(i64::try_from(*n)
+                .map_err(|e| ToTomlError {
+                    message: format!("invalid max line length: {e}").into(),
+                })?
+                .into()),
+            None => Ok(Item::string(SENTINEL)),
         }
     }
 }

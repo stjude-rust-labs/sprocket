@@ -450,9 +450,7 @@ impl Monitor {
         }
 
         // Add any user-configured extra arguments.
-        if let Some(args) = &config.extra_bsub_args {
-            command.args(args);
-        }
+        command.args(&config.extra_bsub_args);
 
         // Format a name for the LSF job; job names do not have to be unique, but we
         // should not truncate the prefix or tag

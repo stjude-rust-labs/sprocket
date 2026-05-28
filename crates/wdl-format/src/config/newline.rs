@@ -12,8 +12,7 @@ const UNIX_NEWLINE: &str = "\n";
 const WINDOWS_NEWLINE: &str = "\r\n";
 
 /// The newline style to use when formatting.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "snake_case")]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub enum NewlineStyle {
     /// Use the native newline style of the platform.
     #[default]
@@ -43,7 +42,7 @@ impl FromStr for NewlineStyle {
     type Err = ParseNewlineStyleError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match &*s.to_ascii_lowercase() {
+        match s.to_ascii_lowercase().as_str() {
             "auto" => Ok(Self::Auto),
             "unix" => Ok(Self::Unix),
             "windows" => Ok(Self::Windows),

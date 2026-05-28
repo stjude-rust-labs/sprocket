@@ -41,6 +41,7 @@ use tracing_subscriber::fmt::format::Format;
 use tracing_subscriber::layer::Layered;
 use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::reload;
+use wdl::diagnostics::emit_diagnostics;
 
 use crate::commands::CommandResult;
 
@@ -102,21 +103,48 @@ async fn real_main() -> CommandResult<()> {
         }
         _ => {
             // For all other commands, load config normally
-            let mut config = Config::new(
+            match Config::new(
                 cli.config.iter().map(PathBuf::as_path),
                 cli.skip_config_search,
-            )?;
-            config
-                .validate()
-                .context("validating provided configuration")?;
-            config
+            ) {
+                Ok(mut config) => {
+                    config
+                        .validate()
+                        .context("failed to validate configuration")?;
+                    config
+                }
+                Err(e) => {
+                    // If there is source associated with the error, emit a diagnostic
+                    if let Some(source) = e.source() {
+                        emit_diagnostics(
+                            &e.path().to_string(),
+                            source,
+                            &[e.to_diagnostic()],
+                            Default::default(),
+                            match cli.color {
+                                ColorMode::Auto => stderr().is_terminal(),
+                                ColorMode::Always => true,
+                                ColorMode::Never => false,
+                            },
+                        )
+                        .context("failed to emit diagnostics")?;
+
+                        // Bail out without returning to caller as the diagnostic was displayed
+                        std::process::exit(1);
+                    }
+
+                    return Err(e)
+                        .context("failed to load configuration")
+                        .map_err(Into::into);
+                }
+            }
         }
     };
 
     // Write effective configuration to the log
     trace!(
         "effective configuration:\n{}",
-        toml::to_string_pretty(&config).unwrap_or_default()
+        toml_spanner::to_string(&config).unwrap_or_default()
     );
 
     let colorize = match (cli.color, config.common.color) {

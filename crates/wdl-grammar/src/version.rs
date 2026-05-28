@@ -33,22 +33,27 @@ impl std::fmt::Display for V1 {
     }
 }
 
+impl FromStr for V1 {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "1.0" => Ok(Self::Zero),
+            "1.1" => Ok(Self::One),
+            "1.2" => Ok(Self::Two),
+            "1.3" => Ok(Self::Three),
+            "1.4" => Ok(Self::Four),
+            _ => Err(format!("unsupported version `{s}`"))
+        }
+    }
+}
+
 /// Represents a supported WDL version.
 ///
 /// The `Default` implementation of this type returns the most recent
 /// fully-supported ratified version of WDL.
 // NOTE: it is expected that this enumeration is in increasing order of WDL versions.
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    PartialOrd,
-    Ord,
-    serde_with::DeserializeFromStr,
-    serde_with::SerializeDisplay,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[non_exhaustive]
 pub enum SupportedVersion {
     /// The document version is 1.x.
@@ -94,13 +99,10 @@ impl FromStr for SupportedVersion {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "1.0" => Ok(Self::V1(V1::Zero)),
-            "1.1" => Ok(Self::V1(V1::One)),
-            "1.2" => Ok(Self::V1(V1::Two)),
-            "1.3" => Ok(Self::V1(V1::Three)),
-            "1.4" => Ok(Self::V1(V1::Four)),
-            _ => Err(s.to_string()),
+        if let Ok(v) = V1::from_str(s) {
+            return Ok(Self::V1(v));
         }
+
+        Err(format!("unsupported version `{s}`"))
     }
 }

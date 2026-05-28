@@ -245,10 +245,7 @@ mod tests {
         .unwrap();
 
         assert_eq!(l.dependencies.len(), 2);
-        let spellbook = l
-            .dependencies
-            .get(&"spellbook".to_string().try_into().unwrap())
-            .unwrap();
+        let spellbook = l.dependencies.get(&"spellbook".parse().unwrap()).unwrap();
         assert!(matches!(spellbook.source, ResolvedSource::Git { .. }));
         assert_eq!(spellbook.version.to_string(), "1.2.0");
         assert_eq!(spellbook.dependencies.len(), 1);
@@ -367,10 +364,7 @@ mod tests {
             }"#,
         )
         .unwrap();
-        let csvcut = l
-            .dependencies
-            .get(&"csvcut".to_string().try_into().unwrap())
-            .unwrap();
+        let csvcut = l.dependencies.get(&"csvcut".parse().unwrap()).unwrap();
         match &csvcut.source {
             ResolvedSource::Git { path, .. } => {
                 assert_eq!(path.as_ref().map(|p| p.as_str()), Some("csvcut"));

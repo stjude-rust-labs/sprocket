@@ -140,11 +140,11 @@ fn version_statement(
     match parser.expect(VersionStatementToken::Version) {
         Ok(span) => match SupportedVersion::from_str(parser.source(span)) {
             Ok(version) => parser.set_version(version),
-            Err(e) => {
+            Err(_) => {
                 if let Some(fallback) = fallback_version {
                     parser.set_version(fallback);
                 } else {
-                    parser.diagnostic(unsupported_version(&e, span));
+                    parser.diagnostic(unsupported_version(parser.source(span), span));
                 }
             }
         },

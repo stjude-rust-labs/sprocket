@@ -557,7 +557,7 @@ pub async fn run(
 
     let results = Analysis::default()
         .add_source(args.source.clone())
-        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
+        .fallback_version(config.common.wdl.fallback_version.into())
         .init({
             let progress_bar = progress_bar.clone();
 
@@ -634,7 +634,13 @@ pub async fn run(
     let (ctx, run_dir, db) = setup_run_context(handle, &args, &config, &target, &inputs).await?;
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
-    let events = Events::new(config.run.events_capacity);
+    let events = Events::new(
+        config
+            .run
+            .events_capacity
+            .try_into()
+            .context("invalid events capacity")?,
+    );
     let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
         events
             .subscribe_transfer()
