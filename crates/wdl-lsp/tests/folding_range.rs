@@ -76,9 +76,9 @@ async fn should_fold_content() {
             collapsed_text: None,
         },
         FoldingRange {
-            start_line: 73,
+            start_line: 87,
             start_character: Some(0),
-            end_line: 74,
+            end_line: 88,
             end_character: Some(7),
             kind: Some(FoldingRangeKind::Comment),
             collapsed_text: None,
@@ -200,6 +200,42 @@ async fn should_fold_content() {
             start_line: 68,
             start_character: Some(12),
             end_line: 70,
+            end_character: Some(5),
+            kind: None,
+            collapsed_text: Some(BRACED_COLLAPSED_TEXT.into()),
+        },
+        // Workflow body
+        FoldingRange {
+            start_line: 73,
+            start_character: Some(12),
+            end_line: 85,
+            end_character: Some(1),
+            kind: None,
+            collapsed_text: Some(BRACED_COLLAPSED_TEXT.into()),
+        },
+        // Input section
+        FoldingRange {
+            start_line: 74,
+            start_character: Some(10),
+            end_line: 76,
+            end_character: Some(5),
+            kind: None,
+            collapsed_text: Some(BRACED_COLLAPSED_TEXT.into()),
+        },
+        // Workflow hints section
+        FoldingRange {
+            start_line: 78,
+            start_character: Some(10),
+            end_line: 80,
+            end_character: Some(5),
+            kind: None,
+            collapsed_text: Some(BRACED_COLLAPSED_TEXT.into()),
+        },
+        // Output section
+        FoldingRange {
+            start_line: 82,
+            start_character: Some(11),
+            end_line: 84,
             end_character: Some(5),
             kind: None,
             collapsed_text: Some(BRACED_COLLAPSED_TEXT.into()),

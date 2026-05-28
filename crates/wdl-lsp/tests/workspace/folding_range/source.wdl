@@ -71,5 +71,19 @@ task qux {
     }
 }
 
+workflow wf {
+    input {
+
+    }
+
+    hints {
+
+    }
+
+    output {
+        
+    }
+}
+
 # Let's also collapse this EOF comment
 # block
