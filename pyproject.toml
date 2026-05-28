@@ -4,6 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "sprocket_py"
+readme = "python/README.md"
 requires-python = ">=3.9"
 classifiers = [
     "Intended Audience :: Science/Research",
