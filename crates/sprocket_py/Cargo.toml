@@ -5,7 +5,7 @@ version = "0.1.0"
 # published to PyPI.
 publish = false
 authors.workspace = true
-description = "Python bindings to Sprocket's WDL parsing and analysis"
+description = "Python bindings to Sprocket, a bioinformatics toolkit for Workflow Description Language (WDL)"
 rust-version.workspace = true
 license.workspace = true
 edition.workspace = true

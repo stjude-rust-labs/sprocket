@@ -5,7 +5,7 @@
 
 use pyo3::prelude::*;
 
-/// Python bindings to [Sprocket](https://sprocket.bio/)'s Workflow Description Language (WDL)
-/// document parsing and linting.
+/// Python bindings to [Sprocket](https://sprocket.bio), a bioinformatics toolkit for Workflow
+/// Description Language (WDL)
 #[pymodule]
 mod sprocket_py {}
