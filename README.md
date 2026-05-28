@@ -7,15 +7,15 @@
       <img alt="CI: Status" src="https://github.com/stjude-rust-labs/sprocket/actions/workflows/CI.yml/badge.svg" />
     </a>
     <a href="https://codecov.io/gh/stjude-rust-labs/sprocket" > 
-      <img src="https://codecov.io/gh/stjude-rust-labs/sprocket/branch/main/graph/badge.svg?token=06DXFHBDNC"/> 
+      <img alt="Coverage: Codecov" src="https://codecov.io/gh/stjude-rust-labs/sprocket/branch/main/graph/badge.svg?token=06DXFHBDNC"/> 
     </a>
     <a href="https://crates.io/crates/sprocket" target="_blank">
-      <img alt="crates.io version" src="https://img.shields.io/crates/v/sprocket">
+      <img alt="crates.io: Version" src="https://img.shields.io/crates/v/sprocket">
     </a>
     <a href="https://rustseq.zulipchat.com" target="_blank">
-      <img alt="CI: Status" src="https://img.shields.io/badge/chat-%23workflows--bin--sprocket-blue?logo=zulip&logoColor=f6f6f6" />
+      <img alt="Chat: Zulip" src="https://img.shields.io/badge/chat-%23workflows--bin--sprocket-blue?logo=zulip&logoColor=f6f6f6" />
     </a>
-    <img alt="crates.io downloads" src="https://img.shields.io/crates/d/sprocket">
+    <img alt="crates.io: Downloads" src="https://img.shields.io/crates/d/sprocket">
   </p>
 
   <p align="center">

@@ -8,12 +8,12 @@
       <img alt="CI: Status" src="https://github.com/stjude-rust-labs/sprocket/actions/workflows/CI.yml/badge.svg" />
     </a>
     <a href="https://pypi.org/project/sprocket-py/" target="_blank">
-      <img alt="crates.io version" src="https://img.shields.io/pypi/v/sprocket_py">
+      <img alt="PyPI: Version" src="https://img.shields.io/pypi/v/sprocket_py">
     </a>
     <a href="https://rustseq.zulipchat.com/join/coxb7c7b3bbahlfx7poeqqrd/" target="_blank">
-      <img alt="CI: Status" src="https://img.shields.io/badge/chat-%23workflows--lib--wdl-blue?logo=zulip&logoColor=f6f6f6" />
+      <img alt="Chat: Zulip" src="https://img.shields.io/badge/chat-%23workflows--lib--wdl-blue?logo=zulip&logoColor=f6f6f6" />
     </a>
-    <img alt="crates.io downloads" src="https://img.shields.io/pypi/dm/sprocket_py">
+    <img alt="PyPI: Downloads" src="https://img.shields.io/pypi/dm/sprocket_py">
   </p>
 
   <p align="center">
