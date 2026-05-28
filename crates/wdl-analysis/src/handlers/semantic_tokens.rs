@@ -340,7 +340,6 @@ fn resolve_identifier_ty(
                 return if metadata_item.parent::<ParameterMetadataSection>().is_some() {
                     Some(SemanticTokenType::PARAMETER)
                 } else {
-                    // I guess?
                     Some(SemanticTokenType::PROPERTY)
                 };
             }
