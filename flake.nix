@@ -32,21 +32,15 @@
           cmake
         ];
 
-        buildInputs =
-          with pkgs;
-          [
-            openssl
-            sqlite
-            zlib
-          ]
-          ++ lib.optionals stdenv.isDarwin (
-            with pkgs.darwin.apple_sdk.frameworks;
-            [
-              Security
-              SystemConfiguration
-              CoreServices
-            ]
-          );
+        # On modern nixpkgs, Apple SDK frameworks (Security, SystemConfiguration,
+        # CoreServices, …) are exposed transparently by the darwin stdenv, so no
+        # darwin-specific entries are needed here. See
+        # https://nixos.org/manual/nixpkgs/stable/#sec-darwin-legacy-frameworks
+        buildInputs = with pkgs; [
+          openssl
+          sqlite
+          zlib
+        ];
 
         sprocket = pkgs.rustPlatform.buildRustPackage {
           pname = "sprocket";
@@ -108,7 +102,7 @@
         preCommitCheck = pre-commit-hooks.lib.${system}.run {
           src = ./.;
           hooks = {
-            nixfmt-rfc-style = {
+            nixfmt = {
               enable = true;
               settings.width = 100;
             };
