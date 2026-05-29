@@ -20,6 +20,7 @@ use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
+use wdl_ast::CommentKind;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
@@ -224,7 +225,7 @@ fn token_ty(token: &SyntaxToken, document: &Document) -> Option<(SemanticTokenTy
     let ty = match kind {
         SyntaxKind::Comment => {
             let comment = Comment::cast(token.clone()).expect("should cast");
-            if comment.is_doc_comment() {
+            if comment.kind() == CommentKind::Documentation {
                 add_modifier(&mut modifiers, SemanticTokenModifier::DOCUMENTATION);
             }
 
