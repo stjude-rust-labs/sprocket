@@ -1250,10 +1250,11 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
     let mut task = Task {
         name_span: name.span(),
         name: name.text().to_string(),
+        span: definition.span(),
         scopes: vec![Scope::new(
             None,
             definition
-                .braced_scope_span()
+                .braced_scope_span(false)
                 .expect("should have brace scope span"),
         )],
         inputs,
@@ -1357,7 +1358,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         definition
                             .output()
                             .expect("should have output section")
-                            .braced_scope_span()
+                            .braced_scope_span(false)
                             .expect("should have braced scope span"),
                         HiddenType::TaskPostEvaluation,
                     )
@@ -1373,9 +1374,9 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
             TaskGraphNode::Command(section) => {
                 let scope_index = *command_scope.get_or_insert_with(|| {
                     let span = if section.is_heredoc() {
-                        section.heredoc_scope_span()
+                        section.heredoc_scope_span(false)
                     } else {
-                        section.braced_scope_span()
+                        section.braced_scope_span(false)
                     };
 
                     create_section_scope(
@@ -1406,7 +1407,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         &mut task.scopes,
                         &name,
                         section
-                            .braced_scope_span()
+                            .braced_scope_span(false)
                             .expect("should have braced scope span"),
                         HiddenType::TaskPreEvaluation,
                     )
@@ -1430,7 +1431,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         &mut task.scopes,
                         &name,
                         section
-                            .braced_scope_span()
+                            .braced_scope_span(false)
                             .expect("should have braced scope span"),
                         HiddenType::TaskPreEvaluation,
                     )
@@ -1454,7 +1455,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         &mut task.scopes,
                         &name,
                         section
-                            .braced_scope_span()
+                            .braced_scope_span(false)
                             .expect("should have braced scope span"),
                         HiddenType::TaskPreEvaluation,
                     )
@@ -1551,6 +1552,7 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
     document.workflow = Some(Workflow {
         name_span: name.span(),
         name: name.text().to_string(),
+        span: workflow.span(),
         scopes: Default::default(),
         inputs: Default::default(),
         outputs: Default::default(),
@@ -1582,7 +1584,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
     let mut scopes = vec![Scope::new(
         None,
         workflow
-            .braced_scope_span()
+            .braced_scope_span(false)
             .expect("should have braced scope span"),
     )];
     let mut output_scope = None;
@@ -1664,7 +1666,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                             workflow
                                 .output()
                                 .expect("should have output section")
-                                .braced_scope_span()
+                                .braced_scope_span(false)
                                 .expect("should have braced scope span"),
                         ),
                     )
@@ -1870,7 +1872,7 @@ fn add_conditional_statement(
             Scope::new(
                 Some(parent),
                 clause
-                    .braced_scope_span()
+                    .braced_scope_span(false)
                     .expect("should have braced scope span"),
             ),
         );
@@ -1906,7 +1908,7 @@ fn add_scatter_statement(
         Scope::new(
             Some(parent),
             statement
-                .braced_scope_span()
+                .braced_scope_span(false)
                 .expect("should have braced scope span"),
         ),
     );

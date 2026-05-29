@@ -1215,7 +1215,7 @@ impl State {
     ) -> EvaluationResult<()> {
         let mut scope_union = ScopeUnion::new();
         for clause in stmt.clauses() {
-            if let Some(braced_scope_span) = clause.braced_scope_span() {
+            if let Some(braced_scope_span) = clause.braced_scope_span(false) {
                 let clause_scope = self
                     .document
                     .find_scope_by_position(braced_scope_span.start())
@@ -1526,7 +1526,7 @@ impl State {
         let stmt_scope = self
             .document
             .find_scope_by_position(
-                stmt.braced_scope_span()
+                stmt.braced_scope_span(false)
                     .expect("should have braces")
                     .start(),
             )

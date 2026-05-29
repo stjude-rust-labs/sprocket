@@ -8,10 +8,12 @@ use crate::diagnostics;
 use crate::document::ScopeRef;
 use crate::types::v1::EvaluationContext;
 
+mod call_hierarchy;
 mod common;
 mod completions;
 mod document_symbol;
 mod find_all_references;
+mod folding_range;
 mod goto_definition;
 mod hover;
 mod inlay_hints;
@@ -21,9 +23,11 @@ mod signature_help;
 pub(crate) mod snippets;
 mod workspace_symbol;
 
+pub use call_hierarchy::*;
 pub use completions::*;
 pub use document_symbol::*;
 pub use find_all_references::*;
+pub use folding_range::*;
 pub use goto_definition::*;
 pub use hover::*;
 pub use inlay_hints::*;

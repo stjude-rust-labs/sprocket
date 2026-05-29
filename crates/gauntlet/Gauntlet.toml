@@ -8008,6 +8008,36 @@ message = "ww-bedtools.wdl:135:10: warning[UnusedInput]: unused input `bam_index
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c531f6182cc0e97c29d8a4f23/modules/ww-bedtools/ww-bedtools.wdl/#L135"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun.wdl"
+message = "testrun.wdl:32:19: error: type mismatch: expected type `File`, but found type `File?`"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c531f6182cc0e97c29d8a4f23/modules/ww-cellranger/testrun.wdl/#L32"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun.wdl"
+message = "testrun.wdl:33:19: error: type mismatch: expected type `File`, but found type `File?`"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c531f6182cc0e97c29d8a4f23/modules/ww-cellranger/testrun.wdl/#L33"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun.wdl"
+message = "testrun.wdl:34:23: error: type mismatch: expected type `File`, but found type `File?`"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c531f6182cc0e97c29d8a4f23/modules/ww-cellranger/testrun.wdl/#L34"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun.wdl"
+message = "testrun.wdl:38:24: error: type mismatch: expected type `File`, but found type `File?`"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c531f6182cc0e97c29d8a4f23/modules/ww-cellranger/testrun.wdl/#L38"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun.wdl"
+message = "testrun.wdl:39:24: error: type mismatch: expected type `File`, but found type `File?`"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c531f6182cc0e97c29d8a4f23/modules/ww-cellranger/testrun.wdl/#L39"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cellranger/testrun.wdl"
+message = "testrun.wdl:40:28: error: type mismatch: expected type `File`, but found type `File?`"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c531f6182cc0e97c29d8a4f23/modules/ww-cellranger/testrun.wdl/#L40"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:133:10: warning[UnusedInput]: unused input `tumor_bai`"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/cf23adebc923524c531f6182cc0e97c29d8a4f23/modules/ww-cnvkit/ww-cnvkit.wdl/#L133"

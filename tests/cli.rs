@@ -110,12 +110,17 @@ struct CommandOutput {
 }
 
 /// Runs a test given the test root directory.
-fn run_test(test_path: &Path) -> Result<()> {
+fn run_test(test_path: &Path, test_name: String) -> Result<()> {
     let working_test_directory = setup_working_test_directory(test_path)
         .context("failed to setup working test directory")?;
     let command_output = run_sprocket(test_path, working_test_directory.path())
         .context("failed to run sprocket command")?;
-    compare_test_results(test_path, working_test_directory.path(), &command_output)
+    compare_test_results(
+        test_path,
+        &test_name,
+        working_test_directory.path(),
+        &command_output,
+    )
 }
 
 /// Sets up the working test directory by copying initial files.
@@ -532,6 +537,7 @@ __UNEXPECTED_FILES_FOUND__
 /// Compares the result of the command output with the expected baseline.
 fn compare_test_results(
     test_path: &Path,
+    test_name: &str,
     working_test_directory: &Path,
     command_output: &CommandOutput,
 ) -> Result<()> {
@@ -581,6 +587,13 @@ fn compare_test_results(
         recursive_compare(&expected_output_dir, working_test_directory)?;
     }
 
+    // https://github.com/stjude-rust-labs/sprocket/issues/861
+    if test_name == "run/missing-required-array-input"
+        && working_test_directory.join("out").exists()
+    {
+        bail!("invalid CLI inputs shouldn't produce an output directory")
+    }
+
     compare_results(
         &expected_exit_code_file,
         &command_output.exit_code.to_string(),
@@ -601,8 +614,9 @@ fn main() {
     let trials = tests
         .into_iter()
         .map(|test| {
-            Trial::test(get_test_name(&test, test_root), move || {
-                run_test(&test).map_err(Into::into)
+            let name = get_test_name(&test, test_root);
+            Trial::test(name.clone(), move || {
+                run_test(&test, name).map_err(Into::into)
             })
         })
         .collect();

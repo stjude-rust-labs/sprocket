@@ -16,8 +16,12 @@ use futures::Future;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
 use indexmap::IndexSet;
+use lsp_types::CallHierarchyIncomingCall;
+use lsp_types::CallHierarchyItem;
+use lsp_types::CallHierarchyOutgoingCall;
 use lsp_types::CompletionResponse;
 use lsp_types::DocumentSymbolResponse;
+use lsp_types::FoldingRange;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
 use lsp_types::InlayHint;
@@ -75,12 +79,16 @@ pub enum Request<Context> {
     Add(AddRequest),
     /// A request to analyze documents.
     Analyze(AnalyzeRequest<Context>),
+    /// A request to get all callers of a symbol.
+    CallHierarchy(CallHierarchyRequest),
     /// A request to remove documents from the graph.
     Remove(RemoveRequest),
     /// A request to process a document's incremental change.
     NotifyIncrementalChange(NotifyIncrementalChangeRequest),
     /// A request to process a document's change.
     NotifyChange(NotifyChangeRequest),
+    /// A request to get all folding ranges in a document.
+    FoldingRange(FoldingRangeRequest),
     /// A request to format a document.
     Format(FormatRequest),
     /// A request to goto definition of a symbol.
@@ -99,6 +107,10 @@ pub enum Request<Context> {
     DocumentSymbol(DocumentSymbolRequest),
     /// A request to get symbols for the workspace.
     WorkspaceSymbol(WorkspaceSymbolRequest),
+    /// A request to get all incoming calls from a symbol.
+    IncomingCalls(IncomingCallsRequest),
+    /// A request to get all outgoing calls from a symbol.
+    OutgoingCalls(OutgoingCallsRequest),
     /// A request to get signature help.
     SignatureHelp(SignatureHelpRequest),
     /// A request to get inlay hints for a document.
@@ -125,6 +137,18 @@ pub struct AnalyzeRequest<Context> {
     pub completed: oneshot::Sender<Result<Vec<AnalysisResult>>>,
 }
 
+/// Represents a request to get the call hierarchy for a symbol.
+pub struct CallHierarchyRequest {
+    /// The document to search for the symbol definition.
+    pub document: Url,
+    /// The position of the symbol in the document.
+    pub position: SourcePosition,
+    /// The encoding used for the position.
+    pub encoding: SourcePositionEncoding,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<Vec<CallHierarchyItem>>>,
+}
+
 /// Represents a request to remove documents from the document graph.
 pub struct RemoveRequest {
     /// The documents to remove.
@@ -147,6 +171,14 @@ pub struct NotifyChangeRequest {
     pub document: Url,
     /// Whether or not any existing incremental change should be discarded.
     pub discard_pending: bool,
+}
+
+/// Represents a request to get all folding ranges in a document.
+pub struct FoldingRangeRequest {
+    /// The document to get folding ranges for.
+    pub document: Url,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<Vec<FoldingRange>>>,
 }
 
 /// Represents a request to format a document.
@@ -251,6 +283,30 @@ pub struct WorkspaceSymbolRequest {
     pub query: String,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<SymbolInformation>>>,
+}
+
+/// Represents a request to get the incoming calls for a symbol.
+pub struct IncomingCallsRequest {
+    /// The document to search for the symbol definition.
+    pub document: Url,
+    /// The position of the symbol in the document.
+    pub position: SourcePosition,
+    /// The encoding used for the position.
+    pub encoding: SourcePositionEncoding,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<Vec<CallHierarchyIncomingCall>>>,
+}
+
+/// Represents a request to get the outgoing calls for a symbol.
+pub struct OutgoingCallsRequest {
+    /// The document to search for the symbol definition.
+    pub document: Url,
+    /// The position of the symbol in the document.
+    pub position: SourcePosition,
+    /// The encoding used for the position.
+    pub encoding: SourcePositionEncoding,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<Vec<CallHierarchyOutgoingCall>>>,
 }
 
 /// Represents a request for signature help.
@@ -396,6 +452,38 @@ where
                         }
                     }
                 }
+                Request::CallHierarchy(CallHierarchyRequest {
+                    document,
+                    position,
+                    encoding,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!(
+                        "received request for call hierarchy at {document}: {line}:{char}",
+                        line = position.line,
+                        char = position.character
+                    );
+
+                    let graph = self.graph.read();
+                    match handlers::call_hierarchy(&graph, document, position, encoding) {
+                        Ok(result) => {
+                            debug!(
+                                "call hierarchy request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+
+                            completed.send(result).ok();
+                        }
+                        Err(err) => {
+                            error!(
+                                "error occurred while completing the call hierarchy request: \
+                                 {err:?}"
+                            );
+                            completed.send(None).ok();
+                        }
+                    }
+                }
                 Request::Remove(RemoveRequest {
                     documents,
                     completed,
@@ -431,6 +519,31 @@ where
                     let mut graph = self.graph.write();
                     if let Some(node) = graph.get_index(&document) {
                         graph.get_mut(node).notify_change(discard_pending);
+                    }
+                }
+                Request::FoldingRange(FoldingRangeRequest {
+                    document,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+
+                    let graph = self.graph.read();
+                    match handlers::folding_range(&graph, document) {
+                        Ok(result) => {
+                            debug!(
+                                "folding range request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+
+                            completed.send(Some(result)).ok();
+                        }
+                        Err(err) => {
+                            error!(
+                                "error occurred while completing the folding range request: \
+                                 {err:?}"
+                            );
+                            completed.send(None).ok();
+                        }
                     }
                 }
                 Request::Format(FormatRequest {
@@ -499,7 +612,7 @@ where
                     );
 
                     let graph = self.graph.read();
-                    match handlers::goto_definition(&graph, document, position, encoding) {
+                    match handlers::goto_definition(&graph, &document, position, encoding) {
                         Ok(result) => {
                             debug!(
                                 "goto definition request completed in {elapsed:?}",
@@ -535,7 +648,7 @@ where
                     let graph = self.graph.read();
                     match handlers::find_all_references(
                         &graph,
-                        document,
+                        &document,
                         position,
                         encoding,
                         include_declaration,
@@ -640,7 +753,7 @@ where
                     );
 
                     let graph = self.graph.read();
-                    match handlers::rename(&graph, document, position, encoding, new_name) {
+                    match handlers::rename(&graph, &document, position, encoding, new_name) {
                         Ok(result) => {
                             debug!(
                                 "rename request completed in {elapsed:?}",
@@ -751,6 +864,70 @@ where
                         }
                         Err(err) => {
                             error!("workspace symbol request failed: {err:?}");
+                            completed.send(None).ok();
+                        }
+                    }
+                }
+                Request::IncomingCalls(IncomingCallsRequest {
+                    document,
+                    position,
+                    encoding,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!(
+                        "received request for incoming calls at {document}: {line}:{char}",
+                        line = position.line,
+                        char = position.character
+                    );
+
+                    let graph = self.graph.read();
+                    match handlers::incoming_calls(&graph, &document, position, encoding) {
+                        Ok(result) => {
+                            debug!(
+                                "incoming calls request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+
+                            completed.send(result).ok();
+                        }
+                        Err(err) => {
+                            error!(
+                                "error occurred while completing the incoming calls request: \
+                                 {err:?}"
+                            );
+                            completed.send(None).ok();
+                        }
+                    }
+                }
+                Request::OutgoingCalls(OutgoingCallsRequest {
+                    document,
+                    position,
+                    encoding,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!(
+                        "received request for outgoing calls at {document}: {line}:{char}",
+                        line = position.line,
+                        char = position.character
+                    );
+
+                    let graph = self.graph.read();
+                    match handlers::outgoing_calls(&graph, &document, position, encoding) {
+                        Ok(result) => {
+                            debug!(
+                                "outgoing calls request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+
+                            completed.send(result).ok();
+                        }
+                        Err(err) => {
+                            error!(
+                                "error occurred while completing the outgoing calls request: \
+                                 {err:?}"
+                            );
                             completed.send(None).ok();
                         }
                     }

@@ -250,7 +250,7 @@ pub trait AstNode<N: TreeNode>: Sized {
     ///
     /// Returns `None` if the node does not contain the open and close tokens as
     /// children.
-    fn scope_span<O, C>(&self) -> Option<Span>
+    fn scope_span<O, C>(&self, include_braces: bool) -> Option<Span>
     where
         O: AstToken<N::Token>,
         C: AstToken<N::Token>,
@@ -258,30 +258,38 @@ pub trait AstNode<N: TreeNode>: Sized {
         let open = self.token::<O>()?.span();
         let close = self.last_token::<C>()?.span();
 
-        // The span starts after the opening brace and after the closing brace
-        Some(Span::new(open.end(), close.end() - open.end()))
+        let start = if include_braces {
+            open.start()
+        } else {
+            open.end()
+        };
+        Some(Span::new(start, close.end() - start))
     }
 
     /// Gets the interior span of child opening and closing brace tokens for the
     /// node.
     ///
-    /// The span starts from immediately after the opening brace token and ends
-    /// immediately before the closing brace token.
+    /// If `include_braces` is true, the returned [`Span`] will include both the
+    /// opening and closing braces. Otherwise, the span starts from
+    /// immediately after the opening brace token and ends immediately
+    /// before the closing brace token.
     ///
     /// Returns `None` if the node does not contain child brace tokens.
-    fn braced_scope_span(&self) -> Option<Span> {
-        self.scope_span::<OpenBrace<N::Token>, CloseBrace<N::Token>>()
+    fn braced_scope_span(&self, include_braces: bool) -> Option<Span> {
+        self.scope_span::<OpenBrace<N::Token>, CloseBrace<N::Token>>(include_braces)
     }
 
     /// Gets the interior span of child opening and closing heredoc tokens for
     /// the node.
     ///
-    /// The span starts from immediately after the opening heredoc token and
-    /// ends immediately before the closing heredoc token.
+    /// If `include_braces` is true, the returned [`Span`] will include both the
+    /// opening and closing braces. Otherwise, the span starts from
+    /// immediately after the opening brace token and ends immediately
+    /// before the closing brace token.
     ///
     /// Returns `None` if the node does not contain child heredoc tokens.
-    fn heredoc_scope_span(&self) -> Option<Span> {
-        self.scope_span::<OpenHeredoc<N::Token>, CloseHeredoc<N::Token>>()
+    fn heredoc_scope_span(&self, include_braces: bool) -> Option<Span> {
+        self.scope_span::<OpenHeredoc<N::Token>, CloseHeredoc<N::Token>>(include_braces)
     }
 
     /// Gets the node descendants (including self) from this node that can be
@@ -477,6 +485,14 @@ impl<N: TreeNode> AstNode<N> for Document<N> {
     }
 }
 
+impl Documented<SyntaxNode> for Document<SyntaxNode> {
+    fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
+        let version_statement = self.child::<VersionStatement>()?;
+        let version_keyword = version_statement.keyword();
+        Some(doc_comments::<SyntaxNode>(version_keyword.inner().preceding_trivia()).collect())
+    }
+}
+
 impl Document {
     /// Parses a document from the given source.
     ///
@@ -663,6 +679,18 @@ impl FromStr for Directive {
     }
 }
 
+/// The type of a [`Comment`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum CommentKind {
+    /// The comment is a normal line comment
+    Line,
+    /// The comment is a [`Directive`] (starts with
+    /// [`DIRECTIVE_COMMENT_PREFIX`]).
+    Directive,
+    /// The comment is a doc comment (starts with [`DOC_COMMENT_PREFIX`]).
+    Documentation,
+}
+
 /// The prefix for doc comments.
 pub const DOC_COMMENT_PREFIX: &str = "##";
 
@@ -688,19 +716,20 @@ impl<T: TreeToken> AstToken<T> for Comment<T> {
 }
 
 impl Comment {
-    /// Gets whether the comment starts with DIRECTIVE_COMMENT_PREFIX.
-    pub fn is_directive(&self) -> bool {
-        self.text().starts_with(DIRECTIVE_COMMENT_PREFIX)
-    }
-
     /// Try to parse the comment as a directive.
     pub fn directive(&self) -> Option<Directive> {
         self.text().parse::<Directive>().ok()
     }
 
-    /// Gets whether comment starts with [`DOC_COMMENT_PREFIX`].
-    pub fn is_doc_comment(&self) -> bool {
-        self.text().starts_with(DOC_COMMENT_PREFIX)
+    /// The type of comment.
+    pub fn kind(&self) -> CommentKind {
+        if self.text().starts_with(DOC_COMMENT_PREFIX) {
+            return CommentKind::Documentation;
+        } else if self.text().starts_with(DIRECTIVE_COMMENT_PREFIX) {
+            return CommentKind::Directive;
+        }
+
+        CommentKind::Line
     }
 
     /// Gets whether the comment is an inline comment or not.

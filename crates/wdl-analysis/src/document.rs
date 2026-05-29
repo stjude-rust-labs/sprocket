@@ -565,6 +565,8 @@ pub struct Task {
     name_span: Span,
     /// The name of the task.
     name: String,
+    /// The span of the task definition.
+    span: Span,
     /// The scopes contained in the task.
     ///
     /// The first scope will always be the task's scope.
@@ -586,6 +588,11 @@ impl Task {
     /// Gets the span of the name.
     pub fn name_span(&self) -> Span {
         self.name_span
+    }
+
+    /// Gets the span of the workflow definition.
+    pub fn span(&self) -> Span {
+        self.span
     }
 
     /// Gets the scope of the task.
@@ -611,6 +618,8 @@ pub struct Workflow {
     name_span: Span,
     /// The name of the workflow.
     name: String,
+    /// The span of the workflow definition.
+    span: Span,
     /// The scopes contained in the workflow.
     ///
     /// The first scope will always be the workflow's scope.
@@ -636,6 +645,11 @@ impl Workflow {
     /// Gets the span of the name.
     pub fn name_span(&self) -> Span {
         self.name_span
+    }
+
+    /// Gets the span of the workflow definition.
+    pub fn span(&self) -> Span {
+        self.span
     }
 
     /// Gets the scope of the workflow.
@@ -688,6 +702,41 @@ pub(crate) struct ImportedWorkflow {
     pub inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the workflow.
     pub outputs: Arc<IndexMap<String, Output>>,
+}
+
+/// A callable item.
+#[derive(Debug)]
+pub enum Callable<'a> {
+    /// A workflow.
+    Workflow(&'a Workflow),
+    /// A task.
+    Task(&'a Task),
+}
+
+impl Callable<'_> {
+    /// Get the name of this callable.
+    pub fn name(&self) -> &str {
+        match self {
+            Callable::Workflow(w) => w.name(),
+            Callable::Task(t) => t.name(),
+        }
+    }
+
+    /// Get the [`Span`] of the callable's name.
+    pub fn name_span(&self) -> Span {
+        match self {
+            Callable::Workflow(w) => w.name_span(),
+            Callable::Task(t) => t.name_span(),
+        }
+    }
+
+    /// Get the [`Span`] of the callable's full definition.
+    pub fn span(&self) -> Span {
+        match self {
+            Callable::Workflow(w) => w.span(),
+            Callable::Task(t) => t.span(),
+        }
+    }
 }
 
 /// Represents analysis data about a WDL document.
@@ -986,6 +1035,24 @@ impl Document {
     /// Returns `None` if the document did not contain a workflow.
     pub fn workflow(&self) -> Option<&Workflow> {
         self.data.workflow.as_ref()
+    }
+
+    /// Gets a [`Callable`] in the document by name.
+    ///
+    /// Returns `None` if the document did not contain a callable definition
+    /// with the given name.
+    pub fn callable_by_name(&self, name: &str) -> Option<Callable<'_>> {
+        if let Some(workflow) = self.workflow()
+            && workflow.name() == name
+        {
+            return Some(Callable::Workflow(workflow));
+        }
+
+        if let Some(task) = self.task_by_name(name) {
+            return Some(Callable::Task(task));
+        }
+
+        None
     }
 
     /// Gets the structs in the document.
