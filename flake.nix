@@ -59,12 +59,7 @@
               let
                 base = baseNameOf (toString path);
               in
-              !(
-                base == "target"
-                || base == "result"
-                || lib.hasPrefix "result-" base
-                || base == ".direnv"
-              );
+              !(base == "target" || base == "result" || lib.hasPrefix "result-" base || base == ".direnv");
           };
 
           # We use `cargoHash` (→ `fetchCargoVendor`) rather than `cargoLock`
