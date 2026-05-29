@@ -1,3 +1,13 @@
+# Nix flake for building Sprocket
+#
+# Prerequisites:
+#   Install Nix: https://nixos.org/download/
+#   Enable flakes: https://nixos.wiki/wiki/Flakes#Enable_flakes
+#
+# Usage:
+#   nix build          # Build sprocket binary
+#   nix run            # Build and run sprocket
+#   ./result/bin/sprocket --help
 {
   description = "Sprocket — a command line tool for working with Workflow Description Language (WDL) documents";
 
