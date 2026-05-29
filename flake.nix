@@ -55,11 +55,16 @@
           src = lib.cleanSourceWith {
             src = ./.;
             filter =
-              path: type:
+              path: _type:
               let
                 base = baseNameOf (toString path);
               in
-              !(lib.hasPrefix "target" base || lib.hasPrefix "result" base || base == ".direnv");
+              !(
+                base == "target"
+                || base == "result"
+                || lib.hasPrefix "result-" base
+                || base == ".direnv"
+              );
           };
 
           # We use `cargoHash` (→ `fetchCargoVendor`) rather than `cargoLock`
