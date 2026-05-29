@@ -512,7 +512,7 @@ impl RunnableExecutor {
             self.engine_config,
             self.cancellation,
             self.events,
-            resolved_target,
+            &resolved_target,
             inputs,
             &run_dir,
             &base_dir,
@@ -612,7 +612,7 @@ pub async fn analyze_wdl_document(
 async fn set_run_success(
     db: &dyn Database,
     ctx: &RunContext,
-    target: Target,
+    target: &Target,
     outputs: Outputs,
     run_dir: &RunDirectory,
     index_on: Option<&str>,
@@ -766,7 +766,7 @@ async fn execute_task_target(
         )
     })?;
 
-    // Ensure the inputs are for a tas
+    // Ensure the inputs are for a task
     if inputs.as_task_inputs().is_none() {
         let error = "inputs are for a workflow, not a task";
         db.fail_run(ctx.run_id, error, Utc::now())
@@ -831,7 +831,7 @@ pub async fn execute_target(
     config: WdlConfig,
     cancellation: CancellationContext,
     events: Events,
-    target: Target,
+    target: &Target,
     inputs: Inputs,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
@@ -843,7 +843,7 @@ pub async fn execute_target(
         .map_err(anyhow::Error::from)?;
 
     let result: Result<Option<Outputs>, EvaluationError> = async {
-        match &target {
+        match target {
             Target::Task(_) => {
                 execute_task_target(
                     db.as_ref(),
@@ -852,7 +852,7 @@ pub async fn execute_target(
                     config,
                     cancellation,
                     events,
-                    &target,
+                    target,
                     inputs,
                     run_dir,
                     base_dir,

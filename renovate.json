@@ -1,0 +1,81 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    ":dependencyDashboard",
+    ":semanticCommits",
+    ":semanticCommitTypeAll(build)"
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "timezone": "America/Chicago",
+  "schedule": [
+    "at any time"
+  ],
+  "prHourlyLimit": 4,
+  "prConcurrentLimit": 10,
+  "minimumReleaseAge": "14 days",
+  "rangeStrategy": "update-lockfile",
+  "automerge": true,
+  "automergeType": "pr",
+  "automergeStrategy": "squash",
+  "platformAutomerge": true,
+  "enabledManagers": [
+    "cargo",
+    "github-actions"
+  ],
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": [
+      "at any time"
+    ],
+    "automerge": true
+  },
+  "packageRules": [
+    {
+      "description": "Major updates require manual review",
+      "matchUpdateTypes": [
+        "major"
+      ],
+      "automerge": false,
+      "addLabels": [
+        "major-update"
+      ]
+    },
+    {
+      "description": "Label cargo minor/patch updates",
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "addLabels": [
+        "cargo"
+      ]
+    },
+    {
+      "description": "Group GitHub Actions together",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "groupName": "github actions",
+      "addLabels": [
+        "github-actions"
+      ]
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "minimumReleaseAge": null,
+    "schedule": [
+      "at any time"
+    ],
+    "labels": [
+      "security"
+    ]
+  },
+  "osvVulnerabilityAlerts": true
+}

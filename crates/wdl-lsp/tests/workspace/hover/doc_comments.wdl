@@ -1,3 +1,5 @@
+## This is a preamble comment
+
 version 1.3
 
 ## Greets someone by name.
@@ -90,3 +92,7 @@ enum DocStatus {
 task blank_line_doc {
     command <<<>>>
 }
+
+## I'm not attached to anything...
+
+# And I'm a plain line comment

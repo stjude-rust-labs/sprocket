@@ -28,7 +28,7 @@ use crate::handlers;
 /// The rename is rejected if the new name is not a valid WDL identifier.
 pub fn rename(
     graph: &DocumentGraph,
-    document_uri: Url,
+    document_uri: &Url,
     position: SourcePosition,
     encoding: SourcePositionEncoding,
     new_name: String,
@@ -37,13 +37,13 @@ pub fn rename(
         bail!("name `{new_name}` is not a valid WDL identifier");
     }
 
-    let locations = handlers::find_all_references(graph, document_uri, position, encoding, true)?;
-    if locations.is_empty() {
+    let references = handlers::find_all_references(graph, document_uri, position, encoding, true)?;
+    if references.is_empty() {
         return Ok(None);
     }
 
     let mut changes: HashMap<Url, Vec<TextEdit>> = HashMap::new();
-    for location in locations {
+    for location in references {
         let text_edit = TextEdit {
             range: location.range,
             new_text: new_name.clone(),
