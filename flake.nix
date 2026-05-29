@@ -71,7 +71,7 @@
           #
           # Replace fakeHash with the hash Nix prints on the first build.
           # Any change to Cargo.lock will require updating this hash.
-          cargoHash = lib.fakeHash;
+          cargoHash = "sha256-lCHGTjYX+pSptdZ2fBuRUIbKaKXnCyTgkWrSOlzKRhQ=";
 
           inherit nativeBuildInputs buildInputs;
 
