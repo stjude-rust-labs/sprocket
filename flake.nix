@@ -64,13 +64,23 @@
 
           cargoLock = {
             lockFile = ./Cargo.lock;
+            # `thirtyfour`, `thirtyfour-macros`, and `selenium-manager` are
+            # vendored from a git fork (see Cargo.lock). They share the same
+            # git rev, so a single hash covers all three. Replace fakeHash
+            # with the value Nix prints on the first build attempt.
+            outputHashes = {
+              "thirtyfour-0.36.1" = lib.fakeHash;
+              "thirtyfour-macros-0.2.0" = lib.fakeHash;
+              "selenium-manager-0.4.36" = lib.fakeHash;
+            };
           };
 
           inherit nativeBuildInputs buildInputs;
 
-          # Use system OpenSSL / libgit2 instead of vendoring them inside the sandbox.
+          # Link against system OpenSSL via pkg-config (no in-sandbox fetch).
+          # libgit2 is intentionally left to vendor itself via cmake/cc — the
+          # version is then guaranteed to match libgit2-sys's bindings.
           OPENSSL_NO_VENDOR = "1";
-          LIBGIT2_NO_VENDOR = "1";
 
           # Only build the top-level `sprocket` binary; gauntlet and other helpers
           # are workspace members but not part of the installed package output.
