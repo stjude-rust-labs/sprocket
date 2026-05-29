@@ -745,6 +745,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
     let mut task = Task {
         name_span: name.span(),
         name: name.text().to_string(),
+        span: definition.span(),
         scopes: vec![Scope::new(
             None,
             definition
@@ -1037,6 +1038,7 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
     document.workflow = Some(Workflow {
         name_span: name.span(),
         name: name.text().to_string(),
+        span: workflow.span(),
         scopes: Default::default(),
         inputs: Default::default(),
         outputs: Default::default(),
