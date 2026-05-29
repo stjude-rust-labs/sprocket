@@ -12,10 +12,10 @@
 
   outputs =
     {
-      self,
       nixpkgs,
       flake-utils,
       pre-commit-hooks,
+      ...
     }:
     flake-utils.lib.eachDefaultSystem (
       system:
@@ -130,7 +130,7 @@
       {
         packages = {
           default = sprocket;
-          sprocket = sprocket;
+          inherit sprocket;
         };
 
         checks = {
@@ -173,7 +173,7 @@
             shellcheck
 
             # Nix tooling.
-            nixfmt-rfc-style
+            nixfmt
             deadnix
             statix
           ];
@@ -185,7 +185,7 @@
           inherit (preCommitCheck) shellHook;
         };
 
-        formatter = pkgs.nixfmt-rfc-style;
+        formatter = pkgs.nixfmt;
       }
     );
 }
