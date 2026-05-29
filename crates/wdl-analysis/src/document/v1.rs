@@ -1738,12 +1738,6 @@ fn resolve_import(
 
 /// Sets struct and enum types in the document.
 fn populate_types(document: &mut DocumentData) {
-    #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-    enum TypeIndex {
-        Struct(usize),
-        Enum(usize),
-    }
-
     /// Used to resolve a type name from a document.
     struct Resolver<'a> {
         /// The document to resolve the type name from.
@@ -1822,17 +1816,7 @@ fn populate_types(document: &mut DocumentData) {
             find_type_refs(&member.ty(), &mut deps);
 
             for dep in deps {
-                let name = dep.name();
-                let to_idx = if let Some(to) = document.structs.get_index_of(name.text())
-                    // Only add an edge to another local struct definition
-                    && document.structs[to].namespace.is_none()
-                {
-                    TypeIndex::Struct(to)
-                } else if let Some(to) = document.enums.get_index_of(name.text())
-                    && document.enums[to].namespace.is_none()
-                {
-                    TypeIndex::Enum(to)
-                } else {
+                let Some(to_idx) = resolve_dep(document, dep.name().text()) else {
                     continue;
                 };
 
@@ -1867,16 +1851,7 @@ fn populate_types(document: &mut DocumentData) {
             find_type_refs(&type_param.ty(), &mut deps);
 
             for dep in deps {
-                let name = dep.name();
-                let to_idx = if let Some(to) = document.structs.get_index_of(name.text())
-                    && document.structs[to].namespace.is_none()
-                {
-                    TypeIndex::Struct(to)
-                } else if let Some(to) = document.enums.get_index_of(name.text())
-                    && document.enums[to].namespace.is_none()
-                {
-                    TypeIndex::Enum(to)
-                } else {
+                let Some(to_idx) = resolve_dep(document, dep.name().text()) else {
                     continue;
                 };
 
@@ -1886,7 +1861,10 @@ fn populate_types(document: &mut DocumentData) {
                     document.analysis_diagnostics.push(recursive_enum(
                         def_name.text(),
                         Span::new(def_span.start() + e.offset, def_span.len()),
-                        type_param.ty(),
+                        match to_idx {
+                            TypeIndex::Struct(index) => document.structs[index].name(),
+                            TypeIndex::Enum(index) => document.enums[index].name(),
+                        },
                     ));
                 } else {
                     graph.add_edge(to_idx, from_idx, ());
@@ -1977,6 +1955,31 @@ fn populate_types(document: &mut DocumentData) {
                 }
             }
         }
+    }
+}
+
+/// An index to a type in a [`Document`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+enum TypeIndex {
+    /// Index into `DocumentData::structs`.
+    Struct(usize),
+    /// Index into `DocumentData::enums`.
+    Enum(usize),
+}
+
+/// Attempt to find a locally defined type in the `document` by name.
+fn resolve_dep(document: &DocumentData, name: &str) -> Option<TypeIndex> {
+    if let Some(to) = document.structs.get_index_of(name)
+        // Only resolve locally defined types
+        && document.structs[to].namespace.is_none()
+    {
+        Some(TypeIndex::Struct(to))
+    } else if let Some(to) = document.enums.get_index_of(name)
+        && document.enums[to].namespace.is_none()
+    {
+        Some(TypeIndex::Enum(to))
+    } else {
+        None
     }
 }
 
