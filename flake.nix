@@ -20,7 +20,27 @@
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        pkgs = nixpkgs.legacyPackages.${system};
+        # crates.io rejects HTTP requests without a User-Agent (returns 403),
+        # which breaks `importCargoLock`'s default `fetchurl` calls. We patch
+        # fetchurl globally to include one. Safe — the header is additive.
+        pkgs = import nixpkgs {
+          inherit system;
+          overlays = [
+            (_final: prev: {
+              fetchurl =
+                args:
+                prev.fetchurl (
+                  args
+                  // {
+                    curlOptsList = (args.curlOptsList or [ ]) ++ [
+                      "--user-agent"
+                      "nixpkgs-fetchurl (https://github.com/NixOS/nixpkgs)"
+                    ];
+                  }
+                );
+            })
+          ];
+        };
         inherit (pkgs) lib;
 
         # Single source of truth for the package version: the root Cargo.toml.
