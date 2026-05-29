@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.19.1 - 2026-05-14
 
+### Changed
+
+* Improved `textDocument/semanticTokens` output, allowing for better syntax highlighting ([#870](https://github.com/stjude-rust-labs/sprocket/pull/870)).
+
 ## 0.19.0 - 2026-04-22
 
 ## 0.18.0 - 2026-04-02
