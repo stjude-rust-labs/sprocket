@@ -20,30 +20,7 @@
     flake-utils.lib.eachDefaultSystem (
       system:
       let
-        # crates.io rejects HTTP requests without a User-Agent (returns 403),
-        # which breaks `importCargoLock`'s default `fetchurl` calls. We patch
-        # fetchurl globally to inject one. The wrap goes through
-        # `lib.makeOverridable` so that `fetchurl.override` (used by various
-        # nixpkgs build helpers) keeps working.
-        pkgs = import nixpkgs {
-          inherit system;
-          overlays = [
-            (_final: prev: {
-              fetchurl = prev.lib.makeOverridable (
-                args:
-                prev.fetchurl (
-                  args
-                  // {
-                    curlOptsList = (args.curlOptsList or [ ]) ++ [
-                      "--user-agent"
-                      "nixpkgs-fetchurl (https://github.com/NixOS/nixpkgs)"
-                    ];
-                  }
-                )
-              );
-            })
-          ];
-        };
+        pkgs = nixpkgs.legacyPackages.${system};
         inherit (pkgs) lib;
 
         # Single source of truth for the package version: the root Cargo.toml.
@@ -85,18 +62,16 @@
               !(lib.hasPrefix "target" base || lib.hasPrefix "result" base || base == ".direnv");
           };
 
-          cargoLock = {
-            lockFile = ./Cargo.lock;
-            # `thirtyfour`, `thirtyfour-macros`, and `selenium-manager` are
-            # vendored from a git fork (see Cargo.lock). They share the same
-            # git rev, so a single hash covers all three. Replace fakeHash
-            # with the value Nix prints on the first build attempt.
-            outputHashes = {
-              "thirtyfour-0.36.1" = lib.fakeHash;
-              "thirtyfour-macros-0.2.0" = lib.fakeHash;
-              "selenium-manager-0.4.36" = lib.fakeHash;
-            };
-          };
+          # We use `cargoHash` (→ `fetchCargoVendor`) rather than `cargoLock`
+          # (→ `importCargoLock`) because the latter pulls crates via
+          # `fetchurl`/curl, which crates.io now 403s for missing User-Agent
+          # headers. `fetchCargoVendor` runs Python+`requests` which sends a
+          # proper UA. As a bonus, it handles git-sourced crates (the
+          # thirtyfour fork) without per-crate hash entries.
+          #
+          # Replace fakeHash with the hash Nix prints on the first build.
+          # Any change to Cargo.lock will require updating this hash.
+          cargoHash = lib.fakeHash;
 
           inherit nativeBuildInputs buildInputs;
 
