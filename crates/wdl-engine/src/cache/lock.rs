@@ -27,34 +27,30 @@ impl LockedFile {
     /// returned.
     pub async fn acquire_shared(path: impl AsRef<Path>, create: bool) -> Result<Option<Self>> {
         let path = path.as_ref();
-        let file = if create {
-            // Create or open the file, but do not truncate it if it exists
-            let mut options = fs::OpenOptions::new();
-            options.create(true).write(true);
-            options.open(path).with_context(|| {
-                format!(
-                    "failed to create call cache entry file `{path}`",
-                    path = path.display()
-                )
-            })?
-        } else {
-            match fs::File::open(path)
-                .map(Some)
-                .or_else(|e| {
-                    if e.kind() == io::ErrorKind::NotFound {
-                        Ok(None)
-                    } else {
-                        Err(e)
-                    }
-                })
-                .with_context(|| {
-                    format!(
-                        "failed to open call cache entry file `{path}`",
-                        path = path.display()
-                    )
-                })? {
-                Some(file) => file,
-                None => return Ok(None),
+        let file = match fs::File::open(path) {
+            Ok(file) => file,
+            Err(e) if e.kind() == io::ErrorKind::NotFound => {
+                if !create {
+                    return Ok(None);
+                }
+
+                // Create the file, which requires writable access
+                let mut options = fs::OpenOptions::new();
+                options.create(true).write(true);
+                options.open(path).with_context(|| {
+                    format!("failed to create file `{path}`", path = path.display())
+                })?;
+
+                // Re-open the file as readable as the lock is shared and we don't want the file
+                // to be writable
+                fs::File::open(path).with_context(|| {
+                    format!("failed to open file `{path}`", path = path.display())
+                })?
+            }
+            Err(e) => {
+                return Err(e).with_context(|| {
+                    format!("failed to open file `{path}`", path = path.display())
+                });
             }
         };
 
@@ -194,7 +190,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn acquire_shared() {
+    async fn acquire_shared_existing_file() {
         let file = NamedTempFile::new().unwrap();
         let _first = LockedFile::acquire_shared(file.path(), true)
             .await
@@ -204,6 +200,23 @@ mod test {
             .await
             .unwrap()
             .expect("should have locked file");
+    }
+
+    #[tokio::test]
+    async fn acquire_shared_creates_file_returns_readable_lock() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("needs_to_be_created");
+
+        let mut file = LockedFile::acquire_shared(&path, true)
+            .await
+            .unwrap()
+            .expect("should create and lock file");
+
+        assert!(path.is_file());
+
+        let mut buf = String::new();
+        file.read_to_string(&mut buf)
+            .expect("shared lock file should be readable");
     }
 
     #[tokio::test]
