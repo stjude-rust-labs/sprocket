@@ -1,0 +1,25 @@
+[build-system]
+requires = ["maturin>=1.13,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "sprocket_py"
+readme = "python/README.md"
+requires-python = ">=3.9"
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Operating System :: OS Independent",
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Typing :: Typed",
+]
+dynamic = ["version"]
+
+[project.urls]
+repository = "https://github.com/stjude-rust-labs/sprocket"
+
+[tool.maturin]
+manifest-path = "crates/sprocket-py/Cargo.toml"
+python-source = "python"
