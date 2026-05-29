@@ -22,12 +22,14 @@
       let
         # crates.io rejects HTTP requests without a User-Agent (returns 403),
         # which breaks `importCargoLock`'s default `fetchurl` calls. We patch
-        # fetchurl globally to include one. Safe — the header is additive.
+        # fetchurl globally to inject one. The wrap goes through
+        # `lib.makeOverridable` so that `fetchurl.override` (used by various
+        # nixpkgs build helpers) keeps working.
         pkgs = import nixpkgs {
           inherit system;
           overlays = [
             (_final: prev: {
-              fetchurl =
+              fetchurl = prev.lib.makeOverridable (
                 args:
                 prev.fetchurl (
                   args
@@ -37,7 +39,8 @@
                       "nixpkgs-fetchurl (https://github.com/NixOS/nixpkgs)"
                     ];
                   }
-                );
+                )
+              );
             })
           ];
         };
