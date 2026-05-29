@@ -25,7 +25,6 @@ toml.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
 wdl = { path = "../wdl", version = "0.23.0", features = ["analysis"] }
-wdl-modules = { path = "../wdl-modules", version = "0.1.0" }
 
 [lints]
 workspace = true

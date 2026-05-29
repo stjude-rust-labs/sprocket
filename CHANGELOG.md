@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* `sprocket` resolves symbolic module imports during analysis when a `module.json` is found at or above the source directory, constructing a `GitResolver` from the `[modules]` configuration ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
+
 ## 0.25.0 - 2026-05-14
 
 ### Added

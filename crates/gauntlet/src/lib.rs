@@ -10,7 +10,6 @@ use std::io::IsTerminal;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process;
-use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 
@@ -203,8 +202,7 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                     rules()
                 }))
                 .with_ignore_filename(Some(".sprocketignore".into())),
-            Arc::new(wdl_modules::NullResolver),
-            None,
+            wdl::analysis::ResolutionContext::default(),
             move |_: (), _, _, _| async move {},
             move || {
                 let mut validator = if args.arena {

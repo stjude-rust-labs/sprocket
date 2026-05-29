@@ -570,8 +570,7 @@ pub async fn analyze_wdl_document(
     let config = AnalysisConfig::default().with_fallback_version(fallback_version);
     let analyzer = Analyzer::new(
         config,
-        Arc::new(wdl_modules::NullResolver),
-        None,
+        wdl::analysis::ResolutionContext::default(),
         |(), _, _, _| async {},
     );
 

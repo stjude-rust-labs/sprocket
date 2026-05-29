@@ -326,17 +326,56 @@ pub struct Analyzer<Context> {
     handle: Option<JoinHandle<()>>,
     /// The config to use during analysis.
     config: Config,
-    /// The module resolver used for resolving WDL module imports.
-    #[expect(dead_code)]
-    resolver: Arc<dyn wdl_modules::Resolver>,
-    /// The path to the manifest file, if any.
-    manifest_path: Option<PathBuf>,
+    /// The context used to resolve symbolic module imports.
+    resolution: ResolutionContext,
 }
 
 impl<Context> fmt::Debug for Analyzer<Context> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Analyzer")
             .field("config", &self.config)
+            .field("resolution", &self.resolution)
+            .finish_non_exhaustive()
+    }
+}
+
+/// The context required to resolve symbolic module imports during analysis.
+///
+/// An analyzer that should not resolve modules uses the
+/// [`Default`](ResolutionContext::default) context, which installs a
+/// [`NullResolver`](wdl_modules::NullResolver) and carries no manifest.
+#[derive(Clone)]
+pub struct ResolutionContext {
+    /// The resolver used to materialize symbolic module imports.
+    pub(crate) resolver: Arc<dyn wdl_modules::Resolver>,
+    /// The path to the `module.json` manifest governing the analyzed sources,
+    /// if any.
+    pub(crate) manifest_path: Option<PathBuf>,
+}
+
+impl ResolutionContext {
+    /// Creates a new resolution context from a resolver and an optional
+    /// manifest path.
+    pub fn new(resolver: Arc<dyn wdl_modules::Resolver>, manifest_path: Option<PathBuf>) -> Self {
+        Self {
+            resolver,
+            manifest_path,
+        }
+    }
+}
+
+impl Default for ResolutionContext {
+    fn default() -> Self {
+        Self {
+            resolver: Arc::new(wdl_modules::NullResolver),
+            manifest_path: None,
+        }
+    }
+}
+
+impl fmt::Debug for ResolutionContext {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ResolutionContext")
             .field("manifest_path", &self.manifest_path)
             .finish_non_exhaustive()
     }
@@ -355,21 +394,14 @@ where
     /// The analyzer must be constructed from the context of a Tokio runtime.
     pub fn new<Progress, Return>(
         config: Config,
-        resolver: Arc<dyn wdl_modules::Resolver>,
-        manifest_path: Option<PathBuf>,
+        resolution: ResolutionContext,
         progress: Progress,
     ) -> Self
     where
         Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
         Return: Future<Output = ()>,
     {
-        Self::new_with_validator(
-            config,
-            resolver,
-            manifest_path,
-            progress,
-            crate::Validator::default,
-        )
+        Self::new_with_validator(config, resolution, progress, crate::Validator::default)
     }
 
     /// Constructs a new analyzer with the given config and validator function.
@@ -382,8 +414,7 @@ where
     /// The analyzer must be constructed from the context of a Tokio runtime.
     pub fn new_with_validator<Progress, Return, Validator>(
         config: Config,
-        resolver: Arc<dyn wdl_modules::Resolver>,
-        manifest_path: Option<PathBuf>,
+        resolution: ResolutionContext,
         progress: Progress,
         validator: Validator,
     ) -> Self
@@ -395,17 +426,10 @@ where
         let (tx, rx) = mpsc::unbounded_channel();
         let tokio = Handle::current();
         let inner_config = config.clone();
-        let inner_resolver = resolver.clone();
-        let inner_manifest_path = manifest_path.clone();
+        let inner_resolution = resolution.clone();
         let handle = std::thread::spawn(move || {
-            let queue = AnalysisQueue::new(
-                inner_config,
-                tokio,
-                inner_resolver,
-                inner_manifest_path,
-                progress,
-                validator,
-            );
+            let queue =
+                AnalysisQueue::new(inner_config, tokio, inner_resolution, progress, validator);
             queue.run(rx);
         });
 
@@ -413,8 +437,7 @@ where
             sender: ManuallyDrop::new(tx),
             handle: Some(handle),
             config,
-            resolver,
-            manifest_path,
+            resolution,
         }
     }
 
@@ -960,8 +983,7 @@ impl Default for Analyzer<()> {
     fn default() -> Self {
         Self::new(
             Default::default(),
-            Arc::new(wdl_modules::NullResolver),
-            None,
+            ResolutionContext::default(),
             |_, _, _, _| async {},
         )
     }
@@ -1358,10 +1380,10 @@ workflow test {
             dep_path: dep_dir.clone(),
         });
         let manifest_path = consumer_dir.join("module.json");
-        let analyzer = Analyzer::new(config, resolver, Some(manifest_path), |(), _, _, _| async {
-        });
+        let resolution = ResolutionContext::new(resolver, Some(manifest_path));
+        let analyzer = Analyzer::new(config, resolution, |(), _, _, _| async {});
         analyzer
-            .add_document(path_to_uri(&consumer_dir.join("source.wdl")).expect("should convert"))
+            .add_document(path_to_uri(consumer_dir.join("source.wdl")).expect("should convert"))
             .await
             .expect("should add document");
 
@@ -1501,10 +1523,10 @@ workflow test {
             delay: Duration::from_millis(DELAY_MS),
         });
         let manifest_path = consumer_dir.join("module.json");
-        let analyzer = Analyzer::new(config, resolver, Some(manifest_path), |(), _, _, _| async {
-        });
+        let resolution = ResolutionContext::new(resolver, Some(manifest_path));
+        let analyzer = Analyzer::new(config, resolution, |(), _, _, _| async {});
         analyzer
-            .add_document(path_to_uri(&consumer_dir.join("source.wdl")).expect("should convert"))
+            .add_document(path_to_uri(consumer_dir.join("source.wdl")).expect("should convert"))
             .await
             .expect("should add document");
 

@@ -1924,7 +1924,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "wdl",
- "wdl-modules",
 ]
 
 [[package]]
@@ -6597,7 +6596,6 @@ dependencies = [
  "tracing-subscriber",
  "wdl-analysis",
  "wdl-ast",
- "wdl-modules",
  "which",
 ]
 
@@ -6652,7 +6650,6 @@ dependencies = [
  "wdl-analysis",
  "wdl-ast",
  "wdl-grammar",
- "wdl-modules",
  "which",
 ]
 
@@ -6743,7 +6740,6 @@ dependencies = [
  "wdl-analysis",
  "wdl-ast",
  "wdl-lint",
- "wdl-modules",
 ]
 
 [[package]]

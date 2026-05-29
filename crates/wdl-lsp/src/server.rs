@@ -399,8 +399,7 @@ impl ServerOptions {
         let wdl_lint_config = self.lint.config.clone();
         Analyzer::<ProgressToken>::new_with_validator(
             analyzer_config,
-            Arc::new(wdl_modules::NullResolver),
-            None,
+            wdl_analysis::ResolutionContext::default(),
             move |token, kind, current, total| {
                 let client = analyzer_client.clone();
                 async move {

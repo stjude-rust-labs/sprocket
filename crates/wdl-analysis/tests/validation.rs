@@ -17,7 +17,6 @@ use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 use std::path::absolute;
-use std::sync::Arc;
 
 use anyhow::anyhow;
 use codespan_reporting::files::SimpleFile;
@@ -143,8 +142,7 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     };
     let analyzer = Analyzer::new(
         config,
-        Arc::new(wdl_modules::NullResolver),
-        None,
+        wdl_analysis::ResolutionContext::default(),
         |_, _, _, _| async {},
     );
     analyzer

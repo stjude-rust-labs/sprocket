@@ -1680,7 +1680,7 @@ impl State {
             .as_ref()
             .map(|(_, ns)| {
                 ns.namespace()
-                    .expect("workflow execution should not see failed namespaces")
+                    .expect("analyzed namespaces should be resolved, not failed")
                     .document()
             })
             .unwrap_or(&self.document);
@@ -1902,8 +1902,7 @@ workflow test {
         // Analyze the source file
         let analyzer = Analyzer::new(
             AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
-            Arc::new(wdl_modules::NullResolver),
-            None,
+            wdl_analysis::ResolutionContext::default(),
             |(), _, _, _| async {},
         );
         analyzer
@@ -2061,8 +2060,7 @@ workflow foo {
         // Analyze the source file
         let analyzer = Analyzer::new(
             AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
-            Arc::new(wdl_modules::NullResolver),
-            None,
+            wdl_analysis::ResolutionContext::default(),
             |(), _, _, _| async {},
         );
         analyzer
@@ -2274,8 +2272,7 @@ workflow w {
         // Analyze the source files
         let analyzer = Analyzer::new(
             AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
-            Arc::new(wdl_modules::NullResolver),
-            None,
+            wdl_analysis::ResolutionContext::default(),
             |(), _, _, _| async {},
         );
         analyzer
@@ -2390,8 +2387,7 @@ workflow w {
         // Analyze the source files
         let analyzer = Analyzer::new(
             AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
-            Arc::new(wdl_modules::NullResolver),
-            None,
+            wdl_analysis::ResolutionContext::default(),
             |(), _, _, _| async {},
         );
         analyzer

@@ -16,6 +16,7 @@ pub(crate) mod error;
 pub(crate) mod fetch;
 #[cfg(feature = "resolver")]
 mod git;
+#[cfg(feature = "resolver")]
 pub(crate) mod lock;
 #[cfg(feature = "resolver")]
 pub(crate) mod policy;
@@ -56,6 +57,7 @@ use crate::GitModulePath;
 use crate::GitSelector;
 #[cfg(feature = "resolver")]
 use crate::Lockfile;
+#[cfg(feature = "resolver")]
 use crate::Manifest;
 use crate::Module;
 #[cfg(feature = "resolver")]
@@ -82,7 +84,9 @@ pub use crate::resolver::error::MissingFileKind;
 pub use crate::resolver::error::ResolverError;
 #[cfg(feature = "resolver")]
 use crate::resolver::fetch::GitFetcher;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::lock::DependencyChange;
+#[cfg(feature = "resolver")]
 pub use crate::resolver::lock::DependencyUpdate;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::lock::LockfileDiff;

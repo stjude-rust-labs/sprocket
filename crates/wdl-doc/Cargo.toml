@@ -22,7 +22,6 @@ serde_json.workspace = true
 tokio.workspace = true
 wdl-analysis = { path = "../wdl-analysis", version = "0.20.0" }
 wdl-ast = { path = "../wdl-ast", version = "0.23.0" }
-wdl-modules = { path = "../wdl-modules", version = "0.1.0" }
 which.workspace = true
 
 [dev-dependencies]

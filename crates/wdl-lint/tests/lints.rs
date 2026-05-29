@@ -16,7 +16,6 @@ use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 use std::path::absolute;
-use std::sync::Arc;
 
 use anyhow::Context as _;
 use anyhow::bail;
@@ -140,8 +139,7 @@ async fn run_test_inner(
 ) -> Result<(), anyhow::Error> {
     let analyzer = Analyzer::new_with_validator(
         AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
-        Arc::new(wdl_modules::NullResolver),
-        None,
+        wdl_analysis::ResolutionContext::default(),
         |_, _, _, _| async {},
         move || {
             let mut validator = Validator::default();

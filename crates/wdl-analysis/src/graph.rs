@@ -658,11 +658,10 @@ impl DocumentGraph {
             .map(|e| e.source())
     }
 
-    /// Looks up a previously resolved symbolic import by walking the
-    /// outgoing edges of the importer.
+    /// Looks up a previously resolved symbolic import of the importer.
     ///
-    /// Edges are stored reversed (dependent → dependency), so the walk
-    /// runs over **incoming** edges in the underlying graph.
+    /// Dependency edges are stored reversed (dependency → dependent), so the
+    /// importer's dependencies are reached by walking its incoming edges.
     pub fn get_resolved_symbolic_import(
         &self,
         importer: NodeIndex,

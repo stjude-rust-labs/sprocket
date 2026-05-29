@@ -6,7 +6,6 @@ use std::ops::Range;
 use std::panic;
 use std::panic::AssertUnwindSafe;
 use std::path::Path;
-use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -63,6 +62,12 @@ use crate::rayon::RayonHandle;
 
 /// The minimum number of milliseconds between analysis progress reports.
 const MINIMUM_PROGRESS_MILLIS: u128 = 50;
+
+/// The maximum number of symbolic-import `materialize` calls allowed to run
+/// concurrently. This bounds the parallel git clones and fetches a single
+/// document's imports can trigger so that a manifest with many dependencies
+/// cannot exhaust file descriptors, disk, or network during analysis.
+const MAX_CONCURRENT_MATERIALIZATIONS: usize = 8;
 
 /// Represents a request to the analysis queue.
 pub enum Request<Context> {
@@ -314,12 +319,12 @@ where
     pub fn new(
         config: Config,
         tokio: Handle,
-        resolver: Arc<dyn wdl_modules::Resolver>,
-        manifest_path: Option<PathBuf>,
+        resolution: crate::ResolutionContext,
         progress: Progress,
         validator: Validator,
     ) -> Self {
-        let consumer_module = manifest_path
+        let consumer_module = resolution
+            .manifest_path
             .as_ref()
             .and_then(|p| Module::load_from_path(p.parent()?).ok());
 
@@ -327,7 +332,7 @@ where
             graph: Arc::new(RwLock::new(DocumentGraph::new(config.clone()))),
             config,
             tokio,
-            resolver,
+            resolver: resolution.resolver,
             consumer_module,
             document_modules: parking_lot::Mutex::new(HashMap::new()),
             progress: Arc::new(progress),
@@ -1015,6 +1020,13 @@ where
         }
 
         graph.gc();
+
+        // Drop module mappings for any document the collection removed from
+        // the graph so the map does not grow unbounded across edit and remove
+        // cycles in a long-lived session.
+        self.document_modules
+            .lock()
+            .retain(|uri, _| graph.get_index(uri).is_some());
     }
 
     /// Awaits the given set of futures while providing progress to the given
@@ -1196,11 +1208,22 @@ where
                                         None => continue,
                                     };
 
-                                    let Ok(symbolic_path): Result<SymbolicPath, _> =
-                                        module_path.text().try_into()
-                                    else {
-                                        continue;
-                                    };
+                                    let symbolic_path: SymbolicPath =
+                                        match module_path.text().try_into() {
+                                            Ok(path) => path,
+                                            Err(e) => {
+                                                // Record the syntax failure so the
+                                                // import surfaces a precise diagnostic
+                                                // instead of the generic "not in a
+                                                // module" message during analysis.
+                                                graph.insert_failed_symbolic_import(
+                                                    index,
+                                                    module_path.text().to_string(),
+                                                    e.to_string(),
+                                                );
+                                                continue;
+                                            }
+                                        };
 
                                     work.push(SymbolicWorkItem {
                                         importer: index,
@@ -1221,13 +1244,18 @@ where
         };
         // graph write lock is released here.
 
-        // Phase B: drive all `materialize` calls concurrently.
+        // Phase B: drive the `materialize` calls concurrently, capped at
+        // `MAX_CONCURRENT_MATERIALIZATIONS` in flight so a manifest declaring
+        // many dependencies cannot drive an unbounded number of parallel
+        // clones or fetches.
         //
-        // Each future yields `(importer, path_text, result)` so that Phase C
-        // can stitch the results back into the graph without holding the lock
-        // during I/O.
+        // Each future yields the parsed `SymbolicPath` alongside the importer
+        // and raw path text so that Phase C can stitch the results back into
+        // the graph without holding the lock during I/O and without re-parsing
+        // the path.
         type MaterializeOutcome = (
             NodeIndex,
+            SymbolicPath,
             String,
             Result<wdl_modules::MaterializedFile, wdl_modules::ResolverError>,
         );
@@ -1240,22 +1268,20 @@ where
                 "resolving symbolic imports concurrently",
             );
             let resolver = Arc::clone(&self.resolver);
-            let futures: FuturesUnordered<_> = symbolic_work
-                .into_iter()
-                .map(|item| {
-                    let resolver = Arc::clone(&resolver);
-                    async move {
-                        tracing::debug!(path = %item.path_text, "resolving symbolic import");
-                        let result = resolver
-                            .materialize(&item.consumer_module, &item.symbolic_path)
-                            .await;
-                        (item.importer, item.path_text, result)
-                    }
-                })
-                .collect();
+            let stream = futures::stream::iter(symbolic_work.into_iter().map(|item| {
+                let resolver = Arc::clone(&resolver);
+                async move {
+                    tracing::debug!(path = %item.path_text, "resolving symbolic import");
+                    let result = resolver
+                        .materialize(&item.consumer_module, &item.symbolic_path)
+                        .await;
+                    (item.importer, item.symbolic_path, item.path_text, result)
+                }
+            }))
+            .buffer_unordered(MAX_CONCURRENT_MATERIALIZATIONS);
 
             self.tokio
-                .block_on(futures.collect::<Vec<MaterializeOutcome>>())
+                .block_on(stream.collect::<Vec<MaterializeOutcome>>())
         };
 
         // Phase C: under graph.write(), stitch materialization results and run
@@ -1263,7 +1289,7 @@ where
         {
             let mut graph = self.graph.write();
 
-            for (importer, path_text, outcome) in materialized_results {
+            for (importer, symbolic_path, path_text, outcome) in materialized_results {
                 match outcome {
                     Ok(materialized) => {
                         let import_uri = match Url::from_file_path(&materialized.path) {
@@ -1287,10 +1313,6 @@ where
                         // scope by the dep name so transitive imports from
                         // this file resolve their own relative paths and
                         // lockfile entries correctly.
-                        let symbolic_path: SymbolicPath = match path_text.parse() {
-                            Ok(p) => p,
-                            Err(_) => continue,
-                        };
                         let import_manifest_dir = materialized
                             .path
                             .parent()
@@ -1309,10 +1331,9 @@ where
                             .lock()
                             .insert(import_uri.clone(), import_module);
 
-                        let import_uri = Arc::new(import_uri);
                         let import_index = graph
                             .get_index(&import_uri)
-                            .unwrap_or_else(|| graph.add_node((*import_uri).clone(), false));
+                            .unwrap_or_else(|| graph.add_node(import_uri.clone(), false));
                         graph.add_dependency_edge(
                             importer,
                             import_index,

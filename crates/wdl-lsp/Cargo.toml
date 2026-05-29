@@ -26,7 +26,6 @@ uuid = { workspace = true, features = ["v4"] }
 wdl-analysis = { path = "../wdl-analysis", version = "0.20.0" }
 wdl-ast = { path = "../wdl-ast", version = "0.23.0" }
 wdl-lint = { path = "../wdl-lint", version = "0.23.0" }
-wdl-modules = { path = "../wdl-modules", version = "0.1.0" }
 
 [dev-dependencies]
 blake3 = { workspace = true }

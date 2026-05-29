@@ -2046,7 +2046,6 @@ impl<'a> State<'a> {
 mod test {
     use std::fs;
     use std::path::Path;
-    use std::sync::Arc;
 
     use pretty_assertions::assert_eq;
     use tempfile::tempdir;
@@ -2071,8 +2070,7 @@ mod test {
         // Analyze the source file
         let analyzer = Analyzer::new(
             AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
-            Arc::new(wdl_modules::NullResolver),
-            None,
+            wdl_analysis::ResolutionContext::default(),
             |(), _, _, _| async {},
         );
         analyzer

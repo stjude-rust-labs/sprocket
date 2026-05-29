@@ -17,7 +17,6 @@
 use std::env;
 use std::path::Path;
 use std::path::absolute;
-use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -47,8 +46,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
     async move {
         let analyzer = Analyzer::new(
             config.analysis,
-            Arc::new(wdl_modules::NullResolver),
-            None,
+            wdl_analysis::ResolutionContext::default(),
             |(), _, _, _| async {},
         );
         analyzer

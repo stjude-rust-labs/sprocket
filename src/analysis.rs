@@ -146,38 +146,53 @@ impl Analysis {
         self
     }
 
-    /// Checks the current working directory for a `module.json` and
-    /// constructs a resolver if one is found and `modules_config` is
-    /// set.
+    /// Determines the directory to search for a `module.json`, derived from
+    /// the first local source. Remote URL sources have no on-disk manifest.
+    ///
+    /// The search is anchored to the sources being analyzed rather than the
+    /// process working directory so that a command invoked from elsewhere
+    /// (for example `sprocket check ./project`) still discovers the manifest
+    /// that governs those sources.
+    fn module_search_dir(&self) -> Option<PathBuf> {
+        self.sources.iter().find_map(|source| match source {
+            Source::Directory(path) => Some(path.clone()),
+            Source::File(url) => url
+                .to_file_path()
+                .ok()
+                .and_then(|path| path.parent().map(Path::to_path_buf)),
+            Source::Url(_) => None,
+        })
+    }
+
+    /// Checks the source directory and its ancestors for a `module.json` and
+    /// constructs a resolver if one is found and `modules_config` is set.
     ///
     /// Returns an error if a `module.json` is present but malformed.
-    fn build_resolver_from_cwd(
+    fn build_resolver_from_sources(
         &self,
     ) -> anyhow::Result<(Arc<dyn wdl_modules::Resolver>, Option<PathBuf>)> {
         let Some(ref modules_config) = self.modules_config else {
             return Ok((Arc::new(wdl_modules::NullResolver), None));
         };
 
-        let cwd = match std::env::current_dir() {
-            Ok(cwd) => cwd,
-            Err(_) => return Ok((Arc::new(wdl_modules::NullResolver), None)),
+        let Some(start) = self.module_search_dir() else {
+            return Ok((Arc::new(wdl_modules::NullResolver), None));
         };
 
-        let manifest_path = match discover_manifest(&cwd)? {
+        let manifest_path = match discover_manifest_upward(&start)? {
             Some((path, _)) => path,
             None => return Ok((Arc::new(wdl_modules::NullResolver), None)),
         };
 
-        match build_resolver(modules_config, &manifest_path) {
-            Ok(Some((resolver, path))) => {
+        match build_resolver(modules_config, &manifest_path)? {
+            Some((resolver, path)) => {
                 info!(
                     manifest = %path.display(),
                     "found `module.json`; symbolic imports will resolve through the module system"
                 );
                 Ok((resolver, Some(path)))
             }
-            Ok(None) => Ok((Arc::new(wdl_modules::NullResolver), None)),
-            Err(e) => Err(e),
+            None => Ok((Arc::new(wdl_modules::NullResolver), None)),
         }
     }
 
@@ -203,7 +218,7 @@ impl Analysis {
             info!("disabled lint rules: {:?}", disabled_rules);
         }
         let (resolver, manifest_path) = self
-            .build_resolver_from_cwd()
+            .build_resolver_from_sources()
             .map_err(|e| NonEmpty::new(Arc::new(e)))?;
 
         let config = wdl::analysis::Config::default()
@@ -232,8 +247,7 @@ impl Analysis {
 
         let mut analyzer = Analyzer::new_with_validator(
             config,
-            resolver,
-            manifest_path,
+            wdl::analysis::ResolutionContext::new(resolver, manifest_path),
             move |_, kind, count, total| (self.progress)(kind, count, total),
             validator,
         );
@@ -331,6 +345,30 @@ pub(crate) fn discover_manifest(
         .with_context(|| format!("parsing `{}`", manifest_path.display()))?;
 
     Ok(Some((manifest_path, manifest)))
+}
+
+/// Discovers a `module.json` at `start` or an ancestor directory, walking
+/// upward but never past the enclosing repository root.
+///
+/// Returns the first manifest found, or `Ok(None)` if none exists at or below
+/// the enclosing repository root. The walk stops after examining the first
+/// directory that contains a `.git` entry so discovery never reaches an
+/// unrelated `module.json` outside the project. Returns an error if a manifest
+/// exists but cannot be read or parsed.
+pub(crate) fn discover_manifest_upward(
+    start: &Path,
+) -> anyhow::Result<Option<(PathBuf, wdl_modules::Manifest)>> {
+    for dir in start.ancestors() {
+        if let Some(found) = discover_manifest(dir)? {
+            return Ok(Some(found));
+        }
+
+        if dir.join(".git").exists() {
+            break;
+        }
+    }
+
+    Ok(None)
 }
 
 /// Constructs a [`GitResolver`](wdl_modules::GitResolver) from the given
@@ -458,8 +496,14 @@ fn get_lint_visitor(
 mod tests {
     use std::path::Path;
 
+    use super::Analysis;
+    use super::Source;
     use super::default_cache_root;
     use super::default_trust_path;
+    use super::discover_manifest_upward;
+
+    /// Minimal valid `module.json` contents for discovery tests.
+    const MANIFEST: &[u8] = br#"{"name":"example","version":"0.1.0","license":"MIT"}"#;
 
     #[test]
     fn cache_root_uses_manifest_dir() {
@@ -522,5 +566,54 @@ mod tests {
                 result.display()
             );
         }
+    }
+
+    #[test]
+    fn discover_manifest_upward_finds_ancestor() {
+        let root = tempfile::TempDir::new().unwrap();
+        std::fs::write(root.path().join(wdl_modules::MANIFEST_FILENAME), MANIFEST).unwrap();
+        let nested = root.path().join("a").join("b");
+        std::fs::create_dir_all(&nested).unwrap();
+
+        let found = discover_manifest_upward(&nested)
+            .unwrap()
+            .expect("`discover_manifest_upward` should find a `module.json` in an ancestor");
+        assert_eq!(
+            found.0,
+            root.path().join(wdl_modules::MANIFEST_FILENAME),
+            "`discover_manifest_upward` should return the ancestor `module.json` path"
+        );
+    }
+
+    #[test]
+    fn discover_manifest_upward_stops_at_git_root() {
+        let outer = tempfile::TempDir::new().unwrap();
+        // A `module.json` above the repository root must not be discovered.
+        std::fs::write(outer.path().join(wdl_modules::MANIFEST_FILENAME), MANIFEST).unwrap();
+        let repo = outer.path().join("repo");
+        std::fs::create_dir_all(repo.join(".git")).unwrap();
+        let nested = repo.join("src");
+        std::fs::create_dir_all(&nested).unwrap();
+
+        assert!(
+            discover_manifest_upward(&nested).unwrap().is_none(),
+            "the walk should stop at the `.git` repository root and ignore an ancestor \
+             `module.json`"
+        );
+    }
+
+    #[test]
+    fn module_search_dir_uses_file_parent() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let file = dir.path().join("main.wdl");
+        std::fs::write(&file, "version 1.2\n").unwrap();
+        let url = url::Url::from_file_path(&file).unwrap();
+
+        let analysis = Analysis::default().add_source(Source::File(url));
+        assert_eq!(
+            analysis.module_search_dir().as_deref(),
+            Some(dir.path()),
+            "`module_search_dir` should return the parent directory of a file source"
+        );
     }
 }

@@ -559,99 +559,66 @@ fn add_wildcard_import(
     }
 
     for (name, task) in &imported.data.tasks {
-        if document.tasks.contains_key(name) || document.imported_tasks.contains_key(name) {
-            document.analysis_diagnostics.push(wildcard_import_conflict(
-                name,
-                span,
-                document
-                    .tasks
-                    .get(name)
-                    .map(|t| t.name_span)
-                    .or_else(|| document.imported_tasks.get(name).map(|t| t.span))
-                    .unwrap_or(span),
-            ));
-            continue;
-        }
-        document.imported_tasks.insert(
-            name.clone(),
+        insert_imported_task(
+            document,
+            name,
             ImportedTask {
                 span,
                 source: uri.clone(),
                 inputs: task.inputs.clone(),
                 outputs: task.outputs.clone(),
             },
+            span,
+            span,
+            wildcard_import_conflict,
         );
     }
 
     for (name, task) in &imported.data.imported_tasks {
-        if document.tasks.contains_key(name) || document.imported_tasks.contains_key(name) {
-            document.analysis_diagnostics.push(wildcard_import_conflict(
-                name,
-                span,
-                document
-                    .tasks
-                    .get(name)
-                    .map(|t| t.name_span)
-                    .or_else(|| document.imported_tasks.get(name).map(|t| t.span))
-                    .unwrap_or(span),
-            ));
-            continue;
-        }
-        document.imported_tasks.insert(
-            name.clone(),
+        insert_imported_task(
+            document,
+            name,
             ImportedTask {
                 span,
                 source: task.source.clone(),
                 inputs: task.inputs.clone(),
                 outputs: task.outputs.clone(),
             },
+            span,
+            span,
+            wildcard_import_conflict,
         );
     }
 
     if let Some(workflow) = &imported.data.workflow {
-        let name = &workflow.name;
-        if document.imported_workflows.contains_key(name) {
-            let prev_span = document
-                .imported_workflows
-                .get(name)
-                .map(|w| w.span)
-                .unwrap_or(span);
-            document
-                .analysis_diagnostics
-                .push(wildcard_import_conflict(name, span, prev_span));
-        } else {
-            document.imported_workflows.insert(
-                name.clone(),
-                ImportedWorkflow {
-                    span,
-                    source: uri.clone(),
-                    inputs: workflow.inputs.clone(),
-                    outputs: workflow.outputs.clone(),
-                },
-            );
-        }
+        insert_imported_workflow(
+            document,
+            &workflow.name,
+            ImportedWorkflow {
+                span,
+                source: uri.clone(),
+                inputs: workflow.inputs.clone(),
+                outputs: workflow.outputs.clone(),
+            },
+            span,
+            span,
+            wildcard_import_conflict,
+        );
     }
 
     for (name, workflow) in &imported.data.imported_workflows {
-        if document.imported_workflows.contains_key(name) {
-            let prev_span = document
-                .imported_workflows
-                .get(name)
-                .map(|w| w.span)
-                .unwrap_or(span);
-            document
-                .analysis_diagnostics
-                .push(wildcard_import_conflict(name, span, prev_span));
-            continue;
-        }
-        document.imported_workflows.insert(
-            name.clone(),
+        insert_imported_workflow(
+            document,
+            name,
             ImportedWorkflow {
                 span,
                 source: workflow.source.clone(),
                 inputs: workflow.inputs.clone(),
                 outputs: workflow.outputs.clone(),
             },
+            span,
+            span,
+            wildcard_import_conflict,
         );
     }
 }
@@ -849,23 +816,14 @@ fn import_selected_task(
         return false;
     };
 
-    if document.tasks.contains_key(local_name) || document.imported_tasks.contains_key(local_name) {
-        let prev_span = document
-            .tasks
-            .get(local_name)
-            .map(|t| t.name_span)
-            .or_else(|| document.imported_tasks.get(local_name).map(|t| t.span))
-            .unwrap_or(span);
-        document.analysis_diagnostics.push(selected_import_conflict(
-            local_name,
-            member_span,
-            prev_span,
-        ));
-        return true;
-    }
-    document
-        .imported_tasks
-        .insert(local_name.to_string(), entry);
+    insert_imported_task(
+        document,
+        local_name,
+        entry,
+        member_span,
+        span,
+        selected_import_conflict,
+    );
     true
 }
 
@@ -903,23 +861,78 @@ fn import_selected_workflow(
         return false;
     };
 
+    insert_imported_workflow(
+        document,
+        local_name,
+        entry,
+        member_span,
+        span,
+        selected_import_conflict,
+    );
+    true
+}
+
+/// Inserts a re-exported task into `document` under `local_name`.
+///
+/// When a task or imported task by that name already exists, the `conflict`
+/// diagnostic is emitted (highlighting `conflict_span` and the previous
+/// definition) and the entry is not inserted. `fallback_span` is used as the
+/// previous-definition span when neither map records one.
+fn insert_imported_task(
+    document: &mut DocumentData,
+    local_name: &str,
+    entry: ImportedTask,
+    conflict_span: Span,
+    fallback_span: Span,
+    conflict: impl Fn(&str, Span, Span) -> Diagnostic,
+) {
+    if document.tasks.contains_key(local_name) || document.imported_tasks.contains_key(local_name) {
+        let prev_span = document
+            .tasks
+            .get(local_name)
+            .map(|t| t.name_span)
+            .or_else(|| document.imported_tasks.get(local_name).map(|t| t.span))
+            .unwrap_or(fallback_span);
+        document
+            .analysis_diagnostics
+            .push(conflict(local_name, conflict_span, prev_span));
+        return;
+    }
+
+    document
+        .imported_tasks
+        .insert(local_name.to_string(), entry);
+}
+
+/// Inserts a re-exported workflow into `document` under `local_name`.
+///
+/// When an imported workflow by that name already exists, the `conflict`
+/// diagnostic is emitted (highlighting `conflict_span` and the previous
+/// definition) and the entry is not inserted. `fallback_span` is used as the
+/// previous-definition span when the map records none.
+fn insert_imported_workflow(
+    document: &mut DocumentData,
+    local_name: &str,
+    entry: ImportedWorkflow,
+    conflict_span: Span,
+    fallback_span: Span,
+    conflict: impl Fn(&str, Span, Span) -> Diagnostic,
+) {
     if document.imported_workflows.contains_key(local_name) {
         let prev_span = document
             .imported_workflows
             .get(local_name)
             .map(|w| w.span)
-            .unwrap_or(span);
-        document.analysis_diagnostics.push(selected_import_conflict(
-            local_name,
-            member_span,
-            prev_span,
-        ));
-        return true;
+            .unwrap_or(fallback_span);
+        document
+            .analysis_diagnostics
+            .push(conflict(local_name, conflict_span, prev_span));
+        return;
     }
+
     document
         .imported_workflows
         .insert(local_name.to_string(), entry);
-    true
 }
 
 /// Creates a diagnostic for a wildcard import conflict.
