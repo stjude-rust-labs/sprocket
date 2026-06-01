@@ -639,7 +639,7 @@ impl Runner {
         let run_dir = root.join(id.iteration_num.to_string());
         let events = Events::disabled();
         let target = id.target.clone();
-        let cancellation = self.cancellation.clone();
+        let cancellation = self.cancellation.child(FailureMode::Fast);
         futures.spawn(
             async move {
                 let evaluator =

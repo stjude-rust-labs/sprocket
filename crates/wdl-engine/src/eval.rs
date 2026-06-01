@@ -166,6 +166,20 @@ impl CancellationContext {
         }
     }
 
+    /// Creates a new child cancellation context
+    ///
+    /// The returned [`CancellationContext`] is bound to the parent and will be
+    /// affected by its cancellation. However, cancelling the child will not
+    /// affect the parent.
+    pub fn child(&self, mode: FailureMode) -> Self {
+        Self {
+            mode,
+            state: Arc::new(CANCELLATION_STATE_NOT_CANCELED.into()),
+            first: self.first.child_token(),
+            second: self.second.child_token(),
+        }
+    }
+
     /// Gets the [`CancellationContextState`] of this [`CancellationContext`].
     pub fn state(&self) -> CancellationContextState {
         CancellationContextState::get(&self.state)
@@ -857,5 +871,29 @@ mod test {
         assert!(!context.user_canceled());
         assert!(context.first.is_cancelled());
         assert!(context.second.is_cancelled());
+    }
+
+    #[test]
+    fn cancellation_child() {
+        let context = CancellationContext::new(FailureMode::Fast);
+        assert_eq!(context.state(), CancellationContextState::NotCanceled);
+
+        // Children can have a different failure mode
+        let child = context.child(FailureMode::Slow);
+        assert_eq!(child.state(), CancellationContextState::NotCanceled);
+        assert_eq!(child.cancel(), CancellationContextState::Waiting);
+        assert_eq!(child.cancel(), CancellationContextState::Canceling);
+        assert!(child.user_canceled());
+        assert!(child.first.is_cancelled());
+        assert!(child.second.is_cancelled());
+
+        // Child cancellation doesn't affect the parent
+        assert_eq!(context.state(), CancellationContextState::NotCanceled);
+
+        // But parent cancellation affects the child
+        let child = context.child(FailureMode::Fast);
+        assert_eq!(context.cancel(), CancellationContextState::Canceling);
+        assert!(child.first.is_cancelled());
+        assert!(child.second.is_cancelled());
     }
 }

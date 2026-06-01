@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added `CancellationContext::child()` to create dependent cancellation contexts ([#891](https://github.com/stjude-rust-labs/sprocket/pull/891)).
+
 #### Fixed
 
 * Fixed shared lock acquisition to reopen new lock files read-only before locking ([#869](https://github.com/stjude-rust-labs/sprocket/pull/869)).

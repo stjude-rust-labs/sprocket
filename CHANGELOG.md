@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `sprocket run` will no longer create `out` directories for runs with invalid CLI inputs ([#863](https://github.com/stjude-rust-labs/sprocket/pull/863)).
 
+### Fixed
+
+* Fixed a bug in `sprocket dev test` where a failing test would cause other tests to
+  fail ([#891](https://github.com/stjude-rust-labs/sprocket/pull/891)).
+
 ## 0.25.0 - 2026-05-14
 
 ### Added
