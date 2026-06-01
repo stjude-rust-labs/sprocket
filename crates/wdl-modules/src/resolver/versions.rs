@@ -252,7 +252,7 @@ mod tests {
     use super::*;
 
     fn req(s: &str) -> VersionRequirement {
-        s.to_string().try_into().unwrap()
+        s.parse().unwrap()
     }
 
     /// Builds a `RemoteRefs` map from tag names, using a sentinel commit

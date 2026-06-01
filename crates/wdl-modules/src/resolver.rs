@@ -1079,7 +1079,7 @@ mod tests {
 
         let cache = tempdir().unwrap();
         let err = resolver(&cache)
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -1108,7 +1108,7 @@ mod tests {
         lockfile.dependencies.get_mut(&dep_name).unwrap().checksum = hash_from_byte(42);
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -1134,7 +1134,7 @@ mod tests {
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
         let mat = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap();
         assert_eq!(mat.path, dep_dir.join("index.wdl").canonicalize().unwrap());
@@ -1162,7 +1162,7 @@ mod tests {
 
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -1200,7 +1200,7 @@ mod tests {
 
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer2, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer2, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -1322,7 +1322,7 @@ mod tests {
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
         let mat = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap();
         assert_eq!(mat.path, dep_dir.join("index.wdl").canonicalize().unwrap());
@@ -1353,7 +1353,7 @@ mod tests {
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
         let mat = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap();
         assert_eq!(mat.path, dep_dir.join("main.wdl").canonicalize().unwrap());
@@ -1376,7 +1376,7 @@ mod tests {
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
         let mat = r
-            .materialize(&consumer, &"dep/cut".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep/cut".parse().unwrap())
             .await
             .unwrap();
         assert_eq!(mat.path, dep_dir.join("cut.wdl").canonicalize().unwrap());
@@ -1420,10 +1420,7 @@ mod tests {
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
         let err = r
-            .materialize(
-                &consumer,
-                &"dep/internal/private".to_string().try_into().unwrap(),
-            )
+            .materialize(&consumer, &"dep/internal/private".parse().unwrap())
             .await
             .unwrap_err();
         let ResolverError::MissingFile { kind, .. } = err else {
@@ -1462,7 +1459,7 @@ mod tests {
             .lockfile(lockfile)
             .build();
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -1495,7 +1492,7 @@ mod tests {
 
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         // Tampered content changes the hash, which the signature or
@@ -1539,7 +1536,7 @@ mod tests {
         let (r, _) =
             resolve_and_lock_with_config(&cache, &consumer, ResolverPolicy::default(), trust).await;
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -1579,7 +1576,7 @@ mod tests {
 
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -1603,7 +1600,7 @@ mod tests {
 
         let cache = tempdir().unwrap();
         let err = resolver(&cache)
-            .materialize(&consumer, &"missing".to_string().try_into().unwrap())
+            .materialize(&consumer, &"missing".parse().unwrap())
             .await
             .unwrap_err();
         assert!(matches!(err, ResolverError::NotADependency { .. }));
@@ -1999,7 +1996,7 @@ mod tests {
 
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -2044,7 +2041,7 @@ mod tests {
 
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -2077,7 +2074,7 @@ mod tests {
 
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -2103,7 +2100,7 @@ mod tests {
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
         let mat = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap();
         assert!(mat.path.exists());

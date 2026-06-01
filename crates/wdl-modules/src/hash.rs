@@ -8,8 +8,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use serde::Deserialize;
-use serde::Serialize;
+use serde_with::DeserializeFromStr;
+use serde_with::SerializeDisplay;
 use sha2::Digest;
 use sha2::Sha256;
 use thiserror::Error;
@@ -87,8 +87,9 @@ const SHA256_PREFIX: &str = "sha256:";
 const CONTENT_HASH_MAGIC: &[u8] = b"wdl-module-content\0v1\0";
 
 /// A 32-byte SHA-256 module content hash.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-#[serde(into = "String", try_from = "String")]
+#[derive(
+    Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, SerializeDisplay, DeserializeFromStr,
+)]
 pub struct ContentHash([u8; 32]);
 
 impl ContentHash {
@@ -113,14 +114,6 @@ impl From<[u8; 32]> for ContentHash {
 impl From<ContentHash> for String {
     fn from(hash: ContentHash) -> Self {
         hash.to_string()
-    }
-}
-
-impl TryFrom<String> for ContentHash {
-    type Error = ContentHashError;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        s.parse()
     }
 }
 

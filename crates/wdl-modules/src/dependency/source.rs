@@ -111,7 +111,7 @@ impl TryFrom<DependencySourceFields> for DependencySource {
                 let url =
                     Url::parse(&g).map_err(|e| DependencySourceError::InvalidUrl(e.to_string()))?;
                 let selector = if let Some(v) = version {
-                    GitSelector::Version(VersionRequirement::try_from(v)?)
+                    GitSelector::Version(v.parse::<VersionRequirement>()?)
                 } else if let Some(t) = tag {
                     GitSelector::Tag(t)
                 } else if let Some(b) = branch {
@@ -124,7 +124,10 @@ impl TryFrom<DependencySourceFields> for DependencySource {
                     // field, so one of them must match.
                     unreachable!()
                 };
-                let validated_path = git_subpath.map(GitModulePath::try_from).transpose()?;
+                let validated_path = git_subpath
+                    .as_deref()
+                    .map(GitModulePath::try_from)
+                    .transpose()?;
                 Ok(Self::Git {
                     url,
                     selector,

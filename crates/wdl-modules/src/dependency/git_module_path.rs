@@ -18,8 +18,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use serde::Deserialize;
-use serde::Serialize;
+use serde_with::DeserializeFromStr;
+use serde_with::SerializeDisplay;
 use thiserror::Error;
 
 use crate::RelativePath;
@@ -45,8 +45,9 @@ pub enum GitModulePathError {
 /// `module.json`. Wraps [`RelativePath`] and additionally rejects `"."`
 /// and empty strings, both of which are semantically equivalent to "no
 /// sub-path" (i.e., the module sits at the repository root).
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-#[serde(into = "String", try_from = "String")]
+#[derive(
+    Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, SerializeDisplay, DeserializeFromStr,
+)]
 pub struct GitModulePath(RelativePath);
 
 impl GitModulePath {
@@ -97,35 +98,25 @@ impl From<GitModulePath> for PathBuf {
     }
 }
 
-impl TryFrom<String> for GitModulePath {
-    type Error = GitModulePathError;
+impl FromStr for GitModulePath {
+    type Err = GitModulePathError;
 
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        Self::try_from(PathBuf::from(s))
-    }
-}
-
-impl TryFrom<PathBuf> for GitModulePath {
-    type Error = GitModulePathError;
-
-    fn try_from(p: PathBuf) -> Result<Self, Self::Error> {
-        let s = p.to_str().ok_or(RelativePathError::NonUtf8)?.to_string();
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.is_empty() {
             return Err(RelativePathError::Empty.into());
         }
         if s == "." {
             return Err(GitModulePathError::Dot);
         }
-        let rp = RelativePath::try_from(s)?;
-        Ok(Self(rp))
+        Ok(Self(RelativePath::from_str(s)?))
     }
 }
 
-impl FromStr for GitModulePath {
-    type Err = GitModulePathError;
+impl TryFrom<&Path> for GitModulePath {
+    type Error = GitModulePathError;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from(PathBuf::from(s))
+    fn try_from(path: &Path) -> Result<Self, Self::Error> {
+        path.to_str().ok_or(RelativePathError::NonUtf8)?.parse()
     }
 }
 

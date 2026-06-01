@@ -45,6 +45,7 @@ path-clean = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_with = { workspace = true }
 sha2 = { workspace = true }
 spdx = { workspace = true }
 ssh-key = { workspace = true }

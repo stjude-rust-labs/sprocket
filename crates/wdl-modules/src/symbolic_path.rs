@@ -47,20 +47,20 @@ impl SymbolicPath {
 
 /// Validates that a string matches `<dep-name>[/<sub-path>]` where every
 /// component (the dep name and each sub-path segment) is a WDL identifier.
-fn validate(s: String) -> Result<SymbolicPath, SymbolicPathError> {
+fn validate(s: &str) -> Result<SymbolicPath, SymbolicPathError> {
     let mut iter = s.split('/');
     // SAFETY: `str::split` always yields at least one item, even on the
     // empty string.
     let head = iter.next().unwrap();
 
     let dep_name =
-        DependencyName::try_from(head.to_string()).map_err(|_| SymbolicPathError(s.clone()))?;
+        DependencyName::try_from(head.to_string()).map_err(|_| SymbolicPathError(s.to_string()))?;
 
     let mut sub_path = PathBuf::new();
     let mut has_tail = false;
     for segment in iter {
         if !is_ident(segment) {
-            return Err(SymbolicPathError(s));
+            return Err(SymbolicPathError(s.to_string()));
         }
         sub_path.push(segment);
         has_tail = true;
@@ -72,19 +72,11 @@ fn validate(s: String) -> Result<SymbolicPath, SymbolicPathError> {
     })
 }
 
-impl TryFrom<String> for SymbolicPath {
-    type Error = SymbolicPathError;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        validate(s)
-    }
-}
-
 impl FromStr for SymbolicPath {
     type Err = SymbolicPathError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from(s.to_string())
+        validate(s)
     }
 }
 

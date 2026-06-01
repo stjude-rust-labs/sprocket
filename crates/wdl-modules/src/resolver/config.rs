@@ -5,6 +5,8 @@ use std::str::FromStr;
 
 use serde::Deserialize;
 use serde::Serialize;
+use serde_with::DeserializeFromStr;
+use serde_with::SerializeDisplay;
 use thiserror::Error;
 
 /// The `[modules]` configuration section.
@@ -228,8 +230,7 @@ pub(crate) fn is_non_public_ip(host: &str) -> bool {
 }
 
 /// Threshold for the large-file warning emitted at sign- and fetch-time.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(into = "String", try_from = "String")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, SerializeDisplay, DeserializeFromStr)]
 pub enum LargeFileWarning {
     /// The warning is disabled.
     Disabled,
@@ -259,19 +260,11 @@ impl FromStr for LargeFileWarning {
     }
 }
 
-impl TryFrom<String> for LargeFileWarning {
-    type Error = LargeFileWarningError;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        s.parse()
-    }
-}
-
-impl From<LargeFileWarning> for String {
-    fn from(v: LargeFileWarning) -> Self {
-        match v {
-            LargeFileWarning::Disabled => "none".to_string(),
-            LargeFileWarning::Threshold(b) => bytesize::ByteSize(b).to_string(),
+impl std::fmt::Display for LargeFileWarning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LargeFileWarning::Disabled => f.write_str("none"),
+            LargeFileWarning::Threshold(b) => write!(f, "{}", bytesize::ByteSize(*b)),
         }
     }
 }

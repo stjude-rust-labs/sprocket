@@ -6757,6 +6757,7 @@ dependencies = [
  "semver",
  "serde",
  "serde_json",
+ "serde_with",
  "sha2",
  "spdx",
  "ssh-key",
