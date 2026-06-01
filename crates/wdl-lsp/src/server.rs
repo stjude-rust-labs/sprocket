@@ -31,6 +31,7 @@ use serde::Deserialize;
 use serde::Deserializer;
 use serde_json::to_value;
 use struct_patch::Patch;
+use tokio::sync::mpsc::UnboundedReceiver;
 use tower::ServiceBuilder;
 use tracing::debug;
 use tracing::error;
@@ -270,6 +271,16 @@ pub struct ServerOptions {
     pub baseline: Option<wdl_lint::Baseline>,
 }
 
+impl ServerOptions {
+    /// Get info about the server.
+    fn info(&self) -> ServerInfo {
+        ServerInfo {
+            name: self.name.clone(),
+            version: Some(self.version.clone()),
+        }
+    }
+}
+
 impl Default for ServerOptions {
     fn default() -> Self {
         Self {
@@ -404,6 +415,10 @@ pub struct Server<S> {
     options: Arc<ServerOptions>,
     /// Mutable server state.
     state: Arc<tokio::sync::RwLock<ServerState<S>>>,
+    /// Sender for client [`Notification`]s.
+    notification_tx: tokio::sync::mpsc::UnboundedSender<Notification>,
+    /// Task handle for the notification loop.
+    _notification_loop_handle: tokio::task::JoinHandle<()>,
 }
 
 /// The server config and dependent fields.
@@ -478,6 +493,24 @@ impl ServerOptions {
     }
 }
 
+/// LSP notifications sent from the client.
+#[derive(Debug)]
+#[allow(clippy::enum_variant_names)]
+enum Notification {
+    /// A document was opened.
+    DidOpen(DidOpenTextDocumentParams),
+    /// A document changed.
+    DidChange(DidChangeTextDocumentParams),
+    /// A document was closed.
+    DidClose(DidCloseTextDocumentParams),
+    /// The workspace folders changed.
+    DidChangeWorkspaceFolders(DidChangeWorkspaceFoldersParams),
+    /// The [`UserOptions`] changed.
+    DidChangeConfiguration(DidChangeConfigurationParams),
+    /// A watched file/folder was changed.
+    DidChangeWatchedFiles(DidChangeWatchedFilesParams),
+}
+
 impl<S: 'static> Server<S> {
     /// Creates a new WDL language server.
     ///
@@ -489,18 +522,33 @@ impl<S: 'static> Server<S> {
         log_handle: Option<FilterReloadHandle<S>>,
     ) -> Self {
         let analyzer = options.analyzer(client.clone(), &user_options.lint);
+        let (notification_tx, notification_rx) = tokio::sync::mpsc::unbounded_channel();
+
+        let options = Arc::new(options);
+        let state = Arc::new(tokio::sync::RwLock::new(ServerState {
+            folders: Default::default(),
+            config: ServerConfig {
+                options: user_options,
+                analyzer,
+            },
+            log_handle,
+        }));
+
+        let state_clone = state.clone();
+        let options_clone = options.clone();
+        let client_clone = client.clone();
+        let notification_loop_handle = tokio::task::spawn(async move {
+            Self::notification_loop(notification_rx, state_clone, options_clone, client_clone)
+                .await;
+        });
+
         Self {
             client,
             client_support: Default::default(),
-            options: Arc::new(options),
-            state: Arc::new(tokio::sync::RwLock::new(ServerState {
-                folders: Default::default(),
-                config: ServerConfig {
-                    options: user_options,
-                    analyzer,
-                },
-                log_handle,
-            })),
+            options,
+            state,
+            notification_tx,
+            _notification_loop_handle: notification_loop_handle,
         }
     }
 
@@ -545,12 +593,255 @@ impl<S: 'static> Server<S> {
 
         server.run_buffered(stdin, stdout).await.map_err(Into::into)
     }
+}
 
-    /// Get info about the server.
-    fn info(&self) -> ServerInfo {
-        ServerInfo {
-            name: self.options.name.clone(),
-            version: Some(self.options.version.clone()),
+// Notification handlers
+impl<S: 'static> Server<S> {
+    /// Incoming [`Notification`] handler loop.
+    async fn notification_loop(
+        mut notification_rx: UnboundedReceiver<Notification>,
+        state: Arc<tokio::sync::RwLock<ServerState<S>>>,
+        options: Arc<ServerOptions>,
+        client: ClientSocket,
+    ) {
+        while let Some(notification) = notification_rx.recv().await {
+            match notification {
+                Notification::DidOpen(params) => {
+                    let state = state.read().await;
+                    Self::did_open(params, &state).await;
+                }
+                Notification::DidChange(params) => {
+                    let state = state.read().await;
+                    Self::did_change(params, &state).await;
+                }
+                Notification::DidClose(params) => {
+                    let state = state.read().await;
+                    Self::did_close(params, &state).await;
+                }
+                Notification::DidChangeWorkspaceFolders(params) => {
+                    let state = state.read().await;
+                    Self::did_change_workspace_folders(params, &state).await;
+                }
+                Notification::DidChangeConfiguration(params) => {
+                    let mut state = state.write().await;
+                    Self::did_change_configuration(params, &mut state, client.clone(), &options)
+                        .await;
+                }
+                Notification::DidChangeWatchedFiles(params) => {
+                    let state = state.read().await;
+                    Self::did_change_watched_files(params, &state).await;
+                }
+            }
+        }
+    }
+
+    /// `textDocument/didOpen` notification handler.
+    async fn did_open(params: DidOpenTextDocumentParams, state: &ServerState<S>) {
+        if let Err(e) = state
+            .config
+            .analyzer
+            .add_document(params.text_document.uri.clone())
+            .await
+        {
+            error!(
+                "failed to add document {uri}: {e}",
+                uri = params.text_document.uri
+            );
+        }
+
+        if let Err(e) = state.config.analyzer.notify_incremental_change(
+            params.text_document.uri,
+            IncrementalChange {
+                version: params.text_document.version,
+                start: Some(params.text_document.text),
+                edits: Vec::new(),
+            },
+        ) {
+            error!("failed to notify incremental change: {e}");
+        }
+    }
+
+    /// `textDocument/didClose` notification handler.
+    async fn did_close(params: DidCloseTextDocumentParams, state: &ServerState<S>) {
+        if let Err(e) = state
+            .config
+            .analyzer
+            .notify_change(params.text_document.uri, true)
+        {
+            error!("failed to notify change: {e}");
+        }
+    }
+
+    /// `textDocument/didChange` notification handler.
+    async fn did_change(mut params: DidChangeTextDocumentParams, state: &ServerState<S>) {
+        debug!(
+            "document `{uri}` is now client version {version}",
+            uri = params.text_document.uri,
+            version = params.text_document.version
+        );
+
+        // Look for the last full change (one without a range) and start there
+        let (start, changes) = match params
+            .content_changes
+            .iter()
+            .rposition(|change| change.range.is_none())
+        {
+            Some(idx) => (
+                Some(mem::take(&mut params.content_changes[idx].text)),
+                &mut params.content_changes[idx + 1..],
+            ),
+            None => (None, &mut params.content_changes[..]),
+        };
+
+        if let Err(e) = state.config.analyzer.notify_incremental_change(
+            params.text_document.uri,
+            IncrementalChange {
+                version: params.text_document.version,
+                start,
+                edits: changes
+                    .iter_mut()
+                    .map(|e| {
+                        let range = e.range.expect("edit should be after the last full change");
+                        SourceEdit::new(
+                            SourcePosition::new(range.start.line, range.start.character)
+                                ..SourcePosition::new(range.end.line, range.end.character),
+                            SourcePositionEncoding::UTF16,
+                            mem::take(&mut e.text),
+                        )
+                    })
+                    .collect(),
+            },
+        ) {
+            error!("failed to notify incremental change: {e}");
+        }
+    }
+
+    /// `workspace/didChangeWorkspaceFolders` notification handler.
+    async fn did_change_workspace_folders(
+        params: DidChangeWorkspaceFoldersParams,
+        state: &ServerState<S>,
+    ) {
+        // Process the removed folders
+        if !params.event.removed.is_empty()
+            && let Err(e) = state
+                .config
+                .analyzer
+                .remove_documents(
+                    params
+                        .event
+                        .removed
+                        .into_iter()
+                        .map(|mut f| {
+                            normalize_uri_path(&mut f.uri);
+                            f.uri
+                        })
+                        .collect(),
+                )
+                .await
+        {
+            error!("failed to remove documents from analyzer: {e}");
+        }
+
+        // Progress the added folders
+        if !params.event.added.is_empty() {
+            for folder in &params.event.added {
+                if let Ok(path) = folder.uri.to_file_path()
+                    && let Err(e) = state.config.analyzer.add_directory(path).await
+                {
+                    error!("failed to add documents from directory to analyzer: {e}");
+                }
+            }
+        }
+    }
+
+    /// `workspace/didChangeConfiguration` notification handler.
+    async fn did_change_configuration(
+        _params: DidChangeConfigurationParams,
+        state: &mut ServerState<S>,
+        client: ClientSocket,
+        options: &ServerOptions,
+    ) {
+        let workspace_configs = client
+            .request::<WorkspaceConfiguration>(ConfigurationParams {
+                items: vec![ConfigurationItem {
+                    scope_uri: None,
+                    section: Some(String::from("sprocket.server")),
+                }],
+            })
+            .await;
+
+        match workspace_configs {
+            Ok(mut configs) if !configs.is_empty() => {
+                match serde_json::from_value::<UserOptionsPatch>(configs.remove(0)) {
+                    Ok(patch) => state.apply_config_patch(client, options, patch),
+                    Err(e) => error!("failed to deserialize `UserOptionsPatch`: {e:?}"),
+                }
+            }
+            Ok(_) => error!("client returned no configuration"),
+            Err(e) => error!("failed to fetch workspace configuration: {e}"),
+        }
+    }
+
+    /// `workspace/didChangeWatchedFiles` notification handler.
+    async fn did_change_watched_files(params: DidChangeWatchedFilesParams, state: &ServerState<S>) {
+        /// Converts a URI into a WDL file path.
+        fn to_wdl_file_path(uri: &Url) -> Option<PathBuf> {
+            if let Ok(path) = uri.to_file_path()
+                && path.is_file()
+                && path.extension().and_then(OsStr::to_str) == Some("wdl")
+            {
+                return Some(path);
+            }
+
+            None
+        }
+
+        let mut added = Vec::new();
+        let mut deleted = Vec::new();
+        for mut event in params.changes {
+            normalize_uri_path(&mut event.uri);
+
+            match event.typ {
+                FileChangeType::CREATED => {
+                    let Some(path) = to_wdl_file_path(&event.uri) else {
+                        continue;
+                    };
+
+                    debug!("document `{uri}` has been created", uri = event.uri);
+                    added.push(path_to_uri(&path).expect("should convert to uri"));
+                }
+                FileChangeType::CHANGED => {
+                    if to_wdl_file_path(&event.uri).is_some() {
+                        debug!("document `{uri}` has been changed", uri = event.uri);
+                        if let Err(e) = state.config.analyzer.notify_change(event.uri, false) {
+                            error!("failed to notify change: {e}");
+                        }
+                    }
+                }
+                FileChangeType::DELETED => {
+                    if to_wdl_file_path(&event.uri).is_none() {
+                        continue;
+                    }
+
+                    debug!("document `{uri}` has been deleted", uri = event.uri);
+                    deleted.push(event.uri);
+                }
+                _ => {}
+            }
+        }
+
+        if !added.is_empty() {
+            for uri in added {
+                if let Err(e) = state.config.analyzer.add_document(uri).await {
+                    error!("failed to add documents to analyzer: {e}");
+                }
+            }
+        }
+
+        if !deleted.is_empty()
+            && let Err(e) = state.config.analyzer.remove_documents(deleted).await
+        {
+            error!("failed to remove documents from analyzer: {e}");
         }
     }
 }
@@ -580,7 +871,7 @@ impl<S: 'static> LanguageServer for Server<S> {
         let _ = self.client_support.set(Arc::new(client_support));
 
         let state = self.state.clone();
-        let info = self.info();
+        let info = self.options.info();
         Box::pin(async move {
             let mut state = state.write().await;
 
@@ -740,7 +1031,7 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/diagnostic` request: {params:#?}");
 
-        let name = self.info().name;
+        let name = self.options.info().name;
         let state = self.state.clone();
         let options = self.options.clone();
         Box::pin(async move {
@@ -755,12 +1046,7 @@ impl<S: 'static> LanguageServer for Server<S> {
 
             let mut matcher = options.baseline.as_ref().map(|b| b.matcher());
             proto::document_diagnostic_report(params, results, &name, matcher.as_mut()).ok_or_else(
-                || {
-                    ResponseError::new(
-                        ErrorCode::UNKNOWN_ERROR_CODE,
-                        "no diagnostic report produced",
-                    )
-                },
+                || ResponseError::new(ErrorCode::REQUEST_FAILED, "no diagnostic report produced"),
             )
         })
     }
@@ -772,7 +1058,7 @@ impl<S: 'static> LanguageServer for Server<S> {
         debug!("received `workspace/diagnostic` request: {params:#?}");
 
         let client = self.client.clone();
-        let name = self.info().name;
+        let name = self.options.info().name;
         let client_support = self.client_support.get().cloned().expect("should exist");
         let state = self.state.clone();
         let options = self.options.clone();
@@ -1180,7 +1466,7 @@ impl<S: 'static> LanguageServer for Server<S> {
     }
 
     fn initialized(&mut self, _: InitializedParams) -> Self::NotifyResult {
-        let info = self.info();
+        let info = self.options.info();
         let mut client = self.client.clone();
         let client_support = self.client_support.get().cloned().expect("should exist");
         tokio::task::spawn(async move {
@@ -1219,13 +1505,13 @@ impl<S: 'static> LanguageServer for Server<S> {
                 .register_capability(RegistrationParams { registrations })
                 .await
                 .expect("failed to register capabilities with client");
-        });
 
-        info!(
-            "{name} (v{version}) server initialized",
-            name = info.name,
-            version = info.version.expect("should exist")
-        );
+            info!(
+                "{name} (v{version}) server initialized",
+                name = info.name,
+                version = info.version.expect("should exist")
+            );
+        });
 
         ControlFlow::Continue(())
     }
@@ -1236,47 +1522,13 @@ impl<S: 'static> LanguageServer for Server<S> {
     ) -> Self::NotifyResult {
         debug!("received `workspace/didChangeWorkspaceFolders` request: {params:#?}");
 
-        let state = self.state.clone();
-        tokio::task::spawn(async move {
-            let state = state.read().await;
-
-            // Process the removed folders
-            if !params.event.removed.is_empty()
-                && let Err(e) = state
-                    .config
-                    .analyzer
-                    .remove_documents(
-                        params
-                            .event
-                            .removed
-                            .into_iter()
-                            .map(|mut f| {
-                                normalize_uri_path(&mut f.uri);
-                                f.uri
-                            })
-                            .collect(),
-                    )
-                    .await
-            {
-                error!("failed to remove documents from analyzer: {e}");
-            }
-
-            // Progress the added folders
-            if !params.event.added.is_empty() {
-                for folder in &params.event.added {
-                    if let Err(e) = state
-                        .config
-                        .analyzer
-                        .add_directory(folder.uri.to_file_path().expect("should be a file path"))
-                        .await
-                    {
-                        error!("failed to add documents from directory to analyzer: {e}");
-                    }
-                }
-            }
-        });
-
-        ControlFlow::Continue(())
+        match self
+            .notification_tx
+            .send(Notification::DidChangeWorkspaceFolders(params))
+        {
+            Ok(()) => ControlFlow::Continue(()),
+            Err(_) => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
+        }
     }
 
     fn did_change_configuration(
@@ -1285,34 +1537,13 @@ impl<S: 'static> LanguageServer for Server<S> {
     ) -> Self::NotifyResult {
         debug!("received `workspace/didChangeConfiguration` notification: {params:#?}");
 
-        let state = self.state.clone();
-        let options = self.options.clone();
-        let client = self.client.clone();
-        tokio::task::spawn(async move {
-            let mut state = state.write().await;
-
-            let workspace_configs = client
-                .request::<WorkspaceConfiguration>(ConfigurationParams {
-                    items: vec![ConfigurationItem {
-                        scope_uri: None,
-                        section: Some(String::from("sprocket.server")),
-                    }],
-                })
-                .await;
-
-            match workspace_configs {
-                Ok(mut configs) if !configs.is_empty() => {
-                    match serde_json::from_value::<UserOptionsPatch>(configs.remove(0)) {
-                        Ok(patch) => state.apply_config_patch(client, &options, patch),
-                        Err(e) => error!("failed to deserialize `UserOptionsPatch`: {e:?}"),
-                    }
-                }
-                Ok(_) => error!("client returned no configuration"),
-                Err(e) => error!("failed to fetch workspace configuration: {e}"),
-            }
-        });
-
-        ControlFlow::Continue(())
+        match self
+            .notification_tx
+            .send(Notification::DidChangeConfiguration(params))
+        {
+            Ok(()) => ControlFlow::Continue(()),
+            Err(_) => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
+        }
     }
 
     fn did_open(&mut self, mut params: DidOpenTextDocumentParams) -> Self::NotifyResult {
@@ -1320,34 +1551,10 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/didOpen` request: {params:#?}");
 
-        let state = self.state.clone();
-        tokio::task::spawn(async move {
-            let state = state.read().await;
-            if let Err(e) = state
-                .config
-                .analyzer
-                .add_document(params.text_document.uri.clone())
-                .await
-            {
-                error!(
-                    "failed to add document {uri}: {e}",
-                    uri = params.text_document.uri
-                );
-            }
-
-            if let Err(e) = state.config.analyzer.notify_incremental_change(
-                params.text_document.uri,
-                IncrementalChange {
-                    version: params.text_document.version,
-                    start: Some(params.text_document.text),
-                    edits: Vec::new(),
-                },
-            ) {
-                error!("failed to notify incremental change: {e}");
-            }
-        });
-
-        ControlFlow::Continue(())
+        match self.notification_tx.send(Notification::DidOpen(params)) {
+            Ok(()) => ControlFlow::Continue(()),
+            Err(_) => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
+        }
     }
 
     fn did_change(&mut self, mut params: DidChangeTextDocumentParams) -> Self::NotifyResult {
@@ -1355,54 +1562,10 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/didChange` request: {params:#?}");
 
-        debug!(
-            "document `{uri}` is now client version {version}",
-            uri = params.text_document.uri,
-            version = params.text_document.version
-        );
-
-        // Notify the analyzer that the document has changed
-        let state = self.state.clone();
-        tokio::task::spawn(async move {
-            let state = state.read().await;
-
-            // Look for the last full change (one without a range) and start there
-            let (start, changes) = match params
-                .content_changes
-                .iter()
-                .rposition(|change| change.range.is_none())
-            {
-                Some(idx) => (
-                    Some(mem::take(&mut params.content_changes[idx].text)),
-                    &mut params.content_changes[idx + 1..],
-                ),
-                None => (None, &mut params.content_changes[..]),
-            };
-
-            if let Err(e) = state.config.analyzer.notify_incremental_change(
-                params.text_document.uri,
-                IncrementalChange {
-                    version: params.text_document.version,
-                    start,
-                    edits: changes
-                        .iter_mut()
-                        .map(|e| {
-                            let range = e.range.expect("edit should be after the last full change");
-                            SourceEdit::new(
-                                SourcePosition::new(range.start.line, range.start.character)
-                                    ..SourcePosition::new(range.end.line, range.end.character),
-                                SourcePositionEncoding::UTF16,
-                                mem::take(&mut e.text),
-                            )
-                        })
-                        .collect(),
-                },
-            ) {
-                error!("failed to notify incremental change: {e}");
-            }
-        });
-
-        ControlFlow::Continue(())
+        match self.notification_tx.send(Notification::DidChange(params)) {
+            Ok(()) => ControlFlow::Continue(()),
+            Err(_) => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
+        }
     }
 
     fn did_close(&mut self, mut params: DidCloseTextDocumentParams) -> Self::NotifyResult {
@@ -1410,19 +1573,10 @@ impl<S: 'static> LanguageServer for Server<S> {
 
         debug!("received `textDocument/didClose` request: {params:#?}");
 
-        let state = self.state.clone();
-        tokio::task::spawn(async move {
-            let state = state.read().await;
-            if let Err(e) = state
-                .config
-                .analyzer
-                .notify_change(params.text_document.uri, true)
-            {
-                error!("failed to notify change: {e}");
-            }
-        });
-
-        ControlFlow::Continue(())
+        match self.notification_tx.send(Notification::DidClose(params)) {
+            Ok(()) => ControlFlow::Continue(()),
+            Err(_) => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
+        }
     }
 
     fn did_change_watched_files(
@@ -1431,73 +1585,12 @@ impl<S: 'static> LanguageServer for Server<S> {
     ) -> Self::NotifyResult {
         debug!("received `workspace/didChangeWatchedFiles` request: {params:#?}");
 
-        /// Converts a URI into a WDL file path.
-        fn to_wdl_file_path(uri: &Url) -> Option<PathBuf> {
-            if let Ok(path) = uri.to_file_path()
-                && path.is_file()
-                && path.extension().and_then(OsStr::to_str) == Some("wdl")
-            {
-                return Some(path);
-            }
-
-            None
+        match self
+            .notification_tx
+            .send(Notification::DidChangeWatchedFiles(params))
+        {
+            Ok(()) => ControlFlow::Continue(()),
+            Err(_) => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
         }
-
-        let state = self.state.clone();
-        let update_files_task = async move {
-            let state = state.read().await;
-
-            let mut added = Vec::new();
-            let mut deleted = Vec::new();
-            for mut event in params.changes {
-                normalize_uri_path(&mut event.uri);
-
-                match event.typ {
-                    FileChangeType::CREATED => {
-                        let Some(path) = to_wdl_file_path(&event.uri) else {
-                            continue;
-                        };
-
-                        debug!("document `{uri}` has been created", uri = event.uri);
-                        added.push(path_to_uri(&path).expect("should convert to uri"));
-                    }
-                    FileChangeType::CHANGED => {
-                        if to_wdl_file_path(&event.uri).is_some() {
-                            debug!("document `{uri}` has been changed", uri = event.uri);
-                            if let Err(e) = state.config.analyzer.notify_change(event.uri, false) {
-                                error!("failed to notify change: {e}");
-                            }
-                        }
-                    }
-                    FileChangeType::DELETED => {
-                        if to_wdl_file_path(&event.uri).is_none() {
-                            continue;
-                        }
-
-                        debug!("document `{uri}` has been deleted", uri = event.uri);
-                        deleted.push(event.uri);
-                    }
-                    _ => {}
-                }
-            }
-
-            if !added.is_empty() {
-                for uri in added {
-                    if let Err(e) = state.config.analyzer.add_document(uri).await {
-                        error!("failed to add documents to analyzer: {e}");
-                    }
-                }
-            }
-
-            if !deleted.is_empty()
-                && let Err(e) = state.config.analyzer.remove_documents(deleted).await
-            {
-                error!("failed to remove documents from analyzer: {e}");
-            }
-        };
-
-        tokio::task::spawn(update_files_task);
-
-        ControlFlow::Continue(())
     }
 }
