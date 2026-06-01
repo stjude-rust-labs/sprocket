@@ -48,6 +48,7 @@
 
 use std::collections::BTreeSet;
 use std::fs::File;
+use std::fs::TryLockError;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -513,10 +514,27 @@ fn lock_cache_leaf(leaf: &Path) -> Result<File, GitError> {
         path: lock_path.clone(),
         source,
     })?;
-    file.lock().map_err(|source| GitError::Io {
-        path: lock_path,
-        source,
-    })?;
+    // Try the lock first so we can tell the user why `sprocket` appears to
+    // hang when another process already holds it before blocking on it.
+    match file.try_lock() {
+        Ok(()) => {}
+        Err(TryLockError::WouldBlock) => {
+            tracing::info!(
+                "waiting to acquire exclusive lock on Git cache leaf `{leaf}`",
+                leaf = leaf.display(),
+            );
+            file.lock().map_err(|source| GitError::Io {
+                path: lock_path.clone(),
+                source,
+            })?;
+        }
+        Err(TryLockError::Error(source)) => {
+            return Err(GitError::Io {
+                path: lock_path,
+                source,
+            });
+        }
+    }
     Ok(file)
 }
 
