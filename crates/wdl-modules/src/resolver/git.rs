@@ -130,8 +130,8 @@ pub enum GitError {
     #[error(
         "module subtree `{path}` exceeds tree limits (files: {files}, bytes: {bytes}, \
          max_files: {}, max_bytes: {})",
-        max_files.map_or_else(|| "unlimited".to_string(), |v| v.to_string()),
-        max_bytes.map_or_else(|| "unlimited".to_string(), |v| v.to_string()),
+        max_files.map(|v| v.to_string()).as_deref().unwrap_or("unlimited"),
+        max_bytes.map(|v| v.to_string()).as_deref().unwrap_or("unlimited"),
     )]
     TreeLimitExceeded {
         /// The module path within the repository.

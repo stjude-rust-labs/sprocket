@@ -1,6 +1,7 @@
 //! Centralized Git remote access with policy enforcement.
 
 use std::path::Path;
+use std::sync::Arc;
 
 use url::Url;
 
@@ -15,12 +16,12 @@ use crate::resolver::versions::RemoteRefs;
 /// touching the network.
 pub(crate) struct GitFetcher {
     /// The resolver policy applied to all remote operations.
-    policy: ResolverPolicy,
+    policy: Arc<ResolverPolicy>,
 }
 
 impl GitFetcher {
     /// Creates a fetcher from a resolver policy.
-    pub fn new(policy: ResolverPolicy) -> Self {
+    pub fn new(policy: Arc<ResolverPolicy>) -> Self {
         Self { policy }
     }
 

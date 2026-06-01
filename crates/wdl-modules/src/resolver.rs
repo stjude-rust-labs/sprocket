@@ -21,6 +21,7 @@ pub(crate) mod versions;
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use bon::Builder;
@@ -149,8 +150,8 @@ pub struct GitResolver {
     #[builder(into)]
     cache_root: PathBuf,
     /// The resolved policy, derived from [`ModulesConfig`] at construction.
-    #[builder(default)]
-    policy: ResolverPolicy,
+    #[builder(default, into)]
+    policy: Arc<ResolverPolicy>,
     /// The user-level trust store, loaded by the caller.
     trust: TrustStore,
     /// The lockfile to verify materialized dependencies against.
@@ -173,7 +174,7 @@ impl GitResolver {
 
     /// Returns a policy-enforcing Git fetcher.
     fn fetcher(&self) -> GitFetcher {
-        GitFetcher::new(self.policy.clone())
+        GitFetcher::new(Arc::clone(&self.policy))
     }
 
     /// Returns the lockfile.
@@ -433,7 +434,6 @@ impl GitResolver {
             GitSelector::Tag(tag) => {
                 let dep = name.clone();
                 let url = url.clone();
-                let fetcher = self.fetcher();
                 let refs =
                     tokio::task::spawn_blocking(move || fetcher.list_tags(&dep, &url, scope))
                         .await
@@ -452,7 +452,6 @@ impl GitResolver {
             GitSelector::Branch(branch) => {
                 let dep = name.clone();
                 let url = url.clone();
-                let fetcher = self.fetcher();
                 let refs =
                     tokio::task::spawn_blocking(move || fetcher.list_branches(&dep, &url, scope))
                         .await
@@ -488,7 +487,7 @@ impl GitResolver {
         scope: DependencyScope,
         mode: ResolutionMode,
     ) -> Result<GitMaterializationPlan, ResolverError> {
-        let path_prefix = path.as_ref().map(GitModulePath::as_str).map(str::to_string);
+        let path_prefix = path.as_ref().map(GitModulePath::as_str);
 
         let (selected_version, commit) = match mode {
             ResolutionMode::Locked => {
@@ -527,14 +526,14 @@ impl GitResolver {
                 (None, locked_commit.clone())
             }
             ResolutionMode::Fresh => {
-                self.resolve_git_selector(name, url, selector, path_prefix.as_deref(), scope)
+                self.resolve_git_selector(name, url, selector, path_prefix, scope)
                     .await?
             }
         };
 
         let key = CacheKey::from_git_url(url, &commit);
         let leaf = key.absolute_path(&self.cache_root);
-        let sparse_path = path_prefix.clone().unwrap_or(".".to_string());
+        let sparse_path = path_prefix.unwrap_or(".").to_string();
         let module_path = match path.as_ref() {
             Some(p) => leaf.join(p.as_path()),
             None => leaf.clone(),
@@ -543,7 +542,7 @@ impl GitResolver {
         Ok(GitMaterializationPlan {
             selected_version,
             commit,
-            path_prefix,
+            path_prefix: path_prefix.map(str::to_string),
             leaf,
             sparse_path,
             module_path,

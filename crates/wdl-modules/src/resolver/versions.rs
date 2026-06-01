@@ -181,20 +181,28 @@ pub fn discover_remote_branches(
     Ok(refs)
 }
 
+/// Returns every semver tag matching `path_prefix` (or root tags when
+/// `path_prefix` is `None`) as a lazy, unsorted iterator.
+///
+/// Tags that don't carry the expected `v` (or `<prefix>/v`) shape, or
+/// don't parse as semver, are silently skipped.
+fn parsed_versions<'a>(
+    refs: &'a RemoteRefs,
+    path_prefix: Option<&'a str>,
+) -> impl Iterator<Item = Version> + 'a {
+    refs.keys()
+        .filter_map(|tag| tag.parse::<VersionTag>().ok())
+        .filter(move |t| t.prefix() == path_prefix)
+        .map(VersionTag::into_version)
+}
+
 /// Returns every semver-parsed tag matching `path_prefix` (or root tags
 /// when `path_prefix` is `None`) in descending precedence order.
 ///
-/// Tags that don't carry the expected `v` (or `<prefix>/v`) shape, or
-/// don't parse as semver, are silently skipped. Use this when the
-/// caller wants to display the full list of available versions; use
-/// [`select_version`] when only the best match is needed.
+/// Use this when the caller wants to display the full list of available
+/// versions; use [`select_version`] when only the best match is needed.
 pub fn parse_versions(refs: &RemoteRefs, path_prefix: Option<&str>) -> Vec<Version> {
-    let mut versions: Vec<Version> = refs
-        .keys()
-        .filter_map(|tag| tag.parse::<VersionTag>().ok())
-        .filter(|t| t.prefix() == path_prefix)
-        .map(VersionTag::into_version)
-        .collect();
+    let mut versions: Vec<Version> = parsed_versions(refs, path_prefix).collect();
     versions.sort_by(|a, b| b.cmp(a));
     versions
 }
@@ -206,10 +214,11 @@ pub fn filter_matching(
     path_prefix: Option<&str>,
     requirement: &VersionRequirement,
 ) -> Vec<Version> {
-    parse_versions(refs, path_prefix)
-        .into_iter()
+    let mut versions: Vec<Version> = parsed_versions(refs, path_prefix)
         .filter(|v| requirement.matches(v))
-        .collect()
+        .collect();
+    versions.sort_by(|a, b| b.cmp(a));
+    versions
 }
 
 /// Selects the highest-precedence version that satisfies `requirement`,
