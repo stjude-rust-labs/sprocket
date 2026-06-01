@@ -145,17 +145,6 @@ use crate::resolver::DependencyScope;
 
 #[cfg(test)]
 impl ModulesConfig {
-    /// Returns `true` if the given URL scheme is permitted for a
-    /// dependency at this level of the tree.
-    fn scheme_allowed(&self, scheme: &str, scope: DependencyScope) -> bool {
-        let allowed = if matches!(scope, DependencyScope::Transitive) {
-            &self.allowed_transitive_schemes
-        } else {
-            &self.allowed_schemes
-        };
-        allowed.iter().any(|s| s.eq_ignore_ascii_case(scheme))
-    }
-
     /// Returns `true` if the given host is permitted for a dependency
     /// at this level of the tree.
     fn host_allowed(&self, host: &str, scope: DependencyScope) -> bool {

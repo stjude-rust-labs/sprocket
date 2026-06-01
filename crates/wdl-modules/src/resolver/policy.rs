@@ -3,7 +3,7 @@
 //! This module translates a [`ModulesConfig`](super::config::ModulesConfig)
 //! into a [`ResolverPolicy`] that is evaluated at fetch time. Each Git URL is
 //! checked against the policy before any network activity occurs: the URL
-//! scheme must appear in the configured allowlist, the hostname must not be on
+//! scheme must appear in the configured allow list, the hostname must not be on
 //! the explicit deny list, the hostname must not be a non-public IP address or
 //! resolve to one, and the hostname must satisfy the per-scope host policy
 //! (open or allowlisted). Top-level and transitive dependencies carry separate
@@ -166,10 +166,11 @@ impl ResolverPolicy {
             // Resolve the hostname to IP addresses and reject if any
             // resolved address is non-public.
             //
-            // Port 443 is passed only because `to_socket_addrs` requires
-            // a port; the DNS result is identical for any port value.
-            // The policy does not restrict which port the URL itself
-            // uses—that is left to the caller's URL.
+            // Port 0 is passed only because `to_socket_addrs` requires a
+            // port; the value is insignificant for the address lookup and
+            // the DNS result is identical for any port. The policy does not
+            // restrict which port the URL itself uses; that is left to the
+            // caller's URL.
             //
             // Both DNS failure and empty results are treated as rejection
             // (fail-closed). libgit2 re-resolves during connect/clone, so
@@ -178,7 +179,7 @@ impl ResolverPolicy {
             // peer-IP validation in a custom transport.
             if host.parse::<std::net::IpAddr>().is_err() && url.scheme() != "file" {
                 let addrs: Vec<std::net::SocketAddr> =
-                    match std::net::ToSocketAddrs::to_socket_addrs(&(host, 443)) {
+                    match std::net::ToSocketAddrs::to_socket_addrs(&(host, 0)) {
                         Ok(iter) => iter.collect(),
                         Err(_) => {
                             return Err(ResolverError::GitHostResolutionFailed {

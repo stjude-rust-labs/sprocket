@@ -120,7 +120,9 @@ pub trait Resolver: Send + Sync {
     ///
     /// Walks the consumer's `dependencies` map, recurses into each dep's
     /// own manifest, and records every module visited along the way.
-    /// Detects cycles.
+    ///
+    /// The implementation of this method is expected to return an error upon
+    /// the detection of a cycle.
     async fn resolve_tree(&self, consumer: &Manifest) -> Result<ResolvedTree, ResolverError>;
 
     /// Lists discovered versions for a dependency source that satisfy
@@ -266,6 +268,9 @@ impl GitResolver {
     ///
     /// Each iteration: policy check, materialize, read manifest, cycle
     /// check, verify, recurse into transitive deps, assemble result.
+    ///
+    /// Returns a boxed future rather than an `async fn` because the method is
+    /// recursive, and an `async fn` cannot name its own future type.
     fn resolve_dependencies<'a>(
         &'a self,
         deps: &'a BTreeMap<DependencyName, DependencySource>,
