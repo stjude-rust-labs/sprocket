@@ -14,11 +14,11 @@ use semver::Version;
 use thiserror::Error;
 use url::Url;
 
-use crate::GitCommit;
-use crate::VersionRequirement;
+use crate::lockfile::GitCommit;
 use crate::resolver::git::CredentialMode;
 use crate::resolver::git::GitError;
 use crate::resolver::git::list_advertised_refs;
+use crate::version_requirement::VersionRequirement;
 
 /// Errors produced by version selection.
 #[derive(Debug, Error)]

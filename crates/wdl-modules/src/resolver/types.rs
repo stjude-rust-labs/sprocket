@@ -1,14 +1,14 @@
-//! Value types returned by the [`Resolver`](super::Resolver) trait.
+//! Value types returned by the [`Resolver`](crate::Resolver) trait.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
 
 use semver::Version;
 
-use crate::ContentHash;
-use crate::DependencyName;
-use crate::ResolvedSource;
-use crate::VerifyingKey;
+use crate::dependency::DependencyName;
+use crate::hash::ContentHash;
+use crate::lockfile::ResolvedSource;
+use crate::signing::VerifyingKey;
 
 /// A symbolic import resolved to a concrete file on disk.
 #[derive(Clone, Debug, PartialEq, Eq)]

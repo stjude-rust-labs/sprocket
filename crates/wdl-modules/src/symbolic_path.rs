@@ -8,7 +8,7 @@ use std::str::FromStr;
 use thiserror::Error;
 use wdl_grammar::lexer::v1::is_ident;
 
-use crate::DependencyName;
+use crate::dependency::DependencyName;
 
 /// An error parsing a [`SymbolicPath`].
 #[derive(Debug, Error)]

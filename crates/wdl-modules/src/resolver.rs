@@ -13,7 +13,6 @@ pub(crate) mod fetch;
 mod git;
 pub(crate) mod lock;
 pub(crate) mod policy;
-pub(crate) mod scope;
 pub(crate) mod trust;
 pub(crate) mod types;
 pub(crate) mod verify;
@@ -29,19 +28,18 @@ use futures::future::BoxFuture;
 use futures::future::FutureExt;
 use semver::Version;
 
-use crate::DependencyEntry;
-use crate::DependencyName;
-use crate::DependencySource;
-use crate::GitCommit;
-use crate::GitModulePath;
-use crate::GitSelector;
 use crate::Lockfile;
 use crate::Manifest;
-use crate::RelativePath;
-use crate::ResolvedSource;
-use crate::SymbolicPath;
+use crate::dependency::DependencyName;
+use crate::dependency::DependencySource;
+use crate::dependency::GitModulePath;
+use crate::dependency::GitSelector;
 use crate::hash::NON_MODULE_CONTENT;
+use crate::lockfile::DependencyEntry;
+use crate::lockfile::GitCommit;
+use crate::lockfile::ResolvedSource;
 use crate::module_walk::ModuleWalkError;
+use crate::relative_path::RelativePath;
 use crate::resolver::cache::CacheKey;
 pub use crate::resolver::config::LargeFileWarning;
 pub use crate::resolver::config::LargeFileWarningError;
@@ -59,8 +57,6 @@ pub use crate::resolver::lock::RelockOutcome;
 pub use crate::resolver::lock::RelockStats;
 pub use crate::resolver::lock::partial_relock;
 pub use crate::resolver::policy::ResolverPolicy;
-pub use crate::resolver::scope::DependencyScope;
-use crate::resolver::scope::ResolutionMode;
 pub use crate::resolver::trust::TrustEntry;
 pub use crate::resolver::trust::TrustStore;
 pub use crate::resolver::trust::TrustStoreError;
@@ -69,6 +65,29 @@ pub use crate::resolver::types::ResolvedDependency;
 pub use crate::resolver::types::ResolvedModule;
 pub use crate::resolver::types::ResolvedTree;
 use crate::resolver::verify::VerifiedModule;
+use crate::symbolic_path::SymbolicPath;
+
+/// Whether a dependency is declared directly by the consumer or
+/// reached transitively through another dependency.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum DependencyScope {
+    /// Declared in the consumer's own `module.json`.
+    TopLevel,
+    /// Reached through a transitive dependency chain.
+    Transitive,
+}
+
+/// Whether to resolve mutable selectors against the remote or replay
+/// a locked commit.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum ResolutionMode {
+    /// Resolve mutable selectors against the remote. Used by
+    /// `resolve_tree` when computing a fresh dependency graph.
+    Fresh,
+    /// Replay the locked commit from the lockfile. Used by
+    /// `materialize` when reproducing a previously-locked dependency.
+    Locked,
+}
 
 /// Resolves WDL module imports to concrete files on disk.
 #[async_trait]
@@ -799,7 +818,7 @@ fn locked_selector_satisfies(
 /// [`module_walk`](crate::module_walk).
 fn resolve_content_file(
     root: &Path,
-    rel: &crate::RelativePath,
+    rel: &crate::relative_path::RelativePath,
     dep: &DependencyName,
 ) -> Result<PathBuf, ResolverError> {
     if rel
@@ -908,7 +927,9 @@ fn check_tag_manifest_match(
 }
 
 /// Compiles a manifest's `exclude` patterns into a [`globset::GlobSet`].
-fn exclude_set(patterns: &[crate::RelativePath]) -> Result<globset::GlobSet, ResolverError> {
+fn exclude_set(
+    patterns: &[crate::relative_path::RelativePath],
+) -> Result<globset::GlobSet, ResolverError> {
     if patterns.is_empty() {
         return Ok(globset::GlobSet::empty());
     }
@@ -936,7 +957,7 @@ mod tests {
 
     use super::*;
 
-    fn checksum() -> crate::ContentHash {
+    fn checksum() -> crate::hash::ContentHash {
         "sha256:0000000000000000000000000000000000000000000000000000000000000000"
             .parse()
             .unwrap()
@@ -1009,10 +1030,10 @@ mod tests {
 
     /// Writes a `module.sig` next to `dir`'s `module.json` over the
     /// directory's content hash.
-    fn write_signature(dir: &Path, signer: &crate::SigningKey) {
+    fn write_signature(dir: &Path, signer: &crate::signing::SigningKey) {
         let digest = crate::hash::hash_directory(dir).unwrap();
         let signature = signer.sign(&digest);
-        let sig = crate::ModuleSignature {
+        let sig = crate::signing::ModuleSignature {
             public_key: signer.verifying_key(),
             signature,
         };
@@ -1057,7 +1078,7 @@ mod tests {
         assert_eq!(dep.version, Version::parse("1.0.0").unwrap());
     }
 
-    fn hash_from_byte(byte: u8) -> crate::ContentHash {
+    fn hash_from_byte(byte: u8) -> crate::hash::ContentHash {
         format!("sha256:{}", hex::encode([byte; 32]))
             .parse()
             .unwrap()
@@ -1392,7 +1413,7 @@ mod tests {
         let bytes = fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap();
         let err = Manifest::parse(&bytes).unwrap_err();
         assert!(
-            matches!(err, crate::ManifestError::InvalidJson(_)),
+            matches!(err, crate::manifest::ManifestError::InvalidJson(_)),
             "expected `InvalidJson` from manifest parse, got: {err}"
         );
     }

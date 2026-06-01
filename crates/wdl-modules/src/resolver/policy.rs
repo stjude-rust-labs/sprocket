@@ -12,12 +12,12 @@
 
 use url::Url;
 
-use crate::DependencyName;
+use crate::dependency::DependencyName;
+use crate::resolver::DependencyScope;
 use crate::resolver::config::LargeFileWarning;
 use crate::resolver::config::ModulesConfig;
 use crate::resolver::error::ResolverError;
 use crate::resolver::git::CredentialMode;
-use crate::resolver::scope::DependencyScope;
 
 /// Host access policy for a dependency scope.
 #[derive(Clone, Debug)]
@@ -234,7 +234,7 @@ fn validate_resolved_addresses(addrs: &[std::net::SocketAddr]) -> Result<(), Opt
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::DependencyName;
+    use crate::dependency::DependencyName;
     use crate::resolver::config::ModulesConfig;
     use crate::resolver::error::ResolverError;
 

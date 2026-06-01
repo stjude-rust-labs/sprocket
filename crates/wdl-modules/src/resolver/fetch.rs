@@ -4,10 +4,10 @@ use std::path::Path;
 
 use url::Url;
 
-use crate::DependencyName;
+use crate::dependency::DependencyName;
+use crate::resolver::DependencyScope;
 use crate::resolver::error::ResolverError;
 use crate::resolver::policy::ResolverPolicy;
-use crate::resolver::scope::DependencyScope;
 use crate::resolver::versions::RemoteRefs;
 
 /// Centralized Git remote access. Every remote operation enforces

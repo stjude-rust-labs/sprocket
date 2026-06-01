@@ -8,8 +8,8 @@ use sha2::Sha256;
 use thiserror::Error;
 use url::Url;
 
-use crate::ContentHash;
-use crate::GitCommit;
+use crate::hash::ContentHash;
+use crate::lockfile::GitCommit;
 
 /// The cache layout key for a `(repository, commit)` pair.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -168,7 +168,7 @@ pub(crate) enum IntegrityError {
     Hash {
         /// The underlying hashing error.
         #[from]
-        source: crate::HashError,
+        source: crate::hash::HashError,
     },
 }
 

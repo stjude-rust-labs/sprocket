@@ -12,13 +12,13 @@ use thiserror::Error;
 use url::Url;
 
 use crate::DEFAULT_ENTRYPOINT_FILENAME;
-use crate::DependencyName;
-use crate::DependencySource;
-use crate::DependencySourceError;
-use crate::LicenseError;
-use crate::LicenseExpression;
-use crate::RelativePath;
-use crate::RelativePathError;
+use crate::dependency::DependencyName;
+use crate::dependency::DependencySource;
+use crate::dependency::DependencySourceError;
+use crate::license::LicenseError;
+use crate::license::LicenseExpression;
+use crate::relative_path::RelativePath;
+use crate::relative_path::RelativePathError;
 
 /// An error parsing a [`Manifest`].
 ///

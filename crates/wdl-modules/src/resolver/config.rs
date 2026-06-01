@@ -141,7 +141,7 @@ impl Default for ModulesConfig {
 }
 
 #[cfg(test)]
-use crate::resolver::scope::DependencyScope;
+use crate::resolver::DependencyScope;
 
 #[cfg(test)]
 impl ModulesConfig {
@@ -299,7 +299,7 @@ pub enum TrustMode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resolver::scope::DependencyScope;
+    use crate::resolver::DependencyScope;
 
     #[test]
     fn parses_default_threshold_when_absent() {

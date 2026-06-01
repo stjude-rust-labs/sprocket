@@ -12,12 +12,12 @@ use serde::Serialize;
 use thiserror::Error;
 use url::Url;
 
-use crate::ContentHash;
-use crate::DependencyName;
-use crate::DependencyNameError;
-use crate::GitModulePath;
-use crate::GitSelector;
-use crate::VerifyingKey;
+use crate::dependency::DependencyName;
+use crate::dependency::DependencyNameError;
+use crate::dependency::GitModulePath;
+use crate::dependency::GitSelector;
+use crate::hash::ContentHash;
+use crate::signing::VerifyingKey;
 
 /// The current lockfile schema version.
 pub const LOCKFILE_VERSION: u32 = 1;

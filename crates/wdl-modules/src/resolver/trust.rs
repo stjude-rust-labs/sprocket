@@ -7,8 +7,8 @@ use serde::Deserialize;
 use serde::Serialize;
 use thiserror::Error;
 
-use crate::DependencyName;
-use crate::VerifyingKey;
+use crate::dependency::DependencyName;
+use crate::signing::VerifyingKey;
 
 /// An error reading or writing the trust store.
 #[derive(Debug, Error)]

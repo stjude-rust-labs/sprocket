@@ -14,9 +14,9 @@ use sha2::Digest;
 use sha2::Sha256;
 use thiserror::Error;
 
-use crate::RelativePath;
-use crate::RelativePathError;
 use crate::module_walk::ModuleWalkError;
+use crate::relative_path::RelativePath;
+use crate::relative_path::RelativePathError;
 use crate::tree::TreeError;
 
 /// An error during content hashing.
@@ -432,7 +432,7 @@ mod tests {
         let err = hash_directory(dir.path()).unwrap_err();
         assert!(matches!(
             err,
-            HashError::Tree(crate::TreeError::ReservedFilename {
+            HashError::Tree(crate::tree::TreeError::ReservedFilename {
                 name: crate::MANIFEST_FILENAME,
                 ..
             })
@@ -462,7 +462,7 @@ mod tests {
         let err = h.finalize().unwrap_err();
         assert!(matches!(
             err,
-            HashError::Tree(crate::TreeError::ReservedFilename {
+            HashError::Tree(crate::tree::TreeError::ReservedFilename {
                 name: crate::SIGNATURE_FILENAME,
                 ..
             })

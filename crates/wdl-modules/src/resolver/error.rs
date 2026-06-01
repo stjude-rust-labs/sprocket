@@ -5,16 +5,16 @@ use std::path::PathBuf;
 use semver::Version;
 use thiserror::Error;
 
-use crate::ContentHash;
-use crate::HashError;
-use crate::LockfileError;
-use crate::ManifestError;
-use crate::VerifyingKey;
-use crate::VersionRequirement;
+use crate::hash::ContentHash;
+use crate::hash::HashError;
+use crate::lockfile::LockfileError;
+use crate::manifest::ManifestError;
 use crate::module_walk::ModuleWalkError;
+use crate::signing::VerifyingKey;
+use crate::version_requirement::VersionRequirement;
 
-/// An error returned by the [`Resolver`](crate::Resolver) trait or any
-/// resolver-layer operation.
+/// An error returned by the [`Resolver`](crate::Resolver) trait or
+/// any resolver-layer operation.
 #[derive(Debug, Error)]
 pub enum ResolverError {
     /// The symbolic path's head does not appear in the consumer's
@@ -170,7 +170,7 @@ pub enum ResolverError {
         dep: String,
         /// The underlying parse error.
         #[source]
-        source: crate::SignatureFileError,
+        source: crate::signing::SignatureFileError,
     },
 
     /// A manifest `exclude` pattern is not a valid glob.
@@ -297,7 +297,7 @@ pub enum ResolverError {
 
     /// A `RelativePath` validation error.
     #[error(transparent)]
-    RelativePath(#[from] crate::RelativePathError),
+    RelativePath(#[from] crate::relative_path::RelativePathError),
 }
 
 /// The kind of Git reference named in a [`ResolverError::UnknownGitRef`].

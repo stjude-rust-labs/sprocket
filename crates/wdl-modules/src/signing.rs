@@ -15,7 +15,7 @@ use serde_with::DeserializeFromStr;
 use serde_with::SerializeDisplay;
 use thiserror::Error;
 
-use crate::ContentHash;
+use crate::hash::ContentHash;
 
 /// An error parsing an Ed25519 key.
 #[derive(Debug, Error)]

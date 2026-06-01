@@ -2,17 +2,17 @@
 
 use semver::Version;
 
-use crate::DependencyEntry;
-use crate::DependencyMap;
-use crate::DependencyName;
-use crate::DependencySource;
-use crate::GitSelector;
 use crate::Lockfile;
 use crate::Manifest;
-use crate::ResolvedSource;
-use crate::VerifyingKey;
+use crate::dependency::DependencyName;
+use crate::dependency::DependencySource;
+use crate::dependency::GitSelector;
+use crate::lockfile::DependencyEntry;
+use crate::lockfile::DependencyMap;
+use crate::lockfile::ResolvedSource;
 use crate::resolver::types::ResolvedDependency;
 use crate::resolver::types::ResolvedTree;
+use crate::signing::VerifyingKey;
 
 /// The diff between an existing lockfile and a freshly-computed one.
 ///
@@ -286,9 +286,9 @@ mod tests {
     use semver::Version;
 
     use super::*;
-    use crate::ContentHash;
-    use crate::DependencyEntry;
-    use crate::ResolvedSource;
+    use crate::hash::ContentHash;
+    use crate::lockfile::DependencyEntry;
+    use crate::lockfile::ResolvedSource;
 
     fn dn(s: &str) -> DependencyName {
         DependencyName::try_from(s.to_string()).unwrap()
