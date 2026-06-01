@@ -23,6 +23,7 @@
   "platformAutomerge": true,
   "enabledManagers": [
     "cargo",
+    "npm",
     "github-actions"
   ],
   "lockFileMaintenance": {
@@ -44,16 +45,43 @@
       ]
     },
     {
-      "description": "Label cargo minor/patch updates",
+      "description": "Group all cargo patch updates into one PR",
       "matchManagers": [
         "cargo"
       ],
       "matchUpdateTypes": [
-        "minor",
         "patch"
       ],
+      "groupName": "cargo patch updates",
       "addLabels": [
         "cargo"
+      ]
+    },
+    {
+      "description": "Group all cargo minor updates into one PR",
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "groupName": "cargo minor updates",
+      "addLabels": [
+        "cargo"
+      ]
+    },
+    {
+      "description": "Group all npm updates into one PR",
+      "matchManagers": [
+        "npm"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "minor"
+      ],
+      "groupName": "npm updates",
+      "addLabels": [
+        "npm"
       ]
     },
     {
