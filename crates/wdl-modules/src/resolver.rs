@@ -1083,6 +1083,39 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn github_rejected_when_removed_from_transitive_allowlist() {
+        let cache = tempdir().unwrap();
+        let policy = ResolverPolicy::from(&ModulesConfig {
+            allowed_transitive_hosts: vec!["gitlab.com".into()],
+            ..ModulesConfig::default()
+        });
+        let r = GitResolver::builder()
+            .cache_root(cache.path())
+            .trust(TrustStore::default())
+            .lockfile(Lockfile::default())
+            .policy(policy)
+            .build();
+
+        let dep: DependencyName = "widget".parse().unwrap();
+        let source: DependencySource = serde_json::from_str(
+            r#"{"git": "https://github.com/acme/widget", "version": "^1.0.0"}"#,
+        )
+        .unwrap();
+
+        let err = r
+            .discover_versions(&dep, &source, DependencyScope::Transitive)
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "`widget` git URL `https://github.com/acme/widget` targets host `github.com` which is \
+             not in the configured allow list; to allow it, add `github.com` to \
+             `allowed_transitive_hosts` in the `[modules]` section of your `sprocket.toml`"
+        );
+    }
+
+    #[tokio::test]
     async fn resolve_tree_recurses_into_local_path_deps() {
         let workdir = tempdir().unwrap();
         let consumer_dir = workdir.path().join("consumer");
