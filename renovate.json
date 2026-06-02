@@ -6,6 +6,9 @@
     ":semanticCommits",
     ":semanticCommitTypeAll(build)"
   ],
+  "ignorePresets": [
+    "group:monorepos"
+  ],
   "labels": [
     "dependencies"
   ],
