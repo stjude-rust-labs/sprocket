@@ -45,27 +45,15 @@
       ]
     },
     {
-      "description": "Group all cargo patch updates into one PR",
+      "description": "Group all cargo minor and patch updates into one PR",
       "matchManagers": [
         "cargo"
       ],
       "matchUpdateTypes": [
+        "minor",
         "patch"
       ],
-      "groupName": "cargo patch updates",
-      "addLabels": [
-        "cargo"
-      ]
-    },
-    {
-      "description": "Group all cargo minor updates into one PR",
-      "matchManagers": [
-        "cargo"
-      ],
-      "matchUpdateTypes": [
-        "minor"
-      ],
-      "groupName": "cargo minor updates",
+      "groupName": "cargo updates",
       "addLabels": [
         "cargo"
       ]
