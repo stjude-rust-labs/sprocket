@@ -1059,6 +1059,30 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn transitive_dep_on_unallowed_host_is_rejected() {
+        let cache = tempdir().unwrap();
+        let r = resolver(&cache);
+
+        let dep: DependencyName = "widget".parse().unwrap();
+        let source: DependencySource = serde_json::from_str(
+            r#"{"git": "https://bitbucket.org/acme/widget", "version": "^1.0.0"}"#,
+        )
+        .unwrap();
+
+        let err = r
+            .discover_versions(&dep, &source, DependencyScope::Transitive)
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "`widget` git URL `https://bitbucket.org/acme/widget` targets host `bitbucket.org` \
+             which is not in the configured allow list; to allow it, add `bitbucket.org` to \
+             `allowed_transitive_hosts` in the `[modules]` section of your `sprocket.toml`"
+        );
+    }
+
+    #[tokio::test]
     async fn resolve_tree_recurses_into_local_path_deps() {
         let workdir = tempdir().unwrap();
         let consumer_dir = workdir.path().join("consumer");

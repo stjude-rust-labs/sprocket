@@ -63,15 +63,18 @@ pub struct ModulesConfig {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allowed_hosts: Vec<String>,
 
-    /// Hosts permitted for transitive Git dependencies. Empty means
-    /// any non-denied host is allowed.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// Hosts permitted for transitive Git dependencies. Defaults to
+    /// `["github.com", "gitlab.com"]`. When non-empty, a transitive
+    /// dependency may only be fetched from a host on this list, and Git
+    /// credentials are presented only to those hosts, so a transitive
+    /// manifest cannot direct the user's credentials at a host the user
+    /// has not vouched for. An empty list permits any non-denied host but
+    /// presents no credentials to transitive dependencies.
+    #[serde(
+        default = "default_allowed_transitive_hosts",
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub allowed_transitive_hosts: Vec<String>,
-
-    /// Whether transitive dependencies may use configured Git
-    /// credential helpers and ssh-agent. Defaults to `false`.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub allow_transitive_credentials: bool,
 
     /// Maximum number of files allowed in a single materialized module
     /// tree. `None` (the default) disables the limit. Checked against
@@ -104,6 +107,16 @@ fn default_transitive_schemes() -> Vec<String> {
     vec!["https".into()]
 }
 
+/// Returns the default set of allowed hosts for transitive Git
+/// dependencies.
+///
+/// The two major public Git hosts are trusted by default so transitive
+/// dependencies resolve out of the box while still presenting
+/// credentials only to well-known hosts.
+fn default_allowed_transitive_hosts() -> Vec<String> {
+    vec!["github.com".into(), "gitlab.com".into()]
+}
+
 /// Returns the default denied-host list.
 ///
 /// Loopback and unspecified addresses are blocked to prevent a
@@ -132,8 +145,7 @@ impl Default for ModulesConfig {
             max_advertised_refs: default_max_refs(),
             denied_hosts: default_denied_hosts(),
             allowed_hosts: Vec::new(),
-            allowed_transitive_hosts: Vec::new(),
-            allow_transitive_credentials: false,
+            allowed_transitive_hosts: default_allowed_transitive_hosts(),
             max_materialized_files: None,
             max_materialized_bytes: None,
         }
@@ -164,12 +176,6 @@ impl ModulesConfig {
             &self.allowed_hosts
         };
         allowed.is_empty() || allowed.iter().any(|h| h.eq_ignore_ascii_case(host))
-    }
-
-    /// Returns `true` if Git credential helpers and ssh-agent may be
-    /// used for a dependency at this level of the tree.
-    fn credentials_allowed(&self, scope: DependencyScope) -> bool {
-        !matches!(scope, DependencyScope::Transitive) || self.allow_transitive_credentials
     }
 }
 
@@ -386,21 +392,5 @@ mod tests {
         assert!(cfg.host_allowed("github.com", DependencyScope::Transitive));
         assert!(!cfg.host_allowed("gitlab.com", DependencyScope::Transitive));
         assert!(cfg.host_allowed("gitlab.com", DependencyScope::TopLevel));
-    }
-
-    #[test]
-    fn transitive_credentials_disabled_by_default() {
-        let cfg = ModulesConfig::default();
-        assert!(!cfg.credentials_allowed(DependencyScope::Transitive));
-        assert!(cfg.credentials_allowed(DependencyScope::TopLevel));
-    }
-
-    #[test]
-    fn transitive_credentials_enabled_when_configured() {
-        let cfg = ModulesConfig {
-            allow_transitive_credentials: true,
-            ..ModulesConfig::default()
-        };
-        assert!(cfg.credentials_allowed(DependencyScope::Transitive));
     }
 }

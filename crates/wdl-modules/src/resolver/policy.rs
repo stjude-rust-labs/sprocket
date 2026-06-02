@@ -38,6 +38,17 @@ impl HostPolicy {
             Self::AllowList(list) => list.iter().any(|h| h.eq_ignore_ascii_case(host)),
         }
     }
+
+    /// Returns `true` only if `host` is named in an explicit allow list.
+    ///
+    /// An open (`Any`) policy returns `false`, since it expresses no
+    /// explicit trust in any particular host.
+    fn explicitly_allows(&self, host: &str) -> bool {
+        match self {
+            Self::Any => false,
+            Self::AllowList(list) => list.iter().any(|h| h.eq_ignore_ascii_case(host)),
+        }
+    }
 }
 
 /// Network and resource policy for a specific dependency scope.
@@ -47,8 +58,6 @@ pub(crate) struct GitNetworkPolicy {
     pub(crate) allowed_schemes: Vec<String>,
     /// Host access policy.
     pub(crate) host_policy: HostPolicy,
-    /// Whether credentials are enabled.
-    pub(crate) credential_mode: CredentialMode,
     /// Maximum advertised refs.
     pub(crate) max_advertised_refs: usize,
 }
@@ -94,17 +103,11 @@ impl From<&ModulesConfig> for ResolverPolicy {
             top_level: GitNetworkPolicy {
                 allowed_schemes: config.allowed_schemes.clone(),
                 host_policy: top_host,
-                credential_mode: CredentialMode::Enabled,
                 max_advertised_refs: config.max_advertised_refs,
             },
             transitive: GitNetworkPolicy {
                 allowed_schemes: config.allowed_transitive_schemes.clone(),
                 host_policy: transitive_host,
-                credential_mode: if config.allow_transitive_credentials {
-                    CredentialMode::Enabled
-                } else {
-                    CredentialMode::Disabled
-                },
                 max_advertised_refs: config.max_advertised_refs,
             },
             denied_hosts: config.denied_hosts.clone(),
@@ -122,6 +125,29 @@ impl ResolverPolicy {
         match scope {
             DependencyScope::TopLevel => &self.top_level,
             DependencyScope::Transitive => &self.transitive,
+        }
+    }
+
+    /// Returns the credential mode for a Git operation against `host`.
+    ///
+    /// Top-level dependencies always present credentials, since the user
+    /// declared their URLs directly. Transitive dependencies present
+    /// credentials only for hosts named explicitly in
+    /// `allowed_transitive_hosts`, so a transitive manifest cannot direct
+    /// the user's credentials at a host the user has not vouched for.
+    pub(crate) fn credential_mode(
+        &self,
+        scope: DependencyScope,
+        host: Option<&str>,
+    ) -> CredentialMode {
+        match scope {
+            DependencyScope::TopLevel => CredentialMode::Enabled,
+            DependencyScope::Transitive => match host {
+                Some(host) if self.transitive.host_policy.explicitly_allows(host) => {
+                    CredentialMode::Enabled
+                }
+                _ => CredentialMode::Disabled,
+            },
         }
     }
 
@@ -161,6 +187,17 @@ impl ResolverPolicy {
                     dep: name.manifest().to_string(),
                     url: url.to_string(),
                     host: host.to_string(),
+                });
+            }
+            if !net.host_policy.allows(host) {
+                return Err(ResolverError::GitHostNotAllowed {
+                    dep: name.manifest().to_string(),
+                    url: url.to_string(),
+                    host: host.to_string(),
+                    config_key: match scope {
+                        DependencyScope::TopLevel => "allowed_hosts",
+                        DependencyScope::Transitive => "allowed_transitive_hosts",
+                    },
                 });
             }
             // Resolve the hostname to IP addresses and reject if any
@@ -203,13 +240,6 @@ impl ResolverPolicy {
                         }),
                     };
                 }
-            }
-            if !net.host_policy.allows(host) {
-                return Err(ResolverError::GitHostPolicyViolation {
-                    dep: name.manifest().to_string(),
-                    url: url.to_string(),
-                    host: host.to_string(),
-                });
             }
         }
         Ok(())
@@ -281,35 +311,28 @@ mod tests {
     }
 
     #[test]
-    fn credential_mode_from_config() {
-        let cfg = ModulesConfig {
-            allow_transitive_credentials: true,
-            ..ModulesConfig::default()
-        };
-        let policy = ResolverPolicy::from(&cfg);
-        assert_eq!(
-            policy
-                .git_policy(DependencyScope::Transitive)
-                .credential_mode,
-            CredentialMode::Enabled
-        );
-        assert_eq!(
-            policy.git_policy(DependencyScope::TopLevel).credential_mode,
-            CredentialMode::Enabled
-        );
-
+    fn transitive_credentials_require_host_allowlist() {
         let default_policy = ResolverPolicy::from(&ModulesConfig::default());
         assert_eq!(
-            default_policy
-                .git_policy(DependencyScope::Transitive)
-                .credential_mode,
+            default_policy.credential_mode(DependencyScope::Transitive, Some("github.com")),
+            CredentialMode::Enabled
+        );
+        assert_eq!(
+            default_policy.credential_mode(DependencyScope::Transitive, Some("bitbucket.org")),
             CredentialMode::Disabled
         );
         assert_eq!(
-            default_policy
-                .git_policy(DependencyScope::TopLevel)
-                .credential_mode,
+            default_policy.credential_mode(DependencyScope::TopLevel, Some("bitbucket.org")),
             CredentialMode::Enabled
+        );
+
+        let open = ResolverPolicy::from(&ModulesConfig {
+            allowed_transitive_hosts: Vec::new(),
+            ..ModulesConfig::default()
+        });
+        assert_eq!(
+            open.credential_mode(DependencyScope::Transitive, Some("github.com")),
+            CredentialMode::Disabled
         );
     }
 

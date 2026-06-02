@@ -37,7 +37,7 @@ impl GitFetcher {
         crate::resolver::versions::discover_remote_tags(
             url,
             net.max_advertised_refs,
-            net.credential_mode,
+            self.policy.credential_mode(scope, url.host_str()),
         )
         .map_err(ResolverError::from)
     }
@@ -55,7 +55,7 @@ impl GitFetcher {
         crate::resolver::versions::discover_remote_branches(
             url,
             net.max_advertised_refs,
-            net.credential_mode,
+            self.policy.credential_mode(scope, url.host_str()),
         )
         .map_err(ResolverError::from)
     }
@@ -72,13 +72,12 @@ impl GitFetcher {
         leaf: &Path,
     ) -> Result<(), ResolverError> {
         self.policy.check_git_url(dep, url, scope)?;
-        let net = self.policy.git_policy(scope);
         crate::resolver::git::ensure_materialized(
             leaf,
             url,
             commit,
             paths.iter().copied(),
-            net.credential_mode,
+            self.policy.credential_mode(scope, url.host_str()),
             self.policy.max_materialized_files,
             self.policy.max_materialized_bytes,
         )?;

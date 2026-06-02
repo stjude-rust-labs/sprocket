@@ -145,4 +145,8 @@ denied_hosts = [
     "::1",
     "0.0.0.0",
 ]
+allowed_transitive_hosts = [
+    "github.com",
+    "gitlab.com",
+]
 

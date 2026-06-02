@@ -244,6 +244,23 @@ pub enum ResolverError {
         host: String,
     },
 
+    /// A Git URL's host is not in the configured allow list for its scope.
+    #[error(
+        "`{dep}` git URL `{url}` targets host `{host}` which is not in the configured allow list; \
+         to allow it, add `{host}` to `{config_key}` in the `[modules]` section of your \
+         `sprocket.toml`"
+    )]
+    GitHostNotAllowed {
+        /// The owning dependency.
+        dep: String,
+        /// The rejected URL.
+        url: String,
+        /// The rejected host.
+        host: String,
+        /// The config key that would permit the host for this scope.
+        config_key: &'static str,
+    },
+
     /// A materialized module tree exceeded configured resource limits.
     #[error("`{dep}` materialized tree exceeds limits (files: {files}, bytes: {bytes})")]
     MaterializedTreeLimitExceeded {
