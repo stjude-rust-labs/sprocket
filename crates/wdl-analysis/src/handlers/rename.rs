@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use anyhow::bail;
 use lsp_types::TextEdit;
-use lsp_types::Url;
+use url::Url;
 use lsp_types::WorkspaceEdit;
 use wdl_ast::lexer::v1::is_ident;
 
