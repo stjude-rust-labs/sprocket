@@ -1027,7 +1027,7 @@ fn exclude_set(patterns: &[crate::RelativePath]) -> Result<globset::GlobSet, Res
     Ok(builder.build().unwrap())
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "resolver"))]
 mod tests {
     use std::fs;
     use std::sync::Arc;
