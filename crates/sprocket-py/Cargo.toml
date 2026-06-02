@@ -15,6 +15,7 @@ readme = "../../python/README.md"
 
 [dependencies]
 pyo3 = "0.28.3"
+wdl = { path = "../wdl", version = "0.23.0", default-features = false, features = ["diagnostics", "grammar"] }
 
 [lints]
 workspace = true
