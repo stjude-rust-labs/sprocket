@@ -14,7 +14,7 @@
     "at any time"
   ],
   "prHourlyLimit": 4,
-  "prConcurrentLimit": 10,
+  "prConcurrentLimit": 5,
   "minimumReleaseAge": "14 days",
   "rangeStrategy": "update-lockfile",
   "automerge": true,
