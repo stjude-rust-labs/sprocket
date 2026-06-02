@@ -2,6 +2,8 @@ use pyo3::intern;
 use pyo3::prelude::*;
 use pyo3::types::PyString;
 
+use crate::grammar::Diagnostic;
+
 /// The diagnostic mode to use for reporting diagnostics.
 #[pyclass(module = "sprocket_bio.diagnostics", frozen, eq)]
 #[derive(PartialEq)]
@@ -42,14 +44,19 @@ impl Mode {
 pub fn emit_diagnostics(
     path: &str,
     source: &str,
-    diagnostics: Vec<Py<PyAny>>, // TODO: correct diagnostics type
+    diagnostics: Vec<Bound<'_, Diagnostic>>,
     report_mode: Bound<'_, Mode>,
     colorize: bool,
 ) -> PyResult<()> {
+    // Collect the borrowed `PyRef`s in a list in order to guarantee they live
+    // longer than `wdl::diagnostics::emit_diagnostics()`, which avoids borrow
+    // checker errors.
+    let borrowed_diagnostics: Vec<_> = diagnostics.into_iter().map(|d| d.borrow()).collect();
+
     wdl::diagnostics::emit_diagnostics(
         path,
         source,
-        diagnostics.into_iter().map(|x| todo!("map diagnostics")),
+        borrowed_diagnostics.iter().map(|d| &d.0),
         report_mode.get().0,
         colorize,
     )

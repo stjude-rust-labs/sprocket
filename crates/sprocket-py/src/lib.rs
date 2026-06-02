@@ -26,7 +26,10 @@ mod sprocket_bio {
     }
 
     #[pymodule]
-    mod grammar {}
+    mod grammar {
+        #[pymodule_export]
+        use crate::grammar::Diagnostic;
+    }
 
     #[pymodule_init]
     fn init(module: &Bound<'_, PyModule>) -> PyResult<()> {

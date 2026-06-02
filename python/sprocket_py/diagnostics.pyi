@@ -1,3 +1,4 @@
+from .grammar import Diagnostic
 import typing as t
 
 
@@ -11,5 +12,4 @@ class Mode:
     def __eq__(self, other: t.Any) -> bool: ...
 
 
-# TODO: correct diagnostics type
-def emit_diagnostics(path: str, source: str, diagnostics: list[t.Any], report_mode: Mode, colorize: bool): ...
+def emit_diagnostics(path: str, source: str, diagnostics: list[Diagnostic], report_mode: Mode, colorize: bool): ...
