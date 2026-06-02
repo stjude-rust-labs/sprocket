@@ -36,6 +36,14 @@ pub enum GitModulePathError {
     /// therefore disallowed.
     #[error("git module path must not be `.`")]
     Dot,
+
+    /// The path contains a Git pathspec metacharacter.
+    ///
+    /// The sub-path is interpolated into a libgit2 checkout pathspec, so
+    /// glob metacharacters (`*`, `?`, `[`, `]`) or a leading pathspec magic
+    /// marker (`:`) would alter which tree entries are materialized.
+    #[error("git module path `{0}` contains a disallowed pathspec metacharacter")]
+    PathspecMetacharacter(String),
 }
 
 /// A validated, canonical sub-path within a Git-backed dependency.
@@ -116,6 +124,9 @@ impl TryFrom<PathBuf> for GitModulePath {
         if s == "." {
             return Err(GitModulePathError::Dot);
         }
+        if s.contains(['*', '?', '[', ']']) || s.starts_with(':') {
+            return Err(GitModulePathError::PathspecMetacharacter(s));
+        }
         let rp = RelativePath::try_from(s)?;
         Ok(Self(rp))
     }
@@ -191,6 +202,17 @@ mod tests {
             ),
             "expected `Invalid(EscapesRoot)` for `module/../../secret`"
         );
+    }
+
+    #[test]
+    fn rejects_pathspec_metacharacters() {
+        for input in ["mod*", "mod?", "mod[a-z]", "a]b", ":(top)mod"] {
+            let err = GitModulePath::from_str(input).unwrap_err();
+            assert!(
+                matches!(err, GitModulePathError::PathspecMetacharacter(_)),
+                "expected `PathspecMetacharacter` for `{input}`; got: {err:?}"
+            );
+        }
     }
 
     #[test]

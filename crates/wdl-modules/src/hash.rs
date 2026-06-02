@@ -53,6 +53,22 @@ pub enum HashError {
         source: io::Error,
     },
 
+    /// A file changed size between its metadata read and its content
+    /// stream, so the length prefix written into the digest disagrees with
+    /// the bytes hashed. Producing a digest from this inconsistent framing
+    /// would break the injectivity the length prefixes guarantee.
+    #[error(
+        "file `{path}` changed size during hashing; expected {expected} bytes, hashed {actual}"
+    )]
+    SizeChanged {
+        /// The path of the file whose size changed.
+        path: PathBuf,
+        /// The size reported by the file's metadata.
+        expected: u64,
+        /// The number of bytes actually streamed into the hasher.
+        actual: u64,
+    },
+
     /// A tree walk error (symlink containment, metadata target, etc.).
     #[error(transparent)]
     Walk(#[from] ModuleWalkError),
@@ -248,10 +264,17 @@ impl Hasher {
                 })?
                 .len();
             sha.update(len.to_le_bytes());
-            io::copy(&mut file, &mut sha).map_err(|source| HashError::Io {
-                path: canonical_abs,
+            let copied = io::copy(&mut file, &mut sha).map_err(|source| HashError::Io {
+                path: canonical_abs.clone(),
                 source,
             })?;
+            if copied != len {
+                return Err(HashError::SizeChanged {
+                    path: canonical_abs,
+                    expected: len,
+                    actual: copied,
+                });
+            }
         }
 
         sha.update((self.paths.len() as u64).to_le_bytes());
@@ -259,8 +282,6 @@ impl Hasher {
     }
 }
 
-/// Computes the content hash of a directory by walking it (excluding the
-/// spec-mandated exclusions `module.sig` and `module-lock.json`).
 /// Directory and file names that are not module content and should
 /// be excluded from hashing, limit checks, and content walks.
 pub(crate) const NON_MODULE_CONTENT: &[&str] = &[".git"];

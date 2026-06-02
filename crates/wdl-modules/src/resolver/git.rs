@@ -259,17 +259,30 @@ pub(crate) fn inspect_subtree_stats(
         repo.find_tree(entry.id()).map_err(GitError::Git)?
     };
     let mut stats = GitTreeStats::default();
+    let mut blob_error = None;
     subtree
         .walk(git2::TreeWalkMode::PreOrder, |_, entry| {
             if entry.kind() == Some(git2::ObjectType::Blob) {
                 stats.files += 1;
-                if let Ok(blob) = repo.find_blob(entry.id()) {
-                    stats.bytes = stats.bytes.saturating_add(blob.size() as u64);
+                match repo.find_blob(entry.id()) {
+                    Ok(blob) => {
+                        stats.bytes = stats.bytes.saturating_add(blob.size() as u64);
+                    }
+                    Err(e) => {
+                        // A missing or unreadable blob would undercount the
+                        // byte total and silently weaken the limit check, so
+                        // abort the walk and surface the error.
+                        blob_error = Some(e);
+                        return git2::TreeWalkResult::Abort;
+                    }
                 }
             }
             git2::TreeWalkResult::Ok
         })
         .map_err(GitError::Git)?;
+    if let Some(e) = blob_error {
+        return Err(GitError::Git(e));
+    }
     Ok(stats)
 }
 
