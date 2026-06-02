@@ -5,9 +5,25 @@
 //! `sprocket_bio` Python package (located at `python/sprocket_bio`), which
 //! bundles this extension.
 
+mod diagnostics;
+mod grammar;
+
 use pyo3::prelude::*;
 
 /// Python bindings to [Sprocket](https://sprocket.bio), a bioinformatics toolkit for Workflow
 /// Description Language (WDL).
 #[pymodule]
-mod sprocket_bio {}
+mod sprocket_bio {
+    use pyo3::prelude::*;
+
+    #[pymodule]
+    mod diagnostics {
+        #[pymodule_export]
+        use crate::diagnostics::Mode;
+    }
+
+    #[pymodule]
+    mod grammar {
+        
+    }
+}
