@@ -13,8 +13,8 @@
   "schedule": [
     "at any time"
   ],
-  "prHourlyLimit": 4,
-  "prConcurrentLimit": 5,
+  "prHourlyLimit": 5,
+  "prConcurrentLimit": 10,
   "minimumReleaseAge": "14 days",
   "rangeStrategy": "update-lockfile",
   "automerge": true,
@@ -35,11 +35,12 @@
   },
   "packageRules": [
     {
-      "description": "Major updates require manual review",
+      "description": "Major updates require manual approval via Dependency Dashboard",
       "matchUpdateTypes": [
         "major"
       ],
       "automerge": false,
+      "dependencyDashboardApproval": true,
       "addLabels": [
         "major-update"
       ]
