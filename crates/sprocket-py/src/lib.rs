@@ -21,6 +21,8 @@ mod sprocket_bio {
     mod diagnostics {
         #[pymodule_export]
         use crate::diagnostics::Mode;
+        #[pymodule_export]
+        use crate::diagnostics::emit_diagnostics;
     }
 
     #[pymodule]
