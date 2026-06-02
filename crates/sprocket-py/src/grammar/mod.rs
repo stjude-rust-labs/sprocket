@@ -1,5 +1,8 @@
+//! Python bindings for [`wdl::grammar`].
+
+use pyo3::intern;
 use pyo3::prelude::*;
-use pyo3::types::PyList;
+use pyo3::types::PyString;
 
 /// Represents a span of source.
 #[pyclass(module = "sprocket_bio.grammar", frozen, eq, ord, str = "{0}")]
@@ -57,6 +60,40 @@ impl Span {
 
     fn __repr__(&self) -> String {
         format!("Span({}..{})", self.0.start(), self.0.end())
+    }
+}
+
+/// Represents the severity of a diagnostic.
+#[pyclass(module = "sprocket_bio.grammar", frozen, eq, ord)]
+#[derive(PartialEq, PartialOrd)]
+pub struct Severity(wdl::grammar::Severity);
+
+#[pymethods]
+impl Severity {
+    /// The diagnostic is displayed as an error.
+    #[classattr]
+    const ERROR: Self = Self(wdl::grammar::Severity::Error);
+    /// The diagnostic is displayed as a note.
+    #[classattr]
+    const NOTE: Self = Self(wdl::grammar::Severity::Note);
+    /// The diagnostic is displayed as a warning.
+    #[classattr]
+    const WARNING: Self = Self(wdl::grammar::Severity::Warning);
+
+    fn __str__<'py>(&self, py: Python<'py>) -> &Bound<'py, PyString> {
+        match self.0 {
+            wdl::grammar::Severity::Error => intern!(py, "Severity.ERROR"),
+            wdl::grammar::Severity::Warning => intern!(py, "Severity.WARNING"),
+            wdl::grammar::Severity::Note => intern!(py, "Severity.NOTE"),
+        }
+    }
+
+    fn __repr__<'py>(&self, py: Python<'py>) -> &Bound<'py, PyString> {
+        match self.0 {
+            wdl::grammar::Severity::Error => intern!(py, "<Severity.ERROR>"),
+            wdl::grammar::Severity::Warning => intern!(py, "<Severity.WARNING>"),
+            wdl::grammar::Severity::Note => intern!(py, "<Severity.NOTE>"),
+        }
     }
 }
 
@@ -124,8 +161,8 @@ impl Diagnostic {
     }
 
     /// Sets the severity of the diagnostic.
-    fn with_severity(&self, severity: Bound<'_, PyAny>) -> Self {
-        todo!("Self(self.0.clone().with_severity(severity))")
+    fn with_severity(&self, severity: Bound<'_, Severity>) -> Self {
+        Self(self.0.clone().with_severity(severity.get().0))
     }
 
     /// Gets the optional rule associated with the diagnostic.
@@ -136,8 +173,8 @@ impl Diagnostic {
     /// Gets the default severity level of the diagnostic.
     ///
     /// The severity level may be upgraded to error depending on configuration.
-    fn severity(&self) -> Bound<'_, PyAny> {
-        todo!()
+    fn severity(&self) -> Severity {
+        Severity(self.0.severity())
     }
 
     /// Gets the message of the diagnostic.
