@@ -140,7 +140,7 @@ software are difficult, it may be easiest to wrap an `apptainer` invocation of
 apptainer -s run docker://koalaman/shellcheck:stable $@
 ```
 
-If you are developing the Python bindings, please see [`sprocket_py`'s `README.md`](./python/README.md).
+If you are developing the Python bindings, please see [the Python-specific `README.md`](./python/README.md).
 
 ## 🚧️ Tests
 
