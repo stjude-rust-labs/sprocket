@@ -1,6 +1,65 @@
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
+/// Represents a span of source.
+#[pyclass(module = "sprocket_bio.grammar", frozen, eq, ord, str = "{0}")]
+#[derive(PartialEq, PartialOrd)]
+pub struct Span(wdl::grammar::Span);
+
+#[pymethods]
+impl Span {
+    /// Creates a new span from the given start and length.
+    #[new]
+    fn __new__(start: usize, len: usize) -> Self {
+        Self(wdl::grammar::Span::new(start, len))
+    }
+
+    /// Gets the start of the span.
+    #[getter]
+    fn start(&self) -> usize {
+        self.0.start()
+    }
+
+    /// Gets the noninclusive end of the span.
+    #[getter]
+    fn end(&self) -> usize {
+        self.0.end()
+    }
+
+    /// Gets the length of the span.
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Determines if the span is empty.
+    fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    /// Determines if the span contains the given offset.
+    fn contains(&self, offset: usize) -> bool {
+        self.0.contains(offset)
+    }
+
+    /// Calculates an intersection of two spans, if one exists.
+    ///
+    /// If spans are adjacent, a zero-length span is returned.
+    ///
+    /// Returns `None` if the two spans are disjoint.
+    ///
+    /// # Examples
+    ///
+    /// >>> Span.intersect(Span(0, 10), Span(5, 10))
+    /// Span(5..10)
+    fn intersect(&self, other: Bound<'_, Self>) -> Option<Self> {
+        self.0.intersect(other.get().0).map(Self)
+    }
+
+    fn __repr__(&self) -> String {
+        format!("Span({}..{})", self.0.start(), self.0.end())
+    }
+}
+
 /// Represents a diagnostic to display to the user.
 #[pyclass(module = "sprocket_bio.grammar", frozen, eq, ord)]
 #[derive(PartialEq, PartialOrd)]
@@ -50,8 +109,8 @@ impl Diagnostic {
     ///
     /// The span for the highlight is expected to be for the same file as the
     /// diagnostic.
-    fn with_highlight(&self, span: Bound<'_, PyAny>) -> Self {
-        Self(self.0.clone().with_highlight(span)) // TODO
+    fn with_highlight(&self, span: Bound<'_, Span>) -> Self {
+        Self(self.0.clone().with_highlight(span.get().0))
     }
 
     /// Adds a label to the diagnostic.
@@ -60,13 +119,13 @@ impl Diagnostic {
     ///
     /// The span for the label is expected to be for the same file as the
     /// diagnostic.
-    fn with_label(&self, message: &str, span: Bound<'_, PyAny>) -> Self {
-        Self(self.0.clone().with_label(message, span)) // TODO
+    fn with_label(&self, message: &str, span: Bound<'_, Span>) -> Self {
+        Self(self.0.clone().with_label(message, span.get().0))
     }
 
     /// Sets the severity of the diagnostic.
     fn with_severity(&self, severity: Bound<'_, PyAny>) -> Self {
-        Self(self.0.clone().with_severity(severity)) // TODO
+        todo!("Self(self.0.clone().with_severity(severity))")
     }
 
     /// Gets the optional rule associated with the diagnostic.

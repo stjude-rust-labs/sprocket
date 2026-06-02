@@ -29,6 +29,8 @@ mod sprocket_bio {
     mod grammar {
         #[pymodule_export]
         use crate::grammar::Diagnostic;
+        #[pymodule_export]
+        use crate::grammar::Span;
     }
 
     #[pymodule_init]
