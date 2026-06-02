@@ -30,9 +30,12 @@ mod sprocket_bio {
         #[pymodule_export]
         use crate::grammar::Diagnostic;
         #[pymodule_export]
+        use crate::grammar::Label;
+        #[pymodule_export]
         use crate::grammar::Span;
     }
 
+    /// Initializes the module.
     #[pymodule_init]
     fn init(module: &Bound<'_, PyModule>) -> PyResult<()> {
         /// Recursively registers all submodules to

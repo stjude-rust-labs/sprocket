@@ -188,7 +188,33 @@ impl Diagnostic {
     }
 
     /// Gets the labels of the diagnostic.
-    fn labels(&self) -> Bound<'_, PyList> {
-        todo!()
+    fn labels(&self) -> Vec<Label> {
+        self.0.labels().map(|l| Label(l.clone())).collect()
+    }
+}
+
+/// Represents a label that annotates the source code.
+#[pyclass(module = "sprocket_bio.grammar", frozen, eq, ord)]
+#[derive(PartialEq, PartialOrd)]
+pub struct Label(wdl::grammar::Label);
+
+#[pymethods]
+impl Label {
+    /// Creates a new label with the given message and span.
+    #[new]
+    fn __new__(message: &str, span: Bound<'_, Span>) -> Self {
+        Self(wdl::grammar::Label::new(message, span.get().0))
+    }
+
+    /// The optional message of the label (may be empty).
+    #[getter]
+    fn message(&self) -> &str {
+        self.0.message()
+    }
+
+    /// The span of the label.
+    #[getter]
+    fn span(&self) -> Span {
+        Span(self.0.span())
     }
 }
