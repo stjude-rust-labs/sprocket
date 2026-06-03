@@ -418,9 +418,9 @@ pub struct Server<S> {
     /// Mutable server state.
     state: Arc<tokio::sync::RwLock<ServerState<S>>>,
     /// Sender for client [`Notification`]s.
-    notification_tx: tokio::sync::mpsc::UnboundedSender<Notification>,
+    notification_tx: Option<tokio::sync::mpsc::UnboundedSender<Notification>>,
     /// Task handle for the notification loop.
-    _notification_loop_handle: tokio::task::JoinHandle<()>,
+    _notification_loop_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
 /// The server config and dependent fields.
@@ -549,8 +549,8 @@ impl<S: 'static> Server<S> {
             client_support: Default::default(),
             options,
             state,
-            notification_tx,
-            _notification_loop_handle: notification_loop_handle,
+            notification_tx: Some(notification_tx),
+            _notification_loop_handle: Some(notification_loop_handle),
         }
     }
 
@@ -618,6 +618,18 @@ impl<S: 'static> Server<S> {
 
 // Notification handlers
 impl<S: 'static> Server<S> {
+    /// Send a notification to the queue.
+    fn send_notification(&self, notification: Notification) -> ControlFlow<async_lsp::Result<()>> {
+        match self
+            .notification_tx
+            .as_ref()
+            .and_then(|tx| tx.send(notification).ok())
+        {
+            Some(()) => ControlFlow::Continue(()),
+            None => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
+        }
+    }
+
     /// Incoming [`Notification`] handler loop.
     async fn notification_loop(
         mut notification_rx: UnboundedReceiver<Notification>,
@@ -996,7 +1008,21 @@ impl<S: 'static> LanguageServer for Server<S> {
     }
 
     fn shutdown(&mut self, _: ()) -> BoxFuture<'static, Result<(), Self::Error>> {
-        Box::pin(async move { Ok(()) })
+        drop(self.notification_tx.take());
+
+        let notification_loop_handle = self._notification_loop_handle.take();
+        Box::pin(async move {
+            if let Some(handle) = notification_loop_handle {
+                handle.await.map_err(|e| {
+                    ResponseError::new(
+                        ErrorCode::INTERNAL_ERROR,
+                        format!("notification loop failed during shutdown: {e}"),
+                    )
+                })?;
+            }
+
+            Ok(())
+        })
     }
 
     fn semantic_tokens_full(
@@ -1515,65 +1541,38 @@ impl<S: 'static> LanguageServer for Server<S> {
         &mut self,
         params: DidChangeWorkspaceFoldersParams,
     ) -> Self::NotifyResult {
-        match self
-            .notification_tx
-            .send(Notification::DidChangeWorkspaceFolders(params))
-        {
-            Ok(()) => ControlFlow::Continue(()),
-            Err(_) => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
-        }
+        self.send_notification(Notification::DidChangeWorkspaceFolders(params))
     }
 
     fn did_change_configuration(
         &mut self,
         params: DidChangeConfigurationParams,
     ) -> Self::NotifyResult {
-        match self
-            .notification_tx
-            .send(Notification::DidChangeConfiguration(params))
-        {
-            Ok(()) => ControlFlow::Continue(()),
-            Err(_) => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
-        }
+        self.send_notification(Notification::DidChangeConfiguration(params))
     }
 
     fn did_open(&mut self, mut params: DidOpenTextDocumentParams) -> Self::NotifyResult {
         normalize_uri_path(&mut params.text_document.uri);
 
-        match self.notification_tx.send(Notification::DidOpen(params)) {
-            Ok(()) => ControlFlow::Continue(()),
-            Err(_) => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
-        }
+        self.send_notification(Notification::DidOpen(params))
     }
 
     fn did_change(&mut self, mut params: DidChangeTextDocumentParams) -> Self::NotifyResult {
         normalize_uri_path(&mut params.text_document.uri);
 
-        match self.notification_tx.send(Notification::DidChange(params)) {
-            Ok(()) => ControlFlow::Continue(()),
-            Err(_) => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
-        }
+        self.send_notification(Notification::DidChange(params))
     }
 
     fn did_close(&mut self, mut params: DidCloseTextDocumentParams) -> Self::NotifyResult {
         normalize_uri_path(&mut params.text_document.uri);
 
-        match self.notification_tx.send(Notification::DidClose(params)) {
-            Ok(()) => ControlFlow::Continue(()),
-            Err(_) => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
-        }
+        self.send_notification(Notification::DidClose(params))
     }
 
     fn did_change_watched_files(
         &mut self,
         params: DidChangeWatchedFilesParams,
     ) -> Self::NotifyResult {
-        match self
-            .notification_tx
-            .send(Notification::DidChangeWatchedFiles(params))
-        {
-            Ok(()) => ControlFlow::Continue(()),
-            Err(_) => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
-        }
+        self.send_notification(Notification::DidChangeWatchedFiles(params))
     }
 }
