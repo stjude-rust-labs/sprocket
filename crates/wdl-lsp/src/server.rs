@@ -37,6 +37,7 @@ use tracing::debug;
 use tracing::debug_span;
 use tracing::error;
 use tracing::info;
+use tracing::warn;
 use url::Url;
 use uuid::Uuid;
 use wdl_analysis::Analyzer;
@@ -561,7 +562,7 @@ impl<S: 'static> Server<S> {
         user_options: UserOptions,
         log_handle: Option<FilterReloadHandle<S>>,
     ) -> anyhow::Result<()> {
-        debug!("running LSP server: {options:#?}");
+        debug!("running LSP server: {options:#?}; user options: {user_options:#?}");
 
         let (server, _) = async_lsp::MainLoop::new_server(|client| {
             ServiceBuilder::new()
@@ -765,10 +766,15 @@ impl<S: 'static> Server<S> {
         // Progress the added folders
         if !params.event.added.is_empty() {
             for folder in &params.event.added {
-                if let Ok(path) = folder.uri.to_file_path()
-                    && let Err(e) = state.config.analyzer.add_directory(path).await
-                {
-                    error!("failed to add documents from directory to analyzer: {e}");
+                match folder.uri.to_file_path() {
+                    Ok(path) => {
+                        if let Err(e) = state.config.analyzer.add_directory(path).await {
+                            error!("failed to add documents from directory to analyzer: {e}");
+                        }
+                    }
+                    Err(_) => {
+                        warn!("failed to convert URI to file path: {}", folder.uri);
+                    }
                 }
             }
         }
@@ -897,13 +903,18 @@ impl<S: 'static> LanguageServer for Server<S> {
                 for mut folder in folders {
                     normalize_uri_path(&mut folder.uri);
                     state.folders.push(folder.clone());
-                    if let Ok(path) = folder.uri.to_file_path()
-                        && let Err(e) = state.config.analyzer.add_directory(path).await
-                    {
-                        error!(
-                            "failed to add initial workspace directory {uri}: {e}",
-                            uri = folder.uri
-                        );
+                    match folder.uri.to_file_path() {
+                        Ok(path) => {
+                            if let Err(e) = state.config.analyzer.add_directory(path).await {
+                                error!(
+                                    "failed to add initial workspace directory {uri}: {e}",
+                                    uri = folder.uri
+                                );
+                            }
+                        }
+                        Err(_) => {
+                            warn!("failed to convert URI to file path: {}", folder.uri);
+                        }
                     }
                 }
             }
