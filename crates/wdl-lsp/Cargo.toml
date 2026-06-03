@@ -12,13 +12,16 @@ documentation = "https://docs.rs/wdl-lsp"
 
 [dependencies]
 anyhow = { workspace = true }
+async-lsp = { workspace = true, features = ["tokio"] }
+futures.workspace = true
 line-index = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 struct-patch = { workspace = true, features = ["nesting"] }
 tokio = { workspace = true }
-tower-lsp = { workspace = true }
+tokio-util = { workspace = true, features = ["compat"] }
+tower.workspace = true
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
