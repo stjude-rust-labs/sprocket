@@ -1,6 +1,8 @@
 //! A lint rule for ensuring parameters have proper descriptions.
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -71,12 +73,23 @@ impl Rule for ParameterDescriptionRule {
          containing a `description` key with a `String` value."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task greet {
+    meta {
+        outputs: {
+            greeting: {},
+        }
+    }
+
+    parameter_meta {
+        name: {}
+    }
+
     input {
         String name
     }
@@ -89,16 +102,16 @@ task greet {
         String greeting = stdout()
     }
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task greet {
     meta {
         outputs: {
-            greeting: "The generated greeting message."
+            greeting: "The generated greeting message.",
         }
     }
 
@@ -118,8 +131,9 @@ task greet {
         String greeting = stdout()
     }
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

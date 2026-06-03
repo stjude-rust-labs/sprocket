@@ -1,0 +1,28 @@
+error: type mismatch: expected type `Int`, but found built-in type `None`
+   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:35:18
+   │
+35 │         input4 = None
+   │         ------   ^^^^ this is built-in type `None`
+   │         │         
+   │         this expects type `Int`
+
+warning: missing required call input `input4` for task `t`
+   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:38:10
+   │
+38 │     call t as t2 {
+   │          ^
+
+error: type mismatch: expected type `Int`, but found built-in type `None`
+   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:46:18
+   │
+46 │         input4 = None
+   │         ------   ^^^^ this is built-in type `None`
+   │         │         
+   │         this expects type `Int`
+
+warning: missing required call input `input4` for workflow `w`
+   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:49:12
+   │
+49 │     call w.w as w2 {
+   │            ^
+

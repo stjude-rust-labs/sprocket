@@ -1,0 +1,4 @@
+error: failed to read baseline file `nonexistent-baseline.toml`
+
+Caused by:
+    No such file or directory (os error 2)

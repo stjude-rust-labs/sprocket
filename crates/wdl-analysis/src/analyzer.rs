@@ -21,8 +21,12 @@ use line_index::LineCol;
 use line_index::LineIndex;
 use line_index::WideEncoding;
 use line_index::WideLineCol;
+use lsp_types::CallHierarchyIncomingCall;
+use lsp_types::CallHierarchyItem;
+use lsp_types::CallHierarchyOutgoingCall;
 use lsp_types::CompletionResponse;
 use lsp_types::DocumentSymbolResponse;
+use lsp_types::FoldingRange;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
 use lsp_types::InlayHint;
@@ -44,15 +48,19 @@ use crate::graph::ParseState;
 use crate::queue::AddRequest;
 use crate::queue::AnalysisQueue;
 use crate::queue::AnalyzeRequest;
+use crate::queue::CallHierarchyRequest;
 use crate::queue::CompletionRequest;
 use crate::queue::DocumentSymbolRequest;
 use crate::queue::FindAllReferencesRequest;
+use crate::queue::FoldingRangeRequest;
 use crate::queue::FormatRequest;
 use crate::queue::GotoDefinitionRequest;
 use crate::queue::HoverRequest;
+use crate::queue::IncomingCallsRequest;
 use crate::queue::InlayHintsRequest;
 use crate::queue::NotifyChangeRequest;
 use crate::queue::NotifyIncrementalChangeRequest;
+use crate::queue::OutgoingCallsRequest;
 use crate::queue::RemoveRequest;
 use crate::queue::RenameRequest;
 use crate::queue::Request;
@@ -603,6 +611,36 @@ where
         })?
     }
 
+    /// Get the call hierarchy for the symbol at the current position.
+    pub async fn call_hierarchy(
+        &self,
+        document: Url,
+        position: SourcePosition,
+        encoding: SourcePositionEncoding,
+    ) -> Result<Option<Vec<CallHierarchyItem>>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::CallHierarchy(CallHierarchyRequest {
+                document,
+                position,
+                encoding,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send call hierarchy request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive call hierarchy response from analysis queue because the \
+                 channel has closed"
+            )
+        })
+    }
+
     /// Formats a document.
     pub async fn format_document(&self, document: Url) -> Result<Option<(u32, u32, String)>> {
         let (tx, rx) = oneshot::channel();
@@ -617,6 +655,29 @@ where
 
         rx.await.map_err(|_| {
             anyhow!("failed to send format request to the queue because the channel has closed")
+        })
+    }
+
+    /// Get all folding ranges in a document.
+    pub async fn folding_range(&self, document: Url) -> Result<Option<Vec<FoldingRange>>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::FoldingRange(FoldingRangeRequest {
+                document,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send folding range request to the queue because the channel has \
+                     closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive folding range response from analysis queue because the channel \
+                 has closed"
+            )
         })
     }
 
@@ -836,6 +897,66 @@ where
         rx.await.map_err(|_| {
             anyhow!(
                 "failed to receive workspace symbol response from analysis queue because the \
+                 channel has closed"
+            )
+        })
+    }
+
+    /// Get the incoming calls for the symbol at the current position.
+    pub async fn incoming_calls(
+        &self,
+        document: Url,
+        position: SourcePosition,
+        encoding: SourcePositionEncoding,
+    ) -> Result<Option<Vec<CallHierarchyIncomingCall>>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::IncomingCalls(IncomingCallsRequest {
+                document,
+                position,
+                encoding,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send incoming calls request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive incoming calls response from analysis queue because the \
+                 channel has closed"
+            )
+        })
+    }
+
+    /// Get the outgoing calls for the symbol at the current position.
+    pub async fn outgoing_calls(
+        &self,
+        document: Url,
+        position: SourcePosition,
+        encoding: SourcePositionEncoding,
+    ) -> Result<Option<Vec<CallHierarchyOutgoingCall>>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::OutgoingCalls(OutgoingCallsRequest {
+                document,
+                position,
+                encoding,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send outgoing calls request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive outgoing calls response from analysis queue because the \
                  channel has closed"
             )
         })

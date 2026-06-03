@@ -1,0 +1,3 @@
+for item in alpha bravo charlie; do
+    echo "$item"
+done

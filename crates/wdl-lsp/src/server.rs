@@ -43,6 +43,7 @@ use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_MODIFIERS;
 use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_TYPES;
 use wdl_analysis::path_to_uri;
 use wdl_lint::Linter;
+use wdl_lint::Rule;
 
 use crate::proto;
 
@@ -265,6 +266,10 @@ pub struct ServerOptions {
     /// Feature flags for enabling experimental features.
     #[patch(skip)]
     pub feature_flags: FeatureFlags,
+
+    /// The diagnostic baseline for suppressing known diagnostics.
+    #[patch(skip)]
+    pub baseline: Option<wdl_lint::Baseline>,
 }
 
 impl Default for ServerOptions {
@@ -277,6 +282,7 @@ impl Default for ServerOptions {
             exceptions: Vec::new(),
             ignore_filename: None,
             feature_flags: Default::default(),
+            baseline: None,
         }
     }
 }
@@ -384,7 +390,7 @@ impl ServerOptions {
             .with_diagnostics_config(DiagnosticsConfig::new(
                 wdl_analysis::rules()
                     .iter()
-                    .filter(|r| exceptions.contains(&r.id().into())),
+                    .filter(|r| !exceptions.contains(&r.id().into())),
             ))
             .with_ignore_filename(ignore_name)
             .with_all_rules(all_rules)
@@ -410,7 +416,8 @@ impl ServerOptions {
                     validator.add_visitor(Linter::new(
                         wdl_lint::rules(&wdl_lint_config)
                             .into_iter()
-                            .filter(|r| exceptions.contains(&r.id().into())),
+                            .filter(|r| !exceptions.contains(&r.id().into()))
+                            .map(|r| r as Box<dyn Rule>),
                     ));
                 }
                 validator
@@ -624,6 +631,8 @@ impl<S: 'static> LanguageServer for Server<S> {
                     },
                 }),
                 inlay_hint_provider: Some(OneOf::Left(true)),
+                call_hierarchy_provider: Some(CallHierarchyServerCapability::Simple(true)),
+                folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
                 ..Default::default()
             },
             server_info: Some(self.info().await),
@@ -760,7 +769,11 @@ impl<S: 'static> LanguageServer for Server<S> {
                 data: None,
             })?;
 
-        proto::document_diagnostic_report(params, results, &self.info().await.name)
+        drop(config);
+        let name = self.info().await.name;
+        let config = self.config.read().await;
+        let mut matcher = config.options.baseline.as_ref().map(|b| b.matcher());
+        proto::document_diagnostic_report(params, results, &name, matcher.as_mut())
             .ok_or_else(RpcError::request_cancelled)
     }
 
@@ -790,7 +803,13 @@ impl<S: 'static> LanguageServer for Server<S> {
             })?;
         progress.complete(&self.client, "analysis complete").await;
 
-        Ok(proto::workspace_diagnostic_report(params, results, &name))
+        let mut matcher = config.options.baseline.as_ref().map(|b| b.matcher());
+        Ok(proto::workspace_diagnostic_report(
+            params,
+            results,
+            &name,
+            matcher.as_mut(),
+        ))
     }
 
     async fn did_change_workspace_folders(&self, params: DidChangeWorkspaceFoldersParams) {
@@ -964,6 +983,115 @@ impl<S: 'static> LanguageServer for Server<S> {
             });
 
         Ok(result)
+    }
+
+    async fn prepare_call_hierarchy(
+        &self,
+        mut params: CallHierarchyPrepareParams,
+    ) -> RpcResult<Option<Vec<CallHierarchyItem>>> {
+        let config = self.config.read().await;
+
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+
+        debug!("received `textDocument/prepareCallHierarchy` request: {params:#?}");
+
+        let position = SourcePosition::new(
+            params.text_document_position_params.position.line,
+            params.text_document_position_params.position.character,
+        );
+
+        let result = config
+            .analyzer
+            .call_hierarchy(
+                params.text_document_position_params.text_document.uri,
+                position,
+                SourcePositionEncoding::UTF16,
+            )
+            .await
+            .map_err(|e| RpcError {
+                code: ErrorCode::InternalError,
+                message: e.to_string().into(),
+                data: None,
+            })?;
+
+        Ok(result)
+    }
+
+    async fn incoming_calls(
+        &self,
+        mut params: CallHierarchyIncomingCallsParams,
+    ) -> RpcResult<Option<Vec<CallHierarchyIncomingCall>>> {
+        let config = self.config.read().await;
+
+        normalize_uri_path(&mut params.item.uri);
+
+        debug!("received `callHierarchy/incomingCalls` request: {params:#?}");
+
+        let position = SourcePosition::new(
+            params.item.selection_range.start.line,
+            params.item.selection_range.start.character,
+        );
+
+        let result = config
+            .analyzer
+            .incoming_calls(params.item.uri, position, SourcePositionEncoding::UTF16)
+            .await
+            .map_err(|e| RpcError {
+                code: ErrorCode::InternalError,
+                message: e.to_string().into(),
+                data: None,
+            })?;
+
+        Ok(result)
+    }
+
+    async fn outgoing_calls(
+        &self,
+        mut params: CallHierarchyOutgoingCallsParams,
+    ) -> RpcResult<Option<Vec<CallHierarchyOutgoingCall>>> {
+        let config = self.config.read().await;
+
+        normalize_uri_path(&mut params.item.uri);
+
+        debug!("received `callHierarchy/outgoingCalls` request: {params:#?}");
+
+        let position = SourcePosition::new(
+            params.item.selection_range.start.line,
+            params.item.selection_range.start.character,
+        );
+
+        let result = config
+            .analyzer
+            .outgoing_calls(params.item.uri, position, SourcePositionEncoding::UTF16)
+            .await
+            .map_err(|e| RpcError {
+                code: ErrorCode::InternalError,
+                message: e.to_string().into(),
+                data: None,
+            })?;
+
+        Ok(result)
+    }
+
+    async fn folding_range(
+        &self,
+        mut params: FoldingRangeParams,
+    ) -> RpcResult<Option<Vec<FoldingRange>>> {
+        let config = self.config.read().await;
+
+        normalize_uri_path(&mut params.text_document.uri);
+
+        debug!("received `textDocument/foldingRange` request: {params:#?}");
+
+        config
+            .analyzer
+            .folding_range(params.text_document.uri)
+            .await
+            .map_err(|e| RpcError {
+                code: ErrorCode::InternalError,
+                message: e.to_string().into(),
+                data: None,
+            })
     }
 
     async fn goto_definition(

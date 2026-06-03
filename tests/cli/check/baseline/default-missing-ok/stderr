@@ -1,0 +1,8 @@
+note[MetaSections]: workflow `test` is missing a `meta` section
+  ┌─ source.wdl:2:10
+  │
+2 │ workflow test {}
+  │          ^^^^ this workflow is missing a `meta` section
+  │
+  = fix: add the missing section
+

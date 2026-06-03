@@ -1,6 +1,7 @@
 //! Implementation of task execution backends.
 
 use std::collections::HashMap;
+use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -116,13 +117,56 @@ impl Input {
     }
 }
 
+/// An ordered list of container pull attempts.
+///
+/// Entries appear in the order they were attempted. The list stops after the
+/// first success, so candidates after a successful pull do not appear.
+pub struct PullResults<T>(Vec<(ContainerSource, anyhow::Result<T>)>);
+
+impl<T> Default for PullResults<T> {
+    fn default() -> Self {
+        Self(Vec::new())
+    }
+}
+
+impl<T> PullResults<T> {
+    /// Records the outcome of a pull attempt.
+    pub fn push(&mut self, source: ContainerSource, result: anyhow::Result<T>) {
+        self.0.push((source, result));
+    }
+
+    /// Returns the first successful container and its associated value, if any.
+    pub fn successful_container(&self) -> Option<(&ContainerSource, &T)> {
+        self.0
+            .iter()
+            .find_map(|(source, result)| result.as_ref().ok().map(|value| (source, value)))
+    }
+
+    /// Iterates over the failed pull attempts.
+    pub fn failures(&self) -> impl Iterator<Item = (&ContainerSource, &anyhow::Error)> {
+        self.0
+            .iter()
+            .filter_map(|(source, result)| result.as_ref().err().map(|e| (source, e)))
+    }
+}
+
+impl<T> fmt::Display for PullResults<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "all container image candidates failed to pull:")?;
+        for (source, error) in self.failures() {
+            write!(f, "\n  - `{source:#}`: {error:#}")?;
+        }
+        Ok(())
+    }
+}
+
 /// Represents constraints applied to a task's execution.
 #[derive(Debug)]
 pub struct TaskExecutionConstraints {
-    /// The container the task will run in.
+    /// The container images to try, in priority order.
     ///
     /// A value of `None` indicates the task will run on the host.
-    pub container: Option<ContainerSource>,
+    pub container: Option<Vec<ContainerSource>>,
     /// The allocated number of CPUs; must be greater than 0.
     pub cpu: f64,
     /// The allocated memory in bytes; must be greater than 0.
@@ -209,6 +253,8 @@ impl<'a> ExecuteTaskRequest<'a> {
 /// Represents the result of a task's execution.
 #[derive(Debug)]
 pub struct TaskExecutionResult {
+    /// The container image that was actually used for execution.
+    pub container: Option<ContainerSource>,
     /// Stores the task process exit code.
     pub exit_code: i32,
     /// The task's working directory.
@@ -262,4 +308,75 @@ pub(crate) trait TaskExecutionBackend: Send + Sync {
         transferer: &'a Arc<dyn Transferer>,
         request: ExecuteTaskRequest<'a>,
     ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>>;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_pull_results_has_no_successful_container() {
+        let results: PullResults<String> = PullResults::default();
+        assert!(results.successful_container().is_none());
+    }
+
+    #[test]
+    fn pull_results_with_success() {
+        let mut results = PullResults::default();
+        let source = ContainerSource::Docker("foo:latest".to_string());
+        results.push(source.clone(), Ok("resolved".to_string()));
+        assert_eq!(
+            results
+                .successful_container()
+                .map(|(s, v)| (s.clone(), v.clone())),
+            Some((source, "resolved".to_string()))
+        );
+    }
+
+    #[test]
+    fn pull_results_with_all_failures() {
+        let mut results: PullResults<String> = PullResults::default();
+        results.push(
+            ContainerSource::Docker("a:1".to_string()),
+            Err(anyhow::anyhow!("not found")),
+        );
+        results.push(
+            ContainerSource::Docker("b:2".to_string()),
+            Err(anyhow::anyhow!("timeout")),
+        );
+        assert!(results.successful_container().is_none());
+        assert_eq!(results.failures().count(), 2);
+    }
+
+    #[test]
+    fn pull_results_display_lists_failures() {
+        let mut results: PullResults<String> = PullResults::default();
+        results.push(
+            ContainerSource::Docker("a:1".to_string()),
+            Err(anyhow::anyhow!("not found")),
+        );
+        results.push(
+            ContainerSource::Docker("b:2".to_string()),
+            Err(anyhow::anyhow!("timeout")),
+        );
+        let display = results.to_string();
+        assert!(display.contains("a:1"));
+        assert!(display.contains("not found"));
+        assert!(display.contains("b:2"));
+        assert!(display.contains("timeout"));
+    }
+
+    #[test]
+    fn pull_results_failures_skips_successes() {
+        let mut results = PullResults::default();
+        results.push(
+            ContainerSource::Docker("a:1".to_string()),
+            Err(anyhow::anyhow!("not found")),
+        );
+        results.push(
+            ContainerSource::Docker("b:2".to_string()),
+            Ok("resolved".to_string()),
+        );
+        assert_eq!(results.failures().count(), 1);
+    }
 }

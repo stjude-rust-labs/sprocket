@@ -44,6 +44,22 @@ pub const DEFAULT_OUTPUT_DIRECTORY: &str = "./out";
 /// The name of the Sprocket configuration file.
 const CONFIG_FILENAME: &str = "sprocket.toml";
 
+/// Returns the user-level Sprocket configuration directory, the same root
+/// `sprocket.toml` is read from. Use this anywhere a path needs to live
+/// alongside the user's Sprocket config.
+///
+/// On macOS this is `$HOME/.config/sprocket/`, on Linux it follows
+/// `$XDG_CONFIG_HOME` (typically `~/.config/sprocket/`), on Windows it lands
+/// in `%APPDATA%/sprocket/`. Returns `None` when the underlying base
+/// directory cannot be determined (no `$HOME`, etc.).
+pub fn config_root() -> Option<PathBuf> {
+    #[cfg(target_os = "macos")]
+    let base = dirs::home_dir().map(|p| p.join(".config"));
+    #[cfg(not(target_os = "macos"))]
+    let base = dirs::config_dir();
+    base.map(|d| d.join("sprocket"))
+}
+
 /// The capacity for the events channels.
 ///
 /// This is the number of events to buffer in the events channel before
@@ -126,6 +142,9 @@ pub struct Config {
     pub doc: DocConfig,
     /// Common configuration options for all commands.
     pub common: CommonConfig,
+    /// Configuration for the module system (`[modules]` section).
+    #[serde(default)]
+    pub modules: wdl_modules::resolver::ModulesConfig,
 }
 
 /// Represents shared configuration options for Sprocket commands.
@@ -185,6 +204,9 @@ pub struct CheckConfig {
     /// Set of lint tags to filter out of the enabled lint rules.
     #[serde(default)]
     pub filter_lint_tags: Vec<String>,
+    /// Path to the diagnostic baseline file.
+    #[serde(default)]
+    pub baseline: Option<PathBuf>,
     /// Lint rule configuration.
     #[serde(default)]
     pub lint: wdl::lint::Config,
@@ -603,15 +625,9 @@ impl Config {
                 }
             }
 
-            // Check XDG_CONFIG_HOME for a config file
-            // On MacOS, check HOME for a config file
-            #[cfg(target_os = "macos")]
-            let dir = dirs::home_dir().map(|p| p.join(".config"));
-            #[cfg(not(target_os = "macos"))]
-            let dir = dirs::config_dir();
-
-            if let Some(dir) = dir {
-                let path = dir.join("sprocket").join(CONFIG_FILENAME);
+            // Check the user-level Sprocket config directory.
+            if let Some(dir) = config_root() {
+                let path = dir.join(CONFIG_FILENAME);
                 if path.exists() {
                     debug!("reading configuration from `{path}`", path = path.display());
                     builder = builder.add_source(config::File::from(path.as_path()));

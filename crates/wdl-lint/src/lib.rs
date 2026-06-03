@@ -25,10 +25,13 @@
 
 use std::sync::LazyLock;
 
+use dyn_clone::DynClone;
 use strum::VariantArray;
+use wdl_analysis::Example;
 use wdl_analysis::Visitor;
 use wdl_ast::SyntaxKind;
 
+pub mod baseline;
 mod config;
 pub(crate) mod fix;
 mod linter;
@@ -36,6 +39,9 @@ pub mod rules;
 mod tags;
 pub(crate) mod util;
 
+pub use baseline::Baseline;
+pub use baseline::BaselineEntry;
+pub use baseline::BaselineMatcher;
 pub use config::Config;
 #[doc(hidden)]
 pub use config::ConfigField;
@@ -70,7 +76,7 @@ pub static ALL_TAGS: LazyLock<Vec<Tag>> = LazyLock::new(|| {
 });
 
 /// A trait implemented by lint rules.
-pub trait Rule: Visitor {
+pub trait Rule: Visitor + DynClone {
     /// The unique identifier for the lint rule.
     ///
     /// The identifier is required to be pascal case.
@@ -86,7 +92,7 @@ pub trait Rule: Visitor {
     fn explanation(&self) -> &'static str;
 
     /// Get a list of examples that would trigger this lint rule.
-    fn examples(&self) -> &'static [&'static str];
+    fn examples(&self) -> &'static [Example];
 
     /// Get the tags of the lint rule.
     fn tags(&self) -> TagSet;
@@ -109,9 +115,11 @@ pub trait Rule: Visitor {
     fn related_rules(&self) -> &'static [&'static str];
 }
 
+dyn_clone::clone_trait_object!(Rule);
+
 /// Gets all of the lint rules.
-pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
-    let rules: Vec<Box<dyn Rule>> = vec![
+pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
+    let rules: Vec<Box<dyn Rule + Send + Sync>> = vec![
         Box::<rules::DoubleQuotesRule>::default(),
         Box::<rules::HereDocCommandsRule>::default(),
         Box::new(rules::SnakeCaseRule::new(config)),
@@ -121,7 +129,6 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::ImportPlacementRule>::default(),
         Box::<rules::PascalCaseRule>::default(),
         Box::<rules::MetaSectionsRule>::default(),
-        Box::<rules::ConsistentNewlinesRule>::default(),
         Box::<rules::CallInputKeywordRule>::default(),
         Box::<rules::SectionOrderingRule>::default(),
         Box::<rules::DeprecatedObjectRule>::default(),
@@ -136,6 +143,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::OutputNameRule>::default(),
         Box::new(rules::DeclarationNameRule::new(config)),
         Box::<rules::RedundantNone>::default(),
+        Box::<rules::HostPathLiteralsRule>::default(),
         Box::<rules::ContainerUriRule>::default(),
         Box::<rules::RequirementsSectionRule>::default(),
         Box::<rules::KnownRulesRule>::default(),
@@ -147,6 +155,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule>> {
         Box::<rules::DocCommentTabsRule>::default(),
         Box::<rules::UnusedDocCommentsRule>::default(),
         Box::<rules::DenyGlobStar>::default(),
+        Box::<rules::EmptyOutputs>::default(),
     ];
 
     // Ensure all the rule IDs are unique and pascal case and that related rules are

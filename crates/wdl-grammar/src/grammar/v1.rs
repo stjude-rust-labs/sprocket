@@ -4,6 +4,7 @@ use super::macros::expected;
 use super::macros::expected_fn;
 use crate::Diagnostic;
 use crate::Span;
+use crate::SupportedVersion;
 use crate::grammar::macros::expected_in;
 use crate::lexer::TokenSet;
 use crate::lexer::v1::BraceCommandToken;
@@ -24,6 +25,7 @@ use crate::parser::unterminated_braced_command;
 use crate::parser::unterminated_heredoc;
 use crate::parser::unterminated_string;
 use crate::tree::SyntaxKind;
+use crate::version::V1;
 
 /// The parser type for the V1 grammar.
 pub type Parser<'a> = parser::Parser<'a, Token>;
@@ -111,6 +113,18 @@ const REQUIREMENTS_ITEM_RECOVERY_SET: TokenSet =
 const HINTS_ITEM_RECOVERY_SET: TokenSet =
     ANY_IDENT.union(TokenSet::new(&[Token::CloseBrace as u8]));
 
+/// The recovery set for the braced member-selection clause of a symbolic
+/// import.
+const IMPORT_MEMBER_RECOVERY_SET: TokenSet =
+    TokenSet::new(&[Token::Ident as u8, Token::CloseBrace as u8]);
+
+/// Tokens that terminate the braced member-selection clause of a symbolic
+/// import in addition to `CloseBrace`. `FromKeyword` is the form-3
+/// separator that immediately follows the brace group, so we treat its
+/// appearance after a parsed member as a missing-`}` signal rather than
+/// as another member.
+const IMPORT_MEMBER_TERMINATION_SET: TokenSet = TokenSet::new(&[Token::FromKeyword as u8]);
+
 /// The recovery set for literal input items.
 const LITERAL_INPUT_ITEM_RECOVERY_SET: TokenSet =
     ANY_IDENT.union(TokenSet::new(&[Token::CloseBrace as u8]));
@@ -125,9 +139,6 @@ const STRUCT_ITEM_EXPECTED_NAMES: &[&str] = &[
     "parameter metadata section",
     "struct member declaration",
 ];
-
-/// The expected names of items in an enum definition.
-const ENUM_ITEM_EXPECTED_NAMES: &[&str] = &["enum variant declaration"];
 
 /// The expected set of tokens in a task definition.
 pub const TASK_ITEM_EXPECTED_SET: TokenSet = TYPE_EXPECTED_SET.union(TokenSet::new(&[
@@ -352,6 +363,7 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::ElseKeyword as u8,
     Token::EnvKeyword as u8,
     Token::FalseKeyword as u8,
+    Token::FromKeyword as u8,
     Token::HintsKeyword as u8,
     Token::IfKeyword as u8,
     Token::InKeyword as u8,
@@ -364,7 +376,6 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
     Token::OutputKeyword as u8,
     Token::ParameterMetaKeyword as u8,
     Token::RequirementsKeyword as u8,
-    Token::HintsKeyword as u8,
     Token::RuntimeKeyword as u8,
     Token::ScatterKeyword as u8,
     Token::StructKeyword as u8,
@@ -377,12 +388,34 @@ const ANY_IDENT: TokenSet = TokenSet::new(&[
 
 /// Parses matching braces given a callback to parse the interior delimited
 /// items.
+///
+/// Accepts an optional `termination` token set; tokens in the set end the
+/// item loop early, with [`Parser::consume_close_token`] synthesizing a
+/// zero-width close brace.
 macro_rules! braced_items {
     ($parser:ident, $marker:ident, $delimiter:expr_2021, $recovery:expr_2021, $cb:expr_2021) => {
+        braced_items!(
+            $parser,
+            $marker,
+            $delimiter,
+            TokenSet::EMPTY,
+            $recovery,
+            $cb
+        )
+    };
+    (
+        $parser:ident,
+        $marker:ident,
+        $delimiter:expr_2021,
+        $termination:expr_2021,
+        $recovery:expr_2021,
+        $cb:expr_2021
+    ) => {
         if let Err(e) = $parser.matching_delimited(
             Token::OpenBrace,
             Token::CloseBrace,
             $delimiter,
+            $termination,
             $recovery,
             $cb,
         ) {
@@ -395,10 +428,28 @@ macro_rules! braced_items {
 /// items.
 macro_rules! bracketed_items {
     ($parser:ident, $marker:ident, $delimiter:expr_2021, $recovery:expr_2021, $cb:expr_2021) => {
+        bracketed_items!(
+            $parser,
+            $marker,
+            $delimiter,
+            TokenSet::EMPTY,
+            $recovery,
+            $cb
+        )
+    };
+    (
+        $parser:ident,
+        $marker:ident,
+        $delimiter:expr_2021,
+        $termination:expr_2021,
+        $recovery:expr_2021,
+        $cb:expr_2021
+    ) => {
         if let Err(e) = $parser.matching_delimited(
             Token::OpenBracket,
             Token::CloseBracket,
             $delimiter,
+            $termination,
             $recovery,
             $cb,
         ) {
@@ -411,10 +462,28 @@ macro_rules! bracketed_items {
 /// items.
 macro_rules! paren_items {
     ($parser:ident, $marker:ident, $delimiter:expr_2021, $recovery:expr_2021, $cb:expr_2021) => {
+        paren_items!(
+            $parser,
+            $marker,
+            $delimiter,
+            TokenSet::EMPTY,
+            $recovery,
+            $cb
+        )
+    };
+    (
+        $parser:ident,
+        $marker:ident,
+        $delimiter:expr_2021,
+        $termination:expr_2021,
+        $recovery:expr_2021,
+        $cb:expr_2021
+    ) => {
         if let Err(e) = $parser.matching_delimited(
             Token::OpenParen,
             Token::CloseParen,
             $delimiter,
+            $termination,
             $recovery,
             $cb,
         ) {
@@ -436,6 +505,15 @@ macro_rules! bracketed {
 macro_rules! paren {
     ($parser:ident, $marker:ident, $cb:expr_2021) => {
         if let Err(e) = $parser.matching(Token::OpenParen, Token::CloseParen, false, $cb) {
+            return Err(($marker, e));
+        }
+    };
+}
+
+/// Parses an identifier.
+macro_rules! ident {
+    ($parser:ident, $marker:ident, $name:literal) => {
+        if let Err(e) = ident($parser, $name) {
             return Err(($marker, e));
         }
     };
@@ -478,29 +556,237 @@ fn item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnost
     }
 }
 
-/// Parses an import statement.
-fn import_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    parser.require(Token::ImportKeyword);
-    expected_fn!(parser, marker, string);
+/// Parses an identifier.
+///
+/// This also has special treatment for keywords, where they'll get a diagnostic
+/// emitted, but allow the parser to continue.
+fn ident(parser: &mut Parser<'_>, name: &str) -> Result<(), Diagnostic> {
+    match parser.peek() {
+        Some((Token::Ident, _)) => {}
 
-    if parser.next_if(Token::AsKeyword) {
-        expected!(parser, marker, Token::Ident, "import namespace");
+        // WDL 1.0+
+        Some((
+            kw @ (Token::ArrayTypeKeyword
+            | Token::BooleanTypeKeyword
+            | Token::FileTypeKeyword
+            | Token::FloatTypeKeyword
+            | Token::IntTypeKeyword
+            | Token::MapTypeKeyword
+            | Token::ObjectTypeKeyword
+            | Token::PairTypeKeyword
+            | Token::StringTypeKeyword
+            | Token::AliasKeyword
+            | Token::AsKeyword
+            | Token::CallKeyword
+            | Token::CommandKeyword
+            | Token::ElseKeyword
+            | Token::FalseKeyword
+            | Token::IfKeyword
+            | Token::InKeyword
+            | Token::ImportKeyword
+            | Token::InputKeyword
+            | Token::MetaKeyword
+            | Token::ObjectKeyword
+            | Token::OutputKeyword
+            | Token::ParameterMetaKeyword
+            | Token::RuntimeKeyword
+            | Token::ScatterKeyword
+            | Token::StructKeyword
+            | Token::TaskKeyword
+            | Token::ThenKeyword
+            | Token::TrueKeyword
+            | Token::WorkflowKeyword),
+            _,
+        )) => {
+            if parser.version() >= SupportedVersion::V1(V1::Zero) {
+                parser.diagnostic(expected_found(name, Some(kw.describe()), parser.span()));
+            }
+        }
+
+        // WDL 1.1+
+        Some((kw @ (Token::NoneKeyword | Token::AfterKeyword | Token::VersionKeyword), _)) => {
+            if parser.version() >= SupportedVersion::V1(V1::One) {
+                parser.diagnostic(expected_found(name, Some(kw.describe()), parser.span()));
+            }
+        }
+
+        // WDL 1.2+
+        Some((
+            kw @ (Token::DirectoryTypeKeyword
+            | Token::HintsKeyword
+            | Token::RequirementsKeyword
+            | Token::EnvKeyword),
+            _,
+        )) => {
+            if parser.version() >= SupportedVersion::V1(V1::Two) {
+                parser.diagnostic(expected_found(name, Some(kw.describe()), parser.span()));
+            }
+        }
+
+        // WDL 1.3+
+        Some((kw @ Token::EnumKeyword, _)) => {
+            if parser.version() >= SupportedVersion::V1(V1::Three) {
+                parser.diagnostic(expected_found(name, Some(kw.describe()), parser.span()));
+            }
+        }
+
+        // WDL 1.4+
+        Some((kw @ Token::FromKeyword, _)) => {
+            if parser.version() >= SupportedVersion::V1(V1::Four) {
+                parser.diagnostic(expected_found(name, Some(kw.describe()), parser.span()));
+            }
+        }
+
+        found => {
+            let (found, span) = found
+                .map(|(t, s)| (Some(t.describe()), s))
+                .unwrap_or_else(|| (None, parser.span()));
+            return Err(expected_found(name, found, span));
+        }
     }
 
-    while let Some((Token::AliasKeyword, _)) = parser.peek() {
-        expected_fn!(parser, marker, import_alias);
+    // Keywords as identifiers aren't hard errors
+    let _ = parser.next();
+    parser.update_last_token_kind(SyntaxKind::Ident);
+
+    Ok(())
+}
+
+/// Parses an import statement.
+///
+/// Three forms are recognized.
+///
+/// 1. `import <source> [as <alias>] (alias <Old> as <New>)*` — the existing
+///    import form. `<source>` is either a quoted URI or a symbolic module path.
+///    `as <alias>` renames the pseudo-namespace through which the imported
+///    tasks and workflows are accessed; `alias <Old> as <New>` renames an
+///    imported struct or enum.
+/// 2. `import * from <source>` — every task, workflow, and user-defined type
+///    from `<source>` is brought into the importing document's scope.
+/// 3. `import { <member> [as <Name>], ... } from <source>` — only the listed
+///    items are brought into scope. A per-member `as <Name>` renames the
+///    selected item locally.
+///
+/// Forms 2 and 3 do not accept a trailing `as <alias>` or `alias` clause.
+fn import_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+    parser.require(Token::ImportKeyword);
+
+    let has_selection = match parser.peek() {
+        Some((Token::Asterisk, _)) => {
+            parser.require(Token::Asterisk);
+            true
+        }
+        Some((Token::OpenBrace, _)) => {
+            let inner = parser.start();
+            if let Err((inner, e)) = import_members(parser, inner) {
+                inner.abandon(parser);
+                return Err((marker, e));
+            }
+            true
+        }
+        _ => false,
+    };
+
+    if has_selection {
+        expected!(parser, marker, Token::FromKeyword);
+    }
+
+    // Parse the import source, which is either a quoted string or a symbolic
+    // module path.
+    match parser.peek() {
+        Some((Token::SingleQuote | Token::DoubleQuote | Token::OpenHeredoc, _)) => {
+            expected_fn!(parser, marker, string);
+        }
+        Some((Token::Ident, _)) => {
+            expected_fn!(parser, marker, symbolic_module_path);
+        }
+        found => {
+            let (found, span) = found
+                .map(|(t, s)| (Some(t.describe()), s))
+                .unwrap_or_else(|| (None, parser.span()));
+            let expected = if has_selection {
+                &["string", "identifier"][..]
+            } else {
+                &["string", "identifier", "`*`", "`{`"][..]
+            };
+            return Err((marker, expected_one_of(expected, found, span)));
+        }
+    }
+
+    // Form 1 suffix: optional `as <alias>` and zero-or-more `alias` clauses.
+    // Forms 2 and 3 do not accept either.
+    if !has_selection {
+        if parser.next_if(Token::AsKeyword) {
+            ident!(parser, marker, "import namespace");
+        }
+
+        while let Some((Token::AliasKeyword, _)) = parser.peek() {
+            expected_fn!(parser, marker, import_alias);
+        }
     }
 
     marker.complete(parser, SyntaxKind::ImportStatementNode);
     Ok(())
 }
 
+/// Parses the braced member-selection clause `{ <m>, ... }`.
+fn import_members(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+    braced_items!(
+        parser,
+        marker,
+        Some(Token::Comma),
+        IMPORT_MEMBER_TERMINATION_SET,
+        IMPORT_MEMBER_RECOVERY_SET,
+        import_member
+    );
+
+    marker.complete(parser, SyntaxKind::ImportMembersNode);
+    Ok(())
+}
+
+/// Parses one member entry inside the braced group.
+///
+/// An entry is a single identifier optionally followed by `as <ident>` to
+/// rename it locally.
+fn import_member(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
+    expected_in!(parser, marker, ANY_IDENT, "selected member");
+    parser.update_last_token_kind(SyntaxKind::Ident);
+
+    if parser.next_if(Token::AsKeyword) {
+        expected_in!(parser, marker, ANY_IDENT, "member alias");
+        parser.update_last_token_kind(SyntaxKind::Ident);
+    }
+
+    marker.complete(parser, SyntaxKind::ImportMemberNode);
+    Ok(())
+}
+
+/// Parses the module path of a symbolic import.
+///
+/// The path consists of one or more `Ident` tokens separated by `Slash`
+/// (`/`) tokens.
+fn symbolic_module_path(
+    parser: &mut Parser<'_>,
+    marker: Marker,
+) -> Result<(), (Marker, Diagnostic)> {
+    expected_in!(parser, marker, ANY_IDENT, "symbolic module path");
+    parser.update_last_token_kind(SyntaxKind::Ident);
+
+    while parser.next_if(Token::Slash) {
+        expected_in!(parser, marker, ANY_IDENT, "symbolic module path component");
+        parser.update_last_token_kind(SyntaxKind::Ident);
+    }
+
+    marker.complete(parser, SyntaxKind::SymbolicModulePathNode);
+    Ok(())
+}
+
 /// Parses an import alias.
 fn import_alias(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::AliasKeyword);
-    expected!(parser, marker, Token::Ident, "source type name");
+    ident!(parser, marker, "source type name");
     expected!(parser, marker, Token::AsKeyword);
-    expected!(parser, marker, Token::Ident, "target type name");
+    ident!(parser, marker, "target type name");
     marker.complete(parser, SyntaxKind::ImportAliasNode);
     Ok(())
 }
@@ -508,7 +794,7 @@ fn import_alias(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, 
 /// Parses a struct definition.
 fn struct_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::StructKeyword);
-    expected!(parser, marker, Token::Ident, "struct name");
+    ident!(parser, marker, "struct name");
     braced_items!(parser, marker, None, STRUCT_ITEM_RECOVERY_SET, struct_item);
     marker.complete(parser, SyntaxKind::StructDefinitionNode);
     Ok(())
@@ -537,7 +823,7 @@ fn struct_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, D
 /// Parses a struct member declaration.
 fn struct_member_decl(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     expected_fn!(parser, marker, ty);
-    expected_in!(parser, marker, ANY_IDENT, "struct member name");
+    ident!(parser, marker, "struct member name");
     parser.update_last_token_kind(SyntaxKind::Ident);
     marker.complete(parser, SyntaxKind::UnboundDeclNode);
     Ok(())
@@ -546,7 +832,7 @@ fn struct_member_decl(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Ma
 /// Parses an enum definition.
 fn enum_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::EnumKeyword);
-    expected!(parser, marker, Token::Ident, "enum name");
+    ident!(parser, marker, "enum name");
 
     // Optional type parameter, i.e., `[<type>]`.
     if parser.peek().map(|(t, _)| t) == Some(Token::OpenBracket) {
@@ -587,39 +873,26 @@ fn enum_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marke
 
 /// Parses a variant in an enum definition.
 fn enum_variant(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    match parser.peek() {
-        Some((Token::Ident, _)) => {
-            parser.require(Token::Ident);
+    ident!(parser, marker, "enum variant name");
 
-            // Optional value, i.e., `= <expr>`.
-            if parser.peek().map(|(t, _)| t) == Some(Token::Assignment) {
-                parser.require(Token::Assignment);
-                let expr_marker = parser.start();
-                if let Err((expr_marker, diagnostic)) = expr(parser, expr_marker) {
-                    expr_marker.abandon(parser);
-                    return Err((marker, diagnostic));
-                }
-            }
-
-            marker.complete(parser, SyntaxKind::EnumVariantNode);
-        }
-        found => {
-            let (found, span) = found
-                .map(|(t, s)| (Some(t.describe()), s))
-                .unwrap_or_else(|| (None, parser.span()));
-            return Err((
-                marker,
-                expected_one_of(ENUM_ITEM_EXPECTED_NAMES, found, span),
-            ));
+    // Optional value, i.e., `= <expr>`.
+    if parser.peek().map(|(t, _)| t) == Some(Token::Assignment) {
+        parser.require(Token::Assignment);
+        let expr_marker = parser.start();
+        if let Err((expr_marker, diagnostic)) = expr(parser, expr_marker) {
+            expr_marker.abandon(parser);
+            return Err((marker, diagnostic));
         }
     }
+
+    marker.complete(parser, SyntaxKind::EnumVariantNode);
     Ok(())
 }
 
 /// Parses a task definition.
 fn task_definition(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::TaskKeyword);
-    expected!(parser, marker, Token::Ident, "task name");
+    ident!(parser, marker, "task name");
     braced_items!(parser, marker, None, TASK_ITEM_RECOVERY_SET, task_item);
     marker.complete(parser, SyntaxKind::TaskDefinitionNode);
     Ok(())
@@ -631,7 +904,7 @@ fn workflow_definition(
     marker: Marker,
 ) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::WorkflowKeyword);
-    expected!(parser, marker, Token::Ident, "workflow name");
+    ident!(parser, marker, "workflow name");
     braced_items!(
         parser,
         marker,
@@ -844,8 +1117,7 @@ fn input_item(
     }
 
     expected_fn!(parser, marker, ty);
-    expected_in!(parser, marker, ANY_IDENT, "input name");
-    parser.update_last_token_kind(SyntaxKind::Ident);
+    ident!(parser, marker, "input name");
 
     let kind = if parser.next_if(Token::Assignment) {
         expected_fn!(parser, marker, expr);
@@ -1822,10 +2094,9 @@ fn bound_decl(
     expected_fn!(parser, marker, ty);
 
     if output {
-        expected_in!(parser, marker, ANY_IDENT, "output name");
-        parser.update_last_token_kind(SyntaxKind::Ident);
+        ident!(parser, marker, "output name");
     } else {
-        expected!(parser, marker, Token::Ident, "declaration name");
+        ident!(parser, marker, "declaration name");
     }
 
     expected!(parser, marker, Token::Assignment);
@@ -1937,6 +2208,7 @@ fn call_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
 
         parser.delimited(
             Token::CloseBrace,
+            TokenSet::EMPTY,
             Some(Token::Comma),
             CALL_INPUT_ITEM_RECOVERY_SET,
             call_input_item,
@@ -1951,10 +2223,10 @@ fn call_statement(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker
 
 /// Parses a call target (i.e. a qualified name) in a call statement.
 fn call_target(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    expected!(parser, marker, Token::Ident, "call target name");
+    ident!(parser, marker, "call target name");
 
     while parser.next_if(Token::Dot) {
-        expected!(parser, marker, Token::Ident, "call target name");
+        ident!(parser, marker, "call target name");
     }
 
     marker.complete(parser, SyntaxKind::CallTargetNode);
@@ -1964,7 +2236,7 @@ fn call_target(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, D
 /// Parses an alias (i.e. `as` clause) in a call statement.
 fn call_alias(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::AsKeyword);
-    expected!(parser, marker, Token::Ident, "call output name");
+    ident!(parser, marker, "call output name");
     marker.complete(parser, SyntaxKind::CallAliasNode);
     Ok(())
 }
@@ -1972,14 +2244,14 @@ fn call_alias(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Di
 /// Parses an `after` clause in a call statement.
 fn call_after_clause(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
     parser.require(Token::AfterKeyword);
-    expected!(parser, marker, Token::Ident, "task name");
+    ident!(parser, marker, "task name");
     marker.complete(parser, SyntaxKind::CallAfterNode);
     Ok(())
 }
 
 /// Parses a call input item.
 fn call_input_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    expected_in!(parser, marker, ANY_IDENT, "call input key");
+    ident!(parser, marker, "call input key");
     parser.update_last_token_kind(SyntaxKind::Ident);
 
     if parser.next_if(Token::Assignment) {
@@ -2277,8 +2549,7 @@ fn literal_struct_item(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<(), (Marker, Diagnostic)> {
-    expected_in!(parser, marker, ANY_IDENT, "struct member name");
-    parser.update_last_token_kind(SyntaxKind::Ident);
+    ident!(parser, marker, "struct member name");
     expected!(parser, marker, Token::Colon);
     expected_fn!(parser, marker, expr);
     marker.complete(parser, SyntaxKind::LiteralStructItemNode);
@@ -2343,12 +2614,10 @@ fn literal_input(
 
 /// Parses a literal input item.
 fn literal_input_item(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, Diagnostic)> {
-    expected_in!(parser, marker, ANY_IDENT, "input key");
-    parser.update_last_token_kind(SyntaxKind::Ident);
+    ident!(parser, marker, "input key");
 
     while parser.next_if(Token::Dot) {
-        expected_in!(parser, marker, ANY_IDENT, "struct member name");
-        parser.update_last_token_kind(SyntaxKind::Ident);
+        ident!(parser, marker, "struct member name");
     }
 
     expected!(parser, marker, Token::Colon);
@@ -2378,12 +2647,10 @@ fn literal_output_item(
     parser: &mut Parser<'_>,
     marker: Marker,
 ) -> Result<(), (Marker, Diagnostic)> {
-    expected_in!(parser, marker, ANY_IDENT, "output key");
-    parser.update_last_token_kind(SyntaxKind::Ident);
+    ident!(parser, marker, "output key");
 
     while parser.next_if(Token::Dot) {
-        expected_in!(parser, marker, ANY_IDENT, "struct member name");
-        parser.update_last_token_kind(SyntaxKind::Ident);
+        ident!(parser, marker, "struct member name");
     }
 
     expected!(parser, marker, Token::Colon);

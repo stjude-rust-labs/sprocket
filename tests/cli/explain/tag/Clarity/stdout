@@ -1,6 +1,5 @@
 Rules with the tag `Clarity`:
   - CommandSectionIndentation
-  - ConsistentNewlines
   - ContainerUri
   - DeclarationName
   - DenyGlobStar

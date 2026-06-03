@@ -1,4 +1,4 @@
-#@ except: MetaDescription, OutputName, RuntimeSection
+#@ except: MetaDescription, OutputName, RuntimeSection, EmptyOutputs
 
 version 1.1
 

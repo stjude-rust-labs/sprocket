@@ -56,24 +56,24 @@ error: conflicting import namespace `md5sum`
    │
    = fix: add an `as` clause to the import to specify a namespace
 
-error: conflicting import namespace `star`
+error: conflicting import namespace `librarian`
    ┌─ tests/analysis/conflicting-imports/source.wdl:18:8
    │
-17 │ import "https://raw.githubusercontent.com/stjudecloud/workflows/efdca837bc35fe5647de6aa95989652a5a9648dc/tools/star.wdl?query=foo" # First
-   │        --------------------------------------------------------------------------------------------------------------------------- the conflicting import namespace was introduced here
-18 │ import "star.wdl"                                   # Conflicts
-   │        ^^^^^^^^^^ this conflicts with another import namespace
+17 │ import "https://raw.githubusercontent.com/stjudecloud/workflows/d45a4c2a6d954b404db818f023b5a0453ac86fd0/tools/librarian.wdl?query=foo" # First
+   │        -------------------------------------------------------------------------------------------------------------------------------- the conflicting import namespace was introduced here
+18 │ import "librarian.wdl"                                   # Conflicts
+   │        ^^^^^^^^^^^^^^^ this conflicts with another import namespace
    │
    = fix: add an `as` clause to the import to specify a namespace
 
-error: conflicting import namespace `star`
+error: conflicting import namespace `librarian`
    ┌─ tests/analysis/conflicting-imports/source.wdl:19:8
    │
-17 │ import "https://raw.githubusercontent.com/stjudecloud/workflows/efdca837bc35fe5647de6aa95989652a5a9648dc/tools/star.wdl?query=foo" # First
-   │        --------------------------------------------------------------------------------------------------------------------------- the conflicting import namespace was introduced here
-18 │ import "star.wdl"                                   # Conflicts
-19 │ import "https://raw.githubusercontent.com/stjudecloud/workflows/efdca837bc35fe5647de6aa95989652a5a9648dc/tools/%73tar.wdl" # Conflicts
-   │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this conflicts with another import namespace
+17 │ import "https://raw.githubusercontent.com/stjudecloud/workflows/d45a4c2a6d954b404db818f023b5a0453ac86fd0/tools/librarian.wdl?query=foo" # First
+   │        -------------------------------------------------------------------------------------------------------------------------------- the conflicting import namespace was introduced here
+18 │ import "librarian.wdl"                                   # Conflicts
+19 │ import "https://raw.githubusercontent.com/stjudecloud/workflows/d45a4c2a6d954b404db818f023b5a0453ac86fd0/tools/%6cibrarian.wdl" # Conflicts
+   │        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this conflicts with another import namespace
    │
    = fix: add an `as` clause to the import to specify a namespace
 

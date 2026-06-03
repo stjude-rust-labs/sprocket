@@ -6,6 +6,7 @@ locale = "en-us"
 # Add words here to ignore them (case-sensitive)
 ba = "ba"
 bimap = "bimap"
+caf = "caf"
 Divable = "Divable"
 FO = "FO"
 

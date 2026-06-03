@@ -1,0 +1,4 @@
+error: failed to validate the inputs to task `count_items`
+
+Caused by:
+    missing required input `items` to task `count_items`

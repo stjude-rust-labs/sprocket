@@ -57,24 +57,24 @@ use crate::types::v1::ExprTypeEvaluator;
 /// * Else, [`None`] is returned.
 pub fn goto_definition(
     graph: &DocumentGraph,
-    document_uri: Url,
+    document_uri: &Url,
     position: SourcePosition,
     encoding: SourcePositionEncoding,
 ) -> Result<Option<Location>> {
     let index = graph
-        .get_index(&document_uri)
-        .ok_or_else(|| anyhow!("document `{uri}` not found in graph", uri = document_uri))?;
+        .get_index(document_uri)
+        .ok_or_else(|| anyhow!("document `{document_uri}` not found in graph"))?;
 
     let node = graph.get(index);
     let (root, lines) = match node.parse_state() {
         ParseState::Parsed { lines, root, .. } => {
             (SyntaxNode::new_root(root.clone()), lines.clone())
         }
-        _ => bail!("document `{uri}` has not been parsed", uri = document_uri),
+        _ => bail!("document `{document_uri}` has not been parsed"),
     };
 
     let Some(analysis_doc) = node.document() else {
-        bail!("document analysis data not available for {}", document_uri);
+        bail!("document analysis data not available for {document_uri}");
     };
 
     let offset = position_to_offset(&lines, position, encoding)?;
@@ -90,7 +90,7 @@ pub fn goto_definition(
         &parent_node,
         &token,
         analysis_doc,
-        &document_uri,
+        document_uri,
         &lines,
         graph,
     )? {
@@ -121,7 +121,7 @@ pub fn goto_definition(
                     target.inner(),
                     callee_name.inner(),
                     analysis_doc,
-                    &document_uri,
+                    document_uri,
                     &lines,
                     graph,
                 );
@@ -129,14 +129,14 @@ pub fn goto_definition(
         }
 
         return Ok(Some(location_from_span(
-            &document_uri,
+            document_uri,
             name_def.span(),
             &lines,
         )?));
     }
 
     // Global resolution
-    resolve_global_identifier(analysis_doc, ident_text, &document_uri, &lines, graph)
+    resolve_global_identifier(analysis_doc, ident_text, document_uri, &lines, graph)
 }
 
 /// Resolves identifier definition based on their parent node's syntax kind.
@@ -407,12 +407,12 @@ fn resolve_import_namespace(
     document_uri: &Url,
     lines: &Arc<LineIndex>,
 ) -> Result<Option<Location>> {
-    let import_stmt = wdl_ast::v1::ImportStatement::cast(parent_node.clone()).unwrap();
-    let ident_text = token.text();
+    let stmt = wdl_ast::v1::ImportStatement::cast(parent_node.clone());
 
-    if import_stmt
-        .explicit_namespace()
-        .is_some_and(|ns_ident| ns_ident.text() == ident_text)
+    if let Some(stmt) = stmt
+        && stmt
+            .explicit_namespace()
+            .is_some_and(|ns_ident| ns_ident.text() == token.text())
     {
         return Ok(Some(location_from_span(document_uri, token.span(), lines)?));
     }

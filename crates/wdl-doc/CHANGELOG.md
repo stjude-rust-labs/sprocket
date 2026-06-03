@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.15.0 - 2026-05-14
+
+## 0.14.1 - 2026-04-22
+
 #### Fixed
 
 * Large logos will no longer break the layout ([#789](https://github.com/stjude-rust-labs/sprocket/pull/789)).

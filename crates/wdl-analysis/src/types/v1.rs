@@ -90,7 +90,7 @@ use super::StructType;
 use super::Type;
 use super::TypeNameResolver;
 use crate::Exceptable;
-use crate::UNNECESSARY_FUNCTION_CALL;
+use crate::UnnecessaryFunctionCall;
 use crate::config::DiagnosticsConfig;
 use crate::diagnostics::Io;
 use crate::diagnostics::ambiguous_argument;
@@ -151,21 +151,24 @@ pub fn task_member_type_pre_evaluation(name: &str) -> Option<Type> {
 
 /// Gets the type of a `task` variable member for post-evaluation contexts.
 ///
-/// This is used in command and output sections where all task fields are
-/// available.
+/// This is used in command and output sections. Not all `task` fields are
+/// immediately available, however. The *validity* of the access is enforced
+/// separately during validation by the [`ScopedExprVisitor`].
 ///
 /// Returns [`None`] if the given member name is unknown.
+///
+/// [`ScopedExprVisitor`]: crate::validation::exprs::ScopedExprVisitor
 pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -> Option<Type> {
     match name {
         TASK_FIELD_NAME | TASK_FIELD_ID => Some(PrimitiveType::String.into()),
         TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
         TASK_FIELD_CPU => Some(PrimitiveType::Float.into()),
-        TASK_FIELD_MEMORY | TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
+        TASK_FIELD_MEMORY | TASK_FIELD_ATTEMPT | TASK_FIELD_RETURN_CODE => {
+            Some(PrimitiveType::Integer.into())
+        }
         TASK_FIELD_GPU | TASK_FIELD_FPGA => Some(STDLIB.array_string_type().clone().into()),
         TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone().into()),
-        TASK_FIELD_END_TIME | TASK_FIELD_RETURN_CODE => {
-            Some(Type::from(PrimitiveType::Integer).optional())
-        }
+        TASK_FIELD_END_TIME => Some(Type::from(PrimitiveType::Integer).optional()),
         TASK_FIELD_META | TASK_FIELD_PARAMETER_META | TASK_FIELD_EXT => Some(Type::Object),
         TASK_FIELD_MAX_RETRIES if version >= SupportedVersion::V1(V1::Three) => {
             Some(PrimitiveType::Integer.into())
@@ -1561,7 +1564,10 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                         Ok(binding) => {
                             if let Some(severity) =
                                 self.context.diagnostics_config().unnecessary_function_call
-                                && !expr.inner().is_rule_excepted(UNNECESSARY_FUNCTION_CALL)
+                                && !expr
+                                    .inner()
+                                    .ancestors()
+                                    .any(|node| node.is_rule_excepted(UnnecessaryFunctionCall::ID))
                             {
                                 self.check_unnecessary_call(
                                     &target,

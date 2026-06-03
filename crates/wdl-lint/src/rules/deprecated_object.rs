@@ -1,6 +1,8 @@
 //! A lint rule for flagging `Object`s as deprecated.
 
 use wdl_analysis::Diagnostics;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -49,26 +51,23 @@ that `Object`s overlapped with `Map`s and `Struct`s in functionality, and the ty
 See this issue for more details: <https://github.com/openwdl/wdl/pull/228>."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 workflow example {
-    meta {}
-
     Object person = object {
         name: "Jimmy",
         age: 55,
     }
-
-    output {}
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: Some("Consider switching to a `Struct` or `Map`"),
+                snippet: r#"version 1.2
 
 struct Person {
     String name
@@ -76,17 +75,14 @@ struct Person {
 }
 
 workflow example {
-    meta {}
-
     Person person = Person {
         name: "Jimmy",
         age: 55,
     }
-
-    output {}
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

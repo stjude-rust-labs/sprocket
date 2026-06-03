@@ -55,7 +55,7 @@ pub fn main() -> Result<()> {
         )
     })?;
 
-    let (document, diagnostics) = Document::parse(&source);
+    let (document, diagnostics) = Document::parse(&source, None);
     if !diagnostics.is_empty() {
         emit_diagnostics(&args.path, &source, &diagnostics)?;
         return Ok(());
