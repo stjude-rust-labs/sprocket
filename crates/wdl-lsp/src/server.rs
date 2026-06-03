@@ -1443,7 +1443,10 @@ impl<S: 'static> Server<S> {
                         }
                     }
                     Err(_) => {
-                        warn!("failed to convert URI to file path: {}", folder.uri);
+                        warn!(
+                            "failed to convert URI `{uri}` to a file path",
+                            uri = folder.uri
+                        );
                     }
                 }
             }
@@ -1583,7 +1586,10 @@ impl<S: 'static> LanguageServer for Server<S> {
                             }
                         }
                         Err(_) => {
-                            warn!("failed to convert URI to file path: {}", folder.uri);
+                            warn!(
+                                "failed to convert URI `{uri}` to a file path",
+                                uri = folder.uri
+                            );
                         }
                     }
                 }
