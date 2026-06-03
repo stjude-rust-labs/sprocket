@@ -8,8 +8,8 @@ use sha2::Sha256;
 use thiserror::Error;
 use url::Url;
 
-use crate::ContentHash;
-use crate::GitCommit;
+use crate::hash::ContentHash;
+use crate::lockfile::GitCommit;
 
 /// The cache layout key for a `(repository, commit)` pair.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -50,20 +50,21 @@ impl CacheKey {
     pub fn from_git_url(url: &Url, commit: &GitCommit) -> Self {
         let prefix = match url.host_str() {
             Some(host) => {
-                let segments: Vec<&str> = url.path().split('/').filter(|s| !s.is_empty()).collect();
-                if segments.len() >= 2 {
-                    let repo = segments[1].trim_end_matches(".git");
-                    let digest = hash_url(url);
-                    let repo_with_suffix = format!("{repo}-{}", &digest[..8]);
-                    PrefixKey::GitStructured {
-                        host: host.to_string(),
-                        org: segments[0].to_string(),
-                        repo_with_suffix,
+                let mut segments = url.path().split('/').filter(|s| !s.is_empty());
+                match (segments.next(), segments.next()) {
+                    (Some(org), Some(repo)) => {
+                        let repo = repo.strip_suffix(".git").unwrap_or(repo);
+                        let digest = hash_url(url);
+                        let repo_with_suffix = format!("{repo}-{}", &digest[..8]);
+                        PrefixKey::GitStructured {
+                            host: host.to_string(),
+                            org: org.to_string(),
+                            repo_with_suffix,
+                        }
                     }
-                } else {
-                    PrefixKey::GitOpaque {
+                    _ => PrefixKey::GitOpaque {
                         digest_hex: hash_url(url),
-                    }
+                    },
                 }
             }
             None => PrefixKey::GitOpaque {
@@ -168,7 +169,7 @@ pub(crate) enum IntegrityError {
     Hash {
         /// The underlying hashing error.
         #[from]
-        source: crate::HashError,
+        source: crate::hash::HashError,
     },
 }
 

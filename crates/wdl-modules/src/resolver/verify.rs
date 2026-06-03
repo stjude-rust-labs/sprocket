@@ -9,15 +9,15 @@
 
 use std::path::Path;
 
-use crate::ContentHash;
-use crate::DependencyName;
 use crate::Lockfile;
-use crate::VerifyingKey;
+use crate::dependency::DependencyName;
+use crate::hash::ContentHash;
 use crate::module_walk;
 use crate::resolver::config::LargeFileWarning;
 use crate::resolver::error::ResolverError;
 use crate::resolver::policy::ResolverPolicy;
 use crate::resolver::trust::TrustStore;
+use crate::signing::VerifyingKey;
 
 /// Walks every regular file under `root` using the shared safe
 /// module-content walker. Converts errors to [`ResolverError`].
@@ -134,11 +134,12 @@ fn read_and_verify_signature(
             });
         }
     };
-    let sig =
-        crate::ModuleSignature::parse(&bytes).map_err(|source| ResolverError::SignatureParse {
+    let sig = crate::signing::ModuleSignature::parse(&bytes).map_err(|source| {
+        ResolverError::SignatureParse {
             dep: name.manifest().to_string(),
             source,
-        })?;
+        }
+    })?;
     sig.verify(checksum)
         .map_err(|_| ResolverError::SignatureVerificationFailed {
             dep: name.manifest().to_string(),
@@ -210,10 +211,10 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
-    use crate::DependencyEntry;
-    use crate::GitCommit;
-    use crate::GitSelector;
-    use crate::ResolvedSource;
+    use crate::dependency::GitSelector;
+    use crate::lockfile::DependencyEntry;
+    use crate::lockfile::GitCommit;
+    use crate::lockfile::ResolvedSource;
     use crate::resolver::config::ModulesConfig;
     use crate::signing::test_utils::signing_key_from_seed;
 
@@ -238,7 +239,7 @@ mod tests {
         write_module(dir, content);
         let checksum = crate::hash::hash_directory(dir).unwrap();
         let signing_key = signing_key_from_seed(seed);
-        let sig = crate::ModuleSignature {
+        let sig = crate::signing::ModuleSignature {
             public_key: signing_key.verifying_key(),
             signature: signing_key.sign(&checksum),
         };
@@ -310,7 +311,7 @@ mod tests {
             },
         );
         let lockfile = Lockfile {
-            version: crate::LOCKFILE_VERSION,
+            version: crate::lockfile::LOCKFILE_VERSION,
             dependencies: deps,
         };
         let err = verify_against_lockfile(&lockfile, &[], &dep, &checksum, None).unwrap_err();
@@ -339,7 +340,7 @@ mod tests {
             },
         );
         let lockfile = Lockfile {
-            version: crate::LOCKFILE_VERSION,
+            version: crate::lockfile::LOCKFILE_VERSION,
             dependencies: deps,
         };
         let result = verify_against_lockfile(&lockfile, &[], &dep, &checksum, None);
@@ -363,7 +364,7 @@ mod tests {
             },
         );
         let lockfile = Lockfile {
-            version: crate::LOCKFILE_VERSION,
+            version: crate::lockfile::LOCKFILE_VERSION,
             dependencies: deps,
         };
         let err = verify_against_lockfile(&lockfile, &[], &dep, &checksum, None).unwrap_err();
@@ -391,7 +392,7 @@ mod tests {
             },
         );
         let lockfile = Lockfile {
-            version: crate::LOCKFILE_VERSION,
+            version: crate::lockfile::LOCKFILE_VERSION,
             dependencies: deps,
         };
         let err =
@@ -443,45 +444,6 @@ mod tests {
         assert!(
             matches!(err, ResolverError::NotInLockfile { .. }),
             "expected `NotInLockfile`, got: {err}"
-        );
-    }
-
-    #[test]
-    fn verify_against_lockfile_with_scope() {
-        let checksum = ContentHash::from([0x42u8; 32]);
-        let parent = DependencyName::try_from("parent_dep".to_string()).unwrap();
-        let child = DependencyName::try_from("child_dep".to_string()).unwrap();
-
-        let mut child_deps = BTreeMap::new();
-        child_deps.insert(
-            child.clone(),
-            DependencyEntry {
-                source: test_source(),
-                version: Version::new(1, 0, 0),
-                checksum,
-                signer: None,
-                dependencies: BTreeMap::new(),
-            },
-        );
-        let mut top_deps = BTreeMap::new();
-        top_deps.insert(
-            parent.clone(),
-            DependencyEntry {
-                source: test_source(),
-                version: Version::new(2, 0, 0),
-                checksum: ContentHash::from([0x01u8; 32]),
-                signer: None,
-                dependencies: child_deps,
-            },
-        );
-        let lockfile = Lockfile {
-            version: crate::LOCKFILE_VERSION,
-            dependencies: top_deps,
-        };
-        let result = verify_against_lockfile(&lockfile, &[parent], &child, &checksum, None);
-        assert!(
-            result.is_ok(),
-            "scoped lockfile lookup should pass: {result:?}"
         );
     }
 

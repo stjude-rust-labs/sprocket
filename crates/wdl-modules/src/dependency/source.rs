@@ -1,18 +1,117 @@
 //! Dependency-source parsing for `modules.json`.
 
+use std::path::Path;
 use std::path::PathBuf;
+use std::str::FromStr;
 
 use serde::Deserialize;
 use serde::Serialize;
+use serde_with::DeserializeFromStr;
+use serde_with::SerializeDisplay;
 use thiserror::Error;
 use url::Url;
 
-pub use super::git_module_path::GitModulePath;
-pub use super::git_module_path::GitModulePathError;
-use crate::GitCommit;
-use crate::GitCommitError;
-use crate::VersionRequirement;
-use crate::VersionRequirementError;
+use crate::lockfile::GitCommit;
+use crate::lockfile::GitCommitError;
+use crate::relative_path::RelativePath;
+use crate::relative_path::RelativePathError;
+use crate::version_requirement::VersionRequirement;
+use crate::version_requirement::VersionRequirementError;
+
+/// An error constructing a [`GitModulePath`].
+#[derive(Clone, Debug, Eq, Error, PartialEq)]
+pub enum GitModulePathError {
+    /// The underlying [`RelativePath`] validation failed.
+    #[error(transparent)]
+    Invalid(#[from] RelativePathError),
+
+    /// The path is `"."`, which is equivalent to no sub-path and
+    /// therefore disallowed.
+    #[error("git module path must not be `.`")]
+    Dot,
+}
+
+/// A validated, canonical sub-path within a Git-backed dependency.
+///
+/// Represents the `path` field on a Git dependency source—the relative
+/// directory within the repository that contains the module's
+/// `module.json`. Wraps [`RelativePath`] and additionally rejects `"."`
+/// and empty strings, both of which are semantically equivalent to "no
+/// sub-path" (i.e., the module sits at the repository root).
+#[derive(
+    Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, SerializeDisplay, DeserializeFromStr,
+)]
+pub struct GitModulePath(RelativePath);
+
+impl GitModulePath {
+    /// Returns the path as a `/`-separated string slice.
+    pub fn as_str(&self) -> &str {
+        self.0.as_str()
+    }
+
+    /// Returns the path as a [`Path`].
+    pub fn as_path(&self) -> &Path {
+        self.0.as_path()
+    }
+
+    /// Consumes the [`GitModulePath`] and returns the underlying
+    /// [`RelativePath`].
+    pub fn into_relative_path(self) -> RelativePath {
+        self.0
+    }
+}
+
+impl AsRef<str> for GitModulePath {
+    fn as_ref(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
+impl AsRef<Path> for GitModulePath {
+    fn as_ref(&self) -> &Path {
+        self.0.as_ref()
+    }
+}
+
+impl std::fmt::Display for GitModulePath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<GitModulePath> for String {
+    fn from(path: GitModulePath) -> Self {
+        path.0.into()
+    }
+}
+
+impl From<GitModulePath> for PathBuf {
+    fn from(path: GitModulePath) -> Self {
+        path.0.into()
+    }
+}
+
+impl FromStr for GitModulePath {
+    type Err = GitModulePathError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if s.is_empty() {
+            return Err(RelativePathError::Empty.into());
+        }
+        if s == "." {
+            return Err(GitModulePathError::Dot);
+        }
+        Ok(Self(RelativePath::from_str(s)?))
+    }
+}
+
+impl TryFrom<&Path> for GitModulePath {
+    type Error = GitModulePathError;
+
+    fn try_from(path: &Path) -> Result<Self, Self::Error> {
+        path.to_str().ok_or(RelativePathError::NonUtf8)?.parse()
+    }
+}
 
 /// An error parsing a [`DependencySource`].
 #[derive(Debug, Error)]
@@ -111,7 +210,7 @@ impl TryFrom<DependencySourceFields> for DependencySource {
                 let url =
                     Url::parse(&g).map_err(|e| DependencySourceError::InvalidUrl(e.to_string()))?;
                 let selector = if let Some(v) = version {
-                    GitSelector::Version(VersionRequirement::try_from(v)?)
+                    GitSelector::Version(v.parse::<VersionRequirement>()?)
                 } else if let Some(t) = tag {
                     GitSelector::Tag(t)
                 } else if let Some(b) = branch {
@@ -124,7 +223,10 @@ impl TryFrom<DependencySourceFields> for DependencySource {
                     // field, so one of them must match.
                     unreachable!()
                 };
-                let validated_path = git_subpath.map(GitModulePath::try_from).transpose()?;
+                let validated_path = git_subpath
+                    .as_deref()
+                    .map(GitModulePath::try_from)
+                    .transpose()?;
                 Ok(Self::Git {
                     url,
                     selector,
@@ -410,5 +512,88 @@ mod tests {
             }
             _ => panic!("expected Git source with valid sub-path"),
         }
+    }
+}
+
+#[cfg(test)]
+mod git_module_path_tests {
+    use super::*;
+
+    #[test]
+    fn accepts_valid_subpath() {
+        let p = GitModulePath::from_str("modules/csvkit").unwrap();
+        assert_eq!(p.as_str(), "modules/csvkit");
+    }
+
+    #[test]
+    fn rejects_empty_string() {
+        let err = GitModulePath::from_str("").unwrap_err();
+        assert!(
+            matches!(err, GitModulePathError::Invalid(RelativePathError::Empty)),
+            "expected `Invalid(Empty)` for empty string"
+        );
+    }
+
+    #[test]
+    fn rejects_dot() {
+        let err = GitModulePath::from_str(".").unwrap_err();
+        assert!(
+            matches!(err, GitModulePathError::Dot),
+            "expected `Dot` for `.`"
+        );
+    }
+
+    #[test]
+    fn rejects_absolute_path() {
+        let err = GitModulePath::from_str("/tmp/module").unwrap_err();
+        assert!(
+            matches!(
+                err,
+                GitModulePathError::Invalid(RelativePathError::Absolute(_))
+            ),
+            "expected `Invalid(Absolute)` for `/tmp/module`"
+        );
+    }
+
+    #[test]
+    fn rejects_parent_traversal() {
+        let err = GitModulePath::from_str("../module").unwrap_err();
+        assert!(
+            matches!(
+                err,
+                GitModulePathError::Invalid(RelativePathError::EscapesRoot(_))
+            ),
+            "expected `Invalid(EscapesRoot)` for `../module`"
+        );
+    }
+
+    #[test]
+    fn rejects_nested_escape() {
+        let err = GitModulePath::from_str("module/../../secret").unwrap_err();
+        assert!(
+            matches!(
+                err,
+                GitModulePathError::Invalid(RelativePathError::EscapesRoot(_))
+            ),
+            "expected `Invalid(EscapesRoot)` for `module/../../secret`"
+        );
+    }
+
+    #[test]
+    fn round_trips_via_serde() {
+        let p = GitModulePath::from_str("modules/csvkit").unwrap();
+        let s = serde_json::to_string(&p).unwrap();
+        assert_eq!(s, "\"modules/csvkit\"");
+        let back: GitModulePath = serde_json::from_str(&s).unwrap();
+        assert_eq!(back, p);
+    }
+
+    #[test]
+    fn serde_rejects_dot() {
+        let err = serde_json::from_str::<GitModulePath>("\".\"").unwrap_err();
+        assert!(
+            err.to_string().contains("`.`"),
+            "expected dot rejection; got: {err}"
+        );
     }
 }

@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `Analyzer::new` and `Analyzer::new_with_validator` now take a `ResolutionContext` (a resolver plus an optional manifest path) in place of separate arguments; pass `ResolutionContext::default()` to preserve the previous non-resolving behavior ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
 
+#### Fixed
+
+* Enum types for struct members will no longer error ([#866](https://github.com/stjude-rust-labs/sprocket/pull/866)).
+
 ## 0.20.0 - 2026-05-14
 
 #### Added
@@ -24,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `sprocket.toml`, defaulting to `false` ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
 * `VersionVisitor` diagnostic when a document declares `version 1.4`
   without the `wdl_1_4` feature flag enabled ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+
+#### Changed
+
+* The type of `task.return_code` is now `Int` instead of `Int?` ([#790](https://github.com/stjude-rust-labs/sprocket/pull/790)).
+
+#### Fixed
+
+* `task.return_code` can no longer be used outside of `output` sections ([#790](https://github.com/stjude-rust-labs/sprocket/pull/790)).
 
 ## 0.19.1 - 2026-04-22
 

@@ -5,6 +5,8 @@ use std::str::FromStr;
 
 use serde::Deserialize;
 use serde::Serialize;
+use serde_with::DeserializeFromStr;
+use serde_with::SerializeDisplay;
 use thiserror::Error;
 
 /// The `[modules]` configuration section.
@@ -61,15 +63,18 @@ pub struct ModulesConfig {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub allowed_hosts: Vec<String>,
 
-    /// Hosts permitted for transitive Git dependencies. Empty means
-    /// any non-denied host is allowed.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    /// Hosts permitted for transitive Git dependencies. Defaults to
+    /// `["github.com", "gitlab.com"]`. When non-empty, a transitive
+    /// dependency may only be fetched from a host on this list, and Git
+    /// credentials are presented only to those hosts, so a transitive
+    /// manifest cannot direct the user's credentials at a host the user
+    /// has not vouched for. An empty list permits any non-denied host but
+    /// presents no credentials to transitive dependencies.
+    #[serde(
+        default = "default_allowed_transitive_hosts",
+        skip_serializing_if = "Vec::is_empty"
+    )]
     pub allowed_transitive_hosts: Vec<String>,
-
-    /// Whether transitive dependencies may use configured Git
-    /// credential helpers and ssh-agent. Defaults to `false`.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub allow_transitive_credentials: bool,
 
     /// Maximum number of files allowed in a single materialized module
     /// tree. `None` (the default) disables the limit. Checked against
@@ -102,6 +107,16 @@ fn default_transitive_schemes() -> Vec<String> {
     vec!["https".into()]
 }
 
+/// Returns the default set of allowed hosts for transitive Git
+/// dependencies.
+///
+/// The two major public Git hosts are trusted by default so transitive
+/// dependencies resolve out of the box while still presenting
+/// credentials only to well-known hosts.
+fn default_allowed_transitive_hosts() -> Vec<String> {
+    vec!["github.com".into(), "gitlab.com".into()]
+}
+
 /// Returns the default denied-host list.
 ///
 /// Loopback and unspecified addresses are blocked to prevent a
@@ -130,8 +145,7 @@ impl Default for ModulesConfig {
             max_advertised_refs: default_max_refs(),
             denied_hosts: default_denied_hosts(),
             allowed_hosts: Vec::new(),
-            allowed_transitive_hosts: Vec::new(),
-            allow_transitive_credentials: false,
+            allowed_transitive_hosts: default_allowed_transitive_hosts(),
             max_materialized_files: None,
             max_materialized_bytes: None,
         }
@@ -139,21 +153,10 @@ impl Default for ModulesConfig {
 }
 
 #[cfg(test)]
-use crate::resolver::scope::DependencyScope;
+use crate::resolver::DependencyScope;
 
 #[cfg(test)]
 impl ModulesConfig {
-    /// Returns `true` if the given URL scheme is permitted for a
-    /// dependency at this level of the tree.
-    fn scheme_allowed(&self, scheme: &str, scope: DependencyScope) -> bool {
-        let allowed = if matches!(scope, DependencyScope::Transitive) {
-            &self.allowed_transitive_schemes
-        } else {
-            &self.allowed_schemes
-        };
-        allowed.iter().any(|s| s.eq_ignore_ascii_case(scheme))
-    }
-
     /// Returns `true` if the given host is permitted for a dependency
     /// at this level of the tree.
     fn host_allowed(&self, host: &str, scope: DependencyScope) -> bool {
@@ -173,12 +176,6 @@ impl ModulesConfig {
             &self.allowed_hosts
         };
         allowed.is_empty() || allowed.iter().any(|h| h.eq_ignore_ascii_case(host))
-    }
-
-    /// Returns `true` if Git credential helpers and ssh-agent may be
-    /// used for a dependency at this level of the tree.
-    fn credentials_allowed(&self, scope: DependencyScope) -> bool {
-        !matches!(scope, DependencyScope::Transitive) || self.allow_transitive_credentials
     }
 }
 
@@ -228,8 +225,7 @@ pub(crate) fn is_non_public_ip(host: &str) -> bool {
 }
 
 /// Threshold for the large-file warning emitted at sign- and fetch-time.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(into = "String", try_from = "String")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, SerializeDisplay, DeserializeFromStr)]
 pub enum LargeFileWarning {
     /// The warning is disabled.
     Disabled,
@@ -259,19 +255,11 @@ impl FromStr for LargeFileWarning {
     }
 }
 
-impl TryFrom<String> for LargeFileWarning {
-    type Error = LargeFileWarningError;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        s.parse()
-    }
-}
-
-impl From<LargeFileWarning> for String {
-    fn from(v: LargeFileWarning) -> Self {
-        match v {
-            LargeFileWarning::Disabled => "none".to_string(),
-            LargeFileWarning::Threshold(b) => bytesize::ByteSize(b).to_string(),
+impl std::fmt::Display for LargeFileWarning {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LargeFileWarning::Disabled => f.write_str("none"),
+            LargeFileWarning::Threshold(b) => write!(f, "{}", bytesize::ByteSize(*b)),
         }
     }
 }
@@ -306,7 +294,7 @@ pub enum TrustMode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resolver::scope::DependencyScope;
+    use crate::resolver::DependencyScope;
 
     #[test]
     fn parses_default_threshold_when_absent() {
@@ -404,21 +392,5 @@ mod tests {
         assert!(cfg.host_allowed("github.com", DependencyScope::Transitive));
         assert!(!cfg.host_allowed("gitlab.com", DependencyScope::Transitive));
         assert!(cfg.host_allowed("gitlab.com", DependencyScope::TopLevel));
-    }
-
-    #[test]
-    fn transitive_credentials_disabled_by_default() {
-        let cfg = ModulesConfig::default();
-        assert!(!cfg.credentials_allowed(DependencyScope::Transitive));
-        assert!(cfg.credentials_allowed(DependencyScope::TopLevel));
-    }
-
-    #[test]
-    fn transitive_credentials_enabled_when_configured() {
-        let cfg = ModulesConfig {
-            allow_transitive_credentials: true,
-            ..ModulesConfig::default()
-        };
-        assert!(cfg.credentials_allowed(DependencyScope::Transitive));
     }
 }

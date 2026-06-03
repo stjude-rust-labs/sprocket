@@ -183,7 +183,7 @@ fn handle_symlink<E>(
             )));
         }
     }
-    let target_meta = std::fs::metadata(&target).map_err(|source| {
+    let target_meta = std::fs::metadata(path).map_err(|source| {
         WalkError::Walk(ModuleWalkError::Io {
             path: path.to_path_buf(),
             source,

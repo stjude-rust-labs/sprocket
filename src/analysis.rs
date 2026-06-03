@@ -69,7 +69,7 @@ pub struct Analysis {
 
     /// The `[modules]` config for constructing a resolver when a
     /// `module.json` is found near the sources.
-    modules_config: Option<wdl_modules::ModulesConfig>,
+    modules_config: Option<wdl_modules::resolver::ModulesConfig>,
 
     /// The initialization callback.
     init: InitCb,
@@ -141,7 +141,7 @@ impl Analysis {
     }
 
     /// Sets the `[modules]` configuration.
-    pub fn modules_config(mut self, config: wdl_modules::ModulesConfig) -> Self {
+    pub fn modules_config(mut self, config: wdl_modules::resolver::ModulesConfig) -> Self {
         self.modules_config = Some(config);
         self
     }
@@ -172,16 +172,16 @@ impl Analysis {
         &self,
     ) -> anyhow::Result<(Arc<dyn wdl_modules::Resolver>, Option<PathBuf>)> {
         let Some(ref modules_config) = self.modules_config else {
-            return Ok((Arc::new(wdl_modules::NullResolver), None));
+            return Ok((Arc::new(wdl_modules::resolver::NullResolver), None));
         };
 
         let Some(start) = self.module_search_dir() else {
-            return Ok((Arc::new(wdl_modules::NullResolver), None));
+            return Ok((Arc::new(wdl_modules::resolver::NullResolver), None));
         };
 
         let manifest_path = match discover_manifest_upward(&start)? {
             Some((path, _)) => path,
-            None => return Ok((Arc::new(wdl_modules::NullResolver), None)),
+            None => return Ok((Arc::new(wdl_modules::resolver::NullResolver), None)),
         };
 
         match build_resolver(modules_config, &manifest_path)? {
@@ -192,7 +192,7 @@ impl Analysis {
                 );
                 Ok((resolver, Some(path)))
             }
-            None => Ok((Arc::new(wdl_modules::NullResolver), None)),
+            None => Ok((Arc::new(wdl_modules::resolver::NullResolver), None)),
         }
     }
 
@@ -371,12 +371,12 @@ pub(crate) fn discover_manifest_upward(
     Ok(None)
 }
 
-/// Constructs a [`GitResolver`](wdl_modules::GitResolver) from the given
-/// `[modules]` config and a `module.json` path. Returns `None` if the
+/// Constructs a [`GitResolver`](wdl_modules::resolver::GitResolver) from the
+/// given `[modules]` config and a `module.json` path. Returns `None` if the
 /// manifest file does not exist; returns an error if the file exists but
 /// cannot be read or parsed.
 pub fn build_resolver(
-    modules_config: &wdl_modules::ModulesConfig,
+    modules_config: &wdl_modules::resolver::ModulesConfig,
     manifest_path: &std::path::Path,
 ) -> anyhow::Result<Option<(Arc<dyn wdl_modules::Resolver>, PathBuf)>> {
     use anyhow::Context as _;
@@ -404,14 +404,14 @@ pub fn build_resolver(
 
     let trust_path = default_trust_path(manifest_dir);
 
-    let trust = wdl_modules::TrustStore::load_or_default(&trust_path)
+    let trust = wdl_modules::resolver::TrustStore::load_or_default(&trust_path)
         .with_context(|| format!("loading trust store at `{}`", trust_path.display()))?;
 
-    let resolver = wdl_modules::GitResolver::builder()
+    let resolver = wdl_modules::resolver::GitResolver::builder()
         .cache_root(cache_root)
         .trust(trust)
         .lockfile(lockfile)
-        .policy(wdl_modules::ResolverPolicy::from(modules_config))
+        .policy(wdl_modules::resolver::ResolverPolicy::from(modules_config))
         .build();
 
     Ok(Some((Arc::new(resolver), manifest_path.to_path_buf())))

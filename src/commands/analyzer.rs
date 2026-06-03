@@ -12,6 +12,7 @@ use wdl::lsp::LevelFilter;
 use wdl::lsp::LintOptions;
 use wdl::lsp::Server;
 use wdl::lsp::ServerOptions;
+use wdl::lsp::UserOptions;
 
 use crate::Config;
 use crate::FilterReloadHandle;
@@ -66,11 +67,6 @@ pub async fn analyzer(
         ServerOptions {
             name: "Sprocket".into(),
             version: env!("CARGO_PKG_VERSION").into(),
-            log_level: LevelFilter::from(handle.clone_current().expect("should exist")),
-            lint: LintOptions {
-                enabled: args.lint,
-                config: Arc::new(config.check.lint),
-            },
             exceptions: args.except,
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
             feature_flags: FeatureFlags::default(),
@@ -83,6 +79,13 @@ pub async fn analyzer(
                     .unwrap_or_else(|| PathBuf::from(DEFAULT_BASELINE_FILENAME));
                 Baseline::load_or_default(&path, baseline_is_configured)
                     .map_err(anyhow::Error::from)?
+            },
+        },
+        UserOptions {
+            log_level: LevelFilter::from(handle.clone_current().expect("should exist")),
+            lint: LintOptions {
+                enabled: args.lint,
+                config: Arc::new(config.check.lint),
             },
         },
         Some(handle),

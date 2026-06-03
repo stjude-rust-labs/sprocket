@@ -35,6 +35,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 #[cfg(feature = "resolver")]
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 #[cfg(feature = "resolver")]
@@ -46,29 +47,28 @@ use futures::future::FutureExt;
 use semver::Version;
 
 #[cfg(feature = "resolver")]
-use crate::DependencyEntry;
-use crate::DependencyName;
-use crate::DependencySource;
-#[cfg(feature = "resolver")]
-use crate::GitCommit;
-#[cfg(feature = "resolver")]
-use crate::GitModulePath;
-#[cfg(feature = "resolver")]
-use crate::GitSelector;
-#[cfg(feature = "resolver")]
 use crate::Lockfile;
 #[cfg(feature = "resolver")]
 use crate::Manifest;
-use crate::Module;
+use crate::dependency::DependencyName;
+use crate::dependency::DependencySource;
 #[cfg(feature = "resolver")]
-use crate::RelativePath;
+use crate::dependency::GitModulePath;
 #[cfg(feature = "resolver")]
-use crate::ResolvedSource;
-use crate::SymbolicPath;
+use crate::dependency::GitSelector;
 #[cfg(feature = "resolver")]
 use crate::hash::NON_MODULE_CONTENT;
 #[cfg(feature = "resolver")]
+use crate::lockfile::DependencyEntry;
+#[cfg(feature = "resolver")]
+use crate::lockfile::GitCommit;
+#[cfg(feature = "resolver")]
+use crate::lockfile::ResolvedSource;
+use crate::module::Module;
+#[cfg(feature = "resolver")]
 use crate::module_walk::ModuleWalkError;
+#[cfg(feature = "resolver")]
+use crate::relative_path::RelativePath;
 #[cfg(feature = "resolver")]
 use crate::resolver::cache::CacheKey;
 #[cfg(feature = "resolver")]
@@ -116,6 +116,7 @@ pub use crate::resolver::types::ResolvedModule;
 pub use crate::resolver::types::ResolvedTree;
 #[cfg(feature = "resolver")]
 use crate::resolver::verify::VerifiedModule;
+use crate::symbolic_path::SymbolicPath;
 
 /// Resolves WDL module imports to concrete files on disk.
 #[async_trait]
@@ -179,8 +180,8 @@ pub struct GitResolver {
     #[builder(into)]
     cache_root: PathBuf,
     /// The resolved policy, derived from [`ModulesConfig`] at construction.
-    #[builder(default)]
-    policy: ResolverPolicy,
+    #[builder(default, into)]
+    policy: Arc<ResolverPolicy>,
     /// The user-level trust store, loaded by the caller.
     trust: TrustStore,
     /// The lockfile to verify materialized dependencies against.
@@ -896,7 +897,7 @@ fn locked_selector_satisfies(
 /// [`module_walk`](crate::module_walk).
 fn resolve_content_file(
     root: &Path,
-    rel: &crate::RelativePath,
+    rel: &crate::relative_path::RelativePath,
     dep: &DependencyName,
 ) -> Result<PathBuf, ResolverError> {
     if rel
@@ -1008,7 +1009,9 @@ fn check_tag_manifest_match(
 
 #[cfg(feature = "resolver")]
 /// Compiles a manifest's `exclude` patterns into a [`globset::GlobSet`].
-fn exclude_set(patterns: &[crate::RelativePath]) -> Result<globset::GlobSet, ResolverError> {
+fn exclude_set(
+    patterns: &[crate::relative_path::RelativePath],
+) -> Result<globset::GlobSet, ResolverError> {
     if patterns.is_empty() {
         return Ok(globset::GlobSet::empty());
     }
@@ -1043,7 +1046,7 @@ mod tests {
         Module::new(Arc::new(manifest), root.to_path_buf())
     }
 
-    fn checksum() -> crate::ContentHash {
+    fn checksum() -> crate::hash::ContentHash {
         "sha256:0000000000000000000000000000000000000000000000000000000000000000"
             .parse()
             .unwrap()
@@ -1117,10 +1120,10 @@ mod tests {
 
     /// Writes a `module.sig` next to `dir`'s `module.json` over the
     /// directory's content hash.
-    fn write_signature(dir: &Path, signer: &crate::SigningKey) {
+    fn write_signature(dir: &Path, signer: &crate::signing::SigningKey) {
         let digest = crate::hash::hash_directory(dir).unwrap();
         let signature = signer.sign(&digest);
-        let sig = crate::ModuleSignature {
+        let sig = crate::signing::ModuleSignature {
             public_key: signer.verifying_key(),
             signature,
         };
@@ -1166,7 +1169,7 @@ mod tests {
         assert_eq!(dep.version, Version::parse("1.0.0").unwrap());
     }
 
-    fn hash_from_byte(byte: u8) -> crate::ContentHash {
+    fn hash_from_byte(byte: u8) -> crate::hash::ContentHash {
         format!("sha256:{}", hex::encode([byte; 32]))
             .parse()
             .unwrap()
@@ -1189,7 +1192,7 @@ mod tests {
 
         let cache = tempdir().unwrap();
         let err = resolver(&cache)
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -1219,7 +1222,7 @@ mod tests {
         lockfile.dependencies.get_mut(&dep_name).unwrap().checksum = hash_from_byte(42);
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -1246,7 +1249,7 @@ mod tests {
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
         let mat = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap();
         assert_eq!(mat.path, dep_dir.join("index.wdl").canonicalize().unwrap());
@@ -1275,7 +1278,7 @@ mod tests {
 
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -1315,7 +1318,7 @@ mod tests {
 
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer2, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer2, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -1341,7 +1344,7 @@ mod tests {
         let child = parent.child(child_name, Arc::new(child), child_dir);
 
         let cache = tempdir()?;
-        let symbolic_path = "dep".to_string().try_into()?;
+        let symbolic_path = "dep".parse()?;
         let err = match resolver(&cache).materialize(&child, &symbolic_path).await {
             Ok(_) => panic!("expected transitive git policy rejection"),
             Err(err) => err,
@@ -1368,7 +1371,7 @@ mod tests {
         );
 
         let cache = tempdir()?;
-        let symbolic_path = "dep".to_string().try_into()?;
+        let symbolic_path = "dep".parse()?;
         let err = match resolver(&cache)
             .materialize(&consumer, &symbolic_path)
             .await
@@ -1546,7 +1549,7 @@ mod tests {
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
         let mat = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap();
         assert_eq!(mat.path, dep_dir.join("index.wdl").canonicalize().unwrap());
@@ -1578,7 +1581,7 @@ mod tests {
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
         let mat = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap();
         assert_eq!(mat.path, dep_dir.join("main.wdl").canonicalize().unwrap());
@@ -1602,7 +1605,7 @@ mod tests {
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
         let mat = r
-            .materialize(&consumer, &"dep/cut".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep/cut".parse().unwrap())
             .await
             .unwrap();
         assert_eq!(mat.path, dep_dir.join("cut.wdl").canonicalize().unwrap());
@@ -1618,7 +1621,7 @@ mod tests {
         let bytes = fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap();
         let err = Manifest::parse(&bytes).unwrap_err();
         assert!(
-            matches!(err, crate::ManifestError::InvalidJson(_)),
+            matches!(err, crate::manifest::ManifestError::InvalidJson(_)),
             "expected `InvalidJson` from manifest parse, got: {err}"
         );
     }
@@ -1647,10 +1650,7 @@ mod tests {
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
         let err = r
-            .materialize(
-                &consumer,
-                &"dep/internal/private".to_string().try_into().unwrap(),
-            )
+            .materialize(&consumer, &"dep/internal/private".parse().unwrap())
             .await
             .unwrap_err();
         let ResolverError::MissingFile { kind, .. } = err else {
@@ -1690,7 +1690,7 @@ mod tests {
             .lockfile(lockfile)
             .build();
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -1724,7 +1724,7 @@ mod tests {
 
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         // Tampered content changes the hash, which the signature or
@@ -1769,7 +1769,7 @@ mod tests {
         let (r, _) =
             resolve_and_lock_with_config(&cache, &consumer, ResolverPolicy::default(), trust).await;
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -1810,7 +1810,7 @@ mod tests {
 
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -1835,7 +1835,7 @@ mod tests {
 
         let cache = tempdir().unwrap();
         let err = resolver(&cache)
-            .materialize(&consumer, &"missing".to_string().try_into().unwrap())
+            .materialize(&consumer, &"missing".parse().unwrap())
             .await
             .unwrap_err();
         assert!(matches!(err, ResolverError::NotADependency { .. }));
@@ -2243,7 +2243,7 @@ mod tests {
 
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -2289,7 +2289,7 @@ mod tests {
 
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -2323,7 +2323,7 @@ mod tests {
 
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap_err();
         assert!(
@@ -2350,7 +2350,7 @@ mod tests {
         let cache = tempdir().unwrap();
         let (r, _) = resolve_and_lock(&cache, &consumer).await;
         let mat = r
-            .materialize(&consumer, &"dep".to_string().try_into().unwrap())
+            .materialize(&consumer, &"dep".parse().unwrap())
             .await
             .unwrap();
         assert!(mat.path.exists());

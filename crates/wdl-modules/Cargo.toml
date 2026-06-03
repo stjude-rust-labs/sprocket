@@ -18,6 +18,7 @@ test-utils = []
 # so consumers like `wdl-doc` that only need the manifest/lockfile/hashing
 # types do not pay for `git2` and friends.
 resolver = [
+    "dep:async-trait",
     "dep:bon",
     "dep:bytesize",
     "dep:dirs",
@@ -30,7 +31,7 @@ resolver = [
 ]
 
 [dependencies]
-async-trait = { workspace = true }
+async-trait = { workspace = true, optional = true }
 base64 = { workspace = true }
 bon = { workspace = true, optional = true }
 bytesize = { workspace = true, optional = true }
@@ -44,6 +45,7 @@ path-clean = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
+serde_with = { workspace = true }
 sha2 = { workspace = true }
 spdx = { workspace = true }
 ssh-key = { workspace = true }

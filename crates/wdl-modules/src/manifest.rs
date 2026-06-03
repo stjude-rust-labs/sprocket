@@ -12,13 +12,13 @@ use thiserror::Error;
 use url::Url;
 
 use crate::DEFAULT_ENTRYPOINT_FILENAME;
-use crate::DependencyName;
-use crate::DependencySource;
-use crate::DependencySourceError;
-use crate::LicenseError;
-use crate::LicenseExpression;
-use crate::RelativePath;
-use crate::RelativePathError;
+use crate::dependency::DependencyName;
+use crate::dependency::DependencySource;
+use crate::dependency::DependencySourceError;
+use crate::license::LicenseError;
+use crate::license::LicenseExpression;
+use crate::relative_path::RelativePath;
+use crate::relative_path::RelativePathError;
 
 /// An error parsing a [`Manifest`].
 ///
@@ -260,19 +260,20 @@ impl TryFrom<ManifestFields> for Manifest {
             return Err(ManifestError::EmptyName);
         }
 
-        let license = LicenseExpression::try_from(fields.license)?;
+        let license = fields.license.parse::<LicenseExpression>()?;
 
         let entrypoint = fields
             .entrypoint
+            .as_deref()
             .map(RelativePath::try_from)
             .transpose()
             .map_err(ManifestError::InvalidEntrypoint)?;
 
         let readme = match fields.readme {
             ReadmeFields::Default => Readme::Default,
-            ReadmeFields::Path(p) => {
-                Readme::Path(RelativePath::try_from(p).map_err(ManifestError::InvalidReadme)?)
-            }
+            ReadmeFields::Path(p) => Readme::Path(
+                RelativePath::try_from(p.as_path()).map_err(ManifestError::InvalidReadme)?,
+            ),
             ReadmeFields::Bool(false) => Readme::Disabled,
             ReadmeFields::Bool(true) => return Err(ManifestError::ReadmeTrue),
         };
@@ -294,7 +295,8 @@ impl TryFrom<ManifestFields> for Manifest {
             .exclude
             .into_iter()
             .map(|pattern| {
-                RelativePath::try_from(pattern.clone())
+                pattern
+                    .parse::<RelativePath>()
                     .map_err(|source| ManifestError::InvalidExclude { pattern, source })
             })
             .collect::<Result<Vec<_>, _>>()?;

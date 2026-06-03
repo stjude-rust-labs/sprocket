@@ -5,10 +5,10 @@ use std::path::PathBuf;
 
 use semver::Version;
 
-use crate::ContentHash;
-use crate::DependencyName;
-use crate::ResolvedSource;
-use crate::VerifyingKey;
+use crate::dependency::DependencyName;
+use crate::hash::ContentHash;
+use crate::lockfile::ResolvedSource;
+use crate::signing::VerifyingKey;
 
 /// A symbolic import resolved to a concrete file on disk.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -69,23 +69,23 @@ pub struct NullResolver;
 impl super::Resolver for NullResolver {
     async fn materialize(
         &self,
-        _: &crate::Module,
-        _: &crate::SymbolicPath,
+        _: &crate::module::Module,
+        _: &crate::symbolic_path::SymbolicPath,
     ) -> Result<MaterializedFile, super::error::ResolverError> {
         Err(super::error::ResolverError::NoModuleContext)
     }
 
     async fn resolve_tree(
         &self,
-        _: &crate::Module,
+        _: &crate::module::Module,
     ) -> Result<ResolvedTree, super::error::ResolverError> {
         Ok(ResolvedTree::default())
     }
 
     async fn discover_versions(
         &self,
-        _: &crate::DependencyName,
-        _: &crate::DependencySource,
+        _: &crate::dependency::DependencyName,
+        _: &crate::dependency::DependencySource,
         _: super::scope::DependencyScope,
     ) -> Result<Vec<semver::Version>, super::error::ResolverError> {
         Ok(Vec::new())

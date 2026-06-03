@@ -1,13 +1,14 @@
 //! Centralized Git remote access with policy enforcement.
 
 use std::path::Path;
+use std::sync::Arc;
 
 use url::Url;
 
-use crate::DependencyName;
+use crate::dependency::DependencyName;
+use crate::resolver::DependencyScope;
 use crate::resolver::error::ResolverError;
 use crate::resolver::policy::ResolverPolicy;
-use crate::resolver::scope::DependencyScope;
 use crate::resolver::versions::RemoteRefs;
 
 /// Centralized Git remote access. Every remote operation enforces
@@ -15,12 +16,12 @@ use crate::resolver::versions::RemoteRefs;
 /// touching the network.
 pub(crate) struct GitFetcher {
     /// The resolver policy applied to all remote operations.
-    policy: ResolverPolicy,
+    policy: Arc<ResolverPolicy>,
 }
 
 impl GitFetcher {
     /// Creates a fetcher from a resolver policy.
-    pub fn new(policy: ResolverPolicy) -> Self {
+    pub fn new(policy: Arc<ResolverPolicy>) -> Self {
         Self { policy }
     }
 
@@ -36,7 +37,7 @@ impl GitFetcher {
         crate::resolver::versions::discover_remote_tags(
             url,
             net.max_advertised_refs,
-            net.credential_mode,
+            self.policy.credential_mode(scope, url.host_str()),
         )
         .map_err(ResolverError::from)
     }
@@ -54,7 +55,7 @@ impl GitFetcher {
         crate::resolver::versions::discover_remote_branches(
             url,
             net.max_advertised_refs,
-            net.credential_mode,
+            self.policy.credential_mode(scope, url.host_str()),
         )
         .map_err(ResolverError::from)
     }
@@ -71,13 +72,12 @@ impl GitFetcher {
         leaf: &Path,
     ) -> Result<(), ResolverError> {
         self.policy.check_git_url(dep, url, scope)?;
-        let net = self.policy.git_policy(scope);
         crate::resolver::git::ensure_materialized(
             leaf,
             url,
             commit,
             paths.iter().copied(),
-            net.credential_mode,
+            self.policy.credential_mode(scope, url.host_str()),
             self.policy.max_materialized_files,
             self.policy.max_materialized_bytes,
         )?;

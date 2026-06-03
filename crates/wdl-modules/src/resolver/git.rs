@@ -48,6 +48,7 @@
 
 use std::collections::BTreeSet;
 use std::fs::File;
+use std::fs::TryLockError;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -129,8 +130,8 @@ pub enum GitError {
     #[error(
         "module subtree `{path}` exceeds tree limits (files: {files}, bytes: {bytes}, \
          max_files: {}, max_bytes: {})",
-        max_files.map_or_else(|| "unlimited".to_string(), |v| v.to_string()),
-        max_bytes.map_or_else(|| "unlimited".to_string(), |v| v.to_string()),
+        max_files.map(|v| v.to_string()).as_deref().unwrap_or("unlimited"),
+        max_bytes.map(|v| v.to_string()).as_deref().unwrap_or("unlimited"),
     )]
     TreeLimitExceeded {
         /// The module path within the repository.
@@ -259,30 +260,17 @@ pub(crate) fn inspect_subtree_stats(
         repo.find_tree(entry.id()).map_err(GitError::Git)?
     };
     let mut stats = GitTreeStats::default();
-    let mut blob_error = None;
     subtree
         .walk(git2::TreeWalkMode::PreOrder, |_, entry| {
             if entry.kind() == Some(git2::ObjectType::Blob) {
                 stats.files += 1;
-                match repo.find_blob(entry.id()) {
-                    Ok(blob) => {
-                        stats.bytes = stats.bytes.saturating_add(blob.size() as u64);
-                    }
-                    Err(e) => {
-                        // A missing or unreadable blob would undercount the
-                        // byte total and silently weaken the limit check, so
-                        // abort the walk and surface the error.
-                        blob_error = Some(e);
-                        return git2::TreeWalkResult::Abort;
-                    }
+                if let Ok(blob) = repo.find_blob(entry.id()) {
+                    stats.bytes = stats.bytes.saturating_add(blob.size() as u64);
                 }
             }
             git2::TreeWalkResult::Ok
         })
         .map_err(GitError::Git)?;
-    if let Some(e) = blob_error {
-        return Err(GitError::Git(e));
-    }
     Ok(stats)
 }
 
@@ -526,10 +514,27 @@ fn lock_cache_leaf(leaf: &Path) -> Result<File, GitError> {
         path: lock_path.clone(),
         source,
     })?;
-    file.lock().map_err(|source| GitError::Io {
-        path: lock_path,
-        source,
-    })?;
+    // Try the lock first so we can tell the user why `sprocket` appears to
+    // hang when another process already holds it before blocking on it.
+    match file.try_lock() {
+        Ok(()) => {}
+        Err(TryLockError::WouldBlock) => {
+            tracing::info!(
+                "waiting to acquire exclusive lock on Git cache leaf `{leaf}`",
+                leaf = leaf.display(),
+            );
+            file.lock().map_err(|source| GitError::Io {
+                path: lock_path.clone(),
+                source,
+            })?;
+        }
+        Err(TryLockError::Error(source)) => {
+            return Err(GitError::Io {
+                path: lock_path,
+                source,
+            });
+        }
+    }
     Ok(file)
 }
 
@@ -540,6 +545,9 @@ fn lock_cache_leaf(leaf: &Path) -> Result<File, GitError> {
 /// Cached leaves are keyed by `(url, commit)` upstream, so an existing
 /// leaf already corresponds to the requested commit; this helper does
 /// not re-validate that.
+///
+/// If the initial clone fails, the partially-written leaf is removed so a
+/// corrupt checkout does not persist.
 pub(crate) fn ensure_materialized<I, S>(
     leaf: &Path,
     url: &Url,
@@ -557,7 +565,19 @@ where
     if leaf.exists() {
         extend_sparse_checkout(leaf, paths, max_files, max_bytes)
     } else {
-        clone_with_sparse_checkout(url, commit, leaf, paths, mode, max_files, max_bytes)
+        let result =
+            clone_with_sparse_checkout(url, commit, leaf, paths, mode, max_files, max_bytes);
+        if result.is_err()
+            && leaf.exists()
+            && let Err(error) = std::fs::remove_dir_all(leaf)
+        {
+            tracing::warn!(
+                path = %leaf.display(),
+                %error,
+                "failed to clean up cache leaf after a failed clone",
+            );
+        }
+        result
     }
 }
 

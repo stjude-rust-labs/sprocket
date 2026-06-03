@@ -18,8 +18,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::DependencyName;
 use crate::Manifest;
+use crate::dependency::DependencyName;
 use crate::manifest::ManifestError;
 
 /// Returns `true` when `dir` contains a `module.json` file at its root
@@ -32,7 +32,7 @@ use crate::manifest::ManifestError;
 /// # Examples
 ///
 /// ```
-/// use wdl_modules::is_module_root;
+/// use wdl_modules::module::is_module_root;
 ///
 /// let dir = tempfile::tempdir().unwrap();
 ///

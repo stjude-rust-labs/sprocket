@@ -5,16 +5,16 @@ use std::path::PathBuf;
 use semver::Version;
 use thiserror::Error;
 
-use crate::ContentHash;
-use crate::HashError;
-use crate::LockfileError;
-use crate::ManifestError;
-use crate::VerifyingKey;
-use crate::VersionRequirement;
+use crate::hash::ContentHash;
+use crate::hash::HashError;
+use crate::lockfile::LockfileError;
+use crate::manifest::ManifestError;
 use crate::module_walk::ModuleWalkError;
+use crate::signing::VerifyingKey;
+use crate::version_requirement::VersionRequirement;
 
-/// An error returned by the [`Resolver`](crate::Resolver) trait or any
-/// resolver-layer operation.
+/// An error returned by the [`Resolver`](crate::Resolver) trait or
+/// any resolver-layer operation.
 #[derive(Debug, Error)]
 pub enum ResolverError {
     /// The symbolic path's head does not appear in the consumer's
@@ -174,11 +174,10 @@ pub enum ResolverError {
         dep: String,
         /// The underlying parse error.
         #[source]
-        source: crate::SignatureFileError,
+        source: crate::signing::SignatureFileError,
     },
 
     /// A manifest `exclude` pattern is not a valid glob.
-    #[cfg(feature = "resolver")]
     #[error("invalid `exclude` pattern `{pattern}`")]
     InvalidExclude {
         /// The offending pattern.
@@ -249,6 +248,23 @@ pub enum ResolverError {
         host: String,
     },
 
+    /// A Git URL's host is not in the configured allow list for its scope.
+    #[error(
+        "`{dep}` git URL `{url}` targets host `{host}` which is not in the configured allow list; \
+         to allow it, add `{host}` to `{config_key}` in the `[modules]` section of your \
+         `sprocket.toml`"
+    )]
+    GitHostNotAllowed {
+        /// The owning dependency.
+        dep: String,
+        /// The rejected URL.
+        url: String,
+        /// The rejected host.
+        host: String,
+        /// The config key that would permit the host for this scope.
+        config_key: &'static str,
+    },
+
     /// A materialized module tree exceeded configured resource limits.
     #[error("`{dep}` materialized tree exceeds limits (files: {files}, bytes: {bytes})")]
     MaterializedTreeLimitExceeded {
@@ -261,7 +277,6 @@ pub enum ResolverError {
     },
 
     /// A Git operation failed.
-    #[cfg(feature = "resolver")]
     #[error(transparent)]
     Git(#[from] crate::resolver::git::GitError),
 
@@ -303,7 +318,7 @@ pub enum ResolverError {
 
     /// A `RelativePath` validation error.
     #[error(transparent)]
-    RelativePath(#[from] crate::RelativePathError),
+    RelativePath(#[from] crate::relative_path::RelativePathError),
 }
 
 /// The kind of Git reference named in a [`ResolverError::UnknownGitRef`].

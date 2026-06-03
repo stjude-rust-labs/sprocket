@@ -55,7 +55,7 @@ pub struct Args {
 pub async fn analyze_source(
     source: &Source,
     fallback_version: Option<SupportedVersion>,
-    modules_config: wdl_modules::ModulesConfig,
+    modules_config: wdl_modules::resolver::ModulesConfig,
     feature_flags: wdl::analysis::FeatureFlags,
 ) -> CommandResult<Document> {
     let results = Analysis::default()

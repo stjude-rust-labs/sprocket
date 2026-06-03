@@ -13,8 +13,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use serde::Deserialize;
-use serde::Serialize;
+use serde_with::DeserializeFromStr;
+use serde_with::SerializeDisplay;
 use thiserror::Error;
 use unicode_normalization::UnicodeNormalization;
 
@@ -46,8 +46,9 @@ pub enum RelativePathError {
 
 /// A validated, canonical, NFC-normalized relative path under a module
 /// root.
-#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-#[serde(into = "String", try_from = "String")]
+#[derive(
+    Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, SerializeDisplay, DeserializeFromStr,
+)]
 pub struct RelativePath(String);
 
 impl RelativePath {
@@ -76,7 +77,7 @@ impl AsRef<Path> for RelativePath {
 
 impl std::fmt::Display for RelativePath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.0)
+        self.0.fmt(f)
     }
 }
 
@@ -92,11 +93,10 @@ impl From<RelativePath> for PathBuf {
     }
 }
 
-impl TryFrom<&Path> for RelativePath {
-    type Error = RelativePathError;
+impl FromStr for RelativePath {
+    type Err = RelativePathError;
 
-    fn try_from(path: &Path) -> Result<Self, Self::Error> {
-        let s = path.to_str().ok_or(RelativePathError::NonUtf8)?;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.is_empty() {
             return Err(RelativePathError::Empty);
         }
@@ -109,7 +109,7 @@ impl TryFrom<&Path> for RelativePath {
         if s.starts_with('/') || crate::starts_with_windows_drive(s) {
             return Err(RelativePathError::Absolute(s.to_string()));
         }
-        let cleaned = path_clean::clean(path)
+        let cleaned = path_clean::clean(Path::new(s))
             .into_os_string()
             .into_string()
             .map_err(|_| RelativePathError::NonUtf8)?;
@@ -129,27 +129,11 @@ impl TryFrom<&Path> for RelativePath {
     }
 }
 
-impl TryFrom<PathBuf> for RelativePath {
+impl TryFrom<&Path> for RelativePath {
     type Error = RelativePathError;
 
-    fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
-        Self::try_from(path.as_path())
-    }
-}
-
-impl TryFrom<String> for RelativePath {
-    type Error = RelativePathError;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        Self::try_from(Path::new(&s))
-    }
-}
-
-impl FromStr for RelativePath {
-    type Err = RelativePathError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from(Path::new(s))
+    fn try_from(path: &Path) -> Result<Self, Self::Error> {
+        path.to_str().ok_or(RelativePathError::NonUtf8)?.parse()
     }
 }
 

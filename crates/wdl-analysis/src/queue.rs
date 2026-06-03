@@ -47,8 +47,8 @@ use wdl_ast::Severity;
 use wdl_ast::v1::ImportSource;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
-use wdl_modules::Module;
-use wdl_modules::SymbolicPath;
+use wdl_modules::module::Module;
+use wdl_modules::symbolic_path::SymbolicPath;
 
 use crate::AnalysisResult;
 use crate::IncrementalChange;
@@ -1312,7 +1312,7 @@ where
             /// The node that contains the import statement.
             importer: NodeIndex,
             /// The resolved consumer module for the importer.
-            consumer_module: wdl_modules::Module,
+            consumer_module: wdl_modules::module::Module,
             /// The parsed symbolic path from the import statement.
             symbolic_path: SymbolicPath,
             /// The raw text of the module-path token, used as the edge label
@@ -1386,7 +1386,7 @@ where
                                     };
 
                                     let symbolic_path: SymbolicPath =
-                                        match module_path.text().try_into() {
+                                        match module_path.text().parse() {
                                             Ok(path) => path,
                                             Err(e) => {
                                                 // Record the syntax failure so the
@@ -1434,7 +1434,7 @@ where
             NodeIndex,
             SymbolicPath,
             String,
-            Result<wdl_modules::MaterializedFile, wdl_modules::ResolverError>,
+            Result<wdl_modules::resolver::MaterializedFile, wdl_modules::resolver::ResolverError>,
         );
 
         let materialized_results: Vec<MaterializeOutcome> = if symbolic_work.is_empty() {

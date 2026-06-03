@@ -2,22 +2,22 @@
 
 mod common;
 
+use async_lsp::lsp_types::DocumentSymbol;
+use async_lsp::lsp_types::DocumentSymbolParams;
+use async_lsp::lsp_types::DocumentSymbolResponse;
+use async_lsp::lsp_types::SymbolInformation;
+use async_lsp::lsp_types::SymbolKind;
+use async_lsp::lsp_types::TextDocumentIdentifier;
+use async_lsp::lsp_types::WorkspaceSymbolParams;
+use async_lsp::lsp_types::WorkspaceSymbolResponse;
+use async_lsp::lsp_types::request::DocumentSymbolRequest;
+use async_lsp::lsp_types::request::WorkspaceSymbolRequest;
 use common::TestContext;
-use tower_lsp::lsp_types::DocumentSymbol;
-use tower_lsp::lsp_types::DocumentSymbolParams;
-use tower_lsp::lsp_types::DocumentSymbolResponse;
-use tower_lsp::lsp_types::SymbolInformation;
-use tower_lsp::lsp_types::SymbolKind;
-use tower_lsp::lsp_types::TextDocumentIdentifier;
-use tower_lsp::lsp_types::WorkspaceSymbolParams;
-use tower_lsp::lsp_types::WorkspaceSymbolResponse;
-use tower_lsp::lsp_types::request::DocumentSymbolRequest;
-use tower_lsp::lsp_types::request::WorkspaceSymbolRequest;
 
 async fn document_symbol_request(
     ctx: &mut TestContext,
     path: &str,
-) -> Option<DocumentSymbolResponse> {
+) -> async_lsp::Result<Option<DocumentSymbolResponse>> {
     ctx.request::<DocumentSymbolRequest>(DocumentSymbolParams {
         text_document: TextDocumentIdentifier {
             uri: ctx.doc_uri(path),
@@ -31,7 +31,7 @@ async fn document_symbol_request(
 async fn workspace_symbol_request(
     ctx: &mut TestContext,
     query: &str,
-) -> Option<WorkspaceSymbolResponse> {
+) -> async_lsp::Result<Option<WorkspaceSymbolResponse>> {
     ctx.request::<WorkspaceSymbolRequest>(WorkspaceSymbolParams {
         query: query.to_string(),
         work_done_progress_params: Default::default(),
@@ -66,7 +66,9 @@ async fn setup() -> TestContext {
 #[tokio::test]
 async fn should_provide_document_symbols() {
     let mut ctx = setup().await;
-    let response = document_symbol_request(&mut ctx, "source.wdl").await;
+    let response = document_symbol_request(&mut ctx, "source.wdl")
+        .await
+        .expect("request should succeed");
     let Some(DocumentSymbolResponse::Nested(symbols)) = response else {
         panic!("expected a response, got none");
     };
@@ -126,7 +128,9 @@ async fn should_provide_document_symbols() {
 #[tokio::test]
 async fn should_provide_workspace_symbols() {
     let mut ctx = setup().await;
-    let response = workspace_symbol_request(&mut ctx, "").await;
+    let response = workspace_symbol_request(&mut ctx, "")
+        .await
+        .expect("request should succeed");
     let Some(WorkspaceSymbolResponse::Flat(symbols)) = response else {
         panic!("expected a response, got none");
     };
@@ -142,7 +146,9 @@ async fn should_provide_workspace_symbols() {
 #[tokio::test]
 async fn should_filter_workspace_symbols() {
     let mut ctx = setup().await;
-    let response = workspace_symbol_request(&mut ctx, "greet").await;
+    let response = workspace_symbol_request(&mut ctx, "greet")
+        .await
+        .expect("request should succeed");
     let Some(WorkspaceSymbolResponse::Flat(symbols)) = response else {
         panic!("expected a response, got none");
     };
@@ -158,7 +164,9 @@ async fn should_filter_workspace_symbols() {
 #[tokio::test]
 async fn should_provide_enum_symbols() {
     let mut ctx = setup().await;
-    let response = document_symbol_request(&mut ctx, "enum.wdl").await;
+    let response = document_symbol_request(&mut ctx, "enum.wdl")
+        .await
+        .expect("request should succeed");
     let Some(DocumentSymbolResponse::Nested(symbols)) = response else {
         panic!("expected a response, got none");
     };

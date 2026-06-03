@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/gauntlet",
+    "crates/sprocket-py",
     "crates/wdl",
     "crates/wdl-analysis",
     "crates/wdl-ast",
@@ -28,6 +29,7 @@ ammonia = "4.1.2"
 anyhow = "1.0.100"
 approx = "0.5.1"
 arrayvec = { version = "0.7.6", features = ["serde"] }
+async-lsp = "0.2.4"
 async-trait = "0.1.89"
 axum = "0.8.8"
 base64 = "0.22.1"
@@ -39,7 +41,7 @@ chrono = "0.4.43"
 clap = { version = "4.5.57", features = ["derive", "string"] }
 clap-verbosity-flag = { version = "3.0.4", features = ["tracing"] }
 clap_complete = "4.5.65"
-cloud-copy = { version = "0.7.0", features = ["cli"] }
+cloud-copy = { version = "0.8.0", features = ["cli"] }
 codespan-reporting = "0.13.1"
 colored = "3.1.1"
 config = { version = "0.15.21", default-features = false, features = ["toml", "preserve_order"] }
@@ -66,7 +68,7 @@ libc = "0.2"
 libtest-mimic = "^0.8.1"
 line-index = "0.1.2"
 logos = "0.16.1"
-lsp-types = "0.94.1"
+lsp-types = "0.95.1"
 macropol = "0.1.4"
 maud = "0.27.0"
 nonempty = "0.12.0"
@@ -104,20 +106,19 @@ spdx = "0.13.4"
 sqlx = { version = "0.8.6", features = ["runtime-tokio", "sqlite", "chrono", "uuid", "migrate"] }
 ssh-key = "0.6.7"
 strsim = "0.11.1"
-struct-patch = "0.10.4"
-strum = { version = "0.27", features = ["derive"] }
+struct-patch = "0.12.0"
+strum = { version = "0.28", features = ["derive"] }
 sysinfo = "0.38.0"
 tempfile = "3.24.0"
-thirtyfour = "0.36.1"
+thirtyfour = "0.37.0"
 thiserror = "2.0.18"
 tokio = { version = "1.49.0", features = ["full"] }
 tokio-retry2 = "0.9.1"
 tokio-util = "0.7.18"
 toml = "0.9.11"
-toml_edit = { version = "0.24.0", features = ["serde"] }
+toml_edit = { version = "0.25.0", features = ["serde"] }
 tower = { version = "0.5.3", features = ["util"] }
 tower-http = { version = "0.6.8", features = ["cors", "trace"] }
-tower-lsp = "0.20.0"
 tracing = "0.1.44"
 tracing-indicatif = "0.3.14"
 tracing-log = "0.2.0"

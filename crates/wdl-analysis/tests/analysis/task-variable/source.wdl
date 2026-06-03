@@ -20,7 +20,7 @@ task test_runtime_info_task {
   
   output {
     Boolean at_least_two_gb = task.memory >= (2 * 1024 * 1024 * 1024)
-    Int? return_code = task.return_code
+    Int return_code = task.return_code
   }
   
   requirements {

@@ -351,7 +351,8 @@ impl<Context> fmt::Debug for Analyzer<Context> {
 ///
 /// An analyzer that should not resolve modules uses the
 /// [`Default`](ResolutionContext::default) context, which installs a
-/// [`NullResolver`](wdl_modules::NullResolver) and carries no manifest.
+/// [`NullResolver`](wdl_modules::resolver::NullResolver) and carries no
+/// manifest.
 #[derive(Clone)]
 pub struct ResolutionContext {
     /// The resolver used to materialize symbolic module imports.
@@ -375,7 +376,7 @@ impl ResolutionContext {
 impl Default for ResolutionContext {
     fn default() -> Self {
         Self {
-            resolver: Arc::new(wdl_modules::NullResolver),
+            resolver: Arc::new(wdl_modules::resolver::NullResolver),
             manifest_path: None,
         }
     }
@@ -513,7 +514,7 @@ where
                 if entry.path() == root_for_filter {
                     return true;
                 }
-                !wdl_modules::is_module_root(entry.path())
+                !wdl_modules::module::is_module_root(entry.path())
             });
             let walker = walker
                 .standard_filters(false)
@@ -1411,10 +1412,10 @@ workflow test {
     #[tokio::test]
     async fn symbolic_import_resolves_through_mock_resolver() {
         use wdl_modules::Manifest;
-        use wdl_modules::MaterializedFile;
-        use wdl_modules::ResolvedSource;
-        use wdl_modules::ResolvedTree;
-        use wdl_modules::ResolverError;
+        use wdl_modules::lockfile::ResolvedSource;
+        use wdl_modules::resolver::MaterializedFile;
+        use wdl_modules::resolver::ResolvedTree;
+        use wdl_modules::resolver::ResolverError;
 
         struct MockResolver {
             dep_path: PathBuf,
@@ -1424,8 +1425,8 @@ workflow test {
         impl wdl_modules::Resolver for MockResolver {
             async fn materialize(
                 &self,
-                _consumer: &wdl_modules::Module,
-                path: &wdl_modules::SymbolicPath,
+                _consumer: &wdl_modules::module::Module,
+                path: &wdl_modules::symbolic_path::SymbolicPath,
             ) -> Result<MaterializedFile, ResolverError> {
                 let rel = match path.sub_path() {
                     Some(sub) => {
@@ -1449,16 +1450,16 @@ workflow test {
 
             async fn resolve_tree(
                 &self,
-                _consumer: &wdl_modules::Module,
+                _consumer: &wdl_modules::module::Module,
             ) -> Result<ResolvedTree, ResolverError> {
                 Ok(ResolvedTree::default())
             }
 
             async fn discover_versions(
                 &self,
-                _name: &wdl_modules::DependencyName,
-                _source: &wdl_modules::DependencySource,
-                _scope: wdl_modules::DependencyScope,
+                _name: &wdl_modules::dependency::DependencyName,
+                _source: &wdl_modules::dependency::DependencySource,
+                _scope: wdl_modules::resolver::DependencyScope,
             ) -> Result<Vec<semver::Version>, ResolverError> {
                 Ok(Vec::new())
             }
@@ -1532,10 +1533,10 @@ workflow test {
         use std::time::Instant;
 
         use wdl_modules::Manifest;
-        use wdl_modules::MaterializedFile;
-        use wdl_modules::ResolvedSource;
-        use wdl_modules::ResolvedTree;
-        use wdl_modules::ResolverError;
+        use wdl_modules::lockfile::ResolvedSource;
+        use wdl_modules::resolver::MaterializedFile;
+        use wdl_modules::resolver::ResolvedTree;
+        use wdl_modules::resolver::ResolverError;
 
         /// A resolver that sleeps 200 ms per `materialize` call so that N
         /// serial calls would take N × 200 ms, but N concurrent calls should
@@ -1549,8 +1550,8 @@ workflow test {
         impl wdl_modules::Resolver for SlowMockResolver {
             async fn materialize(
                 &self,
-                _consumer: &wdl_modules::Module,
-                path: &wdl_modules::SymbolicPath,
+                _consumer: &wdl_modules::module::Module,
+                path: &wdl_modules::symbolic_path::SymbolicPath,
             ) -> Result<MaterializedFile, ResolverError> {
                 tokio::time::sleep(self.delay).await;
                 let rel = match path.sub_path() {
@@ -1575,16 +1576,16 @@ workflow test {
 
             async fn resolve_tree(
                 &self,
-                _consumer: &wdl_modules::Module,
+                _consumer: &wdl_modules::module::Module,
             ) -> Result<ResolvedTree, ResolverError> {
                 Ok(ResolvedTree::default())
             }
 
             async fn discover_versions(
                 &self,
-                _name: &wdl_modules::DependencyName,
-                _source: &wdl_modules::DependencySource,
-                _scope: wdl_modules::DependencyScope,
+                _name: &wdl_modules::dependency::DependencyName,
+                _source: &wdl_modules::dependency::DependencySource,
+                _scope: wdl_modules::resolver::DependencyScope,
             ) -> Result<Vec<semver::Version>, ResolverError> {
                 Ok(Vec::new())
             }

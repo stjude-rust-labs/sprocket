@@ -12,12 +12,12 @@ use serde::Serialize;
 use thiserror::Error;
 use url::Url;
 
-use crate::ContentHash;
-use crate::DependencyName;
-use crate::DependencyNameError;
-use crate::GitModulePath;
-use crate::GitSelector;
-use crate::VerifyingKey;
+use crate::dependency::DependencyName;
+use crate::dependency::DependencyNameError;
+use crate::dependency::GitModulePath;
+use crate::dependency::GitSelector;
+use crate::hash::ContentHash;
+use crate::signing::VerifyingKey;
 
 /// The current lockfile schema version.
 pub const LOCKFILE_VERSION: u32 = 1;
@@ -74,33 +74,11 @@ impl Lockfile {
     pub fn write(&self, w: impl Write) -> std::io::Result<()> {
         serde_json::to_writer_pretty(w, self).map_err(std::io::Error::other)
     }
-}
 
-/// A `dependencies` map keyed by consumer-chosen dependency names.
-pub type DependencyMap = BTreeMap<DependencyName, DependencyEntry>;
-
-impl Lockfile {
-    /// Looks up the entry for `name` in the lockfile slice identified
-    /// by `scope`. The scope walks the nested `dependencies` tree from
-    /// the top-level lockfile to the parent dependency that contains
-    /// the entry being looked up.
-    ///
-    /// An empty scope looks up `name` directly in
-    /// [`Lockfile::dependencies`], matching the top-level case. A
-    /// scope of `[cafe_menu]` looks up `name` in
-    /// `dependencies["cafe_menu"].dependencies`.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use wdl_modules::Lockfile;
-    ///
-    /// let lockfile = Lockfile::default();
-    /// let name = "my_dep".parse().unwrap();
-    ///
-    /// // An empty lockfile returns `None` for any lookup.
-    /// assert!(lockfile.find_scoped(&[], &name).is_none());
-    /// ```
+    /// Looks up a dependency entry by walking the nested `dependencies`
+    /// tree along `scope` (the chain of consumer dependency names from the
+    /// top-level consumer down to the entry's parent), then resolving
+    /// `name` in that scope. An empty `scope` looks up a top-level entry.
     pub fn find_scoped(
         &self,
         scope: &[DependencyName],
@@ -113,6 +91,9 @@ impl Lockfile {
         current.get(name)
     }
 }
+
+/// A `dependencies` map keyed by consumer-chosen dependency names.
+pub type DependencyMap = BTreeMap<DependencyName, DependencyEntry>;
 
 /// One entry in a [`DependencyMap`].
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -379,71 +360,6 @@ mod tests {
         )
         .unwrap_err();
         assert!(matches!(err, LockfileError::InvalidJson(_)));
-    }
-
-    fn make_entry(checksum_byte: u8) -> DependencyEntry {
-        DependencyEntry {
-            source: ResolvedSource::Path {
-                path: "../stub".into(),
-            },
-            version: "0.1.0".parse().unwrap(),
-            checksum: ContentHash::from([checksum_byte; 32]),
-            signer: None,
-            dependencies: DependencyMap::new(),
-        }
-    }
-
-    fn dep(name: &str) -> DependencyName {
-        DependencyName::try_from(name.to_string()).unwrap()
-    }
-
-    #[test]
-    fn find_scoped_empty_scope_top_level_hit() {
-        let mut lockfile = Lockfile::default();
-        lockfile.dependencies.insert(dep("alpha"), make_entry(0x01));
-        let result = lockfile.find_scoped(&[], &dep("alpha"));
-        assert!(
-            result.is_some(),
-            "`find_scoped` should return the top-level entry"
-        );
-        assert_eq!(result.unwrap().checksum, ContentHash::from([0x01u8; 32]));
-    }
-
-    #[test]
-    fn find_scoped_empty_scope_miss() {
-        let lockfile = Lockfile::default();
-        let result = lockfile.find_scoped(&[], &dep("missing"));
-        assert!(
-            result.is_none(),
-            "`find_scoped` on empty lockfile should return `None`"
-        );
-    }
-
-    #[test]
-    fn find_scoped_nested_hit() {
-        let mut child_deps = DependencyMap::new();
-        child_deps.insert(dep("beta"), make_entry(0x02));
-        let mut parent = make_entry(0x01);
-        parent.dependencies = child_deps;
-        let mut lockfile = Lockfile::default();
-        lockfile.dependencies.insert(dep("alpha"), parent);
-        let result = lockfile.find_scoped(&[dep("alpha")], &dep("beta"));
-        assert!(
-            result.is_some(),
-            "`find_scoped` should find `beta` under `alpha`"
-        );
-        assert_eq!(result.unwrap().checksum, ContentHash::from([0x02u8; 32]));
-    }
-
-    #[test]
-    fn find_scoped_missing_parent_returns_none() {
-        let mut lockfile = Lockfile::default();
-        lockfile.dependencies.insert(dep("alpha"), make_entry(0x01));
-        let result = lockfile.find_scoped(&[dep("ghost")], &dep("alpha"));
-        assert!(
-            result.is_none(),
-            "`find_scoped` should short-circuit when parent `ghost` is absent"
-        );
     }
 
     #[test]

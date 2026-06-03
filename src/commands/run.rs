@@ -646,6 +646,7 @@ pub async fn run(
         events
             .subscribe_transfer()
             .expect("should have transfer events"),
+        colorize,
         cancellation.first(),
     ));
     let crankshaft_progress = tokio::spawn(progress(

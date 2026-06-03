@@ -6,8 +6,8 @@ use std::ops::Deref;
 use std::str::FromStr;
 
 use semver::VersionReq;
-use serde::Deserialize;
-use serde::Serialize;
+use serde_with::DeserializeFromStr;
+use serde_with::SerializeDisplay;
 use thiserror::Error;
 
 /// An error parsing a [`VersionRequirement`].
@@ -16,8 +16,7 @@ use thiserror::Error;
 pub struct VersionRequirementError(String);
 
 /// A version requirement, parsed by [`semver::VersionReq`].
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(into = "String", try_from = "String")]
+#[derive(Clone, Debug, PartialEq, Eq, SerializeDisplay, DeserializeFromStr)]
 pub struct VersionRequirement(VersionReq);
 
 impl VersionRequirement {
@@ -42,22 +41,14 @@ impl fmt::Display for VersionRequirement {
     }
 }
 
-impl TryFrom<String> for VersionRequirement {
-    type Error = VersionRequirementError;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        match VersionReq::parse(s.trim()) {
-            Ok(v) => Ok(Self(v)),
-            Err(_) => Err(VersionRequirementError(s)),
-        }
-    }
-}
-
 impl FromStr for VersionRequirement {
     type Err = VersionRequirementError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from(s.to_string())
+        match VersionReq::parse(s.trim()) {
+            Ok(v) => Ok(Self(v)),
+            Err(_) => Err(VersionRequirementError(s.to_string())),
+        }
     }
 }
 

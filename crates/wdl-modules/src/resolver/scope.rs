@@ -22,6 +22,6 @@ pub enum ResolutionMode<'a> {
     /// `materialize` when reproducing a previously-locked dependency.
     Locked {
         /// The lockfile path that contains the dependency entry.
-        lockfile_scope: &'a [crate::DependencyName],
+        lockfile_scope: &'a [crate::dependency::DependencyName],
     },
 }

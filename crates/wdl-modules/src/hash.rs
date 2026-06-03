@@ -8,15 +8,15 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use serde::Deserialize;
-use serde::Serialize;
+use serde_with::DeserializeFromStr;
+use serde_with::SerializeDisplay;
 use sha2::Digest;
 use sha2::Sha256;
 use thiserror::Error;
 
-use crate::RelativePath;
-use crate::RelativePathError;
 use crate::module_walk::ModuleWalkError;
+use crate::relative_path::RelativePath;
+use crate::relative_path::RelativePathError;
 use crate::tree::TreeError;
 
 /// An error during content hashing.
@@ -53,22 +53,6 @@ pub enum HashError {
         source: io::Error,
     },
 
-    /// A file changed size between its metadata read and its content
-    /// stream, so the length prefix written into the digest disagrees with
-    /// the bytes hashed. Producing a digest from this inconsistent framing
-    /// would break the injectivity the length prefixes guarantee.
-    #[error(
-        "file `{path}` changed size during hashing; expected {expected} bytes, hashed {actual}"
-    )]
-    SizeChanged {
-        /// The path of the file whose size changed.
-        path: PathBuf,
-        /// The size reported by the file's metadata.
-        expected: u64,
-        /// The number of bytes actually streamed into the hasher.
-        actual: u64,
-    },
-
     /// A tree walk error (symlink containment, metadata target, etc.).
     #[error(transparent)]
     Walk(#[from] ModuleWalkError),
@@ -103,8 +87,9 @@ const SHA256_PREFIX: &str = "sha256:";
 const CONTENT_HASH_MAGIC: &[u8] = b"wdl-module-content\0v1\0";
 
 /// A 32-byte SHA-256 module content hash.
-#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, Serialize, Deserialize)]
-#[serde(into = "String", try_from = "String")]
+#[derive(
+    Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd, SerializeDisplay, DeserializeFromStr,
+)]
 pub struct ContentHash([u8; 32]);
 
 impl ContentHash {
@@ -129,14 +114,6 @@ impl From<[u8; 32]> for ContentHash {
 impl From<ContentHash> for String {
     fn from(hash: ContentHash) -> Self {
         hash.to_string()
-    }
-}
-
-impl TryFrom<String> for ContentHash {
-    type Error = ContentHashError;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        s.parse()
     }
 }
 
@@ -264,17 +241,10 @@ impl Hasher {
                 })?
                 .len();
             sha.update(len.to_le_bytes());
-            let copied = io::copy(&mut file, &mut sha).map_err(|source| HashError::Io {
-                path: canonical_abs.clone(),
+            io::copy(&mut file, &mut sha).map_err(|source| HashError::Io {
+                path: canonical_abs,
                 source,
             })?;
-            if copied != len {
-                return Err(HashError::SizeChanged {
-                    path: canonical_abs,
-                    expected: len,
-                    actual: copied,
-                });
-            }
         }
 
         sha.update((self.paths.len() as u64).to_le_bytes());
@@ -282,6 +252,8 @@ impl Hasher {
     }
 }
 
+/// Computes the content hash of a directory by walking it (excluding the
+/// spec-mandated exclusions `module.sig` and `module-lock.json`).
 /// Directory and file names that are not module content and should
 /// be excluded from hashing, limit checks, and content walks.
 pub(crate) const NON_MODULE_CONTENT: &[&str] = &[".git"];
@@ -460,7 +432,7 @@ mod tests {
         let err = hash_directory(dir.path()).unwrap_err();
         assert!(matches!(
             err,
-            HashError::Tree(crate::TreeError::ReservedFilename {
+            HashError::Tree(crate::tree::TreeError::ReservedFilename {
                 name: crate::MANIFEST_FILENAME,
                 ..
             })
@@ -490,7 +462,7 @@ mod tests {
         let err = h.finalize().unwrap_err();
         assert!(matches!(
             err,
-            HashError::Tree(crate::TreeError::ReservedFilename {
+            HashError::Tree(crate::tree::TreeError::ReservedFilename {
                 name: crate::SIGNATURE_FILENAME,
                 ..
             })
