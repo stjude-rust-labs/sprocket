@@ -1,4 +1,4 @@
-error: an unknown token was encountered
+error: unknown start of token: ;
   ┌─ tests/parsing/struct-recovery/source.wdl:6:5
   │
 6 │     ; # Unknown token

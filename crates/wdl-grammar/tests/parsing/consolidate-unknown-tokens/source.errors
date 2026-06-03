@@ -1,0 +1,12 @@
+error: unknown start of token: ;
+  ┌─ tests/parsing/consolidate-unknown-tokens/source.wdl:5:5
+  │
+5 │     ;;;;
+  │     ^^^^ this is not a supported WDL token
+
+error: unknown start of token: 🚀
+  ┌─ tests/parsing/consolidate-unknown-tokens/source.wdl:8:5
+  │
+8 │     🚀🚀🚀🚀
+  │     ^^^^^^^^ this is not a supported WDL token
+
