@@ -34,6 +34,7 @@ use struct_patch::Patch;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tower::ServiceBuilder;
 use tracing::debug;
+use tracing::debug_span;
 use tracing::error;
 use tracing::info;
 use url::Url;
@@ -564,7 +565,26 @@ impl<S: 'static> Server<S> {
 
         let (server, _) = async_lsp::MainLoop::new_server(|client| {
             ServiceBuilder::new()
-                .layer(TracingLayer::default())
+                .layer(
+                    TracingLayer::new()
+                        .notification(|notif| {
+                            let span = debug_span!("notification", method = notif.method);
+                            span.in_scope(|| {
+                                debug!(
+                                    "received notification with parameters: {:#?}",
+                                    notif.params
+                                );
+                            });
+                            span
+                        })
+                        .request(|request| {
+                            let span = debug_span!("request", method = request.method);
+                            span.in_scope(|| {
+                                debug!("received request with parameters: {:#?}", request.params);
+                            });
+                            span
+                        }),
+                )
                 .layer(LifecycleLayer::default())
                 .layer(CatchUnwindLayer::default())
                 .layer(ConcurrencyLayer::default())
@@ -854,8 +874,6 @@ impl<S: 'static> LanguageServer for Server<S> {
         &mut self,
         params: InitializeParams,
     ) -> BoxFuture<'static, Result<InitializeResult, Self::Error>> {
-        debug!("received `initialize` request: {params:#?}");
-
         let client_support = ClientSupport::new(&params.capabilities);
 
         if !client_support.pull_diagnostics {
@@ -976,8 +994,6 @@ impl<S: 'static> LanguageServer for Server<S> {
     ) -> BoxFuture<'static, Result<Option<SemanticTokensResult>, Self::Error>> {
         normalize_uri_path(&mut params.text_document.uri);
 
-        debug!("received `textDocument/semanticTokens/full` request: {params:#?}");
-
         let state = self.state.clone();
         Box::pin(async move {
             let state = state.read().await;
@@ -997,8 +1013,6 @@ impl<S: 'static> LanguageServer for Server<S> {
         mut params: InlayHintParams,
     ) -> BoxFuture<'static, Result<Option<Vec<InlayHint>>, Self::Error>> {
         normalize_uri_path(&mut params.text_document.uri);
-
-        debug!("received `textDocument/inlayHint` request: {params:#?}");
 
         let state = self.state.clone();
         Box::pin(async move {
@@ -1029,8 +1043,6 @@ impl<S: 'static> LanguageServer for Server<S> {
     ) -> BoxFuture<'static, Result<DocumentDiagnosticReportResult, Self::Error>> {
         normalize_uri_path(&mut params.text_document.uri);
 
-        debug!("received `textDocument/diagnostic` request: {params:#?}");
-
         let name = self.options.info().name;
         let state = self.state.clone();
         let options = self.options.clone();
@@ -1055,8 +1067,6 @@ impl<S: 'static> LanguageServer for Server<S> {
         &mut self,
         params: WorkspaceDiagnosticParams,
     ) -> BoxFuture<'static, Result<WorkspaceDiagnosticReportResult, Self::Error>> {
-        debug!("received `workspace/diagnostic` request: {params:#?}");
-
         let client = self.client.clone();
         let name = self.options.info().name;
         let client_support = self.client_support.get().cloned().expect("should exist");
@@ -1091,8 +1101,6 @@ impl<S: 'static> LanguageServer for Server<S> {
     ) -> BoxFuture<'static, Result<Option<CompletionResponse>, Self::Error>> {
         normalize_uri_path(&mut params.text_document_position.text_document.uri);
 
-        debug!("received `textDocument/completion` request: {params:#?}");
-
         let position = SourcePosition::new(
             params.text_document_position.position.line,
             params.text_document_position.position.character,
@@ -1123,8 +1131,6 @@ impl<S: 'static> LanguageServer for Server<S> {
     ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyItem>>, Self::Error>> {
         normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
 
-        debug!("received `textDocument/prepareCallHierarchy` request: {params:#?}");
-
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
             params.text_document_position_params.position.character,
@@ -1154,8 +1160,6 @@ impl<S: 'static> LanguageServer for Server<S> {
     ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyIncomingCall>>, Self::Error>> {
         normalize_uri_path(&mut params.item.uri);
 
-        debug!("received `callHierarchy/incomingCalls` request: {params:#?}");
-
         let position = SourcePosition::new(
             params.item.selection_range.start.line,
             params.item.selection_range.start.character,
@@ -1180,8 +1184,6 @@ impl<S: 'static> LanguageServer for Server<S> {
         mut params: CallHierarchyOutgoingCallsParams,
     ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyOutgoingCall>>, Self::Error>> {
         normalize_uri_path(&mut params.item.uri);
-
-        debug!("received `callHierarchy/outgoingCalls` request: {params:#?}");
 
         let position = SourcePosition::new(
             params.item.selection_range.start.line,
@@ -1208,8 +1210,6 @@ impl<S: 'static> LanguageServer for Server<S> {
         mut params: HoverParams,
     ) -> BoxFuture<'static, Result<Option<Hover>, Self::Error>> {
         normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
-        debug!("received `textDocument/hover` request: {params:#?}");
 
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
@@ -1238,8 +1238,6 @@ impl<S: 'static> LanguageServer for Server<S> {
         mut params: SignatureHelpParams,
     ) -> BoxFuture<'static, Result<Option<SignatureHelp>, Self::Error>> {
         normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
-        debug!("received `textDocument/signatureHelp` request: {params:#?}");
 
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
@@ -1270,8 +1268,6 @@ impl<S: 'static> LanguageServer for Server<S> {
     ) -> BoxFuture<'static, Result<Option<Vec<FoldingRange>>, Self::Error>> {
         normalize_uri_path(&mut params.text_document.uri);
 
-        debug!("received `textDocument/foldingRange` request: {params:#?}");
-
         let state = self.state.clone();
         Box::pin(async move {
             let state = state.read().await;
@@ -1289,8 +1285,6 @@ impl<S: 'static> LanguageServer for Server<S> {
         mut params: GotoDefinitionParams,
     ) -> BoxFuture<'static, Result<Option<GotoDefinitionResponse>, Self::Error>> {
         normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
-        debug!("received `textDocument/gotoDefinition` request: {params:#?}");
 
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
@@ -1320,8 +1314,6 @@ impl<S: 'static> LanguageServer for Server<S> {
         mut params: ReferenceParams,
     ) -> BoxFuture<'static, Result<Option<Vec<Location>>, Self::Error>> {
         normalize_uri_path(&mut params.text_document_position.text_document.uri);
-
-        debug!("received `textDocument/references` request: {params:#?}");
 
         let position = SourcePosition::new(
             params.text_document_position.position.line,
@@ -1353,8 +1345,6 @@ impl<S: 'static> LanguageServer for Server<S> {
     ) -> BoxFuture<'static, Result<Option<DocumentSymbolResponse>, Self::Error>> {
         normalize_uri_path(&mut params.text_document.uri);
 
-        debug!("received `textDocument/documentSymbol` request: {params:#?}");
-
         let state = self.state.clone();
         Box::pin(async move {
             let state = state.read().await;
@@ -1374,8 +1364,6 @@ impl<S: 'static> LanguageServer for Server<S> {
         &mut self,
         params: WorkspaceSymbolParams,
     ) -> BoxFuture<'static, Result<Option<WorkspaceSymbolResponse>, Self::Error>> {
-        debug!("received `workspace/symbol` request: {params:#?}");
-
         let state = self.state.clone();
         Box::pin(async move {
             let state = state.read().await;
@@ -1397,8 +1385,6 @@ impl<S: 'static> LanguageServer for Server<S> {
         mut params: DocumentFormattingParams,
     ) -> BoxFuture<'static, Result<Option<Vec<TextEdit>>, Self::Error>> {
         normalize_uri_path(&mut params.text_document.uri);
-
-        debug!("received `textDocument/formatting` request: {params:#?}");
 
         let state = self.state.clone();
         Box::pin(async move {
@@ -1437,8 +1423,6 @@ impl<S: 'static> LanguageServer for Server<S> {
         mut params: RenameParams,
     ) -> BoxFuture<'static, Result<Option<WorkspaceEdit>, Self::Error>> {
         normalize_uri_path(&mut params.text_document_position.text_document.uri);
-
-        debug!("received `textDocument/rename` request: {params:#?}");
 
         let position = SourcePosition::new(
             params.text_document_position.position.line,
@@ -1520,8 +1504,6 @@ impl<S: 'static> LanguageServer for Server<S> {
         &mut self,
         params: DidChangeWorkspaceFoldersParams,
     ) -> Self::NotifyResult {
-        debug!("received `workspace/didChangeWorkspaceFolders` request: {params:#?}");
-
         match self
             .notification_tx
             .send(Notification::DidChangeWorkspaceFolders(params))
@@ -1535,8 +1517,6 @@ impl<S: 'static> LanguageServer for Server<S> {
         &mut self,
         params: DidChangeConfigurationParams,
     ) -> Self::NotifyResult {
-        debug!("received `workspace/didChangeConfiguration` notification: {params:#?}");
-
         match self
             .notification_tx
             .send(Notification::DidChangeConfiguration(params))
@@ -1549,8 +1529,6 @@ impl<S: 'static> LanguageServer for Server<S> {
     fn did_open(&mut self, mut params: DidOpenTextDocumentParams) -> Self::NotifyResult {
         normalize_uri_path(&mut params.text_document.uri);
 
-        debug!("received `textDocument/didOpen` request: {params:#?}");
-
         match self.notification_tx.send(Notification::DidOpen(params)) {
             Ok(()) => ControlFlow::Continue(()),
             Err(_) => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
@@ -1560,8 +1538,6 @@ impl<S: 'static> LanguageServer for Server<S> {
     fn did_change(&mut self, mut params: DidChangeTextDocumentParams) -> Self::NotifyResult {
         normalize_uri_path(&mut params.text_document.uri);
 
-        debug!("received `textDocument/didChange` request: {params:#?}");
-
         match self.notification_tx.send(Notification::DidChange(params)) {
             Ok(()) => ControlFlow::Continue(()),
             Err(_) => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
@@ -1570,8 +1546,6 @@ impl<S: 'static> LanguageServer for Server<S> {
 
     fn did_close(&mut self, mut params: DidCloseTextDocumentParams) -> Self::NotifyResult {
         normalize_uri_path(&mut params.text_document.uri);
-
-        debug!("received `textDocument/didClose` request: {params:#?}");
 
         match self.notification_tx.send(Notification::DidClose(params)) {
             Ok(()) => ControlFlow::Continue(()),
@@ -1583,8 +1557,6 @@ impl<S: 'static> LanguageServer for Server<S> {
         &mut self,
         params: DidChangeWatchedFilesParams,
     ) -> Self::NotifyResult {
-        debug!("received `workspace/didChangeWatchedFiles` request: {params:#?}");
-
         match self
             .notification_tx
             .send(Notification::DidChangeWatchedFiles(params))
