@@ -32,6 +32,7 @@ use serde::Deserializer;
 use serde_json::to_value;
 use struct_patch::Patch;
 use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::oneshot::Sender;
 use tower::ServiceBuilder;
 use tracing::debug;
 use tracing::debug_span;
@@ -412,15 +413,15 @@ pub struct Server<S> {
     /// The LSP client connected to the server.
     client: ClientSocket,
     /// The features supported by the LSP client.
-    client_support: OnceLock<Arc<ClientSupport>>,
+    client_support: Arc<OnceLock<ClientSupport>>,
     /// Static server options.
     options: Arc<ServerOptions>,
     /// Mutable server state.
     state: Arc<tokio::sync::RwLock<ServerState<S>>>,
-    /// Sender for client [`Notification`]s.
-    notification_tx: Option<tokio::sync::mpsc::UnboundedSender<Notification>>,
-    /// Task handle for the notification loop.
-    _notification_loop_handle: Option<tokio::task::JoinHandle<()>>,
+    /// Sender for client [`Message`]s.
+    message_tx: Option<tokio::sync::mpsc::UnboundedSender<Message>>,
+    /// Task handle for the message loop.
+    _message_loop_handle: Option<tokio::task::JoinHandle<()>>,
 }
 
 /// The server config and dependent fields.
@@ -513,6 +514,105 @@ enum Notification {
     DidChangeWatchedFiles(DidChangeWatchedFilesParams),
 }
 
+/// LSP requests sent from the client.
+#[derive(Debug)]
+#[allow(clippy::enum_variant_names, clippy::missing_docs_in_private_items)]
+enum Request {
+    /// `textDocument/completion`
+    Completion {
+        params: CompletionParams,
+        tx: RequestResponseSender<Option<CompletionResponse>>,
+    },
+    /// `textDocument/definition`
+    Definition {
+        params: GotoDefinitionParams,
+        tx: RequestResponseSender<Option<GotoDefinitionResponse>>,
+    },
+    /// `textDocument/diagnostic`
+    DocumentDiagnostic {
+        params: DocumentDiagnosticParams,
+        tx: RequestResponseSender<DocumentDiagnosticReportResult>,
+    },
+    /// `textDocument/symbol`
+    DocumentSymbol {
+        params: DocumentSymbolParams,
+        tx: RequestResponseSender<Option<DocumentSymbolResponse>>,
+    },
+    /// `textDocument/foldingRange`
+    FoldingRange {
+        params: FoldingRangeParams,
+        tx: RequestResponseSender<Option<Vec<FoldingRange>>>,
+    },
+    /// `textDocument/formatting`
+    Formatting {
+        params: DocumentFormattingParams,
+        tx: RequestResponseSender<Option<Vec<TextEdit>>>,
+    },
+    /// `textDocument/hover`
+    Hover {
+        params: HoverParams,
+        tx: RequestResponseSender<Option<Hover>>,
+    },
+    /// `callHierarchy/incomingCalls`
+    IncomingCalls {
+        params: CallHierarchyIncomingCallsParams,
+        tx: RequestResponseSender<Option<Vec<CallHierarchyIncomingCall>>>,
+    },
+    /// `textDocument/inlayHint`
+    InlayHint {
+        params: InlayHintParams,
+        tx: RequestResponseSender<Option<Vec<InlayHint>>>,
+    },
+    /// `callHierarchy/outgoingCalls`
+    OutgoingCalls {
+        params: CallHierarchyOutgoingCallsParams,
+        tx: RequestResponseSender<Option<Vec<CallHierarchyOutgoingCall>>>,
+    },
+    /// `textDocument/prepareCallHierarchy`
+    PrepareCallHierarchy {
+        params: CallHierarchyPrepareParams,
+        tx: RequestResponseSender<Option<Vec<CallHierarchyItem>>>,
+    },
+    /// `textDocument/references`
+    References {
+        params: ReferenceParams,
+        tx: RequestResponseSender<Option<Vec<Location>>>,
+    },
+    /// `textDocument/rename`
+    Rename {
+        params: RenameParams,
+        tx: RequestResponseSender<Option<WorkspaceEdit>>,
+    },
+    /// `textDocument/semanticTokens/full`
+    SemanticTokensFull {
+        params: SemanticTokensParams,
+        tx: RequestResponseSender<Option<SemanticTokensResult>>,
+    },
+    /// `textDocument/signatureHelp`
+    SignatureHelp {
+        params: SignatureHelpParams,
+        tx: RequestResponseSender<Option<SignatureHelp>>,
+    },
+    /// `workspace/symbol`
+    Symbol {
+        params: WorkspaceSymbolParams,
+        tx: RequestResponseSender<Option<WorkspaceSymbolResponse>>,
+    },
+    /// `workspace/diagnostic`
+    WorkspaceDiagnostic {
+        params: WorkspaceDiagnosticParams,
+        tx: RequestResponseSender<WorkspaceDiagnosticReportResult>,
+    },
+}
+
+/// A message from the client.
+enum Message {
+    /// A notification.
+    Notification(Notification),
+    /// A request.
+    Request(Request),
+}
+
 impl<S: 'static> Server<S> {
     /// Creates a new WDL language server.
     ///
@@ -524,8 +624,9 @@ impl<S: 'static> Server<S> {
         log_handle: Option<FilterReloadHandle<S>>,
     ) -> Self {
         let analyzer = options.analyzer(client.clone(), &user_options.lint);
-        let (notification_tx, notification_rx) = tokio::sync::mpsc::unbounded_channel();
+        let (message_tx, message_rx) = tokio::sync::mpsc::unbounded_channel();
 
+        let client_support = Arc::new(OnceLock::new());
         let options = Arc::new(options);
         let state = Arc::new(tokio::sync::RwLock::new(ServerState {
             folders: Default::default(),
@@ -539,18 +640,25 @@ impl<S: 'static> Server<S> {
         let state_clone = state.clone();
         let options_clone = options.clone();
         let client_clone = client.clone();
-        let notification_loop_handle = tokio::task::spawn(async move {
-            Self::notification_loop(notification_rx, state_clone, options_clone, client_clone)
-                .await;
+        let client_support_clone = client_support.clone();
+        let message_loop_handle = tokio::task::spawn(async move {
+            Self::message_loop(
+                message_rx,
+                state_clone,
+                options_clone,
+                client_clone,
+                client_support_clone,
+            )
+            .await;
         });
 
         Self {
             client,
-            client_support: Default::default(),
+            client_support,
             options,
             state,
-            notification_tx: Some(notification_tx),
-            _notification_loop_handle: Some(notification_loop_handle),
+            message_tx: Some(message_tx),
+            _message_loop_handle: Some(message_loop_handle),
         }
     }
 
@@ -616,60 +724,606 @@ impl<S: 'static> Server<S> {
     }
 }
 
-// Notification handlers
+/// Sender type for request results.
+type RequestResponseSender<T> = Sender<Result<T, ResponseError>>;
+
+// Message handlers
 impl<S: 'static> Server<S> {
-    /// Send a notification to the queue.
-    fn send_notification(&self, notification: Notification) -> ControlFlow<async_lsp::Result<()>> {
+    /// Send a message to the queue.
+    fn queue(&self, message: Message) -> ControlFlow<async_lsp::Result<()>> {
         match self
-            .notification_tx
+            .message_tx
             .as_ref()
-            .and_then(|tx| tx.send(notification).ok())
+            .and_then(|tx| tx.send(message).ok())
         {
             Some(()) => ControlFlow::Continue(()),
             None => ControlFlow::Break(Err(async_lsp::Error::ServiceStopped)),
         }
     }
 
-    /// Incoming [`Notification`] handler loop.
-    async fn notification_loop(
-        mut notification_rx: UnboundedReceiver<Notification>,
+    /// Queue a client request.
+    fn request<R, F>(&self, make_request: F) -> BoxFuture<'static, Result<R, ResponseError>>
+    where
+        R: Send + 'static,
+        F: FnOnce(Sender<Result<R, ResponseError>>) -> Message + Send + 'static,
+    {
+        let message_tx = self.message_tx.clone();
+
+        Box::pin(async move {
+            let (reply_tx, reply_rx) = tokio::sync::oneshot::channel();
+            let msg = make_request(reply_tx);
+
+            if message_tx.and_then(|tx| tx.send(msg).ok()).is_none() {
+                return Err(ResponseError::new(
+                    ErrorCode::INTERNAL_ERROR,
+                    "Server message queue closed",
+                ));
+            }
+
+            reply_rx.await.unwrap_or_else(|_| {
+                Err(ResponseError::new(
+                    ErrorCode::INTERNAL_ERROR,
+                    "Background task dropped the request without replying",
+                ))
+            })
+        })
+    }
+
+    /// Incoming [`Message`] handler loop.
+    async fn message_loop(
+        mut rx: UnboundedReceiver<Message>,
         state: Arc<tokio::sync::RwLock<ServerState<S>>>,
         options: Arc<ServerOptions>,
         client: ClientSocket,
+        client_support: Arc<OnceLock<ClientSupport>>,
     ) {
-        while let Some(notification) = notification_rx.recv().await {
-            match notification {
-                Notification::DidOpen(params) => {
-                    let state = state.read().await;
-                    Self::did_open(params, &state).await;
-                }
-                Notification::DidChange(params) => {
-                    let state = state.read().await;
-                    Self::did_change(params, &state).await;
-                }
-                Notification::DidClose(params) => {
-                    let state = state.read().await;
-                    Self::did_close(params, &state).await;
-                }
-                Notification::DidChangeWorkspaceFolders(params) => {
-                    let state = state.read().await;
-                    Self::did_change_workspace_folders(params, &state).await;
-                }
-                Notification::DidChangeConfiguration(params) => {
-                    let mut state = state.write().await;
-                    Self::did_change_configuration(params, &mut state, client.clone(), &options)
+        while let Some(message) = rx.recv().await {
+            match message {
+                Message::Notification(notification) => match notification {
+                    Notification::DidOpen(params) => {
+                        let state = state.read().await;
+                        Self::did_open(params, &state).await;
+                    }
+                    Notification::DidChange(params) => {
+                        let state = state.read().await;
+                        Self::did_change(params, &state).await;
+                    }
+                    Notification::DidClose(params) => {
+                        let state = state.read().await;
+                        Self::did_close(params, &state).await;
+                    }
+                    Notification::DidChangeWorkspaceFolders(params) => {
+                        let state = state.read().await;
+                        Self::did_change_workspace_folders(params, &state).await;
+                    }
+                    Notification::DidChangeConfiguration(params) => {
+                        let mut state = state.write().await;
+                        Self::did_change_configuration(
+                            params,
+                            &mut state,
+                            client.clone(),
+                            &options,
+                        )
                         .await;
-                }
-                Notification::DidChangeWatchedFiles(params) => {
-                    let state = state.read().await;
-                    Self::did_change_watched_files(params, &state).await;
-                }
+                    }
+                    Notification::DidChangeWatchedFiles(params) => {
+                        let state = state.read().await;
+                        Self::did_change_watched_files(params, &state).await;
+                    }
+                },
+                Message::Request(request) => match request {
+                    Request::Completion { params, tx } => {
+                        let state = state.read().await;
+                        Self::completion(params, tx, &state).await
+                    }
+                    Request::Definition { params, tx } => {
+                        let state = state.read().await;
+                        Self::definition(params, tx, &state).await
+                    }
+                    Request::DocumentDiagnostic { params, tx } => {
+                        let state = state.read().await;
+                        Self::document_diagnostic(params, tx, &state, &options).await
+                    }
+                    Request::DocumentSymbol { params, tx } => {
+                        let state = state.read().await;
+                        Self::document_symbol(params, tx, &state).await
+                    }
+                    Request::FoldingRange { params, tx } => {
+                        let state = state.read().await;
+                        Self::folding_range(params, tx, &state).await
+                    }
+                    Request::Formatting { params, tx } => {
+                        let state = state.read().await;
+                        Self::formatting(params, tx, &state).await
+                    }
+                    Request::Hover { params, tx } => {
+                        let state = state.read().await;
+                        Self::hover(params, tx, &state).await
+                    }
+                    Request::IncomingCalls { params, tx } => {
+                        let state = state.read().await;
+                        Self::incoming_calls(params, tx, &state).await
+                    }
+                    Request::InlayHint { params, tx } => {
+                        let state = state.read().await;
+                        Self::inlay_hint(params, tx, &state).await
+                    }
+                    Request::OutgoingCalls { params, tx } => {
+                        let state = state.read().await;
+                        Self::outgoing_calls(params, tx, &state).await
+                    }
+                    Request::PrepareCallHierarchy { params, tx } => {
+                        let state = state.read().await;
+                        Self::prepare_call_hierarchy(params, tx, &state).await
+                    }
+                    Request::References { params, tx } => {
+                        let state = state.read().await;
+                        Self::references(params, tx, &state).await
+                    }
+                    Request::Rename { params, tx } => {
+                        let state = state.read().await;
+                        Self::rename(params, tx, &state).await
+                    }
+                    Request::SemanticTokensFull { params, tx } => {
+                        let state = state.read().await;
+                        Self::semantic_tokens_full(params, tx, &state).await
+                    }
+                    Request::SignatureHelp { params, tx } => {
+                        let state = state.read().await;
+                        Self::signature_help(params, tx, &state).await
+                    }
+                    Request::Symbol { params, tx } => {
+                        let state = state.read().await;
+                        Self::symbol(params, tx, &state).await
+                    }
+                    Request::WorkspaceDiagnostic { params, tx } => {
+                        let state = state.read().await;
+                        let client_support = client_support.get().expect("should be initialized");
+                        Self::workspace_diagnostic(
+                            params,
+                            tx,
+                            &state,
+                            &options,
+                            client.clone(),
+                            client_support,
+                        )
+                        .await
+                    }
+                },
             }
         }
     }
 
+    /// `textDocument/completion` request handler.
+    async fn completion(
+        mut params: CompletionParams,
+        tx: RequestResponseSender<Option<CompletionResponse>>,
+        state: &ServerState<S>,
+    ) {
+        normalize_uri_path(&mut params.text_document_position.text_document.uri);
+
+        let position = SourcePosition::new(
+            params.text_document_position.position.line,
+            params.text_document_position.position.character,
+        );
+
+        let result = state
+            .config
+            .analyzer
+            .completion(
+                ProgressToken::default(),
+                params.text_document_position.text_document.uri,
+                position,
+                SourcePositionEncoding::UTF16,
+            )
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
+
+    /// `textDocument/definition` request handler.
+    async fn definition(
+        mut params: GotoDefinitionParams,
+        tx: RequestResponseSender<Option<GotoDefinitionResponse>>,
+        state: &ServerState<S>,
+    ) {
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+
+        let position = SourcePosition::new(
+            params.text_document_position_params.position.line,
+            params.text_document_position_params.position.character,
+        );
+
+        let result = state
+            .config
+            .analyzer
+            .goto_definition(
+                params.text_document_position_params.text_document.uri,
+                position,
+                SourcePositionEncoding::UTF16,
+            )
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
+
+    /// `textDocument/documentSymbol` request handler.
+    async fn document_symbol(
+        mut params: DocumentSymbolParams,
+        tx: RequestResponseSender<Option<DocumentSymbolResponse>>,
+        state: &ServerState<S>,
+    ) {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        let result = state
+            .config
+            .analyzer
+            .document_symbol(params.text_document.uri)
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
+
+    /// `textDocument/diagnostic` request handler.
+    async fn document_diagnostic(
+        mut params: DocumentDiagnosticParams,
+        tx: RequestResponseSender<DocumentDiagnosticReportResult>,
+        state: &ServerState<S>,
+        options: &ServerOptions,
+    ) {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        let results = state
+            .config
+            .analyzer
+            .analyze_document(ProgressToken::default(), params.text_document.uri.clone())
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))
+            .and_then(|results| {
+                let mut matcher = options.baseline.as_ref().map(|b| b.matcher());
+                proto::document_diagnostic_report(params, results, &options.name, matcher.as_mut())
+                    .ok_or_else(|| {
+                        ResponseError::new(
+                            ErrorCode::REQUEST_FAILED,
+                            "no diagnostic report produced",
+                        )
+                    })
+            });
+
+        let _ = tx.send(results);
+    }
+
+    /// `textDocument/foldingRange` request handler.
+    async fn folding_range(
+        mut params: FoldingRangeParams,
+        tx: RequestResponseSender<Option<Vec<FoldingRange>>>,
+        state: &ServerState<S>,
+    ) {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        let result = state
+            .config
+            .analyzer
+            .folding_range(params.text_document.uri)
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
+
+    /// `textDocument/formatting` request handler.
+    async fn formatting(
+        mut params: DocumentFormattingParams,
+        tx: RequestResponseSender<Option<Vec<TextEdit>>>,
+        state: &ServerState<S>,
+    ) {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        let result = state
+            .config
+            .analyzer
+            .format_document(params.text_document.uri)
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))
+            .map(|res| {
+                res.map(|(end_line, end_col, formatted)| {
+                    vec![TextEdit {
+                        range: Range {
+                            // NOTE: always replace the full set of text starting at the
+                            // very first position.
+                            start: Position {
+                                line: 0,
+                                character: 0,
+                            },
+                            end: Position {
+                                line: end_line,
+                                character: end_col,
+                            },
+                        },
+                        new_text: formatted,
+                    }]
+                })
+            });
+
+        let _ = tx.send(result);
+    }
+
+    /// `textDocument/hover` request handler.
+    async fn hover(
+        mut params: HoverParams,
+        tx: RequestResponseSender<Option<Hover>>,
+        state: &ServerState<S>,
+    ) {
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+
+        let position = SourcePosition::new(
+            params.text_document_position_params.position.line,
+            params.text_document_position_params.position.character,
+        );
+
+        let result = state
+            .config
+            .analyzer
+            .hover(
+                params.text_document_position_params.text_document.uri,
+                position,
+                SourcePositionEncoding::UTF16,
+            )
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
+
+    /// `callHierarchy/incomingCalls` request handler.
+    async fn incoming_calls(
+        mut params: CallHierarchyIncomingCallsParams,
+        tx: RequestResponseSender<Option<Vec<CallHierarchyIncomingCall>>>,
+        state: &ServerState<S>,
+    ) {
+        normalize_uri_path(&mut params.item.uri);
+
+        let position = SourcePosition::new(
+            params.item.selection_range.start.line,
+            params.item.selection_range.start.character,
+        );
+
+        let result = state
+            .config
+            .analyzer
+            .incoming_calls(params.item.uri, position, SourcePositionEncoding::UTF16)
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
+
+    /// `textDocument/inlayHint` request handler.
+    async fn inlay_hint(
+        mut params: InlayHintParams,
+        tx: RequestResponseSender<Option<Vec<InlayHint>>>,
+        state: &ServerState<S>,
+    ) {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        // Analyze the document first to ensure we have up-to-date information
+        if let Err(e) = state.config.analyzer.analyze(ProgressToken(None)).await {
+            let _ = tx.send(Err(ResponseError::new(ErrorCode::INTERNAL_ERROR, e)));
+            return;
+        }
+
+        let result = state
+            .config
+            .analyzer
+            .inlay_hints(params.text_document.uri, params.range)
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
+
+    /// `callHierarchy/outgoingCalls` request handler.
+    async fn outgoing_calls(
+        mut params: CallHierarchyOutgoingCallsParams,
+        tx: RequestResponseSender<Option<Vec<CallHierarchyOutgoingCall>>>,
+        state: &ServerState<S>,
+    ) {
+        normalize_uri_path(&mut params.item.uri);
+
+        let position = SourcePosition::new(
+            params.item.selection_range.start.line,
+            params.item.selection_range.start.character,
+        );
+
+        let result = state
+            .config
+            .analyzer
+            .outgoing_calls(params.item.uri, position, SourcePositionEncoding::UTF16)
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
+
+    /// `textDocument/prepareCallHierarchy` request handler.
+    async fn prepare_call_hierarchy(
+        mut params: CallHierarchyPrepareParams,
+        tx: RequestResponseSender<Option<Vec<CallHierarchyItem>>>,
+        state: &ServerState<S>,
+    ) {
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+
+        let position = SourcePosition::new(
+            params.text_document_position_params.position.line,
+            params.text_document_position_params.position.character,
+        );
+
+        let result = state
+            .config
+            .analyzer
+            .call_hierarchy(
+                params.text_document_position_params.text_document.uri,
+                position,
+                SourcePositionEncoding::UTF16,
+            )
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
+
+    /// `textDocument/references` request handler.
+    async fn references(
+        mut params: ReferenceParams,
+        tx: RequestResponseSender<Option<Vec<Location>>>,
+        state: &ServerState<S>,
+    ) {
+        normalize_uri_path(&mut params.text_document_position.text_document.uri);
+
+        let position = SourcePosition::new(
+            params.text_document_position.position.line,
+            params.text_document_position.position.character,
+        );
+
+        let result = state
+            .config
+            .analyzer
+            .find_all_references(
+                params.text_document_position.text_document.uri,
+                position,
+                SourcePositionEncoding::UTF16,
+                params.context.include_declaration,
+            )
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result.map(Some));
+    }
+
+    /// `textDocument/rename` request handler.
+    async fn rename(
+        mut params: RenameParams,
+        tx: RequestResponseSender<Option<WorkspaceEdit>>,
+        state: &ServerState<S>,
+    ) {
+        normalize_uri_path(&mut params.text_document_position.text_document.uri);
+
+        let position = SourcePosition::new(
+            params.text_document_position.position.line,
+            params.text_document_position.position.character,
+        );
+
+        let result = state
+            .config
+            .analyzer
+            .rename(
+                params.text_document_position.text_document.uri,
+                position,
+                SourcePositionEncoding::UTF16,
+                params.new_name,
+            )
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
+
+    /// `textDocument/semanticTokens/full` request handler.
+    async fn semantic_tokens_full(
+        mut params: SemanticTokensParams,
+        tx: RequestResponseSender<Option<SemanticTokensResult>>,
+        state: &ServerState<S>,
+    ) {
+        normalize_uri_path(&mut params.text_document.uri);
+
+        let result = state
+            .config
+            .analyzer
+            .semantic_tokens(params.text_document.uri)
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
+
+    /// `textDocument/signatureHelp` request handler.
+    async fn signature_help(
+        mut params: SignatureHelpParams,
+        tx: RequestResponseSender<Option<SignatureHelp>>,
+        state: &ServerState<S>,
+    ) {
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+
+        let position = SourcePosition::new(
+            params.text_document_position_params.position.line,
+            params.text_document_position_params.position.character,
+        );
+
+        let result = state
+            .config
+            .analyzer
+            .signature_help(
+                params.text_document_position_params.text_document.uri,
+                position,
+                SourcePositionEncoding::UTF16,
+            )
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
+
+    /// `workspace/symbol` request handler.
+    async fn symbol(
+        params: WorkspaceSymbolParams,
+        tx: RequestResponseSender<Option<WorkspaceSymbolResponse>>,
+        state: &ServerState<S>,
+    ) {
+        let result = state
+            .config
+            .analyzer
+            .workspace_symbol(params.query)
+            .await
+            .map(|opt| opt.map(WorkspaceSymbolResponse::Flat))
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
+
+    /// `workspace/diagnostic` request handler.
+    async fn workspace_diagnostic(
+        params: WorkspaceDiagnosticParams,
+        tx: RequestResponseSender<WorkspaceDiagnosticReportResult>,
+        state: &ServerState<S>,
+        options: &ServerOptions,
+        client: ClientSocket,
+        client_support: &ClientSupport,
+    ) {
+        let progress = ProgressToken::new(&client, client_support.work_done_progress).await;
+        let _ = progress.start(&client, options.name.clone(), "analyzing...");
+        let results = state
+            .config
+            .analyzer
+            .analyze(progress.clone())
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))
+            .map(|results| {
+                let _ = progress.complete(&client, "analysis complete");
+
+                let mut matcher = options.baseline.as_ref().map(|b| b.matcher());
+                proto::workspace_diagnostic_report(params, results, &options.name, matcher.as_mut())
+            });
+
+        let _ = tx.send(results);
+    }
+
     /// `textDocument/didOpen` notification handler.
-    async fn did_open(params: DidOpenTextDocumentParams, state: &ServerState<S>) {
+    async fn did_open(mut params: DidOpenTextDocumentParams, state: &ServerState<S>) {
+        normalize_uri_path(&mut params.text_document.uri);
+
         if let Err(e) = state
             .config
             .analyzer
@@ -695,7 +1349,9 @@ impl<S: 'static> Server<S> {
     }
 
     /// `textDocument/didClose` notification handler.
-    async fn did_close(params: DidCloseTextDocumentParams, state: &ServerState<S>) {
+    async fn did_close(mut params: DidCloseTextDocumentParams, state: &ServerState<S>) {
+        normalize_uri_path(&mut params.text_document.uri);
+
         if let Err(e) = state
             .config
             .analyzer
@@ -707,6 +1363,8 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/didChange` notification handler.
     async fn did_change(mut params: DidChangeTextDocumentParams, state: &ServerState<S>) {
+        normalize_uri_path(&mut params.text_document.uri);
+
         debug!(
             "document `{uri}` is now client version {version}",
             uri = params.text_document.uri,
@@ -904,7 +1562,7 @@ impl<S: 'static> LanguageServer for Server<S> {
         }
 
         // This is guaranteed to be called once anyway
-        let _ = self.client_support.set(Arc::new(client_support));
+        let _ = self.client_support.set(client_support);
 
         let state = self.state.clone();
         let info = self.options.info();
@@ -1008,15 +1666,15 @@ impl<S: 'static> LanguageServer for Server<S> {
     }
 
     fn shutdown(&mut self, _: ()) -> BoxFuture<'static, Result<(), Self::Error>> {
-        drop(self.notification_tx.take());
+        drop(self.message_tx.take());
 
-        let notification_loop_handle = self._notification_loop_handle.take();
+        let message_loop_handle = self._message_loop_handle.take();
         Box::pin(async move {
-            if let Some(handle) = notification_loop_handle {
+            if let Some(handle) = message_loop_handle {
                 handle.await.map_err(|e| {
                     ResponseError::new(
                         ErrorCode::INTERNAL_ERROR,
-                        format!("notification loop failed during shutdown: {e}"),
+                        format!("message loop failed during shutdown: {e}"),
                     )
                 })?;
             }
@@ -1027,463 +1685,121 @@ impl<S: 'static> LanguageServer for Server<S> {
 
     fn semantic_tokens_full(
         &mut self,
-        mut params: SemanticTokensParams,
+        params: SemanticTokensParams,
     ) -> BoxFuture<'static, Result<Option<SemanticTokensResult>, Self::Error>> {
-        normalize_uri_path(&mut params.text_document.uri);
-
-        let state = self.state.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-            let result = state
-                .config
-                .analyzer
-                .semantic_tokens(params.text_document.uri)
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-
-            Ok(result)
-        })
+        self.request(move |tx| Message::Request(Request::SemanticTokensFull { params, tx }))
     }
 
     fn inlay_hint(
         &mut self,
-        mut params: InlayHintParams,
+        params: InlayHintParams,
     ) -> BoxFuture<'static, Result<Option<Vec<InlayHint>>, Self::Error>> {
-        normalize_uri_path(&mut params.text_document.uri);
-
-        let state = self.state.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-
-            // Analyze the document first to ensure we have up-to-date information
-            state
-                .config
-                .analyzer
-                .analyze(ProgressToken(None))
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-
-            let result = state
-                .config
-                .analyzer
-                .inlay_hints(params.text_document.uri, params.range)
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-
-            Ok(result)
-        })
+        self.request(move |tx| Message::Request(Request::InlayHint { params, tx }))
     }
 
     fn document_diagnostic(
         &mut self,
-        mut params: DocumentDiagnosticParams,
+        params: DocumentDiagnosticParams,
     ) -> BoxFuture<'static, Result<DocumentDiagnosticReportResult, Self::Error>> {
-        normalize_uri_path(&mut params.text_document.uri);
-
-        let name = self.options.info().name;
-        let state = self.state.clone();
-        let options = self.options.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-
-            let results: Vec<wdl_analysis::AnalysisResult> = state
-                .config
-                .analyzer
-                .analyze_document(ProgressToken::default(), params.text_document.uri.clone())
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-
-            let mut matcher = options.baseline.as_ref().map(|b| b.matcher());
-            proto::document_diagnostic_report(params, results, &name, matcher.as_mut()).ok_or_else(
-                || ResponseError::new(ErrorCode::REQUEST_FAILED, "no diagnostic report produced"),
-            )
-        })
+        self.request(move |tx| Message::Request(Request::DocumentDiagnostic { params, tx }))
     }
 
     fn workspace_diagnostic(
         &mut self,
         params: WorkspaceDiagnosticParams,
     ) -> BoxFuture<'static, Result<WorkspaceDiagnosticReportResult, Self::Error>> {
-        let client = self.client.clone();
-        let name = self.options.info().name;
-        let client_support = self.client_support.get().cloned().expect("should exist");
-        let state = self.state.clone();
-        let options = self.options.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-
-            let progress = ProgressToken::new(&client, client_support.work_done_progress).await;
-            let _ = progress.start(&client, name.clone(), "analyzing...");
-            let results = state
-                .config
-                .analyzer
-                .analyze(progress.clone())
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-            let _ = progress.complete(&client, "analysis complete");
-
-            let mut matcher = options.baseline.as_ref().map(|b| b.matcher());
-            Ok(proto::workspace_diagnostic_report(
-                params,
-                results,
-                &name,
-                matcher.as_mut(),
-            ))
-        })
+        self.request(move |tx| Message::Request(Request::WorkspaceDiagnostic { params, tx }))
     }
 
     fn completion(
         &mut self,
-        mut params: CompletionParams,
+        params: CompletionParams,
     ) -> BoxFuture<'static, Result<Option<CompletionResponse>, Self::Error>> {
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
-
-        let position = SourcePosition::new(
-            params.text_document_position.position.line,
-            params.text_document_position.position.character,
-        );
-
-        let state = self.state.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-            let result = state
-                .config
-                .analyzer
-                .completion(
-                    ProgressToken::default(),
-                    params.text_document_position.text_document.uri,
-                    position,
-                    SourcePositionEncoding::UTF16,
-                )
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-
-            Ok(result)
-        })
+        self.request(move |tx| Message::Request(Request::Completion { params, tx }))
     }
 
     fn prepare_call_hierarchy(
         &mut self,
-        mut params: CallHierarchyPrepareParams,
+        params: CallHierarchyPrepareParams,
     ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyItem>>, Self::Error>> {
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
-        let position = SourcePosition::new(
-            params.text_document_position_params.position.line,
-            params.text_document_position_params.position.character,
-        );
-
-        let state = self.state.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-            let result = state
-                .config
-                .analyzer
-                .call_hierarchy(
-                    params.text_document_position_params.text_document.uri,
-                    position,
-                    SourcePositionEncoding::UTF16,
-                )
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-
-            Ok(result)
-        })
+        self.request(move |tx| Message::Request(Request::PrepareCallHierarchy { params, tx }))
     }
 
     fn incoming_calls(
         &mut self,
-        mut params: CallHierarchyIncomingCallsParams,
+        params: CallHierarchyIncomingCallsParams,
     ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyIncomingCall>>, Self::Error>> {
-        normalize_uri_path(&mut params.item.uri);
-
-        let position = SourcePosition::new(
-            params.item.selection_range.start.line,
-            params.item.selection_range.start.character,
-        );
-
-        let state = self.state.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-            let result = state
-                .config
-                .analyzer
-                .incoming_calls(params.item.uri, position, SourcePositionEncoding::UTF16)
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-
-            Ok(result)
-        })
+        self.request(move |tx| Message::Request(Request::IncomingCalls { params, tx }))
     }
 
     fn outgoing_calls(
         &mut self,
-        mut params: CallHierarchyOutgoingCallsParams,
+        params: CallHierarchyOutgoingCallsParams,
     ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyOutgoingCall>>, Self::Error>> {
-        normalize_uri_path(&mut params.item.uri);
-
-        let position = SourcePosition::new(
-            params.item.selection_range.start.line,
-            params.item.selection_range.start.character,
-        );
-
-        let state = self.state.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-
-            let result = state
-                .config
-                .analyzer
-                .outgoing_calls(params.item.uri, position, SourcePositionEncoding::UTF16)
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-
-            Ok(result)
-        })
+        self.request(move |tx| Message::Request(Request::OutgoingCalls { params, tx }))
     }
 
     fn hover(
         &mut self,
-        mut params: HoverParams,
+        params: HoverParams,
     ) -> BoxFuture<'static, Result<Option<Hover>, Self::Error>> {
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
-        let position = SourcePosition::new(
-            params.text_document_position_params.position.line,
-            params.text_document_position_params.position.character,
-        );
-
-        let state = self.state.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-            let result = state
-                .config
-                .analyzer
-                .hover(
-                    params.text_document_position_params.text_document.uri,
-                    position,
-                    SourcePositionEncoding::UTF16,
-                )
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-            Ok(result)
-        })
+        self.request(move |tx| Message::Request(Request::Hover { params, tx }))
     }
 
     fn signature_help(
         &mut self,
-        mut params: SignatureHelpParams,
+        params: SignatureHelpParams,
     ) -> BoxFuture<'static, Result<Option<SignatureHelp>, Self::Error>> {
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
-        let position = SourcePosition::new(
-            params.text_document_position_params.position.line,
-            params.text_document_position_params.position.character,
-        );
-
-        let state = self.state.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-            let result = state
-                .config
-                .analyzer
-                .signature_help(
-                    params.text_document_position_params.text_document.uri,
-                    position,
-                    SourcePositionEncoding::UTF16,
-                )
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-
-            Ok(result)
-        })
+        self.request(move |tx| Message::Request(Request::SignatureHelp { params, tx }))
     }
 
     fn folding_range(
         &mut self,
-        mut params: FoldingRangeParams,
+        params: FoldingRangeParams,
     ) -> BoxFuture<'static, Result<Option<Vec<FoldingRange>>, Self::Error>> {
-        normalize_uri_path(&mut params.text_document.uri);
-
-        let state = self.state.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-            state
-                .config
-                .analyzer
-                .folding_range(params.text_document.uri)
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))
-        })
+        self.request(move |tx| Message::Request(Request::FoldingRange { params, tx }))
     }
 
     fn definition(
         &mut self,
-        mut params: GotoDefinitionParams,
+        params: GotoDefinitionParams,
     ) -> BoxFuture<'static, Result<Option<GotoDefinitionResponse>, Self::Error>> {
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
-        let position = SourcePosition::new(
-            params.text_document_position_params.position.line,
-            params.text_document_position_params.position.character,
-        );
-
-        let state = self.state.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-            let result = state
-                .config
-                .analyzer
-                .goto_definition(
-                    params.text_document_position_params.text_document.uri,
-                    position,
-                    SourcePositionEncoding::UTF16,
-                )
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-
-            Ok(result)
-        })
+        self.request(move |tx| Message::Request(Request::Definition { params, tx }))
     }
 
     fn references(
         &mut self,
-        mut params: ReferenceParams,
+        params: ReferenceParams,
     ) -> BoxFuture<'static, Result<Option<Vec<Location>>, Self::Error>> {
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
-
-        let position = SourcePosition::new(
-            params.text_document_position.position.line,
-            params.text_document_position.position.character,
-        );
-
-        let state = self.state.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-            let result = state
-                .config
-                .analyzer
-                .find_all_references(
-                    params.text_document_position.text_document.uri,
-                    position,
-                    SourcePositionEncoding::UTF16,
-                    params.context.include_declaration,
-                )
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-
-            Ok(Some(result))
-        })
+        self.request(move |tx| Message::Request(Request::References { params, tx }))
     }
 
     fn document_symbol(
         &mut self,
-        mut params: DocumentSymbolParams,
+        params: DocumentSymbolParams,
     ) -> BoxFuture<'static, Result<Option<DocumentSymbolResponse>, Self::Error>> {
-        normalize_uri_path(&mut params.text_document.uri);
-
-        let state = self.state.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-
-            let result = state
-                .config
-                .analyzer
-                .document_symbol(params.text_document.uri)
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-
-            Ok(result)
-        })
+        self.request(move |tx| Message::Request(Request::DocumentSymbol { params, tx }))
     }
 
     fn symbol(
         &mut self,
         params: WorkspaceSymbolParams,
     ) -> BoxFuture<'static, Result<Option<WorkspaceSymbolResponse>, Self::Error>> {
-        let state = self.state.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-
-            let result = state
-                .config
-                .analyzer
-                .workspace_symbol(params.query)
-                .await
-                .map(|opt| opt.map(WorkspaceSymbolResponse::Flat))
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-
-            Ok(result)
-        })
+        self.request(move |tx| Message::Request(Request::Symbol { params, tx }))
     }
 
     fn formatting(
         &mut self,
-        mut params: DocumentFormattingParams,
+        params: DocumentFormattingParams,
     ) -> BoxFuture<'static, Result<Option<Vec<TextEdit>>, Self::Error>> {
-        normalize_uri_path(&mut params.text_document.uri);
-
-        let state = self.state.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-
-            let result = state
-                .config
-                .analyzer
-                .format_document(params.text_document.uri)
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?
-                .map(|(end_line, end_col, formatted)| {
-                    vec![TextEdit {
-                        range: Range {
-                            // NOTE: always replace the full set of text starting at the
-                            // very first position.
-                            start: Position {
-                                line: 0,
-                                character: 0,
-                            },
-                            end: Position {
-                                line: end_line,
-                                character: end_col,
-                            },
-                        },
-                        new_text: formatted,
-                    }]
-                });
-
-            Ok(result)
-        })
+        self.request(move |tx| Message::Request(Request::Formatting { params, tx }))
     }
 
     fn rename(
         &mut self,
-        mut params: RenameParams,
+        params: RenameParams,
     ) -> BoxFuture<'static, Result<Option<WorkspaceEdit>, Self::Error>> {
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
-
-        let position = SourcePosition::new(
-            params.text_document_position.position.line,
-            params.text_document_position.position.character,
-        );
-
-        let state = self.state.clone();
-        Box::pin(async move {
-            let state = state.read().await;
-
-            let result = state
-                .config
-                .analyzer
-                .rename(
-                    params.text_document_position.text_document.uri,
-                    position,
-                    SourcePositionEncoding::UTF16,
-                    params.new_name,
-                )
-                .await
-                .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))?;
-
-            Ok(result)
-        })
+        self.request(move |tx| Message::Request(Request::Rename { params, tx }))
     }
 
     fn initialized(&mut self, _: InitializedParams) -> Self::NotifyResult {
@@ -1541,38 +1857,38 @@ impl<S: 'static> LanguageServer for Server<S> {
         &mut self,
         params: DidChangeWorkspaceFoldersParams,
     ) -> Self::NotifyResult {
-        self.send_notification(Notification::DidChangeWorkspaceFolders(params))
+        self.queue(Message::Notification(
+            Notification::DidChangeWorkspaceFolders(params),
+        ))
     }
 
     fn did_change_configuration(
         &mut self,
         params: DidChangeConfigurationParams,
     ) -> Self::NotifyResult {
-        self.send_notification(Notification::DidChangeConfiguration(params))
+        self.queue(Message::Notification(Notification::DidChangeConfiguration(
+            params,
+        )))
     }
 
-    fn did_open(&mut self, mut params: DidOpenTextDocumentParams) -> Self::NotifyResult {
-        normalize_uri_path(&mut params.text_document.uri);
-
-        self.send_notification(Notification::DidOpen(params))
+    fn did_open(&mut self, params: DidOpenTextDocumentParams) -> Self::NotifyResult {
+        self.queue(Message::Notification(Notification::DidOpen(params)))
     }
 
-    fn did_change(&mut self, mut params: DidChangeTextDocumentParams) -> Self::NotifyResult {
-        normalize_uri_path(&mut params.text_document.uri);
-
-        self.send_notification(Notification::DidChange(params))
+    fn did_change(&mut self, params: DidChangeTextDocumentParams) -> Self::NotifyResult {
+        self.queue(Message::Notification(Notification::DidChange(params)))
     }
 
-    fn did_close(&mut self, mut params: DidCloseTextDocumentParams) -> Self::NotifyResult {
-        normalize_uri_path(&mut params.text_document.uri);
-
-        self.send_notification(Notification::DidClose(params))
+    fn did_close(&mut self, params: DidCloseTextDocumentParams) -> Self::NotifyResult {
+        self.queue(Message::Notification(Notification::DidClose(params)))
     }
 
     fn did_change_watched_files(
         &mut self,
         params: DidChangeWatchedFilesParams,
     ) -> Self::NotifyResult {
-        self.send_notification(Notification::DidChangeWatchedFiles(params))
+        self.queue(Message::Notification(Notification::DidChangeWatchedFiles(
+            params,
+        )))
     }
 }
