@@ -7,7 +7,7 @@ version 1.3
 
 task super_slow_task {
     command <<<
-        sleep 20
+        sleep 5
     >>>
 }
 
