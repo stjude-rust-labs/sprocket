@@ -808,9 +808,9 @@ checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
 name = "cloud-copy"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e99dab1f83fc3007e2b2fbeb5e8c1767a1a669a1e9a1744c808617b36bee350"
+checksum = "e8aaa77032b7b2de8372d393a15eb3f916d16fa9b6eddf78cbe40873295552a6"
 dependencies = [
  "anyhow",
  "base64",
@@ -847,6 +847,7 @@ dependencies = [
  "url",
  "urlencoding",
  "walkdir",
+ "windows",
 ]
 
 [[package]]

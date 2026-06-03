@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Fixed a bug in `sprocket dev test` where a failing test would cause other tests to
   fail ([#891](https://github.com/stjude-rust-labs/sprocket/pull/891)).
 
+### Dependencies
+
+* Bumped `cloud-copy` to `0.8.0`, which adds support for downloading files using multiple parallel streams ([#909](https://github.com/stjude-rust-labs/sprocket/pull/909)).
+
 ## 0.25.0 - 2026-05-14
 
 ### Added
