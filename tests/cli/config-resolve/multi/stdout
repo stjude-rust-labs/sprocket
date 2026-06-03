@@ -140,3 +140,23 @@ report_mode = "full"
 [common.wdl]
 fallback_version = "none"
 
+[modules]
+large_file_warning = "1.0 MiB"
+trust_mode = "auto"
+allowed_schemes = [
+    "https",
+    "ssh",
+]
+allowed_transitive_schemes = ["https"]
+max_advertised_refs = 100000
+denied_hosts = [
+    "localhost",
+    "127.0.0.1",
+    "::1",
+    "0.0.0.0",
+]
+allowed_transitive_hosts = [
+    "github.com",
+    "gitlab.com",
+]
+
