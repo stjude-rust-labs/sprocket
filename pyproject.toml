@@ -3,7 +3,7 @@ requires = ["maturin>=1.13,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "sprocket_py"
+name = "sprocket_bio"
 readme = "python/README.md"
 requires-python = ">=3.9"
 classifiers = [

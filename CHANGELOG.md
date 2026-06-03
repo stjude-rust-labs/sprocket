@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Adds `wdl-modules` resolver layer behind the `resolver` feature gate,
+  covering the `Resolver` trait, `GitResolver`, sparse-checkout caching,
+  version selection, lockfile generation, TOFU trust, and module
+  materialization. Wires `[modules]` config section into `sprocket.toml`
+  ([#838](https://github.com/stjude-rust-labs/sprocket/pull/838)).
 * `sprocket format --newline-style` and `format.newline_style` config option to control the style of newlines in
   `sprocket format` output ([#795](https://github.com/stjude-rust-labs/sprocket/pull/795)).
 * Initial WDL 1.4 support in `wdl-grammar` and `wdl-ast`, including the
@@ -31,7 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* The `examples` field of `sprocket explain --format json` has changed from Markdown codeblocks to the following
+* The `examples` field of `sprocket explain --format json` has changed from Markdown code blocks to the following
   structure ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)):
 
   ```ts

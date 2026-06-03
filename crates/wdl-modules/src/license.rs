@@ -5,8 +5,8 @@ use std::hash::Hash;
 use std::hash::Hasher;
 use std::str::FromStr;
 
-use serde::Deserialize;
-use serde::Serialize;
+use serde_with::DeserializeFromStr;
+use serde_with::SerializeDisplay;
 use thiserror::Error;
 
 /// An error parsing a [`LicenseExpression`].
@@ -26,8 +26,7 @@ pub enum LicenseError {
 /// Validates both the expression syntax and the license identifiers
 /// against the SPDX license list (so typos like `MIT-2.0` are rejected
 /// even though they would parse syntactically).
-#[derive(Clone, Serialize, Deserialize)]
-#[serde(into = "String", try_from = "String")]
+#[derive(Clone, SerializeDisplay, DeserializeFromStr)]
 pub struct LicenseExpression(spdx::Expression);
 
 impl LicenseExpression {
@@ -70,10 +69,10 @@ impl Hash for LicenseExpression {
     }
 }
 
-impl TryFrom<String> for LicenseExpression {
-    type Error = LicenseError;
+impl FromStr for LicenseExpression {
+    type Err = LicenseError;
 
-    fn try_from(s: String) -> Result<Self, Self::Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         let trimmed = s.trim();
         if trimmed.is_empty() {
             return Err(LicenseError::Empty);
@@ -81,14 +80,6 @@ impl TryFrom<String> for LicenseExpression {
         let expr =
             spdx::Expression::parse(trimmed).map_err(|e| LicenseError::Invalid(format!("{e}")))?;
         Ok(Self(expr))
-    }
-}
-
-impl FromStr for LicenseExpression {
-    type Err = LicenseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from(s.to_string())
     }
 }
 

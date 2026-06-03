@@ -31,5 +31,6 @@ task test_output_scope {
     Array[String]? previous_fpga = task.previous.fpga
     Map[String, Int]? previous_disks = task.previous.disks
     Int? previous_max_retries = task.previous.max_retries
+    Int return_code = task.return_code
   }
 }
