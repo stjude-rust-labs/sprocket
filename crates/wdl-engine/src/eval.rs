@@ -193,7 +193,14 @@ impl CancellationContext {
     /// `CANCELLATION_STATE_NOT_CANCELED` < `CANCELLATION_STATE_WAITING` <
     /// `CANCELLATION_STATE_CANCELING`. `user_initiated` is whether the
     /// effective cancellation was initiated by the user rather than by an
-    /// error. When an ancestor is cancelled, the ancestor's cause wins.
+    /// error.
+    ///
+    /// The `(level, user_initiated)` pair is always taken from a single
+    /// context rather than mixed across the hierarchy: an ancestor's pair
+    /// wins only when its effective level is strictly greater than this
+    /// context's. On a tie the local cause is authoritative, so a parent
+    /// cancellation that arrives after a child has already entered the same
+    /// level does not relabel the child's cause.
     fn effective(&self) -> (u8, bool) {
         let raw = self.state.load(Ordering::SeqCst);
         let level = raw & CANCELLATION_STATE_MASK;
@@ -201,16 +208,10 @@ impl CancellationContext {
             level != CANCELLATION_STATE_NOT_CANCELED && (raw & CANCELLATION_STATE_ERROR == 0);
 
         match &self.parent {
-            Some(parent) => {
-                let (parent_level, parent_user) = parent.effective();
-                let level = level.max(parent_level);
-                let user = if parent_level != CANCELLATION_STATE_NOT_CANCELED {
-                    parent_user
-                } else {
-                    user
-                };
-                (level, user)
-            }
+            Some(parent) => match parent.effective() {
+                (parent_level, parent_user) if parent_level > level => (parent_level, parent_user),
+                _ => (level, user),
+            },
             None => (level, user),
         }
     }
@@ -952,7 +953,7 @@ mod test {
     }
 
     #[test]
-    fn child_reports_user_cancel_even_with_local_error() {
+    fn child_keeps_local_error_cause_on_tie_with_parent() {
         let parent = CancellationContext::new(FailureMode::Fast);
         let child = parent.child(FailureMode::Fast);
 
@@ -963,11 +964,62 @@ mod test {
         // task surfaces `EvaluationError::Canceled`.
         child.error(&EvaluationError::Canceled);
 
-        // The ancestor's user cancellation is the root cause, so the child
-        // still reports a user cancellation despite setting its own local
-        // error bit.
+        // Parent and child both sit at `Canceling`, so the levels tie and the
+        // child's own error cause is authoritative: it does not report a user
+        // cancellation despite the parent's cancellation being user initiated.
+        assert_eq!(child.state(), CancellationContextState::Canceling);
+        assert!(!child.user_canceled());
+    }
+
+    #[test]
+    fn later_parent_cancel_does_not_relabel_child_error() {
+        let parent = CancellationContext::new(FailureMode::Fast);
+        let child = parent.child(FailureMode::Fast);
+
+        // The child errors first and enters `Canceling` on its own.
+        child.error(&EvaluationError::Canceled);
+        assert_eq!(child.state(), CancellationContextState::Canceling);
+        assert!(!child.user_canceled());
+
+        // A later user cancellation of the parent ties at `Canceling`, so it
+        // does not trample the child's already-established error cause.
+        assert_eq!(parent.cancel(), CancellationContextState::Canceling);
+        assert_eq!(child.state(), CancellationContextState::Canceling);
+        assert!(!child.user_canceled());
+    }
+
+    #[test]
+    fn higher_parent_level_escalates_child_and_carries_its_cause() {
+        let parent = CancellationContext::new(FailureMode::Fast);
+        let child = parent.child(FailureMode::Slow);
+
+        // The child errors in `Slow` mode, reaching only `Waiting`.
+        child.error(&EvaluationError::Canceled);
+        assert_eq!(child.state(), CancellationContextState::Waiting);
+        assert!(!child.user_canceled());
+
+        // The user cancels the parent in `Fast` mode, reaching `Canceling`.
+        // The parent's level is strictly greater, so its whole pair wins and
+        // the child now reports the parent's user cancellation.
+        assert_eq!(parent.cancel(), CancellationContextState::Canceling);
         assert_eq!(child.state(), CancellationContextState::Canceling);
         assert!(child.user_canceled());
+    }
+
+    #[test]
+    fn closest_descendant_wins_tie_across_multiple_levels() {
+        let root = CancellationContext::new(FailureMode::Fast);
+        let child = root.child(FailureMode::Fast);
+        let grandchild = child.child(FailureMode::Fast);
+
+        // The user cancels the root, which folds down to the grandchild.
+        assert_eq!(root.cancel(), CancellationContextState::Canceling);
+
+        // The grandchild then errors locally, tying at `Canceling`. The
+        // closest cause, the grandchild's own error, wins over the ancestor.
+        grandchild.error(&EvaluationError::Canceled);
+        assert_eq!(grandchild.state(), CancellationContextState::Canceling);
+        assert!(!grandchild.user_canceled());
     }
 
     #[test]
