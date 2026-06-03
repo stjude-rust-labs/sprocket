@@ -545,6 +545,9 @@ fn lock_cache_leaf(leaf: &Path) -> Result<File, GitError> {
 /// Cached leaves are keyed by `(url, commit)` upstream, so an existing
 /// leaf already corresponds to the requested commit; this helper does
 /// not re-validate that.
+///
+/// If the initial clone fails, the partially-written leaf is removed so a
+/// corrupt checkout does not persist.
 pub(crate) fn ensure_materialized<I, S>(
     leaf: &Path,
     url: &Url,
@@ -562,7 +565,19 @@ where
     if leaf.exists() {
         extend_sparse_checkout(leaf, paths, max_files, max_bytes)
     } else {
-        clone_with_sparse_checkout(url, commit, leaf, paths, mode, max_files, max_bytes)
+        let result =
+            clone_with_sparse_checkout(url, commit, leaf, paths, mode, max_files, max_bytes);
+        if result.is_err()
+            && leaf.exists()
+            && let Err(error) = std::fs::remove_dir_all(leaf)
+        {
+            tracing::warn!(
+                path = %leaf.display(),
+                %error,
+                "failed to clean up cache leaf after a failed clone",
+            );
+        }
+        result
     }
 }
 

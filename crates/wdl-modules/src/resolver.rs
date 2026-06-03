@@ -213,7 +213,7 @@ impl GitResolver {
 
     /// Runs the sparse checkout for a Git dependency and returns its root.
     ///
-    /// On failure, cleans up the cache leaf so a corrupt partial
+    /// On a failed clone, the partial cache leaf is removed so a corrupt
     /// checkout does not persist.
     async fn materialize_git(
         &self,
@@ -244,19 +244,7 @@ impl GitResolver {
         // runtime shutdown.
         .unwrap();
 
-        if let Err(err) = result {
-            if plan.leaf.starts_with(&self.cache_root)
-                && plan.leaf.exists()
-                && let Err(io_err) = std::fs::remove_dir_all(&plan.leaf)
-            {
-                tracing::warn!(
-                    path = %plan.leaf.display(),
-                    error = %io_err,
-                    "failed to clean up cache leaf after materialization failure",
-                );
-            }
-            return Err(err);
-        }
+        result?;
 
         Ok(MaterializedRoot::Cached {
             module_root: plan.module_path.clone(),
