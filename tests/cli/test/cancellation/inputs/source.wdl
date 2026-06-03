@@ -1,3 +1,8 @@
+# Ensures that one task's failure (and thus cancellation) doesn't cancel any
+# of the other running tasks.
+#
+# See https://github.com/stjude-rust-labs/sprocket/pull/891
+
 version 1.3
 
 task super_slow_task {
