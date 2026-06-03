@@ -29,16 +29,12 @@ use colored::Colorize;
 use libtest_mimic::Trial;
 use tempfile::TempDir;
 use thirtyfour::By;
-use thirtyfour::ChromeCapabilities;
 use thirtyfour::ChromiumLikeCapabilities;
 use thirtyfour::DesiredCapabilities;
 use thirtyfour::WebDriver;
-use thirtyfour::WebDriverProcessBrowser;
-use thirtyfour::WebDriverProcessPort;
 use thirtyfour::WindowHandle;
 use thirtyfour::prelude::ElementQueryable;
 use thirtyfour::prelude::WebDriverResult;
-use thirtyfour::start_webdriver_process_full;
 use thirtyfour::support::block_on;
 use tokio::sync::Mutex;
 use tokio::sync::OnceCell;
@@ -239,12 +235,6 @@ async fn start_web_server(tmp_dir: &Path) -> anyhow::Result<SocketAddr> {
     Ok(addr)
 }
 
-/// Get a random unused port.
-async fn random_port() -> anyhow::Result<u16> {
-    let addr = tokio::net::TcpListener::bind("localhost:0").await?;
-    Ok(addr.local_addr()?.port())
-}
-
 // TODO: Figure out why tests fail on platforms other than Linux
 /// Whether the browser should be run in headless mode.
 fn should_run_headless() -> bool {
@@ -253,8 +243,6 @@ fn should_run_headless() -> bool {
 
 /// Configure and run the webdriver process.
 async fn setup_webdriver() -> anyhow::Result<WebDriver> {
-    let port = random_port().await?;
-
     let mut caps = DesiredCapabilities::chrome();
     if should_run_headless() {
         caps.add_arg("--headless=new")?;
@@ -263,25 +251,11 @@ async fn setup_webdriver() -> anyhow::Result<WebDriver> {
         caps.add_arg("--disable-gpu")?;
     }
 
-    start_webdriver_process_full(
-        WebDriverProcessPort::Port(port),
-        WebDriverProcessBrowser::<ChromeCapabilities>::Caps(&caps),
-        true,
-    )
-    .context("failed to start web driver process")?;
+    tracing::info!("Starting webdriver process...");
 
-    tracing::info!("Waiting for webdriver process to start...");
-
-    let mut driver = None;
-    for _ in 0..20 {
-        if let Ok(d) = WebDriver::new(format!("http://localhost:{port}"), caps.clone()).await {
-            driver = Some(d);
-            break;
-        }
-        tokio::time::sleep(Duration::from_millis(500)).await;
-    }
-
-    let driver = driver.context("Webdriver failed to start within the timeout period")?;
+    let driver = WebDriver::managed(caps)
+        .await
+        .context("failed to start web driver process")?;
     driver.fullscreen_window().await?;
 
     Ok(driver)
