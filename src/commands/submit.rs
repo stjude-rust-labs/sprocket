@@ -170,8 +170,8 @@ mod tests {
     use crate::Config;
     use crate::analysis::Source;
     use crate::commands::CommandError;
-    use crate::commands::submit::Args;
     use crate::commands::client::SprocketClientConnectionArgs;
+    use crate::commands::submit::Args;
     use crate::commands::submit::SubmitRunRequestArgs;
     use crate::commands::submit::submit;
     use crate::server::run_with_listener;

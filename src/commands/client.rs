@@ -1,4 +1,5 @@
-//! Shared client utilities for commands that communicate with a Sprocket server.
+//! Shared client utilities for commands that communicate with a Sprocket
+//! server.
 
 use anyhow::Context;
 use clap::Args as ClapArgs;
@@ -115,8 +116,8 @@ pub async fn resolve_run_id(input: &str, base_url: &str) -> CommandResult<Uuid> 
                 .collect::<Vec<_>>()
                 .join(", ");
             Err(CommandError::Single(anyhow::anyhow!(
-                "multiple runs found with name `{input}` ({ids}); \
-                 pass a UUID directly to disambiguate"
+                "multiple runs found with name `{input}` ({ids}); pass a UUID directly to \
+                 disambiguate"
             )))
         }
     }

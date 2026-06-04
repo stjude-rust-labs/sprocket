@@ -51,9 +51,8 @@ pub async fn cancel(args: Args, config: Config) -> CommandResult<()> {
         uuid = body.uuid,
     );
     println!(
-        "Note: in slow-failure mode, currently executing tasks will be allowed to finish \
-         before the run is marked as canceled. Use `sprocket dev status {uuid}` to track \
-         progress.",
+        "Note: in slow-failure mode, currently executing tasks will be allowed to finish before \
+         the run is marked as canceled. Use `sprocket dev status {uuid}` to track progress.",
         uuid = body.uuid,
     );
 

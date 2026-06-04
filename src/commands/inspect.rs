@@ -107,10 +107,7 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
     }
 
     field!("Source:", run.source);
-    field!(
-        "Created:",
-        run.created_at.format("%Y-%m-%d %H:%M:%S UTC")
-    );
+    field!("Created:", run.created_at.format("%Y-%m-%d %H:%M:%S UTC"));
 
     if let Some(started_at) = run.started_at {
         field!("Started:", started_at.format("%Y-%m-%d %H:%M:%S UTC"));

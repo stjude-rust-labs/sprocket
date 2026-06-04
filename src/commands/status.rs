@@ -60,9 +60,7 @@ pub async fn status(args: Args, config: Config, colorize: bool) -> CommandResult
         .as_deref()
         .map(|s| {
             s.parse::<RunStatus>()
-                .map_err(|_| {
-                    CommandError::Single(anyhow::anyhow!("invalid status `{s}`"))
-                })
+                .map_err(|_| CommandError::Single(anyhow::anyhow!("invalid status `{s}`")))
         })
         .transpose()?;
 

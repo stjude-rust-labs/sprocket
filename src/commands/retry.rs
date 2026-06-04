@@ -105,24 +105,19 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
 
     if !args.no_validate {
         // Re-analyze the WDL source locally, mirroring what `submit` does.
-        let document = analyze_source(
-            &source,
-            config.common.wdl.fallback_version.inner().cloned(),
-        )
-        .await
-        .map_err(|e| {
-            // Wrap with a hint to use --no-validate if the file is unreachable.
-            match e {
-                CommandError::Single(inner) => CommandError::Single(
-                    inner.context(format!(
-                        "cannot re-analyze source `{source}`; \
-                         use --no-validate to skip local analysis",
+        let document = analyze_source(&source, config.common.wdl.fallback_version.inner().cloned())
+            .await
+            .map_err(|e| {
+                // Wrap with a hint to use --no-validate if the file is unreachable.
+                match e {
+                    CommandError::Single(inner) => CommandError::Single(inner.context(format!(
+                        "cannot re-analyze source `{source}`; use --no-validate to skip local \
+                         analysis",
                         source = original.source
-                    )),
-                ),
-                other => other,
-            }
-        })?;
+                    ))),
+                    other => other,
+                }
+            })?;
 
         let mut errors = document
             .diagnostics()
@@ -145,7 +140,6 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
                 anyhow::anyhow!("failed to retry run due to analysis errors in source").into(),
             );
         }
-
     }
 
     // Apply key=value overrides (if any) on top of the stored inputs.
