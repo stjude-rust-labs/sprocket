@@ -7,13 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* `MeaninglessLintDirective` rule, which flags `#@ except` comments that don't suppress anything ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
+* `KnownRules` rule, which ensures only known rules are used in `except` directives ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
+
 ## 0.21.0 - 2026-06-03
 
 #### Added
 
 * Analysis now emits diagnostics for task variable declarations that appear after `command` sections ([#844](https://github.com/stjude-rust-labs/sprocket/pull/844)).
-* `MeaninglessLintDirective` rule, which flags `#@ except` comments that don't suppress anything ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
-* `KnownRules` rule, which ensures only known rules are used in `except` directives ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
 
 #### Changed
 
