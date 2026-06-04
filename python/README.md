@@ -47,4 +47,4 @@ pip install maturin
 maturin develop
 ```
 
-The Python package is located at `python/sprocket_bio` (in this folder), and the Python extension that it bundles is compiled from `crates/sprocket_py`. Dependencies and additional metadata are specified in `pyproject.toml` and `crates/sprocket_py/Cargo.toml`.
+The Python package is located at `python/sprocket_bio` (in this folder), and the Python extension that it bundles is compiled from `crates/sprocket-py`. Dependencies and additional metadata are specified in `pyproject.toml` and `crates/sprocket-py/Cargo.toml`.

@@ -42,7 +42,7 @@ mod sprocket_bio {
         /// [`sys.modules`](https://docs.python.org/3.9/library/sys.html#sys.modules).
         ///
         /// This is required to support importing items directly from submodules
-        /// (ex. `from sprocket_py.diagnostics import Mode`). For more
+        /// (ex. `from sprocket_bio.diagnostics import Mode`). For more
         /// information, see [pyo3#759](https://github.com/PyO3/pyo3/issues/759).
         fn register_submodules(
             module: &Bound<'_, PyModule>,
@@ -72,7 +72,7 @@ mod sprocket_bio {
 
         register_submodules(
             module,
-            "sprocket_py",
+            "sprocket_bio",
             // Get the `sys.modules` dictionary.
             &module.py().import("sys")?.getattr("modules")?,
         )
