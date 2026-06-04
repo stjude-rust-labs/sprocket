@@ -1068,12 +1068,6 @@ where
                 }
             }
             Err(_) => {
-                let unexpected_char = self
-                    .source(span)
-                    .chars()
-                    .next()
-                    .expect("should exist, we just parsed this character");
-
                 let mut unknown_span = span;
                 let lexer = self.lexer.as_mut().expect("should have a lexer");
 
