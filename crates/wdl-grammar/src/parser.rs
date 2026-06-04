@@ -1068,24 +1068,29 @@ where
                 }
             }
             Err(_) => {
-                let lexer = self.lexer.as_ref().expect("should have a lexer");
-                let remaining_source_len = lexer.source_len() - span.start();
-
-                // Consecutive unknown tokens of the same type get condensed into a single
-                // diagnostic
-                let mut source_chars = self
-                    .source(Span::new(span.start(), remaining_source_len))
-                    .chars();
-                let unexpected_char = source_chars
+                let unexpected_char = self
+                    .source(span)
+                    .chars()
                     .next()
                     .expect("should exist, we just parsed this character");
 
-                let (repeats, repeats_len) = source_chars
-                    .take_while(|c| *c == unexpected_char)
-                    .fold((0, 0), |(count, len), c| (count + 1, len + c.len_utf8()));
+                let mut unknown_span = span;
+                let lexer = self.lexer.as_mut().expect("should have a lexer");
 
-                let unknown_span =
-                    Span::new(span.start(), unexpected_char.len_utf8() + repeats_len);
+                if peeked {
+                    lexer.next();
+                }
+
+                // Consecutive unknown tokens of the same type get condensed into a single
+                // diagnostic and event
+                while let Some((Err(_), peeked_span)) = lexer.peek() {
+                    unknown_span = Span::new(
+                        unknown_span.start(),
+                        peeked_span.end() - unknown_span.start(),
+                    );
+                    lexer.next();
+                }
+
                 self.diagnostic(
                     Diagnostic::error(format!("unknown start of token: {unexpected_char}"))
                         .with_label(
@@ -1093,16 +1098,6 @@ where
                             unknown_span,
                         ),
                 );
-
-                let lexer = self.lexer.as_mut().expect("should have a lexer");
-
-                if peeked {
-                    lexer.next();
-                }
-
-                for _ in 0..repeats {
-                    lexer.next();
-                }
 
                 Event::Token {
                     kind: SyntaxKind::Unknown,

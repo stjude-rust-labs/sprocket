@@ -6,4 +6,7 @@ task foo {
 
     # Same here
     🚀🚀🚀🚀
+
+    # Different unknown characters should also be merged
+    ;;;;````
 }

@@ -10,3 +10,9 @@ error: unknown start of token: 🚀
 8 │     🚀🚀🚀🚀
   │     ^^^^^^^^ this is not a supported WDL token
 
+error: unknown start of token: ;
+   ┌─ tests/parsing/consolidate-unknown-tokens/source.wdl:11:5
+   │
+11 │     ;;;;````
+   │     ^^^^^^^^ this is not a supported WDL token
+
