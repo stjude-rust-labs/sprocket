@@ -32,6 +32,8 @@ mod sprocket_bio {
         #[pymodule_export]
         use crate::grammar::Label;
         #[pymodule_export]
+        use crate::grammar::Severity;
+        #[pymodule_export]
         use crate::grammar::Span;
     }
 
