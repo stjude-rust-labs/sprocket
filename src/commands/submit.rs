@@ -9,38 +9,14 @@ use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 
 use crate::analysis::Source;
-use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::client::SprocketClientConnectionArgs;
+use crate::commands::client::check_response;
 use crate::commands::run::inputs_to_json;
 use crate::commands::validate::analyze_source;
 use crate::commands::validate::validate_inputs;
 use crate::config::Config;
-use crate::server::ErrorResponse;
 use crate::server::SubmitRunRequest;
-
-/// CLI arguments for connecting to a Sprocket server instance.
-#[derive(ClapArgs, Debug)]
-pub struct SprocketClientConnectionArgs {
-    /// The hostname of the running Sprocket server to talk to.
-    ///
-    /// If not provided, falls back to the value in the Sprocket config.
-    #[arg(long)]
-    host: Option<String>,
-
-    /// The port of the running Sprocket server to talk to.
-    ///
-    /// If not provided, falls back to the value in the Sprocket config.
-    #[arg(short, long)]
-    port: Option<u16>,
-}
-
-impl SprocketClientConnectionArgs {
-    fn base_url(&self, config: &Config) -> String {
-        let host = self.host.as_deref().unwrap_or(&config.server.host);
-        let port = self.port.unwrap_or(config.server.port);
-        format!("http://{host}:{port}")
-    }
-}
 
 /// CLI arguments for specifying the body of the [`SubmitRunRequest`].
 #[derive(ClapArgs, Debug)]
@@ -168,14 +144,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         .await
         .context("sending request")?;
 
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        let msg = serde_json::from_str::<ErrorResponse>(&body)
-            .map(|e| format!("{}: {}", e.kind, e.message))
-            .unwrap_or_else(|_| format!("HTTP {status}: {body}"));
-        return Err(CommandError::Single(anyhow::anyhow!(msg)));
-    }
+    let resp = check_response(resp).await?;
 
     let submit_response: serde_json::Value = resp
         .json()
@@ -202,7 +171,7 @@ mod tests {
     use crate::analysis::Source;
     use crate::commands::CommandError;
     use crate::commands::submit::Args;
-    use crate::commands::submit::SprocketClientConnectionArgs;
+    use crate::commands::client::SprocketClientConnectionArgs;
     use crate::commands::submit::SubmitRunRequestArgs;
     use crate::commands::submit::submit;
     use crate::server::run_with_listener;

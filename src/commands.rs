@@ -9,16 +9,21 @@ use colored::Colorize;
 use nonempty::NonEmpty;
 
 pub mod analyzer;
+pub mod cancel;
 pub mod check;
+pub mod client;
 pub mod completions;
 pub mod config;
 pub mod doc;
 pub mod explain;
 pub mod format;
 pub mod inputs;
+pub mod inspect;
 pub mod lock;
+pub mod retry;
 pub mod run;
 pub mod server;
+pub mod status;
 pub mod submit;
 pub mod test;
 pub mod validate;
@@ -132,12 +137,20 @@ pub enum Commands {
 #[derive(Subcommand, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum DevCommands {
+    /// Cancel a running or queued run.
+    Cancel(cancel::Args),
     /// Document a workspace.
     Doc(doc::Args),
+    /// Show detailed information about a run.
+    Inspect(inspect::Args),
     /// Locks Docker images to a sha256 digest.
     Lock(lock::Args),
+    /// Retry a previous run, optionally with input overrides.
+    Retry(retry::Args),
     /// Runs the HTTP API server for run execution.
     Server(server::Args),
+    /// Show the status of one or all runs.
+    Status(status::Args),
     /// Submit a workflow to a Sprocket HTTP API server.
     Submit(submit::Args),
     /// Runs unit tests for a WDL workspace.

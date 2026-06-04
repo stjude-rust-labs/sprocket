@@ -21,7 +21,11 @@ use crate::system::v1::exec::svc::RunManagerSvc;
 mod api;
 
 pub use api::AppState;
+pub(crate) use api::v1::RunStatus;
 pub(crate) use api::v1::error::ErrorResponse;
+pub(crate) use api::v1::runs::CancelRunResponse;
+pub(crate) use api::v1::runs::ListRunsResponse;
+pub(crate) use api::v1::runs::RunResponse;
 pub(crate) use api::v1::runs::SubmitRunRequest;
 
 /// The default channel buffer size.
