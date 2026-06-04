@@ -215,8 +215,7 @@ pub(crate) fn populate_document(
         }
     }
 
-    // Populate the struct and enum types now that all of them have been
-    // processed, resolving cross-references between them in dependency order.
+    // Populate the types now that all structs and enums have been processed
     populate_types(document);
 
     // Now process the tasks and workflows
