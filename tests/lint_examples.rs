@@ -130,7 +130,7 @@ impl TestContext {
         let id = rule.id();
         let examples = rule.examples();
 
-        let validator = Box::new(move || {
+        let validator = Arc::new(move || {
             let mut validator = Validator::empty();
             validator.add_visitor(Linter::new(std::iter::once(
                 rule.clone() as Box<dyn LintRule>
@@ -156,7 +156,7 @@ impl TestContext {
         let id = rule.id();
         let examples = rule.examples();
 
-        let validator = Box::new(Validator::empty);
+        let validator = Arc::new(Validator::empty);
 
         let analyzer = Analyzer::new_with_validator(
             AnalysisConfig::default()

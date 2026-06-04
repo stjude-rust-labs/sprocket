@@ -50,6 +50,7 @@ use crate::queue::AnalysisQueue;
 use crate::queue::AnalyzeRequest;
 use crate::queue::CallHierarchyRequest;
 use crate::queue::CompletionRequest;
+use crate::queue::DeleteRequest;
 use crate::queue::DocumentSymbolRequest;
 use crate::queue::FindAllReferencesRequest;
 use crate::queue::FoldingRangeRequest;
@@ -66,6 +67,7 @@ use crate::queue::RenameRequest;
 use crate::queue::Request;
 use crate::queue::SemanticTokenRequest;
 use crate::queue::SignatureHelpRequest;
+use crate::queue::SwapValidatorRequest;
 use crate::queue::WorkspaceSymbolRequest;
 use crate::rayon::RayonHandle;
 
@@ -333,6 +335,9 @@ pub struct Analyzer<Context> {
     config: Config,
 }
 
+/// A validator constructor function.
+pub type ValidatorFn = Arc<dyn Fn() -> crate::Validator + Send + Sync + 'static>;
+
 impl<Context> Analyzer<Context>
 where
     Context: Send + Clone + 'static,
@@ -349,7 +354,7 @@ where
         Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
         Return: Future<Output = ()>,
     {
-        Self::new_with_validator(config, progress, crate::Validator::default)
+        Self::new_with_validator(config, progress, Arc::new(crate::Validator::default))
     }
 
     /// Constructs a new analyzer with the given config and validator function.
@@ -360,15 +365,14 @@ where
     /// initialize a thread-local validator.
     ///
     /// The analyzer must be constructed from the context of a Tokio runtime.
-    pub fn new_with_validator<Progress, Return, Validator>(
+    pub fn new_with_validator<Progress, Return>(
         config: Config,
         progress: Progress,
-        validator: Validator,
+        validator: ValidatorFn,
     ) -> Self
     where
         Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
         Return: Future<Output = ()>,
-        Validator: Fn() -> crate::Validator + Send + Sync + 'static,
     {
         let (tx, rx) = mpsc::unbounded_channel();
         let tokio = Handle::current();
@@ -383,6 +387,27 @@ where
             handle: Some(handle),
             config,
         }
+    }
+
+    /// Replace the current validator function.
+    ///
+    /// This will mark all documents for re-analysis.
+    pub async fn swap_validator(&self, validator: ValidatorFn) -> Result<()> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::SwapValidator(SwapValidatorRequest {
+                validator,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!("failed to send request to analysis queue because the channel has closed")
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!("failed to receive response from analysis queue because the channel has closed")
+        })?;
+
+        Ok(())
     }
 
     /// Adds a document to the analyzer. Document can be a local file or a URL.
@@ -505,6 +530,29 @@ where
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(Request::Remove(RemoveRequest {
+                documents,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!("failed to send request to analysis queue because the channel has closed")
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!("failed to receive response from analysis queue because the channel has closed")
+        })?;
+
+        Ok(())
+    }
+
+    /// Deletes the specified documents from the analyzer.
+    ///
+    /// This differs from [`Self::remove_documents()`], as a deletion will occur
+    /// even if the document(s) are referenced in other documents.
+    pub async fn delete_documents(&self, documents: Vec<Url>) -> Result<()> {
+        // Send the delete request to the queue
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::Delete(DeleteRequest {
                 documents,
                 completed: tx,
             }))

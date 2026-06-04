@@ -16,6 +16,7 @@ use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
 use std::path::absolute;
+use std::sync::Arc;
 
 use anyhow::Context as _;
 use anyhow::bail;
@@ -140,13 +141,13 @@ async fn run_test_inner(
     let analyzer = Analyzer::new_with_validator(
         AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
         |_, _, _, _| async {},
-        move || {
+        Arc::new(move || {
             let mut validator = Validator::default();
             validator.add_visitor(Linter::new(
                 rules(&config).into_iter().map(|r| r as Box<dyn Rule>),
             ));
             validator
-        },
+        }),
     );
     analyzer
         .add_directory(test)

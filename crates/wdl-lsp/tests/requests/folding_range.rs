@@ -11,8 +11,7 @@ use wdl_analysis::handlers::HEREDOC_COLLAPSED_TEXT;
 use wdl_analysis::handlers::TILDE_PLACEHOLDER_COLLAPSED_TEXT;
 
 use crate::common::TestContext;
-
-pub mod common;
+use crate::common::TestContextBuilder;
 
 async fn folding_range_request(
     ctx: &mut TestContext,
@@ -30,7 +29,7 @@ async fn folding_range_request(
 
 #[tokio::test]
 async fn should_fold_content() {
-    let mut ctx = TestContext::new("folding_range");
+    let mut ctx = TestContextBuilder::new("folding_range").build();
     ctx.initialize().await;
 
     let ranges = folding_range_request(&mut ctx, "source.wdl")

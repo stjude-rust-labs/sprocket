@@ -574,8 +574,71 @@ impl DocumentGraph {
             self.bfs_mut(index, |graph, dependent: NodeIndex| {
                 let node = graph.get_mut(dependent);
                 trace!("document `{uri}` needs to be reanalyzed", uri = node.uri);
-                node.document = None;
+                node.reanalyze();
             });
+        }
+    }
+
+    /// Forcefully removes a document (or directory of documents) from the
+    /// graph.
+    ///
+    /// Unlike [`Self::remove_root()`], this fully removes the node(s) without
+    /// waiting for garbage collection.
+    pub fn delete(&mut self, uri: &Url) {
+        fn delete_node(graph: &mut DocumentGraph, index: NodeIndex) {
+            let node_uri = graph.inner[index].uri.clone();
+
+            graph.bfs_mut(index, |graph, dependent: NodeIndex| {
+                if dependent == index {
+                    return;
+                }
+
+                let dep_node = graph.get_mut(dependent);
+                trace!(
+                    "document `{uri}` needs to be reanalyzed",
+                    uri = dep_node.uri
+                );
+                dep_node.reanalyze();
+            });
+
+            graph.roots.swap_remove(&index);
+            graph.indexes.swap_remove(&node_uri);
+            graph
+                .cycles
+                .retain(|(from, to)| *from != index && *to != index);
+            graph.inner.remove_node(index);
+
+            debug!(
+                "document `{uri}` was deleted from the graph",
+                uri = node_uri
+            );
+        }
+
+        let base = match uri.to_file_path() {
+            Ok(base) => base,
+            Err(_) => {
+                if let Some(index) = self.indexes.get(uri).copied() {
+                    delete_node(self, index);
+                }
+                return;
+            }
+        };
+
+        // Find all documents that fall under the deleted path
+        let mut removed = Vec::new();
+        for (node_uri, index) in &self.indexes {
+            let path = match node_uri.to_file_path() {
+                Ok(path) => path,
+                Err(_) => continue,
+            };
+
+            if path.starts_with(&base) {
+                removed.push(*index);
+            }
+        }
+
+        for index in removed {
+            delete_node(self, index);
         }
     }
 
@@ -687,38 +750,40 @@ impl DocumentGraph {
     /// This removes any non-rooted nodes that have no outgoing edges (i.e. are
     /// not depended upon by another document).
     pub fn gc(&mut self) {
-        let mut collected = HashSet::new();
-        for node in self.inner.node_indices() {
-            if self.roots.contains(&node) {
-                continue;
+        loop {
+            let mut collected = HashSet::new();
+            for node in self.inner.node_indices() {
+                if self.roots.contains(&node) {
+                    continue;
+                }
+
+                if self
+                    .inner
+                    .edges_directed(node, Direction::Outgoing)
+                    .next()
+                    .is_none()
+                {
+                    debug!(
+                        "removing document `{uri}` from the graph",
+                        uri = self.inner[node].uri
+                    );
+                    collected.insert(node);
+                }
             }
 
-            if self
-                .inner
-                .edges_directed(node, Direction::Outgoing)
-                .next()
-                .is_none()
-            {
-                debug!(
-                    "removing document `{uri}` from the graph",
-                    uri = self.inner[node].uri
-                );
-                collected.insert(node);
+            if collected.is_empty() {
+                return;
             }
+
+            for node in &collected {
+                self.inner.remove_node(*node);
+            }
+
+            self.indexes.retain(|_, index| !collected.contains(index));
+
+            self.cycles
+                .retain(|(from, to)| !collected.contains(from) && !collected.contains(to));
         }
-
-        if collected.is_empty() {
-            return;
-        }
-
-        for node in &collected {
-            self.inner.remove_node(*node);
-        }
-
-        self.indexes.retain(|_, index| !collected.contains(index));
-
-        self.cycles
-            .retain(|(from, to)| !collected.contains(from) && !collected.contains(to));
     }
 
     /// Gets all nodes that have a dependency on the given node.
