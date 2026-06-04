@@ -1,10 +1,10 @@
-RootNode@0..195
+RootNode@0..204
   VersionStatementNode@0..11
     VersionKeyword@0..7 "version"
     Whitespace@7..8 " "
     Version@8..11 "1.3"
   Whitespace@11..13 "\n\n"
-  TaskDefinitionNode@13..195
+  TaskDefinitionNode@13..204
     TaskKeyword@13..17 "task"
     Whitespace@17..18 " "
     Ident@18..21 "foo"
@@ -19,8 +19,8 @@ RootNode@0..195
     Whitespace@110..115 "\n    "
     Unknown@115..131 "🚀🚀🚀🚀"
     Whitespace@131..137 "\n\n    "
-    Comment@137..180 "# As well as consecut ..."
-    Whitespace@180..185 "\n    "
-    Unknown@185..193 ";;;;````"
-    Whitespace@193..194 "\n"
-    CloseBrace@194..195 "}"
+    Comment@137..189 "# Different unknown c ..."
+    Whitespace@189..194 "\n    "
+    Unknown@194..202 ";;;;````"
+    Whitespace@202..203 "\n"
+    CloseBrace@203..204 "}"
