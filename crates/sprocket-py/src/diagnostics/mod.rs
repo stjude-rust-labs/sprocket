@@ -26,6 +26,7 @@ impl Mode {
         Self(Default::default())
     }
 
+    /// Returns a `str` version of this object.
     fn __str__<'py>(&self, py: Python<'py>) -> &Bound<'py, PyString> {
         match self.0 {
             wdl::diagnostics::Mode::Full => intern!(py, "Mode.FULL"),
@@ -33,6 +34,7 @@ impl Mode {
         }
     }
 
+    /// Returns a printable representation of this object.
     fn __repr__<'py>(&self, py: Python<'py>) -> &Bound<'py, PyString> {
         match self.0 {
             wdl::diagnostics::Mode::Full => intern!(py, "<Mode.FULL>"),

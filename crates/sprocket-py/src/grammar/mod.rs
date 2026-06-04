@@ -58,6 +58,7 @@ impl Span {
         self.0.intersect(other.get().0).map(Self)
     }
 
+    /// Returns a printable representation of this object.
     fn __repr__(&self) -> String {
         format!("Span({}..{})", self.0.start(), self.0.end())
     }
@@ -80,6 +81,7 @@ impl Severity {
     #[classattr]
     const WARNING: Self = Self(wdl::grammar::Severity::Warning);
 
+    /// Returns a `str` version of this object.
     fn __str__<'py>(&self, py: Python<'py>) -> &Bound<'py, PyString> {
         match self.0 {
             wdl::grammar::Severity::Error => intern!(py, "Severity.ERROR"),
@@ -88,6 +90,7 @@ impl Severity {
         }
     }
 
+    /// Returns a printable representation of this object.
     fn __repr__<'py>(&self, py: Python<'py>) -> &Bound<'py, PyString> {
         match self.0 {
             wdl::grammar::Severity::Error => intern!(py, "<Severity.ERROR>"),
