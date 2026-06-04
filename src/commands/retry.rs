@@ -13,9 +13,7 @@ use crate::commands::CommandResult;
 use crate::commands::client::SprocketClientConnectionArgs;
 use crate::commands::client::check_response;
 use crate::commands::client::resolve_run_id;
-use crate::commands::run::inputs_to_json;
 use crate::commands::validate::analyze_source;
-use crate::commands::validate::validate_inputs;
 use crate::config::Config;
 use crate::server::RunResponse;
 use crate::server::SubmitRunRequest;
@@ -92,7 +90,9 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
     // Resolve the effective target: CLI override > stored target > None.
     let effective_target = args.target.clone().or_else(|| original.target.clone());
 
-    // Parse the original inputs JSON (pre-prefixed keys, e.g. `task.name`).
+    // Parse the original inputs JSON. Keys are stored with the target prefix
+    // (e.g. `align.read_one_fastq_gz`); keep them as-is — that is the format
+    // expected by `SubmitRunRequest.inputs` and by the server's parser.
     let mut merged_inputs: serde_json::Map<String, serde_json::Value> =
         serde_json::from_str(&original.inputs)
             .context("failed to deserialize stored run inputs")?;
@@ -146,39 +146,33 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
             );
         }
 
-        // If there are override inputs, validate and serialize them via the
-        // same path as `submit`, then merge them on top of the original.
-        if !args.overrides.is_empty() || effective_target.is_some() {
-            let (override_target, override_inputs) = validate_inputs(
-                &document,
-                &args.overrides,
-                effective_target.clone(),
-            )
-            .await?;
+    }
 
-            let override_json: serde_json::Map<String, serde_json::Value> =
-                serde_json::from_str(
-                    &inputs_to_json(&override_target, &override_inputs)
-                        .context("failed to serialize override inputs")?,
-                )
-                .context("failed to deserialize override inputs")?;
-
-            // Override keys win over the original values.
-            for (k, v) in override_json {
-                merged_inputs.insert(k, v);
-            }
-        }
-    } else if !args.overrides.is_empty() {
-        // --no-validate: still parse key=value overrides but without
-        // document-level validation. Treat each `key=value` as a literal JSON
-        // string value merge on top of the existing map.
-        for item in &args.overrides {
-            if let Some((key, value)) = item.split_once('=') {
-                merged_inputs.insert(
-                    key.to_string(),
-                    serde_json::Value::String(value.to_string()),
-                );
-            }
+    // Apply key=value overrides (if any) on top of the stored inputs.
+    //
+    // Full completeness validation is intentionally skipped here: the stored
+    // inputs were already validated at original submit time, and calling
+    // `validate_inputs` with only the override slice (a partial set) would
+    // incorrectly fail with "missing required input" for every untouched input.
+    //
+    // WDL source re-analysis above still catches structural changes to the
+    // WDL. Value-level validation for the complete merged set is performed by
+    // the server when the run executes.
+    //
+    // Note: `@file` overrides and multi-value array appends are not currently
+    // supported in the retry path.
+    for item in &args.overrides {
+        if let Some((key, value)) = item.split_once('=') {
+            // Add the target prefix to bare keys, mirroring Invocation::prefix_key.
+            let full_key = match &effective_target {
+                Some(t) if !key.starts_with(&format!("{t}.")) => format!("{t}.{key}"),
+                _ => key.to_string(),
+            };
+            // Parse as JSON first (handles numbers, booleans, arrays, objects);
+            // fall back to a plain string.
+            let parsed = serde_json::from_str(value)
+                .unwrap_or_else(|_| serde_json::Value::String(value.to_string()));
+            merged_inputs.insert(full_key, parsed);
         }
     }
 
