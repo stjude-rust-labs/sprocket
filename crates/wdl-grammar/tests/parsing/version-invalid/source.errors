@@ -6,7 +6,7 @@ error: unsupported WDL version `1-DEVEL.`
   │
   = fix: either use a supported WDL version or configure a fallback version
 
-error: unknown start of token: ~
+error: an unknown token was encountered
   ┌─ tests/parsing/version-invalid/source.wdl:3:17
   │
 3 │ version 1-DEVEL.~bad~
@@ -18,7 +18,7 @@ error: expected import statement, struct definition, enum definition, task defin
 3 │ version 1-DEVEL.~bad~
   │                  ^^^ unexpected identifier
 
-error: unknown start of token: ~
+error: an unknown token was encountered
   ┌─ tests/parsing/version-invalid/source.wdl:3:21
   │
 3 │ version 1-DEVEL.~bad~

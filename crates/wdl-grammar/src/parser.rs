@@ -1092,11 +1092,10 @@ where
                 }
 
                 self.diagnostic(
-                    Diagnostic::error(format!("unknown start of token: {unexpected_char}"))
-                        .with_label(
-                            Self::unsupported_token_text(self.source(span)),
-                            unknown_span,
-                        ),
+                    Diagnostic::error("an unknown token was encountered").with_label(
+                        Self::unsupported_token_text(self.source(span)),
+                        unknown_span,
+                    ),
                 );
 
                 Event::Token {

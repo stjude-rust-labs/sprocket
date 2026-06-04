@@ -9,4 +9,7 @@ task foo {
 
     # Different unknown characters should also be merged
     ;;;;````
+
+    # But valid tokens can immediately follow
+    ;`input {}`;
 }

@@ -1,18 +1,30 @@
-error: unknown start of token: ;
+error: an unknown token was encountered
   ┌─ tests/parsing/consolidate-unknown-tokens/source.wdl:5:5
   │
 5 │     ;;;;
   │     ^^^^ this is not a supported WDL token
 
-error: unknown start of token: 🚀
+error: an unknown token was encountered
   ┌─ tests/parsing/consolidate-unknown-tokens/source.wdl:8:5
   │
 8 │     🚀🚀🚀🚀
   │     ^^^^^^^^ this is not a supported WDL token
 
-error: unknown start of token: ;
+error: an unknown token was encountered
    ┌─ tests/parsing/consolidate-unknown-tokens/source.wdl:11:5
    │
 11 │     ;;;;````
    │     ^^^^^^^^ this is not a supported WDL token
+
+error: an unknown token was encountered
+   ┌─ tests/parsing/consolidate-unknown-tokens/source.wdl:14:5
+   │
+14 │     ;`input {}`;
+   │     ^^ this is not a supported WDL token
+
+error: an unknown token was encountered
+   ┌─ tests/parsing/consolidate-unknown-tokens/source.wdl:14:15
+   │
+14 │     ;`input {}`;
+   │               ^^ this is not a supported WDL token
 
