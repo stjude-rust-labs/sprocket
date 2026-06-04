@@ -336,7 +336,7 @@ pub fn outgoing_calls(
 
     for (ident, call) in workflow.calls() {
         let to_doc = if let Some(ns) = call.namespace() {
-            let Some(ns) = from_doc.namespace(ns).and_then(|e| e.namespace()) else {
+            let Some(ns) = from_doc.namespace(ns) else {
                 continue;
             };
             ns.document()

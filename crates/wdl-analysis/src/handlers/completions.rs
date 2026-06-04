@@ -339,7 +339,7 @@ fn add_member_access_completions(
     // Namespace completions
     if let Some(token) = target_element.as_token()
         && token.kind() == SyntaxKind::Ident
-        && let Some(ns) = document.namespace(token.text()).and_then(|n| n.namespace())
+        && let Some(ns) = document.namespace(token.text())
     {
         let ns_root = ns.document().root();
         let ns_doc_version = document.version();
@@ -680,10 +680,7 @@ fn add_callable_completions(document: &Document, items: &mut Vec<CompletionItem>
         });
     }
 
-    for (ns_name, ns) in document
-        .namespaces()
-        .filter_map(|(n, ns)| Some((n, ns.namespace()?)))
-    {
+    for (ns_name, ns) in document.namespaces() {
         let ns_root = ns.document().root();
 
         for task in ns.document().tasks() {

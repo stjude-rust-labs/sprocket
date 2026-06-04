@@ -288,10 +288,7 @@ fn resolve_type_reference(
 
     // Fallback search in case the struct is not in the current document's analysis
     // map
-    for (_, ns) in analysis_doc
-        .namespaces()
-        .filter_map(|(n, ns)| Some((n, ns.namespace()?)))
-    {
+    for (_, ns) in analysis_doc.namespaces() {
         let node = graph.get(graph.get_index(ns.source()).unwrap());
         let Some(imported_doc) = node.document() else {
             continue;
@@ -340,10 +337,7 @@ fn resolve_call_target(
         // NOTE: Namespaced (foo.bar)
         if target_names.len() == 2 {
             let namespaced_name_str = target_names.first().unwrap().text();
-            let Some(ns_info) = analysis_doc
-                .namespace(namespaced_name_str)
-                .and_then(|n| n.namespace())
-            else {
+            let Some(ns_info) = analysis_doc.namespace(namespaced_name_str) else {
                 return Ok(None);
             };
 
@@ -441,10 +435,7 @@ fn resolve_global_identifier(
         return Ok(Some(location));
     }
 
-    for (_, ns) in analysis_doc
-        .namespaces()
-        .filter_map(|(n, ns)| Some((n, ns.namespace()?)))
-    {
+    for (_, ns) in analysis_doc.namespaces() {
         let node = graph.get(graph.get_index(ns.source()).unwrap());
         let Some(imported_doc) = node.document() else {
             continue;
@@ -502,7 +493,7 @@ fn resolve_access_expression(
     if let v1::Expr::NameRef(name_ref) = &target_expr {
         let name = name_ref.name();
         let name = name.text();
-        if let Some(ns) = analysis_doc.namespace(name).and_then(|n| n.namespace()) {
+        if let Some(ns) = analysis_doc.namespace(name) {
             let member_name = access_ident.text();
             if analysis_doc
                 .enums()
@@ -537,10 +528,7 @@ fn resolve_access_expression(
         let original_struct_name = struct_ty.name().as_str();
 
         // Check for struct definition in imported namespaces.
-        for (_, ns) in analysis_doc
-            .namespaces()
-            .filter_map(|(n, ns)| Some((n, ns.namespace()?)))
-        {
+        for (_, ns) in analysis_doc.namespaces() {
             let node = graph.get(graph.get_index(ns.source()).unwrap());
 
             let Some(imported_doc) = node.document() else {
@@ -586,10 +574,7 @@ fn resolve_access_expression(
 
         let (uri, def_lines) = match struct_def.namespace() {
             Some(ns_name) => {
-                let ns = analysis_doc
-                    .namespace(ns_name)
-                    .and_then(|n| n.namespace())
-                    .unwrap();
+                let ns = analysis_doc.namespace(ns_name).unwrap();
 
                 let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
 
@@ -618,10 +603,7 @@ fn resolve_access_expression(
     if let Type::TypeNameRef(CustomType::Enum(enum_ty)) = target_type {
         let original_enum_name = enum_ty.name();
 
-        for (_, ns) in analysis_doc
-            .namespaces()
-            .filter_map(|(n, ns)| Some((n, ns.namespace()?)))
-        {
+        for (_, ns) in analysis_doc.namespaces() {
             let node = graph.get(graph.get_index(ns.source()).unwrap());
 
             let Some(imported_doc) = node.document() else {
@@ -664,10 +646,7 @@ fn resolve_access_expression(
 
         let (uri, def_lines) = match enum_def.namespace() {
             Some(ns_name) => {
-                let ns = analysis_doc
-                    .namespace(ns_name)
-                    .and_then(|n| n.namespace())
-                    .unwrap();
+                let ns = analysis_doc.namespace(ns_name).unwrap();
 
                 let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
 
@@ -706,10 +685,7 @@ fn resolve_access_expression(
 
         let (uri, callee_lines) = match call_ty.namespace() {
             Some(ns_name) => {
-                let ns = analysis_doc
-                    .namespace(ns_name)
-                    .and_then(|n| n.namespace())
-                    .unwrap();
+                let ns = analysis_doc.namespace(ns_name).unwrap();
 
                 let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
 
@@ -738,10 +714,7 @@ fn resolve_access_expression(
 
         let (uri, def_lines) = match enum_def.namespace() {
             Some(ns_name) => {
-                let ns = analysis_doc
-                    .namespace(ns_name)
-                    .and_then(|n| n.namespace())
-                    .unwrap();
+                let ns = analysis_doc.namespace(ns_name).unwrap();
 
                 let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
 
@@ -839,10 +812,7 @@ fn resolve_struct_literal_item(
     if let Some(struct_info) = analysis_doc.struct_by_name(struct_name.text()) {
         let (uri, def_lines) = match struct_info.namespace() {
             Some(ns_name) => {
-                let ns = analysis_doc
-                    .namespace(ns_name)
-                    .and_then(|n| n.namespace())
-                    .unwrap();
+                let ns = analysis_doc.namespace(ns_name).unwrap();
 
                 let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
 
@@ -924,10 +894,7 @@ fn resolve_call_input_item(
             };
 
             if let Some(ns_str) = target_namespace {
-                let Some(ns) = analysis_doc
-                    .namespace(ns_str.text())
-                    .and_then(|n| n.namespace())
-                else {
+                let Some(ns) = analysis_doc.namespace(ns_str.text()) else {
                     return Ok(None);
                 };
 

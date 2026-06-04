@@ -39,48 +39,6 @@ pub mod v1;
 /// WDL 1.2.
 pub const TASK_VAR_NAME: &str = "task";
 
-/// An entry in a document's namespace table.
-///
-/// An entry exists for every import statement, whether the import resolved
-/// successfully or not. Failed entries are kept so that downstream references
-/// to the imported name (e.g., `import spellbook` followed by
-/// `call spellbook.fireball`) don't produce cascading "unknown namespace"
-/// diagnostics.
-#[derive(Debug)]
-pub enum NamespaceEntry {
-    /// The import resolved successfully.
-    Resolved(Namespace),
-    /// The import failed to resolve.
-    Failed(Span),
-}
-
-impl NamespaceEntry {
-    /// Gets the span of the import that introduced this entry.
-    pub fn span(&self) -> Span {
-        match self {
-            NamespaceEntry::Resolved(ns) => ns.span,
-            NamespaceEntry::Failed(span) => *span,
-        }
-    }
-
-    /// Returns the resolved namespace, if the import succeeded.
-    pub fn namespace(&self) -> Option<&Namespace> {
-        match self {
-            NamespaceEntry::Resolved(ns) => Some(ns),
-            NamespaceEntry::Failed(_) => None,
-        }
-    }
-
-    /// Returns a mutable reference to the resolved namespace, if the import
-    /// succeeded.
-    pub fn namespace_mut(&mut self) -> Option<&mut Namespace> {
-        match self {
-            NamespaceEntry::Resolved(ns) => Some(ns),
-            NamespaceEntry::Failed(_) => None,
-        }
-    }
-}
-
 /// A successfully resolved namespace introduced by an import.
 #[derive(Debug)]
 pub struct Namespace {
@@ -756,9 +714,14 @@ pub(crate) struct DocumentData {
     uri: Arc<Url>,
     /// The version of the document.
     version: Option<SupportedVersion>,
-    /// The namespaces in the document, keyed by name. Each entry is either a
-    /// resolved namespace or a failed import marker.
-    namespaces: IndexMap<String, NamespaceEntry>,
+    /// The successfully resolved namespaces in the document, keyed by name.
+    namespaces: IndexMap<String, Namespace>,
+    /// The names of imports that failed to resolve, keyed by name, each with
+    /// the span of the failing import. Kept so that downstream references to
+    /// the imported name (e.g., `import spellbook` followed by
+    /// `call spellbook.fireball`) don't produce cascading "unknown namespace"
+    /// diagnostics.
+    failed_imports: IndexMap<String, Span>,
     /// The tasks in the document.
     tasks: IndexMap<String, Task>,
     /// The singular workflow in the document.
@@ -793,6 +756,7 @@ impl DocumentData {
             uri,
             version,
             namespaces: Default::default(),
+            failed_imports: Default::default(),
             tasks: Default::default(),
             workflow: Default::default(),
             structs: Default::default(),
@@ -812,7 +776,9 @@ impl DocumentData {
     pub fn context(&self, name: &str) -> Option<Context> {
         // Look through the various data structures for the name
         if let Some(ns) = self.namespaces.get(name) {
-            Some(Context::Namespace(ns.span()))
+            Some(Context::Namespace(ns.span))
+        } else if let Some(span) = self.failed_imports.get(name) {
+            Some(Context::Namespace(*span))
         } else if let Some(task) = self.tasks.get(name) {
             Some(Context::Task(task.name_span()))
         } else if let Some(wf) = &self.workflow
@@ -912,11 +878,12 @@ impl Document {
                 ..
             } = &mut data;
 
-            analysis_diagnostics.extend(namespaces.iter().filter_map(|(name, ns)| {
-                let resolved = ns.namespace()?;
-                (!resolved.used && !resolved.excepted)
-                    .then(|| unused_import(name, resolved.span()).with_severity(severity))
-            }));
+            analysis_diagnostics.extend(
+                namespaces
+                    .iter()
+                    .filter(|(_, ns)| !ns.used && !ns.excepted)
+                    .map(|(name, ns)| unused_import(name, ns.span()).with_severity(severity)),
+            );
         }
 
         Self {
@@ -1009,14 +976,13 @@ impl Document {
         self.data.version
     }
 
-    /// Gets the namespace entries in the document. Each entry is either a
-    /// resolved [`Namespace`] or a failed import marker.
-    pub fn namespaces(&self) -> impl Iterator<Item = (&str, &NamespaceEntry)> {
+    /// Gets the successfully resolved namespaces in the document.
+    pub fn namespaces(&self) -> impl Iterator<Item = (&str, &Namespace)> {
         self.data.namespaces.iter().map(|(n, ns)| (n.as_str(), ns))
     }
 
-    /// Gets a namespace entry in the document by name.
-    pub fn namespace(&self, name: &str) -> Option<&NamespaceEntry> {
+    /// Gets a successfully resolved namespace in the document by name.
+    pub fn namespace(&self, name: &str) -> Option<&Namespace> {
         self.data.namespaces.get(name)
     }
 
@@ -1227,9 +1193,7 @@ impl Document {
 
         // Check every imported document for errors
         for (_, ns) in self.namespaces() {
-            if let Some(resolved) = ns.namespace()
-                && resolved.document().has_errors()
-            {
+            if ns.document().has_errors() {
                 return true;
             }
         }
