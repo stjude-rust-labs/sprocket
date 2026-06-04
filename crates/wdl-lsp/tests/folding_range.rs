@@ -1,10 +1,10 @@
 //! Tests for folding range support in the LSP.
 
-use tower_lsp::lsp_types::FoldingRange;
-use tower_lsp::lsp_types::FoldingRangeKind;
-use tower_lsp::lsp_types::FoldingRangeParams;
-use tower_lsp::lsp_types::TextDocumentIdentifier;
-use tower_lsp::lsp_types::request::FoldingRangeRequest;
+use async_lsp::lsp_types::FoldingRange;
+use async_lsp::lsp_types::FoldingRangeKind;
+use async_lsp::lsp_types::FoldingRangeParams;
+use async_lsp::lsp_types::TextDocumentIdentifier;
+use async_lsp::lsp_types::request::FoldingRangeRequest;
 use wdl_analysis::handlers::BRACED_COLLAPSED_TEXT;
 use wdl_analysis::handlers::DOLLAR_PLACEHOLDER_COLLAPSED_TEXT;
 use wdl_analysis::handlers::HEREDOC_COLLAPSED_TEXT;
@@ -14,7 +14,10 @@ use crate::common::TestContext;
 
 mod common;
 
-async fn folding_range_request(ctx: &mut TestContext, path: &str) -> Option<Vec<FoldingRange>> {
+async fn folding_range_request(
+    ctx: &mut TestContext,
+    path: &str,
+) -> async_lsp::Result<Option<Vec<FoldingRange>>> {
     ctx.request::<FoldingRangeRequest>(FoldingRangeParams {
         text_document: TextDocumentIdentifier {
             uri: ctx.doc_uri(path),
@@ -30,7 +33,10 @@ async fn should_fold_content() {
     let mut ctx = TestContext::new("folding_range");
     ctx.initialize().await;
 
-    let ranges = folding_range_request(&mut ctx, "source.wdl").await.unwrap();
+    let ranges = folding_range_request(&mut ctx, "source.wdl")
+        .await
+        .expect("request should succeed")
+        .unwrap();
 
     let mut expected_ranges = vec![
         // Imports

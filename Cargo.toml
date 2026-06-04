@@ -29,6 +29,7 @@ ammonia = "4.1.2"
 anyhow = "1.0.100"
 approx = "0.5.1"
 arrayvec = { version = "0.7.6", features = ["serde"] }
+async-lsp = "0.2.4"
 async-trait = "0.1.89"
 axum = "0.8.8"
 base64 = "0.22.1"
@@ -67,7 +68,7 @@ libc = "0.2"
 libtest-mimic = "^0.8.1"
 line-index = "0.1.2"
 logos = "0.16.1"
-lsp-types = "0.94.1"
+lsp-types = "0.95.1"
 macropol = "0.1.4"
 maud = "0.27.0"
 nonempty = "0.12.0"
@@ -118,7 +119,6 @@ toml = "0.9.11"
 toml_edit = { version = "0.25.0", features = ["serde"] }
 tower = { version = "0.5.3", features = ["util"] }
 tower-http = { version = "0.6.8", features = ["cors", "trace"] }
-tower-lsp = "0.20.0"
 tracing = "0.1.44"
 tracing-indicatif = "0.3.14"
 tracing-log = "0.2.0"
@@ -131,8 +131,8 @@ utoipa = { version = "5.4.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 uuid = { version = "1.20.0", features = ["serde", "v4"] }
 walkdir = "2.5.0"
-wdl = { version = "0.23.0", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
-wdl-modules = { version = "0.1.1", path = "crates/wdl-modules", features = ["resolver"] }
+wdl = { version = "0.23.1", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
+wdl-modules = { version = "0.2.0", path = "crates/wdl-modules", features = ["resolver"] }
 which = "8.0.0"
 whoami = "2.1.0"
 zip = { version = "8.1.0", default-features = false, features = [] }
@@ -160,7 +160,7 @@ new_without_default = "allow"
 
 [package]
 name = "sprocket"
-version = "0.25.0"
+version = "0.26.0"
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true
