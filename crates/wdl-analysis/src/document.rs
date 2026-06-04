@@ -91,10 +91,16 @@ pub struct Struct {
     ///
     /// This is used to calculate type equivalence for imports.
     node: rowan::GreenNode,
-    /// The namespace that defines the struct.
+    /// The source of this struct.
     ///
-    /// This is `Some` only for imported structs.
-    namespace: Option<String>,
+    /// `Some(uri)` means the struct was imported (by a namespaced, wildcard, or
+    /// selective import) from the document at `uri`. Imported structs carry
+    /// their resolved type from that document, so they are not type-checked
+    /// again here, and `uri` locates the original definition for
+    /// go-to-definition.
+    ///
+    /// `None` means the struct is defined locally in the containing document.
+    source: Option<Arc<Url>>,
     /// The type of the struct.
     ///
     /// Initially this is `None` until a type check occurs.
@@ -122,12 +128,14 @@ impl Struct {
         &self.node
     }
 
-    /// Gets the namespace that defines this struct.
+    /// Gets the URI of the document this struct was imported from.
     ///
-    /// Returns `None` for structs defined in the containing document or `Some`
-    /// for a struct introduced by an import.
-    pub fn namespace(&self) -> Option<&str> {
-        self.namespace.as_deref()
+    /// Returns `Some(uri)` for an imported struct (whether namespaced,
+    /// wildcard, or selective), where `uri` is the document the struct was
+    /// imported from. Returns `None` for a struct defined locally in the
+    /// containing document.
+    pub fn source(&self) -> Option<&Arc<Url>> {
+        self.source.as_ref()
     }
 
     /// Gets the type of the struct.
@@ -159,10 +167,15 @@ pub struct Enum {
     /// This is used to calculate type equivalence for imports and can be
     /// reconstructed into an AST node to access variant expressions.
     node: rowan::GreenNode,
-    /// The namespace that defines the enum.
+    /// The source of this enum.
     ///
-    /// This is `Some` only for imported enums.
-    namespace: Option<String>,
+    /// `Some(uri)` means the enum was imported (by a namespaced, wildcard, or
+    /// selective import) from the document at `uri`. Imported enums carry their
+    /// resolved type from that document, so they are not type-checked again
+    /// here, and `uri` locates the original definition for go-to-definition.
+    ///
+    /// `None` means the enum is defined locally in the containing document.
+    source: Option<Arc<Url>>,
     /// The type of the enum.
     ///
     /// Initially this is `None` until a type check/coercion occurs.
@@ -198,9 +211,13 @@ impl Enum {
             .expect("stored node should be a valid enum definition")
     }
 
-    /// Gets the namespace that defines this enum.
-    pub fn namespace(&self) -> Option<&str> {
-        self.namespace.as_deref()
+    /// Gets the URI of the document this enum was imported from.
+    ///
+    /// Returns `Some(uri)` for an imported enum (whether namespaced, wildcard,
+    /// or selective), where `uri` is the document the enum was imported from.
+    /// Returns `None` for an enum defined locally in the containing document.
+    pub fn source(&self) -> Option<&Arc<Url>> {
+        self.source.as_ref()
     }
 
     /// Gets the type of the enum.

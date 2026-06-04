@@ -263,7 +263,7 @@ fn add_namespace(
     };
 
     let span = import.source().span();
-    let ns = match import.namespace() {
+    match import.namespace() {
         Some((ns, span)) => {
             let existing = document
                 .namespaces
@@ -282,7 +282,7 @@ fn add_namespace(
                 }
                 None => {
                     document.namespaces.insert(
-                        ns.clone(),
+                        ns,
                         Namespace {
                             span,
                             source: uri.clone(),
@@ -291,7 +291,6 @@ fn add_namespace(
                             excepted: import.inner().is_rule_excepted(UnusedImportRule::ID),
                         },
                     );
-                    ns
                 }
             }
         }
@@ -332,7 +331,7 @@ fn add_namespace(
                     .expect("node should cast");
                 if !are_structs_equal(&a, &b) {
                     // Import conflicts with a struct defined in this document
-                    if prev.namespace.is_none() {
+                    if prev.source.is_none() {
                         document
                             .analysis_diagnostics
                             .push(struct_conflicts_with_import(
@@ -359,7 +358,7 @@ fn add_namespace(
                         name: aliased_name.to_string(),
                         offset: s.offset,
                         node: s.node.clone(),
-                        namespace: Some(ns.clone()),
+                        source: Some(uri.clone()),
                         ty: s.ty.clone(),
                     },
                 );
@@ -392,7 +391,7 @@ fn add_namespace(
                 let b = e.definition();
                 if !are_enums_equal(&a, &b) {
                     // Import conflicts with an enum defined in this document
-                    if prev.namespace.is_none() {
+                    if prev.source.is_none() {
                         document
                             .analysis_diagnostics
                             .push(enum_conflicts_with_import(
@@ -419,7 +418,7 @@ fn add_namespace(
                         name: aliased_name.to_string(),
                         offset: e.offset,
                         node: e.node.clone(),
-                        namespace: Some(ns.clone()),
+                        source: Some(uri.clone()),
                         ty: e.ty.clone(),
                     },
                 );
@@ -526,7 +525,7 @@ fn add_wildcard_import(
                     name: name.clone(),
                     offset: s.offset,
                     node: s.node.clone(),
-                    namespace: None,
+                    source: Some(uri.clone()),
                     ty: s.ty.clone(),
                 },
             );
@@ -553,7 +552,7 @@ fn add_wildcard_import(
                     name: name.clone(),
                     offset: e.offset,
                     node: e.node.clone(),
-                    namespace: None,
+                    source: Some(uri.clone()),
                     ty: e.ty.clone(),
                 },
             );
@@ -661,6 +660,7 @@ fn add_selected_import(
         if import_selected_struct(
             document,
             &imported,
+            &uri,
             member_name.text(),
             &local_name,
             member_span,
@@ -670,6 +670,7 @@ fn add_selected_import(
         if import_selected_enum(
             document,
             &imported,
+            &uri,
             member_name.text(),
             &local_name,
             member_span,
@@ -715,6 +716,7 @@ fn add_selected_import(
 fn import_selected_struct(
     document: &mut DocumentData,
     imported: &Document,
+    uri: &Arc<Url>,
     member_name: &str,
     local_name: &str,
     member_span: Span,
@@ -742,7 +744,7 @@ fn import_selected_struct(
                 name: local_name.to_string(),
                 offset: s.offset,
                 node: s.node.clone(),
-                namespace: None,
+                source: Some(uri.clone()),
                 ty: s.ty.clone(),
             },
         );
@@ -755,6 +757,7 @@ fn import_selected_struct(
 fn import_selected_enum(
     document: &mut DocumentData,
     imported: &Document,
+    uri: &Arc<Url>,
     member_name: &str,
     local_name: &str,
     member_span: Span,
@@ -780,7 +783,7 @@ fn import_selected_enum(
                 name: local_name.to_string(),
                 offset: e.offset,
                 node: e.node.clone(),
-                namespace: None,
+                source: Some(uri.clone()),
                 ty: e.ty.clone(),
             },
         );
@@ -967,7 +970,7 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
 
     // Check for a conflict with imported struct first otherwise for any name
     if let Some(prev) = document.structs.get(name.text())
-        && prev.namespace.is_some()
+        && prev.source.is_some()
     {
         let prev_def = StructDefinition::cast(SyntaxNode::new_root(prev.node.clone()))
             .expect("node should cast");
@@ -1014,7 +1017,7 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
         Struct {
             name_span: name.span(),
             name: name.text().to_string(),
-            namespace: None,
+            source: None,
             offset: definition.span().start(),
             node: definition.inner().green().into(),
             ty: None,
@@ -1037,7 +1040,7 @@ fn add_enum(document: &mut DocumentData, definition: &EnumDefinition) {
 
     // Check for a conflict with imported enum first otherwise for any name
     if let Some(prev) = document.enums.get(name.text())
-        && prev.namespace.is_some()
+        && prev.source.is_some()
     {
         let prev_def = prev.definition();
         if !are_enums_equal(definition, &prev_def) {
@@ -1081,7 +1084,7 @@ fn add_enum(document: &mut DocumentData, definition: &EnumDefinition) {
         Enum {
             name_span: name.span(),
             name: name.text().to_string(),
-            namespace: None,
+            source: None,
             offset: definition.span().start(),
             node: definition.inner().green().into(),
             ty: None,
@@ -1097,21 +1100,25 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
     impl TypeNameResolver for Resolver<'_> {
         fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
             if let Some(s) = self.0.structs.get(name) {
-                if let Some(ns) = &s.namespace
-                    && let Some(resolved) = self.0.namespaces.get_mut(ns)
+                let ty = s.ty().cloned().unwrap_or(Type::Union);
+                if let Some(uri) = s.source().cloned()
+                    && let Some(resolved) =
+                        self.0.namespaces.values_mut().find(|n| n.source() == &uri)
                 {
                     resolved.used = true;
                 }
-                return Ok(s.ty().cloned().unwrap_or(Type::Union));
+                return Ok(ty);
             }
 
             if let Some(e) = self.0.enums.get(name) {
-                if let Some(ns) = &e.namespace
-                    && let Some(resolved) = self.0.namespaces.get_mut(ns)
+                let ty = e.ty().cloned().unwrap_or(Type::Union);
+                if let Some(uri) = e.source().cloned()
+                    && let Some(resolved) =
+                        self.0.namespaces.values_mut().find(|n| n.source() == &uri)
                 {
                     resolved.used = true;
                 }
-                return Ok(e.ty().cloned().unwrap_or(Type::Union));
+                return Ok(ty);
             }
 
             Err(unknown_type(name, span))
@@ -2306,21 +2313,31 @@ fn populate_types(document: &mut DocumentData) {
     impl TypeNameResolver for Resolver<'_> {
         fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
             if let Some(s) = self.document.structs.get(name) {
-                if let Some(ns) = &s.namespace
-                    && let Some(resolved) = self.document.namespaces.get_mut(ns)
+                let ty = s.ty().cloned().unwrap_or(Type::Union);
+                if let Some(uri) = s.source().cloned()
+                    && let Some(resolved) = self
+                        .document
+                        .namespaces
+                        .values_mut()
+                        .find(|n| n.source() == &uri)
                 {
                     resolved.used = true;
                 }
-                return Ok(s.ty().cloned().unwrap_or(Type::Union));
+                return Ok(ty);
             }
 
             if let Some(e) = self.document.enums.get(name) {
-                if let Some(ns) = &e.namespace
-                    && let Some(resolved) = self.document.namespaces.get_mut(ns)
+                let ty = e.ty().cloned().unwrap_or(Type::Union);
+                if let Some(uri) = e.source().cloned()
+                    && let Some(resolved) = self
+                        .document
+                        .namespaces
+                        .values_mut()
+                        .find(|n| n.source() == &uri)
                 {
                     resolved.used = true;
                 }
-                return Ok(e.ty().cloned().unwrap_or(Type::Union));
+                return Ok(ty);
             }
 
             self.document.analysis_diagnostics.push(unknown_type(
@@ -2363,8 +2380,9 @@ fn populate_types(document: &mut DocumentData) {
 
     // Map struct dependencies
     for (from, s) in document.structs.values().enumerate() {
-        // Only look at locally defined structs
-        if s.namespace.is_some() {
+        // Only compute types for locally defined structs; imported structs
+        // already carry their resolved type.
+        if s.source.is_some() {
             continue;
         }
 
@@ -2399,8 +2417,9 @@ fn populate_types(document: &mut DocumentData) {
 
     // Map enum dependencies
     for (from, e) in document.enums.values().enumerate() {
-        // Only look at locally defined enums
-        if e.namespace.is_some() {
+        // Only compute types for locally defined enums; imported enums already
+        // carry their resolved type.
+        if e.source.is_some() {
             continue;
         }
 
@@ -2531,12 +2550,12 @@ enum TypeIndex {
 /// Attempt to find a locally defined type in the `document` by name.
 fn resolve_dep(document: &DocumentData, name: &str) -> Option<TypeIndex> {
     if let Some(to) = document.structs.get_index_of(name)
-        // Only resolve locally defined types
-        && document.structs[to].namespace.is_none()
+        // Only order locally defined types; imported types carry their own type.
+        && document.structs[to].source.is_none()
     {
         Some(TypeIndex::Struct(to))
     } else if let Some(to) = document.enums.get_index_of(name)
-        && document.enums[to].namespace.is_none()
+        && document.enums[to].source.is_none()
     {
         Some(TypeIndex::Enum(to))
     } else {
@@ -2707,23 +2726,33 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
 
     fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         if let Some(s) = self.document.structs.get(name) {
-            if let Some(ns) = &s.namespace
-                && let Some(resolved) = self.document.namespaces.get_mut(ns)
+            let ty = s.ty().expect("struct should have type").clone();
+            if let Some(uri) = s.source().cloned()
+                && let Some(resolved) = self
+                    .document
+                    .namespaces
+                    .values_mut()
+                    .find(|n| n.source() == &uri)
             {
                 resolved.used = true;
             }
 
-            return Ok(s.ty().expect("struct should have type").clone());
+            return Ok(ty);
         }
 
         if let Some(e) = self.document.enums.get(name) {
-            if let Some(ns) = &e.namespace
-                && let Some(resolved) = self.document.namespaces.get_mut(ns)
+            let ty = e.ty().expect("enum should have type").clone();
+            if let Some(uri) = e.source().cloned()
+                && let Some(resolved) = self
+                    .document
+                    .namespaces
+                    .values_mut()
+                    .find(|n| n.source() == &uri)
             {
                 resolved.used = true;
             }
 
-            return Ok(e.ty().expect("enum should have type").clone());
+            return Ok(ty);
         }
 
         Err(unknown_type(name, span))

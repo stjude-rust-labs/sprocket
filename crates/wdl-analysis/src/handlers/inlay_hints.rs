@@ -64,7 +64,7 @@ pub fn inlay_hints(
     // Find all enum definitions in the document
     for (_, enum_entry) in document.enums() {
         // Skip imported enums
-        if enum_entry.namespace().is_some() {
+        if enum_entry.source().is_some() {
             continue;
         }
 

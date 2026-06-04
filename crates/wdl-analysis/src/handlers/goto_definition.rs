@@ -209,14 +209,14 @@ fn resolve_type_reference(
     let ident_text = token.text();
 
     if let Some(enum_info) = analysis_doc.enum_by_name(ident_text) {
-        if enum_info.namespace().is_none() {
+        let Some(source) = enum_info.source() else {
             // Handle enum defined in local document.
             return Ok(Some(location_from_span(
                 document_uri,
                 enum_info.name_span(),
                 lines,
             )?));
-        }
+        };
 
         let is_aliased_import = enum_info
             .ty()
@@ -233,9 +233,7 @@ fn resolve_type_reference(
             )?));
         } else {
             // Return the location in the imported file.
-            let ns_name = enum_info.namespace().unwrap();
-
-            if let Some(ctx) = get_imported_doc_context(ns_name, analysis_doc, graph)
+            if let Some(ctx) = get_imported_doc_context(source, graph)
                 && let Some(original_enum) = ctx.doc.enum_by_name(ident_text)
             {
                 return Ok(Some(location_from_span(
@@ -248,14 +246,14 @@ fn resolve_type_reference(
     }
 
     if let Some(struct_info) = analysis_doc.struct_by_name(ident_text) {
-        if struct_info.namespace().is_none() {
+        let Some(source) = struct_info.source() else {
             // Handle struct defined in local document.
             return Ok(Some(location_from_span(
                 document_uri,
                 struct_info.name_span(),
                 lines,
             )?));
-        }
+        };
 
         let is_aliased_import = struct_info
             .ty()
@@ -272,9 +270,7 @@ fn resolve_type_reference(
             )?));
         } else {
             // Return the location in the imported file.
-            let ns_name = struct_info.namespace().unwrap();
-
-            if let Some(ctx) = get_imported_doc_context(ns_name, analysis_doc, graph)
+            if let Some(ctx) = get_imported_doc_context(source, graph)
                 && let Some(original_struct) = ctx.doc.struct_by_name(ident_text)
             {
                 return Ok(Some(location_from_span(
@@ -497,7 +493,7 @@ fn resolve_access_expression(
             let member_name = access_ident.text();
             if analysis_doc
                 .enums()
-                .any(|(_, e)| e.namespace() == Some(name) && e.name() == member_name)
+                .any(|(_, e)| e.source() == Some(ns.source()) && e.name() == member_name)
             {
                 let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
                 let imported_lines = imported_node.parse_state().lines().unwrap();
@@ -539,7 +535,7 @@ fn resolve_access_expression(
                 continue;
             };
 
-            if original_struct.namespace().is_some() {
+            if original_struct.source().is_some() {
                 continue;
             };
 
@@ -572,14 +568,12 @@ fn resolve_access_expression(
                 )
             })?;
 
-        let (uri, def_lines) = match struct_def.namespace() {
-            Some(ns_name) => {
-                let ns = analysis_doc.namespace(ns_name).unwrap();
-
-                let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
+        let (uri, def_lines) = match struct_def.source() {
+            Some(source) => {
+                let imported_node = graph.get(graph.get_index(source).unwrap());
 
                 let lines = imported_node.parse_state().lines().unwrap();
-                (ns.source().as_ref(), lines)
+                (source.as_ref(), lines)
             }
             None => (document_uri, lines),
         };
@@ -614,7 +608,7 @@ fn resolve_access_expression(
                 continue;
             };
 
-            if original_enum.namespace().is_some() {
+            if original_enum.source().is_some() {
                 continue;
             };
 
@@ -644,14 +638,12 @@ fn resolve_access_expression(
             )
         })?;
 
-        let (uri, def_lines) = match enum_def.namespace() {
-            Some(ns_name) => {
-                let ns = analysis_doc.namespace(ns_name).unwrap();
-
-                let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
+        let (uri, def_lines) = match enum_def.source() {
+            Some(source) => {
+                let imported_node = graph.get(graph.get_index(source).unwrap());
 
                 let lines = imported_node.parse_state().lines().unwrap();
-                (ns.source().as_ref(), lines)
+                (source.as_ref(), lines)
             }
             None => (document_uri, lines),
         };
@@ -712,14 +704,12 @@ fn resolve_access_expression(
             )
         })?;
 
-        let (uri, def_lines) = match enum_def.namespace() {
-            Some(ns_name) => {
-                let ns = analysis_doc.namespace(ns_name).unwrap();
-
-                let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
+        let (uri, def_lines) = match enum_def.source() {
+            Some(source) => {
+                let imported_node = graph.get(graph.get_index(source).unwrap());
 
                 let lines = imported_node.parse_state().lines().unwrap();
-                (ns.source().as_ref(), lines)
+                (source.as_ref(), lines)
             }
             None => (document_uri, lines),
         };
@@ -810,14 +800,12 @@ fn resolve_struct_literal_item(
     let struct_name = literal_struct.name();
 
     if let Some(struct_info) = analysis_doc.struct_by_name(struct_name.text()) {
-        let (uri, def_lines) = match struct_info.namespace() {
-            Some(ns_name) => {
-                let ns = analysis_doc.namespace(ns_name).unwrap();
-
-                let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
+        let (uri, def_lines) = match struct_info.source() {
+            Some(source) => {
+                let imported_node = graph.get(graph.get_index(source).unwrap());
 
                 let lines = imported_node.parse_state().lines().unwrap();
-                (ns.source().as_ref(), lines)
+                (source.as_ref(), lines)
             }
             None => (document_uri, lines),
         };
