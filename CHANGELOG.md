@@ -7,9 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+<<<<<<< fix/paths_as_urls
 ### Changed
 
 * `sprocket dev server` will now copy paths specified with `--allowed-file-paths` to the list of `--allowed-urls` with a `file://` prefix ([#914](https://github.com/stjude-rust-labs/sprocket/pull/914))
+=======
+### Fixed
+
+* `sprocket dev server` will canonicalize paths passed as CLI arguments ([#913](https://github.com/stjude-rust-labs/sprocket/pull/913))
+>>>>>>> main
 
 ## 0.26.0 - 2026-06-03
 

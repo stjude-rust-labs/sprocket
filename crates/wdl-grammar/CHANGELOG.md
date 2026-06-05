@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 * `SyntaxKind::is_keyword()` no longer includes types, see `SyntaxKind::is_type()` ([#870](https://github.com/stjude-rust-labs/sprocket/pull/870)).
+* `Parser` now produces a single `Unknown` token and diagnostic for consecutive unknown tokens ([#908](https://github.com/stjude-rust-labs/sprocket/pull/908)).
 
 ## 0.22.0 - 2026-05-14
 

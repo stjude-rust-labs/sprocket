@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 
+use anyhow::Context;
 use clap::Parser;
 
 use crate::Config;
@@ -73,6 +74,9 @@ impl Args {
 /// The main function for the `server` subcommand.
 pub async fn server(args: Args, mut config: Config) -> CommandResult<()> {
     args.apply(&mut config);
+    config
+        .validate()
+        .context("validating server configuration")?;
 
     // Validate that at least one source type is allowed
     if config.server.allowed_file_paths.is_empty() && config.server.allowed_urls.is_empty() {
