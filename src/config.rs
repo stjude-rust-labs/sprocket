@@ -389,10 +389,12 @@ impl ServerConfig {
             .collect::<Result<Vec<_>, _>>()?;
 
         // Add file paths to allowed URLs with a file:// prefix
-        let file_urls = self
-            .allowed_file_paths
-            .iter()
-            .map(|p| format!("file://{}", p.to_string_lossy()));
+        let file_urls = self.allowed_file_paths.iter().map(|p| {
+            Url::from_file_path(p)
+                .expect("canonical path should convert to file URL")
+                .to_string()
+        });
+
         self.allowed_urls.extend(file_urls);
 
         // Deduplicate and sort file paths
