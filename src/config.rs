@@ -405,8 +405,10 @@ impl ServerConfig {
             .collect::<Result<Vec<_>, _>>()?;
 
         // Add file URLs to allowed file paths
-        let file_paths = self.allowed_urls.iter().filter_map(|u| {
-            match Url::parse(u) {
+        let file_paths = self
+            .allowed_urls
+            .iter()
+            .filter_map(|u| match Url::parse(u) {
                 Ok(url) => match url.scheme() == "file" {
                     true => match url.to_file_path() {
                         Ok(path) => Some(Ok(path)),
@@ -416,13 +418,13 @@ impl ServerConfig {
                         ))),
                     },
                     false => None,
-                }
+                },
                 Err(e) => Some(Err(anyhow::anyhow!(
                     "failed to parse allowed URL `{}`: {e}",
                     u
                 ))),
-            }
-        }).collect::<Result<Vec<_>, _>>()?;
+            })
+            .collect::<Result<Vec<_>, _>>()?;
 
         self.allowed_file_paths.extend(file_paths);
         self.allowed_urls.extend(file_urls);
