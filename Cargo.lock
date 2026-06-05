@@ -6595,7 +6595,6 @@ dependencies = [
  "anyhow",
  "clap",
  "codespan-reporting",
- "toml-spanner",
  "wdl-ast",
  "wdl-engine",
 ]

@@ -7,9 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added printing diagnostics with TOML source context when TOML fails to parse 
+  or be deserialized ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+
+#### Changed
+
+* Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+
 ### Fixed
 
 * `sprocket dev server` will canonicalize paths passed as CLI arguments ([#913](https://github.com/stjude-rust-labs/sprocket/pull/913))
+
 
 ## 0.26.0 - 2026-06-03
 

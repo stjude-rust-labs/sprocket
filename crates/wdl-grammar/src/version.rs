@@ -43,7 +43,7 @@ impl FromStr for V1 {
             "1.2" => Ok(Self::Two),
             "1.3" => Ok(Self::Three),
             "1.4" => Ok(Self::Four),
-            _ => Err(format!("unsupported version `{s}`"))
+            _ => Err(format!("unsupported version `{s}`")),
         }
     }
 }
