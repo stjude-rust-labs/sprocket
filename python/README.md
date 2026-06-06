@@ -31,7 +31,7 @@
 
 ## 🖥️ Development
 
-`sprocket_bio` requires Python 3.9 or greater, which you can [install from python.org](https://www.python.org/downloads/) or from your favorite package manager. Once you have Python installed, you can set up your development environment with the following commands:
+`sprocket_bio` requires Python 3.10 or greater, which you can [install from python.org](https://www.python.org/downloads/) or from your favorite package manager. Once you have Python installed, you can set up your development environment with the following commands:
 
 ```bash
 # Create the Python virtual environment, installing the latest version of pip and setuptools.

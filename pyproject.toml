@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "sprocket_bio"
 readme = "python/README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
