@@ -7,7 +7,7 @@
     <a href="https://github.com/stjude-rust-labs/sprocket/actions/workflows/CI.yml" target="_blank">
       <img alt="CI: Status" src="https://github.com/stjude-rust-labs/sprocket/actions/workflows/CI.yml/badge.svg" />
     </a>
-    <a href="https://pypi.org/project/sprocket-py/" target="_blank">
+    <a href="https://pypi.org/project/sprocket_bio/" target="_blank">
       <img alt="PyPI: Version" src="https://img.shields.io/pypi/v/sprocket_bio">
     </a>
     <a href="https://rustseq.zulipchat.com/join/coxb7c7b3bbahlfx7poeqqrd/" target="_blank">
@@ -47,4 +47,4 @@ pip install maturin
 maturin develop
 ```
 
-The Python package is located at `python/sprocket_bio` (in this folder), and the Python extension that it bundles is compiled from `crates/sprocket_py`. Dependencies and additional metadata are specified in `pyproject.toml` and `crates/sprocket_py/Cargo.toml`.
+The Python package is located at `python/sprocket_bio` (in this folder), and the Python extension that it bundles is compiled from `crates/sprocket-py`. Dependencies and additional metadata are specified in `pyproject.toml` and `crates/sprocket-py/Cargo.toml`.
