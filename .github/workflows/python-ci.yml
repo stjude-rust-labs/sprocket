@@ -91,4 +91,4 @@ jobs:
           args: --locked
 
       - name: Check formatting
-        run: black --check
+        run: black --check python
