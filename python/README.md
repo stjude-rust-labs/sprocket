@@ -45,6 +45,16 @@ pip install maturin
 
 # Compile and install `sprocket_bio` in the virtual environment.
 maturin develop
+
+# Run unit tests.
+pytest
+
+# Check types and type stubs.
+mypy --package sprocket_bio
+python -m mypy.stubtest sprocket_bio
+
+# Format code.
+black python/
 ```
 
-The Python package is located at `python/sprocket_bio` (in this folder), and the Python extension that it bundles is compiled from `crates/sprocket-py`. Dependencies and additional metadata are specified in `pyproject.toml` and `crates/sprocket-py/Cargo.toml`.
+The Python package is located at `python/sprocket_bio` (in this folder), and the Python extension that it bundles is compiled from `crates/sprocket-py` using the [Maturin build system](https://www.maturin.rs). Dependencies and additional metadata are specified in `pyproject.toml` and `crates/sprocket-py/Cargo.toml`. Unit tests are defined in `python/tests` using the [`pytest`](https://docs.pytest.org) framework. Type and stub checking is performed by [`mypy`](https://mypy.readthedocs.io). Code formatting is performed by [`black`](https://black.readthedocs.io).

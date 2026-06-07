@@ -20,6 +20,22 @@ dynamic = ["version"]
 [project.urls]
 repository = "https://github.com/stjude-rust-labs/sprocket"
 
+# Dependencies for local development, not visible to downstream consumers.
+[dependency-groups]
+# Installed by default with `maturin develop`.
+dev = ["pytest~=9.0", "mypy~=2.1", "black~=26.5"]
+
 [tool.maturin]
 manifest-path = "crates/sprocket-py/Cargo.toml"
 python-source = "python"
+
+[tool.pytest]
+strict = true
+addopts = ["--import-mode=importlib"]
+testpaths = ["python/tests"]
+
+[tool.mypy]
+strict = true
+
+[tool.black]
+target-version = ["py310"]

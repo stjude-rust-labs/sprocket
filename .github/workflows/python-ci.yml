@@ -1,0 +1,94 @@
+name: Python CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+env:
+  RUST_BACKTRACE: full
+  CARGO_TERM_COLOR: always
+  IN_CI: 1
+  # Only include the debug info necessary for backtraces (file names and line numbers). Any extra
+  # debug info provided by `debuginfo=1` or `debuginfo=2` require an interactive debugger like
+  # `lldb` or `gdb`.
+  RUSTFLAGS: -C debuginfo=line-tables-only
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      
+      - name: Update Rust
+        run: rustup update stable && rustup default stable && rustup component add llvm-tools
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      - name: Build package
+        uses: PyO3/maturin-action@v1
+        with:
+          command: develop
+          args: --locked
+
+      - name: Run tests
+        run: pytest
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      
+      - name: Update Rust
+        run: rustup update stable && rustup default stable && rustup component add llvm-tools
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      - name: Build package
+        uses: PyO3/maturin-action@v1
+        with:
+          command: develop
+          args: --locked
+
+      - name: Check types
+        run: mypy --package sprocket_bio
+
+      - name: Check stubs
+        run: python -m mypy.stubtest sprocket_bio
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+      
+      - name: Update Rust
+        run: rustup update stable && rustup default stable && rustup component add llvm-tools
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      - name: Build package
+        uses: PyO3/maturin-action@v1
+        with:
+          command: develop
+          args: --locked
+
+      - name: Check formatting
+        run: black --check
