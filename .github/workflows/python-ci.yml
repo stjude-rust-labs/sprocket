@@ -38,7 +38,15 @@ jobs:
       - name: Create virtual environment
         run: python -m venv --upgrade-deps .venv
 
-      - name: Activate virtual environment
+      - name: Activate virtual environment (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        shell: bash
+        run: |
+          echo "VIRTUAL_ENV=$(pwd)\.venv" >> "${GITHUB_ENV}"
+          echo "$(pwd)\.venv\Scripts" >> "${GITHUB_PATH}"
+
+      - name: Activate virtual environment (non-Windows)
+        if: ${{ matrix.os != 'windows-latest' }}
         shell: bash
         run: |
           echo "VIRTUAL_ENV=$(pwd)/.venv" >> "${GITHUB_ENV}"
@@ -71,7 +79,6 @@ jobs:
         run: python -m venv --upgrade-deps .venv
 
       - name: Activate virtual environment
-        shell: bash
         run: |
           echo "VIRTUAL_ENV=$(pwd)/.venv" >> "${GITHUB_ENV}"
           echo "$(pwd)/.venv/bin" >> "${GITHUB_PATH}"
@@ -106,7 +113,6 @@ jobs:
         run: python -m venv --upgrade-deps .venv
 
       - name: Activate virtual environment
-        shell: bash
         run: |
           echo "VIRTUAL_ENV=$(pwd)/.venv" >> "${GITHUB_ENV}"
           echo "$(pwd)/.venv/bin" >> "${GITHUB_PATH}"
