@@ -35,6 +35,15 @@ jobs:
         with:
           python-version: "3.10"
 
+      - name: Create virtual environment
+        run: python -m venv --upgrade-deps .venv
+
+      - name: Activate virtual environment
+        shell: bash
+        run: |
+          echo "VIRTUAL_ENV=$(pwd)/.venv" >> "${GITHUB_ENV}"
+          echo "$(pwd)/.venv/bin" >> "${GITHUB_PATH}"
+
       - name: Build package
         uses: PyO3/maturin-action@v1
         with:
@@ -57,6 +66,15 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.10"
+
+      - name: Create virtual environment
+        run: python -m venv --upgrade-deps .venv
+
+      - name: Activate virtual environment
+        shell: bash
+        run: |
+          echo "VIRTUAL_ENV=$(pwd)/.venv" >> "${GITHUB_ENV}"
+          echo "$(pwd)/.venv/bin" >> "${GITHUB_PATH}"
 
       - name: Build package
         uses: PyO3/maturin-action@v1
@@ -83,6 +101,15 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.10"
+
+      - name: Create virtual environment
+        run: python -m venv --upgrade-deps .venv
+
+      - name: Activate virtual environment
+        shell: bash
+        run: |
+          echo "VIRTUAL_ENV=$(pwd)/.venv" >> "${GITHUB_ENV}"
+          echo "$(pwd)/.venv/bin" >> "${GITHUB_PATH}"
 
       - name: Build package
         uses: PyO3/maturin-action@v1
