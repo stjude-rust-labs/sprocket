@@ -40,14 +40,12 @@ jobs:
 
       - name: Activate virtual environment (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
-        shell: bash
         run: |
-          echo "VIRTUAL_ENV=$(pwd)\.venv" >> "${GITHUB_ENV}"
-          echo "$(pwd)\.venv\Scripts" >> "${GITHUB_PATH}"
+          Add-Content -Value "VIRTUAL_ENV=$PWD\.venv" -Path $Env:GITHUB_ENV
+          Add-Content -Value "$PWD\.venv\Scripts" -Path $Env:GITHUB_PATH
 
       - name: Activate virtual environment (non-Windows)
         if: ${{ matrix.os != 'windows-latest' }}
-        shell: bash
         run: |
           echo "VIRTUAL_ENV=$(pwd)/.venv" >> "${GITHUB_ENV}"
           echo "$(pwd)/.venv/bin" >> "${GITHUB_PATH}"
