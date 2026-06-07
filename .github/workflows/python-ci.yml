@@ -10,6 +10,7 @@ on:
 env:
   RUST_BACKTRACE: full
   CARGO_TERM_COLOR: always
+  FORCE_COLOR: 1
   IN_CI: 1
   # Only include the debug info necessary for backtraces (file names and line numbers). Any extra
   # debug info provided by `debuginfo=1` or `debuginfo=2` require an interactive debugger like
