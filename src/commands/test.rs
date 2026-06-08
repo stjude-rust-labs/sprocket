@@ -79,6 +79,10 @@ pub struct Args {
     /// fixtures will be loaded from `<workspace>/test/fixtures/` if it is
     /// present.
     ///
+    /// If a `<workspace>/test/` directory does not exist, one will be created
+    /// and it will contain a `runs/` directory for test executions, unless
+    /// otherwise specified.
+    ///
     /// If not specified and the `source` argument is a directory, it's assumed
     /// that directory is also the workspace. This can be specified in addition
     /// to a source directory if they are different.
