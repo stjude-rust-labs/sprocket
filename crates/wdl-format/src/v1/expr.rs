@@ -4,6 +4,7 @@ use wdl_ast::SyntaxKind;
 
 use crate::Config;
 use crate::PreToken;
+use crate::QuoteStyle;
 use crate::TokenStream;
 use crate::Writable as _;
 use crate::element::FormatElement;
@@ -163,51 +164,114 @@ pub fn format_literal_string(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
+    #[derive(Clone, Copy, Eq, PartialEq)]
+    enum QuoteKind {
+        Single,
+        Double,
+    }
+
+    fn preferred_quote_kind(style: QuoteStyle) -> Option<QuoteKind> {
+        match style {
+            QuoteStyle::Preserve => None,
+            QuoteStyle::Single => Some(QuoteKind::Single),
+            QuoteStyle::Double => Some(QuoteKind::Double),
+        }
+    }
+
+    fn converted_literal_string_text(text: &str, from: QuoteKind, to: QuoteKind) -> String {
+        if from == to {
+            return text.to_owned();
+        }
+
+        let mut replacement = String::new();
+        let mut chars = text.chars().peekable();
+        let mut prev_c = None;
+        while let Some(c) = chars.next() {
+            match (from, to, c) {
+                (QuoteKind::Single, QuoteKind::Double, '\\') => {
+                    if let Some(next_c) = chars.peek()
+                        && *next_c == '\''
+                    {
+                        // Do not write this backslash as single quotes don't need
+                        // escaping in a double-quoted string.
+                        prev_c = Some(c);
+                        continue;
+                    }
+                    replacement.push(c);
+                }
+                (QuoteKind::Single, QuoteKind::Double, '"') => {
+                    if prev_c.is_none_or(|c| c != '\\') {
+                        replacement.push('\\');
+                    }
+                    replacement.push(c);
+                }
+                (QuoteKind::Double, QuoteKind::Single, '\\') => {
+                    if let Some(next_c) = chars.peek()
+                        && *next_c == '"'
+                    {
+                        // Do not write this backslash as double quotes don't need
+                        // escaping in a single-quoted string.
+                        prev_c = Some(c);
+                        continue;
+                    }
+                    replacement.push(c);
+                }
+                (QuoteKind::Double, QuoteKind::Single, '\'') => {
+                    if prev_c.is_none_or(|c| c != '\\') {
+                        replacement.push('\\');
+                    }
+                    replacement.push(c);
+                }
+                _ => replacement.push(c),
+            }
+            prev_c = Some(c);
+        }
+
+        replacement
+    }
+
+    let target_quote_kind = preferred_quote_kind(config.quote_style);
+    let mut source_quote_kind = None;
+
     for child in element.children().expect("literal string children") {
         match child.element().kind() {
             SyntaxKind::SingleQuote => {
-                stream.push_literal_in_place_of_token(
-                    child.element().as_token().expect("token"),
-                    "\"".to_owned(),
-                );
+                source_quote_kind = Some(QuoteKind::Single);
+                match target_quote_kind {
+                    Some(QuoteKind::Double) => {
+                        stream.push_literal_in_place_of_token(
+                            child.element().as_token().expect("token"),
+                            "\"".to_owned(),
+                        );
+                    }
+                    _ => (&child).write(stream, config),
+                }
             }
-            SyntaxKind::OpenHeredoc | SyntaxKind::CloseHeredoc | SyntaxKind::DoubleQuote => {
+            SyntaxKind::DoubleQuote => {
+                source_quote_kind = Some(QuoteKind::Double);
+                match target_quote_kind {
+                    Some(QuoteKind::Single) => {
+                        stream.push_literal_in_place_of_token(
+                            child.element().as_token().expect("token"),
+                            "'".to_owned(),
+                        );
+                    }
+                    _ => (&child).write(stream, config),
+                }
+            }
+            SyntaxKind::OpenHeredoc | SyntaxKind::CloseHeredoc => {
+                source_quote_kind = None;
                 (&child).write(stream, config);
             }
             SyntaxKind::LiteralStringText => {
-                let mut replacement = String::new();
                 let syntax = child.element().inner();
-                let mut chars = syntax.as_token().expect("token").text().chars().peekable();
-                let mut prev_c = None;
-                while let Some(c) = chars.next() {
-                    match c {
-                        '\\' => {
-                            if let Some(next_c) = chars.peek()
-                                && *next_c == '\''
-                            {
-                                // Do not write this backslash as single quotes don't need
-                                // escaping in a double-quoted string (and we format all
-                                // LiteralStrings as double-quoted strings).
-                                prev_c = Some(c);
-                                continue;
-                            }
-                            replacement.push(c);
-                        }
-                        '"' => {
-                            if prev_c.is_none_or(|c| c != '\\') {
-                                // This double quote sign is not escaped, so we need to escape
-                                // it. This happens when a single quoted string is re-formatted
-                                // as a double quoted string.
-                                replacement.push('\\');
-                            }
-                            replacement.push(c);
-                        }
-                        _ => {
-                            replacement.push(c);
-                        }
+                let text = syntax.as_token().expect("token").text();
+                let replacement = match (source_quote_kind, target_quote_kind) {
+                    (Some(source), Some(target)) => {
+                        converted_literal_string_text(text, source, target)
                     }
-                    prev_c = Some(c);
-                }
+                    _ => text.to_owned(),
+                };
 
                 stream.push_literal_in_place_of_token(
                     child.element().as_token().expect("token"),

@@ -8,860 +8,860 @@ struct RuntimeEnvironment {
 
 workflow chip {
     meta {
-        version: "v2.2.2"
-        author: "Jin wook Lee"
-        email: "leepc12@gmail.com"
-        description: "ENCODE TF/Histone ChIP-Seq pipeline. See https://github.com/ENCODE-DCC/chip-seq-pipeline2 for more details. e.g. example input JSON for Terra/Anvil."
-        organization: "ENCODE DCC"
-        specification_document: "https://docs.google.com/document/d/1lG_Rd7fnYgRpSIqrIfuVlAz2dW1VaSQThzk836Db99c/edit?usp=sharing"
-        default_docker: "encodedcc/chip-seq-pipeline:v2.2.2"
-        default_singularity: "https://encode-pipeline-singularity-image.s3.us-west-2.amazonaws.com/chip-seq-pipeline_v2.2.2.sif"
-        croo_out_def: "https://storage.googleapis.com/encode-pipeline-output-definition/chip.croo.v5.json"
+        version: 'v2.2.2'
+        author: 'Jin wook Lee'
+        email: 'leepc12@gmail.com'
+        description: 'ENCODE TF/Histone ChIP-Seq pipeline. See https://github.com/ENCODE-DCC/chip-seq-pipeline2 for more details. e.g. example input JSON for Terra/Anvil.'
+        organization: 'ENCODE DCC'
+        specification_document: 'https://docs.google.com/document/d/1lG_Rd7fnYgRpSIqrIfuVlAz2dW1VaSQThzk836Db99c/edit?usp=sharing'
+        default_docker: 'encodedcc/chip-seq-pipeline:v2.2.2'
+        default_singularity: 'https://encode-pipeline-singularity-image.s3.us-west-2.amazonaws.com/chip-seq-pipeline_v2.2.2.sif'
+        croo_out_def: 'https://storage.googleapis.com/encode-pipeline-output-definition/chip.croo.v5.json'
         parameter_group: {
             runtime_environment: {
-                title: "Runtime environment",
-                description: "Runtime environment such as container URIs (Docker, Singularity) and Conda environment name.",
+                title: 'Runtime environment',
+                description: 'Runtime environment such as container URIs (Docker, Singularity) and Conda environment name.',
             },
             pipeline_metadata: {
-                title: "Pipeline metadata",
-                description: "Metadata for a pipeline (e.g. title and description).",
+                title: 'Pipeline metadata',
+                description: 'Metadata for a pipeline (e.g. title and description).',
             },
             reference_genome: {
-                title: "Reference genome",
-                description: "Genome specific files. e.g. reference FASTA, bowtie2 index, chromosome sizes file.",
-                help: "Choose one chip.genome_tsv file that defines all genome specific parameters in it or define each genome specific parameter in input JSON to override those defined in genome TSV file. If you use Caper then use https://storage.googleapis.com/encode-pipeline-genome-data/genome_tsv/v1/[GENOME]_caper.tsv. Caper will automatically download/install all files defined in such TSV. Otherwise download genome TSV file by using a shell script (scripts/download_genome_data.sh [GENOME] [DEST_DIR]). Supported genomes are hg38, hg19, mm10 and mm9. See pipeline documentation if you want to build genome database from your own FASTA file. If some genome data are missing then analyses using such data will be skipped.",
+                title: 'Reference genome',
+                description: 'Genome specific files. e.g. reference FASTA, bowtie2 index, chromosome sizes file.',
+                help: 'Choose one chip.genome_tsv file that defines all genome specific parameters in it or define each genome specific parameter in input JSON to override those defined in genome TSV file. If you use Caper then use https://storage.googleapis.com/encode-pipeline-genome-data/genome_tsv/v1/[GENOME]_caper.tsv. Caper will automatically download/install all files defined in such TSV. Otherwise download genome TSV file by using a shell script (scripts/download_genome_data.sh [GENOME] [DEST_DIR]). Supported genomes are hg38, hg19, mm10 and mm9. See pipeline documentation if you want to build genome database from your own FASTA file. If some genome data are missing then analyses using such data will be skipped.',
             },
             input_genomic_data: {
-                title: "Input genomic data",
-                description: "Genomic input files for experiment.",
-                help: "Pipeline can start with any types of experiment data (e.g. FASTQ, BAM, NODUP_BAM, TAG-ALIGN, PEAK). Choose one type and leave others empty. FASTQs have a variable for each biological replicate. e.g. chip.fastqs_rep1_R1 and chip.fastqs_rep2_R1. You can define up to 10 experiment replicates. For other types, there is an array to define file for each biological replicate. e.g. chip.bams: [\"rep1.bam\", \"rep1.bam\"]. Define sequential endedness with chip.paired_end, if you have mixed SE and PE replicates then define chip.paired_ends instead for each replicate. e.g. chip.paired_ends: [false, true].",
+                title: 'Input genomic data',
+                description: 'Genomic input files for experiment.',
+                help: 'Pipeline can start with any types of experiment data (e.g. FASTQ, BAM, NODUP_BAM, TAG-ALIGN, PEAK). Choose one type and leave others empty. FASTQs have a variable for each biological replicate. e.g. chip.fastqs_rep1_R1 and chip.fastqs_rep2_R1. You can define up to 10 experiment replicates. For other types, there is an array to define file for each biological replicate. e.g. chip.bams: ["rep1.bam", "rep1.bam"]. Define sequential endedness with chip.paired_end, if you have mixed SE and PE replicates then define chip.paired_ends instead for each replicate. e.g. chip.paired_ends: [false, true].',
             },
             input_genomic_data_control: {
-                title: "Input genomic data (control)",
-                description: "Genomic input files for control. TF ChIP-seq requires control for peak calling but histone ChIP-seq does not.",
-                help: "Pipeline can start with any types of control data (e.g. FASTQ, BAM, NODUP_BAM, TAG-ALIGN). Choose one type and leave others empty. FASTQs have a variable for each control replicate. e.g. chip.ctl_fastqs_rep1_R1 and chip.ctl_fastqs_rep2_R1. You can define up to 10 control replicates. For other types, there is an array to define file for each control replicate. e.g. chip.ctl_bams: [\"ctl1.bam\", \"ctl1.bam\"]. Define sequential endedness with chip.ctl_paired_end, if you have mixed SE and PE control replicates then define chip.ctl_paired_ends instead for each replicate. e.g. chip.ctl_paired_ends: [false, true]. If none of these are defined, pipeline will use chip.paired_end for controls.",
+                title: 'Input genomic data (control)',
+                description: 'Genomic input files for control. TF ChIP-seq requires control for peak calling but histone ChIP-seq does not.',
+                help: 'Pipeline can start with any types of control data (e.g. FASTQ, BAM, NODUP_BAM, TAG-ALIGN). Choose one type and leave others empty. FASTQs have a variable for each control replicate. e.g. chip.ctl_fastqs_rep1_R1 and chip.ctl_fastqs_rep2_R1. You can define up to 10 control replicates. For other types, there is an array to define file for each control replicate. e.g. chip.ctl_bams: ["ctl1.bam", "ctl1.bam"]. Define sequential endedness with chip.ctl_paired_end, if you have mixed SE and PE control replicates then define chip.ctl_paired_ends instead for each replicate. e.g. chip.ctl_paired_ends: [false, true]. If none of these are defined, pipeline will use chip.paired_end for controls.',
             },
             pipeline_parameter: {
-                title: "Pipeline parameter",
-                description: "Pipeline type and flags to turn on/off analyses.",
-                help: "Use chip.align_only to align FASTQs without peak calling.",
+                title: 'Pipeline parameter',
+                description: 'Pipeline type and flags to turn on/off analyses.',
+                help: 'Use chip.align_only to align FASTQs without peak calling.',
             },
             alignment: {
-                title: "Alignment",
-                description: "Parameters for alignment.",
-                help: "Pipeline can crop FASTQs (chip.crop_length > 0) with tolerance (chip.crop_length_tol) before mapping.",
+                title: 'Alignment',
+                description: 'Parameters for alignment.',
+                help: 'Pipeline can crop FASTQs (chip.crop_length > 0) with tolerance (chip.crop_length_tol) before mapping.',
             },
             peak_calling: {
-                title: "Peak calling",
-                description: "Parameters for peak calling.",
-                help: "This group includes statistical thresholds for peak-calling or post-peak-calling analyses: p-val, FDR, IDR. It also include parameters for control choosing/subsampling. All control replicates are pooled and pooled control is used for peak calling against each experiment replicate by default (see chip.always_use_pooled_ctl). Pipeline compares read depth of experiment replicate and a chosen control. It also compare read depth of controls. If control is too deep then it is subsampled.",
+                title: 'Peak calling',
+                description: 'Parameters for peak calling.',
+                help: 'This group includes statistical thresholds for peak-calling or post-peak-calling analyses: p-val, FDR, IDR. It also include parameters for control choosing/subsampling. All control replicates are pooled and pooled control is used for peak calling against each experiment replicate by default (see chip.always_use_pooled_ctl). Pipeline compares read depth of experiment replicate and a chosen control. It also compare read depth of controls. If control is too deep then it is subsampled.',
             },
             resource_parameter: {
-                title: "Resource parameter",
-                description: "Number of CPUs (threads), max. memory and walltime for tasks.",
-                help: "Resource settings are used for determining an instance type on cloud backends (e.g. GCP, AWS) and used for submitting tasks to a cluster engine (e.g. SLURM, SGE, ...). Walltime (chip.*_time_hr) is only used for cluster engines. Other tasks default to use 1 CPU and 4GB of memory.",
+                title: 'Resource parameter',
+                description: 'Number of CPUs (threads), max. memory and walltime for tasks.',
+                help: 'Resource settings are used for determining an instance type on cloud backends (e.g. GCP, AWS) and used for submitting tasks to a cluster engine (e.g. SLURM, SGE, ...). Walltime (chip.*_time_hr) is only used for cluster engines. Other tasks default to use 1 CPU and 4GB of memory.',
             },
         }
     }
 
     parameter_meta {
         docker: {
-            description: "Default Docker image URI to run WDL tasks.",
-            group: "runtime_environment",
-            example: "ubuntu:20.04",
+            description: 'Default Docker image URI to run WDL tasks.',
+            group: 'runtime_environment',
+            example: 'ubuntu:20.04',
         }
         singularity: {
-            description: "Default Singularity image URI to run WDL tasks. For Singularity users only.",
-            group: "runtime_environment",
-            example: "docker://ubuntu:20.04",
+            description: 'Default Singularity image URI to run WDL tasks. For Singularity users only.',
+            group: 'runtime_environment',
+            example: 'docker://ubuntu:20.04',
         }
         conda: {
-            description: "Default Conda environment name to run WDL tasks. For Conda users only.",
-            group: "runtime_environment",
-            example: "encd-chip",
+            description: 'Default Conda environment name to run WDL tasks. For Conda users only.',
+            group: 'runtime_environment',
+            example: 'encd-chip',
         }
         conda_macs2: {
-            description: "Conda environment name for task macs2. For Conda users only.",
-            group: "runtime_environment",
-            example: "encd-chip-macs2",
+            description: 'Conda environment name for task macs2. For Conda users only.',
+            group: 'runtime_environment',
+            example: 'encd-chip-macs2',
         }
         conda_spp: {
-            description: "Conda environment name for tasks spp/xcor. For Conda users only.",
-            group: "runtime_environment",
-            example: "encd-chip-spp",
+            description: 'Conda environment name for tasks spp/xcor. For Conda users only.',
+            group: 'runtime_environment',
+            example: 'encd-chip-spp',
         }
         title: {
-            description: "Experiment title.",
-            group: "pipeline_metadata",
-            example: "ENCSR936XTK (subsampled 1/50)",
+            description: 'Experiment title.',
+            group: 'pipeline_metadata',
+            example: 'ENCSR936XTK (subsampled 1/50)',
         }
         description: {
-            description: "Experiment description.",
-            group: "pipeline_metadata",
-            example: "ZNF143 ChIP-seq on human GM12878 (subsampled 1/50)",
+            description: 'Experiment description.',
+            group: 'pipeline_metadata',
+            example: 'ZNF143 ChIP-seq on human GM12878 (subsampled 1/50)',
         }
         genome_tsv: {
-            description: "Reference genome database TSV.",
-            group: "reference_genome",
-            help: "This TSV files includes all genome specific parameters (e.g. reference FASTA, bowtie2 index). You can still invidiaully define any parameters in it. Parameters defined in input JSON will override those defined in genome TSV.",
-            example: "https://storage.googleapis.com/encode-pipeline-genome-data/genome_tsv/v1/hg38_caper.tsv",
+            description: 'Reference genome database TSV.',
+            group: 'reference_genome',
+            help: 'This TSV files includes all genome specific parameters (e.g. reference FASTA, bowtie2 index). You can still invidiaully define any parameters in it. Parameters defined in input JSON will override those defined in genome TSV.',
+            example: 'https://storage.googleapis.com/encode-pipeline-genome-data/genome_tsv/v1/hg38_caper.tsv',
         }
         genome_name: {
-            description: "Genome name.",
-            group: "reference_genome",
+            description: 'Genome name.',
+            group: 'reference_genome',
         }
         ref_fa: {
-            description: "Reference FASTA file.",
-            group: "reference_genome",
+            description: 'Reference FASTA file.',
+            group: 'reference_genome',
         }
         bowtie2_idx_tar: {
-            description: "BWA index TAR file.",
-            group: "reference_genome",
+            description: 'BWA index TAR file.',
+            group: 'reference_genome',
         }
         custom_aligner_idx_tar: {
-            description: "Index TAR file for a custom aligner. To use a custom aligner, define \"chip.custom_align_py\" too.",
-            group: "reference_genome",
+            description: 'Index TAR file for a custom aligner. To use a custom aligner, define "chip.custom_align_py" too.',
+            group: 'reference_genome',
         }
         chrsz: {
-            description: "2-col chromosome sizes file.",
-            group: "reference_genome",
+            description: '2-col chromosome sizes file.',
+            group: 'reference_genome',
         }
         blacklist: {
-            description: "Blacklist file in BED format.",
-            group: "reference_genome",
-            help: "Peaks will be filtered with this file.",
+            description: 'Blacklist file in BED format.',
+            group: 'reference_genome',
+            help: 'Peaks will be filtered with this file.',
         }
         blacklist2: {
-            description: "Secondary blacklist file in BED format.",
-            group: "reference_genome",
-            help: "If it is defined, it will be merged with chip.blacklist. Peaks will be filtered with merged blacklist.",
+            description: 'Secondary blacklist file in BED format.',
+            group: 'reference_genome',
+            help: 'If it is defined, it will be merged with chip.blacklist. Peaks will be filtered with merged blacklist.',
         }
         mito_chr_name: {
-            description: "Mitochondrial chromosome name.",
-            group: "reference_genome",
-            help: "e.g. chrM, MT. Mitochondrial reads defined here will be filtered out during filtering BAMs in \"filter\" task.",
+            description: 'Mitochondrial chromosome name.',
+            group: 'reference_genome',
+            help: 'e.g. chrM, MT. Mitochondrial reads defined here will be filtered out during filtering BAMs in "filter" task.',
         }
         regex_bfilt_peak_chr_name: {
-            description: "Reg-ex for chromosomes to keep while filtering peaks.",
-            group: "reference_genome",
-            help: "Chromosomes defined here will be kept. All other chromosomes will be filtered out in .bfilt. peak file. This is done along with blacklist filtering peak file.",
+            description: 'Reg-ex for chromosomes to keep while filtering peaks.',
+            group: 'reference_genome',
+            help: 'Chromosomes defined here will be kept. All other chromosomes will be filtered out in .bfilt. peak file. This is done along with blacklist filtering peak file.',
         }
         gensz: {
-            description: "Genome sizes. \"hs\" for human, \"mm\" for mouse or sum of 2nd columnin chromosome sizes file.",
-            group: "reference_genome",
+            description: 'Genome sizes. "hs" for human, "mm" for mouse or sum of 2nd columnin chromosome sizes file.',
+            group: 'reference_genome',
         }
         paired_end: {
-            description: "Sequencing endedness.",
-            group: "input_genomic_data",
-            help: "Setting this on means that all replicates are paired ended. For mixed samples, use chip.paired_ends array instead.",
+            description: 'Sequencing endedness.',
+            group: 'input_genomic_data',
+            help: 'Setting this on means that all replicates are paired ended. For mixed samples, use chip.paired_ends array instead.',
             example: true,
         }
         paired_ends: {
-            description: "Sequencing endedness array (for mixed SE/PE datasets).",
-            group: "input_genomic_data",
-            help: "Whether each biological replicate is paired ended or not.",
+            description: 'Sequencing endedness array (for mixed SE/PE datasets).',
+            group: 'input_genomic_data',
+            help: 'Whether each biological replicate is paired ended or not.',
         }
         fastqs_rep1_R1: {
-            description: "Read1 FASTQs to be merged for a biological replicate 1.",
-            group: "input_genomic_data",
-            help: "Define if you want to start pipeline from FASTQs files. Pipeline can start from any type of inputs (e.g. FASTQs, BAMs, ...). Choose one type and fill paramters for that type and leave other undefined. Especially for FASTQs, we have individual variable for each biological replicate to allow FASTQs of technical replicates can be merged. Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep1_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a biological replicate 1.',
+            group: 'input_genomic_data',
+            help: 'Define if you want to start pipeline from FASTQs files. Pipeline can start from any type of inputs (e.g. FASTQs, BAMs, ...). Choose one type and fill paramters for that type and leave other undefined. Especially for FASTQs, we have individual variable for each biological replicate to allow FASTQs of technical replicates can be merged. Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep1_R2). These FASTQs are usually technical replicates to be merged.',
             example: [
-                "https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/rep1-R1.subsampled.50.fastq.gz",
+                'https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/rep1-R1.subsampled.50.fastq.gz',
             ],
         }
         fastqs_rep1_R2: {
-            description: "Read2 FASTQs to be merged for a biological replicate 1.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep1_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a biological replicate 1.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep1_R1). These FASTQs are usually technical replicates to be merged.',
             example: [
-                "https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/rep1-R2.subsampled.50.fastq.gz",
+                'https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/rep1-R2.subsampled.50.fastq.gz',
             ],
         }
         fastqs_rep2_R1: {
-            description: "Read1 FASTQs to be merged for a biological replicate 2.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep2_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a biological replicate 2.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep2_R2). These FASTQs are usually technical replicates to be merged.',
             example: [
-                "https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/rep2-R1.subsampled.50.fastq.gz",
+                'https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/rep2-R1.subsampled.50.fastq.gz',
             ],
         }
         fastqs_rep2_R2: {
-            description: "Read2 FASTQs to be merged for a biological replicate 2.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep2_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a biological replicate 2.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep2_R1). These FASTQs are usually technical replicates to be merged.',
             example: [
-                "https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/rep2-R2.subsampled.50.fastq.gz",
+                'https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/rep2-R2.subsampled.50.fastq.gz',
             ],
         }
         fastqs_rep3_R1: {
-            description: "Read1 FASTQs to be merged for a biological replicate 3.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep3_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a biological replicate 3.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep3_R2). These FASTQs are usually technical replicates to be merged.',
         }
         fastqs_rep3_R2: {
-            description: "Read2 FASTQs to be merged for a biological replicate 3.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep3_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a biological replicate 3.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep3_R1). These FASTQs are usually technical replicates to be merged.',
         }
         fastqs_rep4_R1: {
-            description: "Read1 FASTQs to be merged for a biological replicate 4.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep4_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a biological replicate 4.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep4_R2). These FASTQs are usually technical replicates to be merged.',
         }
         fastqs_rep4_R2: {
-            description: "Read2 FASTQs to be merged for a biological replicate 4.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep4_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a biological replicate 4.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep4_R1). These FASTQs are usually technical replicates to be merged.',
         }
         fastqs_rep5_R1: {
-            description: "Read1 FASTQs to be merged for a biological replicate 5.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep5_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a biological replicate 5.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep5_R2). These FASTQs are usually technical replicates to be merged.',
         }
         fastqs_rep5_R2: {
-            description: "Read2 FASTQs to be merged for a biological replicate 5.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep5_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a biological replicate 5.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep5_R1). These FASTQs are usually technical replicates to be merged.',
         }
         fastqs_rep6_R1: {
-            description: "Read1 FASTQs to be merged for a biological replicate 6.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep6_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a biological replicate 6.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep6_R2). These FASTQs are usually technical replicates to be merged.',
         }
         fastqs_rep6_R2: {
-            description: "Read2 FASTQs to be merged for a biological replicate 6.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep6_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a biological replicate 6.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep6_R1). These FASTQs are usually technical replicates to be merged.',
         }
         fastqs_rep7_R1: {
-            description: "Read1 FASTQs to be merged for a biological replicate 7.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep7_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a biological replicate 7.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep7_R2). These FASTQs are usually technical replicates to be merged.',
         }
         fastqs_rep7_R2: {
-            description: "Read2 FASTQs to be merged for a biological replicate 7.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep7_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a biological replicate 7.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep7_R1). These FASTQs are usually technical replicates to be merged.',
         }
         fastqs_rep8_R1: {
-            description: "Read1 FASTQs to be merged for a biological replicate 8.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep8_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a biological replicate 8.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep8_R2). These FASTQs are usually technical replicates to be merged.',
         }
         fastqs_rep8_R2: {
-            description: "Read2 FASTQs to be merged for a biological replicate 8.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep8_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a biological replicate 8.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep8_R1). These FASTQs are usually technical replicates to be merged.',
         }
         fastqs_rep9_R1: {
-            description: "Read1 FASTQs to be merged for a biological replicate 9.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep9_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a biological replicate 9.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep9_R2). These FASTQs are usually technical replicates to be merged.',
         }
         fastqs_rep9_R2: {
-            description: "Read2 FASTQs to be merged for a biological replicate 9.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep9_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a biological replicate 9.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep9_R1). These FASTQs are usually technical replicates to be merged.',
         }
         fastqs_rep10_R1: {
-            description: "Read1 FASTQs to be merged for a biological replicate 10.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep10_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a biological replicate 10.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.fastqs_rep10_R2). These FASTQs are usually technical replicates to be merged.',
         }
         fastqs_rep10_R2: {
-            description: "Read2 FASTQs to be merged for a biological replicate 10.",
-            group: "input_genomic_data",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep10_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a biological replicate 10.',
+            group: 'input_genomic_data',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.fastqs_rep10_R1). These FASTQs are usually technical replicates to be merged.',
         }
         bams: {
-            description: "List of unfiltered/raw BAM files for each biological replicate.",
-            group: "input_genomic_data",
-            help: "Define if you want to start pipeline from BAM files. Unfiltered/raw BAM file generated from aligner (e.g. bowtie2). Each entry for each biological replicate. e.g. [rep1.bam, rep2.bam, rep3.bam, ...].",
+            description: 'List of unfiltered/raw BAM files for each biological replicate.',
+            group: 'input_genomic_data',
+            help: 'Define if you want to start pipeline from BAM files. Unfiltered/raw BAM file generated from aligner (e.g. bowtie2). Each entry for each biological replicate. e.g. [rep1.bam, rep2.bam, rep3.bam, ...].',
         }
         nodup_bams: {
-            description: "List of filtered/deduped BAM files for each biological replicate",
-            group: "input_genomic_data",
-            help: "Define if you want to start pipeline from filtered BAM files. Filtered/deduped BAM file. Each entry for each biological replicate. e.g. [rep1.nodup.bam, rep2.nodup.bam, rep3.nodup.bam, ...].",
+            description: 'List of filtered/deduped BAM files for each biological replicate',
+            group: 'input_genomic_data',
+            help: 'Define if you want to start pipeline from filtered BAM files. Filtered/deduped BAM file. Each entry for each biological replicate. e.g. [rep1.nodup.bam, rep2.nodup.bam, rep3.nodup.bam, ...].',
         }
         tas: {
-            description: "List of TAG-ALIGN files for each biological replicate.",
-            group: "input_genomic_data",
-            help: "Define if you want to start pipeline from TAG-ALIGN files. TAG-ALIGN is in a 6-col BED format. It is a simplified version of BAM. Each entry for each biological replicate. e.g. [rep1.tagAlign.gz, rep2.tagAlign.gz, ...].",
+            description: 'List of TAG-ALIGN files for each biological replicate.',
+            group: 'input_genomic_data',
+            help: 'Define if you want to start pipeline from TAG-ALIGN files. TAG-ALIGN is in a 6-col BED format. It is a simplified version of BAM. Each entry for each biological replicate. e.g. [rep1.tagAlign.gz, rep2.tagAlign.gz, ...].',
         }
         peaks: {
-            description: "List of NARROWPEAK files (not blacklist filtered) for each biological replicate.",
-            group: "input_genomic_data",
-            help: "Define if you want to start pipeline from PEAK files. Each entry for each biological replicate. e.g. [rep1.narrowPeak.gz, rep2.narrowPeak.gz, ...]. Define other PEAK parameters (e.g. chip.peaks_pr1, chip.peak_pooled) according to your flag settings (e.g. chip.true_rep_only) and number of replicates. If you have more than one replicate then define chip.peak_pooled, chip.peak_ppr1 and chip.peak_ppr2. If chip.true_rep_only flag is on then do not define any parameters (chip.peaks_pr1, chip.peaks_pr2, chip.peak_ppr1 and chip.peak_ppr2) related to pseudo replicates.",
+            description: 'List of NARROWPEAK files (not blacklist filtered) for each biological replicate.',
+            group: 'input_genomic_data',
+            help: 'Define if you want to start pipeline from PEAK files. Each entry for each biological replicate. e.g. [rep1.narrowPeak.gz, rep2.narrowPeak.gz, ...]. Define other PEAK parameters (e.g. chip.peaks_pr1, chip.peak_pooled) according to your flag settings (e.g. chip.true_rep_only) and number of replicates. If you have more than one replicate then define chip.peak_pooled, chip.peak_ppr1 and chip.peak_ppr2. If chip.true_rep_only flag is on then do not define any parameters (chip.peaks_pr1, chip.peaks_pr2, chip.peak_ppr1 and chip.peak_ppr2) related to pseudo replicates.',
         }
         peaks_pr1: {
-            description: "List of NARROWPEAK files (not blacklist filtered) for pseudo-replicate 1 of each biological replicate.",
-            group: "input_genomic_data",
-            help: "Define if you want to start pipeline from PEAK files. Define if chip.true_rep_only flag is off.",
+            description: 'List of NARROWPEAK files (not blacklist filtered) for pseudo-replicate 1 of each biological replicate.',
+            group: 'input_genomic_data',
+            help: 'Define if you want to start pipeline from PEAK files. Define if chip.true_rep_only flag is off.',
         }
         peaks_pr2: {
-            description: "List of NARROWPEAK files (not blacklist filtered) for pseudo-replicate 2 of each biological replicate.",
-            group: "input_genomic_data",
-            help: "Define if you want to start pipeline from PEAK files. Define if chip.true_rep_only flag is off.",
+            description: 'List of NARROWPEAK files (not blacklist filtered) for pseudo-replicate 2 of each biological replicate.',
+            group: 'input_genomic_data',
+            help: 'Define if you want to start pipeline from PEAK files. Define if chip.true_rep_only flag is off.',
         }
         peak_pooled: {
-            description: "NARROWPEAK file for pooled true replicate.",
-            group: "input_genomic_data",
-            help: "Define if you want to start pipeline from PEAK files. Define if you have multiple biological replicates. Pooled true replicate means analysis on pooled biological replicates.",
+            description: 'NARROWPEAK file for pooled true replicate.',
+            group: 'input_genomic_data',
+            help: 'Define if you want to start pipeline from PEAK files. Define if you have multiple biological replicates. Pooled true replicate means analysis on pooled biological replicates.',
         }
         peak_ppr1: {
-            description: "NARROWPEAK file for pooled pseudo replicate 1.",
-            group: "input_genomic_data",
-            help: "Define if you want to start pipeline from PEAK files. Define if you have multiple biological replicates and chip.true_rep_only flag is off. PPR1 means analysis on pooled 1st pseudo replicates. Each biological replicate is shuf/split into two pseudos. This is a pooling of each replicate's 1st pseudos.",
+            description: 'NARROWPEAK file for pooled pseudo replicate 1.',
+            group: 'input_genomic_data',
+            help: 'Define if you want to start pipeline from PEAK files. Define if you have multiple biological replicates and chip.true_rep_only flag is off. PPR1 means analysis on pooled 1st pseudo replicates. Each biological replicate is shuf/split into two pseudos. This is a pooling of each replicate\'s 1st pseudos.',
         }
         peak_ppr2: {
-            description: "NARROWPEAK file for pooled pseudo replicate 2.",
-            group: "input_genomic_data",
-            help: "Define if you want to start pipeline from PEAK files. Define if you have multiple biological replicates and chip.true_rep_only flag is off. PPR1 means analysis on pooled 2nd pseudo replicates. Each biological replicate is shuf/split into two pseudos. This is a pooling of each replicate's 2nd pseudos.",
+            description: 'NARROWPEAK file for pooled pseudo replicate 2.',
+            group: 'input_genomic_data',
+            help: 'Define if you want to start pipeline from PEAK files. Define if you have multiple biological replicates and chip.true_rep_only flag is off. PPR1 means analysis on pooled 2nd pseudo replicates. Each biological replicate is shuf/split into two pseudos. This is a pooling of each replicate\'s 2nd pseudos.',
         }
         ctl_paired_end: {
-            description: "Sequencing endedness for all controls.",
-            group: "input_genomic_data_control",
-            help: "Setting this on means that all control replicates are paired ended. For mixed controls, use chip.ctl_paired_ends array instead.",
+            description: 'Sequencing endedness for all controls.',
+            group: 'input_genomic_data_control',
+            help: 'Setting this on means that all control replicates are paired ended. For mixed controls, use chip.ctl_paired_ends array instead.',
         }
         ctl_paired_ends: {
-            description: "Sequencing endedness array for mixed SE/PE controls.",
-            group: "input_genomic_data_control",
-            help: "Whether each control replicate is paired ended or not.",
+            description: 'Sequencing endedness array for mixed SE/PE controls.',
+            group: 'input_genomic_data_control',
+            help: 'Whether each control replicate is paired ended or not.',
         }
         ctl_fastqs_rep1_R1: {
-            description: "Read1 FASTQs to be merged for a control replicate 1.",
-            group: "input_genomic_data_control",
-            help: "Define if you want to start pipeline from FASTQs files. Pipeline can start from any type of controls (e.g. FASTQs, BAMs, ...). Choose one type and fill paramters for that type and leave other undefined.  Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep1_R2).",
+            description: 'Read1 FASTQs to be merged for a control replicate 1.',
+            group: 'input_genomic_data_control',
+            help: 'Define if you want to start pipeline from FASTQs files. Pipeline can start from any type of controls (e.g. FASTQs, BAMs, ...). Choose one type and fill paramters for that type and leave other undefined.  Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep1_R2).',
             example: [
-                "https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/ctl1-R1.subsampled.80.fastq.gz",
+                'https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/ctl1-R1.subsampled.80.fastq.gz',
             ],
         }
         ctl_fastqs_rep1_R2: {
-            description: "Read2 FASTQs to be merged for a control replicate 1.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep1_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a control replicate 1.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep1_R1). These FASTQs are usually technical replicates to be merged.',
             example: [
-                "https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/ctl1-R2.subsampled.80.fastq.gz",
+                'https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/ctl1-R2.subsampled.80.fastq.gz',
             ],
         }
         ctl_fastqs_rep2_R1: {
-            description: "Read1 FASTQs to be merged for a control replicate 2.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep2_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a control replicate 2.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep2_R2). These FASTQs are usually technical replicates to be merged.',
             example: [
-                "https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/ctl2-R1.subsampled.80.fastq.gz",
+                'https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/ctl2-R1.subsampled.80.fastq.gz',
             ],
         }
         ctl_fastqs_rep2_R2: {
-            description: "Read2 FASTQs to be merged for a control replicate 2.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep2_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a control replicate 2.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep2_R1). These FASTQs are usually technical replicates to be merged.',
             example: [
-                "https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/ctl2-R2.subsampled.80.fastq.gz",
+                'https://storage.googleapis.com/encode-pipeline-test-samples/encode-chip-seq-pipeline/ENCSR936XTK/fastq_subsampled/ctl2-R2.subsampled.80.fastq.gz',
             ],
         }
         ctl_fastqs_rep3_R1: {
-            description: "Read1 FASTQs to be merged for a control replicate 3.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep3_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a control replicate 3.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep3_R2). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_fastqs_rep3_R2: {
-            description: "Read2 FASTQs to be merged for a control replicate 3.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep3_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a control replicate 3.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep3_R1). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_fastqs_rep4_R1: {
-            description: "Read1 FASTQs to be merged for a control replicate 4.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep4_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a control replicate 4.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep4_R2). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_fastqs_rep4_R2: {
-            description: "Read2 FASTQs to be merged for a control replicate 4.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep4_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a control replicate 4.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep4_R1). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_fastqs_rep5_R1: {
-            description: "Read1 FASTQs to be merged for a control replicate 5.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep5_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a control replicate 5.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep5_R2). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_fastqs_rep5_R2: {
-            description: "Read2 FASTQs to be merged for a control replicate 5.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep5_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a control replicate 5.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep5_R1). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_fastqs_rep6_R1: {
-            description: "Read1 FASTQs to be merged for a control replicate 6.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep6_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a control replicate 6.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep6_R2). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_fastqs_rep6_R2: {
-            description: "Read2 FASTQs to be merged for a control replicate 6.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep6_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a control replicate 6.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep6_R1). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_fastqs_rep7_R1: {
-            description: "Read1 FASTQs to be merged for a control replicate 7.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep7_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a control replicate 7.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep7_R2). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_fastqs_rep7_R2: {
-            description: "Read2 FASTQs to be merged for a control replicate 7.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep7_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a control replicate 7.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep7_R1). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_fastqs_rep8_R1: {
-            description: "Read1 FASTQs to be merged for a control replicate 8.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep8_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a control replicate 8.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep8_R2). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_fastqs_rep8_R2: {
-            description: "Read2 FASTQs to be merged for a control replicate 8.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep8_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a control replicate 8.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep8_R1). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_fastqs_rep9_R1: {
-            description: "Read1 FASTQs to be merged for a control replicate 9.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep9_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a control replicate 9.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep9_R2). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_fastqs_rep9_R2: {
-            description: "Read2 FASTQs to be merged for a control replicate 9.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep9_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a control replicate 9.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep9_R1). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_fastqs_rep10_R1: {
-            description: "Read1 FASTQs to be merged for a control replicate 10.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep10_R2). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read1 FASTQs to be merged for a control replicate 10.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read2 FASTQs (chip.ctl_fastqs_rep10_R2). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_fastqs_rep10_R2: {
-            description: "Read2 FASTQs to be merged for a control replicate 10.",
-            group: "input_genomic_data_control",
-            help: "Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep10_R1). These FASTQs are usually technical replicates to be merged.",
+            description: 'Read2 FASTQs to be merged for a control replicate 10.',
+            group: 'input_genomic_data_control',
+            help: 'Make sure that they are consistent with read1 FASTQs (chip.ctl_fastqs_rep10_R1). These FASTQs are usually technical replicates to be merged.',
         }
         ctl_bams: {
-            description: "List of unfiltered/raw BAM files for each control replicate.",
-            group: "input_genomic_data_control",
-            help: "Define if you want to start pipeline from BAM files. Unfiltered/raw BAM file generated from aligner (e.g. bowtie2). Each entry for each control replicate. e.g. [ctl1.bam, ctl2.bam, ctl3.bam, ...].",
+            description: 'List of unfiltered/raw BAM files for each control replicate.',
+            group: 'input_genomic_data_control',
+            help: 'Define if you want to start pipeline from BAM files. Unfiltered/raw BAM file generated from aligner (e.g. bowtie2). Each entry for each control replicate. e.g. [ctl1.bam, ctl2.bam, ctl3.bam, ...].',
         }
         ctl_nodup_bams: {
-            description: "List of filtered/deduped BAM files for each control replicate",
-            group: "input_genomic_data_control",
-            help: "Define if you want to start pipeline from filtered BAM files. Filtered/deduped BAM file. Each entry for each control replicate. e.g. [ctl1.nodup.bam, ctl2.nodup.bam, ctl3.nodup.bam, ...].",
+            description: 'List of filtered/deduped BAM files for each control replicate',
+            group: 'input_genomic_data_control',
+            help: 'Define if you want to start pipeline from filtered BAM files. Filtered/deduped BAM file. Each entry for each control replicate. e.g. [ctl1.nodup.bam, ctl2.nodup.bam, ctl3.nodup.bam, ...].',
         }
         ctl_tas: {
-            description: "List of TAG-ALIGN files for each biological replicate.",
-            group: "input_genomic_data_control",
-            help: "Define if you want to start pipeline from TAG-ALIGN files. TAG-ALIGN is in a 6-col BED format. It is a simplified version of BAM. Each entry for each control replicate. e.g. [ctl1.tagAlign.gz, ctl2.tagAlign.gz, ...].",
+            description: 'List of TAG-ALIGN files for each biological replicate.',
+            group: 'input_genomic_data_control',
+            help: 'Define if you want to start pipeline from TAG-ALIGN files. TAG-ALIGN is in a 6-col BED format. It is a simplified version of BAM. Each entry for each control replicate. e.g. [ctl1.tagAlign.gz, ctl2.tagAlign.gz, ...].',
         }
         pipeline_type: {
-            description: "Pipeline type. tf for TF ChIP-Seq, histone for Histone ChIP-Seq or control for mapping controls only.",
-            group: "pipeline_parameter",
-            help: "Default peak caller is different for each type. spp For TF ChIP-Seq and macs2 for histone ChIP-Seq. Regardless of pipeline type, spp always requires controls but macs2 doesn't. For control mode, chip.align_only is automatically turned on and cross-correlation analysis is disabled. Do not define ctl_* for control mode. Define fastqs_repX_RY instead.",
+            description: 'Pipeline type. tf for TF ChIP-Seq, histone for Histone ChIP-Seq or control for mapping controls only.',
+            group: 'pipeline_parameter',
+            help: 'Default peak caller is different for each type. spp For TF ChIP-Seq and macs2 for histone ChIP-Seq. Regardless of pipeline type, spp always requires controls but macs2 doesn\'t. For control mode, chip.align_only is automatically turned on and cross-correlation analysis is disabled. Do not define ctl_* for control mode. Define fastqs_repX_RY instead.',
             choices: [
-                "tf",
-                "histone",
-                "control",
+                'tf',
+                'histone',
+                'control',
             ],
-            example: "tf",
+            example: 'tf',
         }
         redact_nodup_bam: {
-            description: "Redact filtered/nodup BAM.",
-            group: "pipeline_parameter",
-            help: "Redact filtered/nodup BAM at the end of the filtering step (task filter). Raw BAM from the aligner (task align) will still remain unredacted. Quality metrics on filtered BAM will be calculated before being redacted. However, all downstream analyses (e.g. peak-calling) will be done on the redacted BAM. If you start from nodup BAM then this flag will not be active.",
+            description: 'Redact filtered/nodup BAM.',
+            group: 'pipeline_parameter',
+            help: 'Redact filtered/nodup BAM at the end of the filtering step (task filter). Raw BAM from the aligner (task align) will still remain unredacted. Quality metrics on filtered BAM will be calculated before being redacted. However, all downstream analyses (e.g. peak-calling) will be done on the redacted BAM. If you start from nodup BAM then this flag will not be active.',
         }
         align_only: {
-            description: "Align only mode.",
-            group: "pipeline_parameter",
-            help: "Reads will be aligned but there will be no peak-calling on them. It is turned on automatically if chip.pipeline_type is control.",
+            description: 'Align only mode.',
+            group: 'pipeline_parameter',
+            help: 'Reads will be aligned but there will be no peak-calling on them. It is turned on automatically if chip.pipeline_type is control.',
         }
         true_rep_only: {
-            description: "Disables all analyses related to pseudo-replicates.",
-            group: "pipeline_parameter",
-            help: "Pipeline generates 2 pseudo-replicate from one biological replicate. This flag turns off all analyses related to pseudos (with prefix/suffix pr, ppr).",
+            description: 'Disables all analyses related to pseudo-replicates.',
+            group: 'pipeline_parameter',
+            help: 'Pipeline generates 2 pseudo-replicate from one biological replicate. This flag turns off all analyses related to pseudos (with prefix/suffix pr, ppr).',
         }
         enable_count_signal_track: {
-            description: "Enables generation of count signal tracks.",
-            group: "pipeline_parameter",
+            description: 'Enables generation of count signal tracks.',
+            group: 'pipeline_parameter',
         }
         enable_jsd: {
-            description: "Enables Jensen-Shannon Distance (JSD) plot generation.",
-            group: "pipeline_parameter",
+            description: 'Enables Jensen-Shannon Distance (JSD) plot generation.',
+            group: 'pipeline_parameter',
         }
         enable_gc_bias: {
-            description: "Enables GC bias calculation.",
-            group: "pipeline_parameter",
+            description: 'Enables GC bias calculation.',
+            group: 'pipeline_parameter',
         }
         aligner: {
-            description: "Aligner. bowtie2, bwa or custom",
-            group: "alignment",
-            help: "It is bowtie2 by default. To use a custom aligner, define chip.custom_align_py and chip.custom_aligner_idx_tar.",
+            description: 'Aligner. bowtie2, bwa or custom',
+            group: 'alignment',
+            help: 'It is bowtie2 by default. To use a custom aligner, define chip.custom_align_py and chip.custom_aligner_idx_tar.',
             choices: [
-                "bowtie2",
-                "bwa",
-                "custom",
+                'bowtie2',
+                'bwa',
+                'custom',
             ],
-            example: "bowtie2",
+            example: 'bowtie2',
         }
         custom_align_py: {
-            description: "Python script for a custom aligner.",
-            group: "alignment",
-            help: "There is a template included in the documentation for inputs. Defining this parameter will automatically change \"chip.aligner\" to \"custom\". You should also define \"chip.custom_aligner_idx_tar\".",
+            description: 'Python script for a custom aligner.',
+            group: 'alignment',
+            help: 'There is a template included in the documentation for inputs. Defining this parameter will automatically change "chip.aligner" to "custom". You should also define "chip.custom_aligner_idx_tar".',
         }
         use_bwa_mem_for_pe: {
-            description: "For paired end dataset with read length >= chip.bwa_mem_read_len_limit (default 70) bp, use bwa mem instead of bwa aln.",
-            group: "alignment",
-            help: "Use it only for paired end reads >= chip.bwa_mem_read_len_limit (default 70) bp. Otherwise keep using bwa aln.",
+            description: 'For paired end dataset with read length >= chip.bwa_mem_read_len_limit (default 70) bp, use bwa mem instead of bwa aln.',
+            group: 'alignment',
+            help: 'Use it only for paired end reads >= chip.bwa_mem_read_len_limit (default 70) bp. Otherwise keep using bwa aln.',
         }
         bwa_mem_read_len_limit: {
-            description: "Read length limit for bwa mem (for PE FASTQs only).",
-            group: "alignment",
-            help: "If chip.use_bwa_mem_for_pe is activated and reads are shorter than this limit, then bwa aln will be used instead of bwa mem.",
+            description: 'Read length limit for bwa mem (for PE FASTQs only).',
+            group: 'alignment',
+            help: 'If chip.use_bwa_mem_for_pe is activated and reads are shorter than this limit, then bwa aln will be used instead of bwa mem.',
         }
         use_bowtie2_local_mode: {
-            description: "Use bowtie2's local mode (soft-clipping).",
-            group: "alignment",
-            help: "This will add --local to bowtie2 command line so that it will replace the default end-to-end mode.",
+            description: 'Use bowtie2\'s local mode (soft-clipping).',
+            group: 'alignment',
+            help: 'This will add --local to bowtie2 command line so that it will replace the default end-to-end mode.',
         }
         crop_length: {
-            description: "Crop FASTQs' reads longer than this length.",
-            group: "alignment",
-            help: "Also drop all reads shorter than chip.crop_length - chip.crop_length_tol.",
+            description: 'Crop FASTQs\' reads longer than this length.',
+            group: 'alignment',
+            help: 'Also drop all reads shorter than chip.crop_length - chip.crop_length_tol.',
         }
         crop_length_tol: {
-            description: "Tolerance for cropping reads in FASTQs.",
-            group: "alignment",
-            help: "Drop all reads shorter than chip.crop_length - chip.crop_length_tol. Activated only when chip.crop_length is defined.",
+            description: 'Tolerance for cropping reads in FASTQs.',
+            group: 'alignment',
+            help: 'Drop all reads shorter than chip.crop_length - chip.crop_length_tol. Activated only when chip.crop_length is defined.',
         }
         trimmomatic_phred_score_format: {
-            description: "Base encoding (format) for Phred score in FASTQs.",
-            group: "alignment",
+            description: 'Base encoding (format) for Phred score in FASTQs.',
+            group: 'alignment',
             choices: [
-                "auto",
-                "phred33",
-                "phred64",
+                'auto',
+                'phred33',
+                'phred64',
             ],
-            help: "This is used for Trimmomatic only. It is auto by default, which means that Trimmomatic automatically detect it from FASTQs. Otherwise -phred33 or -phred64 will be passed to the Trimmomatic command line. Use this if you see an error like \"Error: Unable to detect quality encoding\".",
+            help: 'This is used for Trimmomatic only. It is auto by default, which means that Trimmomatic automatically detect it from FASTQs. Otherwise -phred33 or -phred64 will be passed to the Trimmomatic command line. Use this if you see an error like "Error: Unable to detect quality encoding".',
         }
         xcor_trim_bp: {
-            description: "Trim experiment read1 FASTQ (for both SE and PE) for cross-correlation analysis.",
-            group: "alignment",
-            help: "This does not affect alignment of experimental/control replicates. Pipeline additionaly aligns R1 FASTQ only for cross-correlation analysis only. This parameter is used for it.",
+            description: 'Trim experiment read1 FASTQ (for both SE and PE) for cross-correlation analysis.',
+            group: 'alignment',
+            help: 'This does not affect alignment of experimental/control replicates. Pipeline additionaly aligns R1 FASTQ only for cross-correlation analysis only. This parameter is used for it.',
         }
         use_filt_pe_ta_for_xcor: {
-            description: "Use filtered PE BAM for cross-correlation analysis.",
-            group: "alignment",
-            help: "If not defined, pipeline uses SE BAM generated from trimmed read1 FASTQ for cross-correlation analysis.",
+            description: 'Use filtered PE BAM for cross-correlation analysis.',
+            group: 'alignment',
+            help: 'If not defined, pipeline uses SE BAM generated from trimmed read1 FASTQ for cross-correlation analysis.',
         }
         dup_marker: {
-            description: "Marker for duplicate reads. picard or sambamba.",
-            group: "alignment",
-            help: "picard for Picard MarkDuplicates or sambamba for sambamba markdup.",
+            description: 'Marker for duplicate reads. picard or sambamba.',
+            group: 'alignment',
+            help: 'picard for Picard MarkDuplicates or sambamba for sambamba markdup.',
             choices: [
-                "picard",
-                "sambamba",
+                'picard',
+                'sambamba',
             ],
-            example: "picard",
+            example: 'picard',
         }
         no_dup_removal: {
-            description: "Disable removal of duplicate reads during filtering BAM.",
-            group: "alignment",
-            help: "Duplicate reads are filtererd out during filtering BAMs to gerenate NODUP_BAM. This flag will keep all duplicate reads in NODUP_BAM. This flag does not affect naming of NODUP_BAM. NODUP_BAM will still have .nodup. suffix in its filename.",
+            description: 'Disable removal of duplicate reads during filtering BAM.',
+            group: 'alignment',
+            help: 'Duplicate reads are filtererd out during filtering BAMs to gerenate NODUP_BAM. This flag will keep all duplicate reads in NODUP_BAM. This flag does not affect naming of NODUP_BAM. NODUP_BAM will still have .nodup. suffix in its filename.',
         }
         mapq_thresh: {
-            description: "Threshold for low MAPQ reads removal.",
-            group: "alignment",
-            help: "Low MAPQ reads are filtered out while filtering BAM.",
+            description: 'Threshold for low MAPQ reads removal.',
+            group: 'alignment',
+            help: 'Low MAPQ reads are filtered out while filtering BAM.',
         }
         filter_chrs: {
-            description: "List of chromosomes to be filtered out while filtering BAM.",
-            group: "alignment",
-            help: "It is empty by default, hence no filtering out of specfic chromosomes. It is case-sensitive. Use exact word for chromosome names.",
+            description: 'List of chromosomes to be filtered out while filtering BAM.',
+            group: 'alignment',
+            help: 'It is empty by default, hence no filtering out of specfic chromosomes. It is case-sensitive. Use exact word for chromosome names.',
         }
         subsample_reads: {
-            description: "Subsample reads. Shuffle and subsample reads.",
-            group: "alignment",
-            help: "This affects all downstream analyses after filtering experiment BAM. (e.g. all TAG-ALIGN files, peak-calling). Reads will be shuffled only if actual number of reads in BAM exceeds this number. 0 means disabled.",
+            description: 'Subsample reads. Shuffle and subsample reads.',
+            group: 'alignment',
+            help: 'This affects all downstream analyses after filtering experiment BAM. (e.g. all TAG-ALIGN files, peak-calling). Reads will be shuffled only if actual number of reads in BAM exceeds this number. 0 means disabled.',
         }
         ctl_subsample_reads: {
-            description: "Subsample control reads. Shuffle and subsample control reads.",
-            group: "alignment",
-            help: "This affects all downstream analyses after filtering control BAM. (e.g. all TAG-ALIGN files, peak-calling). Reads will be shuffled only if actual number of reads in BAM exceeds this number. 0 means disabled.",
+            description: 'Subsample control reads. Shuffle and subsample control reads.',
+            group: 'alignment',
+            help: 'This affects all downstream analyses after filtering control BAM. (e.g. all TAG-ALIGN files, peak-calling). Reads will be shuffled only if actual number of reads in BAM exceeds this number. 0 means disabled.',
         }
         xcor_subsample_reads: {
-            description: "Subsample reads for cross-corrlelation analysis only.",
-            group: "alignment",
-            help: "This does not affect downstream analyses after filtering BAM. It is for cross-correlation analysis only.  0 means disabled.",
+            description: 'Subsample reads for cross-corrlelation analysis only.',
+            group: 'alignment',
+            help: 'This does not affect downstream analyses after filtering BAM. It is for cross-correlation analysis only.  0 means disabled.',
         }
         xcor_exclusion_range_min: {
-            description: "Exclusion minimum for cross-correlation analysis.",
-            group: "alignment",
-            help: "For run_spp.R -s. Make sure that it is consistent with default strand shift -s=-500:5:1500 in run_spp.R.",
+            description: 'Exclusion minimum for cross-correlation analysis.',
+            group: 'alignment',
+            help: 'For run_spp.R -s. Make sure that it is consistent with default strand shift -s=-500:5:1500 in run_spp.R.',
         }
         xcor_exclusion_range_max: {
-            description: "Exclusion maximum for cross-coorrelation analysis.",
-            group: "alignment",
-            help: "For run_spp.R -s. If not defined default value of `max(read length + 10, 50)` for TF and `max(read_len + 10, 100)` for histone are used",
+            description: 'Exclusion maximum for cross-coorrelation analysis.',
+            group: 'alignment',
+            help: 'For run_spp.R -s. If not defined default value of `max(read length + 10, 50)` for TF and `max(read_len + 10, 100)` for histone are used',
         }
         pseudoreplication_random_seed: {
-            description: "Random seed (positive integer) used for pseudo-replication (shuffling reads in TAG-ALIGN and then split it into two).",
-            group: "alignment",
-            help: "Pseudo-replication (task spr) is done by using GNU \"shuf --random-source=sha256(random_seed)\". If this parameter == 0, then pipeline uses input TAG-ALIGN file's size (in bytes) for the random_seed.",
+            description: 'Random seed (positive integer) used for pseudo-replication (shuffling reads in TAG-ALIGN and then split it into two).',
+            group: 'alignment',
+            help: 'Pseudo-replication (task spr) is done by using GNU "shuf --random-source=sha256(random_seed)". If this parameter == 0, then pipeline uses input TAG-ALIGN file\'s size (in bytes) for the random_seed.',
         }
         ctl_depth_limit: {
-            description: "Hard limit for chosen control's depth.",
-            group: "peak_calling",
-            help: "If control chosen by chip.always_use_pooled_ctl and chip.ctl_depth_ratio is deeper than this hard limit, then such control is subsampled.",
+            description: 'Hard limit for chosen control\'s depth.',
+            group: 'peak_calling',
+            help: 'If control chosen by chip.always_use_pooled_ctl and chip.ctl_depth_ratio is deeper than this hard limit, then such control is subsampled.',
         }
         exp_ctl_depth_ratio_limit: {
-            description: "Second limit for chosen control's depth.",
-            group: "peak_calling",
-            help: "If control chosen by chip.always_use_pooled_ctl and chip.ctl_depth_ratio is deeper than experiment replicate's read depth multiplied by this factor then such control is subsampled down to maximum of multiplied value and hard limit chip.ctl_depth_limit.",
+            description: 'Second limit for chosen control\'s depth.',
+            group: 'peak_calling',
+            help: 'If control chosen by chip.always_use_pooled_ctl and chip.ctl_depth_ratio is deeper than experiment replicate\'s read depth multiplied by this factor then such control is subsampled down to maximum of multiplied value and hard limit chip.ctl_depth_limit.',
         }
         fraglen: {
-            description: "Fragment length for each biological replicate.",
-            group: "peak_calling",
-            help: "Fragment length is estimated by cross-correlation analysis, which is valid only when pipeline started from FASTQs. If defined, fragment length estimated by cross-correlation analysis is ignored.",
+            description: 'Fragment length for each biological replicate.',
+            group: 'peak_calling',
+            help: 'Fragment length is estimated by cross-correlation analysis, which is valid only when pipeline started from FASTQs. If defined, fragment length estimated by cross-correlation analysis is ignored.',
         }
         peak_caller: {
-            description: "Peak caller.",
-            group: "peak_calling",
-            help: "It is spp and macs2 by default for TF ChIP-seq and histone ChIP-seq, respectively. e.g. you can use macs2 for TF ChIP-Seq even though spp is by default for TF ChIP-Seq (chip.pipeline_type == tf).",
-            example: "spp",
+            description: 'Peak caller.',
+            group: 'peak_calling',
+            help: 'It is spp and macs2 by default for TF ChIP-seq and histone ChIP-seq, respectively. e.g. you can use macs2 for TF ChIP-Seq even though spp is by default for TF ChIP-Seq (chip.pipeline_type == tf).',
+            example: 'spp',
         }
         always_use_pooled_ctl: {
-            description: "Always choose a pooled control for each experiment replicate.",
-            group: "peak_calling",
-            help: "If turned on, ignores chip.ctl_depth_ratio.",
+            description: 'Always choose a pooled control for each experiment replicate.',
+            group: 'peak_calling',
+            help: 'If turned on, ignores chip.ctl_depth_ratio.',
         }
         ctl_depth_ratio: {
-            description: "Maximum depth ratio between control replicates.",
-            group: "peak_calling",
-            help: "If ratio of depth between any two controls is higher than this, then always use a pooled control for all experiment replicates.",
+            description: 'Maximum depth ratio between control replicates.',
+            group: 'peak_calling',
+            help: 'If ratio of depth between any two controls is higher than this, then always use a pooled control for all experiment replicates.',
         }
         cap_num_peak: {
-            description: "Upper limit on the number of peaks.",
-            group: "peak_calling",
-            help: "It is 30000000 and 50000000 by default for spp and macs2, respectively.",
+            description: 'Upper limit on the number of peaks.',
+            group: 'peak_calling',
+            help: 'It is 30000000 and 50000000 by default for spp and macs2, respectively.',
         }
         pval_thresh: {
-            description: "p-value Threshold for MACS2 peak caller.",
-            group: "peak_calling",
-            help: "macs2 callpeak -p",
+            description: 'p-value Threshold for MACS2 peak caller.',
+            group: 'peak_calling',
+            help: 'macs2 callpeak -p',
         }
         fdr_thresh: {
-            description: "FDR threshold for spp peak caller (phantompeakqualtools).",
-            group: "peak_calling",
-            help: "run_spp.R -fdr=",
+            description: 'FDR threshold for spp peak caller (phantompeakqualtools).',
+            group: 'peak_calling',
+            help: 'run_spp.R -fdr=',
         }
         idr_thresh: {
-            description: "IDR threshold.",
-            group: "peak_calling",
+            description: 'IDR threshold.',
+            group: 'peak_calling',
         }
         align_cpu: {
-            description: "Number of cores for task align.",
-            group: "resource_parameter",
-            help: "Task align merges/crops/maps FASTQs.",
+            description: 'Number of cores for task align.',
+            group: 'resource_parameter',
+            help: 'Task align merges/crops/maps FASTQs.',
         }
         align_bowtie2_mem_factor: {
-            description: "Multiplication factor to determine memory required for task align with bowtie2 (default) as aligner.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of FASTQs to determine required memory of instance (GCP/AWS) or job (HPCs).",
+            description: 'Multiplication factor to determine memory required for task align with bowtie2 (default) as aligner.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of FASTQs to determine required memory of instance (GCP/AWS) or job (HPCs).',
         }
         align_bwa_mem_factor: {
-            description: "Multiplication factor to determine memory required for task align with bwa as aligner.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of FASTQs to determine required memory of instance (GCP/AWS) or job (HPCs).",
+            description: 'Multiplication factor to determine memory required for task align with bwa as aligner.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of FASTQs to determine required memory of instance (GCP/AWS) or job (HPCs).',
         }
         align_time_hr: {
-            description: "Walltime (h) required for task align.",
-            group: "resource_parameter",
-            help: "This is for HPCs only. e.g. SLURM, SGE, ...",
+            description: 'Walltime (h) required for task align.',
+            group: 'resource_parameter',
+            help: 'This is for HPCs only. e.g. SLURM, SGE, ...',
         }
         align_bowtie2_disk_factor: {
-            description: "Multiplication factor to determine persistent disk size for task align with bowtie2 (default) as aligner.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of FASTQs to determine required disk size of instance on GCP/AWS.",
+            description: 'Multiplication factor to determine persistent disk size for task align with bowtie2 (default) as aligner.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of FASTQs to determine required disk size of instance on GCP/AWS.',
         }
         align_bwa_disk_factor: {
-            description: "Multiplication factor to determine persistent disk size for task align with bwa as aligner.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of FASTQs to determine required disk size of instance on GCP/AWS.",
+            description: 'Multiplication factor to determine persistent disk size for task align with bwa as aligner.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of FASTQs to determine required disk size of instance on GCP/AWS.',
         }
         filter_cpu: {
-            description: "Number of cores for task filter.",
-            group: "resource_parameter",
-            help: "Task filter filters raw/unfiltered BAM to get filtered/deduped BAM.",
+            description: 'Number of cores for task filter.',
+            group: 'resource_parameter',
+            help: 'Task filter filters raw/unfiltered BAM to get filtered/deduped BAM.',
         }
         filter_mem_factor: {
-            description: "Multiplication factor to determine memory required for task filter.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of BAMs to determine required memory of instance (GCP/AWS) or job (HPCs).",
+            description: 'Multiplication factor to determine memory required for task filter.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of BAMs to determine required memory of instance (GCP/AWS) or job (HPCs).',
         }
         filter_time_hr: {
-            description: "Walltime (h) required for task filter.",
-            group: "resource_parameter",
-            help: "This is for HPCs only. e.g. SLURM, SGE, ...",
+            description: 'Walltime (h) required for task filter.',
+            group: 'resource_parameter',
+            help: 'This is for HPCs only. e.g. SLURM, SGE, ...',
         }
         filter_disk_factor: {
-            description: "Multiplication factor to determine persistent disk size for task filter.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of BAMs to determine required disk size of instance on GCP/AWS.",
+            description: 'Multiplication factor to determine persistent disk size for task filter.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of BAMs to determine required disk size of instance on GCP/AWS.',
         }
         bam2ta_cpu: {
-            description: "Number of cores for task bam2ta.",
-            group: "resource_parameter",
-            help: "Task bam2ta converts filtered/deduped BAM in to TAG-ALIGN (6-col BED) format.",
+            description: 'Number of cores for task bam2ta.',
+            group: 'resource_parameter',
+            help: 'Task bam2ta converts filtered/deduped BAM in to TAG-ALIGN (6-col BED) format.',
         }
         bam2ta_mem_factor: {
-            description: "Multiplication factor to determine memory required for task bam2ta.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of filtered BAMs to determine required memory of instance (GCP/AWS) or job (HPCs).",
+            description: 'Multiplication factor to determine memory required for task bam2ta.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of filtered BAMs to determine required memory of instance (GCP/AWS) or job (HPCs).',
         }
         bam2ta_time_hr: {
-            description: "Walltime (h) required for task bam2ta.",
-            group: "resource_parameter",
-            help: "This is for HPCs only. e.g. SLURM, SGE, ...",
+            description: 'Walltime (h) required for task bam2ta.',
+            group: 'resource_parameter',
+            help: 'This is for HPCs only. e.g. SLURM, SGE, ...',
         }
         bam2ta_disk_factor: {
-            description: "Multiplication factor to determine persistent disk size for task bam2ta.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of filtered BAMs to determine required disk size of instance on GCP/AWS.",
+            description: 'Multiplication factor to determine persistent disk size for task bam2ta.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of filtered BAMs to determine required disk size of instance on GCP/AWS.',
         }
         spr_mem_factor: {
-            description: "Multiplication factor to determine memory required for task spr.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of filtered BAMs to determine required memory of instance (GCP/AWS) or job (HPCs).",
+            description: 'Multiplication factor to determine memory required for task spr.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of filtered BAMs to determine required memory of instance (GCP/AWS) or job (HPCs).',
         }
         spr_disk_factor: {
-            description: "Multiplication factor to determine persistent disk size for task spr.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of filtered BAMs to determine required disk size of instance on GCP/AWS.",
+            description: 'Multiplication factor to determine persistent disk size for task spr.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of filtered BAMs to determine required disk size of instance on GCP/AWS.',
         }
         jsd_cpu: {
-            description: "Number of cores for task jsd.",
-            group: "resource_parameter",
-            help: "Task jsd plots Jensen-Shannon distance and metrics related to it.",
+            description: 'Number of cores for task jsd.',
+            group: 'resource_parameter',
+            help: 'Task jsd plots Jensen-Shannon distance and metrics related to it.',
         }
         jsd_mem_factor: {
-            description: "Multiplication factor to determine memory required for task jsd.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of filtered BAMs to determine required memory of instance (GCP/AWS) or job (HPCs).",
+            description: 'Multiplication factor to determine memory required for task jsd.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of filtered BAMs to determine required memory of instance (GCP/AWS) or job (HPCs).',
         }
         jsd_time_hr: {
-            description: "Walltime (h) required for task jsd.",
-            group: "resource_parameter",
-            help: "This is for HPCs only. e.g. SLURM, SGE, ...",
+            description: 'Walltime (h) required for task jsd.',
+            group: 'resource_parameter',
+            help: 'This is for HPCs only. e.g. SLURM, SGE, ...',
         }
         jsd_disk_factor: {
-            description: "Multiplication factor to determine persistent disk size for task jsd.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of filtered BAMs to determine required disk size of instance on GCP/AWS.",
+            description: 'Multiplication factor to determine persistent disk size for task jsd.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of filtered BAMs to determine required disk size of instance on GCP/AWS.',
         }
         xcor_cpu: {
-            description: "Number of cores for task xcor.",
-            group: "resource_parameter",
-            help: "Task xcor does cross-correlation analysis (including a plot) on subsampled TAG-ALIGNs.",
+            description: 'Number of cores for task xcor.',
+            group: 'resource_parameter',
+            help: 'Task xcor does cross-correlation analysis (including a plot) on subsampled TAG-ALIGNs.',
         }
         xcor_mem_factor: {
-            description: "Multiplication factor to determine memory required for task xcor.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required memory of instance (GCP/AWS) or job (HPCs).",
+            description: 'Multiplication factor to determine memory required for task xcor.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required memory of instance (GCP/AWS) or job (HPCs).',
         }
         xcor_time_hr: {
-            description: "Walltime (h) required for task xcor.",
-            group: "resource_parameter",
-            help: "This is for HPCs only. e.g. SLURM, SGE, ...",
+            description: 'Walltime (h) required for task xcor.',
+            group: 'resource_parameter',
+            help: 'This is for HPCs only. e.g. SLURM, SGE, ...',
         }
         xcor_disk_factor: {
-            description: "Multiplication factor to determine persistent disk size for task xcor.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required disk size of instance on GCP/AWS.",
+            description: 'Multiplication factor to determine persistent disk size for task xcor.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required disk size of instance on GCP/AWS.',
         }
         subsample_ctl_mem_factor: {
-            description: "Multiplication factor to determine memory required for task subsample_ctl.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required memory of instance (GCP/AWS) or job (HPCs).",
+            description: 'Multiplication factor to determine memory required for task subsample_ctl.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required memory of instance (GCP/AWS) or job (HPCs).',
         }
         subsample_ctl_disk_factor: {
-            description: "Multiplication factor to determine persistent disk size for task subsample_ctl.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required disk size of instance on GCP/AWS.",
+            description: 'Multiplication factor to determine persistent disk size for task subsample_ctl.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required disk size of instance on GCP/AWS.',
         }
         call_peak_cpu: {
-            description: "Number of cores for task call_peak. IF MACS2 is chosen as peak_caller (or chip.pipeline_type is histone), then cpu will be fixed at 2.",
-            group: "resource_parameter",
-            help: "Task call_peak call peaks on TAG-ALIGNs by using SPP/MACS2 peak caller. MACS2 is single-threaded so cpu will be fixed at 2 for MACS2.",
+            description: 'Number of cores for task call_peak. IF MACS2 is chosen as peak_caller (or chip.pipeline_type is histone), then cpu will be fixed at 2.',
+            group: 'resource_parameter',
+            help: 'Task call_peak call peaks on TAG-ALIGNs by using SPP/MACS2 peak caller. MACS2 is single-threaded so cpu will be fixed at 2 for MACS2.',
         }
         call_peak_spp_mem_factor: {
-            description: "Multiplication factor to determine memory required for task call_peak with spp as peak_caller.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required memory of instance (GCP/AWS) or job (HPCs).",
+            description: 'Multiplication factor to determine memory required for task call_peak with spp as peak_caller.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required memory of instance (GCP/AWS) or job (HPCs).',
         }
         call_peak_macs2_mem_factor: {
-            description: "Multiplication factor to determine memory required for task call_peak with macs2 as peak_caller.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required memory of instance (GCP/AWS) or job (HPCs).",
+            description: 'Multiplication factor to determine memory required for task call_peak with macs2 as peak_caller.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required memory of instance (GCP/AWS) or job (HPCs).',
         }
         call_peak_time_hr: {
-            description: "Walltime (h) required for task call_peak.",
-            group: "resource_parameter",
-            help: "This is for HPCs only. e.g. SLURM, SGE, ...",
+            description: 'Walltime (h) required for task call_peak.',
+            group: 'resource_parameter',
+            help: 'This is for HPCs only. e.g. SLURM, SGE, ...',
         }
         call_peak_spp_disk_factor: {
-            description: "Multiplication factor to determine persistent disk size for task call_peak with spp as peak_caller.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required disk size of instance on GCP/AWS.",
+            description: 'Multiplication factor to determine persistent disk size for task call_peak with spp as peak_caller.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required disk size of instance on GCP/AWS.',
         }
         call_peak_macs2_disk_factor: {
-            description: "Multiplication factor to determine persistent disk size for task call_peak with macs2 as peak_caller.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required disk size of instance on GCP/AWS.",
+            description: 'Multiplication factor to determine persistent disk size for task call_peak with macs2 as peak_caller.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required disk size of instance on GCP/AWS.',
         }
         macs2_signal_track_mem_factor: {
-            description: "Multiplication factor to determine memory required for task macs2_signal_track.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required memory of instance (GCP/AWS) or job (HPCs).",
+            description: 'Multiplication factor to determine memory required for task macs2_signal_track.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required memory of instance (GCP/AWS) or job (HPCs).',
         }
         macs2_signal_track_time_hr: {
-            description: "Walltime (h) required for task macs2_signal_track.",
-            group: "resource_parameter",
-            help: "This is for HPCs only. e.g. SLURM, SGE, ...",
+            description: 'Walltime (h) required for task macs2_signal_track.',
+            group: 'resource_parameter',
+            help: 'This is for HPCs only. e.g. SLURM, SGE, ...',
         }
         macs2_signal_track_disk_factor: {
-            description: "Multiplication factor to determine persistent disk size for task macs2_signal_track.",
-            group: "resource_parameter",
-            help: "This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required disk size of instance on GCP/AWS.",
+            description: 'Multiplication factor to determine persistent disk size for task macs2_signal_track.',
+            group: 'resource_parameter',
+            help: 'This factor will be multiplied to the size of TAG-ALIGNs (BEDs) to determine required disk size of instance on GCP/AWS.',
         }
         align_trimmomatic_java_heap: {
-            description: "Maximum Java heap (java -Xmx) in task align.",
-            group: "resource_parameter",
-            help: "Maximum memory for Trimmomatic. If not defined, 90% of align task's memory will be used.",
+            description: 'Maximum Java heap (java -Xmx) in task align.',
+            group: 'resource_parameter',
+            help: 'Maximum memory for Trimmomatic. If not defined, 90% of align task\'s memory will be used.',
         }
         filter_picard_java_heap: {
-            description: "Maximum Java heap (java -Xmx) in task filter.",
-            group: "resource_parameter",
-            help: "Maximum memory for Picard tools MarkDuplicates. If not defined, 90% of filter task's memory will be used.",
+            description: 'Maximum Java heap (java -Xmx) in task filter.',
+            group: 'resource_parameter',
+            help: 'Maximum memory for Picard tools MarkDuplicates. If not defined, 90% of filter task\'s memory will be used.',
         }
         gc_bias_picard_java_heap: {
-            description: "Maximum Java heap (java -Xmx) in task gc_bias.",
-            group: "resource_parameter",
-            help: "Maximum memory for Picard tools CollectGcBiasMetrics. If not defined, 90% of gc_bias task's memory will be used.",
+            description: 'Maximum Java heap (java -Xmx) in task gc_bias.',
+            group: 'resource_parameter',
+            help: 'Maximum memory for Picard tools CollectGcBiasMetrics. If not defined, 90% of gc_bias task\'s memory will be used.',
         }
     }
 
     input {
         # group: runtime_environment
-        String docker = "encodedcc/chip-seq-pipeline:v2.2.2"
-        String singularity = "https://encode-pipeline-singularity-image.s3.us-west-2.amazonaws.com/chip-seq-pipeline_v2.2.2.sif"
-        String conda = "encd-chip"
-        String conda_macs2 = "encd-chip-macs2"
-        String conda_spp = "encd-chip-spp"
+        String docker = 'encodedcc/chip-seq-pipeline:v2.2.2'
+        String singularity = 'https://encode-pipeline-singularity-image.s3.us-west-2.amazonaws.com/chip-seq-pipeline_v2.2.2.sif'
+        String conda = 'encd-chip'
+        String conda_macs2 = 'encd-chip-macs2'
+        String conda_spp = 'encd-chip-spp'
 
         # group: pipeline_metadata
-        String title = "Untitled"
-        String description = "No description"
+        String title = 'Untitled'
+        String description = 'No description'
 
         # group: reference_genome
         File? genome_tsv
@@ -945,17 +945,17 @@ workflow chip {
         Boolean enable_gc_bias = true
 
         # group: alignment
-        String aligner = "bowtie2"
+        String aligner = 'bowtie2'
         File? custom_align_py
         Boolean use_bwa_mem_for_pe = false
         Int bwa_mem_read_len_limit = 70
         Boolean use_bowtie2_local_mode = false
         Int crop_length = 0
         Int crop_length_tol = 2
-        String trimmomatic_phred_score_format = "auto"
+        String trimmomatic_phred_score_format = 'auto'
         Int xcor_trim_bp = 50
         Boolean use_filt_pe_ta_for_xcor = false
-        String dup_marker = "picard"
+        String dup_marker = 'picard'
         Boolean no_dup_removal = false
         Int mapq_thresh = 30
         Array[String] filter_chrs = []
@@ -1019,21 +1019,21 @@ workflow chip {
         String? gc_bias_picard_java_heap
     }
 
-    String pipeline_ver = "v2.2.2"
+    String pipeline_ver = 'v2.2.2'
     RuntimeEnvironment runtime_environment = {
-        "docker": docker,
-        "singularity": singularity,
-        "conda": conda,
+        'docker': docker,
+        'singularity': singularity,
+        'conda': conda,
     }
     RuntimeEnvironment runtime_environment_spp = {
-        "docker": docker,
-        "singularity": singularity,
-        "conda": conda_spp,
+        'docker': docker,
+        'singularity': singularity,
+        'conda': conda_spp,
     }
     RuntimeEnvironment runtime_environment_macs2 = {
-        "docker": docker,
-        "singularity": singularity,
-        "conda": conda_macs2,
+        'docker': docker,
+        'singularity': singularity,
+        'conda': conda_macs2,
     }
 
     # read genome data and paths
@@ -1103,29 +1103,29 @@ workflow chip {
 
     ### temp vars (do not define these)
     String aligner_ = if defined(custom_align_py)
-        then "custom"
+        then 'custom'
         else aligner
-    String peak_caller_ = if pipeline_type == "tf"
+    String peak_caller_ = if pipeline_type == 'tf'
         then select_first([
             peak_caller,
-            "spp",
+            'spp',
         ])
         else select_first([
             peak_caller,
-            "macs2",
+            'macs2',
         ])
-    String peak_type_ = if peak_caller_ == "spp"
-        then "regionPeak"
-        else "narrowPeak"
-    Boolean enable_idr = pipeline_type == "tf"  # enable_idr for TF chipseq only
-    String idr_rank_ = if peak_caller_ == "spp"
-        then "signal.value"
-        else if peak_caller_ == "macs2"
-        then "p.value"
-        else "p.value"
+    String peak_type_ = if peak_caller_ == 'spp'
+        then 'regionPeak'
+        else 'narrowPeak'
+    Boolean enable_idr = pipeline_type == 'tf'  # enable_idr for TF chipseq only
+    String idr_rank_ = if peak_caller_ == 'spp'
+        then 'signal.value'
+        else if peak_caller_ == 'macs2'
+        then 'p.value'
+        else 'p.value'
     Int cap_num_peak_spp = 300000
     Int cap_num_peak_macs2 = 500000
-    Int cap_num_peak_ = if peak_caller_ == "spp"
+    Int cap_num_peak_ = if peak_caller_ == 'spp'
         then select_first([
             cap_num_peak,
             cap_num_peak_spp,
@@ -1135,32 +1135,32 @@ workflow chip {
             cap_num_peak_macs2,
         ])
     Int mapq_thresh_ = mapq_thresh
-    Boolean enable_xcor_ = if pipeline_type == "control"
+    Boolean enable_xcor_ = if pipeline_type == 'control'
         then false
         else true
-    Boolean enable_count_signal_track_ = if pipeline_type == "control"
+    Boolean enable_count_signal_track_ = if pipeline_type == 'control'
         then false
         else enable_count_signal_track
-    Boolean enable_jsd_ = if pipeline_type == "control"
+    Boolean enable_jsd_ = if pipeline_type == 'control'
         then false
         else enable_jsd
-    Boolean enable_gc_bias_ = if pipeline_type == "control"
+    Boolean enable_gc_bias_ = if pipeline_type == 'control'
         then false
         else enable_gc_bias
-    Boolean align_only_ = if pipeline_type == "control"
+    Boolean align_only_ = if pipeline_type == 'control'
         then true
         else align_only
 
-    Float align_mem_factor_ = if aligner_ == "bowtie2"
+    Float align_mem_factor_ = if aligner_ == 'bowtie2'
         then align_bowtie2_mem_factor
         else align_bwa_mem_factor
-    Float align_disk_factor_ = if aligner_ == "bowtie2"
+    Float align_disk_factor_ = if aligner_ == 'bowtie2'
         then align_bowtie2_disk_factor
         else align_bwa_disk_factor
-    Float call_peak_mem_factor_ = if peak_caller_ == "spp"
+    Float call_peak_mem_factor_ = if peak_caller_ == 'spp'
         then call_peak_spp_mem_factor
         else call_peak_macs2_mem_factor
-    Float call_peak_disk_factor_ = if peak_caller_ == "spp"
+    Float call_peak_disk_factor_ = if peak_caller_ == 'spp'
         then call_peak_spp_disk_factor
         else call_peak_macs2_disk_factor
 
@@ -1399,40 +1399,40 @@ workflow chip {
     # sanity check for inputs
     if (num_rep == 0 && num_ctl == 0) {
         call raise_exception as error_input_data { input:
-            msg = "No FASTQ/BAM/TAG-ALIGN/PEAK defined in your input JSON. Check if your FASTQs are defined as \"chip.fastqs_repX_RY\". DO NOT MISS suffix _R1 even for single ended FASTQ.",
+            msg = 'No FASTQ/BAM/TAG-ALIGN/PEAK defined in your input JSON. Check if your FASTQs are defined as "chip.fastqs_repX_RY". DO NOT MISS suffix _R1 even for single ended FASTQ.',
             runtime_environment = runtime_environment,
         }
     }
-    if (!align_only_ && peak_caller_ == "spp" && num_ctl == 0) {
+    if (!align_only_ && peak_caller_ == 'spp' && num_ctl == 0) {
         call raise_exception as error_control_required { input:
-            msg = "SPP requires control inputs. Define control input files (\"chip.ctl_*\") in an input JSON file.",
+            msg = 'SPP requires control inputs. Define control input files ("chip.ctl_*") in an input JSON file.',
             runtime_environment = runtime_environment,
         }
     }
-    if ((num_rep_fastq > 0 || num_ctl_fastq > 0) && aligner_ != "bwa" && aligner_ != "bowtie2"
-        && aligner_ != "custom") {
+    if ((num_rep_fastq > 0 || num_ctl_fastq > 0) && aligner_ != 'bwa' && aligner_ != 'bowtie2'
+        && aligner_ != 'custom') {
         call raise_exception as error_wrong_aligner { input:
-            msg = "Choose chip.aligner to align your fastqs. Choices: bwa, bowtie2, custom.",
+            msg = 'Choose chip.aligner to align your fastqs. Choices: bwa, bowtie2, custom.',
             runtime_environment = runtime_environment,
         }
     }
-    if (aligner_ != "bwa" && use_bwa_mem_for_pe) {
+    if (aligner_ != 'bwa' && use_bwa_mem_for_pe) {
         call raise_exception as error_use_bwa_mem_for_non_bwa { input:
-            msg = "To use chip.use_bwa_mem_for_pe, choose bwa for chip.aligner.",
+            msg = 'To use chip.use_bwa_mem_for_pe, choose bwa for chip.aligner.',
             runtime_environment = runtime_environment,
         }
     }
-    if (aligner_ != "bowtie2" && use_bowtie2_local_mode) {
+    if (aligner_ != 'bowtie2' && use_bowtie2_local_mode) {
         call raise_exception as error_use_bowtie2_local_mode_for_non_bowtie2 { input:
-            msg = "To use chip.use_bowtie2_local_mode, choose bowtie2 for chip.aligner.",
+            msg = 'To use chip.use_bowtie2_local_mode, choose bowtie2 for chip.aligner.',
             runtime_environment = runtime_environment,
         }
     }
-    if (aligner_ == "custom" && (!defined(custom_align_py) || !defined(
+    if (aligner_ == 'custom' && (!defined(custom_align_py) || !defined(
         custom_aligner_idx_tar
     ))) {
         call raise_exception as error_custom_aligner { input:
-            msg = "To use a custom aligner, define chip.custom_align_py and chip.custom_aligner_idx_tar.",
+            msg = 'To use a custom aligner, define chip.custom_align_py and chip.custom_aligner_idx_tar.',
             runtime_environment = runtime_environment,
         }
     }
@@ -1441,23 +1441,23 @@ workflow chip {
         ctl_paired_ends
     ) > 1) {
         call raise_exception as error_subsample_pooled_control_with_mixed_endedness { input:
-            msg = "Cannot use automatic control subsampling (\"chip.ctl_depth_limit\">0 and \"chip.exp_ctl_depth_limit\">0) for "
-                + "multiple controls with mixed endedness (e.g. SE ctl-rep1 and PE ctl-rep2). "
-                + "Automatic control subsampling is enabled by default. " + "Disable automatic control subsampling by explicitly defining the above two parameters as 0 in your input JSON file. "
-                + "You can still use manual control subsamping (\"chip.ctl_subsample_reads\">0) since it is done "
-                + "for individual control's TAG-ALIGN output according to each control's endedness. ",
+            msg = 'Cannot use automatic control subsampling ("chip.ctl_depth_limit">0 and "chip.exp_ctl_depth_limit">0) for '
+                + 'multiple controls with mixed endedness (e.g. SE ctl-rep1 and PE ctl-rep2). '
+                + 'Automatic control subsampling is enabled by default. ' + 'Disable automatic control subsampling by explicitly defining the above two parameters as 0 in your input JSON file. '
+                + 'You can still use manual control subsamping ("chip.ctl_subsample_reads">0) since it is done '
+                + 'for individual control\'s TAG-ALIGN output according to each control\'s endedness. ',
             runtime_environment = runtime_environment,
         }
     }
-    if (pipeline_type == "control" && num_ctl > 0) {
+    if (pipeline_type == 'control' && num_ctl > 0) {
         call raise_exception as error_ctl_input_defined_in_control_mode { input:
-            msg = "In control mode (chip.pipeline_type: control), do not define ctl_* input variables. Define fastqs_repX_RY instead.",
+            msg = 'In control mode (chip.pipeline_type: control), do not define ctl_* input variables. Define fastqs_repX_RY instead.',
             runtime_environment = runtime_environment,
         }
     }
-    if (pipeline_type == "control" && num_rep_fastq == 0) {
+    if (pipeline_type == 'control' && num_rep_fastq == 0) {
         call raise_exception as error_ctl_fastq_input_required_for_control_mode { input:
-            msg = "Control mode (chip.pipeline_type: control) is for FASTQs only. Define FASTQs in fastqs_repX_RY. Pipeline will recognize them as control FASTQs.",
+            msg = 'Control mode (chip.pipeline_type: control) is for FASTQs only. Define FASTQs in fastqs_repX_RY. Pipeline will recognize them as control FASTQs.',
             runtime_environment = runtime_environment,
         }
     }
@@ -1488,9 +1488,9 @@ workflow chip {
                 aligner = aligner_,
                 mito_chr_name = mito_chr_name_,
                 custom_align_py = custom_align_py,
-                idx_tar = if aligner == "bwa"
+                idx_tar = if aligner == 'bwa'
                     then bwa_idx_tar_
-                    else if aligner == "bowtie2"
+                    else if aligner == 'bowtie2'
                     then bowtie2_idx_tar_
                     else custom_aligner_idx_tar
                 ,
@@ -1605,9 +1605,9 @@ workflow chip {
                 aligner = aligner_,
                 mito_chr_name = mito_chr_name_,
                 custom_align_py = custom_align_py,
-                idx_tar = if aligner == "bwa"
+                idx_tar = if aligner == 'bwa'
                     then bwa_idx_tar_
-                    else if aligner == "bowtie2"
+                    else if aligner == 'bowtie2'
                     then bowtie2_idx_tar_
                     else custom_aligner_idx_tar
                 ,
@@ -1761,9 +1761,9 @@ workflow chip {
                 aligner = aligner_,
                 mito_chr_name = mito_chr_name_,
                 custom_align_py = custom_align_py,
-                idx_tar = if aligner == "bwa"
+                idx_tar = if aligner == 'bwa'
                     then bwa_idx_tar_
-                    else if aligner == "bowtie2"
+                    else if aligner == 'bowtie2'
                     then bowtie2_idx_tar_
                     else custom_aligner_idx_tar
                 ,
@@ -1842,7 +1842,7 @@ workflow chip {
         # pool tagaligns from true replicates
         call pool_ta { input:
             tas = ta_,
-            prefix = "rep",
+            prefix = 'rep',
             runtime_environment = runtime_environment,
         }
     }
@@ -1853,7 +1853,7 @@ workflow chip {
         # pool tagaligns from pseudo replicate 1
         call pool_ta as pool_ta_pr1 { input:
             tas = spr.ta_pr1,
-            prefix = "rep-pr1",
+            prefix = 'rep-pr1',
             runtime_environment = runtime_environment,
         }
     }
@@ -1864,7 +1864,7 @@ workflow chip {
         # pool tagaligns from pseudo replicate 2
         call pool_ta as pool_ta_pr2 { input:
             tas = spr.ta_pr2,
-            prefix = "rep-pr2",
+            prefix = 'rep-pr2',
             runtime_environment = runtime_environment,
         }
     }
@@ -1875,7 +1875,7 @@ workflow chip {
         # pool tagaligns from true replicates
         call pool_ta as pool_ta_ctl { input:
             tas = ctl_ta_,
-            prefix = "ctl",
+            prefix = 'ctl',
             runtime_environment = runtime_environment,
         }
     }
@@ -2019,9 +2019,9 @@ workflow chip {
                 mem_factor = call_peak_mem_factor_,
                 disk_factor = call_peak_disk_factor_,
                 time_hr = call_peak_time_hr,
-                runtime_environment = if peak_caller_ == "spp"
+                runtime_environment = if peak_caller_ == 'spp'
                     then runtime_environment_spp
-                    else if peak_caller_ == "macs2"
+                    else if peak_caller_ == 'macs2'
                     then runtime_environment_macs2
                     else runtime_environment
                 ,
@@ -2078,9 +2078,9 @@ workflow chip {
                 mem_factor = call_peak_mem_factor_,
                 disk_factor = call_peak_disk_factor_,
                 time_hr = call_peak_time_hr,
-                runtime_environment = if peak_caller_ == "spp"
+                runtime_environment = if peak_caller_ == 'spp'
                     then runtime_environment_spp
-                    else if peak_caller_ == "macs2"
+                    else if peak_caller_ == 'macs2'
                     then runtime_environment_macs2
                     else runtime_environment
                 ,
@@ -2116,9 +2116,9 @@ workflow chip {
                 mem_factor = call_peak_mem_factor_,
                 disk_factor = call_peak_disk_factor_,
                 time_hr = call_peak_time_hr,
-                runtime_environment = if peak_caller_ == "spp"
+                runtime_environment = if peak_caller_ == 'spp'
                     then runtime_environment_spp
-                    else if peak_caller_ == "macs2"
+                    else if peak_caller_ == 'macs2'
                     then runtime_environment_macs2
                     else runtime_environment
                 ,
@@ -2195,9 +2195,9 @@ workflow chip {
             mem_factor = call_peak_mem_factor_,
             disk_factor = call_peak_disk_factor_,
             time_hr = call_peak_time_hr,
-            runtime_environment = if peak_caller_ == "spp"
+            runtime_environment = if peak_caller_ == 'spp'
                 then runtime_environment_spp
-                else if peak_caller_ == "macs2"
+                else if peak_caller_ == 'macs2'
                 then runtime_environment_macs2
                 else runtime_environment
             ,
@@ -2255,9 +2255,9 @@ workflow chip {
             mem_factor = call_peak_mem_factor_,
             disk_factor = call_peak_disk_factor_,
             time_hr = call_peak_time_hr,
-            runtime_environment = if peak_caller_ == "spp"
+            runtime_environment = if peak_caller_ == 'spp'
                 then runtime_environment_spp
-                else if peak_caller_ == "macs2"
+                else if peak_caller_ == 'macs2'
                 then runtime_environment_macs2
                 else runtime_environment
             ,
@@ -2294,9 +2294,9 @@ workflow chip {
             mem_factor = call_peak_mem_factor_,
             disk_factor = call_peak_disk_factor_,
             time_hr = call_peak_time_hr,
-            runtime_environment = if peak_caller_ == "spp"
+            runtime_environment = if peak_caller_ == 'spp'
                 then runtime_environment_spp
-                else if peak_caller_ == "macs2"
+                else if peak_caller_ == 'macs2'
                 then runtime_environment_macs2
                 else runtime_environment
             ,
@@ -2316,7 +2316,7 @@ workflow chip {
         if (!align_only_ && pair.left < pair.right) {
             # Naive overlap on every pair of true replicates
             call overlap { input:
-                prefix = "rep" + (pair.left + 1) + "_vs_rep" + (pair.right + 1),
+                prefix = 'rep' + (pair.left + 1) + '_vs_rep' + (pair.right + 1),
                 peak1 = peak1_,
                 peak2 = peak2_,
                 peak_pooled = peak_pooled_,
@@ -2332,7 +2332,7 @@ workflow chip {
         if (enable_idr && !align_only_ && pair.left < pair.right) {
             # IDR on every pair of true replicates
             call idr { input:
-                prefix = "rep" + (pair.left + 1) + "_vs_rep" + (pair.right + 1),
+                prefix = 'rep' + (pair.left + 1) + '_vs_rep' + (pair.right + 1),
                 peak1 = peak1_,
                 peak2 = peak2_,
                 peak_pooled = peak_pooled_,
@@ -2353,7 +2353,7 @@ workflow chip {
     if (!align_only_ && !true_rep_only) {
         scatter (i in range(num_rep)) {
             call overlap as overlap_pr { input:
-                prefix = "rep" + (i + 1) + "-pr1_vs_rep" + (i + 1) + "-pr2",
+                prefix = 'rep' + (i + 1) + '-pr1_vs_rep' + (i + 1) + '-pr2',
                 peak1 = peak_pr1_[i],
                 peak2 = peak_pr2_[i],
                 peak_pooled = peak_[i],
@@ -2372,7 +2372,7 @@ workflow chip {
         scatter (i in range(num_rep)) {
             # IDR on pseduo replicates
             call idr as idr_pr { input:
-                prefix = "rep" + (i + 1) + "-pr1_vs_rep" + (i + 1) + "-pr2",
+                prefix = 'rep' + (i + 1) + '-pr1_vs_rep' + (i + 1) + '-pr2',
                 peak1 = peak_pr1_[i],
                 peak2 = peak_pr2_[i],
                 peak_pooled = peak_[i],
@@ -2392,7 +2392,7 @@ workflow chip {
     if (!align_only_ && !true_rep_only && num_rep > 1) {
         # Naive overlap on pooled pseudo replicates
         call overlap as overlap_ppr { input:
-            prefix = "pooled-pr1_vs_pooled-pr2",
+            prefix = 'pooled-pr1_vs_pooled-pr2',
             peak1 = peak_ppr1_,
             peak2 = peak_ppr2_,
             peak_pooled = peak_pooled_,
@@ -2409,7 +2409,7 @@ workflow chip {
     if (!align_only_ && !true_rep_only && num_rep > 1 && enable_idr) {
         # IDR on pooled pseduo replicates
         call idr as idr_ppr { input:
-            prefix = "pooled-pr1_vs_pooled-pr2",
+            prefix = 'pooled-pr1_vs_pooled-pr2',
             peak1 = peak_ppr1_,
             peak2 = peak_ppr2_,
             peak_pooled = peak_pooled_,
@@ -2429,7 +2429,7 @@ workflow chip {
     if (!align_only_ && !true_rep_only && num_rep > 0) {
         # reproducibility QC for overlapping peaks
         call reproducibility as reproducibility_overlap { input:
-            prefix = "overlap",
+            prefix = 'overlap',
             peaks = select_all(overlap.bfilt_overlap_peak),
             peaks_pr = if defined(overlap_pr.bfilt_overlap_peak)
                 then select_first([
@@ -2447,7 +2447,7 @@ workflow chip {
     if (!align_only_ && !true_rep_only && num_rep > 0 && enable_idr) {
         # reproducibility QC for IDR peaks
         call reproducibility as reproducibility_idr { input:
-            prefix = "idr",
+            prefix = 'idr',
             peaks = select_all(idr.bfilt_idr_peak),
             peaks_pr = if defined(idr_pr.bfilt_idr_peak)
                 then select_first([
@@ -2611,10 +2611,10 @@ task align {
         python3 $(which encode_task_merge_fastq.py) \
             ~{write_tsv(tmp_fastqs)} \
             ~{if paired_end
-                then "--paired-end"
-                else ""
+                then '--paired-end'
+                else ''
             } \
-            ~{"--nth " + cpu}
+            ~{'--nth ' + cpu}
 
         if [ -z '~{trim_bp}' ]; then
             SUFFIX=
@@ -2638,26 +2638,26 @@ task align {
             python3 $(which encode_task_trimmomatic.py) \
                 --fastq1 R1$SUFFIX/*.fastq.gz \
                 ~{if paired_end
-                    then "--fastq2 R2$SUFFIX/*.fastq.gz"
-                    else ""
+                    then '--fastq2 R2$SUFFIX/*.fastq.gz'
+                    else ''
                 } \
                 ~{if paired_end
-                    then "--paired-end"
-                    else ""
+                    then '--paired-end'
+                    else ''
                 } \
                 --crop-length ~{crop_length} \
                 --crop-length-tol "~{crop_length_tol}" \
-                ~{"--phred-score-format " + trimmomatic_phred_score_format} \
+                ~{'--phred-score-format ' + trimmomatic_phred_score_format} \
                 --out-dir-R1 R1$NEW_SUFFIX \
                 ~{if paired_end
-                    then "--out-dir-R2 R2$NEW_SUFFIX"
-                    else ""
+                    then '--out-dir-R2 R2$NEW_SUFFIX'
+                    else ''
                 } \
-                ~{"--trimmomatic-java-heap " + if defined(trimmomatic_java_heap)
+                ~{'--trimmomatic-java-heap ' + if defined(trimmomatic_java_heap)
                     then trimmomatic_java_heap
-                    else (round(mem_gb * trimmomatic_java_heap_factor) + "G")
+                    else (round(mem_gb * trimmomatic_java_heap_factor) + 'G')
                 } \
-                ~{"--nth " + cpu}
+                ~{'--nth ' + cpu}
             SUFFIX=$NEW_SUFFIX
         fi
 
@@ -2666,76 +2666,76 @@ task align {
                 ~{idx_tar} \
                 R1$SUFFIX/*.fastq.gz \
                 ~{if paired_end
-                    then "R2$SUFFIX/*.fastq.gz"
-                    else ""
+                    then 'R2$SUFFIX/*.fastq.gz'
+                    else ''
                 } \
                 ~{if paired_end
-                    then "--paired-end"
-                    else ""
+                    then '--paired-end'
+                    else ''
                 } \
                 ~{if use_bwa_mem_for_pe
-                    then "--use-bwa-mem-for-pe"
-                    else ""
+                    then '--use-bwa-mem-for-pe'
+                    else ''
                 } \
-                ~{"--bwa-mem-read-len-limit " + bwa_mem_read_len_limit} \
-                ~{"--mem-gb " + samtools_mem_gb} \
-                ~{"--nth " + cpu}
+                ~{'--bwa-mem-read-len-limit ' + bwa_mem_read_len_limit} \
+                ~{'--mem-gb ' + samtools_mem_gb} \
+                ~{'--nth ' + cpu}
 
         elif [ '~{aligner}' == 'bowtie2' ]; then
             python3 $(which encode_task_bowtie2.py) \
                 ~{idx_tar} \
                 R1$SUFFIX/*.fastq.gz \
                 ~{if paired_end
-                    then "R2$SUFFIX/*.fastq.gz"
-                    else ""
+                    then 'R2$SUFFIX/*.fastq.gz'
+                    else ''
                 } \
-                ~{"--multimapping " + multimapping} \
+                ~{'--multimapping ' + multimapping} \
                 ~{if paired_end
-                    then "--paired-end"
-                    else ""
+                    then '--paired-end'
+                    else ''
                 } \
                 ~{if use_bowtie2_local_mode
-                    then "--local"
-                    else ""
+                    then '--local'
+                    else ''
                 } \
-                ~{"--mem-gb " + samtools_mem_gb} \
-                ~{"--nth " + cpu}
+                ~{'--mem-gb ' + samtools_mem_gb} \
+                ~{'--nth ' + cpu}
         else
             python3 ~{custom_align_py} \
                 ~{idx_tar} \
                 R1$SUFFIX/*.fastq.gz \
                 ~{if paired_end
-                    then "R2$SUFFIX/*.fastq.gz"
-                    else ""
+                    then 'R2$SUFFIX/*.fastq.gz'
+                    else ''
                 } \
                 ~{if paired_end
-                    then "--paired-end"
-                    else ""
+                    then '--paired-end'
+                    else ''
                 } \
-                ~{"--mem-gb " + samtools_mem_gb} \
-                ~{"--nth " + cpu}
+                ~{'--mem-gb ' + samtools_mem_gb} \
+                ~{'--nth ' + cpu}
         fi 
 
         python3 $(which encode_task_post_align.py) \
             R1$SUFFIX/*.fastq.gz $(ls *.bam) \
-            ~{"--mito-chr-name " + mito_chr_name} \
-            ~{"--mem-gb " + samtools_mem_gb} \
-            ~{"--nth " + cpu}
+            ~{'--mito-chr-name ' + mito_chr_name} \
+            ~{'--mem-gb ' + samtools_mem_gb} \
+            ~{'--nth ' + cpu}
         rm -rf R1 R2 R1$SUFFIX R2$SUFFIX
     >>>
 
     output {
-        File bam = glob("*.bam")[0]
-        File bai = glob("*.bai")[0]
-        File samstat_qc = glob("*.samstats.qc")[0]
-        File read_len_log = glob("*.read_length.txt")[0]
+        File bam = glob('*.bam')[0]
+        File bai = glob('*.bai')[0]
+        File samstat_qc = glob('*.samstats.qc')[0]
+        File read_len_log = glob('*.read_length.txt')[0]
     }
 
     runtime {
         cpu: cpu
-        memory: "~{mem_gb} GB"
+        memory: '~{mem_gb} GB'
         time: time_hr
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: 'local-disk ~{disk_gb} SSD'
         preemptible: 0
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
@@ -2775,47 +2775,47 @@ task filter {
         python3 $(which encode_task_filter.py) \
             ~{bam} \
             ~{if paired_end
-                then "--paired-end"
-                else ""
+                then '--paired-end'
+                else ''
             } \
             --multimapping 0 \
-            ~{"--dup-marker " + dup_marker} \
-            ~{"--mapq-thresh " + mapq_thresh} \
-            --filter-chrs ~{sep=" " filter_chrs} \
-            ~{"--chrsz " + chrsz} \
+            ~{'--dup-marker ' + dup_marker} \
+            ~{'--mapq-thresh ' + mapq_thresh} \
+            --filter-chrs ~{sep=' ' filter_chrs} \
+            ~{'--chrsz ' + chrsz} \
             ~{if no_dup_removal
-                then "--no-dup-removal"
-                else ""
+                then '--no-dup-removal'
+                else ''
             } \
-            ~{"--mito-chr-name " + mito_chr_name} \
-            ~{"--mem-gb " + samtools_mem_gb} \
-            ~{"--nth " + cpu} \
-            ~{"--picard-java-heap " + if defined(picard_java_heap)
+            ~{'--mito-chr-name ' + mito_chr_name} \
+            ~{'--mem-gb ' + samtools_mem_gb} \
+            ~{'--nth ' + cpu} \
+            ~{'--picard-java-heap ' + if defined(picard_java_heap)
                 then picard_java_heap
-                else (round(mem_gb * picard_java_heap_factor) + "G")
+                else (round(mem_gb * picard_java_heap_factor) + 'G')
             }
 
         if [ '~{redact_nodup_bam}' == 'true' ]; then
             python3 $(which encode_task_bam_to_pbam.py) \
                 $(ls *.bam) \
-                ~{"--ref-fa " + ref_fa} \
+                ~{'--ref-fa ' + ref_fa} \
                 '--delete-original-bam'
         fi
     >>>
 
     output {
-        File nodup_bam = glob("*.bam")[0]
-        File nodup_bai = glob("*.bai")[0]
-        File samstat_qc = glob("*.samstats.qc")[0]
-        File dup_qc = glob("*.dup.qc")[0]
-        File lib_complexity_qc = glob("*.lib_complexity.qc")[0]
+        File nodup_bam = glob('*.bam')[0]
+        File nodup_bai = glob('*.bai')[0]
+        File samstat_qc = glob('*.samstats.qc')[0]
+        File dup_qc = glob('*.dup.qc')[0]
+        File lib_complexity_qc = glob('*.lib_complexity.qc')[0]
     }
 
     runtime {
         cpu: cpu
-        memory: "~{mem_gb} GB"
+        memory: '~{mem_gb} GB'
         time: time_hr
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: 'local-disk ~{disk_gb} SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -2847,24 +2847,24 @@ task bam2ta {
             ~{bam} \
             --disable-tn5-shift \
             ~{if paired_end
-                then "--paired-end"
-                else ""
+                then '--paired-end'
+                else ''
             } \
-            ~{"--mito-chr-name " + mito_chr_name} \
-            ~{"--subsample " + subsample} \
-            ~{"--mem-gb " + samtools_mem_gb} \
-            ~{"--nth " + cpu}
+            ~{'--mito-chr-name ' + mito_chr_name} \
+            ~{'--subsample ' + subsample} \
+            ~{'--mem-gb ' + samtools_mem_gb} \
+            ~{'--nth ' + cpu}
     >>>
 
     output {
-        File ta = glob("*.tagAlign.gz")[0]
+        File ta = glob('*.tagAlign.gz')[0]
     }
 
     runtime {
         cpu: cpu
-        memory: "~{mem_gb} GB"
+        memory: '~{mem_gb} GB'
         time: time_hr
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: 'local-disk ~{disk_gb} SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -2889,23 +2889,23 @@ task spr {
         set -e
         python3 $(which encode_task_spr.py) \
             ~{ta} \
-            ~{"--pseudoreplication-random-seed " + pseudoreplication_random_seed} \
+            ~{'--pseudoreplication-random-seed ' + pseudoreplication_random_seed} \
             ~{if paired_end
-                then "--paired-end"
-                else ""
+                then '--paired-end'
+                else ''
             }
     >>>
 
     output {
-        File ta_pr1 = glob("*.pr1.tagAlign.gz")[0]
-        File ta_pr2 = glob("*.pr2.tagAlign.gz")[0]
+        File ta_pr1 = glob('*.pr1.tagAlign.gz')[0]
+        File ta_pr2 = glob('*.pr2.tagAlign.gz')[0]
     }
 
     runtime {
         cpu: 1
-        memory: "~{mem_gb} GB"
+        memory: '~{mem_gb} GB'
         time: 4
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: 'local-disk ~{disk_gb} SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -2923,20 +2923,20 @@ task pool_ta {
     command <<<
         set -e
         python3 $(which encode_task_pool_ta.py) \
-            ~{sep=" " select_all(tas)} \
-            ~{"--prefix " + prefix} \
-            ~{"--col " + col}
+            ~{sep=' ' select_all(tas)} \
+            ~{'--prefix ' + prefix} \
+            ~{'--col ' + col}
     >>>
 
     output {
-        File ta_pooled = glob("*.tagAlign.gz")[0]
+        File ta_pooled = glob('*.tagAlign.gz')[0]
     }
 
     runtime {
         cpu: 1
-        memory: "8 GB"
+        memory: '8 GB'
         time: 4
-        disks: "local-disk 100 SSD"
+        disks: 'local-disk 100 SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -2970,31 +2970,31 @@ task xcor {
         python3 $(which encode_task_xcor.py) \
             ~{ta} \
             ~{if paired_end
-                then "--paired-end"
-                else ""
+                then '--paired-end'
+                else ''
             } \
-            ~{"--mito-chr-name " + mito_chr_name} \
-            ~{"--subsample " + subsample} \
-            ~{"--chip-seq-type " + chip_seq_type} \
-            ~{"--exclusion-range-min " + exclusion_range_min} \
-            ~{"--exclusion-range-max " + exclusion_range_max} \
-            ~{"--subsample " + subsample} \
-            ~{"--nth " + cpu}
+            ~{'--mito-chr-name ' + mito_chr_name} \
+            ~{'--subsample ' + subsample} \
+            ~{'--chip-seq-type ' + chip_seq_type} \
+            ~{'--exclusion-range-min ' + exclusion_range_min} \
+            ~{'--exclusion-range-max ' + exclusion_range_max} \
+            ~{'--subsample ' + subsample} \
+            ~{'--nth ' + cpu}
     >>>
 
     output {
-        File plot_pdf = glob("*.cc.plot.pdf")[0]
-        File plot_png = glob("*.cc.plot.png")[0]
-        File score = glob("*.cc.qc")[0]
-        File fraglen_log = glob("*.cc.fraglen.txt")[0]
+        File plot_pdf = glob('*.cc.plot.pdf')[0]
+        File plot_png = glob('*.cc.plot.png')[0]
+        File score = glob('*.cc.qc')[0]
+        File fraglen_log = glob('*.cc.fraglen.txt')[0]
         Int fraglen = read_int(fraglen_log)
     }
 
     runtime {
         cpu: cpu
-        memory: "~{mem_gb} GB"
+        memory: '~{mem_gb} GB'
         time: time_hr
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: 'local-disk ~{disk_gb} SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -3021,26 +3021,26 @@ task jsd {
     command <<<
         set -e
         python3 $(which encode_task_jsd.py) \
-            ~{sep=" " select_all(nodup_bams)} \
+            ~{sep=' ' select_all(nodup_bams)} \
             ~{if length(ctl_bams) > 0
-                then "--ctl-bam " + select_first(ctl_bams)
-                else ""
+                then '--ctl-bam ' + select_first(ctl_bams)
+                else ''
             } \
-            ~{"--mapq-thresh " + mapq_thresh} \
-            ~{"--blacklist " + blacklist} \
-            ~{"--nth " + cpu}
+            ~{'--mapq-thresh ' + mapq_thresh} \
+            ~{'--blacklist ' + blacklist} \
+            ~{'--nth ' + cpu}
     >>>
 
     output {
-        File plot = glob("*.png")[0]
-        Array[File] jsd_qcs = glob("*.jsd.qc")
+        File plot = glob('*.png')[0]
+        Array[File] jsd_qcs = glob('*.jsd.qc')
     }
 
     runtime {
         cpu: cpu
-        memory: "~{mem_gb} GB"
+        memory: '~{mem_gb} GB'
         time: time_hr
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: 'local-disk ~{disk_gb} SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -3064,23 +3064,23 @@ task choose_ctl {
     command <<<
         set -e
         python3 $(which encode_task_choose_ctl.py) \
-            --tas ~{sep=" " select_all(tas)} \
-            --ctl-tas ~{sep=" " select_all(ctl_tas)} \
-            ~{"--ta-pooled " + ta_pooled} \
-            ~{"--ctl-ta-pooled " + ctl_ta_pooled} \
+            --tas ~{sep=' ' select_all(tas)} \
+            --ctl-tas ~{sep=' ' select_all(ctl_tas)} \
+            ~{'--ta-pooled ' + ta_pooled} \
+            ~{'--ctl-ta-pooled ' + ctl_ta_pooled} \
             ~{if always_use_pooled_ctl
-                then "--always-use-pooled-ctl"
-                else ""
+                then '--always-use-pooled-ctl'
+                else ''
             } \
-            ~{"--ctl-depth-ratio " + ctl_depth_ratio} \
-            ~{"--ctl-depth-limit " + ctl_depth_limit} \
-            ~{"--exp-ctl-depth-ratio-limit " + exp_ctl_depth_ratio_limit}
+            ~{'--ctl-depth-ratio ' + ctl_depth_ratio} \
+            ~{'--ctl-depth-limit ' + ctl_depth_limit} \
+            ~{'--exp-ctl-depth-ratio-limit ' + exp_ctl_depth_ratio_limit}
     >>>
 
     output {
-        File chosen_ctl_id_tsv = glob("chosen_ctl.tsv")[0]
-        File chosen_ctl_subsample_tsv = glob("chosen_ctl_subsample.tsv")[0]
-        File chosen_ctl_subsample_pooled_txt = glob("chosen_ctl_subsample_pooled.txt")[0]
+        File chosen_ctl_id_tsv = glob('chosen_ctl.tsv')[0]
+        File chosen_ctl_subsample_tsv = glob('chosen_ctl_subsample.tsv')[0]
+        File chosen_ctl_subsample_pooled_txt = glob('chosen_ctl_subsample_pooled.txt')[0]
         Array[Int] chosen_ctl_ta_ids = read_lines(chosen_ctl_id_tsv)
         Array[Int] chosen_ctl_ta_subsample = read_lines(chosen_ctl_subsample_tsv)
         Int chosen_ctl_ta_subsample_pooled = read_int(chosen_ctl_subsample_pooled_txt)
@@ -3088,9 +3088,9 @@ task choose_ctl {
 
     runtime {
         cpu: 1
-        memory: "4 GB"
+        memory: '4 GB'
         time: 4
-        disks: "local-disk 50 SSD"
+        disks: 'local-disk 50 SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -3110,20 +3110,20 @@ task count_signal_track {
         set -e
         python3 $(which encode_task_count_signal_track.py) \
             ~{ta} \
-            ~{"--chrsz " + chrsz} \
-            ~{"--mem-gb " + mem_gb}
+            ~{'--chrsz ' + chrsz} \
+            ~{'--mem-gb ' + mem_gb}
     >>>
 
     output {
-        File pos_bw = glob("*.positive.bigwig")[0]
-        File neg_bw = glob("*.negative.bigwig")[0]
+        File pos_bw = glob('*.positive.bigwig')[0]
+        File neg_bw = glob('*.negative.bigwig')[0]
     }
 
     runtime {
         cpu: 1
-        memory: "~{mem_gb} GB"
+        memory: '~{mem_gb} GB'
         time: 4
-        disks: "local-disk 50 SSD"
+        disks: 'local-disk 50 SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -3147,22 +3147,22 @@ task subsample_ctl {
     command <<<
         python3 $(which encode_task_subsample_ctl.py) \
             ~{ta} \
-            ~{"--subsample " + subsample} \
+            ~{'--subsample ' + subsample} \
             ~{if paired_end
-                then "--paired-end"
-                else ""
+                then '--paired-end'
+                else ''
             } \
     >>>
 
     output {
-        File ta_subsampled = glob("*.tagAlign.gz")[0]
+        File ta_subsampled = glob('*.tagAlign.gz')[0]
     }
 
     runtime {
         cpu: 1
-        memory: "~{mem_gb} GB"
+        memory: '~{mem_gb} GB'
         time: 4
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: 'local-disk ~{disk_gb} SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -3199,55 +3199,55 @@ task call_peak {
 
         if [ '~{peak_caller}' == 'macs2' ]; then
             python3 $(which encode_task_macs2_chip.py) \
-                ~{sep=" " select_all(tas)} \
-                ~{"--gensz " + gensz} \
-                ~{"--chrsz " + chrsz} \
-                ~{"--fraglen " + fraglen} \
-                ~{"--cap-num-peak " + cap_num_peak} \
-                ~{"--pval-thresh " + pval_thresh} \
-                ~{"--mem-gb " + mem_gb}
+                ~{sep=' ' select_all(tas)} \
+                ~{'--gensz ' + gensz} \
+                ~{'--chrsz ' + chrsz} \
+                ~{'--fraglen ' + fraglen} \
+                ~{'--cap-num-peak ' + cap_num_peak} \
+                ~{'--pval-thresh ' + pval_thresh} \
+                ~{'--mem-gb ' + mem_gb}
 
         elif [ '~{peak_caller}' == 'spp' ]; then
             python3 $(which encode_task_spp.py) \
-                ~{sep=" " select_all(tas)} \
-                ~{"--chrsz " + chrsz} \
-                ~{"--fraglen " + fraglen} \
-                ~{"--cap-num-peak " + cap_num_peak} \
-                ~{"--fdr-thresh " + fdr_thresh} \
-                ~{"--nth " + cpu}
+                ~{sep=' ' select_all(tas)} \
+                ~{'--chrsz ' + chrsz} \
+                ~{'--fraglen ' + fraglen} \
+                ~{'--cap-num-peak ' + cap_num_peak} \
+                ~{'--fdr-thresh ' + fdr_thresh} \
+                ~{'--nth ' + cpu}
         fi
 
         python3 $(which encode_task_post_call_peak_chip.py) \
             $(ls *Peak.gz) \
-            ~{"--ta " + tas[0]} \
-            ~{"--regex-bfilt-peak-chr-name '" + regex_bfilt_peak_chr_name + "'"} \
-            ~{"--chrsz " + chrsz} \
-            ~{"--fraglen " + fraglen} \
-            ~{"--peak-type " + peak_type} \
-            ~{"--blacklist " + blacklist}        
+            ~{'--ta ' + tas[0]} \
+            ~{'--regex-bfilt-peak-chr-name \'' + regex_bfilt_peak_chr_name + '\''} \
+            ~{'--chrsz ' + chrsz} \
+            ~{'--fraglen ' + fraglen} \
+            ~{'--peak-type ' + peak_type} \
+            ~{'--blacklist ' + blacklist}        
     >>>
 
     output {
-        File peak = glob("*[!.][!b][!f][!i][!l][!t]." + peak_type + ".gz")[0]
+        File peak = glob('*[!.][!b][!f][!i][!l][!t].' + peak_type + '.gz')[0]
         # generated by post_call_peak py
-        File bfilt_peak = glob("*.bfilt." + peak_type + ".gz")[0]
-        File bfilt_peak_bb = glob("*.bfilt." + peak_type + ".bb")[0]
-        File bfilt_peak_starch = glob("*.bfilt." + peak_type + ".starch")[0]
-        File bfilt_peak_hammock = glob("*.bfilt." + peak_type + ".hammock.gz*")[0]
-        File bfilt_peak_hammock_tbi = glob("*.bfilt." + peak_type + ".hammock.gz*")[1]
-        File frip_qc = glob("*.frip.qc")[0]
-        File peak_region_size_qc = glob("*.peak_region_size.qc")[0]
-        File peak_region_size_plot = glob("*.peak_region_size.png")[0]
-        File num_peak_qc = glob("*.num_peak.qc")[0]
+        File bfilt_peak = glob('*.bfilt.' + peak_type + '.gz')[0]
+        File bfilt_peak_bb = glob('*.bfilt.' + peak_type + '.bb')[0]
+        File bfilt_peak_starch = glob('*.bfilt.' + peak_type + '.starch')[0]
+        File bfilt_peak_hammock = glob('*.bfilt.' + peak_type + '.hammock.gz*')[0]
+        File bfilt_peak_hammock_tbi = glob('*.bfilt.' + peak_type + '.hammock.gz*')[1]
+        File frip_qc = glob('*.frip.qc')[0]
+        File peak_region_size_qc = glob('*.peak_region_size.qc')[0]
+        File peak_region_size_plot = glob('*.peak_region_size.png')[0]
+        File num_peak_qc = glob('*.num_peak.qc')[0]
     }
 
     runtime {
-        cpu: if peak_caller == "macs2"
+        cpu: if peak_caller == 'macs2'
             then 2
             else cpu
-        memory: "~{mem_gb} GB"
+        memory: '~{mem_gb} GB'
         time: time_hr
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: 'local-disk ~{disk_gb} SSD'
         preemptible: 0
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
@@ -3276,24 +3276,24 @@ task macs2_signal_track {
     command <<<
         set -e
         python3 $(which encode_task_macs2_signal_track_chip.py) \
-            ~{sep=" " select_all(tas)} \
-            ~{"--gensz " + gensz} \
-            ~{"--chrsz " + chrsz} \
-            ~{"--fraglen " + fraglen} \
-            ~{"--pval-thresh " + pval_thresh} \
-            ~{"--mem-gb " + mem_gb}
+            ~{sep=' ' select_all(tas)} \
+            ~{'--gensz ' + gensz} \
+            ~{'--chrsz ' + chrsz} \
+            ~{'--fraglen ' + fraglen} \
+            ~{'--pval-thresh ' + pval_thresh} \
+            ~{'--mem-gb ' + mem_gb}
     >>>
 
     output {
-        File pval_bw = glob("*.pval.signal.bigwig")[0]
-        File fc_bw = glob("*.fc.signal.bigwig")[0]
+        File pval_bw = glob('*.pval.signal.bigwig')[0]
+        File fc_bw = glob('*.fc.signal.bigwig')[0]
     }
 
     runtime {
         cpu: 1
-        memory: "~{mem_gb} GB"
+        memory: '~{mem_gb} GB'
         time: time_hr
-        disks: "local-disk ~{disk_gb} SSD"
+        disks: 'local-disk ~{disk_gb} SSD'
         preemptible: 0
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
@@ -3322,43 +3322,43 @@ task idr {
     command <<<
         set -e
         ~{if defined(ta)
-            then ""
-            else "touch null.frip.qc"
+            then ''
+            else 'touch null.frip.qc'
         }
         touch null 
         python3 $(which encode_task_idr.py) \
             ~{peak1} ~{peak2} ~{peak_pooled} \
-            ~{"--prefix " + prefix} \
-            ~{"--idr-thresh " + idr_thresh} \
-            ~{"--peak-type " + peak_type} \
+            ~{'--prefix ' + prefix} \
+            ~{'--idr-thresh ' + idr_thresh} \
+            ~{'--peak-type ' + peak_type} \
             --idr-rank ~{rank} \
-            ~{"--fraglen " + fraglen} \
-            ~{"--chrsz " + chrsz} \
-            ~{"--blacklist " + blacklist} \
-            ~{"--regex-bfilt-peak-chr-name '" + regex_bfilt_peak_chr_name + "'"} \
-            ~{"--ta " + ta}
+            ~{'--fraglen ' + fraglen} \
+            ~{'--chrsz ' + chrsz} \
+            ~{'--blacklist ' + blacklist} \
+            ~{'--regex-bfilt-peak-chr-name \'' + regex_bfilt_peak_chr_name + '\''} \
+            ~{'--ta ' + ta}
     >>>
 
     output {
-        File idr_peak = glob("*[!.][!b][!f][!i][!l][!t]." + peak_type + ".gz")[0]
-        File bfilt_idr_peak = glob("*.bfilt." + peak_type + ".gz")[0]
-        File bfilt_idr_peak_bb = glob("*.bfilt." + peak_type + ".bb")[0]
-        File bfilt_idr_peak_starch = glob("*.bfilt." + peak_type + ".starch")[0]
-        File bfilt_idr_peak_hammock = glob("*.bfilt." + peak_type + ".hammock.gz*")[0]
-        File bfilt_idr_peak_hammock_tbi = glob("*.bfilt." + peak_type + ".hammock.gz*")[1]
-        File idr_plot = glob("*.txt.png")[0]
-        File idr_unthresholded_peak = glob("*.txt.gz")[0]
-        File idr_log = glob("*.idr*.log")[0]
+        File idr_peak = glob('*[!.][!b][!f][!i][!l][!t].' + peak_type + '.gz')[0]
+        File bfilt_idr_peak = glob('*.bfilt.' + peak_type + '.gz')[0]
+        File bfilt_idr_peak_bb = glob('*.bfilt.' + peak_type + '.bb')[0]
+        File bfilt_idr_peak_starch = glob('*.bfilt.' + peak_type + '.starch')[0]
+        File bfilt_idr_peak_hammock = glob('*.bfilt.' + peak_type + '.hammock.gz*')[0]
+        File bfilt_idr_peak_hammock_tbi = glob('*.bfilt.' + peak_type + '.hammock.gz*')[1]
+        File idr_plot = glob('*.txt.png')[0]
+        File idr_unthresholded_peak = glob('*.txt.gz')[0]
+        File idr_log = glob('*.idr*.log')[0]
         File frip_qc = if defined(ta)
-            then glob("*.frip.qc")[0]
-            else glob("null")[0]
+            then glob('*.frip.qc')[0]
+            else glob('null')[0]
     }
 
     runtime {
         cpu: 1
-        memory: "4 GB"
+        memory: '4 GB'
         time: 4
-        disks: "local-disk 50 SSD"
+        disks: 'local-disk 50 SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -3384,40 +3384,40 @@ task overlap {
     command <<<
         set -e
         ~{if defined(ta)
-            then ""
-            else "touch null.frip.qc"
+            then ''
+            else 'touch null.frip.qc'
         }
         touch null 
         python3 $(which encode_task_overlap.py) \
             ~{peak1} ~{peak2} ~{peak_pooled} \
-            ~{"--prefix " + prefix} \
-            ~{"--peak-type " + peak_type} \
-            ~{"--fraglen " + fraglen} \
-            ~{"--chrsz " + chrsz} \
-            ~{"--blacklist " + blacklist} \
+            ~{'--prefix ' + prefix} \
+            ~{'--peak-type ' + peak_type} \
+            ~{'--fraglen ' + fraglen} \
+            ~{'--chrsz ' + chrsz} \
+            ~{'--blacklist ' + blacklist} \
             --nonamecheck \
-            ~{"--regex-bfilt-peak-chr-name '" + regex_bfilt_peak_chr_name + "'"} \
-            ~{"--ta " + ta}
+            ~{'--regex-bfilt-peak-chr-name \'' + regex_bfilt_peak_chr_name + '\''} \
+            ~{'--ta ' + ta}
     >>>
 
     output {
-        File overlap_peak = glob("*[!.][!b][!f][!i][!l][!t]." + peak_type + ".gz")[0]
-        File bfilt_overlap_peak = glob("*.bfilt." + peak_type + ".gz")[0]
-        File bfilt_overlap_peak_bb = glob("*.bfilt." + peak_type + ".bb")[0]
-        File bfilt_overlap_peak_starch = glob("*.bfilt." + peak_type + ".starch")[0]
-        File bfilt_overlap_peak_hammock = glob("*.bfilt." + peak_type + ".hammock.gz*")[0]
-        File bfilt_overlap_peak_hammock_tbi = glob("*.bfilt." + peak_type + ".hammock.gz*"
+        File overlap_peak = glob('*[!.][!b][!f][!i][!l][!t].' + peak_type + '.gz')[0]
+        File bfilt_overlap_peak = glob('*.bfilt.' + peak_type + '.gz')[0]
+        File bfilt_overlap_peak_bb = glob('*.bfilt.' + peak_type + '.bb')[0]
+        File bfilt_overlap_peak_starch = glob('*.bfilt.' + peak_type + '.starch')[0]
+        File bfilt_overlap_peak_hammock = glob('*.bfilt.' + peak_type + '.hammock.gz*')[0]
+        File bfilt_overlap_peak_hammock_tbi = glob('*.bfilt.' + peak_type + '.hammock.gz*'
         )[1]
         File frip_qc = if defined(ta)
-            then glob("*.frip.qc")[0]
-            else glob("null")[0]
+            then glob('*.frip.qc')[0]
+            else glob('null')[0]
     }
 
     runtime {
         cpu: 1
-        memory: "4 GB"
+        memory: '4 GB'
         time: 4
-        disks: "local-disk 50 SSD"
+        disks: 'local-disk 50 SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -3441,37 +3441,37 @@ task reproducibility {
     command <<<
         set -e
         python3 $(which encode_task_reproducibility.py) \
-            ~{sep=" " peaks} \
-            --peaks-pr ~{sep=" " peaks_pr} \
-            ~{"--peak-ppr " + peak_ppr} \
+            ~{sep=' ' peaks} \
+            --peaks-pr ~{sep=' ' peaks_pr} \
+            ~{'--peak-ppr ' + peak_ppr} \
             --prefix ~{prefix} \
-            ~{"--peak-type " + peak_type} \
-            ~{"--chrsz " + chrsz}
+            ~{'--peak-type ' + peak_type} \
+            ~{'--chrsz ' + chrsz}
     >>>
 
     output {
-        File optimal_peak = glob("*optimal_peak.*.gz")[0]
-        File optimal_peak_bb = glob("*optimal_peak.*.bb")[0]
-        File optimal_peak_starch = glob("*optimal_peak.*.starch")[0]
-        File optimal_peak_hammock = glob("*optimal_peak.*.hammock.gz*")[0]
-        File optimal_peak_hammock_tbi = glob("*optimal_peak.*.hammock.gz*")[1]
-        File conservative_peak = glob("*conservative_peak.*.gz")[0]
-        File conservative_peak_bb = glob("*conservative_peak.*.bb")[0]
-        File conservative_peak_starch = glob("*conservative_peak.*.starch")[0]
-        File conservative_peak_hammock = glob("*conservative_peak.*.hammock.gz*")[0]
-        File conservative_peak_hammock_tbi = glob("*conservative_peak.*.hammock.gz*")[1]
-        File reproducibility_qc = glob("*reproducibility.qc")[0]
+        File optimal_peak = glob('*optimal_peak.*.gz')[0]
+        File optimal_peak_bb = glob('*optimal_peak.*.bb')[0]
+        File optimal_peak_starch = glob('*optimal_peak.*.starch')[0]
+        File optimal_peak_hammock = glob('*optimal_peak.*.hammock.gz*')[0]
+        File optimal_peak_hammock_tbi = glob('*optimal_peak.*.hammock.gz*')[1]
+        File conservative_peak = glob('*conservative_peak.*.gz')[0]
+        File conservative_peak_bb = glob('*conservative_peak.*.bb')[0]
+        File conservative_peak_starch = glob('*conservative_peak.*.starch')[0]
+        File conservative_peak_hammock = glob('*conservative_peak.*.hammock.gz*')[0]
+        File conservative_peak_hammock_tbi = glob('*conservative_peak.*.hammock.gz*')[1]
+        File reproducibility_qc = glob('*reproducibility.qc')[0]
         # QC metrics for optimal peak
-        File peak_region_size_qc = glob("*.peak_region_size.qc")[0]
-        File peak_region_size_plot = glob("*.peak_region_size.png")[0]
-        File num_peak_qc = glob("*.num_peak.qc")[0]
+        File peak_region_size_qc = glob('*.peak_region_size.qc')[0]
+        File peak_region_size_plot = glob('*.peak_region_size.png')[0]
+        File num_peak_qc = glob('*.num_peak.qc')[0]
     }
 
     runtime {
         cpu: 1
-        memory: "4 GB"
+        memory: '4 GB'
         time: 4
-        disks: "local-disk 50 SSD"
+        disks: 'local-disk 50 SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -3494,24 +3494,24 @@ task gc_bias {
     command <<<
         set -e
         python3 $(which encode_task_gc_bias.py) \
-            ~{"--nodup-bam " + nodup_bam} \
-            ~{"--ref-fa " + ref_fa} \
-            ~{"--picard-java-heap " + if defined(picard_java_heap)
+            ~{'--nodup-bam ' + nodup_bam} \
+            ~{'--ref-fa ' + ref_fa} \
+            ~{'--picard-java-heap ' + if defined(picard_java_heap)
                 then picard_java_heap
-                else (round(mem_gb * picard_java_heap_factor) + "G")
+                else (round(mem_gb * picard_java_heap_factor) + 'G')
             }
     >>>
 
     output {
-        File gc_plot = glob("*.gc_plot.png")[0]
-        File gc_log = glob("*.gc.txt")[0]
+        File gc_plot = glob('*.gc_plot.png')[0]
+        File gc_log = glob('*.gc.txt')[0]
     }
 
     runtime {
         cpu: 1
-        memory: "~{mem_gb} GB"
+        memory: '~{mem_gb} GB'
         time: 6
-        disks: "local-disk 250 SSD"
+        disks: 'local-disk 250 SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -3586,80 +3586,80 @@ task qc_report {
         set -e
         python3 $(which encode_task_qc_report.py) \
             --pipeline-prefix chip \
-            ~{"--pipeline-ver " + pipeline_ver} \
+            ~{'--pipeline-ver ' + pipeline_ver} \
             ~{"--title '" + sub(title, "'", "_") + "'"} \
             ~{"--desc '" + sub(description, "'", "_") + "'"} \
-            ~{"--genome " + genome} \
-            ~{"--multimapping " + 0} \
-            --paired-ends ~{sep=" " paired_ends} \
-            --ctl-paired-ends ~{sep=" " ctl_paired_ends} \
+            ~{'--genome ' + genome} \
+            ~{'--multimapping ' + 0} \
+            --paired-ends ~{sep=' ' paired_ends} \
+            --ctl-paired-ends ~{sep=' ' ctl_paired_ends} \
             --pipeline-type ~{pipeline_type} \
             --aligner ~{aligner} \
             ~{if (no_dup_removal)
-                then "--no-dup-removal "
-                else ""
+                then '--no-dup-removal '
+                else ''
             } \
             --peak-caller ~{peak_caller} \
-            ~{"--cap-num-peak " + cap_num_peak} \
+            ~{'--cap-num-peak ' + cap_num_peak} \
             --idr-thresh ~{idr_thresh} \
             --pval-thresh ~{pval_thresh} \
             --xcor-trim-bp ~{xcor_trim_bp} \
             --xcor-subsample-reads ~{xcor_subsample_reads} \
-            --samstat-qcs ~{sep="_:_" samstat_qcs} \
-            --nodup-samstat-qcs ~{sep="_:_" nodup_samstat_qcs} \
-            --dup-qcs ~{sep="_:_" dup_qcs} \
-            --lib-complexity-qcs ~{sep="_:_" lib_complexity_qcs} \
-            --xcor-plots ~{sep="_:_" xcor_plots} \
-            --xcor-scores ~{sep="_:_" xcor_scores} \
-            --idr-plots ~{sep="_:_" idr_plots} \
-            --idr-plots-pr ~{sep="_:_" idr_plots_pr} \
-            --ctl-samstat-qcs ~{sep="_:_" ctl_samstat_qcs} \
-            --ctl-nodup-samstat-qcs ~{sep="_:_" ctl_nodup_samstat_qcs} \
-            --ctl-dup-qcs ~{sep="_:_" ctl_dup_qcs} \
-            --ctl-lib-complexity-qcs ~{sep="_:_" ctl_lib_complexity_qcs} \
-            ~{"--jsd-plot " + jsd_plot} \
-            --jsd-qcs ~{sep="_:_" jsd_qcs} \
-            ~{"--idr-plot-ppr " + idr_plot_ppr} \
-            --frip-qcs ~{sep="_:_" frip_qcs} \
-            --frip-qcs-pr1 ~{sep="_:_" frip_qcs_pr1} \
-            --frip-qcs-pr2 ~{sep="_:_" frip_qcs_pr2} \
-            ~{"--frip-qc-pooled " + frip_qc_pooled} \
-            ~{"--frip-qc-ppr1 " + frip_qc_ppr1} \
-            ~{"--frip-qc-ppr2 " + frip_qc_ppr2} \
-            --frip-idr-qcs ~{sep="_:_" frip_idr_qcs} \
-            --frip-idr-qcs-pr ~{sep="_:_" frip_idr_qcs_pr} \
-            ~{"--frip-idr-qc-ppr " + frip_idr_qc_ppr} \
-            --frip-overlap-qcs ~{sep="_:_" frip_overlap_qcs} \
-            --frip-overlap-qcs-pr ~{sep="_:_" frip_overlap_qcs_pr} \
-            ~{"--frip-overlap-qc-ppr " + frip_overlap_qc_ppr} \
-            ~{"--idr-reproducibility-qc " + idr_reproducibility_qc} \
-            ~{"--overlap-reproducibility-qc " + overlap_reproducibility_qc} \
-            --gc-plots ~{sep="_:_" gc_plots} \
-            --peak-region-size-qcs ~{sep="_:_" peak_region_size_qcs} \
-            --peak-region-size-plots ~{sep="_:_" peak_region_size_plots} \
-            --num-peak-qcs ~{sep="_:_" num_peak_qcs} \
-            ~{"--idr-opt-peak-region-size-qc " + idr_opt_peak_region_size_qc} \
-            ~{"--idr-opt-peak-region-size-plot " + idr_opt_peak_region_size_plot} \
-            ~{"--idr-opt-num-peak-qc " + idr_opt_num_peak_qc} \
-            ~{"--overlap-opt-peak-region-size-qc " + overlap_opt_peak_region_size_qc} \
-            ~{"--overlap-opt-peak-region-size-plot " + overlap_opt_peak_region_size_plot} \
-            ~{"--overlap-opt-num-peak-qc " + overlap_opt_num_peak_qc} \
+            --samstat-qcs ~{sep='_:_' samstat_qcs} \
+            --nodup-samstat-qcs ~{sep='_:_' nodup_samstat_qcs} \
+            --dup-qcs ~{sep='_:_' dup_qcs} \
+            --lib-complexity-qcs ~{sep='_:_' lib_complexity_qcs} \
+            --xcor-plots ~{sep='_:_' xcor_plots} \
+            --xcor-scores ~{sep='_:_' xcor_scores} \
+            --idr-plots ~{sep='_:_' idr_plots} \
+            --idr-plots-pr ~{sep='_:_' idr_plots_pr} \
+            --ctl-samstat-qcs ~{sep='_:_' ctl_samstat_qcs} \
+            --ctl-nodup-samstat-qcs ~{sep='_:_' ctl_nodup_samstat_qcs} \
+            --ctl-dup-qcs ~{sep='_:_' ctl_dup_qcs} \
+            --ctl-lib-complexity-qcs ~{sep='_:_' ctl_lib_complexity_qcs} \
+            ~{'--jsd-plot ' + jsd_plot} \
+            --jsd-qcs ~{sep='_:_' jsd_qcs} \
+            ~{'--idr-plot-ppr ' + idr_plot_ppr} \
+            --frip-qcs ~{sep='_:_' frip_qcs} \
+            --frip-qcs-pr1 ~{sep='_:_' frip_qcs_pr1} \
+            --frip-qcs-pr2 ~{sep='_:_' frip_qcs_pr2} \
+            ~{'--frip-qc-pooled ' + frip_qc_pooled} \
+            ~{'--frip-qc-ppr1 ' + frip_qc_ppr1} \
+            ~{'--frip-qc-ppr2 ' + frip_qc_ppr2} \
+            --frip-idr-qcs ~{sep='_:_' frip_idr_qcs} \
+            --frip-idr-qcs-pr ~{sep='_:_' frip_idr_qcs_pr} \
+            ~{'--frip-idr-qc-ppr ' + frip_idr_qc_ppr} \
+            --frip-overlap-qcs ~{sep='_:_' frip_overlap_qcs} \
+            --frip-overlap-qcs-pr ~{sep='_:_' frip_overlap_qcs_pr} \
+            ~{'--frip-overlap-qc-ppr ' + frip_overlap_qc_ppr} \
+            ~{'--idr-reproducibility-qc ' + idr_reproducibility_qc} \
+            ~{'--overlap-reproducibility-qc ' + overlap_reproducibility_qc} \
+            --gc-plots ~{sep='_:_' gc_plots} \
+            --peak-region-size-qcs ~{sep='_:_' peak_region_size_qcs} \
+            --peak-region-size-plots ~{sep='_:_' peak_region_size_plots} \
+            --num-peak-qcs ~{sep='_:_' num_peak_qcs} \
+            ~{'--idr-opt-peak-region-size-qc ' + idr_opt_peak_region_size_qc} \
+            ~{'--idr-opt-peak-region-size-plot ' + idr_opt_peak_region_size_plot} \
+            ~{'--idr-opt-num-peak-qc ' + idr_opt_num_peak_qc} \
+            ~{'--overlap-opt-peak-region-size-qc ' + overlap_opt_peak_region_size_qc} \
+            ~{'--overlap-opt-peak-region-size-plot ' + overlap_opt_peak_region_size_plot} \
+            ~{'--overlap-opt-num-peak-qc ' + overlap_opt_num_peak_qc} \
             --out-qc-html qc.html \
             --out-qc-json qc.json \
-            ~{"--qc-json-ref " + qc_json_ref}
+            ~{'--qc-json-ref ' + qc_json_ref}
     >>>
 
     output {
-        File report = glob("*qc.html")[0]
-        File qc_json = glob("*qc.json")[0]
-        Boolean qc_json_ref_match = read_string("qc_json_ref_match.txt") == "True"
+        File report = glob('*qc.html')[0]
+        File qc_json = glob('*qc.json')[0]
+        Boolean qc_json_ref_match = read_string('qc_json_ref_match.txt') == 'True'
     }
 
     runtime {
         cpu: 1
-        memory: "4 GB"
+        memory: '4 GB'
         time: 4
-        disks: "local-disk 50 SSD"
+        disks: 'local-disk 50 SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -3694,42 +3694,42 @@ task read_genome_tsv {
     >>>
 
     output {
-        String? genome_name = read_string("genome_name")
-        String? ref_fa = if size("ref_fa") == 0
+        String? genome_name = read_string('genome_name')
+        String? ref_fa = if size('ref_fa') == 0
             then null_s
-            else read_string("ref_fa")
-        String? bwa_idx_tar = if size("bwa_idx_tar") == 0
+            else read_string('ref_fa')
+        String? bwa_idx_tar = if size('bwa_idx_tar') == 0
             then null_s
-            else read_string("bwa_idx_tar")
-        String? bowtie2_idx_tar = if size("bowtie2_idx_tar") == 0
+            else read_string('bwa_idx_tar')
+        String? bowtie2_idx_tar = if size('bowtie2_idx_tar') == 0
             then null_s
-            else read_string("bowtie2_idx_tar")
-        String? chrsz = if size("chrsz") == 0
+            else read_string('bowtie2_idx_tar')
+        String? chrsz = if size('chrsz') == 0
             then null_s
-            else read_string("chrsz")
-        String? gensz = if size("gensz") == 0
+            else read_string('chrsz')
+        String? gensz = if size('gensz') == 0
             then null_s
-            else read_string("gensz")
-        String? blacklist = if size("blacklist") == 0
+            else read_string('gensz')
+        String? blacklist = if size('blacklist') == 0
             then null_s
-            else read_string("blacklist")
-        String? blacklist2 = if size("blacklist2") == 0
+            else read_string('blacklist')
+        String? blacklist2 = if size('blacklist2') == 0
             then null_s
-            else read_string("blacklist2")
-        String? mito_chr_name = if size("mito_chr_name") == 0
+            else read_string('blacklist2')
+        String? mito_chr_name = if size('mito_chr_name') == 0
             then null_s
-            else read_string("mito_chr_name")
-        String? regex_bfilt_peak_chr_name = if size("regex_bfilt_peak_chr_name") == 0
-            then "chr[\\dXY]+"
-            else read_string("regex_bfilt_peak_chr_name")
+            else read_string('mito_chr_name')
+        String? regex_bfilt_peak_chr_name = if size('regex_bfilt_peak_chr_name') == 0
+            then 'chr[\\dXY]+'
+            else read_string('regex_bfilt_peak_chr_name')
     }
 
     runtime {
         maxRetries: 0
         cpu: 1
-        memory: "2 GB"
+        memory: '2 GB'
         time: 4
-        disks: "local-disk 10 SSD"
+        disks: 'local-disk 10 SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -3744,7 +3744,7 @@ task rounded_mean {
 
     command <<<
         python <<CODE
-        arr = [~{sep="," ints}]
+        arr = [~{sep=',' ints}]
         with open('tmp.txt','w') as fp:
             if len(arr):
                 sum_ = sum(arr)
@@ -3756,14 +3756,14 @@ task rounded_mean {
     >>>
 
     output {
-        Int rounded_mean = read_int("tmp.txt")
+        Int rounded_mean = read_int('tmp.txt')
     }
 
     runtime {
         cpu: 1
-        memory: "2 GB"
+        memory: '2 GB'
         time: 4
-        disks: "local-disk 10 SSD"
+        disks: 'local-disk 10 SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda
@@ -3782,15 +3782,15 @@ task raise_exception {
     >>>
 
     output {
-        String error_msg = "~{msg}"
+        String error_msg = '~{msg}'
     }
 
     runtime {
         maxRetries: 0
         cpu: 1
-        memory: "2 GB"
+        memory: '2 GB'
         time: 4
-        disks: "local-disk 10 SSD"
+        disks: 'local-disk 10 SSD'
         docker: runtime_environment.docker
         singularity: runtime_environment.singularity
         conda: runtime_environment.conda

@@ -3,10 +3,12 @@
 mod indent;
 mod max_line_length;
 mod newline;
+mod quote_style;
 
 pub use indent::Indent;
 pub use max_line_length::MaxLineLength;
 pub use newline::NewlineStyle;
+pub use quote_style::QuoteStyle;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -16,6 +18,8 @@ const SORT_IMPORTS_DEFAULT: bool = true;
 const SORT_INPUTS_DEFAULT: bool = false;
 /// Default for whether trailing commas are enabled.
 const TRAILING_COMMAS_DEFAULT: bool = true;
+/// Default quote style.
+const QUOTE_STYLE_DEFAULT: QuoteStyle = QuoteStyle::Preserve;
 
 /// Configuration for formatting.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
@@ -33,6 +37,8 @@ pub struct Config {
     pub trailing_commas: bool,
     /// The newline style.
     pub newline_style: NewlineStyle,
+    /// The quote style to use for literal strings.
+    pub quote_style: QuoteStyle,
 }
 
 impl Default for Config {
@@ -44,6 +50,7 @@ impl Default for Config {
             sort_inputs: SORT_INPUTS_DEFAULT,
             trailing_commas: TRAILING_COMMAS_DEFAULT,
             newline_style: NewlineStyle::default(),
+            quote_style: QUOTE_STYLE_DEFAULT,
         }
     }
 }
@@ -82,6 +89,12 @@ impl Config {
     /// Set whether trailing commas are enabled.
     pub fn trailing_commas(mut self, trailing_commas: bool) -> Self {
         self.trailing_commas = trailing_commas;
+        self
+    }
+
+    /// Set the quote style.
+    pub fn quote_style(mut self, quote_style: QuoteStyle) -> Self {
+        self.quote_style = quote_style;
         self
     }
 }

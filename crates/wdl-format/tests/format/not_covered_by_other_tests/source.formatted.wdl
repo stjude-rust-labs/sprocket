@@ -20,8 +20,8 @@ task test1 {
 
     command  # my command block
     <<<
-        echo 'hello ~{default="world" name}'
-        echo '~{true="good" false="bad" flag}bye'
+        echo 'hello ~{default='world' name}'
+        echo '~{true='good' false="bad" flag}bye'
     >>>
 
     output {

@@ -151,7 +151,8 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
         .sort_inputs(config.format.sort_inputs)
         .sort_imports(config.format.sort_imports)
         .trailing_commas(config.format.trailing_commas)
-        .newline_style(newline_style);
+        .newline_style(newline_style)
+        .quote_style(config.format.quote_style);
     let formatter = Formatter::new(config);
 
     let mut errors = 0;

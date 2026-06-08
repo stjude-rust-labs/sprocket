@@ -3,7 +3,7 @@ version 1.0
 workflow test_wf {
     meta {
         a: "hello"
-        b: "world"
+        b: 'world'
         c: 5
         d: -0xf
         e: 1.0e10
@@ -33,7 +33,7 @@ workflow test_wf {
                 a: {},
                 b: 0,
                 c: "",
-                d: "",
+                d: '',
                 e: [],
             },
             {
