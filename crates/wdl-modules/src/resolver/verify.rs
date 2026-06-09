@@ -279,8 +279,10 @@ mod tests {
     fn require_signed_rejects_unsigned() {
         let dir = tempdir().unwrap();
         write_module(dir.path(), "version 1.2\n");
-        let mut config = ModulesConfig::default();
-        config.require_signed = true;
+        let config = ModulesConfig {
+            require_signed: true,
+            ..Default::default()
+        };
         let policy = ResolverPolicy::from(&config);
         let trust = TrustStore::default();
         let err = verify(&policy, &trust, &test_dep(), dir.path(), None).unwrap_err();
@@ -408,8 +410,10 @@ mod tests {
         for i in 0..5 {
             fs::write(dir.path().join(format!("file_{i}.wdl")), "version 1.2\n").unwrap();
         }
-        let mut config = ModulesConfig::default();
-        config.max_materialized_files = Some(2);
+        let config = ModulesConfig {
+            max_materialized_files: Some(2),
+            ..Default::default()
+        };
         let policy = ResolverPolicy::from(&config);
         let trust = TrustStore::default();
         let err = verify(&policy, &trust, &test_dep(), dir.path(), None).unwrap_err();
@@ -423,8 +427,10 @@ mod tests {
     fn byte_limit_exceeded() {
         let dir = tempdir().unwrap();
         fs::write(dir.path().join("big.wdl"), "x".repeat(1000)).unwrap();
-        let mut config = ModulesConfig::default();
-        config.max_materialized_bytes = Some(100);
+        let config = ModulesConfig {
+            max_materialized_bytes: Some(100),
+            ..Default::default()
+        };
         let policy = ResolverPolicy::from(&config);
         let trust = TrustStore::default();
         let err = verify(&policy, &trust, &test_dep(), dir.path(), None).unwrap_err();

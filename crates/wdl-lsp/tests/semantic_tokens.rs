@@ -20,7 +20,7 @@ use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_TYPES;
 
 use crate::common::TestContext;
 
-mod common;
+pub mod common;
 
 async fn semantic_tokens_full_request(
     ctx: &mut TestContext,

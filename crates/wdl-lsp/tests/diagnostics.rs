@@ -1,6 +1,6 @@
 //! Tests for diagnostic baseline filtering in the LSP.
 
-mod common;
+pub mod common;
 
 use async_lsp::lsp_types::WorkspaceDiagnosticReportResult;
 use async_lsp::lsp_types::WorkspaceDocumentDiagnosticReport;
@@ -116,17 +116,15 @@ async fn baseline_still_suppresses_after_repeated_pulls() {
     });
 
     let (_, first) = ctx.initialize().await;
-    for report in [&first] {
-        let codes = diagnostic_codes(report);
-        assert!(
-            !codes.contains(&"InputName".to_string()),
-            "`InputName` should be suppressed on first pull; got: {codes:?}"
-        );
-        assert!(
-            !codes.contains(&"UnusedInput".to_string()),
-            "`UnusedInput` should be suppressed on first pull; got: {codes:?}"
-        );
-    }
+    let codes = diagnostic_codes(&first);
+    assert!(
+        !codes.contains(&"InputName".to_string()),
+        "`InputName` should be suppressed on first pull; got: {codes:?}"
+    );
+    assert!(
+        !codes.contains(&"UnusedInput".to_string()),
+        "`UnusedInput` should be suppressed on first pull; got: {codes:?}"
+    );
 
     for pull in 2..=3 {
         let report = ctx.workspace_diagnostic().await;
