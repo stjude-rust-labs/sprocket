@@ -7,6 +7,7 @@ use super::Span;
 use super::SupportedVersion;
 use super::lexer::PreambleToken;
 use super::parser::Event;
+use super::parser::ParseDiagnostic;
 use super::parser::Parser;
 use super::tree::SyntaxKind;
 use crate::lexer::VersionStatementToken;
@@ -105,7 +106,7 @@ pub fn document(
                     diagnostic.with_label("a version statement must come before this", span);
             }
 
-            (parser, diagnostic)
+            (parser, diagnostic.into())
         }
     };
 
@@ -132,7 +133,7 @@ fn unsupported_version(version: &str, span: Span) -> Diagnostic {
 fn version_statement(
     mut parser: Parser<'_, PreambleToken>,
     fallback_version: Option<SupportedVersion>,
-) -> (Parser<'_, PreambleToken>, Option<Diagnostic>) {
+) -> (Parser<'_, PreambleToken>, Option<ParseDiagnostic>) {
     let marker = parser.start();
     parser.require(PreambleToken::VersionKeyword);
 
@@ -144,7 +145,7 @@ fn version_statement(
                 if let Some(fallback) = fallback_version {
                     parser.set_version(fallback);
                 } else {
-                    parser.diagnostic(unsupported_version(&e, span));
+                    parser.diagnostic(unsupported_version(&e, span).into());
                 }
             }
         },
