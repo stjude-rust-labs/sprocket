@@ -46,7 +46,7 @@ pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
     let config = match args.command {
         ConfigSubcommand::Init => Config::default(),
         ConfigSubcommand::Resolve(args) => {
-            // Redact any secrets if not requested to unredact
+            // Redact any secrets unless explicitly requested not to
             if !args.unredact {
                 config.run.engine = config.run.engine.redact();
             }
