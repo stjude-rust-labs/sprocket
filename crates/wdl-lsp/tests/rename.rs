@@ -1,18 +1,18 @@
 //! Integration tests for the `textDocument/rename` request.
 
+use async_lsp::lsp_types::*;
 use pretty_assertions::assert_eq;
-use tower_lsp::lsp_types::*;
 
-mod common;
+pub mod common;
+use async_lsp::lsp_types::request::Rename;
 use common::TestContext;
-use tower_lsp::lsp_types::request::Rename;
 
 async fn rename_request(
     ctx: &mut TestContext,
     path: &str,
     position: Position,
     new_name: &str,
-) -> Option<WorkspaceEdit> {
+) -> async_lsp::Result<Option<WorkspaceEdit>> {
     ctx.request::<Rename>(RenameParams {
         text_document_position: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier {
@@ -35,6 +35,7 @@ async fn should_rename_workspace_wide() {
 
     let edit = rename_request(&mut ctx, "source.wdl", Position::new(10, 13), NEW_NAME)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let changes = edit.changes.expect("expected changes");
@@ -58,7 +59,9 @@ async fn should_reject_invalid_identifier() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;
 
-    let result = rename_request(&mut ctx, "source.wdl", Position::new(10, 13), "1notValid").await;
+    let result = rename_request(&mut ctx, "source.wdl", Position::new(10, 13), "1notValid")
+        .await
+        .expect("request should succeed");
 
     assert!(result.is_none());
 }
@@ -75,6 +78,7 @@ async fn should_rename_struct_definition() {
         "PersonRenamed",
     )
     .await
+    .expect("request should succeed")
     .unwrap();
 
     let changes = edit.changes.expect("expected changes");
@@ -99,6 +103,7 @@ async fn should_rename_import_namespace_alias() {
 
     let edit = rename_request(&mut ctx, "source.wdl", Position::new(3, 22), "libx")
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let changes = edit.changes.expect("expected changes");
@@ -119,6 +124,7 @@ async fn should_not_rename_shadowed_declaration() {
 
     let edit = rename_request(&mut ctx, "shadowed.wdl", Position::new(10, 22), NEW_NAME)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let changes = edit.changes.expect("expected changes");
@@ -156,6 +162,7 @@ async fn should_rename_enum() {
     // Position of `Status` in `enum Status`
     let edit = rename_request(&mut ctx, "enum.wdl", Position::new(2, 7), "State")
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let changes = edit.changes.expect("expected changes");
@@ -174,6 +181,7 @@ async fn should_rename_enum_variant() {
     // Position of `Active` in variant definition
     let edit = rename_request(&mut ctx, "enum.wdl", Position::new(3, 4), "Running")
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let changes = edit.changes.expect("expected changes");

@@ -1,5 +1,5 @@
-#@ except: MatchingOutputMeta, ExpectedRuntimeKeys
-#@ except: ParameterMetaMatched, RuntimeSection, BashSetSyntax
+#@ except: BashSetSyntax, ExpectedRuntimeKeys, MatchingOutputMeta, ParameterMetaMatched
+#@ except: RuntimeSection
 
 version 1.1
 

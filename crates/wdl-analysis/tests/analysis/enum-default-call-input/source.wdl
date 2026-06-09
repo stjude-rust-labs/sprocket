@@ -3,7 +3,7 @@ version 1.3
 enum Type {
     A,
     B,
-    C
+    C,
 }
 
 task hello {
@@ -15,13 +15,11 @@ task hello {
     command <<<
         echo "Hello, ~{name} of type ~{my_enum}!"
     >>>
-
 }
 
 workflow main {
-    call hello {
-        input:
-            name = "Alice",
-            my_enum = Type.B
+    call hello { input:
+        name = "Alice",
+        my_enum = Type.B,
     }
 }

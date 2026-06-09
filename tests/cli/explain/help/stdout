@@ -86,6 +86,7 @@ Available rules:
   - MatchingOutputMeta
   - MetaDescription
   - MetaSections
+  - MisleadingDeclarationOrder
   - OutputName
   - ParameterDescription
   - ParameterMetaMatched

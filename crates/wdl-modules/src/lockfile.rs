@@ -12,10 +12,12 @@ use serde::Serialize;
 use thiserror::Error;
 use url::Url;
 
-use crate::ContentHash;
-use crate::DependencyName;
-use crate::DependencyNameError;
-use crate::VerifyingKey;
+use crate::dependency::DependencyName;
+use crate::dependency::DependencyNameError;
+use crate::dependency::GitModulePath;
+use crate::dependency::GitSelector;
+use crate::hash::ContentHash;
+use crate::signing::VerifyingKey;
 
 /// The current lockfile schema version.
 pub const LOCKFILE_VERSION: u32 = 1;
@@ -47,6 +49,15 @@ pub struct Lockfile {
     pub version: u32,
     /// The top-level dependency map, keyed by consumer-chosen name.
     pub dependencies: DependencyMap,
+}
+
+impl Default for Lockfile {
+    fn default() -> Self {
+        Self {
+            version: LOCKFILE_VERSION,
+            dependencies: DependencyMap::new(),
+        }
+    }
 }
 
 impl Lockfile {
@@ -95,16 +106,43 @@ pub enum ResolvedSource {
         git: Url,
         /// The 40-character lowercase hex commit SHA.
         commit: GitCommit,
+        /// The selector from `module.json` that produced this entry.
+        ///
+        /// Tag and branch selectors carry mutable refs that cannot be
+        /// validated from the resolved commit alone, so this field is
+        /// required to allow integrity checks without a full relock.
+        selector: GitSelector,
         /// The sub-path within the repository where the module lives.
+        ///
         /// Omitted when the module sits at the repository root.
         #[serde(default, skip_serializing_if = "Option::is_none")]
-        path: Option<PathBuf>,
+        path: Option<GitModulePath>,
     },
     /// A local filesystem source.
     Path {
         /// The local path to the module directory.
         path: PathBuf,
     },
+}
+
+impl ResolvedSource {
+    /// Returns the source URL as a string suitable for trust-store
+    /// lookups.
+    pub fn source_url(&self) -> String {
+        match self {
+            Self::Git { git, .. } => git.to_string(),
+            Self::Path { path } => path.display().to_string(),
+        }
+    }
+
+    /// Returns the sub-path within the source, or `None` when the
+    /// module sits at the source root.
+    pub fn source_path(&self) -> Option<&str> {
+        match self {
+            Self::Git { path: Some(p), .. } => Some(p.as_str()),
+            _ => None,
+        }
+    }
 }
 
 /// A 40-character lowercase hex Git commit SHA.
@@ -150,7 +188,7 @@ impl FromStr for GitCommit {
 
 /// An error parsing a [`GitCommit`].
 #[derive(Debug, Error)]
-#[error("Git commit `{0}` must be exactly 40 lowercase hex characters")]
+#[error("git commit `{0}` must be exactly 40 lowercase hex characters")]
 pub struct GitCommitError(String);
 
 #[cfg(test)]
@@ -177,7 +215,8 @@ mod tests {
                     "spellbook": {
                         "source": {
                             "git": "https://github.com/openwdl/spellbook",
-                            "commit": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
+                            "commit": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+                            "selector": {"version": "^1"}
                         },
                         "version": "1.2.0",
                         "checksum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -185,7 +224,8 @@ mod tests {
                             "common": {
                                 "source": {
                                     "git": "https://github.com/openwdl/common",
-                                    "commit": "d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5"
+                                    "commit": "d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5",
+                                    "selector": {"version": "^0.3"}
                                 },
                                 "version": "0.3.0",
                                 "checksum": "sha256:4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
@@ -273,7 +313,8 @@ mod tests {
                     "spellbook": {
                         "source": {
                             "git": "https://x/y",
-                            "commit": "not-a-sha"
+                            "commit": "not-a-sha",
+                            "selector": {"tag": "v1"}
                         },
                         "version": "1.0.0",
                         "checksum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
@@ -315,6 +356,7 @@ mod tests {
                         "source": {
                             "git": "https://github.com/openwdl/tasks",
                             "commit": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+                            "selector": {"tag": "v1.2.0"},
                             "path": "csvcut"
                         },
                         "version": "1.2.0",
@@ -331,7 +373,7 @@ mod tests {
             .unwrap();
         match &csvcut.source {
             ResolvedSource::Git { path, .. } => {
-                assert_eq!(path.as_deref(), Some(std::path::Path::new("csvcut")));
+                assert_eq!(path.as_ref().map(|p| p.as_str()), Some("csvcut"));
             }
             _ => panic!("expected `Git` source"),
         }

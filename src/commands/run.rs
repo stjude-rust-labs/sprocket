@@ -28,7 +28,9 @@ use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
+use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::layer;
+use wdl::analysis::Document;
 use wdl::ast::AstNode as _;
 use wdl::ast::Severity;
 use wdl::diagnostics::Mode;
@@ -49,11 +51,13 @@ use wdl::engine::config::SecretString;
 
 use crate::Config;
 use crate::FileReloadHandle;
+use crate::FilterReloadHandle;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::inputs::Invocation;
+use crate::system::v1::db::Database;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::exec::RunContext;
 use crate::system::v1::exec::Target;
@@ -65,6 +69,7 @@ use crate::system::v1::exec::open_database;
 use crate::system::v1::exec::select_target;
 use crate::system::v1::fs::FileSystemLock;
 use crate::system::v1::fs::OutputDirectory;
+use crate::system::v1::fs::RunDirectory;
 
 /// The delay in showing the progress bar.
 ///
@@ -186,6 +191,12 @@ pub struct Args {
     #[clap(long)]
     pub no_call_cache: bool,
 
+    /// Show task stderr during execution.
+    ///
+    /// Note that not all execution backends support this option.
+    #[clap(long)]
+    pub show_task_stderr: bool,
+
     /// Optional suffix to append to the run directory name.
     #[clap(long, value_name = "SUFFIX")]
     pub suffix: Option<String>,
@@ -278,6 +289,20 @@ struct Task {
     ///
     /// This is used to cancel Crankshaft tasks that haven't yet executed.
     token: CancellationToken,
+    /// Buffer for the task's stderr output.
+    stderr_buffer: Vec<u8>,
+}
+
+impl Task {
+    const STDERR_BUFFER_SIZE: usize = 4096;
+
+    fn new(name: Arc<String>, token: CancellationToken) -> Self {
+        Self {
+            name,
+            token,
+            stderr_buffer: Vec::new(),
+        }
+    }
 }
 
 /// Represents state for reporting evaluation progress.
@@ -302,6 +327,9 @@ struct State {
 /// Displays evaluation progress.
 async fn progress(
     progress_bar: tracing::Span,
+    show_stderr: bool,
+    colorize: bool,
+    target: Arc<Target>,
     mut crankshaft: Receiver<CrankshaftEvent>,
     mut engine: Receiver<EngineEvent>,
     token: CancellationToken,
@@ -345,6 +373,27 @@ async fn progress(
         message
     }
 
+    let run_kind = match &*target {
+        Target::Task(_) => "task",
+        Target::Workflow(_) => "workflow",
+    };
+
+    let template = if colorize {
+        format!(
+            "[{{elapsed_precise:.cyan/blue}}] {{spinner:.cyan/blue}} {running} {run_kind} \
+             {target}{{msg}}",
+            running = "running".cyan(),
+            target = target.name().magenta().bold()
+        )
+    } else {
+        format!(
+            "[{{elapsed_precise}}] {{spinner}} running {run_kind} {target}{{msg}}",
+            target = target.name()
+        )
+    };
+
+    progress_bar.pb_set_style(&ProgressStyle::with_template(&template).unwrap());
+
     let mut state = State::default();
     let mut lagged = false;
     let mut tasks_canceled = false;
@@ -371,7 +420,7 @@ async fn progress(
                                 task_token.cancel();
                             }
 
-                            state.tasks.insert(id, Task { name: name.into(), token: task_token });
+                            state.tasks.insert(id, Task::new(name.into(), task_token));
                             None
                         }
                         CrankshaftEvent::TaskStarted { id } => {
@@ -392,6 +441,54 @@ async fn progress(
                         CrankshaftEvent::TaskCanceled { id } => {
                             state.canceled += 1;
                             Some(id)
+                        }
+                        CrankshaftEvent::TaskStderr { id, message } if show_stderr => {
+                            let Some(task) = state.tasks.get_mut(&id) else {
+                                continue;
+                            };
+
+                            if task.stderr_buffer.capacity() == 0 {
+                                task.stderr_buffer.reserve(Task::STDERR_BUFFER_SIZE);
+                            }
+
+                            task.stderr_buffer.extend_from_slice(&message);
+                            while let Some(line_end) = task.stderr_buffer.iter().position(|&b| b == b'\n') {
+                                if line_end > Task::STDERR_BUFFER_SIZE {
+                                    tracing::warn!(
+                                        target: "task-stderr",
+                                        "{} {}",
+                                        task.name.magenta().bold(),
+                                        format!("line too long, dropped {line_end} bytes").yellow()
+                                    );
+                                } else {
+                                    let line_bytes = &task.stderr_buffer[..line_end];
+                                    let line = String::from_utf8_lossy(line_bytes);
+                                    tracing::debug!(
+                                        target: "task-stderr",
+                                        "{} {}",
+                                        task.name.magenta().bold(),
+                                        line.blue()
+                                    );
+                                }
+
+                                task.stderr_buffer.drain(..=line_end);
+                            }
+
+                            if task.stderr_buffer.len() > Task::STDERR_BUFFER_SIZE {
+                                tracing::warn!(
+                                    target: "task-stderr",
+                                    "{} {}",
+                                    task.name.magenta().bold(),
+                                    format!("line too long, dropped {} bytes", task.stderr_buffer.len()).yellow()
+                                );
+                                task.stderr_buffer.clear();
+                            }
+
+                            if task.stderr_buffer.capacity() > Task::STDERR_BUFFER_SIZE {
+                                task.stderr_buffer.shrink_to(Task::STDERR_BUFFER_SIZE);
+                            }
+
+                            continue
                         }
                         CrankshaftEvent::TaskContainerCreated { .. }
                         | CrankshaftEvent::TaskContainerExited { .. }
@@ -518,21 +615,24 @@ pub async fn run(
     mut config: Config,
     colorize: bool,
     handle: FileReloadHandle,
+    filter_handle: FilterReloadHandle,
 ) -> CommandResult<()> {
     if let Source::Directory(_) = args.source {
         return Err(anyhow!("directory sources are not supported for the `run` command").into());
     }
 
+    if args.show_task_stderr {
+        filter_handle
+            .modify(|filter| {
+                let current_directives = filter.to_string();
+                *filter = EnvFilter::builder()
+                    .parse_lossy(format!("{},task-stderr=debug", current_directives));
+            })
+            .context("failed to modify tracing filter")?;
+    }
+
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     args.apply_engine_config(&mut config.run.engine);
-
-    let template = if colorize {
-        "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}"
-    } else {
-        "[{elapsed_precise}] {bar:40} {msg} {pos}/{len}"
-    };
-
-    let style = ProgressStyle::with_template(template).unwrap();
 
     let progress_bar = tracing::span!(Level::WARN, "progress");
     let start = std::time::Instant::now();
@@ -542,6 +642,14 @@ pub async fn run(
         .fallback_version(config.common.wdl.fallback_version.inner().cloned())
         .init({
             let progress_bar = progress_bar.clone();
+
+            let template = if colorize {
+                "[{elapsed_precise:.cyan/blue}] {bar:40.cyan/blue} {msg} {pos}/{len}"
+            } else {
+                "[{elapsed_precise}] {bar:40} {msg} {pos}/{len}"
+            };
+
+            let style = ProgressStyle::with_template(template).unwrap();
             Box::new(move || {
                 progress_bar.pb_set_style(&style);
             })
@@ -603,123 +711,9 @@ pub async fn run(
 
     let document = results.filter(&[&args.source]).next().unwrap().document();
 
-    // Parse and resolve inputs. The `into_resolved_json()` method resolves
-    // relative paths using per-input origins before serializing to JSON.
-    let (target, inputs) = match Invocation::coalesce(&args.inputs, args.target.clone())
-        .await
-        .with_context(|| {
-            format!(
-                "failed to parse inputs from `{sources}`",
-                sources = args.inputs.join("`, `")
-            )
-        })?
-        .into_engine_inputs(document)
-        .await?
-    {
-        Some((target, inputs)) => (
-            select_target(document, Some(&target)).map_err(|e| anyhow!(e))?,
-            inputs,
-        ),
-        None => {
-            let target = select_target(document, args.target.as_deref()).map_err(|e| anyhow!(e))?;
+    let (target, inputs) = resolve_inputs(&args, document).await?;
 
-            let inputs = match target {
-                Target::Task(_) => TaskInputs::default().into(),
-                Target::Workflow(_) => WorkflowInputs::default().into(),
-            };
-
-            (target, inputs)
-        }
-    };
-
-    // Set up output directory structure
-    let output_dir = OutputDirectory::new(
-        args.output_dir
-            .clone()
-            .unwrap_or_else(|| config.run.output_dir.clone()),
-    );
-
-    // Acquire an exclusive lock on the output directory to serialize setup
-    // operations across concurrent processes (e.g., database creation,
-    // directory structure initialization, and symlink management).
-    //
-    // NOTE: this lock covers setup only. Post-setup operations on shared
-    // state (e.g., index symlink creation in `set_run_success`) are not
-    // covered—concurrent processes indexing on the same name can still
-    // race on symlinks. This is acceptable because each parallel test
-    // uses a unique target name.
-    let lock = FileSystemLock::acquire(output_dir.root())
-        .context("failed to acquire lock on output directory")?;
-
-    // Create the run directory
-    let run_dir = create_run_directory(&output_dir, target.name(), args.suffix.as_deref())?;
-
-    // Now that the run directory is created, initialize file logging
-    initialize_file_logging(handle, run_dir.root())?;
-
-    tracing::info!(
-        "`{dir}` will be used as the execution directory",
-        dir = run_dir.root().display()
-    );
-
-    let run_kind = match &target {
-        Target::Task(_) => "task",
-        Target::Workflow(_) => "workflow",
-    };
-
-    let template = if colorize {
-        format!(
-            "[{{elapsed_precise:.cyan/blue}}] {{spinner:.cyan/blue}} {running} {run_kind} \
-             {target}{{msg}}",
-            running = "running".cyan(),
-            target = target.name().magenta().bold()
-        )
-    } else {
-        format!(
-            "[{{elapsed_precise}}] {{spinner}} running {run_kind} {target}{{msg}}",
-            target = target.name()
-        )
-    };
-
-    progress_bar.pb_set_style(&ProgressStyle::with_template(&template).unwrap());
-
-    // Open or create the database for provenance tracking
-    let db_path = config.server.database_url();
-    let db = open_database(&db_path).await?;
-
-    // Create session and run records
-    let session = create_session(db.as_ref(), SprocketCommand::Run)
-        .await
-        .context("failed to create session")?;
-
-    let (run_id, run_name, _run) = create_run_record(
-        db.as_ref(),
-        session.uuid,
-        &args.source,
-        Some(target.name()),
-        &inputs_to_json(target.name(), &inputs).context("failed to serialize inputs")?,
-    )
-    .await
-    .context("failed to create run record")?;
-
-    // Update the run directory in the database
-    let run_dir_str = run_dir
-        .root()
-        .to_str()
-        .context("run directory path is not valid UTF-8")?;
-    db.update_run_directory(run_id, run_dir_str)
-        .await
-        .context("failed to update run directory")?;
-
-    // Release the lock now that setup is complete—each process has its own
-    // timestamped run directory from this point forward.
-    drop(lock);
-
-    let ctx = RunContext {
-        run_id,
-        run_generated_name: run_name,
-        started_at: Utc::now(),
-    };
+    let (ctx, run_dir, db) = setup_run_context(handle, &args, &config, &target, &inputs).await?;
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
     let events = Events::new(config.run.events_capacity);
@@ -727,10 +721,14 @@ pub async fn run(
         events
             .subscribe_transfer()
             .expect("should have transfer events"),
+        colorize,
         cancellation.first(),
     ));
     let crankshaft_progress = tokio::spawn(progress(
         progress_bar,
+        args.show_task_stderr,
+        colorize,
+        target.clone(),
         events
             .subscribe_crankshaft()
             .expect("should have Crankshaft events"),
@@ -753,7 +751,7 @@ pub async fn run(
         config.run.engine,
         cancellation.clone(),
         events,
-        target,
+        &target,
         inputs,
         &run_dir,
         &base_dir,
@@ -823,6 +821,143 @@ pub async fn run(
             },
         }
     }
+}
+
+/// Parse and resolve inputs.
+async fn resolve_inputs(args: &Args, document: &Document) -> Result<(Arc<Target>, Inputs)> {
+    // The `into_resolved_json()` method resolves
+    // relative paths using per-input origins before serializing to JSON.
+    let (target, inputs) = match Invocation::coalesce(&args.inputs, args.target.clone())
+        .await
+        .with_context(|| {
+            format!(
+                "failed to parse inputs from `{sources}`",
+                sources = args.inputs.join("`, `")
+            )
+        })?
+        .into_engine_inputs(document)
+        .await?
+    {
+        Some((target, inputs)) => {
+            let target = select_target(document, Some(&target)).map_err(|e| anyhow!(e))?;
+            (Arc::new(target), inputs)
+        }
+        None => {
+            let target = select_target(document, args.target.as_deref()).map_err(|e| anyhow!(e))?;
+
+            let inputs = match target {
+                Target::Task(_) => TaskInputs::default().into(),
+                Target::Workflow(_) => WorkflowInputs::default().into(),
+            };
+
+            (Arc::new(target), inputs)
+        }
+    };
+
+    match (&*target, &inputs) {
+        (Target::Task(task), Inputs::Task(inputs)) => {
+            let Some(task) = document.task_by_name(task) else {
+                bail!("task '{task}' not found in document");
+            };
+
+            inputs.validate(document, task, None).with_context(|| {
+                format!(
+                    "failed to validate the inputs to task `{task}`",
+                    task = task.name()
+                )
+            })?;
+        }
+        (Target::Workflow(workflow), Inputs::Workflow(inputs)) => {
+            let Some(workflow) = document.workflow() else {
+                bail!("workflow '{workflow}' not found in document");
+            };
+
+            inputs.validate(document, workflow, None).with_context(|| {
+                format!(
+                    "failed to validate the inputs to workflow `{workflow}`",
+                    workflow = workflow.name()
+                )
+            })?;
+        }
+        _ => unreachable!(),
+    }
+
+    Ok((target, inputs))
+}
+
+/// Setup the run output directory and database for a run.
+async fn setup_run_context(
+    log_handle: FileReloadHandle,
+    args: &Args,
+    config: &Config,
+    target: &Target,
+    inputs: &Inputs,
+) -> Result<(RunContext, RunDirectory, Arc<dyn Database>)> {
+    // Set up output directory structure
+    let output_dir = OutputDirectory::new(
+        args.output_dir
+            .clone()
+            .unwrap_or_else(|| config.run.output_dir.clone()),
+    );
+
+    // Acquire an exclusive lock on the output directory to serialize setup
+    // operations across concurrent processes (e.g., database creation,
+    // directory structure initialization, and symlink management).
+    //
+    // NOTE: this lock covers setup only. Post-setup operations on shared
+    // state (e.g., index symlink creation in `set_run_success`) are not
+    // covered—concurrent processes indexing on the same name can still
+    // race on symlinks. This is acceptable because each parallel test
+    // uses a unique target name.
+    let _lock = FileSystemLock::acquire(output_dir.root())
+        .context("failed to acquire lock on output directory")?;
+
+    // Create the run directory
+    let run_dir = create_run_directory(&output_dir, target.name(), args.suffix.as_deref())?;
+
+    // Now that the run directory is created, initialize file logging
+    initialize_file_logging(log_handle, run_dir.root())?;
+
+    tracing::info!(
+        "`{dir}` will be used as the execution directory",
+        dir = run_dir.root().display()
+    );
+
+    // Open or create the database for provenance tracking
+    let db_path = config.server.database_url();
+    let db = open_database(&db_path).await?;
+
+    // Create session and run records
+    let session = create_session(db.as_ref(), SprocketCommand::Run)
+        .await
+        .context("failed to create session")?;
+
+    let (run_id, run_name, _run) = create_run_record(
+        db.as_ref(),
+        session.uuid,
+        &args.source,
+        Some(target.name()),
+        &inputs_to_json(target.name(), inputs).context("failed to serialize inputs")?,
+    )
+    .await
+    .context("failed to create run record")?;
+
+    // Update the run directory in the database
+    let run_dir_str = run_dir
+        .root()
+        .to_str()
+        .context("run directory path is not valid UTF-8")?;
+    db.update_run_directory(run_id, run_dir_str)
+        .await
+        .context("failed to update run directory")?;
+
+    let ctx = RunContext {
+        run_id,
+        run_generated_name: run_name,
+        started_at: Utc::now(),
+    };
+
+    Ok((ctx, run_dir, db))
 }
 
 /// Initializes logging to `output.log` in the given run directory.

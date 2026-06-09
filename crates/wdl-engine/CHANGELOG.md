@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.15.0 - 2026-06-03
+
+#### Added
+
+* Added `CancellationContext::child()` to create dependent cancellation contexts ([#891](https://github.com/stjude-rust-labs/sprocket/pull/891)).
+
+#### Fixed
+
+* Fixed shared lock acquisition to reopen new lock files read-only before locking ([#869](https://github.com/stjude-rust-labs/sprocket/pull/869)).
+
+#### Dependencies
+
+* Bumped `cloud-copy` to `0.8.0`, which adds support for downloading files using multiple parallel streams ([#909](https://github.com/stjude-rust-labs/sprocket/pull/909)).
+
+## 0.14.0 - 2026-05-14
+
 ## 0.13.2 - 2026-04-22
 
 #### Changed
@@ -195,7 +211,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Removed
 
 * Removed the `codespan` cargo feature in favor of enabling codespan reporting always ([#462](https://github.com/stjude-rust-labs/sprocket/pull/462)).
-
 
 ## 0.9.0 - 10-14-2025
 

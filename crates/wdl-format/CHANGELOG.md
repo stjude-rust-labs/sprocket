@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.18.1 - 2026-06-03
+
+## 0.18.0 - 2026-05-14
+
 #### Added
 
 * Added configurable newline style (`auto`, `unix`, `windows`) to formatting configuration ([#795](https://github.com/stjude-rust-labs/sprocket/pull/795)).

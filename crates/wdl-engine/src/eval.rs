@@ -74,9 +74,9 @@ pub enum CancellationContextState {
 }
 
 impl CancellationContextState {
-    /// Gets the current context state.
-    fn get(state: &Arc<AtomicU8>) -> Self {
-        match state.load(Ordering::SeqCst) & CANCELLATION_STATE_MASK {
+    /// Gets the context state from a raw state byte.
+    fn from_raw(raw: u8) -> Self {
+        match raw & CANCELLATION_STATE_MASK {
             CANCELLATION_STATE_NOT_CANCELED => Self::NotCanceled,
             CANCELLATION_STATE_WAITING => Self::Waiting,
             CANCELLATION_STATE_CANCELING => Self::Canceling,
@@ -139,6 +139,9 @@ pub struct CancellationContext {
     mode: FailureMode,
     /// The state of the cancellation context.
     state: Arc<AtomicU8>,
+    /// The parent context, consulted read-only when folding the effective
+    /// state. `None` for a root context created by [`new`](Self::new).
+    parent: Option<Arc<CancellationContext>>,
     /// The cancellation token that is canceled upon the first cancellation.
     first: CancellationToken,
     /// The cancellation token that is canceled upon the second cancellation
@@ -161,14 +164,62 @@ impl CancellationContext {
         Self {
             mode,
             state: Arc::new(CANCELLATION_STATE_NOT_CANCELED.into()),
+            parent: None,
             first: CancellationToken::new(),
             second: CancellationToken::new(),
         }
     }
 
-    /// Gets the [`CancellationContextState`] of this [`CancellationContext`].
+    /// Creates a new child cancellation context.
+    ///
+    /// The returned [`CancellationContext`] is bound to the parent: both token
+    /// cancellation and the effective [`state`](Self::state) propagate from the
+    /// parent to the child. Cancelling the child, however, never affects the
+    /// parent or its other children.
+    pub fn child(&self, mode: FailureMode) -> Self {
+        Self {
+            mode,
+            state: Arc::new(CANCELLATION_STATE_NOT_CANCELED.into()),
+            parent: Some(Arc::new(self.clone())),
+            first: self.first.child_token(),
+            second: self.second.child_token(),
+        }
+    }
+
+    /// Folds this context's state with its ancestors' into an effective
+    /// `(level, user_initiated)` pair.
+    ///
+    /// `level` is the masked state level, where
+    /// `CANCELLATION_STATE_NOT_CANCELED` < `CANCELLATION_STATE_WAITING` <
+    /// `CANCELLATION_STATE_CANCELING`. `user_initiated` is whether the
+    /// effective cancellation was initiated by the user rather than by an
+    /// error.
+    ///
+    /// The `(level, user_initiated)` pair is always taken from a single
+    /// context rather than mixed across the hierarchy: an ancestor's pair
+    /// wins only when its effective level is strictly greater than this
+    /// context's. On a tie the local cause is authoritative, so a parent
+    /// cancellation that arrives after a child has already entered the same
+    /// level does not relabel the child's cause.
+    fn effective(&self) -> (u8, bool) {
+        let raw = self.state.load(Ordering::SeqCst);
+        let level = raw & CANCELLATION_STATE_MASK;
+        let user =
+            level != CANCELLATION_STATE_NOT_CANCELED && (raw & CANCELLATION_STATE_ERROR == 0);
+
+        match &self.parent {
+            Some(parent) => match parent.effective() {
+                (parent_level, parent_user) if parent_level > level => (parent_level, parent_user),
+                _ => (level, user),
+            },
+            None => (level, user),
+        }
+    }
+
+    /// Gets the effective [`CancellationContextState`] of this
+    /// [`CancellationContext`], folding in any ancestor's cancellation.
     pub fn state(&self) -> CancellationContextState {
-        CancellationContextState::get(&self.state)
+        CancellationContextState::from_raw(self.effective().0)
     }
 
     /// Performs a cancellation.
@@ -222,10 +273,10 @@ impl CancellationContext {
         self.second.clone()
     }
 
-    /// Determines if the user initiated the cancellation.
+    /// Determines if the user initiated the cancellation, considering any
+    /// ancestor's cancellation.
     pub fn user_canceled(&self) -> bool {
-        let state = self.state.load(Ordering::SeqCst);
-        state != CANCELLATION_STATE_NOT_CANCELED && (state & CANCELLATION_STATE_ERROR == 0)
+        self.effective().1
     }
 
     /// Triggers a cancellation as a result of an error.
@@ -857,5 +908,146 @@ mod test {
         assert!(!context.user_canceled());
         assert!(context.first.is_cancelled());
         assert!(context.second.is_cancelled());
+    }
+
+    #[test]
+    fn cancellation_child() {
+        let context = CancellationContext::new(FailureMode::Fast);
+        assert_eq!(context.state(), CancellationContextState::NotCanceled);
+
+        // Children can have a different failure mode
+        let child = context.child(FailureMode::Slow);
+        assert_eq!(child.state(), CancellationContextState::NotCanceled);
+        assert_eq!(child.cancel(), CancellationContextState::Waiting);
+        assert_eq!(child.cancel(), CancellationContextState::Canceling);
+        assert!(child.user_canceled());
+        assert!(child.first.is_cancelled());
+        assert!(child.second.is_cancelled());
+
+        // Child cancellation doesn't affect the parent
+        assert_eq!(context.state(), CancellationContextState::NotCanceled);
+
+        // But parent cancellation affects the child
+        let child = context.child(FailureMode::Fast);
+        assert_eq!(context.cancel(), CancellationContextState::Canceling);
+        assert!(child.first.is_cancelled());
+        assert!(child.second.is_cancelled());
+    }
+
+    #[test]
+    fn child_inherits_parent_cancellation_state() {
+        let parent = CancellationContext::new(FailureMode::Fast);
+        let child = parent.child(FailureMode::Fast);
+        assert_eq!(child.state(), CancellationContextState::NotCanceled);
+
+        // The user cancels the parent (`Fast` mode cancels in one step).
+        assert_eq!(parent.cancel(), CancellationContextState::Canceling);
+
+        // The child's effective state now reflects the parent's cancellation.
+        assert_eq!(child.state(), CancellationContextState::Canceling);
+        assert!(child.user_canceled());
+
+        // Tokens still propagate from parent to child as before.
+        assert!(child.first.is_cancelled());
+        assert!(child.second.is_cancelled());
+    }
+
+    #[test]
+    fn child_keeps_local_error_cause_on_tie_with_parent() {
+        let parent = CancellationContext::new(FailureMode::Fast);
+        let child = parent.child(FailureMode::Fast);
+
+        // The user cancels the parent.
+        assert_eq!(parent.cancel(), CancellationContextState::Canceling);
+
+        // The child then records a local error, as happens when its aborted
+        // task surfaces `EvaluationError::Canceled`.
+        child.error(&EvaluationError::Canceled);
+
+        // Parent and child both sit at `Canceling`, so the levels tie and the
+        // child's own error cause is authoritative: it does not report a user
+        // cancellation despite the parent's cancellation being user initiated.
+        assert_eq!(child.state(), CancellationContextState::Canceling);
+        assert!(!child.user_canceled());
+    }
+
+    #[test]
+    fn later_parent_cancel_does_not_relabel_child_error() {
+        let parent = CancellationContext::new(FailureMode::Fast);
+        let child = parent.child(FailureMode::Fast);
+
+        // The child errors first and enters `Canceling` on its own.
+        child.error(&EvaluationError::Canceled);
+        assert_eq!(child.state(), CancellationContextState::Canceling);
+        assert!(!child.user_canceled());
+
+        // A later user cancellation of the parent ties at `Canceling`, so it
+        // does not trample the child's already-established error cause.
+        assert_eq!(parent.cancel(), CancellationContextState::Canceling);
+        assert_eq!(child.state(), CancellationContextState::Canceling);
+        assert!(!child.user_canceled());
+    }
+
+    #[test]
+    fn higher_parent_level_escalates_child_and_carries_its_cause() {
+        let parent = CancellationContext::new(FailureMode::Fast);
+        let child = parent.child(FailureMode::Slow);
+
+        // The child errors in `Slow` mode, reaching only `Waiting`.
+        child.error(&EvaluationError::Canceled);
+        assert_eq!(child.state(), CancellationContextState::Waiting);
+        assert!(!child.user_canceled());
+
+        // The user cancels the parent in `Fast` mode, reaching `Canceling`.
+        // The parent's level is strictly greater, so its whole pair wins and
+        // the child now reports the parent's user cancellation.
+        assert_eq!(parent.cancel(), CancellationContextState::Canceling);
+        assert_eq!(child.state(), CancellationContextState::Canceling);
+        assert!(child.user_canceled());
+    }
+
+    #[test]
+    fn closest_descendant_wins_tie_across_multiple_levels() {
+        let root = CancellationContext::new(FailureMode::Fast);
+        let child = root.child(FailureMode::Fast);
+        let grandchild = child.child(FailureMode::Fast);
+
+        // The user cancels the root, which folds down to the grandchild.
+        assert_eq!(root.cancel(), CancellationContextState::Canceling);
+
+        // The grandchild then errors locally, tying at `Canceling`. The
+        // closest cause, the grandchild's own error, wins over the ancestor.
+        grandchild.error(&EvaluationError::Canceled);
+        assert_eq!(grandchild.state(), CancellationContextState::Canceling);
+        assert!(!grandchild.user_canceled());
+    }
+
+    #[test]
+    fn grandchild_inherits_ancestor_cancellation() {
+        let root = CancellationContext::new(FailureMode::Fast);
+        let child = root.child(FailureMode::Fast);
+        let grandchild = child.child(FailureMode::Fast);
+        assert_eq!(grandchild.state(), CancellationContextState::NotCanceled);
+
+        assert_eq!(root.cancel(), CancellationContextState::Canceling);
+
+        // Cancellation folds across more than one level.
+        assert_eq!(grandchild.state(), CancellationContextState::Canceling);
+        assert!(grandchild.user_canceled());
+    }
+
+    #[test]
+    fn child_cancellation_does_not_affect_parent_or_siblings() {
+        let parent = CancellationContext::new(FailureMode::Fast);
+        let a = parent.child(FailureMode::Fast);
+        let b = parent.child(FailureMode::Fast);
+
+        assert_eq!(a.cancel(), CancellationContextState::Canceling);
+
+        // Cancelling one child leaves the parent and the sibling untouched.
+        assert_eq!(parent.state(), CancellationContextState::NotCanceled);
+        assert!(!parent.user_canceled());
+        assert_eq!(b.state(), CancellationContextState::NotCanceled);
+        assert!(!b.user_canceled());
     }
 }

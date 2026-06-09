@@ -3,15 +3,14 @@
 version 1.3
 
 task test {
+    command <<<>>>
+
     hints {
         container: "first"
         disks: "first"
         memory: "first"
-
         memory: "dup"
         container: "dup"
         disks: "dup"
     }
-
-    command <<<>>>
 }

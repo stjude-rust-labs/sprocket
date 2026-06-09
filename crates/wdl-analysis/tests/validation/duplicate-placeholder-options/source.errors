@@ -1,48 +1,48 @@
 error: a placeholder cannot have more than one option
-  ┌─ tests/validation/duplicate-placeholder-options/source.wdl:8:31
+  ┌─ tests/validation/duplicate-placeholder-options/source.wdl:8:33
   │
-8 │   String b = "${default="foo" sep="," foo}"
-  │                 ------------- ^^^^^^^ duplicate placeholder option is here
-  │                 │              
-  │                 first placeholder option is here
+8 │     String b = "${default="foo" sep="," foo}"
+  │                   ------------- ^^^^^^^ duplicate placeholder option is here
+  │                   │              
+  │                   first placeholder option is here
 
 error: a placeholder cannot have more than one option
-  ┌─ tests/validation/duplicate-placeholder-options/source.wdl:9:31
+  ┌─ tests/validation/duplicate-placeholder-options/source.wdl:9:33
   │
-9 │   String c = "${default="foo" sep="," true="a" false="b" foo}"
-  │                 ------------- ^^^^^^^ duplicate placeholder option is here
-  │                 │              
-  │                 first placeholder option is here
+9 │     String c = "${default="foo" sep="," true="a" false="b" foo}"
+  │                   ------------- ^^^^^^^ duplicate placeholder option is here
+  │                   │              
+  │                   first placeholder option is here
 
 error: a placeholder cannot have more than one option
-  ┌─ tests/validation/duplicate-placeholder-options/source.wdl:9:39
+  ┌─ tests/validation/duplicate-placeholder-options/source.wdl:9:41
   │
-9 │   String c = "${default="foo" sep="," true="a" false="b" foo}"
-  │                 -------------         ^^^^^^^^^^^^^^^^^^ duplicate placeholder option is here
-  │                 │                      
-  │                 first placeholder option is here
+9 │     String c = "${default="foo" sep="," true="a" false="b" foo}"
+  │                   -------------         ^^^^^^^^^^^^^^^^^^ duplicate placeholder option is here
+  │                   │                      
+  │                   first placeholder option is here
 
 error: a placeholder cannot have more than one option
-   ┌─ tests/validation/duplicate-placeholder-options/source.wdl:13:21
+   ┌─ tests/validation/duplicate-placeholder-options/source.wdl:13:25
    │
-13 │     ~{default="foo" sep="," foo}
-   │       ------------- ^^^^^^^ duplicate placeholder option is here
-   │       │              
-   │       first placeholder option is here
+13 │         ~{default="foo" sep="," foo}
+   │           ------------- ^^^^^^^ duplicate placeholder option is here
+   │           │              
+   │           first placeholder option is here
 
 error: a placeholder cannot have more than one option
-   ┌─ tests/validation/duplicate-placeholder-options/source.wdl:14:21
+   ┌─ tests/validation/duplicate-placeholder-options/source.wdl:14:25
    │
-14 │     ~{default="foo" sep="," true="a" false="b" foo}
-   │       ------------- ^^^^^^^ duplicate placeholder option is here
-   │       │              
-   │       first placeholder option is here
+14 │         ~{default="foo" sep="," true="a" false="b" foo}
+   │           ------------- ^^^^^^^ duplicate placeholder option is here
+   │           │              
+   │           first placeholder option is here
 
 error: a placeholder cannot have more than one option
-   ┌─ tests/validation/duplicate-placeholder-options/source.wdl:14:29
+   ┌─ tests/validation/duplicate-placeholder-options/source.wdl:14:33
    │
-14 │     ~{default="foo" sep="," true="a" false="b" foo}
-   │       -------------         ^^^^^^^^^^^^^^^^^^ duplicate placeholder option is here
-   │       │                      
-   │       first placeholder option is here
+14 │         ~{default="foo" sep="," true="a" false="b" foo}
+   │           -------------         ^^^^^^^^^^^^^^^^^^ duplicate placeholder option is here
+   │           │                      
+   │           first placeholder option is here
 

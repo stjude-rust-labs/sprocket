@@ -1,31 +1,31 @@
 note[KnownRules]: unknown rule `Unknown`
-  ┌─ tests/lints/except/source.wdl:1:12
+  ┌─ tests/lints/except/source.wdl:3:12
   │
-1 │ #@ except: Unknown
+3 │ #@ except: Unknown
   │            ^^^^^^^ cannot make an exception for this rule
   │
   = fix: remove the unknown rule from the exception list
 
 note[KnownRules]: unknown rule `AlsoUnknown`
-   ┌─ tests/lints/except/source.wdl:15:26
+   ┌─ tests/lints/except/source.wdl:16:16
    │
-15 │     #@ except: SnakeCase,AlsoUnknown
-   │                          ^^^^^^^^^^^ cannot make an exception for this rule
+16 │     #@ except: AlsoUnknown, SnakeCase
+   │                ^^^^^^^^^^^ cannot make an exception for this rule
    │
    = fix: remove the unknown rule from the exception list
 
 warning[SnakeCase]: struct member name `NotOk` is not snake_case
-   ┌─ tests/lints/except/source.wdl:17:9
+   ┌─ tests/lints/except/source.wdl:18:9
    │
-17 │     Int NotOk       # NOT OK
+18 │     Int NotOk       # NOT OK
    │         ^^^^^ this name must be snake_case
    │
    = fix: replace `NotOk` with `not_ok`
 
 note[DoubleQuotes]: string defined with single quotes
-   ┌─ tests/lints/except/source.wdl:22:18
+   ┌─ tests/lints/except/source.wdl:23:18
    │
-22 │     String bad = 'bad string'   # NOT OK
+23 │     String bad = 'bad string'   # NOT OK
    │                  ^^^^^^^^^^^^
    │
    = fix: change the string to use double quotes

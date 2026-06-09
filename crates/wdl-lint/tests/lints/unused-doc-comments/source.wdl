@@ -12,8 +12,7 @@ enum Color {
     ## And so is this multiline
     ##
     ## one.
-    Green
-
+    Green,
 }
 
 #@ except: MetaSections
@@ -48,7 +47,7 @@ task test_task {
     >>>
 }
 
-#@ except: RequirementsSection, MetaSections
+#@ except: MetaSections, RequirementsSection
 task test_task_2 {
     ## doc comment
     ## more text
@@ -69,8 +68,7 @@ task test_task_2 {
 ## While it's not what we want people to do, I should be able to
 ## sandwich lint directives with doc comments or whitespace
 ## for the purposes of the unused doc comment lint.
-
-#@ except: MetaSections, MatchingOutputMeta
+#@ except: MatchingOutputMeta, MetaSections
 ## This doc comment should be allowed.
 workflow test_workflow {
     ## This doc comment does nothing and the user should be warned!
@@ -83,7 +81,7 @@ workflow test_workflow {
         ## But its elements can.
         #@ except: UnusedInput
         Person person## Trailing doc comment without whitespace that should be linted.
-        Boolean apple ## This doc comment should be linted, and should not be included in the block below it.
+        Boolean apple  ## This doc comment should be linted, and should not be included in the block below it.
         ## A BoundDeclNode may have a doc comment if it's in an input section.
         Boolean banana = false
     }
@@ -94,7 +92,7 @@ workflow test_workflow {
     ## You can't doc comment a BoundDeclNode if it's not within an Input or Output section.
     #@ except: UnusedDeclaration
     Person p = Person {
-        name: "Brendon"
+        name: "Brendon",
     }
 
     # Comments are definitely valid here.
@@ -105,7 +103,7 @@ workflow test_workflow {
     # Comments seem fine here (although maybe a weird choice).
     ## But doc comments shouldn't be.
     else if (banana) {
-        String favorite_fruit = "Banana" ## Invalid inline doc comment that should only be linted once by UnusedDocComment.
+        String favorite_fruit = "Banana"  ## Invalid inline doc comment that should only be linted once by UnusedDocComment.
     }
     # Seemingly, you can also put comments here,
     ## but we don't want doc comments here.

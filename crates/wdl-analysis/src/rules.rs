@@ -5,24 +5,6 @@ use std::sync::LazyLock;
 use serde::Serialize;
 use wdl_ast::Severity;
 
-/// The rule identifier for unused import warnings.
-pub const UNUSED_IMPORT_RULE_ID: &str = "UnusedImport";
-
-/// The rule identifier for unused input warnings.
-pub const UNUSED_INPUT_RULE_ID: &str = "UnusedInput";
-
-/// The rule identifier for unused declaration warnings.
-pub const UNUSED_DECL_RULE_ID: &str = "UnusedDeclaration";
-
-/// The rule identifier for unused call warnings.
-pub const UNUSED_CALL_RULE_ID: &str = "UnusedCall";
-
-/// The rule identifier for unnecessary function call warnings.
-pub const UNNECESSARY_FUNCTION_CALL: &str = "UnnecessaryFunctionCall";
-
-/// The rule identifier for unsupported version fallback warnings.
-pub const USING_FALLBACK_VERSION: &str = "UsingFallbackVersion";
-
 /// All rule IDs sorted alphabetically.
 pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
     let mut ids: Vec<String> = rules().iter().map(|r| r.id().to_string()).collect();
@@ -85,6 +67,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::<UnusedCallRule>::default(),
         Box::<UnnecessaryFunctionCall>::default(),
         Box::<UsingFallbackVersion>::default(),
+        Box::<MisleadingDeclarationOrderRule>::default(),
     ];
 
     // Ensure all the rule ids are unique and pascal case
@@ -112,6 +95,9 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
 pub struct UnusedImportRule(Severity);
 
 impl UnusedImportRule {
+    /// The rule identifier for unused import warnings.
+    pub const ID: &'static str = "UnusedImport";
+
     /// Creates a new unused import rule.
     pub fn new() -> Self {
         Self(Severity::Warning)
@@ -126,7 +112,7 @@ impl Default for UnusedImportRule {
 
 impl Rule for UnusedImportRule {
     fn id(&self) -> &'static str {
-        UNUSED_IMPORT_RULE_ID
+        Self::ID
     }
 
     fn description(&self) -> &'static str {
@@ -175,6 +161,9 @@ workflow example {
 pub struct UnusedInputRule(Severity);
 
 impl UnusedInputRule {
+    /// The rule identifier for unused input warnings.
+    pub const ID: &str = "UnusedInput";
+
     /// Creates a new unused input rule.
     pub fn new() -> Self {
         Self(Severity::Warning)
@@ -189,7 +178,7 @@ impl Default for UnusedInputRule {
 
 impl Rule for UnusedInputRule {
     fn id(&self) -> &'static str {
-        UNUSED_INPUT_RULE_ID
+        Self::ID
     }
 
     fn description(&self) -> &'static str {
@@ -241,6 +230,9 @@ workflow example {
 pub struct UnusedDeclarationRule(Severity);
 
 impl UnusedDeclarationRule {
+    /// The rule identifier for unused declaration warnings.
+    pub const ID: &str = "UnusedDeclaration";
+
     /// Creates a new unused declaration rule.
     pub fn new() -> Self {
         Self(Severity::Warning)
@@ -255,7 +247,7 @@ impl Default for UnusedDeclarationRule {
 
 impl Rule for UnusedDeclarationRule {
     fn id(&self) -> &'static str {
-        UNUSED_DECL_RULE_ID
+        Self::ID
     }
 
     fn description(&self) -> &'static str {
@@ -304,6 +296,9 @@ workflow example {
 pub struct UnusedCallRule(Severity);
 
 impl UnusedCallRule {
+    /// The rule identifier for unused call warnings.
+    pub const ID: &str = "UnusedCall";
+
     /// Creates a new unused call rule.
     pub fn new() -> Self {
         Self(Severity::Warning)
@@ -318,7 +313,7 @@ impl Default for UnusedCallRule {
 
 impl Rule for UnusedCallRule {
     fn id(&self) -> &'static str {
-        UNUSED_CALL_RULE_ID
+        Self::ID
     }
 
     fn description(&self) -> &'static str {
@@ -384,6 +379,9 @@ task do_work {
 pub struct UnnecessaryFunctionCall(Severity);
 
 impl UnnecessaryFunctionCall {
+    /// The rule identifier for unnecessary function call warnings.
+    pub const ID: &str = "UnnecessaryFunctionCall";
+
     /// Creates a new unnecessary function call rule.
     pub fn new() -> Self {
         Self(Severity::Warning)
@@ -398,7 +396,7 @@ impl Default for UnnecessaryFunctionCall {
 
 impl Rule for UnnecessaryFunctionCall {
     fn id(&self) -> &'static str {
-        UNNECESSARY_FUNCTION_CALL
+        Self::ID
     }
 
     fn description(&self) -> &'static str {
@@ -440,6 +438,9 @@ workflow example {
 pub struct UsingFallbackVersion(Severity);
 
 impl UsingFallbackVersion {
+    /// The rule identifier for unsupported version fallback warnings.
+    pub const ID: &str = "UsingFallbackVersion";
+
     /// Creates a new using fallback version rule.
     pub fn new() -> Self {
         Self(Severity::Warning)
@@ -454,7 +455,7 @@ impl Default for UsingFallbackVersion {
 
 impl Rule for UsingFallbackVersion {
     fn id(&self) -> &'static str {
-        USING_FALLBACK_VERSION
+        Self::ID
     }
 
     fn description(&self) -> &'static str {
@@ -479,6 +480,84 @@ workflow example {
 "#,
             },
             revised: None,
+        }]
+    }
+
+    fn deny(&mut self) {
+        self.0 = Severity::Error;
+    }
+
+    fn severity(&self) -> Severity {
+        self.0
+    }
+}
+
+/// Represents the using misleading declaration order rule.
+#[derive(Debug, Clone, Copy)]
+pub struct MisleadingDeclarationOrderRule(Severity);
+
+impl MisleadingDeclarationOrderRule {
+    /// The rule identifier for misleading declaration order warnings.
+    pub const ID: &str = "MisleadingDeclarationOrder";
+
+    /// Creates a new misleading declaration order rule.
+    pub fn new() -> Self {
+        Self(Severity::Warning)
+    }
+}
+
+impl Default for MisleadingDeclarationOrderRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Rule for MisleadingDeclarationOrderRule {
+    fn id(&self) -> &'static str {
+        Self::ID
+    }
+
+    fn description(&self) -> &'static str {
+        "Warns when a variable declaration is placed after a `command` block."
+    }
+
+    fn explanation(&self) -> &'static str {
+        "WDL tasks are evaluated based on their dependency graph, not top-to-bottom. Variable \
+         declarations that appear after `command` sections are visually misleading, as they will \
+         still be evaluated _before_ the command is executed."
+    }
+
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
+
+task greet {
+    String greeting = "Hello"
+
+    command <<<
+        echo "~{greeting}, ~{name}!"
+    >>>
+
+    String name = "World"
+}
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
+
+task greet {
+    String greeting = "Hello"
+    String name = "World"
+
+    command <<<
+        echo "~{greeting}, ~{name}!"
+    >>>
+}
+"#,
+            }),
         }]
     }
 

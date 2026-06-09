@@ -1,5 +1,6 @@
-#@ except: UnusedDeclaration
 ## This is a test of type mismatches in numeric expressions.
+
+#@ except: UnusedDeclaration
 
 version 1.3
 
@@ -82,6 +83,6 @@ task test {
     Float e6 = e ** e    # OK
     Float e7 = a ** e    # OK
     Float e8 = e ** a    # OK
-    
+
     command <<<>>>
 }

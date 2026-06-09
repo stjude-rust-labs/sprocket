@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.23.0 - 2026-06-03
+
+#### Changed
+
+* `SyntaxKind::is_keyword()` no longer includes types, see `SyntaxKind::is_type()` ([#870](https://github.com/stjude-rust-labs/sprocket/pull/870)).
+* `Parser` now produces a single `Unknown` token and diagnostic for consecutive unknown tokens ([#908](https://github.com/stjude-rust-labs/sprocket/pull/908)).
+
+## 0.22.0 - 2026-05-14
+
 #### Added
 
 * Initial support for WDL 1.4 (`V1::Four`) ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).

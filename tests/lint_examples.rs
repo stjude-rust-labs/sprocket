@@ -41,7 +41,9 @@ use wdl::lint::Rule as LintRule;
 /// `wdl-format` defaults.
 const BAD_FORMATTING_EXPECTED: &[&str] = &[
     "SectionOrdering",
+    // TODO: https://github.com/stjude-rust-labs/sprocket/issues/801
     "HereDocCommands",
+    // TODO: https://github.com/stjude-rust-labs/sprocket/issues/802
     "DeprecatedPlaceholder",
     "ImportPlacement",
     "CommandSectionIndentation",
@@ -51,6 +53,8 @@ const BAD_FORMATTING_EXPECTED: &[&str] = &[
     "DocCommentTabs",
     "UnusedDocComments",
     "EmptyDocComment",
+    // TODO: https://github.com/stjude-rust-labs/sprocket/issues/845
+    "MisleadingDeclarationOrder",
 ];
 
 /// Examples that need a dummy file to import.

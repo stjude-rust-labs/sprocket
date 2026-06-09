@@ -1058,29 +1058,53 @@ where
                     return Some((token, span));
                 }
 
+                if peeked {
+                    self.lexer.as_mut().expect("should have a lexer").next();
+                }
+
                 Event::Token {
                     kind: token.into_syntax(),
                     span,
                 }
             }
             Err(_) => {
+                let mut unknown_span = span;
+                let lexer = self.lexer.as_mut().expect("should have a lexer");
+
+                if peeked {
+                    lexer.next();
+                }
+
+                // Consecutive unknown tokens of the same type get condensed into a single
+                // diagnostic and event
+                while let Some((Err(_), peeked_span)) = lexer.peek() {
+                    unknown_span = Span::new(
+                        unknown_span.start(),
+                        peeked_span.end() - unknown_span.start(),
+                    );
+                    lexer.next();
+                }
+
                 self.diagnostic(
-                    Diagnostic::error("an unknown token was encountered")
-                        .with_label(Self::unsupported_token_text(self.source(span)), span),
+                    Diagnostic::error("an unknown token was encountered").with_label(
+                        Self::unsupported_token_text(self.source(span)),
+                        unknown_span,
+                    ),
                 );
+
                 Event::Token {
                     kind: SyntaxKind::Unknown,
-                    span,
+                    span: unknown_span,
                 }
             }
         };
 
         if peeked {
-            self.lexer.as_mut().expect("should have a lexer").next();
             self.buffered.push(event);
         } else {
             self.events.push(event);
         }
+
         None
     }
 

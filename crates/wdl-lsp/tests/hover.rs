@@ -1,20 +1,24 @@
 //! Integration tests for the `textDocument/completion` request.
 
-mod common;
+pub mod common;
 
 use core::panic;
 
+use async_lsp::lsp_types::Hover;
+use async_lsp::lsp_types::HoverContents;
+use async_lsp::lsp_types::HoverParams;
+use async_lsp::lsp_types::MarkupContent;
+use async_lsp::lsp_types::Position;
+use async_lsp::lsp_types::TextDocumentIdentifier;
+use async_lsp::lsp_types::TextDocumentPositionParams;
+use async_lsp::lsp_types::request::HoverRequest;
 use common::TestContext;
-use tower_lsp::lsp_types::Hover;
-use tower_lsp::lsp_types::HoverContents;
-use tower_lsp::lsp_types::HoverParams;
-use tower_lsp::lsp_types::MarkupContent;
-use tower_lsp::lsp_types::Position;
-use tower_lsp::lsp_types::TextDocumentIdentifier;
-use tower_lsp::lsp_types::TextDocumentPositionParams;
-use tower_lsp::lsp_types::request::HoverRequest;
 
-async fn hover_request(ctx: &mut TestContext, path: &str, position: Position) -> Option<Hover> {
+async fn hover_request(
+    ctx: &mut TestContext,
+    path: &str,
+    position: Position,
+) -> async_lsp::Result<Option<Hover>> {
     ctx.request::<HoverRequest>(HoverParams {
         text_document_position_params: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier {
@@ -52,7 +56,9 @@ async fn setup() -> TestContext {
 #[tokio::test]
 async fn should_hover_local_variable() {
     let mut ctx = setup().await;
-    let response = hover_request(&mut ctx, "source.wdl", Position::new(6, 15)).await;
+    let response = hover_request(&mut ctx, "source.wdl", Position::new(6, 15))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "```wdl\n(variable) name: String\n```");
 }
 
@@ -60,7 +66,9 @@ async fn should_hover_local_variable() {
 async fn should_hover_struct_definition() {
     let mut ctx = setup().await;
     // Position of `Person` in `struct Person`
-    let response = hover_request(&mut ctx, "lib.wdl", Position::new(16, 7)).await;
+    let response = hover_request(&mut ctx, "lib.wdl", Position::new(16, 7))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "struct Person {");
     assert_hover_content(&response, "**Members**\n- **name**: `String`");
 }
@@ -69,7 +77,9 @@ async fn should_hover_struct_definition() {
 async fn should_hover_struct_object() {
     let mut ctx = setup().await;
     // Position of `Person` in `Person p`
-    let response = hover_request(&mut ctx, "source.wdl", Position::new(9, 4)).await;
+    let response = hover_request(&mut ctx, "source.wdl", Position::new(9, 4))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "struct Person");
 }
 
@@ -77,7 +87,9 @@ async fn should_hover_struct_object() {
 async fn should_hover_task_definition() {
     let mut ctx = setup().await;
     // Position of `greet` in `task greet`
-    let response = hover_request(&mut ctx, "lib.wdl", Position::new(2, 7)).await;
+    let response = hover_request(&mut ctx, "lib.wdl", Position::new(2, 7))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "task greet");
     // Inputs
     assert_hover_content(&response, "**name**: `String`");
@@ -89,7 +101,9 @@ async fn should_hover_task_definition() {
 async fn should_hover_task_call() {
     let mut ctx = setup().await;
     // Position of `greet` in `call greet`
-    let response = hover_request(&mut ctx, "source.wdl", Position::new(14, 9)).await;
+    let response = hover_request(&mut ctx, "source.wdl", Position::new(14, 9))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "task greet");
 }
 
@@ -97,7 +111,9 @@ async fn should_hover_task_call() {
 async fn should_hover_imported_task_call() {
     let mut ctx = setup().await;
     // Position of `greet` in `call lib.greet`
-    let response = hover_request(&mut ctx, "source.wdl", Position::new(16, 13)).await;
+    let response = hover_request(&mut ctx, "source.wdl", Position::new(16, 13))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "```wdl\ntask greet\n```");
     assert_hover_content(&response, "**Outputs**\n- **out**: `String`");
 }
@@ -106,7 +122,9 @@ async fn should_hover_imported_task_call() {
 async fn should_hover_import_namespace() {
     let mut ctx = setup().await;
     // Position of `lib` in `call lib.greet`
-    let response = hover_request(&mut ctx, "source.wdl", Position::new(16, 9)).await;
+    let response = hover_request(&mut ctx, "source.wdl", Position::new(16, 9))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "(import) lib");
     assert_hover_content(&response, "Imports from `");
     let imported_doc_path = ctx.doc_uri("lib.wdl");
@@ -117,7 +135,9 @@ async fn should_hover_import_namespace() {
 async fn should_hover_stdlib_function() {
     let mut ctx = setup().await;
     // Position of `read_string`
-    let response = hover_request(&mut ctx, "source.wdl", Position::new(20, 24)).await;
+    let response = hover_request(&mut ctx, "source.wdl", Position::new(20, 24))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "read_string(file: File) -> String");
     assert_hover_content(&response, "Reads an entire file as a `String`");
 }
@@ -126,7 +146,9 @@ async fn should_hover_stdlib_function() {
 async fn should_hover_struct_member_access() {
     let mut ctx = setup().await;
     // Position of `name` in `p.name`
-    let response = hover_request(&mut ctx, "source.wdl", Position::new(11, 24)).await;
+    let response = hover_request(&mut ctx, "source.wdl", Position::new(11, 24))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "(property) name: String");
 }
 
@@ -134,7 +156,9 @@ async fn should_hover_struct_member_access() {
 async fn should_hover_call_output_access() {
     let mut ctx = setup().await;
     // Position of `out` in `t.out`
-    let response = hover_request(&mut ctx, "source.wdl", Position::new(20, 38)).await;
+    let response = hover_request(&mut ctx, "source.wdl", Position::new(20, 38))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "(property) out: String");
 }
 
@@ -142,7 +166,9 @@ async fn should_hover_call_output_access() {
 async fn should_hover_workflow_definition() {
     let mut ctx = setup().await;
     // Position of `out` in `t.out`
-    let response = hover_request(&mut ctx, "source.wdl", Position::new(4, 9)).await;
+    let response = hover_request(&mut ctx, "source.wdl", Position::new(4, 9))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "workflow main");
     // Inputs
     assert_hover_content(&response, "**name**: `String` = *`\"world\"`*");
@@ -153,7 +179,9 @@ async fn should_hover_workflow_definition() {
 #[tokio::test]
 async fn should_hover_local_variable_docs() {
     let mut ctx = setup().await;
-    let response = hover_request(&mut ctx, "meta.wdl", Position::new(23, 16)).await;
+    let response = hover_request(&mut ctx, "meta.wdl", Position::new(23, 16))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "(variable) message: String");
     assert_hover_content(&response, "Text to be printed");
 }
@@ -165,7 +193,9 @@ async fn should_hover_object_param_meta_uses_description_key() {
     // `description` key plus an unrelated `something_else: true`. The
     // hover doc should be the *description string only*.
     let mut ctx = setup().await;
-    let response = hover_request(&mut ctx, "meta.wdl", Position::new(55, 16)).await;
+    let response = hover_request(&mut ctx, "meta.wdl", Position::new(55, 16))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "The name of the person to greet");
     assert_hover_not_content(&response, "something_else");
     assert_hover_not_content(&response, "{ description");
@@ -178,7 +208,9 @@ async fn should_hover_object_param_meta_concats_description_and_help() {
     // rendered hover, separated by a blank line, mirroring the
     // wdl-doc `full_description` behavior.
     let mut ctx = setup().await;
-    let response = hover_request(&mut ctx, "meta.wdl", Position::new(55, 24)).await;
+    let response = hover_request(&mut ctx, "meta.wdl", Position::new(55, 24))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "Text to be printed");
     assert_hover_content(&response, "Use double quotes for multi-word values.");
 }
@@ -188,7 +220,9 @@ async fn should_hover_object_param_meta_falls_back_to_help_only() {
     // Hover over `only_help` in `~{only_help}`. The parameter_meta
     // object has *only* a `help` key, no `description`.
     let mut ctx = setup().await;
-    let response = hover_request(&mut ctx, "meta.wdl", Position::new(55, 35)).await;
+    let response = hover_request(&mut ctx, "meta.wdl", Position::new(55, 35))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "Only the help string is provided here.");
     assert_hover_not_content(&response, "{ help");
 }
@@ -196,7 +230,9 @@ async fn should_hover_object_param_meta_falls_back_to_help_only() {
 #[tokio::test]
 async fn should_hover_local_struct_member_access_docs() {
     let mut ctx = setup().await;
-    let response = hover_request(&mut ctx, "meta.wdl", Position::new(20, 22)).await;
+    let response = hover_request(&mut ctx, "meta.wdl", Position::new(20, 22))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "(property) name: String");
     assert_hover_content(&response, "Name of the person");
 }
@@ -204,7 +240,9 @@ async fn should_hover_local_struct_member_access_docs() {
 #[tokio::test]
 async fn should_hover_local_struct_literal_docs() {
     let mut ctx = setup().await;
-    let response = hover_request(&mut ctx, "meta.wdl", Position::new(29, 8)).await;
+    let response = hover_request(&mut ctx, "meta.wdl", Position::new(29, 8))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "(property) name: String");
     assert_hover_content(&response, "Name of the person");
 }
@@ -213,7 +251,9 @@ async fn should_hover_local_struct_literal_docs() {
 async fn should_hover_enum_definition() {
     let mut ctx = setup().await;
     // Position of `Status` in `enum Status`
-    let response = hover_request(&mut ctx, "enum.wdl", Position::new(2, 7)).await;
+    let response = hover_request(&mut ctx, "enum.wdl", Position::new(2, 7))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "enum Status");
 }
 
@@ -221,7 +261,9 @@ async fn should_hover_enum_definition() {
 async fn should_hover_enum_type() {
     let mut ctx = setup().await;
     // Position of `Status` in `Status s`
-    let response = hover_request(&mut ctx, "enum.wdl", Position::new(9, 4)).await;
+    let response = hover_request(&mut ctx, "enum.wdl", Position::new(9, 4))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "enum Status");
 }
 
@@ -229,7 +271,9 @@ async fn should_hover_enum_type() {
 async fn should_hover_enum_variant() {
     let mut ctx = setup().await;
     // Position of `Active` in `Status.Active`
-    let response = hover_request(&mut ctx, "enum.wdl", Position::new(9, 22)).await;
+    let response = hover_request(&mut ctx, "enum.wdl", Position::new(9, 22))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "Status.Active");
 }
 
@@ -237,7 +281,9 @@ async fn should_hover_enum_variant() {
 async fn should_hover_task_doc_comment_only() {
     let mut ctx = setup().await;
     // Position of `doc_only` in `task doc_only`
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(4, 7)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(6, 7))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "task doc_only");
     assert_hover_content(
         &response,
@@ -249,7 +295,9 @@ async fn should_hover_task_doc_comment_only() {
 async fn should_hover_task_doc_comment_over_meta() {
     let mut ctx = setup().await;
     // Position of `doc_and_meta` in `task doc_and_meta`
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(20, 7)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(22, 7))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "task doc_and_meta");
     assert_hover_content(&response, "This doc comment should win over meta.");
 }
@@ -272,7 +320,9 @@ fn assert_hover_not_content(hover: &Option<Hover>, unexpected: &str) {
 #[tokio::test]
 async fn should_hover_task_doc_comment_not_meta() {
     let mut ctx = setup().await;
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(20, 7)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(22, 7))
+        .await
+        .expect("request should succeed");
     assert_hover_not_content(&response, "This meta description should NOT appear");
 }
 
@@ -280,7 +330,9 @@ async fn should_hover_task_doc_comment_not_meta() {
 async fn should_hover_task_meta_fallback() {
     let mut ctx = setup().await;
     // Position of `meta_only` in `task meta_only`
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(38, 7)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(40, 7))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "task meta_only");
     assert_hover_content(&response, "A simple greeting task");
 }
@@ -289,7 +341,9 @@ async fn should_hover_task_meta_fallback() {
 async fn should_hover_input_doc_comment() {
     let mut ctx = setup().await;
     // Position of `name` in `String name` inside doc_only task input
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(7, 15)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(9, 15))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "(variable) name: String");
     assert_hover_content(&response, "The person's name to greet");
 }
@@ -297,7 +351,9 @@ async fn should_hover_input_doc_comment() {
 async fn should_hover_workflow_doc_comment() {
     let mut ctx = setup().await;
     // Position of `doc_workflow` in `workflow doc_workflow`
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(58, 9)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(60, 9))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "workflow doc_workflow");
     assert_hover_content(
         &response,
@@ -309,7 +365,9 @@ async fn should_hover_workflow_doc_comment() {
 async fn should_hover_struct_doc_comment() {
     let mut ctx = setup().await;
     // Position of `DocPerson` in `struct DocPerson`
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(73, 7)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(75, 7))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "struct DocPerson");
     assert_hover_content(
         &response,
@@ -321,7 +379,9 @@ async fn should_hover_struct_doc_comment() {
 async fn should_hover_enum_doc_comment() {
     let mut ctx = setup().await;
     // Position of `DocStatus` in `enum DocStatus`
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(81, 5)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(83, 5))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "enum DocStatus");
     assert_hover_content(&response, "A status indicator enum.");
 }
@@ -332,8 +392,52 @@ async fn should_hover_blank_line_doc_merges_paragraphs() {
     // Position of `blank_line_doc` in `task blank_line_doc`
     // Doc comments separated by a blank `##` line are all collected.
     // This documents the current behavior: blank separator lines are included.
-    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(89, 5)).await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(91, 5))
+        .await
+        .expect("request should succeed");
     assert_hover_content(&response, "task blank_line_doc");
     assert_hover_content(&response, "First paragraph of doc.");
     assert_hover_content(&response, "Second paragraph after blank line.");
+}
+
+#[tokio::test]
+async fn should_render_docs_on_comment_hover() {
+    let mut ctx = setup().await;
+    // Hovering over doc comments should produce the same content as hovering
+    // over the item name.
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(5, 4))
+        .await
+        .expect("request should succeed");
+    assert_hover_content(&response, "task doc_only");
+    assert_hover_content(&response, "Greets someone by name.");
+    assert_hover_content(&response, "Used for hover doc tests.");
+}
+
+#[tokio::test]
+async fn should_render_preamble_on_hover() {
+    let mut ctx = setup().await;
+    // Hovering over preamble should render like hovering over an item
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(0, 4))
+        .await
+        .expect("request should succeed");
+    assert_hover_content(&response, "This is a preamble comment");
+}
+
+#[tokio::test]
+async fn should_not_render_standalone_docs_on_hover() {
+    let mut ctx = setup().await;
+    // Only ever render doc comments when they're attached to a node
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(95, 4))
+        .await
+        .expect("request should succeed");
+    assert!(response.is_none());
+}
+
+#[tokio::test]
+async fn should_not_render_line_comments_on_hover() {
+    let mut ctx = setup().await;
+    let response = hover_request(&mut ctx, "doc_comments.wdl", Position::new(97, 4))
+        .await
+        .expect("request should succeed");
+    assert!(response.is_none());
 }

@@ -1,6 +1,6 @@
 error: indexing is only allowed on `Array` and `Map` types
-  ┌─ tests/analysis/index-target-not-array/source.wdl:8:16
+  ┌─ tests/analysis/index-target-not-array/source.wdl:9:16
   │
-8 │     String x = a[0]
+9 │     String x = a[0]
   │                ^ this is type `String`
 
