@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Spell Check Repo
-        uses: crate-ci/typos@v1.46.2
+        uses: crate-ci/typos@v1.46.3
 
   format:
     runs-on: ubuntu-latest
@@ -62,7 +62,7 @@ jobs:
       - name: Install clippy
         run: rustup component add clippy
       - name: Check source code for lints
-        run: cargo --locked clippy --all-features -- --deny warnings
+        run: cargo --locked clippy --workspace --tests --all-features -- --deny warnings
 
   test:
     runs-on: ${{ matrix.os }}

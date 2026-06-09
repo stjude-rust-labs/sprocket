@@ -2192,12 +2192,8 @@ mod tests {
         let oid = repo
             .commit(Some("HEAD"), &sig, &sig, "v1.0.0", &tree, &[])
             .unwrap();
-        repo.tag_lightweight(
-            "v1.0.0",
-            &repo.find_object(oid.into(), None).unwrap(),
-            false,
-        )
-        .unwrap();
+        repo.tag_lightweight("v1.0.0", &repo.find_object(oid, None).unwrap(), false)
+            .unwrap();
 
         let source = DependencySource::Git {
             url: url::Url::from_file_path(upstream.path()).unwrap(),

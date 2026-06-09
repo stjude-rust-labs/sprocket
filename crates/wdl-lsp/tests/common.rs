@@ -76,7 +76,6 @@ pub struct TestContext {
     /// The join handle for the running client task.
     pub _client_handle: tokio::task::JoinHandle<()>,
     /// Handle to communicate with the client.
-    #[expect(dead_code, reason = "No server -> client notifications are tested yet")]
     pub client: ClientSocket,
     /// Handle to communicate with the server.
     pub server: ServerSocket,
@@ -223,7 +222,6 @@ impl TestContext {
 
         let params = InitializeParams {
             process_id: None,
-            root_uri: Some(workspace_url.clone()),
             initialization_options: None,
             capabilities,
             trace: None,
