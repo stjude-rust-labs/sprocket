@@ -1,6 +1,7 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, ParameterMetaMatched, HereDocCommands, EmptyOutputs
-
 ## This is a test of having no shellcheck lints
+
+#@ except: EmptyOutputs, ExpectedRuntimeKeys, HereDocCommands, MetaDescription
+#@ except: ParameterMetaMatched
 
 version 1.1
 
@@ -10,20 +11,20 @@ task test1 {
     parameter_meta {}
 
     input {
-      Boolean i_quote_my_shellvars
-      Int placeholder
+        Boolean i_quote_my_shellvars
+        Int placeholder
     }
 
     command <<<
-      set -eo pipefail
+        set -eo pipefail
 
-      placeholder="foo bar baz"
+        placeholder="foo bar baz"
 
-      echo "$placeholder"
+        echo "$placeholder"
 
-      if [[ "$i_quote_my_shellvars" ]]; then
-        echo "shellcheck will be happy"
-      fi
+        if [[ "$i_quote_my_shellvars" ]]; then
+          echo "shellcheck will be happy"
+        fi
     >>>
 
     output {}
@@ -37,19 +38,19 @@ task test2 {
     parameter_meta {}
 
     input {
-      Int placeholder
+        Int placeholder
     }
 
     command {
-      set -eo pipefail
+        set -eo pipefail
 
-      placeholder="foo bar baz"
+        placeholder="foo bar baz"
 
-      echo "$placeholder"
+        echo "$placeholder"
 
-      if [[ "$I_quote_my_shellvars" ]]; then
-        echo "all is well"
-      fi
+        if [[ "$I_quote_my_shellvars" ]]; then
+            echo "all is well"
+        fi
     }
 
     output {}
@@ -63,18 +64,18 @@ task test3 {
     parameter_meta {}
 
     input {
-      Int placeholder
+        Int placeholder
     }
 
     #@ except: ShellCheck
     command {
-      set -eo pipefail
+        set -eo pipefail
 
-      echo "$placeholder"
+        echo "$placeholder"
 
-      if [[ $I_really_want_this_unquoted ]]; then
-        echo "all is not well"
-      fi
+        if [[ $I_really_want_this_unquoted ]]; then
+            echo "all is not well"
+        fi
     }
 
     output {}
@@ -88,15 +89,15 @@ task test4 {
     parameter_meta {}
 
     input {
-      Int placeholder
+        Int placeholder
     }
 
     command {
-      set -eo pipefail
-      
-      unquoted_var="foo bar baz"
-      # shellcheck disable=SC2086
-      echo $unquoted_var
+        set -eo pipefail
+
+        unquoted_var="foo bar baz"
+        # shellcheck disable=SC2086
+        echo $unquoted_var
     }
 
     output {}

@@ -11,5 +11,7 @@ workflow bar {
         Array[String]? bar
     }
 
-    call foo.foo { input: foo = bar }
+    call foo.foo { input:
+        foo = bar,
+    }
 }

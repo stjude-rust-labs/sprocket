@@ -1,8 +1,8 @@
 note[ConciseInput]: redundant input assignment
-   ┌─ tests/lints/redundant-input-assignment-wdl-1.1/source.wdl:15:10
+   ┌─ tests/lints/redundant-input-assignment-wdl-1.1/source.wdl:15:9
    │
-15 │          cam = cam,  # This should flag a note, since version is >= 1.1
-   │          ^^^^^^^^^
+15 │         cam = cam,  # This should flag a note, since version is >= 1.1
+   │         ^^^^^^^^^
    │
    = fix: can be shortened to `cam`
 

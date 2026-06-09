@@ -9,9 +9,9 @@ workflow test {
     }
 
     call something { input:
-        foo, # Bad
-        bar, # Bad
-        baz = baz, # Good
+        foo,  # Bad
+        bar,  # Bad
+        baz = baz,  # Good
     }
 }
 

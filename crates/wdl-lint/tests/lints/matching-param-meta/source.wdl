@@ -1,8 +1,8 @@
-#@ except: MetaDescription, InputName, RequirementsSection, EmptyOutputs
-
 ## This is a test for checking for missing and extraneous entries
 ## in a `parameter_meta` section, and for ensuring that
 ## the order is the same as `input` section.
+
+#@ except: EmptyOutputs, InputName, MetaDescription, RequirementsSection
 
 version 1.3
 
@@ -16,7 +16,7 @@ workflow w {
             description: "a matching parameter!",
             foo: {
                 bar: {
-                    does_not_exist: "this should not suppress a missing input lint"
+                    does_not_exist: "this should not suppress a missing input lint",
                 },
             },
         }
@@ -40,7 +40,7 @@ task foo {
             description: "a matching parameter!",
             foo: {
                 bar: {
-                    does_not_exist: "this should not suppress a missing input lint"
+                    does_not_exist: "this should not suppress a missing input lint",
                 },
             },
         }
@@ -65,7 +65,7 @@ task bar {
             description: "a matching parameter!",
             foo: {
                 bar: {
-                    does_not_exist: "this should not suppress a missing input lint"
+                    does_not_exist: "this should not suppress a missing input lint",
                 },
             },
         }
