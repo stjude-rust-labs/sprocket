@@ -445,8 +445,16 @@ impl ServerConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TestConfig {
-    /// Number of test executions to run in parallel. The default is `50`.
+    /// Number of test executions to run in parallel.
+    ///
+    /// The default is `50`.
     pub parallelism: usize,
+    /// Delay between submitting initial test executions, in milliseconds.
+    ///
+    /// Once the `parallelism`` permits are exhausted, this throttle delay is
+    /// ignored and new tests are submitted eagerly as prior tests complete and
+    /// free permits.
+    pub throttle: u64,
     /// Directory containing test fixture files.
     ///
     /// If not set, fixtures are resolved from `<workspace>/test/fixtures`.
@@ -463,6 +471,7 @@ impl Default for TestConfig {
     fn default() -> Self {
         Self {
             parallelism: 50,
+            throttle: 100,
             fixtures_dir: None,
             run_dir: None,
         }
