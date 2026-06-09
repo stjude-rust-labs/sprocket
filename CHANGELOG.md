@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Added `--show-task-stderr` option to the `run` subcommand to show task stderr during execution ([#743](https://github.com/stjude-rust-labs/sprocket/pull/743)).
 * Added `--fixtures-dir` and `--run-dir` options to the `sprocket dev test`
   command ([#747](https://github.com/stjude-rust-labs/sprocket/pull/747)).
 
@@ -92,7 +93,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * New `--hide-warnings` flag to `check`/`lint` with a corresponding `check.hide_warnings` option in `sprocket.toml` ([#675](https://github.com/stjude-rust-labs/sprocket/pull/675)).
 * Added support for configuring the `doc` subcommand via `sprocket.toml` ([#773](https://github.com/stjude-rust-labs/sprocket/pull/773))
-* Added `--show-task-stderr` option to the `run` subcommand to show task stderr during execution ([#743](https://github.com/stjude-rust-labs/sprocket/pull/743)).
 
 ### Changed
 

@@ -192,6 +192,8 @@ pub struct Args {
     pub no_call_cache: bool,
 
     /// Show task stderr during execution.
+    ///
+    /// Note that not all execution backends support this option.
     #[clap(long)]
     pub show_task_stderr: bool,
 
@@ -298,7 +300,7 @@ impl Task {
         Self {
             name,
             token,
-            stderr_buffer: Vec::with_capacity(Self::STDERR_BUFFER_SIZE),
+            stderr_buffer: Vec::new(),
         }
     }
 }
@@ -444,6 +446,10 @@ async fn progress(
                             let Some(task) = state.tasks.get_mut(&id) else {
                                 continue;
                             };
+
+                            if task.stderr_buffer.capacity() == 0 {
+                                task.stderr_buffer.reserve(Task::STDERR_BUFFER_SIZE);
+                            }
 
                             task.stderr_buffer.extend_from_slice(&message);
                             while let Some(line_end) = task.stderr_buffer.iter().position(|&b| b == b'\n') {

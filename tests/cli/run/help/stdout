@@ -85,7 +85,9 @@ Options:
           Decrease logging verbosity
 
       --show-task-stderr
-          Show task stderr during execution
+          Show task stderr during execution.
+          
+          Note that not all execution backends support this option.
 
       --color <COLOR>
           Controls output colorization
