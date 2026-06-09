@@ -17,7 +17,7 @@ workflow test {
             }'
         }!"
     #@ except: DoubleQuotes
-    String excepted = "this string is excepted"
+    String excepted = 'this string is excepted'
 
     output {}
 }
