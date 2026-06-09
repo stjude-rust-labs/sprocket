@@ -27,7 +27,6 @@ use crate::Diagnostics;
 use crate::config::Config;
 use crate::diagnostics::Context;
 use crate::diagnostics::no_common_type;
-use crate::diagnostics::unused_import;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::types::CallType;
@@ -51,9 +50,6 @@ pub struct Namespace {
     document: Document,
     /// Whether or not the namespace is used (i.e. referenced) in the document.
     used: bool,
-    /// Whether or not the namespace is excepted from the "unused import"
-    /// diagnostic.
-    excepted: bool,
 }
 
 impl Namespace {
@@ -828,22 +824,6 @@ impl Document {
         match root.ast_with_version_fallback(config.fallback_version()) {
             Ast::Unsupported => {}
             Ast::V1(ast) => v1::populate_document(&mut data, &config, graph, index, &ast),
-        }
-
-        // Check for unused imports
-        if let Some(severity) = config.diagnostics_config().unused_import {
-            let DocumentData {
-                namespaces,
-                analysis_diagnostics,
-                ..
-            } = &mut data;
-
-            analysis_diagnostics.extend(
-                namespaces
-                    .iter()
-                    .filter(|(_, ns)| !ns.used && !ns.excepted)
-                    .map(|(name, ns)| unused_import(name, ns.span()).with_severity(severity)),
-            );
         }
 
         Self {

@@ -684,7 +684,7 @@ impl Evaluator {
             .expect("workflow should exist in the AST");
 
         // Build an evaluation graph for the workflow
-        let mut diagnostics = Diagnostics::new();
+        let mut diagnostics = Diagnostics::default();
 
         // We need to provide inputs to the workflow graph builder to avoid adding
         // dependency edges from the default expressions if a value was provided

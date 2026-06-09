@@ -967,6 +967,7 @@ mod tests {
             fixtures_dir,
             run_dir,
             no_status: false,
+            report_mode: None,
         }
     }
 

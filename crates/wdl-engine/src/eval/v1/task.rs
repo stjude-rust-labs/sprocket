@@ -646,7 +646,7 @@ impl Evaluator {
         let version = document.version().expect("document should have version");
 
         // Build an evaluation graph for the task
-        let mut diagnostics = Diagnostics::new();
+        let mut diagnostics = Diagnostics::default();
         let graph =
             TaskGraphBuilder::default().build(version, &definition, &mut diagnostics, |name| {
                 document.struct_by_name(name).is_some() || document.enum_by_name(name).is_some()

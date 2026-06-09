@@ -1002,7 +1002,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             let value = self.evaluate_expr(&true_expr).await?;
             let mut context = TypeContext {
                 context: &self.context,
-                diagnostics: Diagnostics::new(),
+                diagnostics: Diagnostics::default(),
             };
             let false_ty = ExprTypeEvaluator::new(&mut context)
                 .evaluate_expr(&false_expr)
@@ -1021,7 +1021,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             let value = self.evaluate_expr(&false_expr).await?;
             let mut context = TypeContext {
                 context: &self.context,
-                diagnostics: Diagnostics::new(),
+                diagnostics: Diagnostics::default(),
             };
             let true_ty = ExprTypeEvaluator::new(&mut context)
                 .evaluate_expr(&true_expr)

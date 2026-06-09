@@ -81,7 +81,7 @@ fn unknown_rule(id: &str, nearest_rule: Option<String>, span: Span) -> Diagnosti
 ///
 /// Validation visitors receive a diagnostics collection during
 /// visitation of the AST.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Diagnostics {
     /// Diagnostics to emit.
     pub(crate) diagnostics: Vec<Diagnostic>,
@@ -92,14 +92,6 @@ pub struct Diagnostics {
 }
 
 impl Diagnostics {
-    /// Creates a new `Diagnostics`.
-    pub fn new() -> Self {
-        Self {
-            diagnostics: Vec::new(),
-            exceptions: HashMap::new(),
-        }
-    }
-
     /// Adds a diagnostic to the collection.
     pub fn add(&mut self, diagnostic: Diagnostic) {
         self.diagnostics.push(diagnostic);
@@ -183,12 +175,6 @@ impl IntoIterator for Diagnostics {
     }
 }
 
-impl Default for Diagnostics {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl From<Diagnostics> for Vec<Diagnostic> {
     fn from(input: Diagnostics) -> Self {
         input.diagnostics
@@ -238,12 +224,19 @@ impl Validator {
 
     /// Catch any unapplied lint exceptions.
     fn check_meaningless_lint_directives(&self, diagnostics: &mut Diagnostics, severity: Severity) {
-        let mut meaningless_lint_directives = Diagnostics::new();
+        let mut meaningless_lint_directives = Diagnostics::default();
 
         let visitor_known_rules = self.known_rules();
+
+        // `ExceptDirectiveValid` does a different job of checking whether a lint
+        // exception is *ever* applicable to the applied node.
+        // `MeaninglessLintDirective` should only fire if the exception
+        // comment is valid to begin with.
         let invalid_directives = diagnostics
             .iter()
             .filter_map(|d| {
+                // Unfortunately, somewhat hacky since `ExceptDirectiveValid` comes from
+                // `wdl-lint`
                 if d.rule() == Some("ExceptDirectiveValid") {
                     d.labels().next()
                 } else {
@@ -274,8 +267,10 @@ impl Validator {
     /// Validates the given document and returns the validation errors upon
     /// failure.
     pub fn validate(&mut self, document: &Document, config: &Config) -> Result<(), Diagnostics> {
-        let mut diagnostics = Diagnostics::new();
-        diagnostics.exceptions = document.analysis_diagnostics().exceptions.clone();
+        let mut diagnostics = Diagnostics {
+            exceptions: document.analysis_diagnostics().exceptions.clone(),
+            ..Default::default()
+        };
 
         self.register(config);
         document.visit(&mut diagnostics, self);

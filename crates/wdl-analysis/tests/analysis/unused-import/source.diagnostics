@@ -4,9 +4,3 @@ warning[UnusedImport]: unused import namespace `bar`
 8 │ import "bar.wdl"
   │        ^^^^^^^^^
 
-note[MeaninglessLintDirective]: unnecessary `except` directive for lint rule `UnusedImport`
-   ┌─ tests/analysis/unused-import/source.wdl:11:12
-   │
-11 │ #@ except: UnusedImport
-   │            ^^^^^^^^^^^^
-

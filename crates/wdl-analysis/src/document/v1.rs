@@ -107,6 +107,7 @@ use crate::diagnostics::unknown_task_or_workflow;
 use crate::diagnostics::unknown_type;
 use crate::diagnostics::unused_call;
 use crate::diagnostics::unused_declaration;
+use crate::diagnostics::unused_import;
 use crate::diagnostics::unused_input;
 use crate::document::Name;
 use crate::eval::v1::TaskGraphBuilder;
@@ -201,9 +202,14 @@ pub(crate) fn populate_document(
     // First start by processing imports, struct definitions, and enum definitions
     // This needs to be performed before processing tasks and workflows as
     // declarations might reference an imported or locally-defined struct or enum
+    let mut import_nodes_by_namespace = HashMap::new();
     for item in ast.items() {
         match item {
             DocumentItem::Import(import) => {
+                if let Some((ns, _span)) = import.namespace() {
+                    import_nodes_by_namespace.insert(ns, import.inner().clone());
+                }
+
                 add_namespace(document, graph, &import, index);
             }
             DocumentItem::Struct(s) => {
@@ -244,6 +250,20 @@ pub(crate) fn populate_document(
     if let Some(workflow) = workflow {
         populate_workflow(config, document, &workflow);
     }
+
+    if let Some(severity) = document.config.diagnostics_config().unused_import {
+        for (name, ns) in document.namespaces.iter().filter(|(_, ns)| !ns.used) {
+            let Some(node) = import_nodes_by_namespace.get(name) else {
+                continue;
+            };
+
+            document.analysis_diagnostics.exceptable_add(
+                unused_import(name, ns.span).with_severity(severity),
+                node,
+                &UnusedImportRule::EXCEPTABLE_NODES,
+            );
+        }
+    }
 }
 
 /// Adds a namespace to the document.
@@ -283,7 +303,6 @@ fn add_namespace(
                         source: uri.clone(),
                         document: imported.clone(),
                         used: false,
-                        excepted: import.inner().is_rule_excepted(UnusedImportRule::ID),
                     },
                 );
                 ns
