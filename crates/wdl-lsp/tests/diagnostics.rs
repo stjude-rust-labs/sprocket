@@ -1,6 +1,6 @@
 //! Tests for diagnostic baseline filtering in the LSP.
 
-mod common;
+pub mod common;
 
 use async_lsp::lsp_types::WorkspaceDiagnosticReportResult;
 use async_lsp::lsp_types::WorkspaceDocumentDiagnosticReport;
