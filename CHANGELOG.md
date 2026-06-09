@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added `--fixtures-dir` and `--run-dir` options to the `sprocket dev test`
+  command ([#747](https://github.com/stjude-rust-labs/sprocket/pull/747)).
+
+### Fixed
+
+* `sprocket dev server` will canonicalize paths passed as CLI arguments ([#913](https://github.com/stjude-rust-labs/sprocket/pull/913))
+
 ## 0.26.0 - 2026-06-03
 
 ### Changed
