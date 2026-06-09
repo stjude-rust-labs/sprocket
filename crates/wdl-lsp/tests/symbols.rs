@@ -1,6 +1,6 @@
 //! Integration tests for the `textDocument/documentSymbol` request.
 
-mod common;
+pub mod common;
 
 use async_lsp::lsp_types::DocumentSymbol;
 use async_lsp::lsp_types::DocumentSymbolParams;

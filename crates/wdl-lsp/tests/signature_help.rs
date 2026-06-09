@@ -1,6 +1,6 @@
 //! Integration tests for the `textDocument/signatureHelp` request.
 
-mod common;
+pub mod common;
 
 use async_lsp::lsp_types::ParameterLabel;
 use async_lsp::lsp_types::Position;

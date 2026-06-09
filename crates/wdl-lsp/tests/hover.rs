@@ -1,6 +1,6 @@
 //! Integration tests for the `textDocument/completion` request.
 
-mod common;
+pub mod common;
 
 use core::panic;
 
