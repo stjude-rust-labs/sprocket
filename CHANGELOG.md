@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* `sprocket dev doc --check` to analyze documents without producing an output ([#691](https://github.com/stjude-rust-labs/sprocket/pull/691))
+* `sprocket dev doc --check` to analyze documents without producing an output ([#691](https://github.com/stjude-rust-labs/sprocket/pull/691)).
+* Added `--fixtures-dir` and `--run-dir` options to the `sprocket dev test`
+  command ([#747](https://github.com/stjude-rust-labs/sprocket/pull/747)).
 
 ### Fixed
 
