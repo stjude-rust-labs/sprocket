@@ -1,5 +1,6 @@
-#@ except: UnusedDeclaration, UnusedInput, UnusedCall
 ## This is a test of assigning an empty array to a non-empty array declaration.
+
+#@ except: UnusedDeclaration, UnusedInput, UnusedCall
 
 version 1.1
 

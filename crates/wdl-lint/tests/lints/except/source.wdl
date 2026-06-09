@@ -1,5 +1,6 @@
-#@ except: Unknown
 ## This is a test of the `#@ except` comments.
+
+#@ except: Unknown
 
 version 1.1
 
@@ -12,7 +13,7 @@ struct OK {         # OK
 
 # This applies to the specified members only
 struct Ok {         # OK
-    #@ except: SnakeCase,AlsoUnknown
+    #@ except: AlsoUnknown, SnakeCase
     Int AlsoOk      # OK
     Int NotOk       # NOT OK
 }

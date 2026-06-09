@@ -12,5 +12,7 @@ workflow bar {
     }
 
     #@ except: UnusedCall
-    call foo.foo { input: foo = bar }
+    call foo.foo { input:
+        foo = bar,
+    }
 }

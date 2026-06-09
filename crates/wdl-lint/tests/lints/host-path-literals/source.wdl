@@ -1,5 +1,5 @@
-#@ except: MetaDescription, MetaSections, ParameterMetaMatched
-#@ except: RequirementsSection, MatchingOutputMeta
+#@ except: MatchingOutputMeta, MetaDescription, MetaSections, ParameterMetaMatched
+#@ except: RequirementsSection
 
 version 1.2
 

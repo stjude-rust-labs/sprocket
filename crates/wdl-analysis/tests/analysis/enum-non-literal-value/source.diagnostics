@@ -1,128 +1,160 @@
 error: enum variant value must be a literal expression
-   ┌─ tests/analysis/enum-non-literal-value/source.wdl:66:13
+   ┌─ tests/analysis/enum-non-literal-value/source.wdl:83:13
    │
-66 │     Value = 1 + 1
+83 │     Value = 1 + 1,
    │             ^^^^^
    │
    = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum variant value must be a literal expression
-   ┌─ tests/analysis/enum-non-literal-value/source.wdl:71:12
+   ┌─ tests/analysis/enum-non-literal-value/source.wdl:88:12
    │
-71 │     Path = "/tmp/~{some_var}"
+88 │     Path = "/tmp/~{some_var}",
    │            ^^^^^^^^^^^^^^^^^^
    │
    = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum variant value must be a literal expression
-   ┌─ tests/analysis/enum-non-literal-value/source.wdl:76:15
+   ┌─ tests/analysis/enum-non-literal-value/source.wdl:93:15
    │
-76 │     Default = some_value
+93 │     Default = some_value,
    │               ^^^^^^^^^^
    │
    = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum variant value must be a literal expression
-   ┌─ tests/analysis/enum-non-literal-value/source.wdl:98:13
-   │
-98 │     Value = (1, 1 + 1)
-   │             ^^^^^^^^^^
-   │
-   = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
-
-error: enum variant value must be a literal expression
-    ┌─ tests/analysis/enum-non-literal-value/source.wdl:103:13
+    ┌─ tests/analysis/enum-non-literal-value/source.wdl:114:13
     │
-103 │     Value = (1, some_var)
-    │             ^^^^^^^^^^^^^
-    │
-    = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
-
-error: enum variant value must be a literal expression
-    ┌─ tests/analysis/enum-non-literal-value/source.wdl:108:13
-    │
-108 │     Value = ("a", "~{b}")
-    │             ^^^^^^^^^^^^^
-    │
-    = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
-
-error: enum variant value must be a literal expression
-    ┌─ tests/analysis/enum-non-literal-value/source.wdl:113:13
-    │
-113 │     Value = {1 + 1: "value"}
-    │             ^^^^^^^^^^^^^^^^
-    │
-    = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
-
-error: enum variant value must be a literal expression
-    ┌─ tests/analysis/enum-non-literal-value/source.wdl:118:13
-    │
-118 │     Value = {1: 1 + 1}
+114 │     Value = (1, 1 + 1),
     │             ^^^^^^^^^^
     │
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum variant value must be a literal expression
-    ┌─ tests/analysis/enum-non-literal-value/source.wdl:123:13
+    ┌─ tests/analysis/enum-non-literal-value/source.wdl:119:13
     │
-123 │     Value = {some_var: "value"}
-    │             ^^^^^^^^^^^^^^^^^^^
-    │
-    = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
-
-error: enum variant value must be a literal expression
-    ┌─ tests/analysis/enum-non-literal-value/source.wdl:128:13
-    │
-128 │     Value = {1: some_var}
+119 │     Value = (1, some_var),
     │             ^^^^^^^^^^^^^
     │
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum variant value must be a literal expression
-    ┌─ tests/analysis/enum-non-literal-value/source.wdl:133:13
+    ┌─ tests/analysis/enum-non-literal-value/source.wdl:124:13
     │
-133 │     Value = {"~{key}": "value"}
-    │             ^^^^^^^^^^^^^^^^^^^
+124 │     Value = ("a", "~{b}"),
+    │             ^^^^^^^^^^^^^
     │
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum variant value must be a literal expression
-    ┌─ tests/analysis/enum-non-literal-value/source.wdl:138:13
-    │
-138 │     Value = {"key": "~{value}"}
-    │             ^^^^^^^^^^^^^^^^^^^
-    │
+    ┌─ tests/analysis/enum-non-literal-value/source.wdl:129:13
+    │  
+129 │       Value = {
+    │ ╭─────────────^
+130 │ │         1 + 1: "value",
+131 │ │     },
+    │ ╰─────^
+    │  
+    = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
+
+error: enum variant value must be a literal expression
+    ┌─ tests/analysis/enum-non-literal-value/source.wdl:136:13
+    │  
+136 │       Value = {
+    │ ╭─────────────^
+137 │ │         1: 1 + 1,
+138 │ │     },
+    │ ╰─────^
+    │  
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum variant value must be a literal expression
     ┌─ tests/analysis/enum-non-literal-value/source.wdl:143:13
-    │
-143 │     Value = object {a: 1 + 1}
-    │             ^^^^^^^^^^^^^^^^^
-    │
+    │  
+143 │       Value = {
+    │ ╭─────────────^
+144 │ │         some_var: "value",
+145 │ │     },
+    │ ╰─────^
+    │  
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum variant value must be a literal expression
-    ┌─ tests/analysis/enum-non-literal-value/source.wdl:148:13
-    │
-148 │     Value = object {a: some_var}
-    │             ^^^^^^^^^^^^^^^^^^^^
-    │
+    ┌─ tests/analysis/enum-non-literal-value/source.wdl:150:13
+    │  
+150 │       Value = {
+    │ ╭─────────────^
+151 │ │         1: some_var,
+152 │ │     },
+    │ ╰─────^
+    │  
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum variant value must be a literal expression
-    ┌─ tests/analysis/enum-non-literal-value/source.wdl:153:13
-    │
-153 │     Value = object {a: "~{value}"}
-    │             ^^^^^^^^^^^^^^^^^^^^^^
-    │
+    ┌─ tests/analysis/enum-non-literal-value/source.wdl:157:13
+    │  
+157 │       Value = {
+    │ ╭─────────────^
+158 │ │         "~{key}": "value",
+159 │ │     },
+    │ ╰─────^
+    │  
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 
 error: enum variant value must be a literal expression
-    ┌─ tests/analysis/enum-non-literal-value/source.wdl:170:14
-    │
-170 │     Values = {"outer": {1: 1 + 1}}
-    │              ^^^^^^^^^^^^^^^^^^^^^
-    │
+    ┌─ tests/analysis/enum-non-literal-value/source.wdl:164:13
+    │  
+164 │       Value = {
+    │ ╭─────────────^
+165 │ │         "key": "~{value}",
+166 │ │     },
+    │ ╰─────^
+    │  
+    = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
+
+error: enum variant value must be a literal expression
+    ┌─ tests/analysis/enum-non-literal-value/source.wdl:171:13
+    │  
+171 │       Value = object {
+    │ ╭─────────────^
+172 │ │         a: 1 + 1,
+173 │ │     },
+    │ ╰─────^
+    │  
+    = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
+
+error: enum variant value must be a literal expression
+    ┌─ tests/analysis/enum-non-literal-value/source.wdl:178:13
+    │  
+178 │       Value = object {
+    │ ╭─────────────^
+179 │ │         a: some_var,
+180 │ │     },
+    │ ╰─────^
+    │  
+    = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
+
+error: enum variant value must be a literal expression
+    ┌─ tests/analysis/enum-non-literal-value/source.wdl:185:13
+    │  
+185 │       Value = object {
+    │ ╭─────────────^
+186 │ │         a: "~{value}",
+187 │ │     },
+    │ ╰─────^
+    │  
+    = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
+
+error: enum variant value must be a literal expression
+    ┌─ tests/analysis/enum-non-literal-value/source.wdl:206:14
+    │  
+206 │       Values = {
+    │ ╭──────────────^
+207 │ │         "outer": {
+208 │ │             1: 1 + 1,
+209 │ │         },
+210 │ │     },
+    │ ╰─────^
+    │  
     = fix: enum values must be literal expressions only (string literals, numeric literals, collection literals, or struct literals); string interpolation, variable references, and computed expressions are not allowed
 

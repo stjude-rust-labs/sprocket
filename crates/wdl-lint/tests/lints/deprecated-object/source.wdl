@@ -2,7 +2,7 @@
 
 version 1.1
 
-#@ except: MetaSections, MatchingOutputMeta, DeclarationName
+#@ except: DeclarationName, MatchingOutputMeta, MetaSections
 workflow test {
     #@ except: MetaDescription
     meta {}
@@ -18,11 +18,11 @@ workflow test {
 
     output {
         Object another_bound_literal_object = object {
-            bar: "baz"
+            bar: "baz",
         }
         #@ except: DeprecatedObject
         Object but_this_is_okay = object {
-            quux: 42
+            quux: 42,
         }
     }
 }

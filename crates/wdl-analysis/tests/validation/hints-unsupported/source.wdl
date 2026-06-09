@@ -8,8 +8,8 @@ task foo {
     hints {
         inputs: input {
             a: hints {
-                foo: "bar"
-            }
+                foo: "bar",
+            },
         }
     }
 }

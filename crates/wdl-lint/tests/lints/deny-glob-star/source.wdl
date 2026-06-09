@@ -1,5 +1,7 @@
 ## This is a test of the `DenyGlobStar` lint.
+
 #@ except: DoubleQuotes, ExpectedRuntimeKeys, MetaDescription
+
 version 1.3
 
 task bad {

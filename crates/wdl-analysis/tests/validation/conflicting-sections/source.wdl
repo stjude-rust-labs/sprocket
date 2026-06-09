@@ -5,23 +5,15 @@ version 1.3
 task foo {
     command <<<>>>
 
-    runtime {
-        
-    }
+    runtime {}
 
-    requirements {
-
-    }
+    requirements {}
 }
 
 task bar {
     command <<<>>>
 
-    requirements {
-        
-    }
+    requirements {}
 
-    runtime {
-
-    }
+    runtime {}
 }
