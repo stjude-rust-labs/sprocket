@@ -223,7 +223,6 @@ impl TestContext {
 
         let params = InitializeParams {
             process_id: None,
-            root_uri: Some(workspace_url.clone()),
             initialization_options: None,
             capabilities,
             trace: None,
