@@ -388,6 +388,47 @@ impl ServerConfig {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
+        // Add file paths to allowed URLs with a file:// prefix
+        let file_urls = self
+            .allowed_file_paths
+            .iter()
+            .map(|p| {
+                Url::from_file_path(p)
+                    .map_err(|_| {
+                        anyhow::anyhow!(
+                            "failed to convert allowed file path to file:// URL: `{}`",
+                            p.display()
+                        )
+                    })
+                    .map(|u| u.to_string())
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Add file URLs to allowed file paths
+        let file_paths = self
+            .allowed_urls
+            .iter()
+            .filter_map(|u| match Url::parse(u) {
+                Ok(url) => match url.scheme() == "file" {
+                    true => match url.to_file_path() {
+                        Ok(path) => Some(Ok(path)),
+                        Err(_) => Some(Err(anyhow::anyhow!(
+                            "failed to convert allowed URL to file path: `{}`",
+                            u
+                        ))),
+                    },
+                    false => None,
+                },
+                Err(e) => Some(Err(anyhow::anyhow!(
+                    "failed to parse allowed URL `{}`: {e}",
+                    u
+                ))),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        self.allowed_file_paths.extend(file_paths);
+        self.allowed_urls.extend(file_urls);
+
         // Deduplicate and sort file paths
         self.allowed_file_paths.sort();
         self.allowed_file_paths.dedup();
