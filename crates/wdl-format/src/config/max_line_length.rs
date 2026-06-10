@@ -91,3 +91,51 @@ impl ToToml for MaxLineLength {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
+
+    use super::*;
+
+    #[test]
+    fn serialization() {
+        let map: HashMap<&str, MaxLineLength> =
+            HashMap::from_iter([("value", MaxLineLength(None))]);
+        assert_eq!(
+            toml_spanner::to_string(&map).unwrap(),
+            format!("value = \"{SENTINEL}\"\n")
+        );
+
+        let map: HashMap<&str, MaxLineLength> =
+            HashMap::from_iter([("value", MaxLineLength(Some(123)))]);
+        assert_eq!(toml_spanner::to_string(&map).unwrap(), "value = 123\n");
+    }
+
+    #[test]
+    fn deserialization() {
+        let map: HashMap<String, MaxLineLength> =
+            toml_spanner::from_str(&format!("value = '{SENTINEL}'")).unwrap();
+        assert_eq!(map["value"], MaxLineLength(None));
+
+        let map: HashMap<String, MaxLineLength> = toml_spanner::from_str("value = 80").unwrap();
+        assert_eq!(map["value"], MaxLineLength(Some(80)));
+
+        let expected_error = format!(
+            "expected a positive integer between {MIN_MAX_LINE_LENGTH} and {MAX_MAX_LINE_LENGTH} \
+             or `{SENTINEL}` for max line length value"
+        );
+
+        let error = toml_spanner::from_str::<HashMap<String, MaxLineLength>>("value = 'wrong'")
+            .unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+
+        let error =
+            toml_spanner::from_str::<HashMap<String, MaxLineLength>>("value = 1234").unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+
+        let error =
+            toml_spanner::from_str::<HashMap<String, MaxLineLength>>("value = -10").unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+    }
+}

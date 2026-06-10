@@ -935,7 +935,7 @@ impl<'de> FromToml<'de> for Retries {
         }
 
         Err(ctx.report_custom_error(
-            format!("expected a positive integer less than {MAX_RETRIES} or `default` for retries"),
+            format!("expected an integer less than {MAX_RETRIES} or `default` for retries"),
             item,
         ))
     }
@@ -2935,5 +2935,80 @@ type = 'lsf_apptainer'
             },
             "should be equal"
         );
+    }
+
+    #[test]
+    fn parallelism_serialization() {
+        let map: HashMap<&str, Parallelism> =
+            HashMap::from_iter([("value", Parallelism::Available)]);
+        assert_eq!(
+            toml_spanner::to_string(&map).unwrap(),
+            format!("value = \"available\"\n")
+        );
+
+        let map: HashMap<&str, Parallelism> =
+            HashMap::from_iter([("value", Parallelism::Use(123))]);
+        assert_eq!(toml_spanner::to_string(&map).unwrap(), "value = 123\n");
+    }
+
+    #[test]
+    fn parallelism_deserialization() {
+        let map: HashMap<String, Parallelism> =
+            toml_spanner::from_str("value = 'available'").unwrap();
+        assert_eq!(map["value"], Parallelism::Available);
+
+        let map: HashMap<String, Parallelism> = toml_spanner::from_str("value = 123").unwrap();
+        assert_eq!(map["value"], Parallelism::Use(123));
+
+        let expected_error = "expected a positive integer or `available` for parallelism";
+
+        let error =
+            toml_spanner::from_str::<HashMap<String, Parallelism>>("value = 'wrong'").unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+
+        let error =
+            toml_spanner::from_str::<HashMap<String, Parallelism>>("value = 0").unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+
+        let error =
+            toml_spanner::from_str::<HashMap<String, Parallelism>>("value = -10").unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+    }
+
+    #[test]
+    fn retries_serialization() {
+        let map: HashMap<&str, Retries> = HashMap::from_iter([("value", Retries::Default)]);
+        assert_eq!(
+            toml_spanner::to_string(&map).unwrap(),
+            format!("value = \"default\"\n")
+        );
+
+        let map: HashMap<&str, Retries> = HashMap::from_iter([("value", Retries::Use(123))]);
+        assert_eq!(toml_spanner::to_string(&map).unwrap(), "value = 123\n");
+    }
+
+    #[test]
+    fn retries_deserialization() {
+        let map: HashMap<String, Retries> = toml_spanner::from_str("value = 'default'").unwrap();
+        assert_eq!(map["value"], Retries::Default);
+
+        let map: HashMap<String, Retries> = toml_spanner::from_str("value = 12").unwrap();
+        assert_eq!(map["value"], Retries::Use(12));
+
+        let map: HashMap<String, Retries> = toml_spanner::from_str("value = 0").unwrap();
+        assert_eq!(map["value"], Retries::Use(0));
+
+        let expected_error =
+            format!("expected an integer less than {MAX_RETRIES} or `default` for retries");
+
+        let error =
+            toml_spanner::from_str::<HashMap<String, Retries>>("value = 'wrong'").unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+
+        let error = toml_spanner::from_str::<HashMap<String, Retries>>("value = 101").unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+
+        let error = toml_spanner::from_str::<HashMap<String, Retries>>("value = -10").unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
     }
 }

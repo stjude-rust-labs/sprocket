@@ -2,5 +2,5 @@ error: failed to deserialize configuration file `bad.toml`
   ┌─ bad.toml:2:11
   │
 2 │ retries = 123
-  │           ^^^ expected a positive integer less than 100 or `default` for retries
+  │           ^^^ expected an integer less than 100 or `default` for retries
 

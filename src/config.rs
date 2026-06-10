@@ -950,3 +950,49 @@ impl Config {
         std::fs::write(path, data).context("failed to write config file")
     }
 }
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
+
+    use super::*;
+
+    #[test]
+    fn max_concurrent_runs_serialization() {
+        let map: HashMap<&str, MaxConcurrentRuns> =
+            HashMap::from_iter([("value", MaxConcurrentRuns::Unlimited)]);
+        assert_eq!(
+            toml_spanner::to_string(&map).unwrap(),
+            format!("value = \"unlimited\"\n")
+        );
+
+        let map: HashMap<&str, MaxConcurrentRuns> =
+            HashMap::from_iter([("value", MaxConcurrentRuns::Limited(123))]);
+        assert_eq!(toml_spanner::to_string(&map).unwrap(), "value = 123\n");
+    }
+
+    #[test]
+    fn max_concurrent_runs_deserialization() {
+        let map: HashMap<String, MaxConcurrentRuns> =
+            toml_spanner::from_str("value = 'unlimited'").unwrap();
+        assert_eq!(map["value"], MaxConcurrentRuns::Unlimited);
+
+        let map: HashMap<String, MaxConcurrentRuns> = toml_spanner::from_str("value = 12").unwrap();
+        assert_eq!(map["value"], MaxConcurrentRuns::Limited(12));
+
+        let expected_error =
+            "expected a positive integer or `unlimited` for maximum concurrent runs";
+
+        let error = toml_spanner::from_str::<HashMap<String, MaxConcurrentRuns>>("value = 'wrong'")
+            .unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+
+        let error =
+            toml_spanner::from_str::<HashMap<String, MaxConcurrentRuns>>("value = 0").unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+
+        let error = toml_spanner::from_str::<HashMap<String, MaxConcurrentRuns>>("value = -10")
+            .unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+    }
+}

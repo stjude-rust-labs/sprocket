@@ -115,8 +115,8 @@ impl<'de> FromToml<'de> for Indent {
 
         Err(ctx.report_custom_error(
             format!(
-                "expected a positive integer less than or equal to {MAX_SPACE_INDENT} or `tabs` \
-                 for indentation value"
+                "expected an integer less than or equal to {MAX_SPACE_INDENT} or `tabs` for \
+                 indentation value"
             ),
             item,
         ))
@@ -133,5 +133,49 @@ impl ToToml for Indent {
                 })?
                 .into()),
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
+
+    use super::*;
+
+    #[test]
+    fn serialization() {
+        let map: HashMap<&str, Indent> = HashMap::from_iter([("value", Indent::Tabs)]);
+        assert_eq!(toml_spanner::to_string(&map).unwrap(), "value = \"tabs\"\n");
+
+        let map: HashMap<&str, Indent> = HashMap::from_iter([("value", Indent::Spaces(10))]);
+        assert_eq!(toml_spanner::to_string(&map).unwrap(), "value = 10\n");
+    }
+
+    #[test]
+    fn deserialization() {
+        let map: HashMap<String, Indent> = toml_spanner::from_str("value = 'tabs'").unwrap();
+        assert_eq!(map["value"], Indent::Tabs);
+
+        let map: HashMap<String, Indent> = toml_spanner::from_str("value = 10").unwrap();
+        assert_eq!(map["value"], Indent::Spaces(10));
+
+        let map: HashMap<String, Indent> = toml_spanner::from_str("value = 0").unwrap();
+        assert_eq!(map["value"], Indent::Spaces(0));
+
+        let expected_error = format!(
+            "expected an integer less than or equal to {MAX_SPACE_INDENT} or `tabs` for \
+             indentation value"
+        );
+
+        let error =
+            toml_spanner::from_str::<HashMap<String, Indent>>("value = 'wrong'").unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+
+        let error = toml_spanner::from_str::<HashMap<String, Indent>>("value = -10").unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+
+        let error =
+            toml_spanner::from_str::<HashMap<String, Indent>>("value = 100000").unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
     }
 }

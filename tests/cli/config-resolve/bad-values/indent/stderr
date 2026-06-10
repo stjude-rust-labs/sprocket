@@ -2,5 +2,5 @@ error: failed to deserialize configuration file `bad.toml`
   ┌─ bad.toml:2:10
   │
 2 │ indent = 100
-  │          ^^^ expected a positive integer less than or equal to 16 or `tabs` for indentation value
+  │          ^^^ expected an integer less than or equal to 16 or `tabs` for indentation value
 
