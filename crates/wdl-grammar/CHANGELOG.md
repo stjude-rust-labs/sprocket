@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* `Parser` now produces `ParseDiagnostic`s instead of `Diagnostic`s ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
+* `Parser` now handles deduplication of diagnostics, so the `Output` will no longer contain
+  identical diagnostics ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
+* In nested expressions, only the innermost expression will produce an "unexpected end of input"
+  diagnostic ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
+
 ## 0.23.0 - 2026-06-03
 
 #### Changed
