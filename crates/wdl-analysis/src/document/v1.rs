@@ -791,7 +791,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     // a single implicit dependency edge; if so, it might be unused
                     let mut edges = graph.edges_directed(index, Direction::Outgoing);
 
-                    if let (Some(true), None) = (edges.next().map(|e| e.weight()), edges.next())
+                    if edges.all(|e| *e.weight())
                         && !decl.inner().is_rule_excepted(UnusedInputRule::ID)
                     {
                         let name = decl.name();
