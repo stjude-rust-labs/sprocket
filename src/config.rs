@@ -395,11 +395,8 @@ impl From<MaxConcurrentRuns> for Option<usize> {
 
 impl<'de> FromToml<'de> for MaxConcurrentRuns {
     fn from_toml(ctx: &mut toml_spanner::Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
-        if let Some(s) = item.as_str() {
-            match s {
-                "unlimited" => return Ok(Self::Unlimited),
-                _ => {}
-            }
+        if let Some("unlimited") = item.as_str() {
+            return Ok(Self::Unlimited);
         }
 
         if let Some(n) = item.as_u64().and_then(|n| usize::try_from(n).ok())

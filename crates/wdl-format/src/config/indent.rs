@@ -103,9 +103,7 @@ impl fmt::Display for Indent {
 
 impl<'de> FromToml<'de> for Indent {
     fn from_toml(ctx: &mut Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
-        if let Some(s) = item.as_str()
-            && s == "tabs"
-        {
+        if let Some("tabs") = item.as_str() {
             return Ok(Self::Tabs);
         }
 

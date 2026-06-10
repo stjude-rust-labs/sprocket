@@ -474,11 +474,8 @@ impl From<Parallelism> for usize {
 
 impl<'de> FromToml<'de> for Parallelism {
     fn from_toml(ctx: &mut toml_spanner::Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
-        if let Some(s) = item.as_str() {
-            match s {
-                "available" => return Ok(Self::Available),
-                _ => {}
-            }
+        if let Some("available") = item.as_str() {
+            return Ok(Self::Available);
         }
 
         if let Some(n) = item.as_u64().and_then(|n| usize::try_from(n).ok())
@@ -927,11 +924,8 @@ impl From<Retries> for u64 {
 
 impl<'de> FromToml<'de> for Retries {
     fn from_toml(ctx: &mut toml_spanner::Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
-        if let Some(s) = item.as_str() {
-            match s {
-                "default" => return Ok(Self::Default),
-                _ => {}
-            }
+        if let Some("default") = item.as_str() {
+            return Ok(Self::Default);
         }
 
         if let Some(n) = item.as_u64()

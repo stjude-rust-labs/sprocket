@@ -59,9 +59,7 @@ impl Default for MaxLineLength {
 
 impl<'de> FromToml<'de> for MaxLineLength {
     fn from_toml(ctx: &mut Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
-        if let Some(s) = item.as_str()
-            && s == SENTINEL
-        {
+        if let Some(SENTINEL) = item.as_str() {
             return Ok(Self(None));
         }
 
