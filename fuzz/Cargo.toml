@@ -1,0 +1,29 @@
+[package]
+name = "fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+globset.workspace = true
+uuid.workspace = true
+walkdir.workspace = true
+wdl = { path = "../crates/wdl", features = ["ast", "format"] }
+
+[[bin]]
+name = "wdl-ast"
+path = "fuzz_targets/wdl_ast.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "wdl-format"
+path = "fuzz_targets/wdl_format.rs"
+test = false
+doc = false
+bench = false
