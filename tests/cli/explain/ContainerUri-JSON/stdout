@@ -10,11 +10,9 @@
   "examples": [
     {
       "negative": {
-        "label": null,
         "snippet": "version 1.2\n\ntask say_hello {\n    input {\n        String name\n    }\n\n    command <<<\n        echo \"Hello, ~{name}!\"\n    >>>\n\n    # No tag\n    requirements {\n        container: \"ubuntu\"\n    }\n}\n\ntask say_goodbye {\n    input {\n        String name\n    }\n\n    command <<<\n        echo \"Goodbye, ~{name}!\"\n    >>>\n\n    # Unnecessary array\n    requirements {\n        container: [\n            \"ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1\",\n        ]\n    }\n}\n"
       },
       "revised": {
-        "label": null,
         "snippet": "version 1.2\n\ntask say_hello {\n    input {\n        String name\n    }\n\n    command <<<\n        echo \"Hello, ~{name}!\"\n    >>>\n\n    requirements {\n        container: \"ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1\"\n    }\n}\n\ntask say_goodbye {\n    input {\n        String name\n    }\n\n    command <<<\n        echo \"Goodbye, ~{name}!\"\n    >>>\n\n    requirements {\n        container: \"ubuntu@sha256:cc925e589b7543b910fea57a240468940003fbfc0515245a495dd0ad8fe7cef1\"\n    }\n}\n"
       }
     }

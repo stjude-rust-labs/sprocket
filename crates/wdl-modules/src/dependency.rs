@@ -109,10 +109,10 @@ impl DependencyName {
     }
 }
 
-impl TryFrom<&str> for DependencyName {
-    type Error = DependencyNameError;
+impl FromStr for DependencyName {
+    type Err = DependencyNameError;
 
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         if !is_dependency_name(s) {
             return Err(DependencyNameError(s.to_string()));
         }
@@ -126,14 +126,6 @@ impl TryFrom<&str> for DependencyName {
             manifest: s.to_string(),
             identifier,
         })
-    }
-}
-
-impl FromStr for DependencyName {
-    type Err = DependencyNameError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from(s)
     }
 }
 

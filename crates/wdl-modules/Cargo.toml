@@ -26,6 +26,7 @@ resolver = [
     "dep:git2",
     "dep:globset",
     "dep:tokio",
+    "dep:toml-spanner",
     "dep:tracing",
 ]
 
@@ -50,7 +51,7 @@ spdx = { workspace = true }
 ssh-key = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, optional = true, features = ["fs", "rt", "sync"] }
-toml-spanner = { workspace = true }
+toml-spanner = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
 unicode-normalization = { workspace = true }
 url = { workspace = true, features = ["serde"] }

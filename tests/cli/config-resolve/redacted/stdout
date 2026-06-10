@@ -133,6 +133,8 @@ excluded_cache_requirements = []
 excluded_cache_hints = []
 excluded_cache_inputs = []
 
+[server.engine.backends]
+
 [server.engine.storage]
 
 [server.engine.storage.azure]
@@ -143,6 +145,7 @@ excluded_cache_inputs = []
 
 [test]
 parallelism = 50
+throttle = 100
 
 [doc]
 index_page = "none"

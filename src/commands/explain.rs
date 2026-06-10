@@ -174,7 +174,11 @@ where
         {
             let LabeledSnippet { label, snippet } = self.0;
             let mut s = serializer.serialize_struct("LabeledSnippet", 2)?;
-            s.serialize_field("label", label)?;
+
+            if let Some(label) = label {
+                s.serialize_field("label", label)?;
+            }
+
             s.serialize_field("snippet", snippet)?;
             s.end()
         }
@@ -190,7 +194,11 @@ where
             let Example { negative, revised } = self.0;
             let mut s = serializer.serialize_struct("Example", 2)?;
             s.serialize_field("negative", &SerializableSnippet(negative))?;
-            s.serialize_field("revised", &revised.as_ref().map(SerializableSnippet))?;
+
+            if let Some(revised) = revised {
+                s.serialize_field("revised", &SerializableSnippet(revised))?;
+            }
+
             s.end()
         }
     }

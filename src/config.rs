@@ -219,7 +219,6 @@ impl<'de> FromToml<'de> for FallbackVersion {
     fn from_toml(ctx: &mut toml_spanner::Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
         if let Some(s) = item.as_str() {
             match s {
-                "null" => return Ok(Self::default()),
                 "none" => return Ok(Self::None),
                 _ => {
                     if let Ok(v) = s.parse() {
@@ -398,7 +397,6 @@ impl<'de> FromToml<'de> for MaxConcurrentRuns {
     fn from_toml(ctx: &mut toml_spanner::Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
         if let Some(s) = item.as_str() {
             match s {
-                "null" => return Ok(Self::default()),
                 "unlimited" => return Ok(Self::Unlimited),
                 _ => {}
             }

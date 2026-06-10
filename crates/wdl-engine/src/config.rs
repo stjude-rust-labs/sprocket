@@ -197,6 +197,7 @@ mod index_map {
     use toml_spanner::Item;
     use toml_spanner::Key;
     use toml_spanner::Table;
+    use toml_spanner::TableStyle;
     use toml_spanner::ToToml;
     use toml_spanner::ToTomlError;
 
@@ -237,6 +238,8 @@ mod index_map {
             ));
         };
 
+        table.set_style(TableStyle::Implicit);
+
         for (k, v) in value {
             table.insert_unique(Key::new(k), v.to_toml(arena)?, arena);
         }
@@ -274,7 +277,7 @@ pub struct Config {
     ///
     /// If the collection is empty and `backend` has the default value, the
     /// engine default backend is used.
-    #[toml(default, with = index_map, skip_if = IndexMap::is_empty)]
+    #[toml(default, with = index_map)]
     pub backends: IndexMap<String, BackendConfig>,
     /// Storage configuration.
     #[toml(default, style = Header)]
@@ -473,7 +476,6 @@ impl<'de> FromToml<'de> for Parallelism {
     fn from_toml(ctx: &mut toml_spanner::Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
         if let Some(s) = item.as_str() {
             match s {
-                "null" => return Ok(Self::default()),
                 "available" => return Ok(Self::Available),
                 _ => {}
             }
@@ -927,7 +929,6 @@ impl<'de> FromToml<'de> for Retries {
     fn from_toml(ctx: &mut toml_spanner::Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
         if let Some(s) = item.as_str() {
             match s {
-                "null" => return Ok(Self::default()),
                 "default" => return Ok(Self::Default),
                 _ => {}
             }
