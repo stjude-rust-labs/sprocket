@@ -10,7 +10,7 @@ task Status {
 # Enum with same name as task
 enum Status {
     Active,
-    Pending
+    Pending,
 }
 
 workflow test {}

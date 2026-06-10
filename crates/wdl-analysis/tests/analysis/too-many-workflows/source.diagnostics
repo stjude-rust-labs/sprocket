@@ -1,18 +1,18 @@
 error: cannot define workflow `bar` as only one workflow is allowed per source file
-  ┌─ tests/analysis/too-many-workflows/source.wdl:9:10
+  ┌─ tests/analysis/too-many-workflows/source.wdl:7:10
   │
-5 │ workflow foo {
+5 │ workflow foo {}
   │          --- first workflow is defined here
-  ·
-9 │ workflow bar {
+6 │ 
+7 │ workflow bar {}
   │          ^^^ consider moving this workflow to a new file
 
 error: cannot define workflow `baz` as only one workflow is allowed per source file
-   ┌─ tests/analysis/too-many-workflows/source.wdl:13:10
-   │
- 5 │ workflow foo {
-   │          --- first workflow is defined here
-   ·
-13 │ workflow baz {
-   │          ^^^ consider moving this workflow to a new file
+  ┌─ tests/analysis/too-many-workflows/source.wdl:9:10
+  │
+5 │ workflow foo {}
+  │          --- first workflow is defined here
+  ·
+9 │ workflow baz {}
+  │          ^^^ consider moving this workflow to a new file
 

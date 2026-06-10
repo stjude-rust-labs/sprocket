@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.24.0 - 2026-06-03
+
+## 0.23.0 - 2026-05-14
+
+#### Added
+
+* Added `HostPathLiterals` lint rule to flag absolute path defaults in `File` and `Directory` declarations ([#736](https://github.com/stjude-rust-labs/sprocket/pull/736)).
+* New lint rule `EmptyOutputs` to detect `task`s with no `output`s ([#846](https://github.com/stjude-rust-labs/sprocket/pull/846)).
+
+#### Fixed
+
+* `#@ except:` directives on ancestor nodes are now honored by the
+  `UnnecessaryFunctionCall` lint rule
+  ([#842](https://github.com/stjude-rust-labs/sprocket/pull/842)).
+
+#### Changed
+
+* The `Rule` trait now requires implementors to be `Clone` ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)).
+* `rules()` now returns `Vec<Box<dyn Rule + Send + Sync>>` ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)).
+
+#### Removed
+
+* Removed the `ConsistentNewlines` rule ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)).
+
 ## 0.22.1 - 2026-04-22
 
 ## 0.22.0 - 2026-04-02

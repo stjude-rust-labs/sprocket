@@ -4,6 +4,8 @@ use std::fmt;
 
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
+use wdl_analysis::Example;
+use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
@@ -111,10 +113,11 @@ impl Rule for MetaSectionsRule {
          skip the `parameter_meta` section."
     }
 
-    fn examples(&self) -> &'static [&'static str] {
-        &[
-            r#"```wdl
-version 1.2
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task say_hello {
     input {
@@ -125,17 +128,17 @@ task say_hello {
         echo "Hello, ~{name}!"
     >>>
 }
-```"#,
-            r#"Use instead:
-
-```wdl
-version 1.2
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
 
 task say_hello {
     meta {
         description: "Says hello for the given name"
     }
-    
+
     parameter_meta {
         name: "The name of the person to greet"
     }
@@ -148,8 +151,9 @@ task say_hello {
         echo "Hello, ~{name}!"
     >>>
 }
-```"#,
-        ]
+"#,
+            }),
+        }]
     }
 
     fn tags(&self) -> TagSet {

@@ -110,12 +110,17 @@ struct CommandOutput {
 }
 
 /// Runs a test given the test root directory.
-fn run_test(test_path: &Path) -> Result<()> {
+fn run_test(test_path: &Path, test_name: String) -> Result<()> {
     let working_test_directory = setup_working_test_directory(test_path)
         .context("failed to setup working test directory")?;
     let command_output = run_sprocket(test_path, working_test_directory.path())
         .context("failed to run sprocket command")?;
-    compare_test_results(test_path, working_test_directory.path(), &command_output)
+    compare_test_results(
+        test_path,
+        &test_name,
+        working_test_directory.path(),
+        &command_output,
+    )
 }
 
 /// Sets up the working test directory by copying initial files.
@@ -148,26 +153,26 @@ fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
 
         if file_type.is_dir() {
             fs::create_dir_all(&to)
-                .with_context(|| format!("failed to create directory at {:?}", &to))?;
+                .with_context(|| format!("failed to create directory at {:?}", to))?;
         } else if file_type.is_symlink() {
             // Recreate symlink with same target
             let link_target = fs::read_link(from)
                 .with_context(|| format!("failed to read symlink at {:?}", from))?;
             #[cfg(unix)]
             std::os::unix::fs::symlink(&link_target, &to)
-                .with_context(|| format!("failed to create symlink at {:?}", &to))?;
+                .with_context(|| format!("failed to create symlink at {:?}", to))?;
             #[cfg(windows)]
             {
                 if link_target.is_dir() {
                     std::os::windows::fs::symlink_dir(&link_target, &to)
-                        .with_context(|| format!("failed to create symlink at {:?}", &to))?;
+                        .with_context(|| format!("failed to create symlink at {:?}", to))?;
                 } else {
                     std::os::windows::fs::symlink_file(&link_target, &to)
-                        .with_context(|| format!("failed to create symlink at {:?}", &to))?;
+                        .with_context(|| format!("failed to create symlink at {:?}", to))?;
                 }
             }
         } else {
-            fs::copy(from, &to).with_context(|| format!("failed to copy file to {:?}", &to))?;
+            fs::copy(from, &to).with_context(|| format!("failed to copy file to {:?}", to))?;
         }
     }
     Ok(())
@@ -179,7 +184,7 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
     let sprocket_exe = PathBuf::from(env!("CARGO_BIN_EXE_sprocket"));
     let args_path = test_path.join("args");
     let args_string = fs::read_to_string(&args_path)
-        .with_context(|| format!("failed to read command at path {:?}", &args_path))?;
+        .with_context(|| format!("failed to read command at path {:?}", args_path))?;
     let args_string = args_string.replace("\r\n", "\n");
     let args = shlex::split(&format!("--skip-config-search {args_string}"))
         .ok_or_else(|| anyhow!("failed to split command args"))?;
@@ -532,6 +537,7 @@ __UNEXPECTED_FILES_FOUND__
 /// Compares the result of the command output with the expected baseline.
 fn compare_test_results(
     test_path: &Path,
+    test_name: &str,
     working_test_directory: &Path,
     command_output: &CommandOutput,
 ) -> Result<()> {
@@ -569,6 +575,13 @@ fn compare_test_results(
         recursive_compare(&expected_output_dir, working_test_directory)?;
     }
 
+    // https://github.com/stjude-rust-labs/sprocket/issues/861
+    if test_name == "run/missing-required-array-input"
+        && working_test_directory.join("out").exists()
+    {
+        bail!("invalid CLI inputs shouldn't produce an output directory")
+    }
+
     compare_results(
         &expected_exit_code_file,
         &command_output.exit_code.to_string(),
@@ -589,8 +602,9 @@ fn main() {
     let trials = tests
         .into_iter()
         .map(|test| {
-            Trial::test(get_test_name(&test, test_root), move || {
-                run_test(&test).map_err(Into::into)
+            let name = get_test_name(&test, test_root);
+            Trial::test(name.clone(), move || {
+                run_test(&test, name).map_err(Into::into)
             })
         })
         .collect();

@@ -1,12 +1,12 @@
 error: type mismatch: expected index to be type `Int`, but found type `String`
-  ┌─ tests/analysis/index-not-integer/source.wdl:9:18
-  │
-9 │     String x = a["foo"]
-  │                  ^^^^^ this is type `String`
-
-error: type mismatch: expected index to be type `String`, but found type `Int`
    ┌─ tests/analysis/index-not-integer/source.wdl:10:18
    │
-10 │     String y = b[0]
+10 │     String x = a["foo"]
+   │                  ^^^^^ this is type `String`
+
+error: type mismatch: expected index to be type `String`, but found type `Int`
+   ┌─ tests/analysis/index-not-integer/source.wdl:11:18
+   │
+11 │     String y = b[0]
    │                  ^ this is type `Int`
 

@@ -4,6 +4,7 @@ use std::cmp::Ordering;
 use std::fmt;
 
 use rowan::TextRange;
+use rowan::TextSize;
 
 /// Represents a span of source.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -91,6 +92,16 @@ impl From<TextRange> for Span {
     fn from(value: TextRange) -> Self {
         let start = usize::from(value.start());
         Self::new(start, usize::from(value.end()) - start)
+    }
+}
+
+impl TryFrom<Span> for TextRange {
+    type Error = std::num::TryFromIntError;
+
+    fn try_from(value: Span) -> Result<Self, Self::Error> {
+        let start = TextSize::new(value.start.try_into()?);
+        let end = TextSize::new(value.end.try_into()?);
+        Ok(TextRange::new(start, end))
     }
 }
 

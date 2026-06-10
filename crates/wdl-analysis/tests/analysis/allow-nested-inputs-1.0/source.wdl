@@ -1,6 +1,7 @@
-#@ except: UnusedInput, UnusedCall
 ## This is a test of allowed nested inputs in 1.0.
 ## This should be accepted without diagnostics.
+
+#@ except: UnusedCall, UnusedInput
 
 version 1.0
 
@@ -22,8 +23,14 @@ workflow my_workflow {
     call my_task
 
     # OK
-    call my_task as my_task2 { input: required = "required" }
+    call my_task as my_task2 { input:
+        required = "required",
+    }
 
     # OK
-    call my_task as my_task3 { input: required = "required", optional = "optional", defaulted = "defaulted" }
+    call my_task as my_task3 { input:
+        required = "required",
+        optional = "optional",
+        defaulted = "defaulted",
+    }
 }

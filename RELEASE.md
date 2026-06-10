@@ -33,6 +33,8 @@ The body of the `sprocket` GitHub releases must be updated manually, regardless 
 By default, the release will only include the changelog of the `sprocket` crate. Each crate's most recent CHANGELOG entries should be copy and pasted into the release notes.
 These should be ordered with `sprocket` first, followed by the remaining crates topologically (starting with `wdl-grammar`).
 
+Note that the individual `CHANGELOG.md` files hard-wrap lines at ~80 columns. The GitHub release body should _not_ hard-wrap lines—each bullet point should be a single unwrapped line so that it renders cleanly on GitHub.
+
 Format each section so that it looks like:
 
 ```
@@ -43,7 +45,7 @@ Format each section so that it looks like:
 
 ## Post-Release
 
-After the release is complete, the following tasks should be performed:
+After the release is complete, the following tasks should be performed. For each downstream repository, read its `RELEASE.md` before starting—the steps may have changed since the last release.
 
 - [ ] Follow the release process in [`stjude-rust-labs/sprocket.bio`](https://github.com/stjude-rust-labs/sprocket.bio/blob/main/RELEASE.md).
 - [ ] Follow the release process in [`stjude-rust-labs/sprocket-action`](https://github.com/stjude-rust-labs/sprocket-action/blob/main/RELEASE.md).

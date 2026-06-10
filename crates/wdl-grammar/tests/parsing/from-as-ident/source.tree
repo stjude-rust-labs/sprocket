@@ -1,0 +1,66 @@
+RootNode@0..171
+  VersionStatementNode@0..11
+    VersionKeyword@0..7 "version"
+    Whitespace@7..8 " "
+    Version@8..11 "1.3"
+  Whitespace@11..13 "\n\n"
+  TaskDefinitionNode@13..170
+    TaskKeyword@13..17 "task"
+    Whitespace@17..18 " "
+    Ident@18..25 "example"
+    Whitespace@25..26 " "
+    OpenBrace@26..27 "{"
+    Whitespace@27..32 "\n    "
+    InputSectionNode@32..76
+      InputKeyword@32..37 "input"
+      Whitespace@37..38 " "
+      OpenBrace@38..39 "{"
+      Whitespace@39..48 "\n        "
+      BoundDeclNode@48..70
+        PrimitiveTypeNode@48..54
+          StringTypeKeyword@48..54 "String"
+        Whitespace@54..55 " "
+        Ident@55..59 "from"
+        Whitespace@59..60 " "
+        Assignment@60..61 "="
+        Whitespace@61..62 " "
+        LiteralStringNode@62..70
+          DoubleQuote@62..63 "\""
+          LiteralStringText@63..69 "origin"
+          DoubleQuote@69..70 "\""
+      Whitespace@70..75 "\n    "
+      CloseBrace@75..76 "}"
+    Whitespace@76..82 "\n\n    "
+    CommandSectionNode@82..122
+      CommandKeyword@82..89 "command"
+      Whitespace@89..90 " "
+      OpenHeredoc@90..93 "<<<"
+      LiteralCommandText@93..107 "\n        echo "
+      PlaceholderNode@107..114
+        PlaceholderOpen@107..109 "~{"
+        NameRefExprNode@109..113
+          Ident@109..113 "from"
+        CloseBrace@113..114 "}"
+      LiteralCommandText@114..119 "\n    "
+      CloseHeredoc@119..122 ">>>"
+    Whitespace@122..128 "\n\n    "
+    OutputSectionNode@128..168
+      OutputKeyword@128..134 "output"
+      Whitespace@134..135 " "
+      OpenBrace@135..136 "{"
+      Whitespace@136..145 "\n        "
+      BoundDeclNode@145..162
+        PrimitiveTypeNode@145..151
+          StringTypeKeyword@145..151 "String"
+        Whitespace@151..152 " "
+        Ident@152..155 "out"
+        Whitespace@155..156 " "
+        Assignment@156..157 "="
+        Whitespace@157..158 " "
+        NameRefExprNode@158..162
+          Ident@158..162 "from"
+      Whitespace@162..167 "\n    "
+      CloseBrace@167..168 "}"
+    Whitespace@168..169 "\n"
+    CloseBrace@169..170 "}"
+  Whitespace@170..171 "\n"

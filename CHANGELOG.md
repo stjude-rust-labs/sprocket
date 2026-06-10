@@ -7,6 +7,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* New `test.throttle` configuration entry for adding a delay between initial test submissions ([#798](https://github.com/stjude-rust-labs/sprocket/pull/798)).
+* Added `--show-task-stderr` option to the `run` subcommand to show task stderr during execution ([#743](https://github.com/stjude-rust-labs/sprocket/pull/743)).
+* Added `--fixtures-dir` and `--run-dir` options to the `sprocket dev test`
+  command ([#747](https://github.com/stjude-rust-labs/sprocket/pull/747)).
+  
+### Changed
+
+* `sprocket dev server` will now copy paths specified with `--allowed-file-paths` to the list of `--allowed-urls` with a `file://` prefix ([#914](https://github.com/stjude-rust-labs/sprocket/pull/914))
+
+### Fixed
+
+* `sprocket dev server` will canonicalize paths passed as CLI arguments ([#913](https://github.com/stjude-rust-labs/sprocket/pull/913))
+
+## 0.26.0 - 2026-06-03
+
+### Changed
+
+* `sprocket run` will no longer create `out` directories for runs with invalid CLI inputs ([#863](https://github.com/stjude-rust-labs/sprocket/pull/863)).
+
+### Fixed
+
+* Fixed a bug in `sprocket dev test` where a failing test would cause other tests to
+  fail ([#891](https://github.com/stjude-rust-labs/sprocket/pull/891)).
+
+### Dependencies
+
+* Bumped `cloud-copy` to `0.8.0`, which adds support for downloading files using multiple parallel streams ([#909](https://github.com/stjude-rust-labs/sprocket/pull/909)).
+
+## 0.25.0 - 2026-05-14
+
+### Added
+
+* Adds `wdl-modules` resolver layer behind the `resolver` feature gate,
+  covering the `Resolver` trait, `GitResolver`, sparse-checkout caching,
+  version selection, lockfile generation, TOFU trust, and module
+  materialization. Wires `[modules]` config section into `sprocket.toml`
+  ([#838](https://github.com/stjude-rust-labs/sprocket/pull/838)).
+* `sprocket format --newline-style` and `format.newline_style` config option to control the style of newlines in
+  `sprocket format` output ([#795](https://github.com/stjude-rust-labs/sprocket/pull/795)).
+* Initial WDL 1.4 support in `wdl-grammar` and `wdl-ast`, including the
+  reserved `from` keyword and the three import forms from
+  [`openwdl/wdl#765`](https://github.com/openwdl/wdl/pull/765). WDL 1.4
+  is gated behind the `feature_flags.wdl_1_4` analysis flag (default
+  `false`). See the per-crate changelogs for details ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+* `sprocket explain` now includes WDL snippets for lint rules ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)).
+
+### Changed
+
+* The `examples` field of `sprocket explain --format json` has changed from Markdown code blocks to the following
+  structure ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)):
+
+  ```ts
+  type LabeledSnippet = { label?: String, snippet: String };
+  type Example = { negative: LabeledSnippet, revised?: LabeledSnippet }
+  ```
+
+### Fixed
+
+* `dev test` will now cancel execution on `CTRL+C` ([#839](https://github.com/stjude-rust-labs/sprocket/pull/839)).
+
 ## 0.24.0 - 2026-04-22
 
 ### Added
@@ -81,7 +143,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Increased SQLite `busy_timeout` from 5s to 30s and added retry with
   exponential backoff when opening the database
   ([#734](https://github.com/stjude-rust-labs/sprocket/pull/734)).
-* Fixed a bug where the `format`, `run`, `lock` and `inputs` commands would not 
+* Fixed a bug where the `format`, `run`, `lock` and `inputs` commands would not
   utilize the configured `fallback_version`
   ([#784](https://github.com/stjude-rust-labs/sprocket/pull/784)).
 
@@ -243,7 +305,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Apptainer-based backends now store converted container images within each run directory, rather than in a user-specified directory ([#463](https://github.com/stjude-rust-labs/sprocket/pull/463)).
 * `sprocket run` now writes a `.sprocketignore` file directly to the `runs/` directory instead of the `runs/<entrypoint>/` directory ([#481](https://github.com/stjude-rust-labs/sprocket/pull/481)).
 
-
 ### Fixed
 
 * Fixed a bug in `sprocket config init` where `sprocket.toml` was unnecessarily loaded and would fail if malformed ([#473](https://github.com/stjude-rust-labs/sprocket/pull/473)).
@@ -319,9 +380,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * Added support for `.sprocketignore` files ([#158](https://github.com/stjude-rust-labs/sprocket/pull/158)).
-    * the semantics of these new "ignorefiles" are similar to `.gitignore` files
-    * the commands `analyzer`, `check`/`lint`, and `doc` all respect these files
-    * both parent and child directories of the current working directory are searched for `.sprocketignore` files
+  * the semantics of these new "ignorefiles" are similar to `.gitignore` files
+  * the commands `analyzer`, `check`/`lint`, and `doc` all respect these files
+  * both parent and child directories of the current working directory are searched for `.sprocketignore` files
 * Added support for custom logos in `sprocket dev doc` ([#156](https://github.com/stjude-rust-labs/sprocket/pull/156)).
 
 ## 0.15.0 - 07-31-2025
@@ -334,15 +395,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added new default output directory logic ([#149](https://github.com/stjude-rust-labs/sprocket/pull/149)).
 * Individual analysis and lint rules can now be excepted when running the `
   analyzer` command ([#150](https://github.com/stjude-rust-labs/sprocket/pull/150)).
-    * both command line flags and TOML config are supported
+  * both command line flags and TOML config are supported
 
 ### Changed
 
 * The `UnusedCall` analysis rule no longer emits a diagnostic for tasks and
   workflows if they have an empty or missing `output` section ([wdl:#532](https://github.com/stjude-rust-labs/wdl/pull/532)).
 * `--name` option renamed to `--entrypoint` for `validate` and `run` ([#147](https://github.com/stjude-rust-labs/sprocket/pull/147)).
-    * `--entrypoint` is now required if no inputs are provided.
-    * `--entrypoint` will be prefixed to the key of any key-value pairs
+  * `--entrypoint` is now required if no inputs are provided.
+  * `--entrypoint` will be prefixed to the key of any key-value pairs
       supplied on the command line.
 
 ### Removed
@@ -445,10 +506,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * Updated WDL crates to latest ([#79](https://github.com/stjude-rust-labs/sprocket/pull/79)). This added many features and fixes. Some highlights:
-    * Fixed certain misplaced highlights from the `ShellCheck` lint.
-    * Relaxed the `CommentWhitespace` lint rule so it doesn't trigger for as
+  * Fixed certain misplaced highlights from the `ShellCheck` lint.
+  * Relaxed the `CommentWhitespace` lint rule so it doesn't trigger for as
       many comments.
-    * The `ImportSort` lint rule now supplies the correct order of imports in
+  * The `ImportSort` lint rule now supplies the correct order of imports in
       the `fix` message.
 * By default, when checking a local file, suppress diagnostics from remote
   files. Added a `--show-remote-diagnostics` flag to recreate the older

@@ -1,4 +1,4 @@
-#@ except: InputName, OutputName, RuntimeSection
+#@ except: InputName, OutputName, RuntimeSection, EmptyOutputs
 
 ## This is a test of missing both the meta and parameter_meta
 

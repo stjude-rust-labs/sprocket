@@ -1,0 +1,18 @@
+error: expected import namespace, but found `from` keyword
+  ┌─ tests/parsing/from-as-ident-imports/source.wdl:3:21
+  │
+3 │ import "lib.wdl" as from
+  │                     ^^^^ unexpected `from` keyword
+
+error: expected source type name, but found `from` keyword
+  ┌─ tests/parsing/from-as-ident-imports/source.wdl:4:24
+  │
+4 │ import "lib.wdl" alias from as MyFrom
+  │                        ^^^^ unexpected `from` keyword
+
+error: expected target type name, but found `from` keyword
+  ┌─ tests/parsing/from-as-ident-imports/source.wdl:5:31
+  │
+5 │ import "lib.wdl" alias Bar as from
+  │                               ^^^^ unexpected `from` keyword
+

@@ -1,0 +1,102 @@
+RootNode@0..213
+  VersionStatementNode@0..11
+    VersionKeyword@0..7 "version"
+    Whitespace@7..8 " "
+    Version@8..11 "1.4"
+  Whitespace@11..13 "\n\n"
+  ImportStatementNode@13..37
+    ImportKeyword@13..19 "import"
+    Whitespace@19..20 " "
+    LiteralStringNode@20..29
+      DoubleQuote@20..21 "\""
+      LiteralStringText@21..28 "lib.wdl"
+      DoubleQuote@28..29 "\""
+    Whitespace@29..30 " "
+    AsKeyword@30..32 "as"
+    Whitespace@32..33 " "
+    Ident@33..37 "from"
+  Whitespace@37..38 "\n"
+  ImportStatementNode@38..75
+    ImportKeyword@38..44 "import"
+    Whitespace@44..45 " "
+    LiteralStringNode@45..54
+      DoubleQuote@45..46 "\""
+      LiteralStringText@46..53 "lib.wdl"
+      DoubleQuote@53..54 "\""
+    Whitespace@54..55 " "
+    ImportAliasNode@55..75
+      AliasKeyword@55..60 "alias"
+      Whitespace@60..61 " "
+      Ident@61..65 "from"
+      Whitespace@65..66 " "
+      AsKeyword@66..68 "as"
+      Whitespace@68..69 " "
+      Ident@69..75 "MyFrom"
+  Whitespace@75..76 "\n"
+  ImportStatementNode@76..110
+    ImportKeyword@76..82 "import"
+    Whitespace@82..83 " "
+    LiteralStringNode@83..92
+      DoubleQuote@83..84 "\""
+      LiteralStringText@84..91 "lib.wdl"
+      DoubleQuote@91..92 "\""
+    Whitespace@92..93 " "
+    ImportAliasNode@93..110
+      AliasKeyword@93..98 "alias"
+      Whitespace@98..99 " "
+      Ident@99..102 "Bar"
+      Whitespace@102..103 " "
+      AsKeyword@103..105 "as"
+      Whitespace@105..106 " "
+      Ident@106..110 "from"
+  Whitespace@110..111 "\n"
+  ImportStatementNode@111..144
+    ImportKeyword@111..117 "import"
+    Whitespace@117..118 " "
+    ImportMembersNode@118..126
+      OpenBrace@118..119 "{"
+      Whitespace@119..120 " "
+      ImportMemberNode@120..124
+        Ident@120..124 "from"
+      Whitespace@124..125 " "
+      CloseBrace@125..126 "}"
+    Whitespace@126..127 " "
+    FromKeyword@127..131 "from"
+    Whitespace@131..132 " "
+    LiteralStringNode@132..144
+      DoubleQuote@132..133 "\""
+      LiteralStringText@133..143 "csvkit.wdl"
+      DoubleQuote@143..144 "\""
+  Whitespace@144..145 "\n"
+  ImportStatementNode@145..185
+    ImportKeyword@145..151 "import"
+    Whitespace@151..152 " "
+    ImportMembersNode@152..167
+      OpenBrace@152..153 "{"
+      Whitespace@153..154 " "
+      ImportMemberNode@154..165
+        Ident@154..157 "Foo"
+        Whitespace@157..158 " "
+        AsKeyword@158..160 "as"
+        Whitespace@160..161 " "
+        Ident@161..165 "from"
+      Whitespace@165..166 " "
+      CloseBrace@166..167 "}"
+    Whitespace@167..168 " "
+    FromKeyword@168..172 "from"
+    Whitespace@172..173 " "
+    LiteralStringNode@173..185
+      DoubleQuote@173..174 "\""
+      LiteralStringText@174..184 "csvkit.wdl"
+      DoubleQuote@184..185 "\""
+  Whitespace@185..186 "\n"
+  ImportStatementNode@186..212
+    ImportKeyword@186..192 "import"
+    Whitespace@192..193 " "
+    SymbolicModulePathNode@193..212
+      Ident@193..200 "openwdl"
+      Slash@200..201 "/"
+      Ident@201..205 "from"
+      Slash@205..206 "/"
+      Ident@206..212 "csvkit"
+  Whitespace@212..213 "\n"

@@ -1,5 +1,6 @@
-#@ except: UnusedDeclaration
 ## This is a test for a non-primitive map key.
+
+#@ except: UnusedDeclaration
 
 version 1.1
 

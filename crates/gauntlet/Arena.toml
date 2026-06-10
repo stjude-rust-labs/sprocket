@@ -1712,9 +1712,19 @@ message = "flag_filter.wdl:110:20: note[ContainerUri]: container URI uses a muta
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/flag_filter.wdl/#L110"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
+message = "flag_filter.wdl:71:6: note[EmptyOutputs]: task 'validate_string_is_12bit_int' defines no outputs"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/flag_filter.wdl/#L71"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "read_group.wdl:141:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L141"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:146:6: note[EmptyOutputs]: task 'validate_read_group' defines no outputs"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L146"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
@@ -1800,6 +1810,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/fq.wdl"
 message = "fq.wdl:170:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/fq.wdl/#L170"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:5:6: note[EmptyOutputs]: task 'fqlint' defines no outputs"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/fq.wdl/#L5"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
@@ -2113,6 +2128,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:7:6: note[EmptyOutputs]: task 'quickcheck' defines no outputs"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/samtools.wdl/#L7"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:964:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/samtools.wdl/#L964"
 
@@ -2130,6 +2150,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:131:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L131"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:136:6: note[EmptyOutputs]: task 'compression_integrity' defines no outputs"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L136"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -2155,6 +2180,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:354:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L354"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:359:6: note[EmptyOutputs]: task 'check_fastq_and_rg_concordance' defines no outputs"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L359"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -2190,6 +2220,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
 message = "chipseq-standard.wdl:15:12: note[KnownRules]: unknown rule `LineWidth`"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/chipseq/chipseq-standard.wdl/#L15"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
+message = "dnaseq-standard.wdl:131:6: note[EmptyOutputs]: task 'parse_input' defines no outputs"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/dnaseq/dnaseq-standard.wdl/#L131"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
@@ -2235,6 +2270,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
 message = "quality-check-standard.wdl:550:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/qc/quality-check-standard.wdl/#L550"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
+message = "rnaseq-standard.wdl:141:6: note[EmptyOutputs]: task 'parse_input' defines no outputs"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-standard.wdl/#L141"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"

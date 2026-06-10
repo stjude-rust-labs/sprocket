@@ -242,11 +242,14 @@ pub fn format_workflow_definition(
     }
 
     stream.allow_blank_lines();
+    let body_empty = body.is_empty();
     for child in body {
         (&child).write(stream, config);
     }
     stream.ignore_trailing_blank_lines();
-    stream.blank_line();
+    if !body_empty {
+        stream.blank_line();
+    }
 
     if let Some(output) = output {
         (&output).write(stream, config);
