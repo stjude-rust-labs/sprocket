@@ -14,11 +14,9 @@ task foo {
         }
     }
 
-    parameter_meta {
-    }
+    parameter_meta {}
 
-    input {
-    }
+    input {}
 
     command <<< >>>
 

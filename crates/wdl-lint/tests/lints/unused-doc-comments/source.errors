@@ -1,81 +1,81 @@
 note[UnusedDocComments]: unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:38:5
+   ┌─ tests/lints/unused-doc-comments/source.wdl:37:5
    │  
-38 │ ╭     ## The user should be warned about this doc comment as it targets
-39 │ │     ## command, despite the interruption below.
+37 │ ╭     ## The user should be warned about this doc comment as it targets
+38 │ │     ## command, despite the interruption below.
    │ ╰───────────────────────────────────────────────^
    ·  
-45 │       command <<<
+44 │       command <<<
    │       ------- documentation will not be generated for this item
    │  
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:41:5
+   ┌─ tests/lints/unused-doc-comments/source.wdl:40:5
    │  
-41 │ ╭     ## Commands don't support doc comments so the user should be warned here.
-42 │ │     ## about this multiline comment with whitespace...
-43 │ │     ##
-44 │ │     ## ... that isn't doing anything!
+40 │ ╭     ## Commands don't support doc comments so the user should be warned here.
+41 │ │     ## about this multiline comment with whitespace...
+42 │ │     ##
+43 │ │     ## ... that isn't doing anything!
    │ ╰─────────────────────────────────────^
-45 │       command <<<
+44 │       command <<<
    │       ------- documentation will not be generated for this item
    │  
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:53:5
+   ┌─ tests/lints/unused-doc-comments/source.wdl:52:5
    │  
-53 │ ╭     ## doc comment
-54 │ │     ## more text
-55 │ │     ## these 3 lines should all be highlighted by one span
+52 │ ╭     ## doc comment
+53 │ │     ## more text
+54 │ │     ## these 3 lines should all be highlighted by one span
    │ ╰──────────────────────────────────────────────────────────^
    ·  
-66 │       command <<<>>>
+65 │       command <<<>>>
    │       ------- documentation will not be generated for this item
    │  
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:58:5
+   ┌─ tests/lints/unused-doc-comments/source.wdl:57:5
    │  
-58 │ ╭     ## another doc comment block
-59 │ │     ## that gets a new diagnostic fired with a new span
-60 │ │ 
-61 │ │     ## but there's a blank line in the middle!
-62 │ │     ## but we are going to consider these consecutive anyway
-63 │ │     ## this line and the prior 5 lines should all be in the same highlighted span
+57 │ ╭     ## another doc comment block
+58 │ │     ## that gets a new diagnostic fired with a new span
+59 │ │ 
+60 │ │     ## but there's a blank line in the middle!
+61 │ │     ## but we are going to consider these consecutive anyway
+62 │ │     ## this line and the prior 5 lines should all be in the same highlighted span
    │ ╰─────────────────────────────────────────────────────────────────────────────────^
    ·  
-66 │       command <<<>>>
+65 │       command <<<>>>
    │       ------- documentation will not be generated for this item
    │  
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:76:5
+   ┌─ tests/lints/unused-doc-comments/source.wdl:74:5
    │
-76 │     ## This doc comment does nothing and the user should be warned!
+74 │     ## This doc comment does nothing and the user should be warned!
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-77 │     meta {
+75 │     meta {
    │     ---- documentation will not be generated for this item
    │
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:81:5
+   ┌─ tests/lints/unused-doc-comments/source.wdl:79:5
    │
-81 │     ## This input section cannot have a doc comment.
+79 │     ## This input section cannot have a doc comment.
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-82 │     input {
+80 │     input {
    │     ----- documentation will not be generated for this item
    │
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:85:22
+   ┌─ tests/lints/unused-doc-comments/source.wdl:83:22
    │
-85 │         Person person## Trailing doc comment without whitespace that should be linted.
+83 │         Person person## Trailing doc comment without whitespace that should be linted.
    │         ------       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
    │         │             
    │         documentation will not be generated for this item
@@ -83,100 +83,100 @@ note[UnusedDocComments]: unused doc comment
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:86:23
+   ┌─ tests/lints/unused-doc-comments/source.wdl:84:24
    │
-86 │         Boolean apple ## This doc comment should be linted, and should not be included in the block below it.
-   │         -------       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-   │         │              
+84 │         Boolean apple  ## This doc comment should be linted, and should not be included in the block below it.
+   │         -------        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   │         │               
    │         documentation will not be generated for this item
    │
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:91:5
+   ┌─ tests/lints/unused-doc-comments/source.wdl:89:5
    │
-91 │     ## I am not allowed to be doc commented.
+89 │     ## I am not allowed to be doc commented.
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-92 │     call test_task {}
+90 │     call test_task {}
    │     ---- documentation will not be generated for this item
    │
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-   ┌─ tests/lints/unused-doc-comments/source.wdl:94:5
+   ┌─ tests/lints/unused-doc-comments/source.wdl:92:5
    │
-94 │     ## You can't doc comment a BoundDeclNode if it's not within an Input or Output section.
+92 │     ## You can't doc comment a BoundDeclNode if it's not within an Input or Output section.
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-95 │     #@ except: UnusedDeclaration
-96 │     Person p = Person {
+93 │     #@ except: UnusedDeclaration
+94 │     Person p = Person {
    │     ------ documentation will not be generated for this item
    │
    = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-    ┌─ tests/lints/unused-doc-comments/source.wdl:101:5
+    ┌─ tests/lints/unused-doc-comments/source.wdl:99:5
     │
-101 │     ## But doc comments are not!
+ 99 │     ## But doc comments are not!
     │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-102 │     if (apple) {
+100 │     if (apple) {
     │     -- documentation will not be generated for this item
     │
     = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-    ┌─ tests/lints/unused-doc-comments/source.wdl:106:5
+    ┌─ tests/lints/unused-doc-comments/source.wdl:104:5
     │
-106 │     ## But doc comments shouldn't be.
+104 │     ## But doc comments shouldn't be.
     │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-107 │     else if (banana) {
+105 │     else if (banana) {
     │     ---- documentation will not be generated for this item
     │
     = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-    ┌─ tests/lints/unused-doc-comments/source.wdl:108:42
+    ┌─ tests/lints/unused-doc-comments/source.wdl:106:43
     │
-108 │         String favorite_fruit = "Banana" ## Invalid inline doc comment that should only be linted once by UnusedDocComment.
-    │         ------                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    │         │                                 
+106 │         String favorite_fruit = "Banana"  ## Invalid inline doc comment that should only be linted once by UnusedDocComment.
+    │         ------                            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    │         │                                  
     │         documentation will not be generated for this item
     │
     = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-    ┌─ tests/lints/unused-doc-comments/source.wdl:111:5
+    ┌─ tests/lints/unused-doc-comments/source.wdl:109:5
     │
-111 │     ## but we don't want doc comments here.
+109 │     ## but we don't want doc comments here.
     │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-112 │     else {
+110 │     else {
     │     ---- documentation will not be generated for this item
     │
     = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-    ┌─ tests/lints/unused-doc-comments/source.wdl:113:9
+    ┌─ tests/lints/unused-doc-comments/source.wdl:111:9
     │
-113 │         ## Doc comments shouldn't be allowed on variable assignment!
+111 │         ## Doc comments shouldn't be allowed on variable assignment!
     │         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-114 │         String favorite_fruit = "Chocolate"
+112 │         String favorite_fruit = "Chocolate"
     │         ------ documentation will not be generated for this item
     │
     = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-    ┌─ tests/lints/unused-doc-comments/source.wdl:117:5
+    ┌─ tests/lints/unused-doc-comments/source.wdl:115:5
     │
-117 │     ## The output section cannot have a doc comment!
+115 │     ## The output section cannot have a doc comment!
     │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-118 │     output {
+116 │     output {
     │     ------ documentation will not be generated for this item
     │
     = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item
 
 note[UnusedDocComments]: unused doc comment
-    ┌─ tests/lints/unused-doc-comments/source.wdl:123:1
+    ┌─ tests/lints/unused-doc-comments/source.wdl:121:1
     │
-123 │ ## Trailing Doc Comment should be linted
+121 │ ## Trailing Doc Comment should be linted
     │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     │
     = fix: if this is a non-doc comment, replace the leading `##` with `#`; otherwise move this comment so it documents the intended item

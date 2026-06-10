@@ -1,5 +1,6 @@
-#@ except: UnusedInput, UnusedDeclaration
 ## This is a test of conflicting declaration names.
+
+#@ except: UnusedDeclaration, UnusedInput
 
 version 1.1
 
@@ -10,16 +11,16 @@ task t {
         String b
     }
 
+    Int z = x
+    Int x = y
+
+    command <<<>>>
+
     output {
         String x = "x"
         String y = "y"
         String a = "a"
     }
-
-    Int z = x
-    Int x = y
-
-    command <<<>>>
 }
 
 workflow w {
@@ -27,12 +28,6 @@ workflow w {
         Int x
         Int y = 0
         String b
-    }
-
-    output {
-        String x = "x"
-        String y = "y"
-        String a = "a"
     }
 
     Int z = x
@@ -63,5 +58,11 @@ workflow w {
         Int baz = 0
         # However, this is a duplicate of `nested` within the scatter statement
         Int nested = 0
+    }
+
+    output {
+        String x = "x"
+        String y = "y"
+        String a = "a"
     }
 }

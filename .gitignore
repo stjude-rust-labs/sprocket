@@ -17,3 +17,8 @@ out/
 /result
 /result-*
 .direnv/
+
+# Python
+.venv/
+__pycache__/
+*.so

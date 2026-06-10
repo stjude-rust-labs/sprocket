@@ -7,6 +7,18 @@
 version 1.3
 
 task test_invalid_member {
+  command <<<
+    # All task fields available in command.
+    echo "name: ~{task.name}"
+    echo "id: ~{task.id}"
+    echo "attempt: ~{task.attempt}"
+    echo "cpu: ~{task.cpu}"
+    echo "memory: ~{task.memory}"
+    echo "container: ~{task.container}"
+    echo "previous_cpu: ~{select_first([task.previous.cpu, 0])}"
+    echo "previous_memory: ~{select_first([task.previous.memory, 0])}"
+  >>>
+
   requirements {
     # Available in pre-evaluation.
     memory: if task.name == "test" then 1000000000 else 2000000000
@@ -30,18 +42,6 @@ task test_invalid_member {
     maxRetries: task.memory / 1000000000
   }
 
-  command <<<
-    # All task fields available in command.
-    echo "name: ~{task.name}"
-    echo "id: ~{task.id}"
-    echo "attempt: ~{task.attempt}"
-    echo "cpu: ~{task.cpu}"
-    echo "memory: ~{task.memory}"
-    echo "container: ~{task.container}"
-    echo "previous_cpu: ~{select_first([task.previous.cpu, 0])}"
-    echo "previous_memory: ~{select_first([task.previous.memory, 0])}"
-  >>>
-
   output {
     # All task fields available in output.
     String task_name = task.name
@@ -57,6 +57,7 @@ task test_invalid_member {
     Array[String]? previous_fpga = task.previous.fpga
     Map[String, Int]? previous_disks = task.previous.disks
     Int? previous_max_retries = task.previous.max_retries
+    Int return_code = task.return_code
 
     Int gpu_count = length(select_first([task.previous.gpu, []]))
     Int fpga_count = length(select_first([task.previous.fpga, []]))

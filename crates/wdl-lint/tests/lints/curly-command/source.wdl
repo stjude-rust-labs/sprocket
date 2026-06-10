@@ -1,6 +1,6 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, EmptyOutputs
-
 ## This is a test of the `HereDocCommands` lint
+
+#@ except: EmptyOutputs, ExpectedRuntimeKeys, MetaDescription
 
 version 1.1
 

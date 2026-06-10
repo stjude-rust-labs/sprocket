@@ -39,25 +39,30 @@ note[ContainerUri]: an array with a single value should be a string literal
     = fix: change the array to a string literal representing the first value
 
 warning[ContainerUri]: container arrays containing `*` are ambiguous
-    ┌─ tests/lints/container-value/source.wdl:159:21
+    ┌─ tests/lints/container-value/source.wdl:160:13
     │
-159 │         container: ["*", "foo", "*", "*"]
-    │                     ^^^         ---  ---
+160 │             "*",
+    │             ^^^
+161 │             "foo",
+162 │             "*",
+    │             ---
+163 │             "*",
+    │             ---
     │
     = fix: remove these entries or change the array to a string literal with the value of `*`
 
 warning[ContainerUri]: container URI is missing a tag
-    ┌─ tests/lints/container-value/source.wdl:159:26
+    ┌─ tests/lints/container-value/source.wdl:161:13
     │
-159 │         container: ["*", "foo", "*", "*"]
-    │                          ^^^^^
+161 │             "foo",
+    │             ^^^^^
     │
     = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
 
 warning[ContainerUri]: empty arrays are ambiguous and should contain at least one entry
-    ┌─ tests/lints/container-value/source.wdl:176:20
+    ┌─ tests/lints/container-value/source.wdl:181:20
     │
-176 │         container: []
+181 │         container: []
     │                    ^^
     │
     = fix: add an entry or remove the entry altogether

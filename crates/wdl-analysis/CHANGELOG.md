@@ -7,9 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+
+#### Fixed
+
+* The `UnusedInput` rule now fires in `task`s without `command` sections ([#849](https://github.com/stjude-rust-labs/sprocket/pull/849)).
+
+## 0.21.0 - 2026-06-03
+
 #### Added
 
 * Analysis now emits diagnostics for task variable declarations that appear after `command` sections ([#844](https://github.com/stjude-rust-labs/sprocket/pull/844)).
+
+#### Changed
+
+* The type of `task.return_code` is now `Int` instead of `Int?` ([#790](https://github.com/stjude-rust-labs/sprocket/pull/790)).
+
+#### Fixed
+
+* `task.return_code` can no longer be used outside of `output` sections ([#790](https://github.com/stjude-rust-labs/sprocket/pull/790)).
+* Enum types for struct members will no longer error ([#866](https://github.com/stjude-rust-labs/sprocket/pull/866)).
 
 ## 0.20.0 - 2026-05-14
 

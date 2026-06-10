@@ -1,5 +1,6 @@
-#@ except: UnusedDeclaration
 ## This is a test of using an invalid index for an array or map.
+
+#@ except: UnusedDeclaration
 
 version 1.1
 

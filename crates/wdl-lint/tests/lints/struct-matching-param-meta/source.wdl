@@ -1,8 +1,8 @@
-#@ except: MetaDescription, InputName, RequirementsSection
-
 ## This is a test for checking for missing and extraneous entries
 ## in a `parameter_meta` section specifically in structs , and for ensuring
 ## that the order is the same as `input` section.
+
+#@ except: InputName, MetaDescription, RequirementsSection
 
 version 1.3
 
@@ -16,7 +16,7 @@ struct Text {
             description: "a matching parameter!",
             foo: {
                 bar: {
-                    does_not_exist: "this should not suppress a missing input lint"
+                    does_not_exist: "this should not suppress a missing input lint",
                 },
             },
         }

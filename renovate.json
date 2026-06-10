@@ -6,6 +6,9 @@
     ":semanticCommits",
     ":semanticCommitTypeAll(build)"
   ],
+  "ignorePresets": [
+    "group:monorepos"
+  ],
   "labels": [
     "dependencies"
   ],
@@ -13,8 +16,8 @@
   "schedule": [
     "at any time"
   ],
-  "prHourlyLimit": 4,
-  "prConcurrentLimit": 10,
+  "prHourlyLimit": 0,
+  "prConcurrentLimit": 0,
   "minimumReleaseAge": "14 days",
   "rangeStrategy": "update-lockfile",
   "automerge": true,
@@ -23,6 +26,7 @@
   "platformAutomerge": true,
   "enabledManagers": [
     "cargo",
+    "npm",
     "github-actions"
   ],
   "lockFileMaintenance": {
@@ -34,26 +38,29 @@
   },
   "packageRules": [
     {
-      "description": "Major updates require manual review",
+      "description": "Major updates require manual approval via Dependency Dashboard and are capped at 3 concurrent PRs",
       "matchUpdateTypes": [
         "major"
       ],
       "automerge": false,
+      "dependencyDashboardApproval": true,
+      "prConcurrentLimit": 3,
       "addLabels": [
         "major-update"
       ]
     },
     {
-      "description": "Label cargo minor/patch updates",
+      "description": "Group all npm updates into one PR",
       "matchManagers": [
-        "cargo"
+        "npm"
       ],
       "matchUpdateTypes": [
-        "minor",
-        "patch"
+        "patch",
+        "minor"
       ],
+      "groupName": "npm updates",
       "addLabels": [
-        "cargo"
+        "npm"
       ]
     },
     {
@@ -64,6 +71,20 @@
       "groupName": "github actions",
       "addLabels": [
         "github-actions"
+      ]
+    },
+    {
+      "description": "Group all cargo minor and patch updates into one PR, overriding monorepo presets",
+      "matchManagers": [
+        "cargo"
+      ],
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ],
+      "groupName": "cargo updates",
+      "addLabels": [
+        "cargo"
       ]
     }
   ],
@@ -79,3 +100,4 @@
   },
   "osvVulnerabilityAlerts": true
 }
+

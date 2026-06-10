@@ -1,30 +1,30 @@
 //! Integration tests for call hierarchy requests.
 
-use tower_lsp::lsp_types::CallHierarchyIncomingCall;
-use tower_lsp::lsp_types::CallHierarchyIncomingCallsParams;
-use tower_lsp::lsp_types::CallHierarchyItem;
-use tower_lsp::lsp_types::CallHierarchyOutgoingCall;
-use tower_lsp::lsp_types::CallHierarchyOutgoingCallsParams;
-use tower_lsp::lsp_types::CallHierarchyPrepareParams;
-use tower_lsp::lsp_types::Position;
-use tower_lsp::lsp_types::Range;
-use tower_lsp::lsp_types::SymbolKind;
-use tower_lsp::lsp_types::TextDocumentIdentifier;
-use tower_lsp::lsp_types::TextDocumentPositionParams;
-use tower_lsp::lsp_types::request::CallHierarchyIncomingCalls;
-use tower_lsp::lsp_types::request::CallHierarchyOutgoingCalls;
-use tower_lsp::lsp_types::request::CallHierarchyPrepare;
+use async_lsp::lsp_types::CallHierarchyIncomingCall;
+use async_lsp::lsp_types::CallHierarchyIncomingCallsParams;
+use async_lsp::lsp_types::CallHierarchyItem;
+use async_lsp::lsp_types::CallHierarchyOutgoingCall;
+use async_lsp::lsp_types::CallHierarchyOutgoingCallsParams;
+use async_lsp::lsp_types::CallHierarchyPrepareParams;
+use async_lsp::lsp_types::Position;
+use async_lsp::lsp_types::Range;
+use async_lsp::lsp_types::SymbolKind;
+use async_lsp::lsp_types::TextDocumentIdentifier;
+use async_lsp::lsp_types::TextDocumentPositionParams;
+use async_lsp::lsp_types::request::CallHierarchyIncomingCalls;
+use async_lsp::lsp_types::request::CallHierarchyOutgoingCalls;
+use async_lsp::lsp_types::request::CallHierarchyPrepare;
 
 use crate::common::TestContext;
 
-mod common;
+pub mod common;
 
 // textDocument/prepareCallHierarchy
 async fn call_hierarchy_request(
     ctx: &mut TestContext,
     path: &str,
     position: Position,
-) -> Option<Vec<CallHierarchyItem>> {
+) -> async_lsp::Result<Option<Vec<CallHierarchyItem>>> {
     ctx.request::<CallHierarchyPrepare>(CallHierarchyPrepareParams {
         text_document_position_params: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier {
@@ -41,7 +41,7 @@ async fn call_hierarchy_request(
 async fn incoming_calls_request(
     ctx: &mut TestContext,
     item: CallHierarchyItem,
-) -> Option<Vec<CallHierarchyIncomingCall>> {
+) -> async_lsp::Result<Option<Vec<CallHierarchyIncomingCall>>> {
     ctx.request::<CallHierarchyIncomingCalls>(CallHierarchyIncomingCallsParams {
         item,
         work_done_progress_params: Default::default(),
@@ -54,7 +54,7 @@ async fn incoming_calls_request(
 async fn outgoing_calls_request(
     ctx: &mut TestContext,
     item: CallHierarchyItem,
-) -> Option<Vec<CallHierarchyOutgoingCall>> {
+) -> async_lsp::Result<Option<Vec<CallHierarchyOutgoingCall>>> {
     ctx.request::<CallHierarchyOutgoingCalls>(CallHierarchyOutgoingCallsParams {
         item,
         work_done_progress_params: Default::default(),
@@ -218,7 +218,10 @@ async fn should_prepare_call_hierarchy() {
             Position::new(6, 10),
         ),
     ] {
-        let Some(hierarchy) = call_hierarchy_request(&mut ctx, file, pos).await else {
+        let Some(hierarchy) = call_hierarchy_request(&mut ctx, file, pos)
+            .await
+            .expect("request should succeed")
+        else {
             panic!("expected call hierarchy in {file}")
         };
 
@@ -238,6 +241,7 @@ async fn should_not_prepare_call_hierarchy() {
             Position::new(5, 0)
         )
         .await
+        .expect("request should succeed")
         .is_none()
     );
 }
@@ -245,8 +249,9 @@ async fn should_not_prepare_call_hierarchy() {
 #[tokio::test]
 async fn should_determine_outgoing_calls() {
     let mut ctx = setup().await;
-    let Some(mut hierarchy) =
-        call_hierarchy_request(&mut ctx, "source.wdl", Position::new(6, 10)).await
+    let Some(mut hierarchy) = call_hierarchy_request(&mut ctx, "source.wdl", Position::new(6, 10))
+        .await
+        .expect("request should succeed")
     else {
         panic!("expected call hierarchy")
     };
@@ -254,9 +259,12 @@ async fn should_determine_outgoing_calls() {
     verify_call_hierarchy(vec![ExpectedCallHierarchyItem::all_together()], &hierarchy);
 
     let item = hierarchy.remove(0);
-    let outgoing_calls = outgoing_calls_request(&mut ctx, item)
+    let Some(outgoing_calls) = outgoing_calls_request(&mut ctx, item)
         .await
-        .expect("should return outgoing calls");
+        .expect("request should succeed")
+    else {
+        panic!("expected outgoing calls");
+    };
 
     verify_outgoing_calls(
         vec![
@@ -296,8 +304,9 @@ async fn should_determine_outgoing_calls() {
 #[tokio::test]
 async fn should_determine_incoming_calls() {
     let mut ctx = setup().await;
-    let Some(mut hierarchy) =
-        call_hierarchy_request(&mut ctx, "first.wdl", Position::new(2, 6)).await
+    let Some(mut hierarchy) = call_hierarchy_request(&mut ctx, "first.wdl", Position::new(2, 6))
+        .await
+        .expect("request should succeed")
     else {
         panic!("expected call hierarchy")
     };
@@ -305,9 +314,12 @@ async fn should_determine_incoming_calls() {
     verify_call_hierarchy(vec![ExpectedCallHierarchyItem::first()], &hierarchy);
 
     let item = hierarchy.remove(0);
-    let incoming_calls = incoming_calls_request(&mut ctx, item)
+    let Some(incoming_calls) = incoming_calls_request(&mut ctx, item)
         .await
-        .expect("should return incoming calls");
+        .expect("request should succeed")
+    else {
+        panic!("should return incoming calls")
+    };
 
     verify_incoming_calls(
         vec![

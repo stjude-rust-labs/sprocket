@@ -13,15 +13,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   full toolchain, `nix flake check` entries (package build, binary smoke
   test, and `nixfmt`/`statix`/`deadnix` lints), and a `nix fmt`
   formatter ([#887](https://github.com/stjude-rust-labs/sprocket/issues/887)).
+* Added printing diagnostics with TOML source context when TOML fails to parse 
+  or be deserialized ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+* New `test.throttle` configuration entry for adding a delay between initial test submissions ([#798](https://github.com/stjude-rust-labs/sprocket/pull/798)).
+* Added `--show-task-stderr` option to the `run` subcommand to show task stderr during execution ([#743](https://github.com/stjude-rust-labs/sprocket/pull/743)).
+* Added `--fixtures-dir` and `--run-dir` options to the `sprocket dev test`
+  command ([#747](https://github.com/stjude-rust-labs/sprocket/pull/747)).
+  
+### Changed
+
+* Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+* `sprocket dev server` will now copy paths specified with `--allowed-file-paths` to the list of `--allowed-urls` with a `file://` prefix ([#914](https://github.com/stjude-rust-labs/sprocket/pull/914))
+
+### Fixed
+
+* `sprocket dev server` will canonicalize paths passed as CLI arguments ([#913](https://github.com/stjude-rust-labs/sprocket/pull/913))
+
+## 0.26.0 - 2026-06-03
 
 ### Changed
 
 * `sprocket run` will no longer create `out` directories for runs with invalid CLI inputs ([#863](https://github.com/stjude-rust-labs/sprocket/pull/863)).
 
+### Fixed
+
+* Fixed a bug in `sprocket dev test` where a failing test would cause other tests to
+  fail ([#891](https://github.com/stjude-rust-labs/sprocket/pull/891)).
+
+### Dependencies
+
+* Bumped `cloud-copy` to `0.8.0`, which adds support for downloading files using multiple parallel streams ([#909](https://github.com/stjude-rust-labs/sprocket/pull/909)).
+
 ## 0.25.0 - 2026-05-14
 
 ### Added
 
+* Adds `wdl-modules` resolver layer behind the `resolver` feature gate,
+  covering the `Resolver` trait, `GitResolver`, sparse-checkout caching,
+  version selection, lockfile generation, TOFU trust, and module
+  materialization. Wires `[modules]` config section into `sprocket.toml`
+  ([#838](https://github.com/stjude-rust-labs/sprocket/pull/838)).
 * `sprocket format --newline-style` and `format.newline_style` config option to control the style of newlines in
   `sprocket format` output ([#795](https://github.com/stjude-rust-labs/sprocket/pull/795)).
 * Initial WDL 1.4 support in `wdl-grammar` and `wdl-ast`, including the
@@ -33,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* The `examples` field of `sprocket explain --format json` has changed from Markdown codeblocks to the following
+* The `examples` field of `sprocket explain --format json` has changed from Markdown code blocks to the following
   structure ([#807](https://github.com/stjude-rust-labs/sprocket/pull/807)):
 
   ```ts

@@ -7,7 +7,7 @@ struct Status {
 # Enum with same name as struct
 enum Status {
     Active,
-    Pending
+    Pending,
 }
 
 workflow test {}

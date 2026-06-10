@@ -1,34 +1,34 @@
 warning[DocCommentTabs]: tabs in doc comments are not recommended
-  ┌─ tests/lints/doc-comment-tabs/source.wdl:5:3
+  ┌─ tests/lints/doc-comment-tabs/source.wdl:6:3
   │
-5 │ ##  This should be flagged (single tab)
+6 │ ##  This should be flagged (single tab)
   │   ^^
   │
   = help: consider replacing tabs with spaces
 
 warning[DocCommentTabs]: tabs in doc comments are not recommended
-  ┌─ tests/lints/doc-comment-tabs/source.wdl:7:3
+  ┌─ tests/lints/doc-comment-tabs/source.wdl:8:3
   │
-7 │ ##      This should produce ONE diagnostic (grouped tabs)
+8 │ ##      This should produce ONE diagnostic (grouped tabs)
   │   ^^^^^^
   │
   = help: consider replacing tabs with spaces
 
 warning[DocCommentTabs]: tabs in doc comments are not recommended
-  ┌─ tests/lints/doc-comment-tabs/source.wdl:9:8
-  │
-9 │ ## Text with    tab inside
-  │        ^
-  │
-  = help: consider replacing tabs with spaces
+   ┌─ tests/lints/doc-comment-tabs/source.wdl:10:8
+   │
+10 │ ## Text with    tab inside
+   │        ^
+   │
+   = help: consider replacing tabs with spaces
 
 warning[DocCommentTabs]: tabs in doc comments are not recommended
-  ┌─ tests/lints/doc-comment-tabs/source.wdl:9:13
-  │
-9 │ ## Text with    tab inside
-  │             ^^^^
-  │
-  = help: consider replacing tabs with spaces
+   ┌─ tests/lints/doc-comment-tabs/source.wdl:10:13
+   │
+10 │ ## Text with    tab inside
+   │             ^^^^
+   │
+   = help: consider replacing tabs with spaces
 
 warning[DocCommentTabs]: tabs in doc comments are not recommended
    ┌─ tests/lints/doc-comment-tabs/source.wdl:17:7

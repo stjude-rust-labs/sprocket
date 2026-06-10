@@ -1,6 +1,6 @@
 //! Validation rules for the module file tree.
 //!
-//! These checks complement [`Hasher`](crate::Hasher) by validating
+//! These checks complement [`Hasher`](crate::hash::Hasher) by validating
 //! structural rules that span the whole tree rather than any single path.
 //! Per-path validity is already a guarantee of [`RelativePath`]; this
 //! module only enforces the cross-path rules: reserved filename placement
@@ -12,8 +12,8 @@ use thiserror::Error;
 
 use crate::LOCKFILE_FILENAME;
 use crate::MANIFEST_FILENAME;
-use crate::RelativePath;
 use crate::SIGNATURE_FILENAME;
+use crate::relative_path::RelativePath;
 
 /// An error reported by [`validate_tree`].
 #[derive(Debug, Error)]

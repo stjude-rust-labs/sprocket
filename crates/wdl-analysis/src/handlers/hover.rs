@@ -18,6 +18,7 @@ use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
+use wdl_ast::CommentKind;
 use wdl_ast::Documented;
 use wdl_ast::Ident;
 use wdl_ast::SyntaxKind;
@@ -180,7 +181,7 @@ fn resolve_hover_by_context(
     // identifier of the item
     if token.kind() == SyntaxKind::Comment {
         let comment = Comment::cast(token.clone()).expect("should cast");
-        if !comment.is_doc_comment() {
+        if comment.kind() != CommentKind::Documentation {
             return Ok(None);
         }
 

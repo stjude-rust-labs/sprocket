@@ -3,8 +3,7 @@
 version 1.1
 
 task test {
-    requirements {
-    }
+    requirements {}
 
     command <<<>>>
 }

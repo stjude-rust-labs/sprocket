@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.24.0 - 2026-06-03
+
+#### Added
+
+* `CommentKind` and `Comment::kind()` to determine the type of a comment ([#867](https://github.com/stjude-rust-labs/sprocket/pull/867)).
+
+#### Changed
+
+* Replaced `Comment::is_{directive,doc_comment}` with `CommentKind` ([#867](https://github.com/stjude-rust-labs/sprocket/pull/867)).
+* `AstNode::{braced,heredoc}_scope_span` now takes a boolean to control whether to include the braces in the span ([#867](https://github.com/stjude-rust-labs/sprocket/pull/867)).
+
 ## 0.23.0 - 2026-05-14
 
 #### Added

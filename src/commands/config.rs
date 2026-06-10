@@ -1,8 +1,10 @@
 //! Implementation of the config command.
 
+use anyhow::Context;
 use clap::Parser;
 use clap::Subcommand;
 
+use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::config::Config;
 
@@ -44,15 +46,20 @@ pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
     let config = match args.command {
         ConfigSubcommand::Init => Config::default(),
         ConfigSubcommand::Resolve(args) => {
-            // Unredact any secrets if requested to
-            if args.unredact {
-                config.run.engine.unredact();
+            // Redact any secrets unless explicitly requested not to
+            if !args.unredact {
+                config.run.engine = config.run.engine.redact();
             }
 
             config
         }
     };
 
-    println!("{}", toml::to_string_pretty(&config).unwrap_or_default());
+    println!(
+        "{}",
+        toml_spanner::to_string(&config)
+            .context("failed to serialize configuration")
+            .map_err(CommandError::Single)?
+    );
     Ok(())
 }

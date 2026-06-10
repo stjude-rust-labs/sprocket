@@ -2,8 +2,10 @@
 
 use std::cmp::Ordering;
 use std::fmt;
+use std::str::FromStr;
 
 use rowan::TextRange;
+use rowan::TextSize;
 
 /// Represents a span of source.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
@@ -94,10 +96,18 @@ impl From<TextRange> for Span {
     }
 }
 
+impl TryFrom<Span> for TextRange {
+    type Error = std::num::TryFromIntError;
+
+    fn try_from(value: Span) -> Result<Self, Self::Error> {
+        let start = TextSize::new(value.start.try_into()?);
+        let end = TextSize::new(value.end.try_into()?);
+        Ok(TextRange::new(start, end))
+    }
+}
+
 /// Represents the severity of a diagnostic.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum Severity {
     /// The diagnostic is displayed as an error.
     Error,
@@ -130,6 +140,29 @@ impl Severity {
     #[must_use]
     pub fn is_note(&self) -> bool {
         matches!(self, Self::Note)
+    }
+}
+
+impl fmt::Display for Severity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Error => write!(f, "error"),
+            Self::Warning => write!(f, "warning"),
+            Self::Note => write!(f, "note"),
+        }
+    }
+}
+
+impl FromStr for Severity {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "error" => Ok(Self::Error),
+            "warning" => Ok(Self::Warning),
+            "note" => Ok(Self::Note),
+            _ => Err(format!("invalid severity level `{s}`")),
+        }
     }
 }
 

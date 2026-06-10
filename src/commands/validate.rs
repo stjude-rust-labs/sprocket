@@ -157,11 +157,7 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
         );
     }
 
-    let document = analyze_source(
-        &args.source,
-        config.common.wdl.fallback_version.inner().cloned(),
-    )
-    .await?;
+    let document = analyze_source(&args.source, config.common.wdl.fallback_version.into()).await?;
 
     validate_inputs(&document, &args.inputs, args.target).await?;
 

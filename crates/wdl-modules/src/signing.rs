@@ -11,9 +11,11 @@ use ed25519_dalek::Signer as _;
 use ed25519_dalek::Verifier as _;
 use serde::Deserialize;
 use serde::Serialize;
+use serde_with::DeserializeFromStr;
+use serde_with::SerializeDisplay;
 use thiserror::Error;
 
-use crate::ContentHash;
+use crate::hash::ContentHash;
 
 /// An error parsing an Ed25519 key.
 #[derive(Debug, Error)]
@@ -89,8 +91,7 @@ impl SigningKey {
 }
 
 /// An Ed25519 verifying key.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(into = "String", try_from = "String")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, SerializeDisplay, DeserializeFromStr)]
 pub struct VerifyingKey(ed25519_dalek::VerifyingKey);
 
 impl VerifyingKey {
@@ -151,17 +152,8 @@ impl From<VerifyingKey> for String {
     }
 }
 
-impl TryFrom<String> for VerifyingKey {
-    type Error = KeyError;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        Self::from_openssh(&s)
-    }
-}
-
 /// An Ed25519 signature over a [`ContentHash`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(into = "String", try_from = "String")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, SerializeDisplay, DeserializeFromStr)]
 pub struct Signature(ed25519_dalek::Signature);
 
 impl Signature {
@@ -200,14 +192,6 @@ impl FromStr for Signature {
 impl From<Signature> for String {
     fn from(sig: Signature) -> Self {
         sig.to_base64()
-    }
-}
-
-impl TryFrom<String> for Signature {
-    type Error = SignatureError;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        Self::from_base64(&s)
     }
 }
 
