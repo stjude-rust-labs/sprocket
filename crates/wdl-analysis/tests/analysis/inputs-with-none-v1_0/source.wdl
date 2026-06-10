@@ -1,7 +1,6 @@
 ## This is a test of the optional-to-default coercion in WDL 1.0.
 ## See: https://github.com/stjude-rust-labs/sprocket/issues/812
-
-#@ except: UnusedInput, UnusedDeclaration, UnusedCall
+#@ except: UnusedCall, UnusedDeclaration, UnusedInput
 version 1.0
 
 import "w.wdl"
@@ -26,46 +25,40 @@ task t {
 }
 
 workflow test {
-    call t as t1 {
-        input:
+    call t as t1 { input:
         input1 = 42,
         input2 = 42,
         input3 = 42,
-        input4 = 42
+        input4 = 42,
     }
 
-    call t as t2 {
-        input:
+    call t as t2 { input:
         input1 = None,
         input2 = None,
         input3 = None,
-        input4 = 42
+        input4 = 42,
     }
 
-    call t as t3 {
-        input:
-        input4 = 42
+    call t as t3 { input:
+        input4 = 42,
     }
 
-    call w.w as w1 {
-        input:
+    call w.w as w1 { input:
         input1 = 42,
         input2 = 42,
         input3 = 42,
-        input4 = 42
+        input4 = 42,
     }
 
-    call w.w as w2 {
-        input:
+    call w.w as w2 { input:
         input1 = None,
         input2 = None,
         input3 = None,
-        input4 = 42
+        input4 = 42,
     }
 
-    call w.w as w3 {
-        input:
-        input4 = 42
+    call w.w as w3 { input:
+        input4 = 42,
     }
 
     output {

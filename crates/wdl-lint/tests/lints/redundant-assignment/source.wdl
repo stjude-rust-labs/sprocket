@@ -1,6 +1,6 @@
-#@ except: MetaSections
-
 ## This is a test for checking for redundant `= None` assignments in a `input` section.
+
+#@ except: MetaSections
 
 version 1.3
 
@@ -11,6 +11,5 @@ workflow optionals {
         String? also_maybe_five_but_is_not = None
     }
 
-    output {
-    }
+    output {}
 }

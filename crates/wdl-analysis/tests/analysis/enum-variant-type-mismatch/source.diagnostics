@@ -3,7 +3,7 @@ error: cannot infer a common type for enum `Status`
   │
 5 │     Active = "active",
   │     ----------------- this is the last variant with a common type `String`
-6 │     Pending = 42
+6 │     Pending = 42,
   │     ^^^^^^^^^^^^ this is the first variant with type `Int` that has no common type with type `String`
 
 error: cannot infer a common type for enum `DataSets`
@@ -15,26 +15,32 @@ error: cannot infer a common type for enum `DataSets`
    │     ^^^^^^^^^^^^^^^^^^^^^^^^^ this is the first variant with type `Array[String]` that has no common type with type `Array[Int]`
 
 error: cannot infer a common type for enum `Config`
-   ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:18:5
-   │
-17 │     Ports = {"http": 80, "https": 443},
-   │     ---------------------------------- this is the last variant with a common type `Map[String, Int]`
-18 │     Names = {"first": "Alice", "last": "Bob"}
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ this is the first variant with type `Map[String, String]` that has no common type with type `Map[String, Int]`
+   ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:21:5
+   │    
+17 │   ╭     Ports = {
+18 │   │         "http": 80,
+19 │   │         "https": 443,
+20 │   │     },
+   │   ╰─────' this is the last variant with a common type `Map[String, Int]`
+21 │ ╭       Names = {
+22 │ │           "first": "Alice",
+23 │ │           "last": "Bob",
+24 │ │       },
+   │ ╰───────^ this is the first variant with type `Map[String, String]` that has no common type with type `Map[String, Int]`
 
 error: cannot infer a common type for enum `Coords`
-   ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:24:5
+   ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:30:5
    │
-23 │     LatLon = (37, "N"),
+29 │     LatLon = (37, "N"),
    │     ------------------ this is the last variant with a common type `Pair[Int, String]`
-24 │     LonLat = ("122W", 37)
+30 │     LonLat = ("122W", 37),
    │     ^^^^^^^^^^^^^^^^^^^^^ this is the first variant with type `Pair[String, Int]` that has no common type with type `Pair[Int, String]`
 
 error: cannot infer a common type for enum `Mixed`
-   ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:30:5
+   ┌─ tests/analysis/enum-variant-type-mismatch/source.wdl:36:5
    │
-29 │     First = 1,
+35 │     First = 1,
    │     --------- this is the last variant with a common type `Int`
-30 │     Second = "two",
+36 │     Second = "two",
    │     ^^^^^^^^^^^^^^ this is the first variant with type `String` that has no common type with type `Int`
 

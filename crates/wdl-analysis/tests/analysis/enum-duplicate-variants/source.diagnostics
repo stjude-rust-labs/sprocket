@@ -4,6 +4,6 @@ error: conflicting enum variant name `Active`
 5 │     Active,
   │     ------ the enum variant with the conflicting name is here
 6 │     Pending,
-7 │     Active
+7 │     Active,
   │     ^^^^^^ this enum variant conflicts with a previously used name
 

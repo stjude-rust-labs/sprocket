@@ -1,7 +1,7 @@
 error: a WDL document must start with a version statement
   ┌─ tests/analysis/import-missing-version/foo.wdl:1:1
   │
-1 │ workflow test {
+1 │ workflow test {}
   │ ^ a version statement must come before this
 
 error: imported document is missing a version statement

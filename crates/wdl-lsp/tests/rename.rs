@@ -3,7 +3,7 @@
 use async_lsp::lsp_types::*;
 use pretty_assertions::assert_eq;
 
-mod common;
+pub mod common;
 use async_lsp::lsp_types::request::Rename;
 use common::TestContext;
 

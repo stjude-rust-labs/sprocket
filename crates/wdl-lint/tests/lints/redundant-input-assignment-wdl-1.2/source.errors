@@ -1,8 +1,8 @@
 note[ConciseInput]: redundant input assignment
-   ┌─ tests/lints/redundant-input-assignment-wdl-1.2/source.wdl:18:10
+   ┌─ tests/lints/redundant-input-assignment-wdl-1.2/source.wdl:18:9
    │
-18 │          cam = cam,  # should flag
-   │          ^^^^^^^^^
+18 │         cam = cam,  # should flag
+   │         ^^^^^^^^^
    │
    = fix: can be shortened to `cam`
 

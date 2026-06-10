@@ -9,9 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* New `test.throttle` configuration entry for adding a delay between initial test submissions ([#798](https://github.com/stjude-rust-labs/sprocket/pull/798)).
+* Added `--show-task-stderr` option to the `run` subcommand to show task stderr during execution ([#743](https://github.com/stjude-rust-labs/sprocket/pull/743)).
 * `sprocket dev doc --check` to analyze documents without producing an output ([#691](https://github.com/stjude-rust-labs/sprocket/pull/691)).
 * Added `--fixtures-dir` and `--run-dir` options to the `sprocket dev test`
   command ([#747](https://github.com/stjude-rust-labs/sprocket/pull/747)).
+  
+### Changed
+
+* `sprocket dev server` will now copy paths specified with `--allowed-file-paths` to the list of `--allowed-urls` with a `file://` prefix ([#914](https://github.com/stjude-rust-labs/sprocket/pull/914))
 
 ### Fixed
 

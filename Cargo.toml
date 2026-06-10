@@ -122,7 +122,7 @@ tower-http = { version = "0.6.8", features = ["cors", "trace"] }
 tracing = "0.1.44"
 tracing-indicatif = "0.3.14"
 tracing-log = "0.2.0"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tracing-test = "0.2.5"
 unicode-normalization = "0.1.25"
 url = "2.5.8"

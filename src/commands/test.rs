@@ -9,6 +9,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -23,6 +24,7 @@ use serde_json::Value as JsonValue;
 use tokio::fs::remove_dir_all;
 use tokio::select;
 use tokio::task::JoinSet;
+use tokio::time::sleep;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
@@ -402,6 +404,7 @@ struct Runner {
     fixtures: Arc<EvaluationPath>,
     engine_config: Arc<wdl::engine::Config>,
     permits: usize,
+    throttle: u64,
     cancellation: CancellationContext,
 }
 
@@ -442,12 +445,14 @@ impl Runner {
                 break;
             }
 
-            if permits == 0 {
+            let throttle = if permits == 0 {
                 self.process_next_result(&mut futures, &mut all_results, clean, quiet)
                     .await?;
+                false
             } else {
                 permits -= 1;
-            }
+                true
+            };
 
             self.spawn_future(
                 &mut futures,
@@ -458,6 +463,10 @@ impl Runner {
                 task.inputs,
             )
             .await;
+
+            if throttle {
+                sleep(Duration::from_millis(self.throttle)).await;
+            }
         }
 
         while !futures.is_empty() {
@@ -767,6 +776,7 @@ fn resolve_test_paths(
 pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
     let parallelism = args.parallelism.unwrap_or(config.test.parallelism);
+    let throttle = config.test.throttle;
     let (source, workspace) = match (&source, args.workspace) {
         (Source::Url(_), _) => {
             return Err(anyhow!("the `test` subcommand does not accept remote sources").into());
@@ -872,6 +882,7 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
         fixtures: fixture_origins.into(),
         engine_config: config.run.engine.into(),
         permits: parallelism,
+        throttle,
         cancellation: cancellation.clone(),
     };
 
@@ -1015,9 +1026,9 @@ mod tests {
         let workspace = PathBuf::from("/workspace");
         let args = args_with_overrides(None, None);
         let config = TestConfig {
-            parallelism: 50,
             fixtures_dir: Some(PathBuf::from("/config-fixtures")),
             run_dir: Some(PathBuf::from("/config-runs")),
+            ..Default::default()
         };
 
         let (fixtures_dir, run_dir) =
@@ -1035,9 +1046,9 @@ mod tests {
             Some(PathBuf::from("/cli-runs")),
         );
         let config = TestConfig {
-            parallelism: 50,
             fixtures_dir: Some(PathBuf::from("/config-fixtures")),
             run_dir: Some(PathBuf::from("/config-runs")),
+            ..Default::default()
         };
 
         let (fixtures_dir, run_dir) =

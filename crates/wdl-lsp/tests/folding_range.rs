@@ -12,7 +12,7 @@ use wdl_analysis::handlers::TILDE_PLACEHOLDER_COLLAPSED_TEXT;
 
 use crate::common::TestContext;
 
-mod common;
+pub mod common;
 
 async fn folding_range_request(
     ctx: &mut TestContext,

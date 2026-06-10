@@ -1,6 +1,6 @@
 //! Integration tests for the `textDocument/completion` request.
 
-mod common;
+pub mod common;
 
 use async_lsp::lsp_types::CompletionContext;
 use async_lsp::lsp_types::CompletionItem;

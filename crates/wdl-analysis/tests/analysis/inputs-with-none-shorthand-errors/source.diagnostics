@@ -1,12 +1,12 @@
 error: type mismatch: expected type `Int`, but found type `Int?`
-   ┌─ tests/analysis/inputs-with-none-shorthand-errors/source.wdl:35:44
+   ┌─ tests/analysis/inputs-with-none-shorthand-errors/source.wdl:38:9
    │
-35 │     call t as t1 { input1, input2, input3, input4 }
-   │                                            ^^^^^^ input `input4` is type `Int`, but name `input4` is type `Int?`
+38 │         input4,
+   │         ^^^^^^ input `input4` is type `Int`, but name `input4` is type `Int?`
 
 error: type mismatch: expected type `Int`, but found type `Int?`
-   ┌─ tests/analysis/inputs-with-none-shorthand-errors/source.wdl:37:46
+   ┌─ tests/analysis/inputs-with-none-shorthand-errors/source.wdl:45:9
    │
-37 │     call w.w as w1 { input1, input2, input3, input4 }
-   │                                              ^^^^^^ input `input4` is type `Int`, but name `input4` is type `Int?`
+45 │         input4,
+   │         ^^^^^^ input `input4` is type `Int`, but name `input4` is type `Int?`
 

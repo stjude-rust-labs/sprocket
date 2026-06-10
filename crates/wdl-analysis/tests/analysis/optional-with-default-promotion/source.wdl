@@ -22,7 +22,9 @@ workflow add {
     call add_1 { number }
 
     # Same thing, but with an expression
-    call add_1 as add_2 { number = number }
+    call add_1 as add_2 {
+        number = number,
+    }
 
     output {
         Int result = add_1.result

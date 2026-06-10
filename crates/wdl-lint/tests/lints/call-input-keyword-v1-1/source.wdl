@@ -1,8 +1,8 @@
-#@ except: RuntimeSection, MatchingOutputMeta, MetaDescription
-#@ except: ParameterMetaMatched, ExpectedRuntimeKeys
-
 ## Test that CallInputKeyword does NOT trigger for WDL 1.1.
 ## The `input:` keyword is required in version 1.1.
+
+#@ except: ExpectedRuntimeKeys, MatchingOutputMeta, MetaDescription, ParameterMetaMatched
+#@ except: RuntimeSection
 
 version 1.1
 
@@ -30,7 +30,9 @@ workflow test {
     meta {}
 
     # Should NOT trigger - version 1.1 requires `input:` keyword
-    call example { input: name = "test" }
+    call example { input:
+        name = "test",
+    }
 
     output {}
 }

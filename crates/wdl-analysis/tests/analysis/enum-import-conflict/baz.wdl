@@ -4,5 +4,5 @@ version 1.3
 # conflict with the originally defined enum since order of variants matters.
 enum Status {
     Pending = "pending",
-    Active = "active"
+    Active = "active",
 }

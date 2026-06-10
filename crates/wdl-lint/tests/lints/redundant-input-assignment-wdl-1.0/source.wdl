@@ -1,5 +1,4 @@
-#@ except: MetaDescription, RuntimeSection
-#@ except: MetaSections, EmptyOutputs
+#@ except: EmptyOutputs, MetaDescription, MetaSections, RuntimeSection
 
 version 1.0
 
@@ -15,7 +14,7 @@ workflow test {
         arm = arm,
         bam = bam + 3,
         cam = cam,
-   }
+    }
 }
 
 task bar {
