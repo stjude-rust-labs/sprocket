@@ -291,7 +291,7 @@ mod tests {
     use crate::lockfile::ResolvedSource;
 
     fn dn(s: &str) -> DependencyName {
-        DependencyName::try_from(s.to_string()).unwrap()
+        s.parse().unwrap()
     }
 
     fn checksum() -> ContentHash {

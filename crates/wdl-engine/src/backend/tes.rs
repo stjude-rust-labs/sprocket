@@ -106,13 +106,13 @@ impl TesBackend {
 
         let mut http = backend::tes::http::Config::default();
         match &backend_config.auth {
-            Some(TesBackendAuthConfig::Basic(config)) => {
+            Some(TesBackendAuthConfig::Basic { config }) => {
                 http.auth = Some(HttpAuthConfig::Basic {
                     username: config.username.clone(),
                     password: config.password.inner().expose_secret().to_string(),
                 });
             }
-            Some(TesBackendAuthConfig::Bearer(config)) => {
+            Some(TesBackendAuthConfig::Bearer { config }) => {
                 http.auth = Some(HttpAuthConfig::Bearer {
                     token: config.token.inner().expose_secret().to_string(),
                 });
