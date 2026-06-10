@@ -34,6 +34,7 @@ mod runtime_section;
 mod section_order;
 mod shellcheck;
 mod snake_case;
+mod struct_over_map;
 mod todo_comment;
 mod unused_doc_comments;
 
@@ -71,5 +72,6 @@ pub use runtime_section::*;
 pub use section_order::*;
 pub use shellcheck::*;
 pub use snake_case::*;
+pub use struct_over_map::*;
 pub use todo_comment::*;
 pub use unused_doc_comments::*;
