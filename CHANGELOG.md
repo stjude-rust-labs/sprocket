@@ -7,14 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-#### Added
+### Added
 
 * Added printing diagnostics with TOML source context when TOML fails to parse 
   or be deserialized ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
-
-#### Changed
+* New `test.throttle` configuration entry for adding a delay between initial test submissions ([#798](https://github.com/stjude-rust-labs/sprocket/pull/798)).
+* Added `--show-task-stderr` option to the `run` subcommand to show task stderr during execution ([#743](https://github.com/stjude-rust-labs/sprocket/pull/743)).
+* Added `--fixtures-dir` and `--run-dir` options to the `sprocket dev test`
+  command ([#747](https://github.com/stjude-rust-labs/sprocket/pull/747)).
+  
+### Changed
 
 * Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+* `sprocket dev server` will now copy paths specified with `--allowed-file-paths` to the list of `--allowed-urls` with a `file://` prefix ([#914](https://github.com/stjude-rust-labs/sprocket/pull/914))
 
 ### Fixed
 

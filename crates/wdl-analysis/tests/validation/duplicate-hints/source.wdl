@@ -3,36 +3,24 @@
 version 1.3
 
 task t {
-    hints {
+    hints {}
 
-    }
-
-    hints {
-
-    }
+    hints {}
 
     command <<<>>>
 }
 
 # A duplicate task should trigger a single error and then be ignored.
 task t {
-    hints {
+    hints {}
 
-    }
-
-    hints {
-
-    }
+    hints {}
 
     command <<<>>>
 }
 
 workflow w {
-    hints {
+    hints {}
 
-    }
-
-    hints {
-
-    }
+    hints {}
 }

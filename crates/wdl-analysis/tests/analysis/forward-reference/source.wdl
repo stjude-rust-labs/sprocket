@@ -1,12 +1,10 @@
-#@ except: UnusedDeclaration
 ## This is a test for forward references in a WDL task.
+
+#@ except: UnusedDeclaration
 
 version 1.3
 
 task forward_reference {
-    # OK as the forward reference is to a string
-    String x = a
-
     input {
         String a = "hello"
 
@@ -14,7 +12,12 @@ task forward_reference {
         Int y = z
     }
 
+    # OK as the forward reference is to a string
+    String x = a
+
     String z = "5"
+
+    command <<<>>>
 
     requirements {
         cpu: y
@@ -23,6 +26,4 @@ task forward_reference {
     hints {
         max_cpu: y
     }
-
-    command <<<>>>
 }

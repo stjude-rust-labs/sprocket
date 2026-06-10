@@ -153,26 +153,26 @@ fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
 
         if file_type.is_dir() {
             fs::create_dir_all(&to)
-                .with_context(|| format!("failed to create directory at {:?}", &to))?;
+                .with_context(|| format!("failed to create directory at {:?}", to))?;
         } else if file_type.is_symlink() {
             // Recreate symlink with same target
             let link_target = fs::read_link(from)
                 .with_context(|| format!("failed to read symlink at {:?}", from))?;
             #[cfg(unix)]
             std::os::unix::fs::symlink(&link_target, &to)
-                .with_context(|| format!("failed to create symlink at {:?}", &to))?;
+                .with_context(|| format!("failed to create symlink at {:?}", to))?;
             #[cfg(windows)]
             {
                 if link_target.is_dir() {
                     std::os::windows::fs::symlink_dir(&link_target, &to)
-                        .with_context(|| format!("failed to create symlink at {:?}", &to))?;
+                        .with_context(|| format!("failed to create symlink at {:?}", to))?;
                 } else {
                     std::os::windows::fs::symlink_file(&link_target, &to)
-                        .with_context(|| format!("failed to create symlink at {:?}", &to))?;
+                        .with_context(|| format!("failed to create symlink at {:?}", to))?;
                 }
             }
         } else {
-            fs::copy(from, &to).with_context(|| format!("failed to copy file to {:?}", &to))?;
+            fs::copy(from, &to).with_context(|| format!("failed to copy file to {:?}", to))?;
         }
     }
     Ok(())
@@ -184,7 +184,7 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
     let sprocket_exe = PathBuf::from(env!("CARGO_BIN_EXE_sprocket"));
     let args_path = test_path.join("args");
     let args_string = fs::read_to_string(&args_path)
-        .with_context(|| format!("failed to read command at path {:?}", &args_path))?;
+        .with_context(|| format!("failed to read command at path {:?}", args_path))?;
     let args_string = args_string.replace("\r\n", "\n");
     let args = shlex::split(&format!("--skip-config-search {args_string}"))
         .ok_or_else(|| anyhow!("failed to split command args"))?;

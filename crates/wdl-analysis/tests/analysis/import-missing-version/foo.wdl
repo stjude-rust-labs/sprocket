@@ -1,2 +1,1 @@
-workflow test {
-}
+workflow test {}

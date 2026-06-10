@@ -88,6 +88,9 @@ const DEFAULT_EVENTS_CHANNEL_CAPACITY: u32 = 5000;
 /// The default parallelism for the `sprocket test` command.
 const DEFAULT_TEST_PARALLELISM: u32 = 50;
 
+/// The default throttling for the `sprocket test` command.
+const DEFAULT_TEST_THROTTLE: u64 = 100;
+
 /// Represents the supported output color modes.
 #[derive(Debug, Default, Clone, ValueEnum, Copy, PartialEq, Eq, Hash)]
 pub enum ColorMode {
@@ -529,6 +532,47 @@ impl ServerConfig {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
+        // Add file paths to allowed URLs with a file:// prefix
+        let file_urls = self
+            .allowed_file_paths
+            .iter()
+            .map(|p| {
+                Url::from_file_path(p)
+                    .map_err(|_| {
+                        anyhow::anyhow!(
+                            "failed to convert allowed file path to file:// URL: `{}`",
+                            p.display()
+                        )
+                    })
+                    .map(|u| u.to_string())
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        // Add file URLs to allowed file paths
+        let file_paths = self
+            .allowed_urls
+            .iter()
+            .filter_map(|u| match Url::parse(u) {
+                Ok(url) => match url.scheme() == "file" {
+                    true => match url.to_file_path() {
+                        Ok(path) => Some(Ok(path)),
+                        Err(_) => Some(Err(anyhow::anyhow!(
+                            "failed to convert allowed URL to file path: `{}`",
+                            u
+                        ))),
+                    },
+                    false => None,
+                },
+                Err(e) => Some(Err(anyhow::anyhow!(
+                    "failed to parse allowed URL `{}`: {e}",
+                    u
+                ))),
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        self.allowed_file_paths.extend(file_paths);
+        self.allowed_urls.extend(file_urls);
+
         // Deduplicate and sort file paths
         self.allowed_file_paths.sort();
         self.allowed_file_paths.dedup();
@@ -545,15 +589,37 @@ impl ServerConfig {
 #[derive(Debug, Clone, PartialEq, Eq, Toml)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
 pub struct TestConfig {
-    /// Number of test executions to run in parallel. The default is `50`.
+    /// Number of test executions to run in parallel.
+    ///
+    /// The default is `50`.
     #[toml(default = DEFAULT_TEST_PARALLELISM)]
     pub parallelism: u32,
+    /// Delay between submitting initial test executions, in milliseconds.
+    ///
+    /// Once the `parallelism`` permits are exhausted, this throttle delay is
+    /// ignored and new tests are submitted eagerly as prior tests complete and
+    /// free permits.
+    ///
+    /// The default is `100` milliseconds.
+    #[toml(default = DEFAULT_TEST_THROTTLE)]
+    pub throttle: u64,
+    /// Directory containing test fixture files.
+    ///
+    /// If not set, fixtures are resolved from `<workspace>/test/fixtures`.
+    pub fixtures_dir: Option<PathBuf>,
+    /// Directory to use for executing tests.
+    ///
+    /// If not set, runs are written to `<workspace>/test/runs`.
+    pub run_dir: Option<PathBuf>,
 }
 
 impl Default for TestConfig {
     fn default() -> Self {
         Self {
             parallelism: DEFAULT_TEST_PARALLELISM,
+            throttle: DEFAULT_TEST_THROTTLE,
+            fixtures_dir: None,
+            run_dir: None,
         }
     }
 }

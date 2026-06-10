@@ -21,15 +21,11 @@ workflow scopes {
     scatter (foo in [1, 2, 3, 4, 5]) {
         # The reference to `foo` here should be to the scatter variable
         # and not to the private declaration `foo` below
-        call bar {
-            foo
-        }
+        call bar { foo }
     }
 
     scatter (not_foo in bar.out) {
         Int foo = not_foo
-        call bar as bar2 {
-            foo
-        }
+        call bar as bar2 { foo }
     }
 }

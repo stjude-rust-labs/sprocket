@@ -1,7 +1,7 @@
 error: expected map key to be a non-optional primitive type
-   ┌─ tests/analysis/map-key-not-primitive/source.wdl:12:28
+   ┌─ tests/analysis/map-key-not-primitive/source.wdl:13:28
    │
-12 │     Map[Int, String] a = { f: "foo" }
+13 │     Map[Int, String] a = { f: "foo" }
    │                            ^
    │                            │
    │                            this is an instance of struct `Foo`

@@ -3,48 +3,32 @@
 version 1.3
 
 task t {
-    meta {
+    meta {}
 
-    }
-
-    meta {
-
-    }
+    meta {}
 
     command <<<>>>
 }
 
 # A duplicate task should trigger a single error and then be ignored.
 task t {
-    meta {
+    meta {}
 
-    }
-
-    meta {
-
-    }
+    meta {}
 
     command <<<>>>
 }
 
 workflow w {
-    meta {
+    meta {}
 
-    }
-
-    meta {
-
-    }
+    meta {}
 }
 
 struct X {
     String x
     
-    meta {
+    meta {}
 
-    }
-
-    meta {
-
-    }
+    meta {}
 }
