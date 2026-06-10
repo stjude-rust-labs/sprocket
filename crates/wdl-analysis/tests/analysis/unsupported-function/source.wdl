@@ -1,5 +1,7 @@
-#@ except: UnusedDeclaration
 ## This is a test of an unsupported function.
+
+#@ except: UnusedDeclaration
+
 version 1.1
 
 task test {

@@ -1,6 +1,7 @@
-#@ except: UnusedImport
 ## This a test of importing an identical struct.
 ## There should be no diagnostics generated
+
+#@ except: UnusedImport
 
 version 1.1
 
@@ -13,5 +14,4 @@ struct Foo {
     File c
 }
 
-workflow test {
-}
+workflow test {}

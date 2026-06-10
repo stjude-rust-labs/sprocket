@@ -121,7 +121,7 @@ const DEFAULT_TASK_REQUIREMENT_CPU: f64 = 1.0;
 /// The default value for the `memory` requirement.
 const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
 /// The default value for the `max_retries` requirement.
-const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
+pub(crate) const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
 /// The default value for the `disks` requirement (in GiB).
 pub(crate) const DEFAULT_TASK_REQUIREMENT_DISKS: f64 = 1.0;
 /// The default mount point for disk requirements when none is specified.
@@ -2057,9 +2057,9 @@ mod test {
     use crate::CancellationContext;
     use crate::Events;
     use crate::TaskInputs;
-    use crate::config::BackendConfig;
     use crate::config::CallCachingMode;
     use crate::config::Config;
+    use crate::config::LocalBackendConfig;
     use crate::eval::EvaluatedTask;
     use crate::v1::Evaluator;
 
@@ -2089,7 +2089,7 @@ mod test {
         config.task.cache_dir = root_dir.join("cache").to_string_lossy().into();
         config
             .backends
-            .insert("default".into(), BackendConfig::Local(Default::default()));
+            .insert("default".into(), LocalBackendConfig::default().into());
 
         let evaluator = Evaluator::new(
             &root_dir.join("runs"),

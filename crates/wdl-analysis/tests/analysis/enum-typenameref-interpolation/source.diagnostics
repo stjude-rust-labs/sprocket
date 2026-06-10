@@ -1,6 +1,6 @@
 error: cannot coerce type name `Status` to type `String`
-   ┌─ tests/analysis/enum-typenameref-interpolation/source.wdl:11:12
+   ┌─ tests/analysis/enum-typenameref-interpolation/source.wdl:11:16
    │
-11 │     echo ~{Status}
-   │            ^^^^^^ this is type name `Status`
+11 │         echo ~{Status}
+   │                ^^^^^^ this is type name `Status`
 

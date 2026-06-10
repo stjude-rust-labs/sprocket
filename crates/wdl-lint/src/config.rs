@@ -1,9 +1,6 @@
 //! Linter config definition.
 
-use std::collections::HashSet;
-
-use serde::Deserialize;
-use serde::Serialize;
+use toml_spanner::Toml;
 
 /// Define the lint rule config and doc generation utilities.
 macro_rules! define_lint_rule_config {
@@ -18,9 +15,11 @@ macro_rules! define_lint_rule_config {
         }
     ) => {
         $(#[$meta])*
+        #[toml(Toml)]
         pub struct $name {
             $(
                 $(#[doc = $doc])+
+                #[toml(default)]
                 pub $field: $ty,
             )+
         }
@@ -43,12 +42,10 @@ macro_rules! define_lint_rule_config {
                     $(
                         ConfigField {
                             name: stringify!($field),
-                            description: concat!($($doc, '\n',)*),
+                            description: concat!($($doc, '\n',)*).trim(),
                             default: {
                                 let default: $ty = $default;
-                                let mut text = String::new();
-                                default.serialize(toml::ser::ValueSerializer::new(&mut text)).unwrap();
-                                text
+                                serde_json::to_string(&default).unwrap()
                             },
                             applicable_lints: &[$(stringify!($lints)),+,]
                         }
@@ -61,7 +58,7 @@ macro_rules! define_lint_rule_config {
 
 /// **(NOT A PUBLIC API)** A field in the `wdl-lint` [`Config`].
 #[doc(hidden)]
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct ConfigField {
     /// The name of the field.
     pub name: &'static str,
@@ -75,8 +72,7 @@ pub struct ConfigField {
 
 define_lint_rule_config! {
     /// The configuration for lint rules.
-    #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-    #[serde(default)]
+    #[derive(Clone, Debug, PartialEq, Eq, Toml)]
     pub struct Config {
         /// List of keys to ignore in the [`ExpectedRuntimeKeys`] lint.
         ///
@@ -88,7 +84,7 @@ define_lint_rule_config! {
         ///
         /// [`ExpectedRuntimeKeys`]: crate::rules::ExpectedRuntimeKeysRule
         #[lints(ExpectedRuntimeKeys)]
-        allowed_runtime_keys: HashSet<String> = HashSet::default(),
+        allowed_runtime_keys: Vec<String> = Vec::default(),
         /// List of names to ignore in the [`SnakeCase`] and [`DeclarationName`]
         /// lints.
         ///
@@ -101,6 +97,6 @@ define_lint_rule_config! {
         /// [`SnakeCase`]: crate::rules::SnakeCaseRule
         /// [`DeclarationName`]: crate::rules::DeclarationNameRule
         #[lints(SnakeCase, DeclarationName)]
-        allowed_names: HashSet<String> = HashSet::default(),
+        allowed_names: Vec<String> = Vec::default(),
     }
 }

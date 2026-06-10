@@ -82,7 +82,13 @@ pub async fn analyzer(
             },
         },
         UserOptions {
-            log_level: LevelFilter::from(handle.clone_current().expect("should exist")),
+            log_level: LevelFilter::from(
+                handle
+                    .clone_current()
+                    .expect("should exist")
+                    .max_level_hint()
+                    .unwrap_or(tracing::metadata::LevelFilter::WARN),
+            ),
             lint: LintOptions {
                 enabled: args.lint,
                 config: Arc::new(config.check.lint),

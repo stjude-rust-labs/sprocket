@@ -13,13 +13,14 @@ task foo {
     hints {
         inputs: input {
             a: hints {
-                foo: "bar"
-            }
+                foo: "bar",
+            },
         }
     }
 }
 
 workflow bar {
+
     hints {
         allow_nested_inputs: true
     }

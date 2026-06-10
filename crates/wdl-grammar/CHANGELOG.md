@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 * Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
+* Removed dependency on `serde` ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 
 ## 0.23.0 - 2026-06-03
 

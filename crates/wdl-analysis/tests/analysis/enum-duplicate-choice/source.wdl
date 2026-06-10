@@ -4,7 +4,7 @@ version 1.3
 enum Status {
     Active,
     Pending,
-    Active
+    Active,
 }
 
 workflow test {}

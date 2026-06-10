@@ -88,16 +88,10 @@ impl FromStr for StorageUnit {
 /// byte count exceeds an unsigned 64-bit integer.
 pub fn convert_unit_string(s: &str) -> Option<u64> {
     // No space, so try splitting on first alpha
-    let (n, unit) = match s.chars().position(|c| c.is_ascii_alphabetic()) {
-        Some(index) => {
-            let (n, unit) = s.split_at(index);
-            (
-                n.trim().parse::<u64>().ok()?,
-                unit.trim().parse::<StorageUnit>().ok()?,
-            )
-        }
-        None => return None,
-    };
+    let index = s.chars().position(|c| c.is_ascii_alphabetic())?;
+    let (n_str, unit_str) = s.split_at(index);
 
+    let n = n_str.trim().parse::<u64>().ok()?;
+    let unit = unit_str.trim().parse::<StorageUnit>().ok()?;
     unit.bytes(n)
 }

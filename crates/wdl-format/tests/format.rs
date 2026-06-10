@@ -174,7 +174,7 @@ fn run_test(test: &Path) -> Result<(), anyhow::Error> {
             "failed to read config at '{}'",
             config_path.display()
         ))?;
-        let config: FormatConfig = toml::from_str(&content).context(format!(
+        let config: FormatConfig = toml_spanner::from_str(&content).context(format!(
             "failed to parse config at '{}'",
             config_path.display()
         ))?;

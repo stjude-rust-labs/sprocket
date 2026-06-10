@@ -1,6 +1,6 @@
-#@ except: MetaDescription, TodoComment, RequirementsSection, EmptyOutputs
-
 ## This is a test of the `ContainerUri` lint.
+
+#@ except: EmptyOutputs, MetaDescription, RequirementsSection, TodoComment
 
 version 1.3
 
@@ -156,7 +156,12 @@ task i {
 
     requirements {
         # This should flagged as an array containing anys
-        container: ["*", "foo", "*", "*"]
+        container: [
+            "*",
+            "foo",
+            "*",
+            "*",
+        ]
     }
 }
 

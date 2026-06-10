@@ -1,5 +1,6 @@
 //! Utilities for reporting diagnostics to the terminal.
 
+use std::str::FromStr;
 use std::sync::LazyLock;
 
 use anyhow::Context as _;
@@ -11,8 +12,6 @@ use codespan_reporting::term::DisplayStyle;
 use codespan_reporting::term::emit_to_write_style;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
-use serde::Deserialize;
-use serde::Serialize;
 use wdl_ast::Diagnostic;
 
 /// Configuration for full display style.
@@ -90,8 +89,7 @@ impl DiagnosticCounts {
 }
 
 /// The diagnostic mode to use for reporting diagnostics.
-#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq, Deserialize, Serialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
 pub enum Mode {
     /// Prints diagnostics as multiple lines.
     #[default]
@@ -101,11 +99,23 @@ pub enum Mode {
     OneLine,
 }
 
+impl FromStr for Mode {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "full" => Ok(Self::Full),
+            "one-line" => Ok(Self::OneLine),
+            _ => Err(format!("invalid diagnostic mode `{s}`")),
+        }
+    }
+}
+
 impl std::fmt::Display for Mode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Mode::Full => write!(f, "full"),
-            Mode::OneLine => write!(f, "one-line"),
+            Self::Full => write!(f, "full"),
+            Self::OneLine => write!(f, "one-line"),
         }
     }
 }

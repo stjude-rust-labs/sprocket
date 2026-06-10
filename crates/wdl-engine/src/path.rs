@@ -251,14 +251,6 @@ impl fmt::Display for EvaluationPath {
     }
 }
 
-impl TryFrom<&str> for EvaluationPath {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &str) -> Result<Self> {
-        value.parse()
-    }
-}
-
 impl TryFrom<EvaluationPath> for String {
     type Error = anyhow::Error;
 

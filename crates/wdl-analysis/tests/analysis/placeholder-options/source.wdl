@@ -1,4 +1,5 @@
 ## Test cases for placeholder options analysis
+
 #@ except: UnusedDeclaration
 
 version 1.3
@@ -7,11 +8,16 @@ task valid_case {
     input {
         Array[String] arr
     }
-    command <<< ~{sep=", " arr} >>> # OK: sep option with an array
+
+    command <<<
+        ~{sep=", " arr}
+    >>>  # OK: sep option with an array
 }
 
 task invalid_case {
-    command <<< ~{sep=", " true} >>> # NOT OK: sep expects an array, but got Boolean
+    command <<<
+        ~{sep=", " true}
+    >>>  # NOT OK: sep expects an array, but got Boolean
 }
 
 workflow placeholder_options_test {

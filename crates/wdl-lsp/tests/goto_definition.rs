@@ -1,6 +1,6 @@
 //! Integration tests for the `textDocument/gotoDefinition` request.
 
-mod common;
+pub mod common;
 use core::panic;
 
 use async_lsp::lsp_types::GotoDefinitionParams;

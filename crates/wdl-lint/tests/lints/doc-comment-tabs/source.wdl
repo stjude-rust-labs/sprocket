@@ -1,4 +1,5 @@
-#@ except: MetaDescription, MetaSections, RuntimeSection, TodoComment, UnusedDocComments, EmptyOutputs
+#@ except: EmptyOutputs, MetaDescription, MetaSections, RuntimeSection, TodoComment
+#@ except: UnusedDocComments
 
 version 1.1
 
@@ -13,7 +14,6 @@ version 1.1
 #	This is a normal comment with a tab (should NOT be flagged)
 
 workflow test {
-
     ##	Workflow-level doc comment with tab (should be flagged)
 
     #@ except: DocCommentTabs
@@ -26,9 +26,7 @@ workflow test {
 
 #@ except: DocCommentTabs
 task test2 {
-
     ##	This should NOT be flagged either (document-level except for this task)
 
     command <<<>>>
 }
- 

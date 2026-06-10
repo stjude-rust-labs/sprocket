@@ -1,4 +1,4 @@
-#@ except: MetaSections, RequirementsSection, OutputName
+#@ except: MetaSections, OutputName, RequirementsSection
 
 version 1.2
 
@@ -20,7 +20,8 @@ task empty_outputs {
         touch foo.txt
     >>>
 
-    output {}
+    output {
+    }
 }
 
 task outputs {
