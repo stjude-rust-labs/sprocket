@@ -571,9 +571,7 @@ impl Monitor {
         }
 
         // Add any user-configured extra arguments.
-        if let Some(args) = &config.extra_sbatch_args {
-            command.args(args);
-        }
+        command.args(&config.extra_sbatch_args);
 
         // Format a name for the Slurm job
         let job_name = format!(

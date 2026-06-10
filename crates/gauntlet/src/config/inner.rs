@@ -5,24 +5,104 @@
 use std::path::Path;
 
 use indexmap::IndexMap;
-use serde::Deserialize;
-use serde::Serialize;
-use serde_with::serde_as;
+use toml_spanner::Toml;
+use toml_spanner::helper::display;
+use toml_spanner::helper::parse_string;
 
 use crate::document;
 use crate::normalize_diagnostic;
 use crate::repository;
 use crate::repository::RawHash;
 
+/// Helper functions for `IndexMap` TOML serialization.
+mod index_map {
+    use indexmap::IndexMap;
+    use toml_spanner::Arena;
+    use toml_spanner::Context;
+    use toml_spanner::Failed;
+    use toml_spanner::FromToml;
+    use toml_spanner::Item;
+    use toml_spanner::Key;
+    use toml_spanner::Table;
+    use toml_spanner::ToToml;
+    use toml_spanner::ToTomlError;
+
+    use crate::repository::Identifier;
+
+    /// Helper function for `IndexMap` TOML deserialization.
+    pub fn from_toml<'de, V>(
+        ctx: &mut Context<'de>,
+        item: &Item<'de>,
+    ) -> Result<IndexMap<Identifier, V>, Failed>
+    where
+        V: FromToml<'de>,
+    {
+        let table = item.require_table(ctx)?;
+        let mut map = IndexMap::default();
+        let mut had_error = false;
+        for (key, item) in table {
+            let identifier = match key.name.parse::<Identifier>() {
+                Ok(id) => id,
+                Err(e) => {
+                    ctx.report_custom_error(
+                        format!(
+                            "invalid repository identifier `{name}`: {e}",
+                            name = key.name
+                        ),
+                        item,
+                    );
+                    had_error = true;
+                    continue;
+                }
+            };
+
+            match V::from_toml(ctx, item) {
+                Ok(v) => {
+                    map.insert(identifier, v);
+                }
+                Err(_) => had_error = true,
+            }
+        }
+
+        if had_error { Err(Failed) } else { Ok(map) }
+    }
+
+    /// Helper function for `IndexMap` serialization.
+    pub fn to_toml<'a, V>(
+        value: &'a IndexMap<Identifier, V>,
+        arena: &'a Arena,
+    ) -> Result<Item<'a>, ToTomlError>
+    where
+        V: ToToml,
+    {
+        let Some(mut table) = Table::try_with_capacity(value.len(), arena) else {
+            return Err(ToTomlError::from(
+                "length of table exceeded maximum capacity",
+            ));
+        };
+
+        for (k, v) in value {
+            table.insert_unique(
+                Key::new(arena.alloc_str(&k.to_string())),
+                v.to_toml(arena)?,
+                arena,
+            );
+        }
+
+        Ok(table.into_item())
+    }
+}
+
 /// Represents a diagnostic reported for a document.
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Toml)]
+#[toml(Toml)]
 pub struct Diagnostic {
     /// The identifier of the document containing the diagnostic.
+    #[toml(FromToml with = parse_string, ToToml with = display)]
     document: document::Identifier,
     /// The short-form diagnostic message.
     message: String,
     /// Permalink to the source of the diagnostic.
-    #[serde(default)]
     permalink: String,
 }
 
@@ -70,15 +150,15 @@ impl Diagnostic {
 /// The configuration object for a [`Config`](super::Config).
 ///
 /// This object stores the actual configuration values for this subcommand.
-#[serde_as]
-#[derive(Debug, Default, Deserialize, Serialize)]
+#[derive(Debug, Default, Toml)]
+#[toml(Toml)]
 pub struct Inner {
     /// The repositories.
-    #[serde(default)]
+    #[toml(default, with = index_map)]
     repositories: IndexMap<repository::Identifier, repository::Repository>,
 
     /// The expected diagnostics across all repositories.
-    #[serde(default)]
+    #[toml(default)]
     diagnostics: Vec<Diagnostic>,
 }
 

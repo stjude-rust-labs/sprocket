@@ -17,7 +17,6 @@ backtrace = ["dep:wdl-engine"]
 anyhow.workspace = true
 clap.workspace = true
 codespan-reporting.workspace = true
-serde.workspace = true
 wdl-ast = { path = "../wdl-ast", version = "0.24.0" }
 wdl-engine = { path = "../wdl-engine", version = "0.15.0", optional = true }
 

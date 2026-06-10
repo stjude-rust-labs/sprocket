@@ -1073,10 +1073,11 @@ mod tests {
     #[tokio::test]
     async fn github_rejected_when_removed_from_transitive_allowlist() {
         let cache = tempdir().unwrap();
-        let policy = ResolverPolicy::from(&ModulesConfig {
+        let policy = ResolverPolicy::try_from(&ModulesConfig {
             allowed_transitive_hosts: vec!["gitlab.com".into()],
             ..ModulesConfig::default()
-        });
+        })
+        .unwrap();
         let r = GitResolver::builder()
             .cache_root(cache.path())
             .trust(TrustStore::default())
@@ -1118,10 +1119,7 @@ mod tests {
 
         let cache = tempdir().unwrap();
         let tree = resolver(&cache).resolve_tree(&consumer).await.unwrap();
-        let dep = tree
-            .dependencies
-            .get(&DependencyName::try_from("dep".to_string()).unwrap())
-            .unwrap();
+        let dep = tree.dependencies.get(&"dep".parse().unwrap()).unwrap();
         assert!(matches!(&dep.source, ResolvedSource::Path { .. }));
         assert!(dep.dependencies.is_empty());
         assert_eq!(dep.version, Version::parse("1.0.0").unwrap());
@@ -1174,7 +1172,7 @@ mod tests {
 
         let cache = tempdir().unwrap();
         let (_, mut lockfile) = resolve_and_lock(&cache, &consumer).await;
-        let dep_name = DependencyName::try_from("dep".to_string()).unwrap();
+        let dep_name = "dep".parse().unwrap();
         lockfile.dependencies.get_mut(&dep_name).unwrap().checksum = hash_from_byte(42);
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
@@ -1308,7 +1306,7 @@ mod tests {
             "dep",
             locked_git_entry(GitSelector::Version("^1".parse().unwrap())),
         );
-        let dep = DependencyName::try_from("dep".to_string()).unwrap();
+        let dep = "dep".parse().unwrap();
         let url = "https://github.com/openwdl/tasks".parse().unwrap();
         let selector = GitSelector::Version("^2".parse().unwrap());
         let err = r
@@ -1333,7 +1331,7 @@ mod tests {
             "dep",
             locked_git_entry(GitSelector::Version("^1".parse().unwrap())),
         );
-        let dep = DependencyName::try_from("dep".to_string()).unwrap();
+        let dep = "dep".parse().unwrap();
         let url = "https://github.com/openwdl/tasks".parse().unwrap();
         let selector =
             GitSelector::Commit("0000000000000000000000000000000000000002".parse().unwrap());
@@ -1359,7 +1357,7 @@ mod tests {
             "dep",
             locked_git_entry(GitSelector::Tag("v1.0.0".to_string())),
         );
-        let dep = DependencyName::try_from("dep".to_string()).unwrap();
+        let dep = "dep".parse().unwrap();
         let url = "https://github.com/openwdl/tasks".parse().unwrap();
         let selector = GitSelector::Tag("v2.0.0".to_string());
         let err = r
@@ -1522,10 +1520,13 @@ mod tests {
         let r = GitResolver::builder()
             .cache_root(cache.path())
             .trust(TrustStore::default())
-            .policy(ResolverPolicy::from(&ModulesConfig {
-                require_signed: true,
-                ..ModulesConfig::default()
-            }))
+            .policy(
+                ResolverPolicy::try_from(&ModulesConfig {
+                    require_signed: true,
+                    ..ModulesConfig::default()
+                })
+                .unwrap(),
+            )
             .lockfile(lockfile)
             .build();
         let err = r
@@ -1596,7 +1597,7 @@ mod tests {
         let pinned = crate::signing::test_utils::signing_key_from_seed(99).verifying_key();
         let trust = TrustStore {
             entries: vec![TrustEntry {
-                dep: DependencyName::try_from("dep".to_string()).unwrap(),
+                dep: "dep".parse().unwrap(),
                 source: json_path(&dep_dir),
                 path: None,
                 key: pinned,
@@ -1693,10 +1694,7 @@ mod tests {
 
         let cache = tempdir().unwrap();
         let tree = resolver(&cache).resolve_tree(&consumer).await.unwrap();
-        let dep = tree
-            .dependencies
-            .get(&DependencyName::try_from("dep".to_string()).unwrap())
-            .unwrap();
+        let dep = tree.dependencies.get(&"dep".parse().unwrap()).unwrap();
         assert_eq!(dep.signer.as_ref(), Some(&signer.verifying_key()));
     }
 
@@ -1717,10 +1715,13 @@ mod tests {
         let r = GitResolver::builder()
             .cache_root(cache.path())
             .trust(TrustStore::default())
-            .policy(ResolverPolicy::from(&ModulesConfig {
-                require_signed: true,
-                ..ModulesConfig::default()
-            }))
+            .policy(
+                ResolverPolicy::try_from(&ModulesConfig {
+                    require_signed: true,
+                    ..ModulesConfig::default()
+                })
+                .unwrap(),
+            )
             .lockfile(Lockfile::default())
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
@@ -1756,10 +1757,13 @@ mod tests {
         let r = GitResolver::builder()
             .cache_root(cache.path())
             .trust(TrustStore::default())
-            .policy(ResolverPolicy::from(&ModulesConfig {
-                require_signed: true,
-                ..ModulesConfig::default()
-            }))
+            .policy(
+                ResolverPolicy::try_from(&ModulesConfig {
+                    require_signed: true,
+                    ..ModulesConfig::default()
+                })
+                .unwrap(),
+            )
             .lockfile(Lockfile::default())
             .build();
 
@@ -1813,7 +1817,7 @@ mod tests {
         let pinned = crate::signing::test_utils::signing_key_from_seed(99).verifying_key();
         let trust = TrustStore {
             entries: vec![TrustEntry {
-                dep: DependencyName::try_from("dep".to_string()).unwrap(),
+                dep: "dep".parse().unwrap(),
                 source: json_path(&dep_dir),
                 path: None,
                 key: pinned,
@@ -1885,10 +1889,13 @@ mod tests {
             .cache_root(cache.path())
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
-            .policy(ResolverPolicy::from(&ModulesConfig {
-                max_materialized_files: Some(1),
-                ..ModulesConfig::default()
-            }))
+            .policy(
+                ResolverPolicy::try_from(&ModulesConfig {
+                    max_materialized_files: Some(1),
+                    ..ModulesConfig::default()
+                })
+                .unwrap(),
+            )
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
         assert!(
@@ -1916,10 +1923,13 @@ mod tests {
             .cache_root(cache.path())
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
-            .policy(ResolverPolicy::from(&ModulesConfig {
-                max_materialized_bytes: Some(100),
-                ..ModulesConfig::default()
-            }))
+            .policy(
+                ResolverPolicy::try_from(&ModulesConfig {
+                    max_materialized_bytes: Some(100),
+                    ..ModulesConfig::default()
+                })
+                .unwrap(),
+            )
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
         assert!(
@@ -1948,10 +1958,13 @@ mod tests {
             .cache_root(cache.path())
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
-            .policy(ResolverPolicy::from(&ModulesConfig {
-                max_materialized_files: Some(1),
-                ..ModulesConfig::default()
-            }))
+            .policy(
+                ResolverPolicy::try_from(&ModulesConfig {
+                    max_materialized_files: Some(1),
+                    ..ModulesConfig::default()
+                })
+                .unwrap(),
+            )
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
         assert!(matches!(
@@ -1984,7 +1997,7 @@ mod tests {
         let (_, lockfile_v1) = resolve_and_lock(&cache, &consumer).await;
         let v1_checksum = lockfile_v1
             .dependencies
-            .get(&DependencyName::try_from("dep".to_string()).unwrap())
+            .get(&"dep".parse().unwrap())
             .unwrap()
             .checksum;
 
@@ -1993,7 +2006,7 @@ mod tests {
         let (_, lockfile_v2) = resolve_and_lock(&cache, &consumer).await;
         let v2_checksum = lockfile_v2
             .dependencies
-            .get(&DependencyName::try_from("dep".to_string()).unwrap())
+            .get(&"dep".parse().unwrap())
             .unwrap()
             .checksum;
 
@@ -2096,7 +2109,7 @@ mod tests {
 
         let cache = tempdir().unwrap();
         let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
-        let dep_name = DependencyName::try_from("dep".to_string()).unwrap();
+        let dep_name = "dep".parse().unwrap();
         assert!(
             lockfile
                 .dependencies
@@ -2207,12 +2220,15 @@ mod tests {
             .cache_root(cache.path())
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
-            .policy(ResolverPolicy::from(&ModulesConfig {
-                allowed_schemes: vec!["https".into(), "ssh".into(), "file".into()],
-                ..ModulesConfig::default()
-            }))
+            .policy(
+                ResolverPolicy::try_from(&ModulesConfig {
+                    allowed_schemes: vec!["https".into(), "ssh".into(), "file".into()],
+                    ..ModulesConfig::default()
+                })
+                .unwrap(),
+            )
             .build();
-        let dep = DependencyName::try_from("tasks".to_string()).unwrap();
+        let dep = "tasks".parse().unwrap();
         let versions = r
             .discover_versions(&dep, &source, DependencyScope::TopLevel)
             .await

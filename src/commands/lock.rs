@@ -8,8 +8,7 @@ use anyhow::Context;
 use chrono::prelude::*;
 use clap::Parser;
 use crankshaft::docker::Docker;
-use serde::Deserialize;
-use serde::Serialize;
+use toml_spanner::Toml;
 use wdl::ast::AstToken;
 use wdl::ast::v1::Expr;
 use wdl::ast::v1::LiteralExpr;
@@ -36,10 +35,11 @@ pub struct Args {
 }
 
 /// Represents the lock file structure.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Toml)]
+#[toml(ToToml)]
 struct Lock {
     /// The time when the lock file was created.
-    #[serde(rename = "generation_time")]
+    #[toml(rename = "generation_time")]
     timestamp: String,
     /// A mapping of Docker image names to their sha256 digests.
     images: HashMap<String, String>,
@@ -55,7 +55,7 @@ pub async fn lock(args: Args, config: Config) -> CommandResult<()> {
     let s = args.source.unwrap_or_default();
     let results = Analysis::default()
         .add_source(s)
-        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
+        .fallback_version(config.common.wdl.fallback_version.into())
         .run()
         .await
         .map_err(CommandError::from)?;
@@ -130,7 +130,7 @@ pub async fn lock(args: Args, config: Config) -> CommandResult<()> {
         timestamp: time.to_string(),
         images: map,
     };
-    let data = toml::to_string_pretty(&lock).context("failed to serialize lock contents")?;
+    let data = toml_spanner::to_string(&lock).context("failed to serialize lock contents")?;
     std::fs::write(output_path, data).context("failed to write lock file")?;
 
     Ok(())
