@@ -87,11 +87,8 @@ impl RunManagerSvc {
     pub fn new(config: Config, db: Arc<dyn Database>, rx: Rx) -> Self {
         let fallback_version = config.common.wdl.fallback_version;
         let config = config.server;
-        let semaphore = config
-            .max_concurrent_runs
-            .inner()
-            .cloned()
-            .map(|n| Arc::new(Semaphore::new(n)));
+        let semaphore =
+            Option::<usize>::from(config.max_concurrent_runs).map(|n| Arc::new(Semaphore::new(n)));
 
         let output_dir = OutputDirectory::new(&config.output_dir);
 
@@ -292,7 +289,7 @@ impl RunManagerSvc {
             .runs(self.runs.clone())
             .run_id(run_id)
             .run_name(run_generated_name.clone())
-            .maybe_fallback_version(self.fallback_version.inner().cloned())
+            .maybe_fallback_version(self.fallback_version.into())
             .source(source)
             .maybe_target(target)
             .inputs(inputs)

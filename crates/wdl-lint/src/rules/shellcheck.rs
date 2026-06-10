@@ -359,7 +359,7 @@ fn shellcheck_lint(
         .with_rule(ID)
         .with_label(label, span)
         .with_label(
-            format!("more info: {}/SC{}", &SHELLCHECK_WIKI, diagnostic.code),
+            format!("more info: {SHELLCHECK_WIKI}/SC{}", diagnostic.code),
             span,
         )
         .with_fix(fix_msg)

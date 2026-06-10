@@ -50,8 +50,8 @@ impl<N: TreeNode> EnumDefinition<N> {
         self.children()
     }
 
-    /// Returns an object that implements [`Display`] for printing enums that
-    /// may have a pre-computed type.
+    /// Returns an object that implements [`Display`](std::fmt::Display) for
+    /// printing enums that may have a pre-computed type.
     ///
     /// The printed result will be stripped of any comments.
     ///

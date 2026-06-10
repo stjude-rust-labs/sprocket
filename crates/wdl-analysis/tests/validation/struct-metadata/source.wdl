@@ -4,8 +4,6 @@
 version 1.3
 
 struct Foo {
-    Int a
-
     meta {
         foo: "bar"
     }
@@ -15,5 +13,6 @@ struct Foo {
         b: "bar"
     }
 
+    Int a
     String b
 }

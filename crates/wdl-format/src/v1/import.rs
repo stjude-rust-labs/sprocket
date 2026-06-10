@@ -30,7 +30,7 @@ pub fn format_import_alias(
     }
 }
 
-/// Formats an [`ImportStatement`](wdl_ast::v1::ImportStatement).
+/// Formats an [`ImportStatement`].
 pub fn format_import_statement(
     element: &FormatElement,
     stream: &mut TokenStream<PreToken>,
@@ -53,7 +53,7 @@ pub fn format_import_statement(
     stream.end_line();
 }
 
-/// Formats a [`ImportMembers`](wdl_ast::v1::ImportMembers).
+/// Formats a [`ImportMembers`].
 ///
 /// Short lists render inline as `{ a, b, c }`. Lists whose inline width would
 /// exceed the configured `max_line_length` render multiline, with each member
@@ -233,7 +233,7 @@ fn format_import_members_multiline(
     }
 }
 
-/// Formats an [`ImportMember`](wdl_ast::v1::ImportMember).
+/// Formats an [`ImportMember`].
 ///
 /// A space surrounds the optional `as` keyword.
 pub fn format_import_member(

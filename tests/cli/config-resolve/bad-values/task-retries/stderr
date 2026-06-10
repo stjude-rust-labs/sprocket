@@ -1,4 +1,6 @@
-error: parsing `bad.toml`
+error: failed to deserialize configuration file `bad.toml`
+  ┌─ bad.toml:2:11
+  │
+2 │ retries = 123
+  │           ^^^ expected an integer less than 100 or `default` for retries
 
-Caused by:
-    expected a number less than or equal to 100, got `123` for key `run`

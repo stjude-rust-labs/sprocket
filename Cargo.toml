@@ -36,7 +36,7 @@ base64 = "0.22.1"
 bimap = "0.6.3"
 blake3 = { version = "1.8.3", features = ["mmap"] }
 bon = "3.8.2"
-bytesize = { version = "2.3.1", features = ["serde"] }
+bytesize = { version = "2.3.1" }
 chrono = "0.4.43"
 clap = { version = "4.5.57", features = ["derive", "string"] }
 clap-verbosity-flag = { version = "3.0.4", features = ["tracing"] }
@@ -44,7 +44,6 @@ clap_complete = "4.5.65"
 cloud-copy = { version = "0.8.0", features = ["cli"] }
 codespan-reporting = "0.13.1"
 colored = "3.1.1"
-config = { version = "0.15.21", default-features = false, features = ["toml", "preserve_order"] }
 convert_case = "0.11.0"
 crankshaft = { version = "0.10.0", features = ["docker"] }
 criterion = "0.8.2"
@@ -61,7 +60,7 @@ git2 = "0.20.4"
 globset = "0.4.18"
 hex = "0.4.3"
 ignore = "0.4.25"
-indexmap = { version = "2.13.0", features = ["serde"] }
+indexmap = "2.13.0"
 indicatif = "0.18.3"
 itertools = "0.14.0"
 libc = "0.2"
@@ -115,14 +114,13 @@ thiserror = "2.0.18"
 tokio = { version = "1.49.0", features = ["full"] }
 tokio-retry2 = "0.9.1"
 tokio-util = "0.7.18"
-toml = "0.9.11"
-toml_edit = { version = "0.25.0", features = ["serde"] }
+toml-spanner = { version = "1.0.2", features = ["derive", "to-toml"] }
 tower = { version = "0.5.3", features = ["util"] }
 tower-http = { version = "0.6.8", features = ["cors", "trace"] }
 tracing = "0.1.44"
 tracing-indicatif = "0.3.14"
 tracing-log = "0.2.0"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tracing-test = "0.2.5"
 unicode-normalization = "0.1.25"
 url = "2.5.8"
@@ -182,7 +180,6 @@ clap_complete.workspace = true
 cloud-copy.workspace = true
 codespan-reporting.workspace = true
 colored.workspace = true
-config.workspace = true
 crankshaft.workspace = true
 dirs.workspace = true
 futures.workspace = true
@@ -211,7 +208,7 @@ thiserror.workspace = true
 tokio.workspace = true
 tokio-retry2.workspace = true
 tokio-util.workspace = true
-toml.workspace = true
+toml-spanner.workspace = true
 tower.workspace = true
 tower-http.workspace = true
 tracing.workspace = true

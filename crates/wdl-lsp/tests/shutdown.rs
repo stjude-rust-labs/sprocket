@@ -4,7 +4,7 @@ use async_lsp::lsp_types::request::Shutdown;
 
 use crate::common::TestContext;
 
-mod common;
+pub mod common;
 
 #[tokio::test]
 async fn should_shutdown_without_error() {

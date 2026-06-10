@@ -3,12 +3,16 @@
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
+use std::str::FromStr;
 
+use anyhow::Context;
+use anyhow::bail;
 use faster_hex;
 use git2::FetchOptions;
 use git2::build::RepoBuilder;
-use serde::Deserialize;
-use serde::Serialize;
+use toml_spanner::Toml;
+use toml_spanner::helper::display;
+use toml_spanner::helper::parse_string;
 use tracing::info;
 use tracing::trace;
 use tracing::warn;
@@ -26,29 +30,17 @@ const FETCH_DEPTH: i32 = 100;
 #[derive(Clone, Debug, Eq, PartialEq, Hash, Ord, PartialOrd)]
 pub struct RawHash([u8; 20]);
 
-impl Serialize for RawHash {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        faster_hex::hex_string(&self.0).serialize(serializer)
-    }
-}
+impl FromStr for RawHash {
+    type Err = anyhow::Error;
 
-impl<'de> Deserialize<'de> for RawHash {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         if s.len() != 40 {
-            return Err(serde::de::Error::custom(
-                "a commit hash must have 40 characters",
-            ));
+            bail!("a commit hash must have 40 characters");
         }
 
         let mut hash = [0u8; 20];
-        faster_hex::hex_decode(s.as_bytes(), &mut hash).map_err(serde::de::Error::custom)?;
+        faster_hex::hex_decode(s.as_bytes(), &mut hash)
+            .with_context(|| format!("invalid commit hash `{s}`"))?;
         Ok(Self(hash))
     }
 }
@@ -63,12 +55,15 @@ impl fmt::Display for RawHash {
 }
 
 /// A GitHub repository of WDL files.
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Toml)]
+#[toml(Toml)]
 pub struct Repository {
     /// The name for the [`Repository`] expressed as an [`Identifier`].
+    #[toml(FromToml with = parse_string, ToToml with = display)]
     identifier: Identifier,
 
     /// The commit hash for the [`Repository`].
+    #[toml(FromToml with = parse_string, ToToml with = display)]
     commit_hash: Option<RawHash>,
 }
 

@@ -10,8 +10,7 @@ import "https://raw.githubusercontent.com/stjudecloud/workflows/refs/heads/main/
 import "structs.wdl" as very_long_namespace_name_that_definitely_exceeds_the_ninety_character_maximum_line_width
 
 # Test case 3: WDL 1.2 alias with long names
-import "types.wdl"
-  alias VeryLongStructName as EvenLongerAliasNameThatExceedsNinetyCharactersWhenCombinedWithEverythingElse
+import "types.wdl" alias VeryLongStructName as EvenLongerAliasNameThatExceedsNinetyCharactersWhenCombinedWithEverythingElse
 
 workflow test {
     meta {

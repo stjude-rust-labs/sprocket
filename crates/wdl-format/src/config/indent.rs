@@ -1,7 +1,14 @@
 //! Indentation within formatting configuration.
 
-use serde::Deserialize;
-use serde::Serialize;
+use std::fmt;
+
+use toml_spanner::Arena;
+use toml_spanner::Context;
+use toml_spanner::Failed;
+use toml_spanner::FromToml;
+use toml_spanner::Item;
+use toml_spanner::ToToml;
+use toml_spanner::ToTomlError;
 
 use crate::SPACE;
 use crate::TAB;
@@ -28,7 +35,7 @@ pub const DEFAULT_INDENT: Indent = Indent::Spaces(DEFAULT_SPACE_INDENT);
 pub const MAX_SPACE_INDENT: usize = 16;
 
 /// An indentation level.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Indent {
     /// Tabs.
     Tabs,
@@ -84,36 +91,91 @@ impl Indent {
     }
 }
 
-impl Serialize for Indent {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
+impl fmt::Display for Indent {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for _ in 0..self.num() {
+            self.character().fmt(f)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl<'de> FromToml<'de> for Indent {
+    fn from_toml(ctx: &mut Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
+        if let Some("tabs") = item.as_str() {
+            return Ok(Self::Tabs);
+        }
+
+        if let Some(n) = item.as_u64().and_then(|n| usize::try_from(n).ok())
+            && n <= MAX_SPACE_INDENT
+        {
+            return Ok(Self::Spaces(n));
+        }
+
+        Err(ctx.report_custom_error(
+            format!(
+                "expected an integer less than or equal to {MAX_SPACE_INDENT} or `tabs` for \
+                 indentation value"
+            ),
+            item,
+        ))
+    }
+}
+
+impl ToToml for Indent {
+    fn to_toml<'a>(&'a self, _: &'a Arena) -> Result<Item<'a>, ToTomlError> {
         match self {
-            Indent::Tabs => "tabs".serialize(serializer),
-            Indent::Spaces(n) => n.serialize(serializer),
+            Self::Tabs => Ok(Item::string("tabs")),
+            Self::Spaces(n) => Ok(i64::try_from(*n)
+                .map_err(|e| ToTomlError {
+                    message: format!("invalid number of spaces: {e}").into(),
+                })?
+                .into()),
         }
     }
 }
 
-impl<'de> Deserialize<'de> for Indent {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum Value {
-            Num(usize),
-            Str(String),
-        }
+#[cfg(test)]
+mod test {
+    use std::collections::HashMap;
 
-        match Value::deserialize(deserializer)? {
-            Value::Num(n) => Indent::try_new(false, Some(n)).map_err(serde::de::Error::custom),
-            Value::Str(s) if s == "tabs" => Ok(Indent::Tabs),
-            Value::Str(s) => Err(serde::de::Error::custom(format!(
-                "expected a number or \"tabs\", got \"{s}\""
-            ))),
-        }
+    use super::*;
+
+    #[test]
+    fn serialization() {
+        let map: HashMap<&str, Indent> = HashMap::from_iter([("value", Indent::Tabs)]);
+        assert_eq!(toml_spanner::to_string(&map).unwrap(), "value = \"tabs\"\n");
+
+        let map: HashMap<&str, Indent> = HashMap::from_iter([("value", Indent::Spaces(10))]);
+        assert_eq!(toml_spanner::to_string(&map).unwrap(), "value = 10\n");
+    }
+
+    #[test]
+    fn deserialization() {
+        let map: HashMap<String, Indent> = toml_spanner::from_str("value = 'tabs'").unwrap();
+        assert_eq!(map["value"], Indent::Tabs);
+
+        let map: HashMap<String, Indent> = toml_spanner::from_str("value = 10").unwrap();
+        assert_eq!(map["value"], Indent::Spaces(10));
+
+        let map: HashMap<String, Indent> = toml_spanner::from_str("value = 0").unwrap();
+        assert_eq!(map["value"], Indent::Spaces(0));
+
+        let expected_error = format!(
+            "expected an integer less than or equal to {MAX_SPACE_INDENT} or `tabs` for \
+             indentation value"
+        );
+
+        let error =
+            toml_spanner::from_str::<HashMap<String, Indent>>("value = 'wrong'").unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+
+        let error = toml_spanner::from_str::<HashMap<String, Indent>>("value = -10").unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
+
+        let error =
+            toml_spanner::from_str::<HashMap<String, Indent>>("value = 100000").unwrap_err();
+        assert_eq!(error.to_string(), expected_error);
     }
 }
