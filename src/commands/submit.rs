@@ -18,30 +18,6 @@ use crate::commands::validate::validate_inputs;
 use crate::config::Config;
 use crate::server::SubmitRunRequest;
 
-/// CLI arguments for connecting to a Sprocket server instance.
-#[derive(ClapArgs, Debug)]
-pub struct SprocketClientConnectionArgs {
-    /// The hostname of the running Sprocket server to talk to.
-    ///
-    /// If not provided, falls back to the value in the Sprocket config.
-    #[arg(long)]
-    host: Option<String>,
-
-    /// The port of the running Sprocket server to talk to.
-    ///
-    /// If not provided, falls back to the value in the Sprocket config.
-    #[arg(short, long)]
-    port: Option<u16>,
-}
-
-impl SprocketClientConnectionArgs {
-    fn base_url(&self, config: &Config) -> String {
-        let host = self.host.as_deref().unwrap_or(&config.server.host);
-        let port = self.port.unwrap_or(config.server.port);
-        format!("http://{host}:{port}")
-    }
-}
-
 /// CLI arguments for specifying the body of the [`SubmitRunRequest`].
 #[derive(ClapArgs, Debug)]
 pub struct SubmitRunRequestArgs {

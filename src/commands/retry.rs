@@ -105,7 +105,7 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
 
     if !args.no_validate {
         // Re-analyze the WDL source locally, mirroring what `submit` does.
-        let document = analyze_source(&source, config.common.wdl.fallback_version.inner().cloned())
+        let document = analyze_source(&source, config.common.wdl.fallback_version.into())
             .await
             .map_err(|e| {
                 // Wrap with a hint to use --no-validate if the file is unreachable.
