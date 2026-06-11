@@ -12,11 +12,13 @@ rust-version.workspace = true
 
 [features]
 backtrace = ["dep:wdl-engine"]
+python = ["dep:pyo3"]
 
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
 codespan-reporting.workspace = true
+pyo3 = { workspace = true, optional = true }
 wdl-ast = { path = "../wdl-ast", version = "0.24.0" }
 wdl-engine = { path = "../wdl-engine", version = "0.15.0", optional = true }
 

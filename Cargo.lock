@@ -5180,6 +5180,8 @@ name = "sprocket-py"
 version = "0.1.0"
 dependencies = [
  "pyo3",
+ "wdl-diagnostics",
+ "wdl-grammar",
 ]
 
 [[package]]
@@ -6638,6 +6640,7 @@ dependencies = [
  "anyhow",
  "clap",
  "codespan-reporting",
+ "pyo3",
  "wdl-ast",
  "wdl-engine",
 ]
@@ -6747,6 +6750,7 @@ dependencies = [
  "libtest-mimic",
  "logos",
  "pretty_assertions",
+ "pyo3",
  "rowan",
  "strum",
 ]
