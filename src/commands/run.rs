@@ -200,6 +200,17 @@ pub struct Args {
     /// Optional suffix to append to the run directory name.
     #[clap(long, value_name = "SUFFIX")]
     pub suffix: Option<String>,
+
+    /// Expose Prometheus metrics for this run at the given address, e.g.
+    /// `127.0.0.1:9464` (requires the `metrics` build feature).
+    ///
+    /// Pull-based: a scraper must collect from the endpoint while the process is
+    /// alive. Best for long-running workflows. Terminal workflow-summary metrics
+    /// of a short run may be missed before exit; OTLP push (planned) addresses
+    /// that.
+    #[cfg(feature = "metrics")]
+    #[clap(long, value_name = "ADDR")]
+    pub metrics_addr: Option<String>,
 }
 
 impl Args {
@@ -744,6 +755,27 @@ pub async fn run(
         cancellation.first(),
     ));
 
+    // OTEL WDL metrics subscriber: a sibling of progress(), subscribing to the
+    // same broadcast channels BEFORE `events` is moved into execute_target.
+    // workflow_name/duration aren't in the events, so they're supplied here.
+    #[cfg(feature = "metrics")]
+    let wdl_metrics = match &args.metrics_addr {
+        Some(addr) => {
+            let m = crate::metrics_otel::WdlMetrics::init(addr)?;
+            m.spawn_subscriber(
+                target.name().to_string(),
+                events
+                    .subscribe_crankshaft()
+                    .expect("should have Crankshaft events"),
+                events.subscribe_engine().expect("should have engine events"),
+            );
+            Some(m)
+        }
+        None => None,
+    };
+    #[cfg(feature = "metrics")]
+    let wf_start = std::time::Instant::now();
+
     // Since CLI pre-resolves paths via `into_resolved_json()`, the `base_dir`
     // passed to `execute_target()` is not used for path resolution. We pass
     // CWD as a placeholder.
@@ -789,6 +821,16 @@ pub async fn run(
             res = &mut execute => {
                 let _ = transfer_progress.await;
                 let _ = crankshaft_progress.await;
+
+                #[cfg(feature = "metrics")]
+                if let Some(m) = &wdl_metrics {
+                    let status = match &res {
+                        Ok(()) => "completed",
+                        Err(EvaluationError::Canceled) => "canceled",
+                        Err(_) => "failed",
+                    };
+                    m.record_workflow(target.name(), status, wf_start.elapsed().as_secs_f64());
+                }
 
                 return match res {
                     Ok(()) => {

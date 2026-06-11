@@ -54,6 +54,9 @@ pub mod analysis;
 pub mod commands;
 mod config;
 mod eval;
+/// OpenTelemetry metrics for WDL execution (enabled by the `metrics` feature).
+#[cfg(feature = "metrics")]
+pub mod metrics_otel;
 mod inputs;
 pub mod server;
 pub mod system;

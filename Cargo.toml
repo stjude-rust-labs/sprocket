@@ -189,11 +189,15 @@ indicatif.workspace = true
 itertools.workspace = true
 nonempty.workspace = true
 opener.workspace = true
+opentelemetry = { version = "0.27", features = ["metrics"], optional = true }
+opentelemetry-prometheus = { version = "0.27", optional = true }
+opentelemetry_sdk = { version = "0.27", features = ["metrics", "rt-tokio"], optional = true }
 path-clean.workspace = true
 pathdiff.workspace = true
 peak_alloc.workspace = true
 petname.workspace = true
 pretty_assertions.workspace = true
+prometheus = { version = "0.13", optional = true }
 rand.workspace = true
 regex.workspace = true
 reqwest.workspace = true
@@ -222,6 +226,15 @@ walkdir.workspace = true
 wdl.workspace = true
 wdl-modules.workspace = true
 whoami.workspace = true
+
+[features]
+# OpenTelemetry metrics for WDL execution (off by default; pulls the OTEL stack).
+metrics = [
+    "dep:opentelemetry",
+    "dep:opentelemetry_sdk",
+    "dep:opentelemetry-prometheus",
+    "dep:prometheus",
+]
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
