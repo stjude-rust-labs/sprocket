@@ -545,9 +545,12 @@ async fn progress(
                                 state.canceled += 1;
                             }
                         }
-                        // Structured task lifecycle events are consumed by the
-                        // metrics exporter, not the progress bar.
-                        EngineEvent::WdlTaskStarted { .. } | EngineEvent::WdlTaskCompleted { .. } => {}
+                        // Structured task/workflow lifecycle events are consumed
+                        // by the metrics exporter, not the progress bar.
+                        EngineEvent::WdlTaskStarted { .. }
+                        | EngineEvent::WdlTaskCompleted { .. }
+                        | EngineEvent::WorkflowStarted { .. }
+                        | EngineEvent::WorkflowCompleted { .. } => {}
                     };
 
                     progress_bar.pb_set_message(&message(&state));
@@ -771,22 +774,20 @@ pub async fn run(
     // same broadcast channels BEFORE `events` is moved into execute_target.
     // workflow_name/duration aren't in the events, so they're supplied here.
     #[cfg(feature = "metrics")]
-    let wdl_metrics = if args.metrics_addr.is_some() || args.metrics_otlp.is_some() {
+    let (wdl_metrics, mut metrics_task) = if args.metrics_addr.is_some() || args.metrics_otlp.is_some() {
         let m = crate::metrics_otel::WdlMetrics::init(
             args.metrics_addr.as_deref(),
             args.metrics_otlp.as_deref(),
         )?;
-        m.spawn_subscriber(
+        let handle = m.spawn_subscriber(
             target.name().to_string(),
             ctx.run_id.to_string(),
             events.subscribe_engine().expect("should have engine events"),
         );
-        Some(m)
+        (Some(m), Some(handle))
     } else {
-        None
+        (None, None)
     };
-    #[cfg(feature = "metrics")]
-    let wf_start = std::time::Instant::now();
 
     // Since CLI pre-resolves paths via `into_resolved_json()`, the `base_dir`
     // passed to `execute_target()` is not used for path resolution. We pass
@@ -836,18 +837,12 @@ pub async fn run(
 
                 #[cfg(feature = "metrics")]
                 if let Some(m) = &wdl_metrics {
-                    let status = match &res {
-                        Ok(()) => "completed",
-                        Err(EvaluationError::Canceled) => "canceled",
-                        Err(_) => "failed",
-                    };
-                    m.record_workflow(
-                        target.name(),
-                        &ctx.run_id.to_string(),
-                        status,
-                        wf_start.elapsed().as_secs_f64(),
-                    );
-                    // Flush so OTLP push delivers the terminal metrics before exit.
+                    // Execution is done, so the engine event senders have dropped;
+                    // drain the subscriber so all metrics (incl. the workflow
+                    // summary) are recorded, then flush the pipeline (OTLP push).
+                    if let Some(handle) = metrics_task.take() {
+                        let _ = handle.await;
+                    }
                     m.shutdown();
                 }
 

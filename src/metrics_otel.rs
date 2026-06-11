@@ -32,6 +32,7 @@ use prometheus::Registry;
 use prometheus::TextEncoder;
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::broadcast::error::RecvError;
+use tokio::task::JoinHandle;
 use wdl::engine::EngineEvent;
 
 /// Maps a task attempt's outcome to the `state` metric label.
@@ -159,37 +160,27 @@ impl WdlMetrics {
         }
     }
 
-    /// Records the result of a whole workflow run (timed at the run.rs call site,
-    /// since the engine emits no workflow-level lifecycle event).
-    pub fn record_workflow(&self, workflow: &str, workflow_id: &str, status: &str, duration_secs: f64) {
-        self.workflow_runs.add(1, &[
-            KeyValue::new("workflow", workflow.to_string()),
-            KeyValue::new("workflow_id", workflow_id.to_string()),
-            KeyValue::new("status", status.to_string()),
-        ]);
-        self.workflow_duration.record(duration_secs, &[
-            KeyValue::new("workflow", workflow.to_string()),
-            KeyValue::new("workflow_id", workflow_id.to_string()),
-        ]);
-    }
-
     /// Spawns the engine-event subscriber (a sibling of `run::progress`).
     /// `workflow`/`workflow_id` label every task metric; `workflow_id` is
-    /// high-cardinality by design (per-run drilldown).
+    /// high-cardinality by design (per-run drilldown). Returns a handle the
+    /// caller should await before [`Self::shutdown`] so all events are recorded
+    /// before the pipeline is flushed.
     pub fn spawn_subscriber(
         &self,
         workflow: String,
         workflow_id: String,
         mut engine: Receiver<EngineEvent>,
-    ) {
+    ) -> JoinHandle<()> {
         let m = self.clone();
         tokio::spawn(async move {
             // task attempt id -> (start instant, task name)
             let mut running: HashMap<String, (Instant, String)> = HashMap::new();
+            // workflow name -> start instant
+            let mut wf_running: HashMap<String, Instant> = HashMap::new();
             let mut dropped: u64 = 0;
             loop {
                 match engine.recv().await {
-                    Ok(ev) => m.on_engine(ev, &workflow, &workflow_id, &mut running),
+                    Ok(ev) => m.on_engine(ev, &workflow, &workflow_id, &mut running, &mut wf_running),
                     Err(RecvError::Closed) => break,
                     Err(RecvError::Lagged(n)) => {
                         dropped += n;
@@ -197,7 +188,7 @@ impl WdlMetrics {
                     }
                 }
             }
-        });
+        })
     }
 
     /// Updates instruments from a structured wdl-engine event.
@@ -207,6 +198,7 @@ impl WdlMetrics {
         workflow: &str,
         workflow_id: &str,
         running: &mut HashMap<String, (Instant, String)>,
+        wf_running: &mut HashMap<String, Instant>,
     ) {
         let base = |task: &str| {
             vec![
@@ -240,6 +232,24 @@ impl WdlMetrics {
             EngineEvent::TaskUnparked { .. } => {
                 self.parked.add(-1, &[
                     KeyValue::new("workflow", workflow.to_string()),
+                    KeyValue::new("workflow_id", workflow_id.to_string()),
+                ]);
+            }
+            EngineEvent::WorkflowStarted { name } => {
+                wf_running.insert(name, Instant::now());
+            }
+            EngineEvent::WorkflowCompleted { name, status } => {
+                let elapsed = wf_running
+                    .remove(&name)
+                    .map(|s| s.elapsed().as_secs_f64())
+                    .unwrap_or(0.0);
+                self.workflow_runs.add(1, &[
+                    KeyValue::new("workflow", name.clone()),
+                    KeyValue::new("workflow_id", workflow_id.to_string()),
+                    KeyValue::new("status", status),
+                ]);
+                self.workflow_duration.record(elapsed, &[
+                    KeyValue::new("workflow", name),
                     KeyValue::new("workflow_id", workflow_id.to_string()),
                 ]);
             }

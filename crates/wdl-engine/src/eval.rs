@@ -362,6 +362,18 @@ pub enum EngineEvent {
         /// Whether the attempt was canceled rather than run to completion.
         canceled: bool,
     },
+    /// A workflow has started evaluating.
+    WorkflowStarted {
+        /// The workflow name.
+        name: String,
+    },
+    /// A workflow has finished evaluating.
+    WorkflowCompleted {
+        /// The workflow name.
+        name: String,
+        /// The terminal status: `completed`, `failed`, or `canceled`.
+        status: String,
+    },
 }
 
 /// Represents events that may be sent during WDL evaluation.

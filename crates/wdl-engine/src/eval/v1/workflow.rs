@@ -62,6 +62,7 @@ use crate::CallLocation;
 use crate::CallValue;
 use crate::CancellationContextState;
 use crate::Coercible;
+use crate::EngineEvent;
 use crate::EvaluationContext;
 use crate::EvaluationError;
 use crate::EvaluationPath;
@@ -621,13 +622,36 @@ impl Evaluator {
             return Err(anyhow!("cannot evaluate a document with errors").into());
         }
 
+        // Announce the workflow boundary so observers (metrics, traces) can time
+        // it without a CLI-side stopwatch.
+        if let Some(sender) = &self.events {
+            let _ = sender.send(EngineEvent::WorkflowStarted {
+                name: workflow.name().to_string(),
+            });
+        }
+
         let result = self
             .perform_workflow_evaluation(document, inputs, eval_root_dir.as_ref(), workflow.name())
             .await;
 
-        if self.cancellation.user_canceled()
-            && self.cancellation.state() == CancellationContextState::Canceling
-        {
+        let canceled = self.cancellation.user_canceled()
+            && self.cancellation.state() == CancellationContextState::Canceling;
+
+        if let Some(sender) = &self.events {
+            let status = if canceled {
+                "canceled"
+            } else if result.is_ok() {
+                "completed"
+            } else {
+                "failed"
+            };
+            let _ = sender.send(EngineEvent::WorkflowCompleted {
+                name: workflow.name().to_string(),
+                status: status.to_string(),
+            });
+        }
+
+        if canceled {
             return Err(EvaluationError::Canceled);
         }
 
