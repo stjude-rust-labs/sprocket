@@ -852,6 +852,7 @@ impl Evaluator {
                         if let Some(sender) = &self.events {
                             let _ = sender.send(EngineEvent::ReusedCachedExecutionResult {
                                 id: id.to_string(),
+                                name: state.task.name().to_string(),
                             });
                         }
 
@@ -890,6 +891,16 @@ impl Evaluator {
                     attempt_dir.push("attempts");
                     attempt_dir.push(attempt.to_string());
 
+                    // Emit a structured task-started event (one per attempt) so
+                    // consumers get the un-mangled task name without parsing the
+                    // backend's mangled id.
+                    if let Some(sender) = &self.events {
+                        let _ = sender.send(EngineEvent::WdlTaskStarted {
+                            id: id.to_string(),
+                            name: state.task.name().to_string(),
+                        });
+                    }
+
                     match self
                         .backend
                         .execute(
@@ -909,9 +920,37 @@ impl Evaluator {
                         )
                         .await
                     {
-                        Ok(None) => return Err(EvaluationError::Canceled),
-                        Ok(Some(result)) => result,
+                        Ok(None) => {
+                            if let Some(sender) = &self.events {
+                                let _ = sender.send(EngineEvent::WdlTaskCompleted {
+                                    id: id.to_string(),
+                                    name: state.task.name().to_string(),
+                                    exit_code: None,
+                                    canceled: true,
+                                });
+                            }
+                            return Err(EvaluationError::Canceled);
+                        }
+                        Ok(Some(result)) => {
+                            if let Some(sender) = &self.events {
+                                let _ = sender.send(EngineEvent::WdlTaskCompleted {
+                                    id: id.to_string(),
+                                    name: state.task.name().to_string(),
+                                    exit_code: Some(result.exit_code),
+                                    canceled: false,
+                                });
+                            }
+                            result
+                        }
                         Err(e) => {
+                            if let Some(sender) = &self.events {
+                                let _ = sender.send(EngineEvent::WdlTaskCompleted {
+                                    id: id.to_string(),
+                                    name: state.task.name().to_string(),
+                                    exit_code: None,
+                                    canceled: false,
+                                });
+                            }
                             return Err(EvaluationError::new(
                                 state.document.clone(),
                                 task_execution_failed(&e, task.name(), id, task.name_span()),

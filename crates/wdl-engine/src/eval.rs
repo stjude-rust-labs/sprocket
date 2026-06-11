@@ -330,6 +330,8 @@ pub enum EngineEvent {
     ReusedCachedExecutionResult {
         /// The id of the task that reused a cached execution result.
         id: String,
+        /// The WDL task name (un-mangled, e.g. `align`).
+        name: String,
     },
     /// A locally running task has been parked by the engine due to insufficient
     /// resources.
@@ -337,6 +339,27 @@ pub enum EngineEvent {
     /// A locally running task has been unparked by the engine.
     TaskUnparked {
         /// Whether or not the task was unparked due to being canceled.
+        canceled: bool,
+    },
+    /// A WDL task execution attempt has started (one per attempt).
+    ///
+    /// Carries structured identity directly from the engine, so consumers need
+    /// not parse the backend's mangled task id.
+    WdlTaskStarted {
+        /// The full task id for this attempt (e.g. `align-0`).
+        id: String,
+        /// The WDL task name (un-mangled, e.g. `align`).
+        name: String,
+    },
+    /// A WDL task execution attempt has finished (one per attempt).
+    WdlTaskCompleted {
+        /// The full task id for this attempt (e.g. `align-0`).
+        id: String,
+        /// The WDL task name (un-mangled, e.g. `align`).
+        name: String,
+        /// The process exit code, if the attempt produced one.
+        exit_code: Option<i32>,
+        /// Whether the attempt was canceled rather than run to completion.
         canceled: bool,
     },
 }

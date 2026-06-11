@@ -536,6 +536,9 @@ async fn progress(
                                 state.canceled += 1;
                             }
                         }
+                        // Structured task lifecycle events are consumed by the
+                        // metrics exporter, not the progress bar.
+                        EngineEvent::WdlTaskStarted { .. } | EngineEvent::WdlTaskCompleted { .. } => {}
                     };
 
                     progress_bar.pb_set_message(&message(&state));
@@ -764,9 +767,7 @@ pub async fn run(
             let m = crate::metrics_otel::WdlMetrics::init(addr)?;
             m.spawn_subscriber(
                 target.name().to_string(),
-                events
-                    .subscribe_crankshaft()
-                    .expect("should have Crankshaft events"),
+                ctx.run_id.to_string(),
                 events.subscribe_engine().expect("should have engine events"),
             );
             Some(m)
@@ -829,7 +830,12 @@ pub async fn run(
                         Err(EvaluationError::Canceled) => "canceled",
                         Err(_) => "failed",
                     };
-                    m.record_workflow(target.name(), status, wf_start.elapsed().as_secs_f64());
+                    m.record_workflow(
+                        target.name(),
+                        &ctx.run_id.to_string(),
+                        status,
+                        wf_start.elapsed().as_secs_f64(),
+                    );
                 }
 
                 return match res {
