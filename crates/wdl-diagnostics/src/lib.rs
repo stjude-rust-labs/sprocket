@@ -90,6 +90,16 @@ impl DiagnosticCounts {
 
 /// The diagnostic mode to use for reporting diagnostics.
 #[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(
+        module = "sprocket_bio.diagnostics",
+        frozen,
+        rename_all = "SCREAMING_SNAKE_CASE",
+        skip_from_py_object,
+        eq
+    )
+)]
 pub enum Mode {
     /// Prints diagnostics as multiple lines.
     #[default]
@@ -232,4 +242,21 @@ pub fn emit_diagnostics_with_backtrace<'a>(
     }
 
     Ok(())
+}
+
+#[cfg(feature = "python")]
+mod python {
+    use pyo3::prelude::*;
+
+    use super::*;
+
+    #[pymethods]
+    impl Mode {
+        /// Returns the “default value” for a type.
+        #[staticmethod]
+        #[pyo3(name = "default")]
+        fn py_default() -> Self {
+            <Self as Default>::default()
+        }
+    }
 }
