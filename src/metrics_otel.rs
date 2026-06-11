@@ -21,8 +21,12 @@ use opentelemetry::metrics::Counter;
 use opentelemetry::metrics::Histogram;
 use opentelemetry::metrics::MeterProvider as _;
 use opentelemetry::metrics::UpDownCounter;
+use opentelemetry_otlp::MetricExporter;
+use opentelemetry_otlp::WithExportConfig as _;
 use opentelemetry_sdk::Resource;
+use opentelemetry_sdk::metrics::PeriodicReader;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
+use opentelemetry_sdk::runtime;
 use prometheus::Encoder as _;
 use prometheus::Registry;
 use prometheus::TextEncoder;
@@ -45,8 +49,8 @@ fn task_state(exit_code: Option<i32>, canceled: bool) -> &'static str {
 /// `Arc`-backed); the owning provider is held to keep them alive.
 #[derive(Clone)]
 pub struct WdlMetrics {
-    /// Owns the metric pipeline; held to keep the instruments alive.
-    _provider: SdkMeterProvider,
+    /// Owns the metric pipeline; held to keep instruments alive and to flush.
+    provider: SdkMeterProvider,
     /// Task attempts reaching a terminal state, by workflow/task/state.
     tasks: Counter<u64>,
     /// Wall-clock duration of a task attempt.
@@ -70,17 +74,39 @@ impl std::fmt::Debug for WdlMetrics {
 }
 
 impl WdlMetrics {
-    /// Initializes metrics and starts the Prometheus `/metrics` server at `addr`.
-    pub fn init(addr: &str) -> Result<Self> {
-        let registry = Registry::new();
-        let exporter = opentelemetry_prometheus::exporter()
-            .with_registry(registry.clone())
-            .build()
-            .context("failed to build the Prometheus exporter")?;
-        let provider = SdkMeterProvider::builder()
-            .with_reader(exporter)
-            .with_resource(Resource::new(vec![KeyValue::new("service.name", "sprocket")]))
-            .build();
+    /// Initializes metrics. With `pull_addr`, serves Prometheus `/metrics` at
+    /// that address (scrape model). With `otlp_endpoint`, pushes via OTLP to a
+    /// collector (e.g. `http://localhost:4317`) — the reliable path for short
+    /// runs, since [`Self::shutdown`] flushes on exit. At least one is required.
+    pub fn init(pull_addr: Option<&str>, otlp_endpoint: Option<&str>) -> Result<Self> {
+        let mut builder = SdkMeterProvider::builder()
+            .with_resource(Resource::new(vec![KeyValue::new("service.name", "sprocket")]));
+
+        // Pull: Prometheus `/metrics` endpoint.
+        let pull = match pull_addr {
+            Some(addr) => {
+                let registry = Registry::new();
+                let exporter = opentelemetry_prometheus::exporter()
+                    .with_registry(registry.clone())
+                    .build()
+                    .context("failed to build the Prometheus exporter")?;
+                builder = builder.with_reader(exporter);
+                Some((addr.to_string(), registry))
+            }
+            None => None,
+        };
+
+        // Push: OTLP exporter behind a periodic reader.
+        if let Some(endpoint) = otlp_endpoint {
+            let exporter = MetricExporter::builder()
+                .with_tonic()
+                .with_endpoint(endpoint)
+                .build()
+                .context("failed to build the OTLP metric exporter")?;
+            builder = builder.with_reader(PeriodicReader::builder(exporter, runtime::Tokio).build());
+        }
+
+        let provider = builder.build();
         let meter = provider.meter("sprocket");
 
         let metrics = Self {
@@ -112,12 +138,25 @@ impl WdlMetrics {
                 .f64_histogram("sprocket_wdl_workflow_duration_seconds")
                 .with_description("Wall-clock duration of a whole workflow run")
                 .build(),
-            _provider: provider,
+            provider,
         };
 
-        start_metrics_server(addr, registry)?;
-        tracing::info!("WDL metrics exposed at http://{addr}/metrics");
+        if let Some((addr, registry)) = pull {
+            start_metrics_server(&addr, registry)?;
+            tracing::info!("WDL metrics exposed at http://{addr}/metrics");
+        }
+        if let Some(endpoint) = otlp_endpoint {
+            tracing::info!("WDL metrics pushed via OTLP to {endpoint}");
+        }
         Ok(metrics)
+    }
+
+    /// Flushes and shuts down the metric pipeline. Call before exit so OTLP
+    /// push delivers the final (e.g. workflow-summary) measurements.
+    pub fn shutdown(&self) {
+        if let Err(e) = self.provider.shutdown() {
+            tracing::debug!("error shutting down WDL metrics: {e}");
+        }
     }
 
     /// Records the result of a whole workflow run (timed at the run.rs call site,

@@ -190,6 +190,7 @@ itertools.workspace = true
 nonempty.workspace = true
 opener.workspace = true
 opentelemetry = { version = "0.27", features = ["metrics"], optional = true }
+opentelemetry-otlp = { version = "0.27", default-features = false, features = ["metrics", "grpc-tonic"], optional = true }
 opentelemetry-prometheus = { version = "0.27", optional = true }
 opentelemetry_sdk = { version = "0.27", features = ["metrics", "rt-tokio"], optional = true }
 path-clean.workspace = true
@@ -233,6 +234,7 @@ metrics = [
     "dep:opentelemetry",
     "dep:opentelemetry_sdk",
     "dep:opentelemetry-prometheus",
+    "dep:opentelemetry-otlp",
     "dep:prometheus",
 ]
 

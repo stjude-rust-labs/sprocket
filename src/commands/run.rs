@@ -211,6 +211,15 @@ pub struct Args {
     #[cfg(feature = "metrics")]
     #[clap(long, value_name = "ADDR")]
     pub metrics_addr: Option<String>,
+
+    /// Push OpenTelemetry metrics for this run to an OTLP endpoint, e.g.
+    /// `http://localhost:4317` (requires the `metrics` build feature).
+    ///
+    /// Unlike `--metrics-addr`, push reliably delivers terminal workflow-summary
+    /// metrics (flushed on exit), so it is preferred for short one-shot runs.
+    #[cfg(feature = "metrics")]
+    #[clap(long, value_name = "ENDPOINT")]
+    pub metrics_otlp: Option<String>,
 }
 
 impl Args {
@@ -762,17 +771,19 @@ pub async fn run(
     // same broadcast channels BEFORE `events` is moved into execute_target.
     // workflow_name/duration aren't in the events, so they're supplied here.
     #[cfg(feature = "metrics")]
-    let wdl_metrics = match &args.metrics_addr {
-        Some(addr) => {
-            let m = crate::metrics_otel::WdlMetrics::init(addr)?;
-            m.spawn_subscriber(
-                target.name().to_string(),
-                ctx.run_id.to_string(),
-                events.subscribe_engine().expect("should have engine events"),
-            );
-            Some(m)
-        }
-        None => None,
+    let wdl_metrics = if args.metrics_addr.is_some() || args.metrics_otlp.is_some() {
+        let m = crate::metrics_otel::WdlMetrics::init(
+            args.metrics_addr.as_deref(),
+            args.metrics_otlp.as_deref(),
+        )?;
+        m.spawn_subscriber(
+            target.name().to_string(),
+            ctx.run_id.to_string(),
+            events.subscribe_engine().expect("should have engine events"),
+        );
+        Some(m)
+    } else {
+        None
     };
     #[cfg(feature = "metrics")]
     let wf_start = std::time::Instant::now();
@@ -836,6 +847,8 @@ pub async fn run(
                         status,
                         wf_start.elapsed().as_secs_f64(),
                     );
+                    // Flush so OTLP push delivers the terminal metrics before exit.
+                    m.shutdown();
                 }
 
                 return match res {
