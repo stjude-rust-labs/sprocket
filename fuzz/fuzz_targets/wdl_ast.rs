@@ -1,3 +1,5 @@
+//! Fuzz target for the `wdl-ast` crate.
+
 #![no_main]
 
 #[path = "../common.rs"]

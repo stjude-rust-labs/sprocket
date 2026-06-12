@@ -1,3 +1,5 @@
+//! Utilities for fuzz targets.
+
 use std::io::ErrorKind;
 use std::path::Path;
 
