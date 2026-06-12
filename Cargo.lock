@@ -6700,6 +6700,7 @@ version = "0.23.0"
 dependencies = [
  "anyhow",
  "codespan-reporting",
+ "indexmap 2.13.0",
  "libtest-mimic",
  "logos",
  "pretty_assertions",

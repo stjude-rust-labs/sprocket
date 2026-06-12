@@ -12,6 +12,7 @@ documentation = "https://docs.rs/wdl-grammar"
 
 [dependencies]
 codespan-reporting = { workspace = true }
+indexmap = { workspace = true }
 logos = { workspace = true }
 rowan = { workspace = true }
 strum = { workspace = true }

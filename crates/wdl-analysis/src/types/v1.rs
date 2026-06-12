@@ -510,7 +510,7 @@ where
             definition
                 .members()
                 .map(|d| Ok((d.name().text().to_string(), self.convert_type(&d.ty())?)))
-                .collect::<Result<Vec<_>, _>>()?,
+                .collect::<Result<Vec<_>, Diagnostic>>()?,
         ))
     }
 }
