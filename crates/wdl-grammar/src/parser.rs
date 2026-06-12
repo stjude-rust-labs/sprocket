@@ -467,6 +467,7 @@ pub struct RecursionGuard<'a, 'b, T>
 where
     T: ParserToken<'a>,
 {
+    /// The parser that is being guarded.
     parser: &'b mut Parser<'a, T>,
 }
 
