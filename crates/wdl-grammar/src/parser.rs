@@ -6,6 +6,8 @@
 //! The design of this is very much based on `rust-analyzer`.
 
 use std::fmt;
+use std::ops::Deref;
+use std::ops::DerefMut;
 
 use indexmap::IndexSet;
 use logos::Logos;
@@ -317,6 +319,8 @@ where
     diagnostic_context: DiagnosticContext,
     /// The buffered events from a peek operation.
     buffered: Vec<Event>,
+    /// The current expression depth of the parser.
+    expr_depth: usize,
 }
 
 impl<'a, T> Interpolator<'a, T>
@@ -373,6 +377,7 @@ where
             recovery: self.recovery,
             diagnostic_context: self.diagnostic_context,
             buffered: Default::default(),
+            expr_depth: self.expr_depth,
         }
     }
 }
@@ -420,6 +425,8 @@ struct DiagnosticContext {
     diagnostics: IndexSet<Diagnostic>,
     /// Whether the parser has reached the end of the input.
     eof: bool,
+    /// Whether the parser has encountered a fatal error.
+    halt: bool,
 }
 
 /// Implements a WDL parser.
@@ -447,6 +454,49 @@ where
     diagnostic_context: DiagnosticContext,
     /// The buffered events from a peek operation.
     buffered: Vec<Event>,
+    /// The current expression depth.
+    expr_depth: usize,
+}
+
+/// The maximum recursion depth for nested expressions.
+const MAX_DEPTH: usize = 128;
+
+/// Guard for limiting the depth of recursive expression parsing.
+#[allow(missing_debug_implementations)]
+pub struct RecursionGuard<'a, 'b, T>
+where
+    T: ParserToken<'a>,
+{
+    parser: &'b mut Parser<'a, T>,
+}
+
+impl<'a, 'b, T> Drop for RecursionGuard<'a, 'b, T>
+where
+    T: ParserToken<'a>,
+{
+    fn drop(&mut self) {
+        self.parser.expr_depth -= 1;
+    }
+}
+
+impl<'a, 'b, T> Deref for RecursionGuard<'a, 'b, T>
+where
+    T: ParserToken<'a>,
+{
+    type Target = Parser<'a, T>;
+
+    fn deref(&self) -> &Self::Target {
+        self.parser
+    }
+}
+
+impl<'a, 'b, T> DerefMut for RecursionGuard<'a, 'b, T>
+where
+    T: ParserToken<'a>,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.parser
+    }
 }
 
 impl<'a, T> Parser<'a, T>
@@ -462,7 +512,20 @@ where
             recovery: Default::default(),
             diagnostic_context: Default::default(),
             buffered: Default::default(),
+            expr_depth: 0,
         }
+    }
+
+    /// Increase the current expression depth by 1.
+    pub(super) fn recurse(&mut self) -> Result<RecursionGuard<'a, '_, T>, ParseDiagnostic> {
+        self.expr_depth += 1;
+        if self.expr_depth > MAX_DEPTH {
+            self.diagnostic_context.halt = true;
+            return Err(Diagnostic::error("expression nested too deep")
+                .with_label("this exceeds the parser's nesting limit", self.span())
+                .into());
+        }
+        Ok(RecursionGuard { parser: self })
     }
 
     /// Get the version of the document.
@@ -673,7 +736,7 @@ where
 
         let mut next: Option<(T, Span)> = self.peek();
         while let Some((token, _)) = next {
-            if token == until {
+            if token == until || self.diagnostic_context.halt {
                 break;
             }
 
@@ -701,6 +764,10 @@ where
 
                 self.recover(e);
                 marker.abandon(self);
+
+                if self.diagnostic_context.halt {
+                    break;
+                }
             }
 
             next = self.peek();
@@ -1014,6 +1081,7 @@ where
             events: std::mem::take(&mut self.events),
             diagnostic_context: std::mem::take(&mut self.diagnostic_context),
             buffered: std::mem::take(&mut self.buffered),
+            expr_depth: self.expr_depth,
         };
         let (p, result) = cb(input);
         *self = p;
@@ -1036,6 +1104,7 @@ where
             recovery: self.recovery,
             diagnostic_context: self.diagnostic_context,
             buffered: self.buffered,
+            expr_depth: self.expr_depth,
         }
     }
 
@@ -1051,6 +1120,7 @@ where
             recovery: self.recovery,
             diagnostic_context: self.diagnostic_context,
             buffered: self.buffered,
+            expr_depth: self.expr_depth,
         }
     }
 
@@ -1213,5 +1283,41 @@ where
         }
 
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn expression_depth_limit() {
+        let ok_map_literal = format!(
+            "{} : {}",
+            "{".repeat(MAX_DEPTH - 1),
+            "}".repeat(MAX_DEPTH - 1)
+        );
+        let source = format!(
+            r#"task foo {{
+            command <<<>>>
+
+            Map[String, Int] woah = {ok_map_literal}
+        }}"#
+        );
+        let mut parser = Parser::new(Lexer::new(&source));
+        crate::grammar::v1::items(&mut parser);
+        assert!(!parser.diagnostic_context.halt);
+
+        let bad_map_literal = format!("{} : {}", "{".repeat(MAX_DEPTH), "}".repeat(MAX_DEPTH));
+        let source = format!(
+            r#"task foo {{
+            command <<<>>>
+
+            Map[String, Int] woah = {bad_map_literal}
+        }}"#
+        );
+        let mut parser = Parser::new(Lexer::new(&source));
+        crate::grammar::v1::items(&mut parser);
+        assert!(parser.diagnostic_context.halt);
     }
 }
