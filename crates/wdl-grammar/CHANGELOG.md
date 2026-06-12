@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   identical diagnostics ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
 * In nested expressions, only the innermost expression will produce an "unexpected end of input"
   diagnostic ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
+* `Parser` now has a hard recursion limit of `128` on nested expressions ([#930](https://github.com/stjude-rust-labs/sprocket/pull/930)).
 
 ## 0.23.0 - 2026-06-03
 

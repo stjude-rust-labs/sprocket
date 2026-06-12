@@ -2291,14 +2291,19 @@ fn expr_with_precedence(
     marker: Marker,
     min_precedence: u8,
 ) -> Result<CompletedMarker, (Marker, ParseDiagnostic)> {
+    let mut parser = match parser.recurse() {
+        Ok(p) => p,
+        Err(e) => return Err((marker, e)),
+    };
+
     // First parse an atom or a prefix operation as the left-hand side
     let mut lhs = match parser.peek() {
         Some((token, _)) if ATOM_EXPECTED_SET.contains(token.into_raw()) => {
             let lhs = parser.start();
-            match atom_expr(parser, lhs, token) {
+            match atom_expr(&mut parser, lhs, token) {
                 Ok(lhs) => lhs,
                 Err((lhs, e)) => {
-                    lhs.abandon(parser);
+                    lhs.abandon(&mut parser);
                     return Err((marker, e));
                 }
             }
@@ -2309,7 +2314,7 @@ fn expr_with_precedence(
             let rhs = parser.start();
             let (precedence, kind, associativity) = prefix_precedence(token);
             match expr_with_precedence(
-                parser,
+                &mut parser,
                 rhs,
                 // Add one to the precedence for left-associative operators
                 match associativity {
@@ -2317,10 +2322,10 @@ fn expr_with_precedence(
                     Associativity::Right => precedence,
                 },
             ) {
-                Ok(_) => prefix.complete(parser, kind),
+                Ok(_) => prefix.complete(&mut parser, kind),
                 Err((rhs, e)) => {
-                    prefix.abandon(parser);
-                    rhs.abandon(parser);
+                    prefix.abandon(&mut parser);
+                    rhs.abandon(&mut parser);
                     return Err((marker, e));
                 }
             }
@@ -2331,7 +2336,7 @@ fn expr_with_precedence(
     };
 
     // Extend the parent chain of the left-hand side to the provided marker.
-    lhs = lhs.extend_to(parser, marker);
+    lhs = lhs.extend_to(&mut parser, marker);
 
     loop {
         // Check for either an infix or postfix operation
@@ -2343,13 +2348,13 @@ fn expr_with_precedence(
                     break;
                 }
 
-                let infix = lhs.precede(parser);
+                let infix = lhs.precede(&mut parser);
                 parser.next();
 
                 // Recuse for the right-hand side
                 let rhs = parser.start();
                 if let Err((rhs, e)) = expr_with_precedence(
-                    parser,
+                    &mut parser,
                     rhs,
                     // Add one to the precedence for left-associative operators
                     match associativity {
@@ -2357,11 +2362,11 @@ fn expr_with_precedence(
                         Associativity::Right => precedence,
                     },
                 ) {
-                    rhs.abandon(parser);
+                    rhs.abandon(&mut parser);
                     return Err((infix, e));
                 }
 
-                lhs = infix.complete(parser, kind);
+                lhs = infix.complete(&mut parser, kind);
             }
             Some((token, _)) if POSTFIX_OPERATOR_EXPECTED_SET.contains(token.into_raw()) => {
                 // The operation is a postfix operation; check the precedence level
@@ -2376,10 +2381,10 @@ fn expr_with_precedence(
                 }
 
                 // Call the operation-specific parse function
-                let postfix = lhs.precede(parser);
+                let postfix = lhs.precede(&mut parser);
                 let res = match token {
-                    Token::OpenBracket => index_expr(parser, postfix),
-                    Token::Dot => access_expr(parser, postfix),
+                    Token::OpenBracket => index_expr(&mut parser, postfix),
+                    Token::Dot => access_expr(&mut parser, postfix),
                     _ => panic!("unexpected postfix operator"),
                 };
 
