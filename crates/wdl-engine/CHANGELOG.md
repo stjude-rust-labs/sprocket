@@ -15,6 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 
+#### Fixed
+
+* Fixed an issue where a task could not output a `Directory` value that was a
+  subpath of a `Directory` input ([#933](https://github.com/stjude-rust-labs/sprocket/pull/933)).
+
 ## 0.15.0 - 2026-06-03
 
 #### Added
