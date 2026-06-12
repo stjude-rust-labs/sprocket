@@ -322,11 +322,11 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
     }
 
     fn host_path(&self, path: &GuestPath) -> Option<HostPath> {
-        self.state.path_map.get_by_right(path).cloned()
+        self.state.host_path(path)
     }
 
     fn guest_path(&self, path: &HostPath) -> Option<GuestPath> {
-        self.state.path_map.get_by_left(path).cloned()
+        self.state.guest_path(path)
     }
 
     fn notify_file_created(&mut self, path: &HostPath) -> Result<()> {
@@ -555,6 +555,59 @@ impl<'a> State<'a> {
         }
 
         Ok(None)
+    }
+
+    /// Gets a host path representation of a guest path.
+    ///
+    /// Returns `None` if there is no host path representation of the guest
+    /// path.
+    fn host_path(&self, path: &GuestPath) -> Option<HostPath> {
+        self.path_map.get_by_right(path).cloned().or_else(|| {
+            // A direct mapping between the guest and host wasn't found, so scan for a
+            // matching guest prefix
+            for (host, guest) in self.path_map.iter() {
+                if let Some(path) = path
+                    .0
+                    .strip_prefix(guest.0.as_str())
+                    .and_then(|p| p.strip_prefix('/'))
+                {
+                    // Strip the guest path prefix and join the remainder onto the associated host
+                    // path
+                    return Some(HostPath::new(
+                        clean(Path::new(host.0.as_str()).join(path))
+                            .into_os_string()
+                            .into_string()
+                            .ok()?,
+                    ));
+                }
+            }
+
+            None
+        })
+    }
+
+    /// Gets a guest path representation of a host path.
+    ///
+    /// Returns `None` if there is no guest path representation of the host
+    /// path.
+    fn guest_path(&self, path: &HostPath) -> Option<GuestPath> {
+        self.path_map.get_by_left(path).cloned().or_else(|| {
+            // A direct mapping between the guest and host wasn't found, so scan for a
+            // matching host prefix
+            for (host, guest) in self.path_map.iter() {
+                if let Ok(path) = Path::new(path.0.as_str()).strip_prefix(host.0.as_str()) {
+                    // Strip the host path prefix and append the join onto the associated guest
+                    // path. Note: guest paths always use the Unix path separator.
+                    return Some(GuestPath::new(format!(
+                        "{base}/{remainder}",
+                        base = guest.0.trim_end_matches('/'),
+                        remainder = path.to_str()?.replace('\\', "/")
+                    )));
+                }
+            }
+
+            None
+        })
     }
 }
 
@@ -1872,8 +1925,14 @@ impl<'a> State<'a> {
                 self.base_dir.as_local(),
                 Some(self.transferer().as_ref()),
                 &|path| {
-                    // If the path is already a host path, return it as-is.
-                    if self.path_map.contains_left(path) {
+                    // If the path is already a host path, or prefixed with one, return it as-is.
+                    if self.path_map.contains_left(path)
+                        || self.path_map.left_values().any(|host| {
+                            Path::new(path.0.as_str())
+                                .strip_prefix(host.as_str())
+                                .is_ok()
+                        })
+                    {
                         return Ok(path.clone());
                     }
 
@@ -1900,17 +1959,12 @@ impl<'a> State<'a> {
                         } else {
                             // The joined path is not within the work directory, it must be a known
                             // guest path
-                            self.path_map
-                                .get_by_right(&GuestPath(path.0.clone()))
-                                .ok_or_else(|| {
-                                    anyhow!(
-                                        "guest path `{path}` is not an input or within the task's \
-                                         working directory"
-                                    )
-                                })?
-                                .0
-                                .clone()
-                                .into()
+                            self.host_path(&GuestPath(path.0.clone())).ok_or_else(|| {
+                                anyhow!(
+                                    "guest path `{path}` is not an input or within the task's \
+                                     working directory"
+                                )
+                            })?
                         }
                     } else if let (Some(_), Some(_)) = (
                         output_path.as_local(),
