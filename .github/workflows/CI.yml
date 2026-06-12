@@ -100,7 +100,7 @@ jobs:
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: Run tests
         shell: bash
-        run: cargo llvm-cov nextest --profile=ci --workspace --locked --all-targets --all-features --no-fail-fast --codecov --output-path codecov.json && cargo test --workspace --doc
+        run: cargo llvm-cov nextest --profile=ci --workspace --locked --all-targets --exclude fuzz --all-features --no-fail-fast --codecov --output-path codecov.json && cargo test --workspace --exclude fuzz --doc
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
