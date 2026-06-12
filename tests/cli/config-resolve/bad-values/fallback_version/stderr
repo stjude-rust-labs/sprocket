@@ -1,4 +1,6 @@
-error: parsing `bad.toml`
+error: failed to deserialize configuration file `bad.toml`
+  ┌─ bad.toml:2:20
+  │
+2 │ fallback_version = "dev"
+  │                    ^^^^^ expected a supported WDL version or `none`
 
-Caused by:
-    expected a supported version or `none`, got `dev` for key `common.wdl.fallback_version`

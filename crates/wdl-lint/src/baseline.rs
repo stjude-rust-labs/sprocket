@@ -13,7 +13,7 @@
 //!
 //! Entry paths are stored relative to the baseline file's directory (or as
 //! full URIs for non-`file://` sources like `https://`). At load time each
-//! entry's path is resolved to a [`Url`](url::Url), which is compared
+//! entry's path is resolved to a [`Url`], which is compared
 //! directly against the document's URI during matching. A [`Baseline`] loaded
 //! from disk sets its base directory from the baseline file's parent;
 //! callers constructing one in memory (e.g., tests, LSP integrations)
@@ -26,9 +26,10 @@ use std::path::absolute;
 use arrayvec::ArrayString;
 use fixedbitset::FixedBitSet;
 use path_clean::PathClean;
-use serde::Deserialize;
-use serde::Serialize;
 use thiserror::Error;
+use toml_spanner::Toml;
+use toml_spanner::helper::display;
+use toml_spanner::helper::parse_string;
 use url::Url;
 
 /// Errors that can occur while loading, parsing, or writing a baseline.
@@ -50,11 +51,11 @@ pub enum Error {
         path: PathBuf,
         /// The underlying deserialization error.
         #[source]
-        source: toml::de::Error,
+        source: toml_spanner::FromTomlError,
     },
     /// Failed to serialize a baseline to TOML.
     #[error("failed to serialize baseline")]
-    Serialize(#[from] toml::ser::Error),
+    Serialize(#[from] toml_spanner::ToTomlError),
     /// Failed to write a baseline file to disk.
     #[error("failed to write baseline file `{path}`", path = path.display())]
     Write {
@@ -83,7 +84,8 @@ pub type Result<T> = std::result::Result<T, Error>;
 pub const DEFAULT_BASELINE_FILENAME: &str = "sprocket-baseline.toml";
 
 /// A single baselined diagnostic entry.
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Toml)]
+#[toml(Toml)]
 pub struct BaselineEntry {
     /// The rule ID that produced the diagnostic.
     rule: String,
@@ -99,6 +101,7 @@ pub struct BaselineEntry {
     /// survives insertions or deletions elsewhere in the file. If the
     /// flagged code itself is edited, the hash changes and the entry no
     /// longer matches.
+    #[toml(FromToml with = parse_string, ToToml with = display)]
     source_hash: ArrayString<64>,
 }
 
@@ -140,14 +143,15 @@ impl BaselineEntry {
 ///
 /// To suppress diagnostics during a check run and track which entries were
 /// matched, borrow a [`BaselineMatcher`] via [`Baseline::matcher`].
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Toml)]
+#[toml(Toml)]
 pub struct Baseline {
     /// The baselined diagnostic entries.
-    #[serde(default)]
+    #[toml(default, style = Header)]
     diagnostic: Vec<BaselineEntry>,
     /// Precomputed lookup structures derived from `diagnostic` plus a base
     /// directory. Rebuilt on every mutation that changes either input.
-    #[serde(skip)]
+    #[toml(skip)]
     index: BaselineIndex,
 }
 
@@ -240,10 +244,11 @@ impl Baseline {
             path: path.to_path_buf(),
             source,
         })?;
-        let mut baseline: Baseline = toml::from_str(&content).map_err(|source| Error::Parse {
-            path: path.to_path_buf(),
-            source,
-        })?;
+        let mut baseline: Baseline =
+            toml_spanner::from_str(&content).map_err(|source| Error::Parse {
+                path: path.to_path_buf(),
+                source,
+            })?;
         let abs_path = absolute(path)
             .map(|p| p.clean())
             .unwrap_or_else(|_| path.to_path_buf());
@@ -268,7 +273,7 @@ impl Baseline {
 
     /// Writes the baseline to the given file path.
     pub fn write(&self, path: &Path) -> Result<()> {
-        let content = toml::to_string_pretty(self)?;
+        let content = toml_spanner::to_string(self)?;
         std::fs::write(path, content).map_err(|source| Error::Write {
             path: path.to_path_buf(),
             source,

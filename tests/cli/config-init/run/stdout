@@ -25,17 +25,19 @@ lint = false
 except = []
 
 [run]
+output_dir = "./out"
+events_capacity = 5000
 backend = "default"
 suppress_env_specific_output = false
 experimental_features_enabled = false
 fail = "slow"
-output_dir = "./out"
-events_capacity = 5000
 
 [run.http]
 cache_dir = "system"
 retries = 5
 parallelism = "available"
+
+[run.workflow]
 
 [run.workflow.scatter]
 concurrency = 1000
@@ -43,6 +45,7 @@ concurrency = 1000
 [run.task]
 retries = "default"
 container = "ubuntu:latest"
+shell = "bash"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
 cache_dir = "system"
@@ -53,6 +56,8 @@ excluded_cache_hints = []
 excluded_cache_inputs = []
 
 [run.backends]
+
+[run.storage]
 
 [run.storage.azure]
 
@@ -83,12 +88,15 @@ cache_dir = "system"
 retries = 5
 parallelism = "available"
 
+[server.engine.workflow]
+
 [server.engine.workflow.scatter]
 concurrency = 1000
 
 [server.engine.task]
 retries = "default"
 container = "ubuntu:latest"
+shell = "bash"
 cpu_limit_behavior = "deny"
 memory_limit_behavior = "deny"
 cache_dir = "system"
@@ -99,6 +107,8 @@ excluded_cache_hints = []
 excluded_cache_inputs = []
 
 [server.engine.backends]
+
+[server.engine.storage]
 
 [server.engine.storage.azure]
 
@@ -133,11 +143,9 @@ fallback_version = "none"
 
 [modules]
 large_file_warning = "1.0 MiB"
+require_signed = false
 trust_mode = "auto"
-allowed_schemes = [
-    "https",
-    "ssh",
-]
+allowed_schemes = ["https", "ssh"]
 allowed_transitive_schemes = ["https"]
 max_advertised_refs = 100000
 denied_hosts = [
@@ -146,8 +154,6 @@ denied_hosts = [
     "::1",
     "0.0.0.0",
 ]
-allowed_transitive_hosts = [
-    "github.com",
-    "gitlab.com",
-]
+allowed_hosts = []
+allowed_transitive_hosts = ["github.com", "gitlab.com"]
 

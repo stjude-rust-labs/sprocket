@@ -53,8 +53,7 @@ fn validate(s: &str) -> Result<SymbolicPath, SymbolicPathError> {
     // empty string.
     let head = iter.next().unwrap();
 
-    let dep_name =
-        DependencyName::try_from(head.to_string()).map_err(|_| SymbolicPathError(s.to_string()))?;
+    let dep_name = head.parse().map_err(|_| SymbolicPathError(s.to_string()))?;
 
     let mut sub_path = PathBuf::new();
     let mut has_tail = false;
