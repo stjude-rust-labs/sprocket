@@ -13,6 +13,12 @@ out/
 **/node_modules/
 **/dist/meta.json
 
+# Nix
+/result
+/result-*
+.direnv/
+
+# Python
 .venv/
 __pycache__/
 *.so
