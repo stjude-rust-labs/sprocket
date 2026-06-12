@@ -39,6 +39,23 @@ pub struct ListTasksQueryParams {
     pub next_token: Option<String>,
 }
 
+/// Query parameters for listing the tasks of a specific run.
+///
+/// The run is identified by the path, so no `run_uuid` filter is accepted here.
+#[derive(Debug, Clone, Serialize, Deserialize, IntoParams, ToSchema)]
+pub struct ListRunTasksQueryParams {
+    /// Filter by status.
+    #[serde(default)]
+    pub status: Option<TaskStatus>,
+    /// Number of results to return (default: `100`).
+    #[serde(default)]
+    pub limit: Option<i64>,
+    /// Token for pagination. It is expected that clients pass the value from a
+    /// previous response to retrieve the next page.
+    #[serde(default)]
+    pub next_token: Option<String>,
+}
+
 /// Query parameters for listing task logs.
 #[derive(Debug, Clone, Serialize, Deserialize, IntoParams, ToSchema)]
 pub struct ListTaskLogsQueryParams {
@@ -190,6 +207,62 @@ pub async fn list_tasks(
 
     let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListTasks {
         run_id: query.run_uuid,
+        status: query.status,
+        limit: query.limit,
+        offset: Some(offset),
+        rx,
+    })
+    .await?;
+
+    let next_offset = offset + limit;
+    let next_token = if next_offset < response.total {
+        Some(next_offset.to_string())
+    } else {
+        None
+    };
+
+    Ok(Json(ListTasksResponse {
+        tasks: response.tasks.into_iter().map(Into::into).collect(),
+        total: response.total,
+        next_token,
+    }))
+}
+
+/// List all tasks for a specific run.
+#[utoipa::path(
+    get,
+    path = "/api/v1/runs/{id}/tasks",
+    params(
+        ("id" = String, Path, description = "Run ID"),
+        ListRunTasksQueryParams
+    ),
+    responses(
+        (status = 200, description = "Tasks retrieved", body = ListTasksResponse),
+    ),
+    tag = "tasks"
+)]
+pub async fn list_run_tasks(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    query: Result<Query<ListRunTasksQueryParams>, QueryRejection>,
+) -> Result<Json<ListTasksResponse>, Error> {
+    let Query(query) = query.map_err(|rejection| match rejection {
+        QueryRejection::FailedToDeserializeQueryString(err) => {
+            Error::BadRequest(format!("invalid query parameters: {}", err))
+        }
+        _ => Error::BadRequest("invalid query parameters".to_string()),
+    })?;
+
+    let offset = match query.next_token.as_deref() {
+        Some(t) => t
+            .parse::<i64>()
+            .map_err(|_| Error::BadRequest(format!("invalid `next_token`: `{}`", t)))?,
+        None => 0,
+    };
+    let limit = query.limit.unwrap_or(100);
+
+    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListTasks {
+        run_id: Some(id),
         status: query.status,
         limit: query.limit,
         offset: Some(offset),
