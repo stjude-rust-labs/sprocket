@@ -305,10 +305,12 @@ pub struct DiagnosticsConfig {
     /// The severity for the meaningless lint directive diagnostic.
     ///
     /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
     pub meaningless_lint_directive: Option<Severity>,
     /// The severity for the known rules diagnostic.
     ///
     /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
     pub known_rules: Option<Severity>,
 }
 
