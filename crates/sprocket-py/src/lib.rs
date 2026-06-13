@@ -20,6 +20,12 @@ mod _sprocket_bio {
         use wdl_diagnostics::Mode;
     }
 
+    #[pymodule]
+    mod grammar {
+        #[pymodule_export]
+        use wdl_grammar::Span;
+    }
+
     /// Initializer that runs when the `_sprocket_bio` Python extension is
     /// imported for the first time. As `sprocket_bio/__init__.py` imports
     /// this Python extension, this initializer is implicitly run the first

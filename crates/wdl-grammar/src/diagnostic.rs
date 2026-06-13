@@ -9,6 +9,19 @@ use rowan::TextSize;
 
 /// Represents a span of source.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(
+        module = "sprocket_bio.grammar",
+        frozen,
+        skip_from_py_object,
+        get_all,
+        str,
+        eq,
+        ord,
+        hash,
+    )
+)]
 pub struct Span {
     /// The start of the span.
     start: usize,
@@ -449,5 +462,66 @@ impl Label {
     /// Sets the span of the label.
     pub fn set_span(&mut self, span: impl Into<Span>) {
         self.span = span.into();
+    }
+}
+
+#[cfg(feature = "python")]
+mod python {
+    use pyo3::prelude::*;
+
+    use super::*;
+
+    #[pymethods]
+    impl Span {
+        /// Creates a new span from the given start and length.
+        #[new]
+        fn __new__(start: usize, len: usize) -> Self {
+            Self::new(start, len)
+        }
+
+        /// Gets the length of the span.
+        #[pyo3(name = "len")]
+        fn py_len(&self) -> usize {
+            self.len()
+        }
+
+        /// Determines if the span is empty.
+        #[pyo3(name = "is_empty")]
+        fn py_is_empty(&self) -> bool {
+            self.is_empty()
+        }
+
+        /// Determines if the span contains the given offset.
+        #[pyo3(name = "contains")]
+        fn py_contains(&self, offset: usize) -> bool {
+            self.contains(offset)
+        }
+
+        /// Calculates an intersection of two spans, if one exists.
+        ///
+        /// If spans are adjacent, a zero-length span is returned.
+        ///
+        /// Returns `None` if the two spans are disjoint.
+        ///
+        /// # Examples
+        ///
+        /// ```python
+        /// >>> Span.intersect(Span(0, 10), Span(5, 10))
+        /// Span(5..10)
+        /// ```
+        #[pyo3(name = "intersect")]
+        fn py_intersect(&self, other: Bound<'_, Self>) -> Option<Self> {
+            self.intersect(*other.get())
+        }
+
+        /// Gets the length of the span.
+        fn __len__(&self) -> usize {
+            self.len()
+        }
+
+        /// Returns a printable representation of this object.
+        fn __repr__(&self) -> String {
+            format!("Span({}..{})", self.start, self.end)
+        }
     }
 }
