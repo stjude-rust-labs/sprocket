@@ -1,6 +1,18 @@
-from sprocket_bio.grammar import Label, Span
+from sprocket_bio.grammar import Diagnostic, Label, Span
 
 import pytest
+
+
+def test_diagnostic_builder():
+    d = (
+        Diagnostic.error("an error occurred")
+        .with_highlight(Span(2, 3))
+        .with_fix("don't do that")
+    )
+
+    assert d.message == "an error occurred"
+    assert d.labels == [Label("", Span(2, 3))]
+    assert d.fix == "don't do that"
 
 
 def test_label_new():

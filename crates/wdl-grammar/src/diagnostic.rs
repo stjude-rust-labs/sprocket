@@ -192,6 +192,17 @@ impl FromStr for Severity {
 
 /// Represents a diagnostic to display to the user.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(
+        module = "sprocket_bio.grammar",
+        frozen,
+        skip_from_py_object,
+        eq,
+        ord,
+        hash
+    )
+)]
 pub struct Diagnostic {
     /// The optional rule associated with the diagnostic.
     rule: Option<String>,
@@ -544,6 +555,112 @@ mod python {
         /// Returns a printable representation of this object.
         fn __repr__(&self) -> String {
             format!("Span({}..{})", self.start, self.end)
+        }
+    }
+
+    #[pymethods]
+    impl Diagnostic {
+        /// Creates a new diagnostic error with the given message.
+        #[staticmethod]
+        #[pyo3(name = "error")]
+        fn py_error(message: &str) -> Self {
+            Self::error(message)
+        }
+
+        /// Creates a new diagnostic warning with the given message.
+        #[staticmethod]
+        #[pyo3(name = "warning")]
+        fn py_warning(message: &str) -> Self {
+            Self::warning(message)
+        }
+
+        /// Creates a new diagnostic node with the given message.
+        #[staticmethod]
+        #[pyo3(name = "note")]
+        fn py_note(message: &str) -> Self {
+            Self::note(message)
+        }
+
+        /// Sets the rule for the diagnostic.
+        #[pyo3(name = "with_rule")]
+        fn py_with_rule(&self, rule: &str) -> Self {
+            self.clone().with_rule(rule)
+        }
+
+        /// Sets the help message for the diagnostic.
+        ///
+        /// This is different from the `fix` message, as it only serves to
+        /// provide more context to the issue, rather than a solution.
+        #[pyo3(name = "with_help")]
+        fn py_with_help(&self, help: &str) -> Self {
+            self.clone().with_help(help)
+        }
+
+        /// Sets the fix message for the diagnostic.
+        #[pyo3(name = "with_fix")]
+        fn py_with_fix(&self, fix: &str) -> Self {
+            self.clone().with_fix(fix)
+        }
+
+        /// Adds a highlight to the diagnostic.
+        ///
+        /// This is equivalent to adding a label with an empty message.
+        ///
+        /// The span for the highlight is expected to be for the same file as
+        /// the diagnostic.
+        #[pyo3(name = "with_highlight")]
+        fn py_with_highlight(&self, span: Bound<'_, Span>) -> Self {
+            self.clone().with_highlight(*span.get())
+        }
+
+        /// Adds a label to the diagnostic.
+        ///
+        /// The first label added is considered the primary label.
+        ///
+        /// The span for the label is expected to be for the same file as the
+        /// diagnostic.
+        #[pyo3(name = "with_label")]
+        fn py_with_label(&self, message: &str, span: Bound<'_, Span>) -> Self {
+            self.clone().with_label(message, *span.get())
+        }
+
+        /// Sets the severity of the diagnostic.
+        #[pyo3(name = "with_severity")]
+        fn py_with_severity(&self, severity: Bound<'_, Severity>) -> Self {
+            self.clone().with_severity(*severity.get())
+        }
+
+        /// Gets the optional rule associated with the diagnostic.
+        #[getter(rule)]
+        fn py_rule(&self) -> Option<&str> {
+            self.rule()
+        }
+
+        /// Gets the default severity level of the diagnostic.
+        ///
+        /// The severity level may be upgraded to error depending on
+        /// configuration.
+        #[getter(severity)]
+        fn py_severity(&self) -> Severity {
+            self.severity()
+        }
+
+        /// Gets the message of the diagnostic.
+        #[getter(message)]
+        fn py_message(&self) -> &str {
+            self.message()
+        }
+
+        /// Gets the optional fix of the diagnostic.
+        #[getter(fix)]
+        fn py_fix(&self) -> Option<&str> {
+            self.fix()
+        }
+
+        /// Gets the labels of the diagnostic.
+        #[getter(labels)]
+        fn py_labels(&self) -> Vec<Label> {
+            self.labels().cloned().collect()
         }
     }
 

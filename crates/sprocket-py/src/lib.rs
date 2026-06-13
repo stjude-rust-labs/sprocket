@@ -23,6 +23,8 @@ mod _sprocket_bio {
     #[pymodule]
     mod grammar {
         #[pymodule_export]
+        use wdl_grammar::Diagnostic;
+        #[pymodule_export]
         use wdl_grammar::Label;
         #[pymodule_export]
         use wdl_grammar::Severity;
