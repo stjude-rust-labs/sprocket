@@ -3,64 +3,55 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use serde::Deserialize;
-use serde::Serialize;
-use serde_with::DeserializeFromStr;
-use serde_with::SerializeDisplay;
 use thiserror::Error;
+use toml_spanner::Toml;
+use toml_spanner::helper::display;
+use toml_spanner::helper::parse_string;
 
 /// The `[modules]` configuration section.
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[derive(Clone, Debug, PartialEq, Eq, Toml)]
+#[toml(Toml, deny_unknown_fields)]
 pub struct ModulesConfig {
     /// Override the global cache location for this project.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_path: Option<PathBuf>,
 
     /// Threshold for the large-file warning, or [`LargeFileWarning::Disabled`]
     /// when the user opts out. Defaults to 1 MiB.
+    #[toml(default, FromToml with = parse_string, ToToml with = display)]
     pub large_file_warning: LargeFileWarning,
 
     /// Reject any unsigned module in the dependency tree.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[toml(default)]
     pub require_signed: bool,
 
     /// TOFU policy for new signer keys.
+    #[toml(default)]
     pub trust_mode: TrustMode,
 
     /// URL schemes permitted for top-level Git dependencies. Defaults
     /// to `["https", "ssh"]`.
-    #[serde(
-        default = "default_top_level_schemes",
-        skip_serializing_if = "Vec::is_empty"
-    )]
+    #[toml(default = default_top_level_schemes())]
     pub allowed_schemes: Vec<String>,
 
     /// URL schemes permitted for transitive Git dependencies. Defaults
     /// to `["https"]` so remote manifests cannot silently trigger SSH
     /// authentication against an attacker-controlled host.
-    #[serde(
-        default = "default_transitive_schemes",
-        skip_serializing_if = "Vec::is_empty"
-    )]
+    #[toml(default = default_transitive_schemes())]
     pub allowed_transitive_schemes: Vec<String>,
 
     /// Maximum number of advertised refs accepted from a remote.
     /// Defaults to 100,000.
-    #[serde(default = "default_max_refs")]
-    pub max_advertised_refs: usize,
+    #[toml(default = DEFAULT_MAX_REFS)]
+    pub max_advertised_refs: u64,
 
     /// Hosts denied for all Git dependencies. Defaults to localhost
     /// addresses.
-    #[serde(
-        default = "default_denied_hosts",
-        skip_serializing_if = "Vec::is_empty"
-    )]
+    #[toml(default = default_denied_hosts())]
     pub denied_hosts: Vec<String>,
 
     /// Hosts permitted for top-level Git dependencies. Empty means any
     /// non-denied host is allowed.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[toml(default)]
     pub allowed_hosts: Vec<String>,
 
     /// Hosts permitted for transitive Git dependencies. Defaults to
@@ -70,30 +61,23 @@ pub struct ModulesConfig {
     /// manifest cannot direct the user's credentials at a host the user
     /// has not vouched for. An empty list permits any non-denied host but
     /// presents no credentials to transitive dependencies.
-    #[serde(
-        default = "default_allowed_transitive_hosts",
-        skip_serializing_if = "Vec::is_empty"
-    )]
+    #[toml(default = default_allowed_transitive_hosts())]
     pub allowed_transitive_hosts: Vec<String>,
 
     /// Maximum number of files allowed in a single materialized module
     /// tree. `None` (the default) disables the limit. Checked against
     /// the Git tree object after fetch but before sparse checkout; this
     /// bounds materialized content, not network transfer.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_materialized_files: Option<usize>,
+    pub max_materialized_files: Option<u64>,
 
     /// Maximum total bytes of regular files allowed in a single
     /// materialized module tree. `None` (the default) disables the
     /// limit. Same enforcement point as `max_materialized_files`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_materialized_bytes: Option<u64>,
 }
 
-/// Returns the default maximum advertised-ref count.
-fn default_max_refs() -> usize {
-    100_000
-}
+/// The default maximum advertised-ref count.
+const DEFAULT_MAX_REFS: u64 = 100_000;
 
 /// Returns the default set of allowed URL schemes for top-level Git
 /// dependencies.
@@ -142,7 +126,7 @@ impl Default for ModulesConfig {
             trust_mode: TrustMode::default(),
             allowed_schemes: default_top_level_schemes(),
             allowed_transitive_schemes: default_transitive_schemes(),
-            max_advertised_refs: default_max_refs(),
+            max_advertised_refs: DEFAULT_MAX_REFS,
             denied_hosts: default_denied_hosts(),
             allowed_hosts: Vec::new(),
             allowed_transitive_hosts: default_allowed_transitive_hosts(),
@@ -225,7 +209,7 @@ pub(crate) fn is_non_public_ip(host: &str) -> bool {
 }
 
 /// Threshold for the large-file warning emitted at sign- and fetch-time.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, SerializeDisplay, DeserializeFromStr)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LargeFileWarning {
     /// The warning is disabled.
     Disabled,
@@ -277,8 +261,8 @@ pub struct LargeFileWarningError(String);
 /// library computes a [`LockfileDiff`](super::lock::LockfileDiff) that
 /// flags new signers; the CLI is responsible for acting on the policy
 /// (e.g., prompting the user when `Confirm` is set).
-#[derive(Clone, Copy, Debug, Default, Deserialize, Serialize, PartialEq, Eq)]
-#[serde(rename_all = "lowercase")]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Toml)]
+#[toml(Toml, rename_all = "lowercase")]
 pub enum TrustMode {
     /// New signer keys are recorded in the lockfile without prompting.
     /// This is the default and is suitable for non-interactive or
@@ -298,7 +282,7 @@ mod tests {
 
     #[test]
     fn parses_default_threshold_when_absent() {
-        let cfg: ModulesConfig = toml::from_str("").unwrap();
+        let cfg: ModulesConfig = toml_spanner::from_str("").unwrap();
         assert!(matches!(
             cfg.large_file_warning,
             LargeFileWarning::Threshold(b) if b == 1024 * 1024
@@ -307,7 +291,7 @@ mod tests {
 
     #[test]
     fn parses_size_string() {
-        let cfg: ModulesConfig = toml::from_str(r#"large_file_warning = "5MiB""#).unwrap();
+        let cfg: ModulesConfig = toml_spanner::from_str(r#"large_file_warning = "5MiB""#).unwrap();
         assert!(matches!(
             cfg.large_file_warning,
             LargeFileWarning::Threshold(b) if b == 5 * 1024 * 1024
@@ -318,14 +302,15 @@ mod tests {
     fn parses_none_sentinel() {
         for s in ["none", "NONE", "None"] {
             let cfg: ModulesConfig =
-                toml::from_str(&format!(r#"large_file_warning = "{s}""#)).unwrap();
+                toml_spanner::from_str(&format!(r#"large_file_warning = "{s}""#)).unwrap();
             assert!(matches!(cfg.large_file_warning, LargeFileWarning::Disabled));
         }
     }
 
     #[test]
     fn rejects_invalid_size_string() {
-        let err = toml::from_str::<ModulesConfig>(r#"large_file_warning = "abc""#).unwrap_err();
+        let err =
+            toml_spanner::from_str::<ModulesConfig>(r#"large_file_warning = "abc""#).unwrap_err();
         assert!(err.to_string().contains("abc"), "wrong message: {err}");
     }
 

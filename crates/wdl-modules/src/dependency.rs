@@ -1,11 +1,12 @@
 //! Dependency names and sources for `module.json`.
 
+use std::fmt;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::str::FromStr;
 
-use serde::Deserialize;
-use serde::Serialize;
+use serde_with::DeserializeFromStr;
+use serde_with::SerializeDisplay;
 use thiserror::Error;
 
 mod source;
@@ -51,8 +52,7 @@ fn is_dependency_name(s: &str) -> bool {
 /// interchangeable for the purpose of identity. Use
 /// [`manifest()`](Self::manifest) when exact-spelling fidelity is
 /// needed (e.g., serialization or display).
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[serde(into = "String", try_from = "String")]
+#[derive(Clone, Debug, SerializeDisplay, DeserializeFromStr)]
 pub struct DependencyName {
     /// The name as written in `module.json`.
     manifest: String,
@@ -109,35 +109,29 @@ impl DependencyName {
     }
 }
 
-impl TryFrom<String> for DependencyName {
-    type Error = DependencyNameError;
+impl FromStr for DependencyName {
+    type Err = DependencyNameError;
 
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        if !is_dependency_name(&s) {
-            return Err(DependencyNameError(s));
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if !is_dependency_name(s) {
+            return Err(DependencyNameError(s.to_string()));
         }
+
         let identifier = s.replace('-', "_");
         if !wdl_grammar::lexer::v1::is_ident(&identifier) {
-            return Err(DependencyNameError(s));
+            return Err(DependencyNameError(s.to_string()));
         }
+
         Ok(Self {
-            manifest: s,
+            manifest: s.to_string(),
             identifier,
         })
     }
 }
 
-impl FromStr for DependencyName {
-    type Err = DependencyNameError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        Self::try_from(s.to_string())
-    }
-}
-
-impl From<DependencyName> for String {
-    fn from(name: DependencyName) -> Self {
-        name.manifest
+impl fmt::Display for DependencyName {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.manifest.fmt(f)
     }
 }
 

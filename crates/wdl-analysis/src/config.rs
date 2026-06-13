@@ -2,6 +2,12 @@
 
 use std::sync::Arc;
 
+use toml_spanner::Context;
+use toml_spanner::Failed;
+use toml_spanner::FromToml;
+use toml_spanner::Item;
+use toml_spanner::Toml;
+use toml_spanner::helper::parse_string;
 use tracing::warn;
 use wdl_ast::Severity;
 use wdl_ast::SupportedVersion;
@@ -22,11 +28,18 @@ use crate::rules;
 ///
 /// This type is a wrapper around an `Arc`, and so can be cheaply cloned and
 /// sent between threads.
-#[derive(Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Config {
     /// The actual fields, `Arc`ed up for easy cloning.
-    #[serde(flatten)]
     inner: Arc<ConfigInner>,
+}
+
+impl<'de> FromToml<'de> for Config {
+    fn from_toml(ctx: &mut Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
+        Ok(Self {
+            inner: ConfigInner::from_toml(ctx, item)?.into(),
+        })
+    }
 }
 
 // Custom `Debug` impl for the `Config` wrapper type that simplifies away the
@@ -171,49 +184,39 @@ impl Config {
 }
 
 /// The actual configuration fields inside the [`Config`] wrapper.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Toml)]
 struct ConfigInner {
     /// See [`DiagnosticsConfig`].
-    #[serde(default)]
+    #[toml(default, style = Header)]
     diagnostics: DiagnosticsConfig,
     /// See [`Config::with_fallback_version()`]
-    #[serde(default)]
+    #[toml(FromToml with = parse_string)]
     fallback_version: Option<SupportedVersion>,
     /// See [`Config::with_ignore_filename()`]
     ignore_filename: Option<String>,
     /// A list of all known rule identifiers.
-    #[serde(default)]
+    #[toml(default)]
     all_rules: Vec<String>,
     /// The set of feature flags that can be enabled or disabled.
-    #[serde(default)]
+    #[toml(default)]
     feature_flags: FeatureFlags,
 }
 
 /// A set of feature flags that can be enabled.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Toml)]
 pub struct FeatureFlags {
     /// Formerly enabled experimental WDL 1.3 features.
     ///
     /// This flag is now a no-op as WDL 1.3 is fully supported. Setting this to
     /// `false` will emit a warning.
-    #[serde(default = "default_wdl_1_3")]
+    #[toml(default = true)]
     wdl_1_3: bool,
     /// Enables experimental WDL 1.4 features.
     ///
     /// Defaults to `false`. While `false`, `wdl-analysis` reports an error for
     /// any document declaring `version 1.4`.
-    #[serde(default = "default_wdl_1_4")]
+    #[toml(default)]
     wdl_1_4: bool,
-}
-
-/// Returns the default value for the `wdl_1_3` feature flag.
-fn default_wdl_1_3() -> bool {
-    true
-}
-
-/// Returns the default value for the `wdl_1_4` feature flag.
-fn default_wdl_1_4() -> bool {
-    false
 }
 
 impl Default for FeatureFlags {
@@ -258,37 +261,44 @@ impl FeatureFlags {
 /// represented here.
 ///
 /// These diagnostics default to a warning severity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Toml)]
 pub struct DiagnosticsConfig {
     /// The severity for the unused import diagnostic.
     ///
     /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
     pub unused_import: Option<Severity>,
     /// The severity for the unused input diagnostic.
     ///
     /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
     pub unused_input: Option<Severity>,
     /// The severity for the unused declaration diagnostic.
     ///
     /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
     pub unused_declaration: Option<Severity>,
     /// The severity for the unused call diagnostic.
     ///
     /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
     pub unused_call: Option<Severity>,
     /// The severity for the unnecessary function call diagnostic.
     ///
     /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
     pub unnecessary_function_call: Option<Severity>,
     /// The severity for the using fallback version diagnostic.
     ///
     /// A value of `None` disables the diagnostic. If there is no version
     /// configured with [`Config::with_fallback_version()`], this diagnostic
     /// will not be emitted.
+    #[toml(FromToml with = parse_string)]
     pub using_fallback_version: Option<Severity>,
     /// The severity for the misleading declaration order diagnostic.
     ///
     /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
     pub misleading_declaration_order: Option<Severity>,
 }
 

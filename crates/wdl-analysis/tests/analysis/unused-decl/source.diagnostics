@@ -10,15 +10,27 @@ warning[UnusedDeclaration]: unused declaration `unused_decl`
 18 │     Int unused_decl = 0
    │         ^^^^^^^^^^^
 
-warning[UnusedInput]: unused input `unused_input`
+error: task `no_command` is missing a command section
+   ┌─ tests/analysis/unused-decl/source.wdl:35:6
+   │
+35 │ task no_command {
+   │      ^^^^^^^^^^ this task must have a command section
+
+warning[UnusedInput]: unused input `number`
    ┌─ tests/analysis/unused-decl/source.wdl:37:13
    │
-37 │         Int unused_input = 0
+37 │         Int number
+   │             ^^^^^^
+
+warning[UnusedInput]: unused input `unused_input`
+   ┌─ tests/analysis/unused-decl/source.wdl:44:13
+   │
+44 │         Int unused_input = 0
    │             ^^^^^^^^^^^^
 
 warning[UnusedDeclaration]: unused declaration `unused_decl`
-   ┌─ tests/analysis/unused-decl/source.wdl:47:9
+   ┌─ tests/analysis/unused-decl/source.wdl:54:9
    │
-47 │     Int unused_decl = 0
+54 │     Int unused_decl = 0
    │         ^^^^^^^^^^^
 

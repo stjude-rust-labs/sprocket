@@ -117,7 +117,7 @@ impl SnakeCaseRule {
             within_struct: false,
             within_input: false,
             within_output: false,
-            allowed_names: config.allowed_names.clone(),
+            allowed_names: HashSet::from_iter(config.allowed_names.iter().cloned()),
         }
     }
 }

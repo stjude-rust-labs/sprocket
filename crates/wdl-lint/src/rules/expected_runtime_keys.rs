@@ -217,7 +217,7 @@ impl ExpectedRuntimeKeysRule {
             version: None,
             runtime_processed_for_task: false,
             encountered_keys: Vec::new(),
-            allowed_runtime_keys: config.allowed_runtime_keys.clone(),
+            allowed_runtime_keys: HashSet::from_iter(config.allowed_runtime_keys.iter().cloned()),
         }
     }
 }

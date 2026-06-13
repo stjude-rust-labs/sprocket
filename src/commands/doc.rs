@@ -191,7 +191,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
     }
 
     let analysis_config = AnalysisConfig::default()
-        .with_fallback_version(config.common.wdl.fallback_version.inner().cloned())
+        .with_fallback_version(config.common.wdl.fallback_version.into())
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .with_diagnostics_config(DiagnosticsConfig::except_all());
 

@@ -270,7 +270,8 @@ impl TryFrom<ManifestFields> for Manifest {
 
         let mut deps: BTreeMap<DependencyName, DependencySource> = BTreeMap::new();
         for (key, value) in fields.dependencies {
-            let name = DependencyName::try_from(key.clone())
+            let name = key
+                .parse()
                 .map_err(|_| ManifestError::InvalidDependencyName(key))?;
             if let Some((existing, _)) = deps.get_key_value(&name) {
                 return Err(ManifestError::DuplicateDependencyName(

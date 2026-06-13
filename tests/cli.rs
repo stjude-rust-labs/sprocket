@@ -231,7 +231,7 @@ fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
     if test_path.starts_with("tests/cli/run")
         && let Some(env_config) = env::var_os("SPROCKET_TEST_ENGINE_CONFIG")
     {
-        sprocket_config.run.engine = toml::from_str(&fs::read_to_string(env_config)?)?;
+        sprocket_config.run.engine = toml_spanner::from_str(&fs::read_to_string(env_config)?)?;
         config_overridden = true;
     }
 
@@ -397,8 +397,6 @@ fn compare_results(expected_path: &Path, actual: &str) -> Result<()> {
     let expected = normalize_string(&expected);
     let actual = normalize_string(actual);
     if expected != actual {
-        eprintln!("expected:{expected:?}");
-        eprintln!("actual:{actual:?}");
         bail!(
             "result from `{}` is not as expected:\nafter normalization:\n{}",
             expected_path.display(),
@@ -532,10 +530,20 @@ fn compare_test_results(
     let expects_outputs = expected_output_dir.is_dir();
 
     if env::var_os("BLESS").is_some() {
-        fs::write(&expected_stderr_file, &command_output.stderr)
-            .context("failed to write stderr output")?;
-        fs::write(&expected_stdout_file, &command_output.stdout)
-            .context("failed to write stdout output")?;
+        fs::write(
+            &expected_stderr_file,
+            TIMESTAMP_PATTERN
+                .replace_all(&command_output.stderr, "_TIMESTAMP_")
+                .as_ref(),
+        )
+        .context("failed to write stderr output")?;
+        fs::write(
+            &expected_stdout_file,
+            TIMESTAMP_PATTERN
+                .replace_all(&command_output.stdout, "_TIMESTAMP_")
+                .as_ref(),
+        )
+        .context("failed to write stdout output")?;
         fs::remove_dir_all(&expected_output_dir).unwrap_or_default();
         fs::write(
             &expected_exit_code_file,

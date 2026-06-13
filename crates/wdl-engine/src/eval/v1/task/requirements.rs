@@ -32,7 +32,6 @@ use crate::units::StorageUnit;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::task::DEFAULT_GPU_COUNT;
 use crate::v1::task::DEFAULT_TASK_REQUIREMENT_CPU;
-use crate::v1::task::DEFAULT_TASK_REQUIREMENT_MAX_RETRIES;
 use crate::v1::task::DEFAULT_TASK_REQUIREMENT_MEMORY;
 use crate::v1::task::find_key_value;
 use crate::v1::task::parse_storage_value;
@@ -536,12 +535,7 @@ pub(crate) fn max_retries(
             .map(|value| value as u64);
     }
 
-    Ok(config
-        .task
-        .retries
-        .inner()
-        .cloned()
-        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES))
+    Ok(config.task.retries.into())
 }
 
 #[cfg(test)]

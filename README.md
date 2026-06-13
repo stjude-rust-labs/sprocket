@@ -102,6 +102,20 @@ Sprocket is available as a Docker [image](https://github.com/stjude-rust-labs/sp
 docker pull ghcr.io/stjude-rust-labs/sprocket:v0.18.0
 ```
 
+### Nix Flake
+
+Sprocket ships a [Nix](https://nixos.org/download/) flake. With flakes
+enabled, you can build or run Sprocket directly from the repository:
+
+```bash
+# Build the binary (output at ./result/bin/sprocket)
+nix build github:stjude-rust-labs/sprocket#sprocket
+./result/bin/sprocket --help
+
+# Or run it without installing
+nix run github:stjude-rust-labs/sprocket -- --help
+```
+
 ## 🖥️ Development
 
 To bootstrap a development environment, please use the following commands.
@@ -117,6 +131,21 @@ cargo build --release
 # Run the `sprocket` command line tool
 cargo run --release
 ```
+
+### Nix development shell
+
+Alternatively, if you have Nix with flakes enabled, the repository ships
+a development shell that provides the Rust toolchain, `shellcheck`, and
+the cargo tooling used by CI (`cargo-nextest`, `cargo-llvm-cov`,
+`cargo-deny`, `cargo-sort`, `cargo-msrv`, `taplo`) along with the nix
+linters (`nixfmt`, `deadnix`, `statix`). Enter it with:
+
+```bash
+nix develop
+```
+
+[`direnv`](https://direnv.net/) users can `direnv allow` the bundled
+`.envrc` to auto-activate the shell on `cd`.
 
 ### Dependencies
 
