@@ -26,6 +26,7 @@ repository = "https://github.com/stjude-rust-labs/sprocket"
 dev = ["pytest~=9.0", "mypy~=2.1", "black~=26.5"]
 
 [tool.maturin]
+module-name = "sprocket_bio._sprocket_bio"
 manifest-path = "crates/sprocket-py/Cargo.toml"
 python-source = "python"
 
