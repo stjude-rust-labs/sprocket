@@ -8,6 +8,7 @@ use std::fmt::Formatter;
 
 use serde::Deserialize;
 use serde::Serialize;
+use toml_spanner::Toml;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Example;
 use wdl_analysis::LabeledSnippet;
@@ -318,8 +319,9 @@ task say_hello {
 ///
 /// See <https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html> for a description
 /// of each option.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Toml)]
 #[serde(rename_all = "lowercase")]
+#[toml(FromToml, ToToml, rename_all = "lowercase")]
 #[allow(missing_docs)]
 pub enum BashSetOption {
     AllExport,
