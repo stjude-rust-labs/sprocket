@@ -1,6 +1,17 @@
 import typing
 
 @typing.final
+class Severity:
+    ERROR: Severity
+    WARNING: Severity
+    NOTE: Severity
+
+    def __lt__(self, other: typing.Any, /) -> bool: ...
+    def __le__(self, other: typing.Any, /) -> bool: ...
+    def __gt__(self, other: typing.Any, /) -> bool: ...
+    def __ge__(self, other: typing.Any, /) -> bool: ...
+
+@typing.final
 class Span:
     start: int
     end: int
@@ -16,4 +27,4 @@ class Span:
     def __gt__(self, other: typing.Any, /) -> bool: ...
     def __ge__(self, other: typing.Any, /) -> bool: ...
 
-__all__ = ["Span"]
+__all__ = ["Severity", "Span"]

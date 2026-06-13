@@ -121,6 +121,17 @@ impl TryFrom<Span> for TextRange {
 
 /// Represents the severity of a diagnostic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(
+        module = "sprocket_bio.grammar",
+        frozen,
+        rename_all = "SCREAMING_SNAKE_CASE",
+        skip_from_py_object,
+        eq,
+        ord
+    )
+)]
 pub enum Severity {
     /// The diagnostic is displayed as an error.
     Error,

@@ -23,6 +23,8 @@ mod _sprocket_bio {
     #[pymodule]
     mod grammar {
         #[pymodule_export]
+        use wdl_grammar::Severity;
+        #[pymodule_export]
         use wdl_grammar::Span;
     }
 
