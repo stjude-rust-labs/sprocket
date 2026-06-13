@@ -1,6 +1,13 @@
 import typing
 
 @typing.final
+class Label:
+    message: str
+    span: Span
+
+    def __new__(cls, message: str, span: Span) -> Label: ...
+
+@typing.final
 class Severity:
     ERROR: Severity
     WARNING: Severity
@@ -27,4 +34,4 @@ class Span:
     def __gt__(self, other: typing.Any, /) -> bool: ...
     def __ge__(self, other: typing.Any, /) -> bool: ...
 
-__all__ = ["Severity", "Span"]
+__all__ = ["Label", "Severity", "Span"]

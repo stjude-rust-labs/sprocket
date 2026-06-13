@@ -1,6 +1,13 @@
-from sprocket_bio.grammar import Span
+from sprocket_bio.grammar import Label, Span
 
 import pytest
+
+
+def test_label_new():
+    label = Label("My message", Span(0, 10))
+
+    assert label.message == "My message"
+    assert label.span == Span(0, 10)
 
 
 def test_span_getters():

@@ -427,6 +427,17 @@ impl Diagnostic {
 
 /// Represents a label that annotates the source code.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(
+    feature = "python",
+    pyo3::pyclass(
+        module = "sprocket_bio.grammar",
+        frozen,
+        skip_from_py_object,
+        get_all,
+        eq,
+        hash
+    )
+)]
 pub struct Label {
     /// The optional message of the label (may be empty).
     message: String,
@@ -533,6 +544,15 @@ mod python {
         /// Returns a printable representation of this object.
         fn __repr__(&self) -> String {
             format!("Span({}..{})", self.start, self.end)
+        }
+    }
+
+    #[pymethods]
+    impl Label {
+        /// Creates a new label with the given message and span.
+        #[new]
+        fn __new__(message: &str, span: Bound<'_, Span>) -> Self {
+            Self::new(message, *span.get())
         }
     }
 }
