@@ -2,6 +2,7 @@
 
 use std::cmp::Ordering;
 use std::fmt;
+use std::str::FromStr;
 
 use rowan::TextRange;
 use rowan::TextSize;
@@ -120,9 +121,7 @@ impl TryFrom<Span> for TextRange {
 }
 
 /// Represents the severity of a diagnostic.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, serde::Deserialize, serde::Serialize,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub enum Severity {
     /// The diagnostic is displayed as an error.
     Error,
@@ -158,8 +157,31 @@ impl Severity {
     }
 }
 
+impl fmt::Display for Severity {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Error => write!(f, "error"),
+            Self::Warning => write!(f, "warning"),
+            Self::Note => write!(f, "note"),
+        }
+    }
+}
+
+impl FromStr for Severity {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "error" => Ok(Self::Error),
+            "warning" => Ok(Self::Warning),
+            "note" => Ok(Self::Note),
+            _ => Err(format!("invalid severity level `{s}`")),
+        }
+    }
+}
+
 /// Represents a diagnostic to display to the user.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Diagnostic {
     /// The optional rule associated with the diagnostic.
     rule: Option<String>,
@@ -389,7 +411,7 @@ impl Diagnostic {
 }
 
 /// Represents a label that annotates the source code.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Label {
     /// The optional message of the label (may be empty).
     message: String,

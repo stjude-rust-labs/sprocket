@@ -10,6 +10,9 @@
 //! [`GitNetworkPolicy`] instances, which allows stricter rules for code pulled
 //! in transitively (e.g., no SSH, no credentials).
 
+use std::num::TryFromIntError;
+
+use thiserror::Error;
 use url::Url;
 
 use crate::dependency::DependencyName;
@@ -18,6 +21,29 @@ use crate::resolver::config::LargeFileWarning;
 use crate::resolver::config::ModulesConfig;
 use crate::resolver::error::ResolverError;
 use crate::resolver::git::CredentialMode;
+
+/// An error parsing a [`DependencyName`].
+#[derive(Debug, Error, PartialEq, Eq)]
+pub enum ResolverPolicyError {
+    /// An invalid maximum advertise references value was encountered.
+    #[error("invalid maximum advertised references value")]
+    InvalidMaxAdvertisedRefs {
+        /// The value of the maximum advertised references.
+        value: u64,
+        /// The underlying error.
+        #[source]
+        source: TryFromIntError,
+    },
+    /// An invalid maximum materialized files value was encountered.
+    #[error("invalid maximum materialized files value")]
+    InvalidMaxMaterializedFiles {
+        /// The value of the maximum materialized files.
+        value: u64,
+        /// The underlying error.
+        #[source]
+        source: TryFromIntError,
+    },
+}
 
 /// Host access policy for a dependency scope.
 #[derive(Clone, Debug)]
@@ -83,12 +109,14 @@ pub struct ResolverPolicy {
 
 impl Default for ResolverPolicy {
     fn default() -> Self {
-        Self::from(&ModulesConfig::default())
+        Self::try_from(&ModulesConfig::default()).expect("default module configuration is invalid")
     }
 }
 
-impl From<&ModulesConfig> for ResolverPolicy {
-    fn from(config: &ModulesConfig) -> Self {
+impl TryFrom<&ModulesConfig> for ResolverPolicy {
+    type Error = ResolverPolicyError;
+
+    fn try_from(config: &ModulesConfig) -> Result<Self, Self::Error> {
         let top_host = if config.allowed_hosts.is_empty() {
             HostPolicy::Any
         } else {
@@ -99,23 +127,43 @@ impl From<&ModulesConfig> for ResolverPolicy {
         } else {
             HostPolicy::AllowList(config.allowed_transitive_hosts.clone())
         };
-        Self {
+
+        Ok(Self {
             top_level: GitNetworkPolicy {
                 allowed_schemes: config.allowed_schemes.clone(),
                 host_policy: top_host,
-                max_advertised_refs: config.max_advertised_refs,
+                max_advertised_refs: config.max_advertised_refs.try_into().map_err(|e| {
+                    ResolverPolicyError::InvalidMaxAdvertisedRefs {
+                        value: config.max_advertised_refs,
+                        source: e,
+                    }
+                })?,
             },
             transitive: GitNetworkPolicy {
                 allowed_schemes: config.allowed_transitive_schemes.clone(),
                 host_policy: transitive_host,
-                max_advertised_refs: config.max_advertised_refs,
+                max_advertised_refs: config.max_advertised_refs.try_into().map_err(|e| {
+                    ResolverPolicyError::InvalidMaxAdvertisedRefs {
+                        value: config.max_advertised_refs,
+                        source: e,
+                    }
+                })?,
             },
             denied_hosts: config.denied_hosts.clone(),
-            max_materialized_files: config.max_materialized_files,
+            max_materialized_files: config
+                .max_materialized_files
+                .map(|v| {
+                    v.try_into()
+                        .map_err(|e| ResolverPolicyError::InvalidMaxMaterializedFiles {
+                            value: v,
+                            source: e,
+                        })
+                })
+                .transpose()?,
             max_materialized_bytes: config.max_materialized_bytes,
             large_file_warning: config.large_file_warning,
             require_signed: config.require_signed,
-        }
+        })
     }
 }
 
@@ -265,14 +313,13 @@ fn validate_resolved_addresses(addrs: &[std::net::SocketAddr]) -> Result<(), Opt
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::dependency::DependencyName;
     use crate::resolver::config::ModulesConfig;
     use crate::resolver::error::ResolverError;
 
     #[test]
     fn blocks_file_scheme() {
-        let policy = ResolverPolicy::from(&ModulesConfig::default());
-        let dep = DependencyName::try_from("foo".to_string()).unwrap();
+        let policy = ResolverPolicy::default();
+        let dep = "foo".parse().unwrap();
         let url: url::Url = "file:///tmp/repo".parse().unwrap();
         let err = policy
             .check_git_url(&dep, &url, DependencyScope::TopLevel)
@@ -285,8 +332,8 @@ mod tests {
 
     #[test]
     fn allows_ssh_top_level_blocks_transitive() {
-        let policy = ResolverPolicy::from(&ModulesConfig::default());
-        let dep = DependencyName::try_from("foo".to_string()).unwrap();
+        let policy = ResolverPolicy::default();
+        let dep = "foo".parse().unwrap();
         let url: url::Url = "ssh://git@github.com/x/y".parse().unwrap();
         policy
             .check_git_url(&dep, &url, DependencyScope::TopLevel)
@@ -299,8 +346,8 @@ mod tests {
 
     #[test]
     fn allows_https_by_default() {
-        let policy = ResolverPolicy::from(&ModulesConfig::default());
-        let dep = DependencyName::try_from("foo".to_string()).unwrap();
+        let policy = ResolverPolicy::default();
+        let dep = "foo".parse().unwrap();
         let url: url::Url = "https://github.com/x/y".parse().unwrap();
         policy
             .check_git_url(&dep, &url, DependencyScope::TopLevel)
@@ -312,7 +359,7 @@ mod tests {
 
     #[test]
     fn transitive_credentials_require_host_allowlist() {
-        let default_policy = ResolverPolicy::from(&ModulesConfig::default());
+        let default_policy = ResolverPolicy::default();
         assert_eq!(
             default_policy.credential_mode(DependencyScope::Transitive, Some("github.com")),
             CredentialMode::Enabled
@@ -326,10 +373,11 @@ mod tests {
             CredentialMode::Enabled
         );
 
-        let open = ResolverPolicy::from(&ModulesConfig {
+        let open = ResolverPolicy::try_from(&ModulesConfig {
             allowed_transitive_hosts: Vec::new(),
             ..ModulesConfig::default()
-        });
+        })
+        .unwrap();
         assert_eq!(
             open.credential_mode(DependencyScope::Transitive, Some("github.com")),
             CredentialMode::Disabled
@@ -357,8 +405,8 @@ mod tests {
 
     #[test]
     fn dns_failure_rejects_url() {
-        let policy = ResolverPolicy::from(&ModulesConfig::default());
-        let dep = DependencyName::try_from("foo".to_string()).unwrap();
+        let policy = ResolverPolicy::default();
+        let dep = "foo".parse().unwrap();
         let url: url::Url = "https://this-host-does-not-exist-xyzzy.invalid/x/y"
             .parse()
             .unwrap();

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Nix flake providing `packages.sprocket`, a development shell with the
+  full toolchain, `nix flake check` entries (package build, binary smoke
+  test, and `nixfmt`/`statix`/`deadnix` lints), and a `nix fmt`
+  formatter ([#887](https://github.com/stjude-rust-labs/sprocket/issues/887)).
+* Added printing diagnostics with TOML source context when TOML fails to parse 
+  or be deserialized ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 * New `test.throttle` configuration entry for adding a delay between initial test submissions ([#798](https://github.com/stjude-rust-labs/sprocket/pull/798)).
 * Added `--show-task-stderr` option to the `run` subcommand to show task stderr during execution ([#743](https://github.com/stjude-rust-labs/sprocket/pull/743)).
 * Added `--fixtures-dir` and `--run-dir` options to the `sprocket dev test`
@@ -16,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   
 ### Changed
 
+* Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 * `sprocket dev server` will now copy paths specified with `--allowed-file-paths` to the list of `--allowed-urls` with a `file://` prefix ([#914](https://github.com/stjude-rust-labs/sprocket/pull/914))
 
 ### Fixed

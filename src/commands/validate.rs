@@ -162,7 +162,7 @@ pub async fn validate(args: Args, config: Config, colorize: bool) -> CommandResu
 
     let document = analyze_source(
         &args.source,
-        config.common.wdl.fallback_version.inner().cloned(),
+        config.common.wdl.fallback_version.into(),
         report_mode,
         colorize,
     )

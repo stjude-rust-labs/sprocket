@@ -152,12 +152,9 @@ pub fn task_member_type_pre_evaluation(name: &str) -> Option<Type> {
 /// Gets the type of a `task` variable member for post-evaluation contexts.
 ///
 /// This is used in command and output sections. Not all `task` fields are
-/// immediately available, however. The *validity* of the access is enforced
-/// separately during validation by the [`ScopedExprVisitor`].
+/// immediately available, however.
 ///
 /// Returns [`None`] if the given member name is unknown.
-///
-/// [`ScopedExprVisitor`]: crate::validation::exprs::ScopedExprVisitor
 pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -> Option<Type> {
     match name {
         TASK_FIELD_NAME | TASK_FIELD_ID => Some(PrimitiveType::String.into()),
@@ -513,7 +510,7 @@ where
             definition
                 .members()
                 .map(|d| Ok((d.name().text().to_string(), self.convert_type(&d.ty())?)))
-                .collect::<Result<Vec<_>, _>>()?,
+                .collect::<Result<Vec<_>, Diagnostic>>()?,
         ))
     }
 }

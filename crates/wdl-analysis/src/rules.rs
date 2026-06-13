@@ -2,7 +2,6 @@
 
 use std::sync::LazyLock;
 
-use serde::Serialize;
 use wdl_ast::Severity;
 use wdl_grammar::SyntaxKind;
 
@@ -14,22 +13,20 @@ pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
 });
 
 /// A labeled WDL code snippet.
-#[derive(Copy, Clone, Debug, Serialize)]
+#[derive(Copy, Clone, Debug)]
 pub struct LabeledSnippet {
     /// A label for the snippet.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub label: Option<&'static str>,
     /// A WDL code snippet.
     pub snippet: &'static str,
 }
 
 /// A lint rule example.
-#[derive(Copy, Clone, Debug, Serialize)]
+#[derive(Copy, Clone, Debug)]
 pub struct Example {
     /// A snippet that will trigger the target lint rule.
     pub negative: LabeledSnippet,
     /// A revision of the negative snippet that will no longer trigger the rule.
-    #[serde(skip_serializing_if = "Option::is_none")]
     pub revised: Option<LabeledSnippet>,
 }
 

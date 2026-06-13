@@ -219,7 +219,7 @@ mod tests {
     use crate::signing::test_utils::signing_key_from_seed;
 
     fn test_dep() -> DependencyName {
-        DependencyName::try_from("foo".to_string()).unwrap()
+        "foo".parse().unwrap()
     }
 
     fn test_source() -> ResolvedSource {
@@ -283,7 +283,7 @@ mod tests {
             require_signed: true,
             ..Default::default()
         };
-        let policy = ResolverPolicy::from(&config);
+        let policy = ResolverPolicy::try_from(&config).unwrap();
         let trust = TrustStore::default();
         let err = verify(&policy, &trust, &test_dep(), dir.path(), None).unwrap_err();
         assert!(
@@ -414,7 +414,7 @@ mod tests {
             max_materialized_files: Some(2),
             ..Default::default()
         };
-        let policy = ResolverPolicy::from(&config);
+        let policy = ResolverPolicy::try_from(&config).unwrap();
         let trust = TrustStore::default();
         let err = verify(&policy, &trust, &test_dep(), dir.path(), None).unwrap_err();
         assert!(
@@ -431,7 +431,7 @@ mod tests {
             max_materialized_bytes: Some(100),
             ..Default::default()
         };
-        let policy = ResolverPolicy::from(&config);
+        let policy = ResolverPolicy::try_from(&config).unwrap();
         let trust = TrustStore::default();
         let err = verify(&policy, &trust, &test_dep(), dir.path(), None).unwrap_err();
         assert!(

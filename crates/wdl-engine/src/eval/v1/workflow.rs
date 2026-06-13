@@ -1839,9 +1839,9 @@ mod test {
     use super::*;
     use crate::CancellationContext;
     use crate::Events;
-    use crate::config::BackendConfig;
     use crate::config::Config;
     use crate::config::FailureMode;
+    use crate::config::LocalBackendConfig;
 
     #[tokio::test]
     async fn it_writes_input_and_output_files() {
@@ -1912,11 +1912,7 @@ workflow test {
         assert_eq!(results.len(), 1, "expected only one result");
 
         let config = Config {
-            backends: [(
-                "default".to_string(),
-                BackendConfig::Local(Default::default()),
-            )]
-            .into(),
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
             ..Default::default()
         };
         let evaluator = Evaluator::new(
@@ -2069,11 +2065,7 @@ workflow foo {
         assert_eq!(results.len(), 1, "expected only one result");
 
         let config = Config {
-            backends: [(
-                "default".to_string(),
-                BackendConfig::Local(Default::default()),
-            )]
-            .into(),
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
             experimental_features_enabled: true,
             ..Default::default()
         };
@@ -2289,11 +2281,7 @@ workflow w {
 
         // Use a progress callback that simply increments the appropriate counter
         let config = Config {
-            backends: [(
-                "default".to_string(),
-                BackendConfig::Local(Default::default()),
-            )]
-            .into(),
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
             ..Default::default()
         };
         let state = Arc::<State>::default();
@@ -2394,11 +2382,7 @@ workflow w {
         assert_eq!(results.len(), 1, "expected only one result");
 
         let config = Config {
-            backends: [(
-                "default".to_string(),
-                BackendConfig::Local(Default::default()),
-            )]
-            .into(),
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
             ..Default::default()
         };
         let cancellation = CancellationContext::new(FailureMode::Slow);

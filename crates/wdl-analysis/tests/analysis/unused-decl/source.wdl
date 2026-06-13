@@ -31,6 +31,13 @@ task foo {
     }
 }
 
+# https://github.com/stjude-rust-labs/sprocket/issues/848
+task no_command {
+    input {
+        Int number
+    }
+}
+
 workflow test {
     input {
         # Unused input
