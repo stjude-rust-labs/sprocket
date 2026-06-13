@@ -6,6 +6,7 @@ mod validators;
 mod workflow;
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
@@ -108,9 +109,13 @@ impl Evaluator {
                     config.task.digests,
                     transferer.clone(),
                     Arc::new(CallCacheExclusions {
-                        inputs: config.task.excluded_cache_inputs.clone(),
-                        requirements: config.task.excluded_cache_requirements.clone(),
-                        hints: config.task.excluded_cache_hints.clone(),
+                        inputs: HashSet::from_iter(
+                            config.task.excluded_cache_inputs.iter().cloned(),
+                        ),
+                        requirements: HashSet::from_iter(
+                            config.task.excluded_cache_requirements.iter().cloned(),
+                        ),
+                        hints: HashSet::from_iter(config.task.excluded_cache_hints.iter().cloned()),
                     }),
                 )
                 .await?,

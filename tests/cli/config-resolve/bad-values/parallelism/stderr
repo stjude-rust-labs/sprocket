@@ -1,4 +1,6 @@
-error: parsing `bad.toml`
+error: failed to deserialize configuration file `bad.toml`
+  ┌─ bad.toml:2:15
+  │
+2 │ parallelism = 0
+  │               ^ expected a positive integer or `available` for parallelism
 
-Caused by:
-    expected a positive number, got `0` for key `run`

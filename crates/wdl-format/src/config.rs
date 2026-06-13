@@ -7,8 +7,9 @@ mod newline;
 pub use indent::Indent;
 pub use max_line_length::MaxLineLength;
 pub use newline::NewlineStyle;
-use serde::Deserialize;
-use serde::Serialize;
+use toml_spanner::Toml;
+use toml_spanner::helper::display;
+use toml_spanner::helper::parse_string;
 
 /// Default for whether import sorting is enabled.
 const SORT_IMPORTS_DEFAULT: bool = true;
@@ -18,20 +19,26 @@ const SORT_INPUTS_DEFAULT: bool = false;
 const TRAILING_COMMAS_DEFAULT: bool = true;
 
 /// Configuration for formatting.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Toml)]
+#[toml(Toml, deny_unknown_fields)]
 pub struct Config {
     /// The indentation configuration.
+    #[toml(default)]
     pub indent: Indent,
     /// The maximum line length.
+    #[toml(default)]
     pub max_line_length: MaxLineLength,
     /// Whether to sort import statements alphabetically.
+    #[toml(default = SORT_IMPORTS_DEFAULT)]
     pub sort_imports: bool,
     /// Whether to sort input sections.
+    #[toml(default = SORT_INPUTS_DEFAULT)]
     pub sort_inputs: bool,
     /// Whether to add trailing commas to multiline lists.
+    #[toml(default = TRAILING_COMMAS_DEFAULT)]
     pub trailing_commas: bool,
     /// The newline style.
+    #[toml(default, FromToml with = parse_string, ToToml with = display)]
     pub newline_style: NewlineStyle,
 }
 

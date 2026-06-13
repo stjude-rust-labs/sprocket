@@ -775,8 +775,13 @@ fn resolve_test_paths(
 /// Performs the `test` command.
 pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
     let source = args.source.unwrap_or_default();
-    let parallelism = args.parallelism.unwrap_or(config.test.parallelism);
-    let throttle = config.test.throttle;
+    let parallelism = args.parallelism.unwrap_or(
+        config
+            .test
+            .parallelism
+            .try_into()
+            .context("invalid test parallelism")?,
+    );
     let (source, workspace) = match (&source, args.workspace) {
         (Source::Url(_), _) => {
             return Err(anyhow!("the `test` subcommand does not accept remote sources").into());
@@ -800,7 +805,7 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
 
     let analysis_results = Analysis::default()
         .add_source(source.clone())
-        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
+        .fallback_version(config.common.wdl.fallback_version.into())
         .run()
         .await
         .map_err(CommandError::from)?;
@@ -882,7 +887,7 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
         fixtures: fixture_origins.into(),
         engine_config: config.run.engine.into(),
         permits: parallelism,
-        throttle,
+        throttle: config.test.throttle,
         cancellation: cancellation.clone(),
     };
 
