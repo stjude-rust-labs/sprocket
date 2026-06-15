@@ -40,6 +40,7 @@ pub use crate::system::v1::db::TaskStatus;
         get_session,
         list_tasks,
         list_run_tasks,
+        get_run_task_counts,
         get_task,
         get_task_logs,
     ),
@@ -60,6 +61,7 @@ pub use crate::system::v1::db::TaskStatus;
         RunOutputsResponse,
         RunResponse,
         RunStatus,
+        RunTaskCountsResponse,
         Session,
         SessionResponse,
         SprocketCommand,
@@ -85,6 +87,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/runs/{id}/cancel", post(cancel_run))
         .route("/runs/{id}/outputs", get(get_run_outputs))
         .route("/runs/{id}/tasks", get(list_run_tasks))
+        .route("/runs/{id}/tasks/counts", get(get_run_task_counts))
         .route("/sessions", get(list_sessions))
         .route("/sessions/{id}", get(get_session))
         .route("/tasks", get(list_tasks))

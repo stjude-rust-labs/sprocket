@@ -120,6 +120,55 @@ pub struct ListTasksResponse {
     pub next_token: Option<String>,
 }
 
+/// The response for a run's per-status task counts.
+///
+/// Every status is always present; statuses with no tasks report `0`.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct RunTaskCountsResponse {
+    /// Number of tasks that have been created but not yet started.
+    pub pending: i64,
+    /// Number of tasks that are currently executing.
+    pub running: i64,
+    /// Number of tasks that completed successfully.
+    pub completed: i64,
+    /// Number of tasks that failed.
+    pub failed: i64,
+    /// Number of tasks that were canceled.
+    pub canceled: i64,
+    /// Number of tasks that were preempted.
+    pub preempted: i64,
+    /// Total number of tasks across all statuses.
+    pub total: i64,
+}
+
+impl From<commands::RunTaskCountsResponse> for RunTaskCountsResponse {
+    fn from(response: commands::RunTaskCountsResponse) -> Self {
+        let mut counts = Self {
+            pending: 0,
+            running: 0,
+            completed: 0,
+            failed: 0,
+            canceled: 0,
+            preempted: 0,
+            total: 0,
+        };
+
+        for (status, count) in response.counts {
+            match status {
+                TaskStatus::Pending => counts.pending = count,
+                TaskStatus::Running => counts.running = count,
+                TaskStatus::Completed => counts.completed = count,
+                TaskStatus::Failed => counts.failed = count,
+                TaskStatus::Canceled => counts.canceled = count,
+                TaskStatus::Preempted => counts.preempted = count,
+            }
+            counts.total += count;
+        }
+
+        counts
+    }
+}
+
 /// The response for a "get task" query.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct GetTaskResponse {
@@ -282,6 +331,33 @@ pub async fn list_run_tasks(
         total: response.total,
         next_token,
     }))
+}
+
+/// Get the per-status task counts for a specific run.
+///
+/// Every status is always present in the response; statuses with no tasks
+/// report `0`. Unknown runs report all-zero counts (no error).
+#[utoipa::path(
+    get,
+    path = "/api/v1/runs/{id}/tasks/counts",
+    params(
+        ("id" = String, Path, description = "Run ID")
+    ),
+    responses(
+        (status = 200, description = "Task counts retrieved", body = RunTaskCountsResponse),
+    ),
+    tag = "tasks"
+)]
+pub async fn get_run_task_counts(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<RunTaskCountsResponse>, Error> {
+    let response = send_command(&state.run_manager_tx, |rx| {
+        RunManagerCmd::CountRunTasksByStatus { run_id: id, rx }
+    })
+    .await?;
+
+    Ok(Json(response.into()))
 }
 
 /// Get a specific task by name.

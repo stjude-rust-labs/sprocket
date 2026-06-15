@@ -207,6 +207,11 @@ impl RunManagerSvc {
                     let result = list_tasks(&self.db, run_id, status, limit, offset).await;
                     let _ = rx.send(result);
                 }
+                RunManagerCmd::CountRunTasksByStatus { run_id, rx } => {
+                    trace!(?run_id, "received `CountRunTasksByStatus` command");
+                    let result = count_run_tasks_by_status(&self.db, run_id).await;
+                    let _ = rx.send(result);
+                }
                 RunManagerCmd::GetTask { name, rx } => {
                     trace!(?name, "received `GetTask` command");
                     let result = get_task(&self.db, name).await;
@@ -529,6 +534,15 @@ async fn list_tasks(
     let tasks = db.list_tasks(run_id, status, limit, offset).await?;
     let total = db.count_tasks(run_id, status).await?;
     Ok(ListTasksResponse { tasks, total })
+}
+
+/// Counts a run's tasks grouped by status.
+async fn count_run_tasks_by_status(
+    db: &Arc<dyn Database>,
+    run_id: Uuid,
+) -> Result<RunTaskCountsResponse, DatabaseError> {
+    let counts = db.count_tasks_by_status(run_id).await?;
+    Ok(RunTaskCountsResponse { counts })
 }
 
 /// Gets a task with a given name.
