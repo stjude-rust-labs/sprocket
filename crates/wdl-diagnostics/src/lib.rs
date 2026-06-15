@@ -244,8 +244,9 @@ pub fn emit_diagnostics_with_backtrace<'a>(
     Ok(())
 }
 
+/// Python-specific APIs.
 #[cfg(feature = "python")]
-mod python {
+pub mod python {
     use pyo3::prelude::*;
 
     use super::*;
@@ -258,5 +259,24 @@ mod python {
         fn py_default() -> Self {
             <Self as Default>::default()
         }
+    }
+
+    /// Emits the given diagnostics to the terminal.
+    #[pyfunction(name = "emit_diagnostics")]
+    pub fn py_emit_diagnostics(
+        path: &str,
+        source: &str,
+        diagnostics: Vec<Bound<'_, Diagnostic>>,
+        report_mode: Bound<'_, Mode>,
+        colorize: bool,
+    ) -> PyResult<()> {
+        emit_diagnostics(
+            path,
+            source,
+            diagnostics.iter().map(|d| d.get()),
+            *report_mode.get(),
+            colorize,
+        )
+        .map_err(PyErr::from)
     }
 }

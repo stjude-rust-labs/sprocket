@@ -18,6 +18,8 @@ mod _sprocket_bio {
     mod diagnostics {
         #[pymodule_export]
         use wdl_diagnostics::Mode;
+        #[pymodule_export]
+        use wdl_diagnostics::python::py_emit_diagnostics;
     }
 
     #[pymodule]
