@@ -503,17 +503,17 @@ fn add_wildcard_import(
 
     let span = import.source().span();
 
-    for (name, s) in &imported.data.structs {
-        if let Some(prev) = document.structs.get(name) {
-            let a = StructDefinition::cast(SyntaxNode::new_root(prev.node.clone()))
+    for (name, imported_struct) in &imported.data.structs {
+        if let Some(local_struct) = document.structs.get(name) {
+            let a = StructDefinition::cast(SyntaxNode::new_root(local_struct.node.clone()))
                 .expect("node should cast");
-            let b = StructDefinition::cast(SyntaxNode::new_root(s.node.clone()))
+            let b = StructDefinition::cast(SyntaxNode::new_root(imported_struct.node.clone()))
                 .expect("node should cast");
             if !are_structs_equal(&a, &b) {
                 document.analysis_diagnostics.push(wildcard_import_conflict(
                     name,
                     span,
-                    prev.name_span,
+                    local_struct.name_span,
                 ));
                 continue;
             }
@@ -523,24 +523,24 @@ fn add_wildcard_import(
                 Struct {
                     name_span: span,
                     name: name.clone(),
-                    offset: s.offset,
-                    node: s.node.clone(),
+                    offset: imported_struct.offset,
+                    node: imported_struct.node.clone(),
                     source: Some(uri.clone()),
-                    ty: s.ty.clone(),
+                    ty: imported_struct.ty.clone(),
                 },
             );
         }
     }
 
-    for (name, e) in &imported.data.enums {
-        if let Some(prev) = document.enums.get(name) {
-            let a = prev.definition();
-            let b = e.definition();
+    for (name, imported_enum) in &imported.data.enums {
+        if let Some(local_enum) = document.enums.get(name) {
+            let a = local_enum.definition();
+            let b = imported_enum.definition();
             if !are_enums_equal(&a, &b) {
                 document.analysis_diagnostics.push(wildcard_import_conflict(
                     name,
                     span,
-                    prev.name_span,
+                    local_enum.name_span,
                 ));
                 continue;
             }
@@ -550,10 +550,10 @@ fn add_wildcard_import(
                 Enum {
                     name_span: span,
                     name: name.clone(),
-                    offset: e.offset,
-                    node: e.node.clone(),
+                    offset: imported_enum.offset,
+                    node: imported_enum.node.clone(),
                     source: Some(uri.clone()),
-                    ty: e.ty.clone(),
+                    ty: imported_enum.ty.clone(),
                 },
             );
         }
@@ -2187,6 +2187,15 @@ fn resolve_call_type(
 }
 
 /// Resolves an import to its document.
+///
+/// On success, returns the resolved URI of the imported document along with
+/// the [`Document`] itself.
+///
+/// On failure, returns an [`Option<Diagnostic>`]: `Some(diagnostic)` carries a
+/// diagnostic the caller should push (e.g. an unresolvable symbolic import, an
+/// import cycle, a load or analysis failure, or an incompatible WDL version),
+/// while `None` means the import is malformed in a way that is already
+/// diagnosed elsewhere and should be silently ignored here.
 fn resolve_import(
     graph: &DocumentGraph,
     stmt: &ImportStatement,
@@ -2197,6 +2206,8 @@ fn resolve_import(
             let span = uri.span();
             let text = match uri.text() {
                 Some(text) => text,
+                // The import URI isn't valid; this is caught at validation time, so we do not
+                // emit any additional diagnostics for it here.
                 None => return Err(None),
             };
             let label = text.text().to_string();
@@ -2235,7 +2246,7 @@ fn resolve_import(
             }
         }
     };
-    let importer_node = graph.get(importer_index);
+
     let imported_node = graph.get(imported_index);
 
     // Check for an import cycle to report
