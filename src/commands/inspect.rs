@@ -8,10 +8,12 @@ use colored::Colorize as _;
 use crate::commands::CommandResult;
 use crate::commands::client::SprocketClientConnectionArgs;
 use crate::commands::client::check_response;
+use crate::commands::client::fetch_task_counts;
 use crate::commands::client::resolve_run_id;
 use crate::config::Config;
 use crate::server::RunResponse;
 use crate::server::RunStatus;
+use crate::server::RunTaskCountsResponse;
 
 /// Arguments for the `inspect` subcommand.
 #[derive(Parser, Debug)]
@@ -44,6 +46,45 @@ pub fn status_color(status: &RunStatus) -> Color {
     }
 }
 
+/// Builds a one-line summary of a run's per-status task counts.
+///
+/// Returns `None` when the run has no tasks, so callers can omit the line
+/// entirely. Otherwise returns a string like `12 total: 3 running, 8 completed,
+/// 1 failed`, listing only the statuses with a non-zero count. When `colorize`
+/// is set, each status word is colored to match its meaning.
+pub fn task_counts_summary(counts: &RunTaskCountsResponse, colorize: bool) -> Option<String> {
+    if counts.total == 0 {
+        return None;
+    }
+
+    // Fixed display order with a color per status. Labels mirror the
+    // `TaskStatus` `Display` output.
+    let entries = [
+        ("pending", counts.pending, Color::White),
+        ("running", counts.running, Color::Cyan),
+        ("completed", counts.completed, Color::Green),
+        ("failed", counts.failed, Color::Red),
+        ("canceled", counts.canceled, Color::Yellow),
+        ("preempted", counts.preempted, Color::Yellow),
+    ];
+
+    let parts = entries
+        .iter()
+        .filter(|(_, count, _)| *count > 0)
+        .map(|(label, count, color)| {
+            let label = if colorize {
+                label.color(*color).to_string()
+            } else {
+                (*label).to_string()
+            };
+            format!("{count} {label}")
+        })
+        .collect::<Vec<_>>()
+        .join(", ");
+
+    Some(format!("{} total: {}", counts.total, parts))
+}
+
 /// Handles the `inspect` subcommand.
 ///
 /// Fetches and displays detailed information about a single run.
@@ -60,11 +101,19 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
 
     let resp = check_response(resp).await?;
 
+    let counts = fetch_task_counts(&base_url, uuid).await?;
+
     if args.json {
-        let raw: serde_json::Value = resp
+        let mut raw: serde_json::Value = resp
             .json()
             .await
             .context("failed to deserialize run response")?;
+        if let serde_json::Value::Object(map) = &mut raw {
+            map.insert(
+                "task_counts".to_string(),
+                serde_json::to_value(&counts).context("failed to serialize task counts")?,
+            );
+        }
         println!(
             "{}",
             serde_json::to_string_pretty(&raw).context("failed to pretty-print response")?
@@ -101,6 +150,10 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
     field!("Name:", run.name);
     field!("UUID:", run.uuid);
     field!("Status:", status_display);
+
+    if let Some(summary) = task_counts_summary(&counts, colorize) {
+        field!("Tasks:", summary);
+    }
 
     if let Some(target) = &run.target {
         field!("Target:", target);
@@ -140,4 +193,53 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Builds a [`RunTaskCountsResponse`] from per-status counts, deriving the
+    /// total automatically.
+    fn counts(
+        pending: i64,
+        running: i64,
+        completed: i64,
+        failed: i64,
+        canceled: i64,
+        preempted: i64,
+    ) -> RunTaskCountsResponse {
+        RunTaskCountsResponse {
+            pending,
+            running,
+            completed,
+            failed,
+            canceled,
+            preempted,
+            total: pending + running + completed + failed + canceled + preempted,
+        }
+    }
+
+    #[test]
+    fn summary_is_none_when_no_tasks() {
+        assert_eq!(task_counts_summary(&counts(0, 0, 0, 0, 0, 0), false), None);
+    }
+
+    #[test]
+    fn summary_lists_only_non_zero_statuses_in_order() {
+        let summary = task_counts_summary(&counts(0, 3, 8, 1, 0, 0), false);
+        assert_eq!(
+            summary.as_deref(),
+            Some("12 total: 3 running, 8 completed, 1 failed")
+        );
+    }
+
+    #[test]
+    fn summary_includes_every_status_when_all_present() {
+        let summary = task_counts_summary(&counts(1, 2, 3, 4, 5, 6), false);
+        assert_eq!(
+            summary.as_deref(),
+            Some("21 total: 1 pending, 2 running, 3 completed, 4 failed, 5 canceled, 6 preempted")
+        );
+    }
 }

@@ -10,6 +10,7 @@ use crate::commands::CommandResult;
 use crate::config::Config;
 use crate::server::ErrorResponse;
 use crate::server::ListRunsResponse;
+use crate::server::RunTaskCountsResponse;
 
 /// CLI arguments for connecting to a Sprocket server instance.
 #[derive(ClapArgs, Debug)]
@@ -50,6 +51,31 @@ pub async fn check_response(resp: reqwest::Response) -> CommandResult<reqwest::R
         .unwrap_or_else(|_| format!("HTTP {status}: {body}"));
 
     Err(CommandError::Single(anyhow::anyhow!(msg)))
+}
+
+/// Fetches the per-status task counts for a run.
+///
+/// Queries `GET /api/v1/runs/{uuid}/tasks/counts`. The endpoint reports
+/// all-zero counts (rather than an error) for unknown runs.
+pub async fn fetch_task_counts(
+    base_url: &str,
+    uuid: Uuid,
+) -> CommandResult<RunTaskCountsResponse> {
+    let url = format!("{base_url}/api/v1/runs/{uuid}/tasks/counts");
+    let resp = reqwest::Client::new()
+        .get(&url)
+        .send()
+        .await
+        .context("failed to connect to Sprocket server")?;
+
+    let resp = check_response(resp).await?;
+
+    let counts = resp
+        .json()
+        .await
+        .context("failed to deserialize task counts response")?;
+
+    Ok(counts)
 }
 
 /// Resolves a run identifier (either a UUID or a human-readable generated name)

@@ -27,6 +27,7 @@ pub(crate) use api::v1::runs::CancelRunResponse;
 pub(crate) use api::v1::runs::ListRunsResponse;
 pub(crate) use api::v1::runs::RunResponse;
 pub(crate) use api::v1::runs::SubmitRunRequest;
+pub(crate) use api::v1::tasks::RunTaskCountsResponse;
 
 /// The default channel buffer size.
 ///

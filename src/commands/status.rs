@@ -8,8 +8,10 @@ use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::commands::client::SprocketClientConnectionArgs;
 use crate::commands::client::check_response;
+use crate::commands::client::fetch_task_counts;
 use crate::commands::client::resolve_run_id;
 use crate::commands::inspect::status_color;
+use crate::commands::inspect::task_counts_summary;
 use crate::config::Config;
 use crate::server::ListRunsResponse;
 use crate::server::RunResponse;
@@ -89,11 +91,19 @@ async fn status_single(
 
     let resp = check_response(resp).await?;
 
+    let counts = fetch_task_counts(base_url, uuid).await?;
+
     if json {
-        let raw: serde_json::Value = resp
+        let mut raw: serde_json::Value = resp
             .json()
             .await
             .context("failed to deserialize run response")?;
+        if let serde_json::Value::Object(map) = &mut raw {
+            map.insert(
+                "task_counts".to_string(),
+                serde_json::to_value(&counts).context("failed to serialize task counts")?,
+            );
+        }
         println!(
             "{}",
             serde_json::to_string_pretty(&raw).context("failed to pretty-print response")?
@@ -141,6 +151,10 @@ async fn status_single(
 
     if let Some(target) = &run.target {
         println!("{:>14}  {target}", "Target:");
+    }
+
+    if let Some(summary) = task_counts_summary(&counts, colorize) {
+        println!("{:>14}  {summary}", "Tasks:");
     }
 
     Ok(())
