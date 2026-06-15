@@ -139,9 +139,7 @@ const TASK_DURATION_WIDTH: usize = 14;
 pub fn task_detail_line(task: &Task, colorize: bool) -> String {
     let status_str = task.status.to_string();
     let status_display = if colorize {
-        status_str
-            .color(task_status_color(task.status))
-            .to_string()
+        status_str.color(task_status_color(task.status)).to_string()
     } else {
         status_str.clone()
     };
@@ -409,7 +407,14 @@ mod tests {
     #[test]
     fn detail_line_completed_shows_duration_and_no_exit() {
         let line = task_detail_line(
-            &task("align_reads", TaskStatus::Completed, Some(0), None, Some(1000), Some(1042)),
+            &task(
+                "align_reads",
+                TaskStatus::Completed,
+                Some(0),
+                None,
+                Some(1000),
+                Some(1042),
+            ),
             false,
         );
         assert!(line.contains("align_reads"));
@@ -443,7 +448,14 @@ mod tests {
     #[test]
     fn detail_line_failed_without_error_shows_exit_code() {
         let line = task_detail_line(
-            &task("annotate", TaskStatus::Failed, Some(127), None, Some(1000), Some(1001)),
+            &task(
+                "annotate",
+                TaskStatus::Failed,
+                Some(127),
+                None,
+                Some(1000),
+                Some(1001),
+            ),
             false,
         );
         assert!(line.contains("failed"));

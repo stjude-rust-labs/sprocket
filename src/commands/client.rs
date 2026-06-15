@@ -59,10 +59,7 @@ pub async fn check_response(resp: reqwest::Response) -> CommandResult<reqwest::R
 ///
 /// Queries `GET /api/v1/runs/{uuid}/tasks/counts`. The endpoint reports
 /// all-zero counts (rather than an error) for unknown runs.
-pub async fn fetch_task_counts(
-    base_url: &str,
-    uuid: Uuid,
-) -> CommandResult<RunTaskCountsResponse> {
+pub async fn fetch_task_counts(base_url: &str, uuid: Uuid) -> CommandResult<RunTaskCountsResponse> {
     let url = format!("{base_url}/api/v1/runs/{uuid}/tasks/counts");
     let resp = reqwest::Client::new()
         .get(&url)
