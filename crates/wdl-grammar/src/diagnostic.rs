@@ -498,6 +498,7 @@ impl Label {
     }
 }
 
+/// Python-specific APIs.
 #[cfg(feature = "python")]
 mod python {
     use pyo3::prelude::*;
