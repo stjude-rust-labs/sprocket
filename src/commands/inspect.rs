@@ -1,6 +1,8 @@
 //! Implementation of the `inspect` subcommand.
 
 use anyhow::Context;
+use chrono::DateTime;
+use chrono::Utc;
 use clap::Parser;
 use colored::Color;
 use colored::Colorize as _;
@@ -8,12 +10,15 @@ use colored::Colorize as _;
 use crate::commands::CommandResult;
 use crate::commands::client::SprocketClientConnectionArgs;
 use crate::commands::client::check_response;
+use crate::commands::client::fetch_run_tasks;
 use crate::commands::client::fetch_task_counts;
 use crate::commands::client::resolve_run_id;
 use crate::config::Config;
 use crate::server::RunResponse;
 use crate::server::RunStatus;
 use crate::server::RunTaskCountsResponse;
+use crate::server::Task;
+use crate::server::TaskStatus;
 
 /// Arguments for the `inspect` subcommand.
 #[derive(Parser, Debug)]
@@ -29,6 +34,13 @@ pub struct Args {
     /// Output the raw JSON response instead of the formatted summary.
     #[clap(long)]
     json: bool,
+
+    /// Include a per-task breakdown for the run.
+    ///
+    /// Lists every task with its status, duration, and any error. In `--json`
+    /// mode, embeds the full task list under a `tasks` key.
+    #[clap(long)]
+    detailed: bool,
 
     #[command(flatten)]
     client_args: SprocketClientConnectionArgs,
@@ -46,6 +58,18 @@ pub fn status_color(status: &RunStatus) -> Color {
     }
 }
 
+/// Returns the color to use when displaying a task status.
+pub fn task_status_color(status: TaskStatus) -> Color {
+    match status {
+        TaskStatus::Pending => Color::White,
+        TaskStatus::Running => Color::Cyan,
+        TaskStatus::Completed => Color::Green,
+        TaskStatus::Failed => Color::Red,
+        TaskStatus::Canceled => Color::Yellow,
+        TaskStatus::Preempted => Color::Yellow,
+    }
+}
+
 /// Builds a one-line summary of a run's per-status task counts.
 ///
 /// Returns `None` when the run has no tasks, so callers can omit the line
@@ -57,23 +81,23 @@ pub fn task_counts_summary(counts: &RunTaskCountsResponse, colorize: bool) -> Op
         return None;
     }
 
-    // Fixed display order with a color per status. Labels mirror the
-    // `TaskStatus` `Display` output.
+    // Fixed display order. Labels mirror the `TaskStatus` `Display` output and
+    // colors come from `task_status_color`, the single source of truth.
     let entries = [
-        ("pending", counts.pending, Color::White),
-        ("running", counts.running, Color::Cyan),
-        ("completed", counts.completed, Color::Green),
-        ("failed", counts.failed, Color::Red),
-        ("canceled", counts.canceled, Color::Yellow),
-        ("preempted", counts.preempted, Color::Yellow),
+        ("pending", counts.pending, TaskStatus::Pending),
+        ("running", counts.running, TaskStatus::Running),
+        ("completed", counts.completed, TaskStatus::Completed),
+        ("failed", counts.failed, TaskStatus::Failed),
+        ("canceled", counts.canceled, TaskStatus::Canceled),
+        ("preempted", counts.preempted, TaskStatus::Preempted),
     ];
 
     let parts = entries
         .iter()
         .filter(|(_, count, _)| *count > 0)
-        .map(|(label, count, color)| {
+        .map(|(label, count, status)| {
             let label = if colorize {
-                label.color(*color).to_string()
+                label.color(task_status_color(*status)).to_string()
             } else {
                 (*label).to_string()
             };
@@ -83,6 +107,77 @@ pub fn task_counts_summary(counts: &RunTaskCountsResponse, colorize: bool) -> Op
         .join(", ");
 
     Some(format!("{} total: {}", counts.total, parts))
+}
+
+/// Formats the duration of a task from its start and completion timestamps.
+///
+/// Returns a completed duration (`42s`), an in-progress duration (`12s
+/// elapsed`) for tasks that have started but not finished, or an empty string
+/// for tasks that have not started.
+fn task_duration(started_at: Option<DateTime<Utc>>, completed_at: Option<DateTime<Utc>>) -> String {
+    match (started_at, completed_at) {
+        (Some(start), Some(end)) => format!("{}s", (end - start).num_seconds()),
+        (Some(start), None) => format!("{}s elapsed", (Utc::now() - start).num_seconds()),
+        _ => String::new(),
+    }
+}
+
+/// Width of the task name column in the detailed task table.
+const TASK_NAME_WIDTH: usize = 30;
+
+/// Width of the task status column in the detailed task table.
+const TASK_STATUS_WIDTH: usize = 12;
+
+/// Width of the task duration column in the detailed task table.
+const TASK_DURATION_WIDTH: usize = 14;
+
+/// Builds a single aligned row describing a task for the detailed listing.
+///
+/// The row contains the task name, status, duration, and a trailing detail
+/// (the error message, or `exit N` for non-zero exits). When `colorize` is set,
+/// the status word is colored to match its meaning.
+pub fn task_detail_line(task: &Task, colorize: bool) -> String {
+    let status_str = task.status.to_string();
+    let status_display = if colorize {
+        status_str
+            .color(task_status_color(task.status))
+            .to_string()
+    } else {
+        status_str.clone()
+    };
+
+    // Account for the ANSI color codes when padding the status column so the
+    // visible width stays aligned.
+    let status_pad = status_display.len() - status_str.len() + TASK_STATUS_WIDTH;
+
+    let duration = task_duration(task.started_at, task.completed_at);
+
+    let detail = match &task.error {
+        Some(error) => error.clone(),
+        None => match task.exit_status {
+            Some(code) if code != 0 => format!("exit {code}"),
+            _ => String::new(),
+        },
+    };
+
+    let detail_display = if colorize && !detail.is_empty() && task.error.is_some() {
+        detail.red().to_string()
+    } else {
+        detail
+    };
+
+    format!(
+        "  {name:<name_width$}  {status:<status_pad$}  {duration:<duration_width$}  {detail}",
+        name = task.name,
+        name_width = TASK_NAME_WIDTH,
+        status = status_display,
+        status_pad = status_pad,
+        duration = duration,
+        duration_width = TASK_DURATION_WIDTH,
+        detail = detail_display,
+    )
+    .trim_end()
+    .to_string()
 }
 
 /// Handles the `inspect` subcommand.
@@ -103,6 +198,13 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
 
     let counts = fetch_task_counts(&base_url, uuid).await?;
 
+    // Fetch the per-task breakdown only when requested.
+    let tasks = if args.detailed {
+        Some(fetch_run_tasks(&base_url, uuid).await?)
+    } else {
+        None
+    };
+
     if args.json {
         let mut raw: serde_json::Value = resp
             .json()
@@ -113,6 +215,12 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
                 "task_counts".to_string(),
                 serde_json::to_value(&counts).context("failed to serialize task counts")?,
             );
+            if let Some(tasks) = &tasks {
+                map.insert(
+                    "tasks".to_string(),
+                    serde_json::to_value(tasks).context("failed to serialize tasks")?,
+                );
+            }
         }
         println!(
             "{}",
@@ -192,11 +300,44 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
         field!("Error:", error_display);
     }
 
+    // When requested, append a per-task breakdown below the run summary.
+    if let Some(tasks) = &tasks {
+        println!();
+
+        if tasks.is_empty() {
+            let note = "No tasks.";
+            println!(
+                "{}",
+                if colorize {
+                    note.dimmed().to_string()
+                } else {
+                    note.to_string()
+                }
+            );
+        } else {
+            println!(
+                "  {name:<name_w$}  {status:<status_w$}  {dur:<dur_w$}  DETAIL",
+                name = "NAME",
+                status = "STATUS",
+                dur = "DURATION",
+                name_w = TASK_NAME_WIDTH,
+                status_w = TASK_STATUS_WIDTH,
+                dur_w = TASK_DURATION_WIDTH,
+            );
+
+            for task in tasks {
+                println!("{}", task_detail_line(task, colorize));
+            }
+        }
+    }
+
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
+    use uuid::Uuid;
+
     use super::*;
 
     /// Builds a [`RunTaskCountsResponse`] from per-status counts, deriving the
@@ -241,5 +382,95 @@ mod tests {
             summary.as_deref(),
             Some("21 total: 1 pending, 2 running, 3 completed, 4 failed, 5 canceled, 6 preempted")
         );
+    }
+
+    /// Builds a [`Task`] for formatting tests. Timestamps are expressed as Unix
+    /// seconds so durations are deterministic.
+    fn task(
+        name: &str,
+        status: TaskStatus,
+        exit_status: Option<i32>,
+        error: Option<&str>,
+        started: Option<i64>,
+        completed: Option<i64>,
+    ) -> Task {
+        Task {
+            name: name.to_string(),
+            run_uuid: Uuid::nil(),
+            status,
+            exit_status,
+            error: error.map(str::to_string),
+            created_at: DateTime::<Utc>::from_timestamp(0, 0).unwrap(),
+            started_at: started.map(|s| DateTime::<Utc>::from_timestamp(s, 0).unwrap()),
+            completed_at: completed.map(|c| DateTime::<Utc>::from_timestamp(c, 0).unwrap()),
+        }
+    }
+
+    #[test]
+    fn detail_line_completed_shows_duration_and_no_exit() {
+        let line = task_detail_line(
+            &task("align_reads", TaskStatus::Completed, Some(0), None, Some(1000), Some(1042)),
+            false,
+        );
+        assert!(line.contains("align_reads"));
+        assert!(line.contains("completed"));
+        assert!(line.contains("42s"));
+        assert!(!line.contains("exit"));
+        // No trailing whitespace and no color codes when not colorized.
+        assert_eq!(line, line.trim_end());
+        assert!(!line.contains('\u{1b}'));
+    }
+
+    #[test]
+    fn detail_line_failed_prefers_error_over_exit() {
+        let line = task_detail_line(
+            &task(
+                "call_variants",
+                TaskStatus::Failed,
+                Some(1),
+                Some("out of memory"),
+                Some(1000),
+                Some(1003),
+            ),
+            false,
+        );
+        assert!(line.contains("failed"));
+        assert!(line.contains("3s"));
+        assert!(line.contains("out of memory"));
+        assert!(!line.contains("exit"));
+    }
+
+    #[test]
+    fn detail_line_failed_without_error_shows_exit_code() {
+        let line = task_detail_line(
+            &task("annotate", TaskStatus::Failed, Some(127), None, Some(1000), Some(1001)),
+            false,
+        );
+        assert!(line.contains("failed"));
+        assert!(line.contains("exit 127"));
+    }
+
+    #[test]
+    fn detail_line_running_shows_elapsed() {
+        // Started well in the past, never completed.
+        let line = task_detail_line(
+            &task("merge", TaskStatus::Running, None, None, Some(1000), None),
+            false,
+        );
+        assert!(line.contains("running"));
+        assert!(line.contains("elapsed"));
+    }
+
+    #[test]
+    fn detail_line_pending_has_no_duration_or_detail() {
+        let line = task_detail_line(
+            &task("prepare", TaskStatus::Pending, None, None, None, None),
+            false,
+        );
+        assert!(line.contains("prepare"));
+        assert!(line.contains("pending"));
+        assert!(!line.contains("elapsed"));
+        assert!(!line.contains("exit"));
+        assert_eq!(line, line.trim_end());
     }
 }

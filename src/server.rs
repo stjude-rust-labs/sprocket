@@ -22,12 +22,15 @@ mod api;
 
 pub use api::AppState;
 pub(crate) use api::v1::RunStatus;
+pub(crate) use api::v1::TaskStatus;
 pub(crate) use api::v1::error::ErrorResponse;
 pub(crate) use api::v1::runs::CancelRunResponse;
 pub(crate) use api::v1::runs::ListRunsResponse;
 pub(crate) use api::v1::runs::RunResponse;
 pub(crate) use api::v1::runs::SubmitRunRequest;
+pub(crate) use api::v1::tasks::ListTasksResponse;
 pub(crate) use api::v1::tasks::RunTaskCountsResponse;
+pub(crate) use api::v1::tasks::Task;
 
 /// The default channel buffer size.
 ///

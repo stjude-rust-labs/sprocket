@@ -10,7 +10,9 @@ use crate::commands::CommandResult;
 use crate::config::Config;
 use crate::server::ErrorResponse;
 use crate::server::ListRunsResponse;
+use crate::server::ListTasksResponse;
 use crate::server::RunTaskCountsResponse;
+use crate::server::Task;
 
 /// CLI arguments for connecting to a Sprocket server instance.
 #[derive(ClapArgs, Debug)]
@@ -76,6 +78,48 @@ pub async fn fetch_task_counts(
         .context("failed to deserialize task counts response")?;
 
     Ok(counts)
+}
+
+/// Fetches all tasks for a run, following pagination across every page.
+///
+/// Queries `GET /api/v1/runs/{uuid}/tasks`. The returned tasks are sorted by
+/// creation time ascending (oldest first), so callers see them in execution
+/// order regardless of the server's page ordering.
+pub async fn fetch_run_tasks(base_url: &str, uuid: Uuid) -> CommandResult<Vec<Task>> {
+    let client = reqwest::Client::new();
+    let mut next_token: Option<String> = None;
+    let mut tasks = Vec::new();
+
+    loop {
+        let mut url = format!("{base_url}/api/v1/runs/{uuid}/tasks?limit=100");
+        if let Some(token) = &next_token {
+            url.push_str(&format!("&next_token={token}"));
+        }
+
+        let resp = client
+            .get(&url)
+            .send()
+            .await
+            .context("failed to connect to Sprocket server")?;
+
+        let resp = check_response(resp).await?;
+
+        let page: ListTasksResponse = resp
+            .json()
+            .await
+            .context("failed to deserialize task list response")?;
+
+        tasks.extend(page.tasks);
+        next_token = page.next_token;
+
+        if next_token.is_none() {
+            break;
+        }
+    }
+
+    tasks.sort_by_key(|task| task.created_at);
+
+    Ok(tasks)
 }
 
 /// Resolves a run identifier (either a UUID or a human-readable generated name)
