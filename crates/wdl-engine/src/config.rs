@@ -2001,7 +2001,7 @@ impl<'de> FromToml<'de> for Condition {
 
 /// Represents a set of conditional arguments for the LSF and Slurm backends.
 ///
-/// Conditional arguments are passed to the program responsible for queueing a
+/// Conditional arguments are passed to the program responsible for queuing a
 /// task when the associated conditional expression evaluates to `true`.
 #[derive(Debug, Clone, PartialEq, Eq, Toml)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
@@ -2029,8 +2029,7 @@ impl ConditionalArgs {
 
 /// Represents additional arguments to the Slurm and LSF backends.
 ///
-/// These arguments are passed to the executable responsible for queueing a
-/// task.
+/// These arguments are passed to the executable responsible for queuing a task.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Toml)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
 pub struct AdditionalArgs {
