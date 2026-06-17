@@ -10,12 +10,22 @@ cargo-fuzz = true
 [dependencies]
 globset.workspace = true
 libfuzzer-sys = "0.4"
+tempfile.workspace = true
+tokio.workspace = true
+url.workspace = true
 uuid.workspace = true
 walkdir.workspace = true
-wdl = { path = "../crates/wdl", features = ["ast", "format"] }
+wdl = { path = "../crates/wdl", features = ["ast", "format", "lint"] }
 
 [lints]
 workspace = true
+
+[[bin]]
+name = "wdl-lint"
+path = "fuzz_targets/wdl_lint.rs"
+test = false
+doc = false
+bench = false
 
 [[bin]]
 name = "wdl-ast"

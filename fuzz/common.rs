@@ -30,7 +30,7 @@ pub fn init_corpus_dir(target: &str) -> std::io::Result<()> {
         if entry.file_type().is_file() && glob.is_match(entry.path()) {
             std::fs::copy(
                 entry.path(),
-                corpus_dir.join(format!("{}.wdl", uuid::Uuid::new_v4())),
+                corpus_dir.join(uuid::Uuid::new_v4().to_string()),
             )?;
         }
     }

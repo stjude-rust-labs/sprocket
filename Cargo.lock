@@ -1917,6 +1917,9 @@ version = "0.0.0"
 dependencies = [
  "globset",
  "libfuzzer-sys",
+ "tempfile",
+ "tokio",
+ "url",
  "uuid",
  "walkdir",
  "wdl",
