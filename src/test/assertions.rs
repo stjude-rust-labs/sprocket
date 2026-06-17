@@ -65,7 +65,6 @@ impl Assertions {
                 warn!("ignoring `stderr` assertion for workflow");
             }
         } else {
-
             let stdout_regexs = self
                 .stdout
                 .iter()

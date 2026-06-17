@@ -290,8 +290,8 @@ impl TestIteration {
                         if assertions.should_fail {
                             if actual_exit_code == 0 {
                                 return Ok(IterationResult::Fail(anyhow!(
-                                    "{id} exited with code `0` but `should_fail` expected \
-                                     a nonzero exit code: see `{dir}`",
+                                    "{id} exited with code `0` but `should_fail` expected a \
+                                     nonzero exit code: see `{dir}`",
                                     dir = run_dir.display(),
                                 )));
                             }
