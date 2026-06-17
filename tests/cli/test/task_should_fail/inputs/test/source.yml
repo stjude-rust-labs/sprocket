@@ -1,0 +1,4 @@
+always_fails:
+  - name: should_fail_passes
+    assertions:
+      should_fail: true
