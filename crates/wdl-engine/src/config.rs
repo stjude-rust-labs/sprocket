@@ -1785,7 +1785,7 @@ impl Condition {
                         return Err(vec![Diagnostic::error(format!(
                             "conditional expression is expected to be type `Boolean`, but found \
                              type `{ty}`",
-                        ))]);
+                        )).with_highlight(expr.span())]);
                     }
                 }
 
@@ -1880,7 +1880,7 @@ impl Condition {
                     "conditional expression is expected to be type `Boolean`, but found type \
                      `{ty}`",
                     ty = value.ty()
-                ))),
+                )).with_highlight(expr.span())),
             }
         }
 
