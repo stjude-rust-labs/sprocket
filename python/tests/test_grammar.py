@@ -1,6 +1,6 @@
 import pytest
 
-from sprocket_bio.grammar import Diagnostic, Label, Severity, Span
+from sprocket_bio.grammar import Diagnostic, Label, Severity, Span, SyntaxKind
 
 
 def test_diagnostic_builder() -> None:
@@ -111,3 +111,61 @@ def test_span_overflow() -> None:
         OverflowError, match="sum of `start` and `len` is greater than or equal to"
     ):
         Span(2**64 - 1, 1)
+
+
+def test_syntax_kind_is_symbolic() -> None:
+    assert SyntaxKind.ABANDONED.is_symbolic()
+    assert SyntaxKind.UNKNOWN.is_symbolic()
+    assert SyntaxKind.UNPARSED.is_symbolic()
+    assert SyntaxKind.MAX.is_symbolic()
+
+    assert not SyntaxKind.AS_KEYWORD.is_symbolic()
+
+
+def test_syntax_kind_describe() -> None:
+    assert SyntaxKind.FLOAT.describe() == "float"
+
+    with pytest.raises(match="entered unreachable code"):
+        SyntaxKind.UNKNOWN.describe()
+
+    with pytest.raises(match="entered unreachable code"):
+        SyntaxKind.UNPARSED.describe()
+
+    with pytest.raises(match="entered unreachable code"):
+        SyntaxKind.ABANDONED.describe()
+
+    with pytest.raises(match="entered unreachable code"):
+        SyntaxKind.MAX.describe()
+
+
+def test_syntax_kind_is_trivia() -> None:
+    assert SyntaxKind.WHITESPACE.is_trivia()
+    assert SyntaxKind.COMMENT.is_trivia()
+
+    assert not SyntaxKind.ABANDONED.is_trivia()
+    assert not SyntaxKind.WORKFLOW_KEYWORD.is_trivia()
+
+
+def test_syntax_kind_is_keyword() -> None:
+    assert SyntaxKind.ELSE_KEYWORD.is_keyword()
+    assert SyntaxKind.OUTPUT_KEYWORD.is_keyword()
+
+    assert not SyntaxKind.ARRAY_TYPE_KEYWORD.is_keyword()
+    assert not SyntaxKind.LITERAL_OUTPUT_ITEM_NODE.is_keyword()
+
+
+def test_syntax_kind_is_type() -> None:
+    assert SyntaxKind.ARRAY_TYPE_KEYWORD.is_type()
+    assert SyntaxKind.MAP_TYPE_KEYWORD.is_type()
+
+    assert not SyntaxKind.ALIAS_KEYWORD.is_type()
+    assert not SyntaxKind.ELSE_KEYWORD.is_type()
+
+
+def test_syntax_kind_is_operator() -> None:
+    assert SyntaxKind.PLUS.is_operator()
+    assert SyntaxKind.EQUAL.is_operator()
+    assert SyntaxKind.DOT.is_operator()
+
+    assert not SyntaxKind.ABANDONED.is_operator()
+    assert not SyntaxKind.COMMENT.is_operator()

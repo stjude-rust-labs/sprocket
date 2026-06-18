@@ -28,6 +28,18 @@ use crate::parser::Parser;
 /// This enumeration is a union of all supported WDL tokens and nodes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, VariantArray)]
 #[repr(u16)]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(
+        module = "sprocket_bio.grammar",
+        frozen,
+        rename_all = "SCREAMING_SNAKE_CASE",
+        skip_from_py_object,
+        eq,
+        ord,
+        hash
+    )
+)]
 pub enum SyntaxKind {
     /// The token is unknown to WDL.
     Unknown,
@@ -899,6 +911,59 @@ impl SyntaxTokenExt for SyntaxToken {
             true
         })
         .find(|t| t.kind() == SyntaxKind::Comment)
+    }
+}
+
+/// Python-specific APIs.
+#[cfg(feature = "unstable-python")]
+mod python {
+    use pyo3::prelude::*;
+
+    use super::*;
+
+    #[pymethods]
+    impl SyntaxKind {
+        /// Returns whether the token is a symbolic `SyntaxKind`.
+        ///
+        /// Generally speaking, symbolic `SyntaxKind`s have special meanings
+        /// during parsing—they are not real elements of the grammar but rather
+        /// an implementation detail.
+        #[pyo3(name = "is_symbolic")]
+        fn py_is_symbolic(&self) -> bool {
+            self.is_symbolic()
+        }
+
+        /// Describes the syntax kind.
+        #[pyo3(name = "describe")]
+        fn py_describe(&self) -> &'static str {
+            self.describe()
+        }
+
+        /// Returns whether the `SyntaxKind` is trivia.
+        #[pyo3(name = "is_trivia")]
+        fn py_is_trivia(&self) -> bool {
+            self.is_trivia()
+        }
+
+        /// Returns whether the `SyntaxKind` is a keyword.
+        ///
+        /// NOTE: This does not include types, see `SyntaxKind.is_type()`.
+        #[pyo3(name = "is_keyword")]
+        fn py_is_keyword(&self) -> bool {
+            self.is_keyword()
+        }
+
+        /// Returns whether the `SyntaxKind` is a predefined type keyword.
+        #[pyo3(name = "is_type")]
+        fn py_is_type(&self) -> bool {
+            self.is_type()
+        }
+
+        /// Returns whether the `SyntaxKind` is an operator.
+        #[pyo3(name = "is_operator")]
+        fn py_is_operator(&self) -> bool {
+            self.is_operator()
+        }
     }
 }
 

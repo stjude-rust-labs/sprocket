@@ -32,6 +32,8 @@ mod _sprocket_bio {
         use wdl_grammar::Severity;
         #[pymodule_export]
         use wdl_grammar::Span;
+        #[pymodule_export]
+        use wdl_grammar::SyntaxKind;
     }
 
     /// Initializer that runs when the `_sprocket_bio` Python extension is
