@@ -20,20 +20,38 @@ async fn find_all_references(
     position: Position,
     include_declaration: bool,
 ) -> Option<Vec<Location>> {
-    ctx.request::<References>(ReferenceParams {
-        context: ReferenceContext {
-            include_declaration,
-        },
-        text_document_position: TextDocumentPositionParams {
-            text_document: TextDocumentIdentifier {
-                uri: ctx.doc_uri(path),
+    let response = ctx
+        .request::<References>(ReferenceParams {
+            context: ReferenceContext {
+                include_declaration,
             },
-            position,
-        },
-        partial_result_params: Default::default(),
-        work_done_progress_params: Default::default(),
-    })
-    .await
+            text_document_position: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier {
+                    uri: ctx.doc_uri(path),
+                },
+                position,
+            },
+            partial_result_params: Default::default(),
+            work_done_progress_params: Default::default(),
+        })
+        .await;
+
+    locations_from_response(response)
+}
+
+fn locations_from_response(response: impl serde::Serialize) -> Option<Vec<Location>> {
+    let response = serde_json::to_value(response).expect("references response should serialize");
+    if response.is_null() {
+        return None;
+    }
+
+    Some(serde_json::from_value(response).expect("references response should be locations"))
+}
+
+fn has_location(locations: &[Location], expected: Location) -> bool {
+    locations
+        .iter()
+        .any(|location| location.uri == expected.uri && location.range == expected.range)
 }
 
 async fn setup() -> TestContext {
@@ -160,14 +178,20 @@ async fn should_have_references_to_local_variable_used_in_output_section() {
             .iter()
             .all(|location| location.uri == ctx.doc_uri("local_output.wdl"))
     );
-    assert!(response.contains(&Location {
-        uri: ctx.doc_uri("local_output.wdl"),
-        range: Range::new(Position::new(3, 11), Position::new(3, 12)),
-    }));
-    assert!(response.contains(&Location {
-        uri: ctx.doc_uri("local_output.wdl"),
-        range: Range::new(Position::new(6, 21), Position::new(6, 22)),
-    }));
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("local_output.wdl"),
+            range: Range::new(Position::new(3, 11), Position::new(3, 12)),
+        }
+    ));
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("local_output.wdl"),
+            range: Range::new(Position::new(6, 21), Position::new(6, 22)),
+        }
+    ));
 }
 
 #[tokio::test]
@@ -180,14 +204,20 @@ async fn should_have_references_to_tasks() {
         .unwrap();
 
     assert_eq!(response.len(), 2);
-    assert!(response.contains(&Location {
-        uri: ctx.doc_uri("source.wdl"),
-        range: Range::new(Position::new(10, 13), Position::new(10, 18)),
-    })); // `greet` in `call lib.greet`
-    assert!(response.contains(&Location {
-        uri: ctx.doc_uri("aliases.wdl"),
-        range: Range::new(Position::new(10, 15), Position::new(10, 20)),
-    })); // `greet` in `call tools.greet`
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("source.wdl"),
+            range: Range::new(Position::new(10, 13), Position::new(10, 18)),
+        }
+    )); // `greet` in `call lib.greet`
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("aliases.wdl"),
+            range: Range::new(Position::new(10, 15), Position::new(10, 20)),
+        }
+    )); // `greet` in `call tools.greet`
 }
 
 #[tokio::test]
@@ -200,14 +230,20 @@ async fn should_have_references_to_tasks_output() {
         .unwrap();
 
     assert_eq!(response.len(), 2);
-    assert!(response.contains(&Location {
-        uri: ctx.doc_uri("source.wdl"),
-        range: Range::new(Position::new(13, 26), Position::new(13, 30)),
-    })); // `name` in `String result = t.name`
-    assert!(response.contains(&Location {
-        uri: ctx.doc_uri("aliases.wdl"),
-        range: Range::new(Position::new(13, 31), Position::new(13, 35)),
-    })); // `name` in `String result = worker.name`
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("source.wdl"),
+            range: Range::new(Position::new(13, 26), Position::new(13, 30)),
+        }
+    )); // `name` in `String result = t.name`
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("aliases.wdl"),
+            range: Range::new(Position::new(13, 31), Position::new(13, 35)),
+        }
+    )); // `name` in `String result = worker.name`
 }
 
 #[tokio::test]
@@ -248,14 +284,20 @@ async fn should_have_references_to_imported_type_alias() {
             .iter()
             .all(|location| location.uri == ctx.doc_uri("aliases.wdl"))
     );
-    assert!(response.contains(&Location {
-        uri: ctx.doc_uri("aliases.wdl"),
-        range: Range::new(Position::new(2, 37), Position::new(2, 42)),
-    }));
-    assert!(response.contains(&Location {
-        uri: ctx.doc_uri("aliases.wdl"),
-        range: Range::new(Position::new(7, 8), Position::new(7, 13)),
-    }));
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("aliases.wdl"),
+            range: Range::new(Position::new(2, 37), Position::new(2, 42)),
+        }
+    ));
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("aliases.wdl"),
+            range: Range::new(Position::new(7, 8), Position::new(7, 13)),
+        }
+    ));
 }
 
 #[tokio::test]
@@ -272,12 +314,18 @@ async fn should_have_references_to_call_alias() {
             .iter()
             .all(|location| location.uri == ctx.doc_uri("aliases.wdl"))
     );
-    assert!(response.contains(&Location {
-        uri: ctx.doc_uri("aliases.wdl"),
-        range: Range::new(Position::new(10, 24), Position::new(10, 30)),
-    }));
-    assert!(response.contains(&Location {
-        uri: ctx.doc_uri("aliases.wdl"),
-        range: Range::new(Position::new(13, 24), Position::new(13, 30)),
-    }));
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("aliases.wdl"),
+            range: Range::new(Position::new(10, 24), Position::new(10, 30)),
+        }
+    ));
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("aliases.wdl"),
+            range: Range::new(Position::new(13, 24), Position::new(13, 30)),
+        }
+    ));
 }

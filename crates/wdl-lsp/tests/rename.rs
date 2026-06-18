@@ -1,6 +1,9 @@
 //! Integration tests for the `textDocument/rename` request.
 
+use std::collections::HashMap;
+
 use pretty_assertions::assert_eq;
+use serde_json::Value;
 use tower_lsp::lsp_types::*;
 
 mod common;
@@ -13,17 +16,85 @@ async fn rename_request(
     position: Position,
     new_name: &str,
 ) -> Option<WorkspaceEdit> {
-    ctx.request::<Rename>(RenameParams {
-        text_document_position: TextDocumentPositionParams {
-            text_document: TextDocumentIdentifier {
-                uri: ctx.doc_uri(path),
+    let response = ctx
+        .request::<Rename>(RenameParams {
+            text_document_position: TextDocumentPositionParams {
+                text_document: TextDocumentIdentifier {
+                    uri: ctx.doc_uri(path),
+                },
+                position,
             },
-            position,
-        },
-        new_name: new_name.to_string(),
-        work_done_progress_params: Default::default(),
-    })
-    .await
+            new_name: new_name.to_string(),
+            work_done_progress_params: Default::default(),
+        })
+        .await;
+
+    workspace_edit_from_response(response)
+}
+
+fn workspace_edit_from_response(response: impl serde::Serialize) -> Option<WorkspaceEdit> {
+    let response = serde_json::to_value(response).expect("rename response should serialize");
+    if response.is_null() {
+        return None;
+    }
+
+    Some(serde_json::from_value(response).expect("rename response should be a workspace edit"))
+}
+
+fn workspace_edit_to_changes(edit: &WorkspaceEdit) -> HashMap<Url, Vec<TextEdit>> {
+    let edit = serde_json::to_value(edit).expect("workspace edit should serialize");
+    let mut changes = changes_from_legacy_map(&edit);
+    if changes.is_empty() {
+        changes = changes_from_document_changes(&edit);
+    }
+
+    changes
+}
+
+fn changes_from_legacy_map(edit: &Value) -> HashMap<Url, Vec<TextEdit>> {
+    let mut changes = HashMap::new();
+
+    let Some(entries) = edit.get("changes").and_then(Value::as_object) else {
+        return changes;
+    };
+
+    for (uri, edits) in entries {
+        let uri = Url::parse(uri).expect("workspace edit URI should parse");
+        let edits = serde_json::from_value(edits.clone()).expect("text edits should deserialize");
+        changes.insert(uri, edits);
+    }
+
+    changes
+}
+
+fn changes_from_document_changes(edit: &Value) -> HashMap<Url, Vec<TextEdit>> {
+    let mut changes = HashMap::new();
+
+    let Some(document_changes) = edit.get("documentChanges").and_then(Value::as_array) else {
+        return changes;
+    };
+
+    for document_change in document_changes {
+        let Some(uri) = document_change
+            .get("textDocument")
+            .and_then(|text_document| text_document.get("uri"))
+            .and_then(Value::as_str)
+        else {
+            continue;
+        };
+        let Some(edits) = document_change.get("edits").and_then(Value::as_array) else {
+            continue;
+        };
+
+        let uri = Url::parse(uri).expect("workspace edit URI should parse");
+        let edits = edits
+            .iter()
+            .filter_map(|edit| serde_json::from_value(edit.clone()).ok())
+            .collect();
+        changes.insert(uri, edits);
+    }
+
+    changes
 }
 
 #[tokio::test]
@@ -37,7 +108,8 @@ async fn should_rename_workspace_wide() {
         .await
         .unwrap();
 
-    let changes = edit.changes.expect("expected changes");
+    let changes = workspace_edit_to_changes(&edit);
+    assert!(!changes.is_empty(), "expected changes");
     assert!(changes.iter().any(|(uri, edits)| {
         uri.to_file_path()
             .ok()
@@ -77,7 +149,8 @@ async fn should_rename_struct_definition() {
     .await
     .unwrap();
 
-    let changes = edit.changes.expect("expected changes");
+    let changes = workspace_edit_to_changes(&edit);
+    assert!(!changes.is_empty(), "expected changes");
     assert!(changes.keys().any(|u| {
         u.to_file_path()
             .ok()
@@ -101,7 +174,8 @@ async fn should_rename_import_namespace_alias() {
         .await
         .unwrap();
 
-    let changes = edit.changes.expect("expected changes");
+    let changes = workspace_edit_to_changes(&edit);
+    assert!(!changes.is_empty(), "expected changes");
     assert!(changes.keys().any(|u| {
         u.to_file_path()
             .ok()
@@ -121,7 +195,8 @@ async fn should_not_rename_shadowed_declaration() {
         .await
         .unwrap();
 
-    let changes = edit.changes.expect("expected changes");
+    let changes = workspace_edit_to_changes(&edit);
+    assert!(!changes.is_empty(), "expected changes");
     let edits = changes
         .get(&ctx.doc_uri("shadowed.wdl"))
         .expect("should have edits for shadowed.wdl");
@@ -159,7 +234,8 @@ async fn should_rename_local_variable_used_in_output_section() {
         .await
         .unwrap();
 
-    let changes = edit.changes.expect("expected changes");
+    let changes = workspace_edit_to_changes(&edit);
+    assert!(!changes.is_empty(), "expected changes");
     assert_eq!(changes.len(), 1);
 
     let edits = changes
@@ -193,7 +269,8 @@ async fn should_rename_enum() {
         .await
         .unwrap();
 
-    let changes = edit.changes.expect("expected changes");
+    let changes = workspace_edit_to_changes(&edit);
+    assert!(!changes.is_empty(), "expected changes");
     let edits = changes
         .get(&ctx.doc_uri("enum.wdl"))
         .expect("should have edits for enum.wdl");
@@ -211,7 +288,8 @@ async fn should_rename_enum_variant() {
         .await
         .unwrap();
 
-    let changes = edit.changes.expect("expected changes");
+    let changes = workspace_edit_to_changes(&edit);
+    assert!(!changes.is_empty(), "expected changes");
     let edits = changes
         .get(&ctx.doc_uri("enum.wdl"))
         .expect("should have edits for enum.wdl");
@@ -228,7 +306,8 @@ async fn should_rename_imported_type_alias() {
         .await
         .unwrap();
 
-    let changes = edit.changes.expect("expected changes");
+    let changes = workspace_edit_to_changes(&edit);
+    assert!(!changes.is_empty(), "expected changes");
     assert_eq!(changes.len(), 1);
 
     let edits = changes
@@ -261,7 +340,8 @@ async fn should_rename_call_alias() {
         .await
         .unwrap();
 
-    let changes = edit.changes.expect("expected changes");
+    let changes = workspace_edit_to_changes(&edit);
+    assert!(!changes.is_empty(), "expected changes");
     assert_eq!(changes.len(), 1);
 
     let edits = changes

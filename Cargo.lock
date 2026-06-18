@@ -6396,6 +6396,7 @@ dependencies = [
  "reqwest 0.13.2",
  "rowan",
  "serde",
+ "serde_json",
  "smallvec",
  "tempfile",
  "tokio",
