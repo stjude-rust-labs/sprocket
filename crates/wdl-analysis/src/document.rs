@@ -213,6 +213,8 @@ pub struct Name {
     span: Span,
     /// The type of the name.
     ty: Type,
+    /// The visibility of the name outside of its defining document.
+    visibility: NameVisibility,
 }
 
 impl Name {
@@ -225,6 +227,20 @@ impl Name {
     pub fn ty(&self) -> &Type {
         &self.ty
     }
+
+    /// Determines whether the name is local to its defining document.
+    pub(crate) fn is_local(&self) -> bool {
+        self.visibility == NameVisibility::Local
+    }
+}
+
+/// The visibility of a scoped name outside of its defining document.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum NameVisibility {
+    /// The name is only visible within the defining document.
+    Local,
+    /// The name can be referenced by importing documents.
+    Exported,
 }
 
 /// Represents an index of a scope in a collection of scopes.
@@ -256,7 +272,25 @@ impl Scope {
 
     /// Inserts a name into the scope.
     pub fn insert(&mut self, name: impl Into<String>, span: Span, ty: Type) {
-        self.names.insert(name.into(), Name { span, ty });
+        self.insert_with_visibility(name, span, ty, NameVisibility::Local);
+    }
+
+    /// Inserts a name into the scope with a specific visibility.
+    pub(crate) fn insert_with_visibility(
+        &mut self,
+        name: impl Into<String>,
+        span: Span,
+        ty: Type,
+        visibility: NameVisibility,
+    ) {
+        self.names.insert(
+            name.into(),
+            Name {
+                span,
+                ty,
+                visibility,
+            },
+        );
     }
 }
 
@@ -357,9 +391,25 @@ impl<'a> ScopeRefMut<'a> {
 
     /// Inserts a name into the scope.
     pub fn insert(&mut self, name: impl Into<String>, span: Span, ty: Type) {
-        self.scopes[self.index.0]
-            .names
-            .insert(name.into(), Name { span, ty });
+        self.insert_with_visibility(name, span, ty, NameVisibility::Local);
+    }
+
+    /// Inserts a name into the scope with a specific visibility.
+    pub(crate) fn insert_with_visibility(
+        &mut self,
+        name: impl Into<String>,
+        span: Span,
+        ty: Type,
+        visibility: NameVisibility,
+    ) {
+        self.scopes[self.index.0].names.insert(
+            name.into(),
+            Name {
+                span,
+                ty,
+                visibility,
+            },
+        );
     }
 
     /// Converts the mutable scope reference to an immutable scope reference.

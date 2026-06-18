@@ -45,6 +45,7 @@ use super::Document;
 use super::DocumentData;
 use super::Enum;
 use super::Input;
+use super::NameVisibility;
 use super::Namespace;
 use super::Output;
 use super::Scope;
@@ -774,6 +775,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     document,
                     ScopeRefMut::new(&mut task.scopes, ScopeIndex(0)),
                     &decl,
+                    NameVisibility::Exported,
                     |_, n, _| task.inputs[n].ty.clone(),
                 ) {
                     continue;
@@ -804,6 +806,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     document,
                     ScopeRefMut::new(&mut task.scopes, ScopeIndex(0)),
                     &decl,
+                    NameVisibility::Local,
                     |doc, _, decl| convert_ast_type(doc, &decl.ty()),
                 ) {
                     continue;
@@ -845,6 +848,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     document,
                     ScopeRefMut::new(&mut task.scopes, scope_index),
                     &decl,
+                    NameVisibility::Exported,
                     |_, n, _| task.outputs[n].ty.clone(),
                 );
             }
@@ -964,6 +968,7 @@ fn add_decl(
     document: &mut DocumentData,
     mut scope: ScopeRefMut<'_>,
     decl: &Decl,
+    visibility: NameVisibility,
     ty: impl FnOnce(&mut DocumentData, &str, &Decl) -> Type,
 ) -> bool {
     let (name, expr) = (decl.name(), decl.expr());
@@ -973,7 +978,7 @@ fn add_decl(
     }
 
     let ty = ty(document, name.text(), decl);
-    scope.insert(name.text(), name.span(), ty.clone());
+    scope.insert_with_visibility(name.text(), name.span(), ty.clone(), visibility);
 
     if let Some(expr) = expr {
         type_check_expr(
@@ -1073,6 +1078,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                     document,
                     ScopeRefMut::new(&mut scopes, ScopeIndex(0)),
                     &decl,
+                    NameVisibility::Exported,
                     |_, n, _| inputs[n].ty.clone(),
                 ) {
                     continue;
@@ -1104,6 +1110,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                     document,
                     ScopeRefMut::new(&mut scopes, scope_index),
                     &decl,
+                    NameVisibility::Local,
                     |doc, _, decl| convert_ast_type(doc, &decl.ty()),
                 ) {
                     continue;
@@ -1143,6 +1150,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                     document,
                     ScopeRefMut::new(&mut scopes, scope_index),
                     &decl,
+                    NameVisibility::Exported,
                     |_, n, _| outputs[n].ty.clone(),
                 );
             }
@@ -1268,7 +1276,15 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                 let (left, right) = scopes.split_at_mut(parent.0 + 1);
                 let scope = &right[scope_index.0 - parent.0 - 1];
                 let parent = &mut left[parent.0];
-                for (name, Name { span, ty }) in scope.names.iter() {
+                for (
+                    name,
+                    Name {
+                        span,
+                        ty,
+                        visibility,
+                    },
+                ) in scope.names.iter()
+                {
                     if name.as_str() == variable.text() {
                         continue;
                     }
@@ -1276,6 +1292,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                     parent.names.entry(name.clone()).or_insert_with(|| Name {
                         span: *span,
                         ty: ty.promote_scatter(),
+                        visibility: *visibility,
                     });
                 }
             }

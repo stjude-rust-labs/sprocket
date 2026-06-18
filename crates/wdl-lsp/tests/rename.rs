@@ -149,6 +149,41 @@ async fn should_not_rename_shadowed_declaration() {
 }
 
 #[tokio::test]
+async fn should_rename_local_variable_used_in_output_section() {
+    let mut ctx = TestContext::new("rename");
+    ctx.initialize().await;
+
+    const NEW_NAME: &str = "greeting";
+
+    let edit = rename_request(&mut ctx, "local_output.wdl", Position::new(3, 11), NEW_NAME)
+        .await
+        .unwrap();
+
+    let changes = edit.changes.expect("expected changes");
+    assert_eq!(changes.len(), 1);
+
+    let edits = changes
+        .get(&ctx.doc_uri("local_output.wdl"))
+        .expect("should have edits for local_output.wdl");
+
+    let expected_edits = vec![
+        TextEdit {
+            range: Range::new(Position::new(3, 11), Position::new(3, 12)),
+            new_text: NEW_NAME.to_string(),
+        },
+        TextEdit {
+            range: Range::new(Position::new(6, 21), Position::new(6, 22)),
+            new_text: NEW_NAME.to_string(),
+        },
+    ];
+
+    assert_eq!(edits.len(), expected_edits.len());
+    for edit in &expected_edits {
+        assert!(edits.contains(edit), "missing expected edit: {:?}", edit);
+    }
+}
+
+#[tokio::test]
 async fn should_rename_enum() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;

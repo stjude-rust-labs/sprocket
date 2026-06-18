@@ -147,6 +147,30 @@ async fn should_have_references_to_local_variables() {
 }
 
 #[tokio::test]
+async fn should_have_references_to_local_variable_used_in_output_section() {
+    let mut ctx = setup().await;
+
+    let response = find_all_references(&mut ctx, "local_output.wdl", Position::new(3, 11), true)
+        .await
+        .unwrap();
+
+    assert_eq!(response.len(), 2);
+    assert!(
+        response
+            .iter()
+            .all(|location| location.uri == ctx.doc_uri("local_output.wdl"))
+    );
+    assert!(response.contains(&Location {
+        uri: ctx.doc_uri("local_output.wdl"),
+        range: Range::new(Position::new(3, 11), Position::new(3, 12)),
+    }));
+    assert!(response.contains(&Location {
+        uri: ctx.doc_uri("local_output.wdl"),
+        range: Range::new(Position::new(6, 21), Position::new(6, 22)),
+    }));
+}
+
+#[tokio::test]
 async fn should_have_references_to_tasks() {
     let mut ctx = setup().await;
 
