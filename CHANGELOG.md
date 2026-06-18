@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Fixed `sprocket dev test` where `should_fail` assertion was silently
+  ignored for task tests; tasks with `should_fail: true` now pass when
+  the task exits with a nonzero exit code and fail when the task exits
+  with code `0` ([#942](https://github.com/stjude-rust-labs/sprocket/pull/942)).
+
 ### Added
 
 * Nix flake providing `packages.sprocket`, a development shell with the

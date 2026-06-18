@@ -24,8 +24,8 @@ pub(crate) struct Assertions {
     /// Whether the test is expected to fail.
     ///
     /// For workflows, any failure is expected.
-    /// For tasks, the engine determines failure based on the exit code and
-    /// any `return_codes` specified in the task's `runtime` block.
+    /// For tasks, any nonzero exit code is expected. It is an error to set
+    /// this alongside a nonzero `exit_code` assertion.
     #[serde(default)]
     pub should_fail: bool,
     /// Regular expressions that should match within STDOUT of the task (ignored
@@ -65,6 +65,13 @@ impl Assertions {
                 warn!("ignoring `stderr` assertion for workflow");
             }
         } else {
+            if self.should_fail && self.exit_code != 0 {
+                bail!(
+                    "cannot specify both `should_fail` and a nonzero `exit_code` assertion for a \
+                     task; remove one of them"
+                );
+            }
+
             let stdout_regexs = self
                 .stdout
                 .iter()
@@ -381,7 +388,8 @@ pub(crate) struct ParsedAssertions {
     pub exit_code: i32,
     /// For workflows: whether the workflow is expected to fail.
     /// For tasks: whether any nonzero exit code is acceptable (i.e. the task
-    /// is expected to fail). When set, `exit_code` is ignored.
+    /// is expected to fail). Combining this with a nonzero `exit_code`
+    /// assertion is rejected in `Assertions::parse`.
     pub should_fail: bool,
     /// Regular expressions that should match within STDOUT of the task (ignored
     /// when testing workflows).
@@ -1062,14 +1070,13 @@ mod tests {
     }
 
     #[test]
-    fn parse_should_fail_with_exit_code_ok_for_task() {
-        // should_fail + exit_code together is NOT an error
+    fn parse_should_fail_with_nonzero_exit_code_errors_for_task() {
         let assertions = Assertions {
             should_fail: true,
             exit_code: 1,
             ..Default::default()
         };
         let result = assertions.parse(false, &IndexMap::new());
-        assert!(result.is_ok());
+        assert!(result.is_err());
     }
 }

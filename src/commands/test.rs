@@ -295,10 +295,7 @@ impl TestIteration {
                                     dir = run_dir.display(),
                                 )));
                             }
-                            return Ok(IterationResult::Success);
-                        }
-
-                        if actual_exit_code != assertions.exit_code {
+                        } else if actual_exit_code != assertions.exit_code {
                             return Ok(IterationResult::Fail(anyhow!(
                                 "{id} exited with code `{actual}` but test expected exit code \
                                  `{expected}`: see `{dir}`",
