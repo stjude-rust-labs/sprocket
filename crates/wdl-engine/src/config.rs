@@ -1782,10 +1782,13 @@ impl Condition {
                 match ty {
                     Type::Primitive(PrimitiveType::Boolean, false) | Type::Union => {}
                     _ => {
-                        return Err(vec![Diagnostic::error(format!(
-                            "conditional expression is expected to be type `Boolean`, but found \
-                             type `{ty}`",
-                        )).with_highlight(expr.span())]);
+                        return Err(vec![
+                            Diagnostic::error(format!(
+                                "conditional expression is expected to be type `Boolean`, but \
+                                 found type `{ty}`",
+                            ))
+                            .with_highlight(expr.span()),
+                        ]);
                     }
                 }
 
@@ -1880,7 +1883,8 @@ impl Condition {
                     "conditional expression is expected to be type `Boolean`, but found type \
                      `{ty}`",
                     ty = value.ty()
-                )).with_highlight(expr.span())),
+                ))
+                .with_highlight(expr.span())),
             }
         }
 
