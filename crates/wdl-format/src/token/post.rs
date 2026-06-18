@@ -15,7 +15,7 @@ use wdl_ast::SyntaxKind;
 
 use crate::Comment;
 use crate::Config;
-use crate::NEWLINE;
+use crate::Indent;
 use crate::PreToken;
 use crate::SPACE;
 use crate::Token;
@@ -91,7 +91,7 @@ impl Token for PostToken {
 
         fn write_indents(
             f: &mut std::fmt::Formatter<'_>,
-            indent: &str,
+            indent: &Indent,
             num_indents: usize,
         ) -> std::fmt::Result {
             for _ in 0usize..num_indents {
@@ -104,9 +104,9 @@ impl Token for PostToken {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 match self.token {
                     PostToken::Space => write!(f, "{SPACE}"),
-                    PostToken::Newline => write!(f, "{NEWLINE}"),
+                    PostToken::Newline => write!(f, "{}", self.config.newline_style.as_str()),
                     PostToken::Indent => {
-                        write!(f, "{indent}", indent = self.config.indent.string())
+                        write!(f, "{indent}", indent = self.config.indent)
                     }
                     PostToken::TempIndent(value) => write!(f, "{value}"),
                     PostToken::Literal(value) => write!(f, "{value}"),
@@ -120,8 +120,8 @@ impl Token for PostToken {
                         while let Some(cur) = lines.next() {
                             write!(f, "{cur}")?;
                             if lines.peek().is_some() {
-                                write!(f, "{NEWLINE}")?;
-                                write_indents(f, &self.config.indent.string(), *num_indents)?;
+                                write!(f, "{}", self.config.newline_style.as_str())?;
+                                write_indents(f, &self.config.indent, *num_indents)?;
                                 write!(f, "{prefix}")?;
                             }
                         }
@@ -152,18 +152,16 @@ impl Token for PostToken {
                                             remaining = remaining.saturating_sub(cur_len);
                                             written_to_cur_line += 1;
                                         } else if remaining.saturating_sub(cur_len + 2) > 0 {
-                                            // Current rule fits
+                                            // NOTE: the `+ 2` accounts for
+                                            // the `", "` separator written
+                                            // before each subsequent rule.
                                             write!(f, ", {rule}")?;
                                             remaining = remaining.saturating_sub(cur_len + 2);
                                             written_to_cur_line += 1;
                                         } else {
                                             // Current rule does not fit
-                                            write!(f, "{NEWLINE}")?;
-                                            write_indents(
-                                                f,
-                                                &self.config.indent.string(),
-                                                *num_indents,
-                                            )?;
+                                            write!(f, "{}", self.config.newline_style.as_str())?;
+                                            write_indents(f, &self.config.indent, *num_indents)?;
                                             write!(f, "{prefix}{rule}")?;
                                             written_to_cur_line = 1;
                                             remaining = max.saturating_sub(start_width + cur_len);

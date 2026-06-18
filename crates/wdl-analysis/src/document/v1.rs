@@ -21,6 +21,7 @@ use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
+use wdl_ast::TreeNode;
 use wdl_ast::TreeToken;
 use wdl_ast::v1::Ast;
 use wdl_ast::v1::CallStatement;
@@ -31,6 +32,7 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::Expr;
+use wdl_ast::v1::ImportSource;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::LiteralExpr;
 use wdl_ast::v1::ScatterStatement;
@@ -58,10 +60,11 @@ use super::TASK_VAR_NAME;
 use super::Task;
 use super::Workflow;
 use crate::Exceptable;
-use crate::UNUSED_CALL_RULE_ID;
-use crate::UNUSED_DECL_RULE_ID;
-use crate::UNUSED_IMPORT_RULE_ID;
-use crate::UNUSED_INPUT_RULE_ID;
+use crate::MisleadingDeclarationOrderRule;
+use crate::UnusedCallRule;
+use crate::UnusedDeclarationRule;
+use crate::UnusedImportRule;
+use crate::UnusedInputRule;
 use crate::config::Config;
 use crate::config::DiagnosticsConfig;
 use crate::diagnostics::Context;
@@ -81,12 +84,14 @@ use crate::diagnostics::imported_enum_conflict;
 use crate::diagnostics::imported_struct_conflict;
 use crate::diagnostics::incompatible_import;
 use crate::diagnostics::invalid_relative_import;
+use crate::diagnostics::misleading_declaration_order;
 use crate::diagnostics::missing_call_input;
 use crate::diagnostics::name_conflict;
 use crate::diagnostics::namespace_conflict;
 use crate::diagnostics::non_empty_array_assignment;
 use crate::diagnostics::non_literal_enum_value;
 use crate::diagnostics::only_one_namespace;
+use crate::diagnostics::recursive_enum;
 use crate::diagnostics::recursive_struct;
 use crate::diagnostics::recursive_workflow_call;
 use crate::diagnostics::struct_conflicts_with_import;
@@ -199,11 +204,8 @@ pub(crate) fn populate_document(
         }
     }
 
-    // Populate the struct types now that all structs have been processed
-    set_struct_types(document);
-
-    // Populate the enum types now that all enums have been processed
-    set_enum_types(document);
+    // Populate the types now that all structs and enums have been processed
+    populate_types(document);
 
     // Now process the tasks and workflows
     let mut workflow = None;
@@ -247,8 +249,7 @@ fn add_namespace(
         Err(None) => return,
     };
 
-    // Check for conflicting namespaces
-    let span = import.uri().span();
+    let span = import.source().span();
     let ns = match import.namespace() {
         Some((ns, span)) => match document.namespaces.get(&ns) {
             Some(prev) => {
@@ -268,7 +269,7 @@ fn add_namespace(
                         source: uri.clone(),
                         document: imported.clone(),
                         used: false,
-                        excepted: import.inner().is_rule_excepted(UNUSED_IMPORT_RULE_ID),
+                        excepted: import.inner().is_rule_excepted(UnusedImportRule::ID),
                     },
                 );
                 ns
@@ -603,20 +604,14 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
                 if let Some(ns) = &s.namespace {
                     self.0.namespaces[ns].used = true;
                 }
-                return Ok(s.ty().expect("struct should have type").clone());
+                return Ok(s.ty().cloned().unwrap_or(Type::Union));
             }
 
-            if let Some(e) = self.0.enums.get(name)
-                // Ensure the inner type has been successfully calculated
-                && e.ty().is_some()
-            {
+            if let Some(e) = self.0.enums.get(name) {
                 if let Some(ns) = &e.namespace {
                     self.0.namespaces[ns].used = true;
                 }
-
-                // SAFETY: we just checked to make sure the type was
-                // successfully calculated above.
-                return Ok(e.ty().unwrap().clone());
+                return Ok(e.ty().cloned().unwrap_or(Type::Union));
             }
 
             Err(unknown_type(name, span))
@@ -751,15 +746,24 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
     let mut task = Task {
         name_span: name.span(),
         name: name.text().to_string(),
+        span: definition.span(),
         scopes: vec![Scope::new(
             None,
             definition
-                .braced_scope_span()
+                .braced_scope_span(false)
                 .expect("should have brace scope span"),
         )],
         inputs,
         outputs,
     };
+
+    let command_section_span = graph.node_weights().find_map(|node| {
+        if let TaskGraphNode::Command(section) = node {
+            Some(section.span())
+        } else {
+            None
+        }
+    });
 
     let mut output_scope = None;
     let mut command_scope = None;
@@ -789,8 +793,8 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     // a single implicit dependency edge; if so, it might be unused
                     let mut edges = graph.edges_directed(index, Direction::Outgoing);
 
-                    if let (Some(true), None) = (edges.next().map(|e| e.weight()), edges.next())
-                        && !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID)
+                    if edges.all(|e| *e.weight())
+                        && !decl.inner().is_rule_excepted(UnusedInputRule::ID)
                     {
                         let name = decl.name();
 
@@ -801,6 +805,21 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 }
             }
             TaskGraphNode::Decl(decl) => {
+                let name = decl.name();
+
+                if let Some(command_section_span) = command_section_span
+                    && decl.inner().span().start() > command_section_span.end()
+                    && let Some(severity) = config.diagnostics_config().misleading_declaration_order
+                    && !decl
+                        .inner()
+                        .is_rule_excepted(MisleadingDeclarationOrderRule::ID)
+                {
+                    document.analysis_diagnostics.push(
+                        misleading_declaration_order(name.text(), name.span())
+                            .with_severity(severity),
+                    );
+                }
+
                 if !add_decl(
                     config,
                     document,
@@ -814,14 +833,13 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
 
                 // Check for unused declaration
                 if let Some(severity) = config.diagnostics_config().unused_declaration {
-                    let name = decl.name();
                     // Don't warn for environment variables as they are always implicitly used
                     if decl.env().is_none()
                         && graph
                             .edges_directed(index, Direction::Outgoing)
                             .next()
                             .is_none()
-                        && !decl.inner().is_rule_excepted(UNUSED_DECL_RULE_ID)
+                        && !decl.inner().is_rule_excepted(UnusedDeclarationRule::ID)
                     {
                         document.analysis_diagnostics.push(
                             unused_declaration(name.text(), name.span()).with_severity(severity),
@@ -838,7 +856,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         definition
                             .output()
                             .expect("should have output section")
-                            .braced_scope_span()
+                            .braced_scope_span(false)
                             .expect("should have braced scope span"),
                         HiddenType::TaskPostEvaluation,
                     )
@@ -855,9 +873,9 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
             TaskGraphNode::Command(section) => {
                 let scope_index = *command_scope.get_or_insert_with(|| {
                     let span = if section.is_heredoc() {
-                        section.heredoc_scope_span()
+                        section.heredoc_scope_span(false)
                     } else {
-                        section.braced_scope_span()
+                        section.braced_scope_span(false)
                     };
 
                     create_section_scope(
@@ -888,7 +906,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         &mut task.scopes,
                         &name,
                         section
-                            .braced_scope_span()
+                            .braced_scope_span(false)
                             .expect("should have braced scope span"),
                         HiddenType::TaskPreEvaluation,
                     )
@@ -912,7 +930,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         &mut task.scopes,
                         &name,
                         section
-                            .braced_scope_span()
+                            .braced_scope_span(false)
                             .expect("should have braced scope span"),
                         HiddenType::TaskPreEvaluation,
                     )
@@ -936,7 +954,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                         &mut task.scopes,
                         &name,
                         section
-                            .braced_scope_span()
+                            .braced_scope_span(false)
                             .expect("should have braced scope span"),
                         HiddenType::TaskPreEvaluation,
                     )
@@ -1025,6 +1043,7 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
     document.workflow = Some(Workflow {
         name_span: name.span(),
         name: name.text().to_string(),
+        span: workflow.span(),
         scopes: Default::default(),
         inputs: Default::default(),
         outputs: Default::default(),
@@ -1056,7 +1075,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
     let mut scopes = vec![Scope::new(
         None,
         workflow
-            .braced_scope_span()
+            .braced_scope_span(false)
             .expect("should have braced scope span"),
     )];
     let mut output_scope = None;
@@ -1090,7 +1109,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                         .edges_directed(index, Direction::Outgoing)
                         .next()
                         .is_none()
-                    && !decl.inner().is_rule_excepted(UNUSED_INPUT_RULE_ID)
+                    && !decl.inner().is_rule_excepted(UnusedInputRule::ID)
                 {
                     let name = decl.name();
 
@@ -1123,7 +1142,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                         .edges_directed(index, Direction::Outgoing)
                         .next()
                         .is_none()
-                        && !decl.inner().is_rule_excepted(UNUSED_DECL_RULE_ID)
+                        && !decl.inner().is_rule_excepted(UnusedDeclarationRule::ID)
                     {
                         document.analysis_diagnostics.push(
                             unused_declaration(name.text(), name.span()).with_severity(severity),
@@ -1140,7 +1159,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                             workflow
                                 .output()
                                 .expect("should have output section")
-                                .braced_scope_span()
+                                .braced_scope_span(false)
                                 .expect("should have braced scope span"),
                         ),
                     )
@@ -1356,7 +1375,7 @@ fn add_conditional_statement(
             Scope::new(
                 Some(parent),
                 clause
-                    .braced_scope_span()
+                    .braced_scope_span(false)
                     .expect("should have braced scope span"),
             ),
         );
@@ -1392,7 +1411,7 @@ fn add_scatter_statement(
         Scope::new(
             Some(parent),
             statement
-                .braced_scope_span()
+                .braced_scope_span(false)
                 .expect("should have braced scope span"),
         ),
     );
@@ -1444,58 +1463,54 @@ fn add_call_statement(
         .unwrap_or_else(|| target_name.clone());
 
     let ty = match resolve_call_type(document, workflow_name, statement) {
-        Some(ty) => {
+        Some(call_ty) => {
             // Type check the call inputs
             let mut seen = HashSet::new();
             for input in statement.inputs() {
                 let input_name = input.name();
 
-                let (expected_ty, required) = ty
+                let (expected_input_ty, required) = call_ty
                     .inputs()
                     .get(input_name.text())
                     .map(|i| (i.ty.clone(), i.required))
                     .unwrap_or_else(|| {
                         document.analysis_diagnostics.push(unknown_call_io(
-                            &ty,
+                            &call_ty,
                             &input_name,
                             Io::Input,
                         ));
                         (Type::Union, true)
                     });
 
+                // We accept optional types for the input even if the input's
+                // type is non-optional; if the runtime value is `None` for a
+                // non-optional input, the default expression will be evaluated
+                // instead.
+                let expected_input_ty = if !required {
+                    expected_input_ty.optional()
+                } else {
+                    expected_input_ty
+                };
+
                 match input.expr() {
                     Some(expr) => {
-                        // For WDL 1.2, we accept optional types for the input even if the input's
-                        // type is non-optional; if the runtime value is `None` for a non-optional
-                        // input, the default expression will be evaluated instead.
-                        let expected_ty = if !required
-                            && document
-                                .version
-                                .map(|v| v >= SupportedVersion::V1(V1::Two))
-                                .unwrap_or(false)
-                        {
-                            expected_ty.optional()
-                        } else {
-                            expected_ty
-                        };
-
                         type_check_expr(
                             config,
                             document,
                             scope.as_scope_ref(),
                             &expr,
-                            &expected_ty,
+                            &expected_input_ty,
                             input_name.span(),
                         );
                     }
                     None => match scope.lookup(input_name.text()) {
                         Some(name) => {
-                            if !matches!(expected_ty, Type::Union)
-                                && !name.ty.is_coercible_to(&expected_ty)
+                            if !matches!(expected_input_ty, Type::Union)
+                                && !name.ty.is_coercible_to(&expected_input_ty)
                             {
                                 document.analysis_diagnostics.push(call_input_type_mismatch(
                                     &input_name,
-                                    &expected_ty,
+                                    &expected_input_ty,
                                     &name.ty,
                                 ));
                             }
@@ -1511,10 +1526,10 @@ fn add_call_statement(
                 seen.insert(input_name.hashable());
             }
 
-            for (name, input) in ty.inputs() {
+            for (name, input) in call_ty.inputs() {
                 if input.required && !seen.contains(name.as_str()) {
                     document.analysis_diagnostics.push(missing_call_input(
-                        ty.kind(),
+                        call_ty.kind(),
                         &target_name,
                         name,
                         nested_inputs_allowed,
@@ -1529,10 +1544,10 @@ fn add_call_statement(
                 .expect("should have workflow")
                 .calls;
             if !calls.contains_key(name.text()) {
-                calls.insert(name.text().to_string(), ty.clone());
+                calls.insert(name.text().to_string(), call_ty.clone());
             }
 
-            ty.into()
+            call_ty.into()
         }
         _ => Type::Union,
     };
@@ -1542,7 +1557,7 @@ fn add_call_statement(
         // Check for unused call
         if let Some(severity) = config.diagnostics_config().unused_call
             && !is_used
-            && !statement.inner().is_rule_excepted(UNUSED_CALL_RULE_ID)
+            && !statement.inner().is_rule_excepted(UnusedCallRule::ID)
             && let Some(ty) = ty.as_call()
             && !ty.outputs().is_empty()
         {
@@ -1651,7 +1666,14 @@ fn resolve_import(
     stmt: &ImportStatement,
     importer_index: NodeIndex,
 ) -> Result<(Arc<Url>, Document), Option<Diagnostic>> {
-    let uri = stmt.uri();
+    let uri = match stmt.source() {
+        ImportSource::Uri(uri) => uri,
+        ImportSource::ModulePath(_) => {
+            // Symbolic module paths do not resolve through the quoted-URI
+            // graph; the module resolver handles them separately.
+            return Err(None);
+        }
+    };
     let span = uri.span();
     let text = match uri.text() {
         Some(text) => text,
@@ -1733,8 +1755,8 @@ fn resolve_import(
     Ok((imported_node.uri().clone(), imported_document))
 }
 
-/// Sets the struct types in the document.
-fn set_struct_types(document: &mut DocumentData) {
+/// Sets struct and enum types in the document.
+fn populate_types(document: &mut DocumentData) {
     /// Used to resolve a type name from a document.
     struct Resolver<'a> {
         /// The document to resolve the type name from.
@@ -1745,32 +1767,34 @@ fn set_struct_types(document: &mut DocumentData) {
 
     impl TypeNameResolver for Resolver<'_> {
         fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
-            match self.document.structs.get(name) {
-                Some(s) => {
-                    // Mark the struct's namespace as used
-                    if let Some(ns) = &s.namespace {
-                        self.document.namespaces[ns].used = true;
-                    }
-
-                    Ok(s.ty().cloned().unwrap_or(Type::Union))
+            if let Some(s) = self.document.structs.get(name) {
+                if let Some(ns) = &s.namespace {
+                    self.document.namespaces[ns].used = true;
                 }
-                _ => {
-                    self.document.analysis_diagnostics.push(unknown_type(
-                        name,
-                        Span::new(span.start() + self.offset, span.len()),
-                    ));
-                    Ok(Type::Union)
-                }
+                return Ok(s.ty().cloned().unwrap_or(Type::Union));
             }
+
+            if let Some(e) = self.document.enums.get(name) {
+                if let Some(ns) = &e.namespace {
+                    self.document.namespaces[ns].used = true;
+                }
+                return Ok(e.ty().cloned().unwrap_or(Type::Union));
+            }
+
+            self.document.analysis_diagnostics.push(unknown_type(
+                name,
+                Span::new(span.start() + self.offset, span.len()),
+            ));
+            Ok(Type::Union)
         }
     }
 
-    if document.structs.is_empty() {
+    if document.structs.is_empty() && document.enums.is_empty() {
         return;
     }
 
-    /// Recursively finds all nested struct type dependencies to build
-    /// dependency graphs
+    /// Recursively finds all nested type dependencies to build dependency
+    /// graphs
     fn find_type_refs(ty: &wdl_ast::v1::Type, deps: &mut Vec<TypeRef>) {
         match ty {
             wdl_ast::v1::Type::Ref(r) => deps.push(r.clone()),
@@ -1794,13 +1818,16 @@ fn set_struct_types(document: &mut DocumentData) {
     // into diagnostics.
     let mut graph: DiGraphMap<_, _, RandomState> = DiGraphMap::new();
     let mut space = Default::default();
+
+    // Map struct dependencies
     for (from, s) in document.structs.values().enumerate() {
         // Only look at locally defined structs
         if s.namespace.is_some() {
             continue;
         }
 
-        graph.add_node(from);
+        let from_idx = TypeIndex::Struct(from);
+        graph.add_node(from_idx);
         let definition: StructDefinition =
             StructDefinition::cast(SyntaxNode::new_root(s.node.clone())).expect("node should cast");
         for member in definition.members() {
@@ -1808,129 +1835,170 @@ fn set_struct_types(document: &mut DocumentData) {
             find_type_refs(&member.ty(), &mut deps);
 
             for dep in deps {
-                // Add an edge to the referenced struct
-                if let Some(to) = document.structs.get_index_of(dep.name().text()) {
-                    // Only add an edge to another local struct definition
-                    if document.structs[to].namespace.is_some() {
-                        continue;
-                    }
+                let Some(to_idx) = resolve_dep(document, dep.name().text()) else {
+                    continue;
+                };
 
-                    // Check to see if the edge would form a cycle
-                    if has_path_connecting(&graph, from, to, Some(&mut space)) {
-                        let name = definition.name();
-                        let name_span = name.span();
-                        let member_span = member.name().span();
-                        document.analysis_diagnostics.push(recursive_struct(
-                            name.text(),
-                            Span::new(name_span.start() + s.offset, name_span.len()),
-                            Span::new(member_span.start() + s.offset, member_span.len()),
-                        ));
-                    } else {
-                        graph.add_edge(to, from, ());
-                    }
+                if has_path_connecting(&graph, from_idx, to_idx, Some(&mut space)) {
+                    let def_name = definition.name();
+                    let def_span = def_name.span();
+                    let member_span = member.name().span();
+                    document.analysis_diagnostics.push(recursive_struct(
+                        def_name.text(),
+                        Span::new(def_span.start() + s.offset, def_span.len()),
+                        Span::new(member_span.start() + s.offset, member_span.len()),
+                    ));
+                } else {
+                    graph.add_edge(to_idx, from_idx, ());
                 }
             }
         }
     }
 
-    // At this point the graph is guaranteed acyclic; now calculate the struct types
-    // in topological order
-    for index in toposort(&graph, Some(&mut space)).expect("graph should be acyclic") {
-        let definition =
-            StructDefinition::cast(SyntaxNode::new_root(document.structs[index].node.clone()))
-                .expect("node should cast");
-
-        let offset = document.structs[index].offset;
-        let mut converter = AstTypeConverter::new(Resolver { document, offset });
-        match converter.convert_struct_type(&definition) {
-            Ok(ty) => {
-                let s = &mut document.structs[index];
-                assert!(s.ty.is_none(), "type should not already be present");
-                s.ty = Some(ty.into());
-            }
-            Err(mut diagnostic) => {
-                // Adjust each label in the diagnostic based on the struct offset
-                for label in diagnostic.labels_mut() {
-                    let span = label.span();
-                    label.set_span(Span::new(span.start() + offset, span.len()));
-                }
-
-                document.analysis_diagnostics.push(diagnostic);
-            }
-        }
-    }
-}
-
-/// Populates enum types for all locally defined enums in the document.
-fn set_enum_types(document: &mut DocumentData) {
-    if document.enums.is_empty() {
-        return;
-    }
-
-    // Calculate the underlying type for every enum in the document
-    for index in 0..document.enums.len() {
-        let e = &document.enums[index];
-
+    // Map enum dependencies
+    for (from, e) in document.enums.values().enumerate() {
         // Only look at locally defined enums
         if e.namespace.is_some() {
             continue;
         }
 
+        let from_idx = TypeIndex::Enum(from);
+        graph.add_node(from_idx);
         let definition = e.definition();
-        let mut variants = Vec::new();
-        let mut variant_spans = Vec::new();
+        if let Some(type_param) = definition.type_parameter() {
+            let mut deps = Vec::new();
+            find_type_refs(&type_param.ty(), &mut deps);
 
-        // Populate the variants and their spans
-        for variant in definition.variants() {
-            let variant_name = variant.name().text().to_string();
-            let variant_type = if let Some(value_expr) = variant.value() {
-                // Validate that the value is a literal expression
-                match parse_literal_value(&document.structs, &value_expr) {
-                    Some(ty) => ty,
-                    None => {
-                        let span = value_expr.span();
-                        let adjusted_span = Span::new(span.start() + e.offset, span.len());
-                        document
-                            .analysis_diagnostics
-                            .push(non_literal_enum_value(adjusted_span));
-                        Type::Union
+            for dep in deps {
+                let Some(to_idx) = resolve_dep(document, dep.name().text()) else {
+                    continue;
+                };
+
+                if has_path_connecting(&graph, from_idx, to_idx, Some(&mut space)) {
+                    let def_name = definition.name();
+                    let def_span = def_name.span();
+                    document.analysis_diagnostics.push(recursive_enum(
+                        def_name.text(),
+                        Span::new(def_span.start() + e.offset, def_span.len()),
+                        match to_idx {
+                            TypeIndex::Struct(index) => document.structs[index].name(),
+                            TypeIndex::Enum(index) => document.enums[index].name(),
+                        },
+                    ));
+                } else {
+                    graph.add_edge(to_idx, from_idx, ());
+                }
+            }
+        }
+    }
+
+    // At this point the graph is guaranteed acyclic; now calculate the struct and
+    // enum types in topological order
+    for index in toposort(&graph, Some(&mut space)).expect("graph should be acyclic") {
+        match index {
+            TypeIndex::Struct(index) => {
+                let definition = StructDefinition::cast(SyntaxNode::new_root(
+                    document.structs[index].node.clone(),
+                ))
+                .expect("node should cast");
+
+                let offset = document.structs[index].offset;
+                let mut converter = AstTypeConverter::new(Resolver { document, offset });
+                match converter.convert_struct_type(&definition) {
+                    Ok(ty) => {
+                        let s = &mut document.structs[index];
+                        assert!(s.ty.is_none(), "type should not already be present");
+                        s.ty = Some(ty.into());
+                    }
+                    Err(mut diagnostic) => {
+                        for label in diagnostic.labels_mut() {
+                            let span = label.span();
+                            label.set_span(Span::new(span.start() + offset, span.len()));
+                        }
+                        document.analysis_diagnostics.push(diagnostic);
                     }
                 }
-            } else {
-                // Default to `String` type if no value is specified
-                PrimitiveType::String.into()
-            };
-
-            variants.push((variant_name, variant_type));
-            variant_spans.push(Span::new(
-                variant.span().start() + e.offset(),
-                variant.span().len(),
-            ));
-        }
-
-        // Check for explicit type parameter or infer if one was not specified
-        let result = if let Some(type_param) = definition.type_parameter().map(|t| t.ty()) {
-            let type_param = convert_ast_type(document, &type_param);
-            let e = &document.enums[index];
-            EnumType::new(
-                e.name.clone(),
-                e.name_span,
-                type_param,
-                variants,
-                &variant_spans,
-            )
-        } else {
-            EnumType::infer(document.enums[index].name.clone(), variants, &variant_spans)
-        };
-
-        match result {
-            Ok(enum_ty) => {
-                document.enums[index].ty = Some(enum_ty.into());
             }
-            Err(diagnostic) => {
-                document.analysis_diagnostics.push(diagnostic);
+            TypeIndex::Enum(index) => {
+                let e = &document.enums[index];
+                let definition = e.definition();
+                let mut variants = Vec::new();
+                let mut variant_spans = Vec::new();
+
+                for variant in definition.variants() {
+                    let variant_name = variant.name().text().to_string();
+                    let variant_type = if let Some(value_expr) = variant.value() {
+                        match parse_literal_value(&document.structs, &value_expr) {
+                            Some(ty) => ty,
+                            None => {
+                                let span = value_expr.span();
+                                let adjusted_span = Span::new(span.start() + e.offset, span.len());
+                                document
+                                    .analysis_diagnostics
+                                    .push(non_literal_enum_value(adjusted_span));
+                                Type::Union
+                            }
+                        }
+                    } else {
+                        PrimitiveType::String.into()
+                    };
+
+                    variants.push((variant_name, variant_type));
+                    variant_spans.push(Span::new(
+                        variant.span().start() + e.offset(),
+                        variant.span().len(),
+                    ));
+                }
+
+                let result = if let Some(type_param) = definition.type_parameter().map(|t| t.ty()) {
+                    let type_param = convert_ast_type(document, &type_param);
+                    let e = &document.enums[index];
+                    EnumType::new(
+                        e.name.clone(),
+                        e.name_span,
+                        type_param,
+                        variants,
+                        &variant_spans,
+                    )
+                } else {
+                    EnumType::infer(document.enums[index].name.clone(), variants, &variant_spans)
+                };
+
+                match result {
+                    Ok(enum_ty) => {
+                        document.enums[index].ty = Some(enum_ty.into());
+                    }
+                    Err(diagnostic) => {
+                        document.analysis_diagnostics.push(diagnostic);
+                    }
+                }
             }
         }
+    }
+}
+
+/// An index to a type in a [`Document`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+enum TypeIndex {
+    /// Index into `DocumentData::structs`.
+    Struct(usize),
+    /// Index into `DocumentData::enums`.
+    Enum(usize),
+}
+
+/// Attempt to find a locally defined type in the `document` by name.
+fn resolve_dep(document: &DocumentData, name: &str) -> Option<TypeIndex> {
+    if let Some(to) = document.structs.get_index_of(name)
+        // Only resolve locally defined types
+        && document.structs[to].namespace.is_none()
+    {
+        Some(TypeIndex::Struct(to))
+    } else if let Some(to) = document.enums.get_index_of(name)
+        && document.enums[to].namespace.is_none()
+    {
+        Some(TypeIndex::Enum(to))
+    } else {
+        None
     }
 }
 

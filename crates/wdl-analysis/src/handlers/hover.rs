@@ -6,16 +6,21 @@
 //! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_hover)
 
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
 use lsp_types::Hover;
 use lsp_types::HoverContents;
 use lsp_types::MarkupContent;
 use lsp_types::MarkupKind;
+use rowan::Direction;
 use tracing::debug;
 use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
+use wdl_ast::Comment;
+use wdl_ast::CommentKind;
 use wdl_ast::Documented;
+use wdl_ast::Ident;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 use wdl_ast::SyntaxToken;
@@ -28,8 +33,11 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::EnumVariant;
 use wdl_ast::v1::LiteralStruct;
 use wdl_ast::v1::LiteralStructItem;
+use wdl_ast::v1::MetadataObject;
+use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::ParameterMetadataSection;
 use wdl_ast::v1::StructDefinition;
+use wdl_grammar::SyntaxElement;
 
 use crate::Document;
 use crate::SourcePosition;
@@ -37,7 +45,7 @@ use crate::SourcePositionEncoding;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::handlers::TypeEvalContext;
-use crate::handlers::common::find_identifier_token_at_offset;
+use crate::handlers::common::comments_to_string;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
 use crate::handlers::common::provide_enum_documentation;
@@ -84,14 +92,15 @@ pub fn hover(
     };
 
     let offset = position_to_offset(&lines, position, encoding)?;
-    let Some(token) = find_identifier_token_at_offset(&root, offset) else {
-        bail!("no identifier found at position");
-    };
+    let hovered_token = root
+        .token_at_offset(offset)
+        .find(|t| t.kind() == SyntaxKind::Ident || t.kind() == SyntaxKind::Comment)
+        .ok_or_else(|| anyhow!("no hoverable token found at offset"))?;
 
-    let parent_node = token.parent().expect("token has no parent");
+    let parent_node = hovered_token.parent().expect("token has no parent");
 
-    if let Ok(Some(value)) = resolve_hover_content(&parent_node, &token, document, graph) {
-        let range = location_from_span(document_uri, token.span(), &lines)?.range;
+    if let Ok(Some(value)) = resolve_hover_content(&parent_node, &hovered_token, document, graph) {
+        let range = location_from_span(document_uri, hovered_token.span(), &lines)?.range;
         Ok(Some(Hover {
             contents: HoverContents::Markup(MarkupContent {
                 kind: MarkupKind::Markdown,
@@ -168,6 +177,49 @@ fn resolve_hover_by_context(
     document: &Document,
     graph: &DocumentGraph,
 ) -> Result<Option<String>> {
+    // Hovering doc comments of an item produces the same content as hovering the
+    // identifier of the item
+    if token.kind() == SyntaxKind::Comment {
+        let comment = Comment::cast(token.clone()).expect("should cast");
+        if comment.kind() != CommentKind::Documentation {
+            return Ok(None);
+        }
+
+        for sibling in token.siblings_with_tokens(Direction::Next) {
+            let target = match sibling {
+                SyntaxElement::Node(target) => target,
+                // Also lets line comments and directives through, like `wdl-doc`
+                SyntaxElement::Token(token)
+                    if token.kind() == SyntaxKind::Comment
+                        || token.kind() == SyntaxKind::Whitespace =>
+                {
+                    continue;
+                }
+                _ => break,
+            };
+
+            if target.kind() == SyntaxKind::VersionStatementNode {
+                return match document.root().doc_comments() {
+                    Some(comments) if !comments.is_empty() => Ok(comments_to_string(comments)),
+                    _ => Ok(None),
+                };
+            }
+
+            let Some(item_name) = target.descendants_with_tokens().find_map(|element| {
+                if let SyntaxElement::Token(token) = element
+                    && let Some(ident) = Ident::cast(token)
+                {
+                    return Some(ident);
+                }
+                None
+            }) else {
+                break;
+            };
+
+            return resolve_hover_content(&target, item_name.inner(), document, graph);
+        }
+    }
+
     match parent_node.kind() {
         SyntaxKind::TypeRefNode | SyntaxKind::LiteralStructNode => {
             if let Some(s) = document.struct_by_name(token.text()) {
@@ -240,13 +292,7 @@ fn resolve_hover_by_context(
                     }
                 }
                 // Local call
-                (Some(name), None) => {
-                    if token.span() == name.span() {
-                        (None, name)
-                    } else {
-                        return Ok(None);
-                    }
-                }
+                (Some(name), None) if token.span() == name.span() => (None, name),
                 _ => return Ok(None),
             };
 
@@ -556,9 +602,60 @@ fn find_parameter_meta_documentation(token: &SyntaxToken) -> Option<String> {
 
     for item in param_meta.items() {
         if item.name().text() == token.text() {
-            let doc_text = item.value().text().to_string();
-            return Some(doc_text.trim_matches('"').to_string());
+            return Some(render_parameter_meta_value(&item.value()));
         }
     }
     None
+}
+
+/// Renders a `parameter_meta` value as a hover documentation string.
+///
+/// Strings are returned without surrounding quotes. Objects are flattened
+/// to their `description` (then `help`) text, as in `wdl-doc`. Anything
+/// else falls back to the raw source text.
+fn render_parameter_meta_value(value: &MetadataValue) -> String {
+    match value {
+        MetadataValue::String(s) => s
+            .text()
+            .map(|t| t.text().to_string())
+            .unwrap_or_else(|| s.inner().text().to_string().trim_matches('"').to_string()),
+        MetadataValue::Object(obj) => {
+            object_description_and_help(obj).unwrap_or_else(|| value.text().to_string())
+        }
+        _ => value.text().to_string().trim_matches('"').to_string(),
+    }
+}
+
+/// Returns the `description` and `help` strings from a metadata object,
+/// joined by a blank line, or `None` if neither key is present.
+fn object_description_and_help(obj: &MetadataObject) -> Option<String> {
+    let mut description: Option<String> = None;
+    let mut help: Option<String> = None;
+    for item in obj.items() {
+        let key = item.name().text().to_string();
+        if key != "description" && key != "help" {
+            continue;
+        }
+        if let MetadataValue::String(s) = item.value()
+            && let Some(t) = s.text()
+        {
+            let text = t.text().to_string();
+            if key == "description" {
+                description = Some(text);
+            } else {
+                help = Some(text);
+            }
+        }
+    }
+
+    match (description, help) {
+        (Some(mut d), Some(h)) => {
+            d.push_str("\n\n");
+            d.push_str(&h);
+            Some(d)
+        }
+        (Some(d), None) => Some(d),
+        (None, Some(h)) => Some(h),
+        (None, None) => None,
+    }
 }

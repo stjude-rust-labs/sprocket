@@ -1,0 +1,1 @@
+-qq run source.wdl 'print_pairs.pairs=["Hello", "Hi"]' 'print_pairs.pairs=["World", "Universe"]'

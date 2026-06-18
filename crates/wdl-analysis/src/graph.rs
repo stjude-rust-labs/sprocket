@@ -36,8 +36,8 @@ use wdl_ast::SyntaxNode;
 
 use crate::Config;
 use crate::IncrementalChange;
+use crate::UsingFallbackVersion;
 use crate::document::Document;
-use crate::rules::USING_FALLBACK_VERSION;
 
 /// Represents space for a DFS search of a document graph.
 pub type DfsSpace =
@@ -374,7 +374,8 @@ impl DocumentGraphNode {
 
         // Reparse from the source
         let start = Instant::now();
-        let (document, mut diagnostics) = wdl_ast::Document::parse(&source);
+        let (document, mut diagnostics) =
+            wdl_ast::Document::parse(&source, self.config.fallback_version());
         debug!(
             "parsing of `{uri}` completed in {elapsed:?}",
             uri = self.uri,
@@ -395,15 +396,16 @@ impl DocumentGraphNode {
                     wdl_version = Some(version);
                 }
                 // The version in the document is not supported, but fallback behavior is configured
-                (Err(unrecognized), Some(fallback)) => {
+                (Err(_), Some(fallback)) => {
                     if let Some(severity) = self.config.diagnostics_config().using_fallback_version
                     {
                         diagnostics.push(
                             Diagnostic::warning(format!(
-                                "unsupported WDL version `{unrecognized}`; interpreting document \
-                                 as version `{fallback}`"
+                                "unsupported WDL version `{version}`; interpreting document as \
+                                 version `{fallback}`",
+                                version = version_token.text(),
                             ))
-                            .with_rule(USING_FALLBACK_VERSION)
+                            .with_rule(UsingFallbackVersion::ID)
                             .with_severity(severity)
                             .with_label(
                                 "this version of WDL is not supported",
@@ -413,20 +415,8 @@ impl DocumentGraphNode {
                     }
                     wdl_version = Some(fallback);
                 }
-                // Add an error diagnostic if the version is unsupported and don't overwrite
-                // `wdl_version`
-                (Err(unrecognized), None) => {
-                    diagnostics.push(
-                        Diagnostic::error(format!("unsupported WDL version `{unrecognized}`"))
-                            .with_label(
-                                "this version of WDL is not supported",
-                                version_token.span(),
-                            )
-                            .with_fix(
-                                "either use a supported WDL version or configure \
-                                 `common.wdl.fallback_version` to set a fallback version",
-                            ),
-                    );
+                (Err(_), None) => {
+                    // Diagnostic already emitted by wdl-grammar
                 }
             };
         }

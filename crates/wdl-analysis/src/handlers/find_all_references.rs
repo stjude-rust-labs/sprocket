@@ -107,7 +107,7 @@ fn is_local_import_definition(token: &SyntaxToken) -> bool {
 /// documents to find all references to that definition.
 pub fn find_all_references(
     graph: &DocumentGraph,
-    document_uri: Url,
+    document_uri: &Url,
     position: SourcePosition,
     encoding: SourcePositionEncoding,
     include_declaration: bool,
@@ -175,7 +175,7 @@ pub fn find_all_references(
     Ok(locations)
 }
 
-/// Collects references to the target symbol form a single document.
+/// Collects references to the target symbol from a single document.
 ///
 /// 1. Traverse all tokens in the document's CST
 /// 2. Filter for identifier tokens matching the target name
@@ -221,13 +221,9 @@ fn collect_references_from_document(
                 .context("failed to convert token position")?;
             let source_pos = SourcePosition::new(token_pos.line, token_pos.character);
 
-            let resolved_location = handlers::goto_definition(
-                graph,
-                document.uri().as_ref().clone(),
-                source_pos,
-                encoding,
-            )
-            .context("failed to resolve token definition")?;
+            let resolved_location =
+                handlers::goto_definition(graph, document.uri(), source_pos, encoding)
+                    .context("failed to resolve token definition")?;
 
             if let Some(location) = resolved_location
                 && location == target.location
@@ -282,7 +278,7 @@ mod tests {
     }
 
     fn parsed_ident_token(source: &str, ident: &str) -> wdl_ast::SyntaxToken {
-        let (document, diagnostics) = wdl_ast::Document::parse(source);
+        let (document, diagnostics) = wdl_ast::Document::parse(source, None);
         assert!(
             diagnostics.is_empty(),
             "expected parse success for `{ident}`, got {diagnostics:?}"

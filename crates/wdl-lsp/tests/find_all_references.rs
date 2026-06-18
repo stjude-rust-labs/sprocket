@@ -1,51 +1,39 @@
 //! Integration tests for the `textDocument/references` request.
 
-mod common;
+pub mod common;
 use core::panic;
 
+use async_lsp::lsp_types::Location;
+use async_lsp::lsp_types::Position;
+use async_lsp::lsp_types::Range;
+use async_lsp::lsp_types::ReferenceContext;
+use async_lsp::lsp_types::ReferenceParams;
+use async_lsp::lsp_types::TextDocumentIdentifier;
+use async_lsp::lsp_types::TextDocumentPositionParams;
+use async_lsp::lsp_types::request::References;
 use common::TestContext;
 use pretty_assertions::assert_eq;
-use tower_lsp::lsp_types::Location;
-use tower_lsp::lsp_types::Position;
-use tower_lsp::lsp_types::Range;
-use tower_lsp::lsp_types::ReferenceContext;
-use tower_lsp::lsp_types::ReferenceParams;
-use tower_lsp::lsp_types::TextDocumentIdentifier;
-use tower_lsp::lsp_types::TextDocumentPositionParams;
-use tower_lsp::lsp_types::request::References;
 
 async fn find_all_references(
     ctx: &mut TestContext,
     path: &str,
     position: Position,
     include_declaration: bool,
-) -> Option<Vec<Location>> {
-    let response = ctx
-        .request::<References>(ReferenceParams {
-            context: ReferenceContext {
-                include_declaration,
+) -> async_lsp::Result<Option<Vec<Location>>> {
+    ctx.request::<References>(ReferenceParams {
+        context: ReferenceContext {
+            include_declaration,
+        },
+        text_document_position: TextDocumentPositionParams {
+            text_document: TextDocumentIdentifier {
+                uri: ctx.doc_uri(path),
             },
-            text_document_position: TextDocumentPositionParams {
-                text_document: TextDocumentIdentifier {
-                    uri: ctx.doc_uri(path),
-                },
-                position,
-            },
-            partial_result_params: Default::default(),
-            work_done_progress_params: Default::default(),
-        })
-        .await;
-
-    locations_from_response(response)
-}
-
-fn locations_from_response(response: impl serde::Serialize) -> Option<Vec<Location>> {
-    let response = serde_json::to_value(response).expect("references response should serialize");
-    if response.is_null() {
-        return None;
-    }
-
-    Some(serde_json::from_value(response).expect("references response should be locations"))
+            position,
+        },
+        partial_result_params: Default::default(),
+        work_done_progress_params: Default::default(),
+    })
+    .await
 }
 
 fn has_location(locations: &[Location], expected: Location) -> bool {
@@ -67,6 +55,7 @@ async fn should_have_references_to_struct() {
     // Position of `Person` in `struct Person`
     let response = find_all_references(&mut ctx, "structs.wdl", Position::new(2, 7), false)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     assert!(!response.is_empty());
@@ -78,6 +67,7 @@ async fn should_have_references_to_struct() {
     // Position of `Person` in `struct Person`
     let response = find_all_references(&mut ctx, "structs.wdl", Position::new(2, 7), true)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     assert!(response.len() == 3, "references should contain declaration");
@@ -90,6 +80,7 @@ async fn should_have_references_across_files() {
     // Position of `Person` in `struct Person`
     let response = find_all_references(&mut ctx, "structs.wdl", Position::new(2, 7), true)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let Some(location) = response
@@ -127,6 +118,7 @@ async fn should_have_references_to_struct_members() {
     // Position of `name` in `String name`
     let response = find_all_references(&mut ctx, "structs.wdl", Position::new(3, 11), false)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let mut locations = response.iter();
@@ -149,6 +141,7 @@ async fn should_have_references_to_local_variables() {
     // Position of `person` in `Person person`
     let response = find_all_references(&mut ctx, "foo.wdl", Position::new(6, 15), false)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let mut locations = response.iter();
@@ -170,6 +163,7 @@ async fn should_have_references_to_local_variable_used_in_output_section() {
 
     let response = find_all_references(&mut ctx, "local_output.wdl", Position::new(3, 11), true)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     assert_eq!(response.len(), 2);
@@ -201,6 +195,7 @@ async fn should_have_references_to_tasks() {
     // Position of `greet` in `task greet`
     let response = find_all_references(&mut ctx, "foo.wdl", Position::new(4, 5), false)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     assert_eq!(response.len(), 2);
@@ -227,6 +222,7 @@ async fn should_have_references_to_tasks_output() {
     // Position of `name` in `String name`
     let response = find_all_references(&mut ctx, "foo.wdl", Position::new(14, 15), false)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     assert_eq!(response.len(), 2);
@@ -253,6 +249,7 @@ async fn should_have_references_to_enum() {
     // Position of `Status` in `enum Status`
     let response = find_all_references(&mut ctx, "enum.wdl", Position::new(2, 7), true)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     assert_eq!(response.len(), 5); // Declaration + two type annotations + two member access
@@ -265,6 +262,7 @@ async fn should_have_references_to_enum_variant() {
     // Position of `Active` in variant definition
     let response = find_all_references(&mut ctx, "enum.wdl", Position::new(3, 4), true)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     assert_eq!(response.len(), 2); // Declaration + one use of `Status.Active`
@@ -276,6 +274,7 @@ async fn should_have_references_to_imported_type_alias() {
 
     let response = find_all_references(&mut ctx, "aliases.wdl", Position::new(2, 39), true)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     assert_eq!(response.len(), 2);
@@ -306,6 +305,7 @@ async fn should_have_references_to_call_alias() {
 
     let response = find_all_references(&mut ctx, "aliases.wdl", Position::new(10, 26), true)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     assert_eq!(response.len(), 2);

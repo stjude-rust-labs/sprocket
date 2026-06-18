@@ -34,6 +34,7 @@ use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_lint::Config;
 use wdl_lint::Linter;
+use wdl_lint::Rule;
 use wdl_lint::rules;
 
 /// Finds tests for this package.
@@ -119,7 +120,7 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     let config_path = test.join("config.toml");
     if config_path.exists() {
         let config_str = fs::read_to_string(&config_path)?;
-        let config = toml::from_str(&config_str)?;
+        let config = toml_spanner::from_str(&config_str)?;
 
         run_test_inner(test, "source.errors.default", Config::default()).await?;
         run_test_inner(test, "source.errors", config).await?;
@@ -141,7 +142,9 @@ async fn run_test_inner(
         |_, _, _, _| async {},
         move || {
             let mut validator = Validator::default();
-            validator.add_visitor(Linter::new(rules(&config)));
+            validator.add_visitor(Linter::new(
+                rules(&config).into_iter().map(|r| r as Box<dyn Rule>),
+            ));
             validator
         },
     );

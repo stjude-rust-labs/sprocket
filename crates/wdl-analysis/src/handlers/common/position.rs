@@ -1,7 +1,5 @@
 //! Utilities for working with positions and ranges.
 
-use std::sync::Arc;
-
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::anyhow;
@@ -36,7 +34,7 @@ pub fn position(index: &LineIndex, offset: TextSize) -> Result<Position> {
 }
 
 /// Converts a `Span` to an LSP location.
-pub fn location_from_span(uri: &Url, span: Span, lines: &Arc<LineIndex>) -> Result<Location> {
+pub fn location_from_span(uri: &Url, span: Span, lines: &LineIndex) -> Result<Location> {
     let start_offset = TextSize::from(span.start() as u32);
     let end_offset = TextSize::from(span.end() as u32);
     let range = lsp_types::Range {
@@ -49,7 +47,7 @@ pub fn location_from_span(uri: &Url, span: Span, lines: &Arc<LineIndex>) -> Resu
 
 /// Converts a source position to a text offset based on the specified encoding.
 pub fn position_to_offset(
-    lines: &Arc<LineIndex>,
+    lines: &LineIndex,
     position: SourcePosition,
     encoding: SourcePositionEncoding,
 ) -> Result<TextSize> {

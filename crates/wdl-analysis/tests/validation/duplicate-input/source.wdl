@@ -3,36 +3,24 @@
 version 1.1
 
 task t {
-    input {
+    input {}
 
-    }
-
-    input {
-
-    }
+    input {}
 
     command <<<>>>
 }
 
 # A duplicate task should trigger a single error and then be ignored.
 task t {
-    input {
+    input {}
 
-    }
-
-    input {
-
-    }
+    input {}
 
     command <<<>>>
 }
 
 workflow w {
-    input {
+    input {}
 
-    }
-
-    input {
-
-    }
+    input {}
 }

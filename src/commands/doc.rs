@@ -10,6 +10,9 @@ use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::DiagnosticsConfig;
 use wdl::ast::AstNode;
 use wdl::ast::Severity;
+use wdl::diagnostics::DiagnosticCounts;
+use wdl::diagnostics::Mode;
+use wdl::diagnostics::emit_diagnostics;
 use wdl::doc::Config as DocConfig;
 use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
@@ -23,9 +26,6 @@ use crate::Config;
 use crate::IGNORE_FILENAME;
 use crate::analysis::Source;
 use crate::commands::CommandResult;
-use crate::diagnostics::DiagnosticCounts;
-use crate::diagnostics::Mode;
-use crate::diagnostics::emit_diagnostics;
 
 /// Arguments for the `doc` subcommand.
 #[derive(Parser, Debug)]
@@ -188,7 +188,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
     }
 
     let analysis_config = AnalysisConfig::default()
-        .with_fallback_version(config.common.wdl.fallback_version.inner().cloned())
+        .with_fallback_version(config.common.wdl.fallback_version.into())
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .with_diagnostics_config(DiagnosticsConfig::except_all());
 
@@ -223,7 +223,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
 
                     emit_diagnostics(
                         &path,
-                        source,
+                        &source,
                         result.document().diagnostics().filter(|d| {
                             if d.severity() == Severity::Error {
                                 counts.errors += 1;
@@ -232,7 +232,6 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
 
                             false
                         }),
-                        &[],
                         args.report_mode.unwrap_or_default(),
                         colorize,
                     )

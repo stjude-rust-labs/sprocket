@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Removed dependency on `serde` ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+* `Parser` now produces `ParseDiagnostic`s instead of `Diagnostic`s ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
+* `Parser` now handles deduplication of diagnostics, so the `Output` will no longer contain
+  identical diagnostics ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
+* In nested expressions, only the innermost expression will produce an "unexpected end of input"
+  diagnostic ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
+* `Parser` now has a hard recursion limit of `128` on nested expressions ([#930](https://github.com/stjude-rust-labs/sprocket/pull/930)).
+
+## 0.23.0 - 2026-06-03
+
+#### Changed
+
+* `SyntaxKind::is_keyword()` no longer includes types, see `SyntaxKind::is_type()` ([#870](https://github.com/stjude-rust-labs/sprocket/pull/870)).
+* `Parser` now produces a single `Unknown` token and diagnostic for consecutive unknown tokens ([#908](https://github.com/stjude-rust-labs/sprocket/pull/908)).
+
+## 0.22.0 - 2026-05-14
+
+#### Added
+
+* Initial support for WDL 1.4 (`V1::Four`) ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+* `Token::FromKeyword` and `SyntaxKind::FromKeyword` for the reserved `from`
+  keyword ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+* CST node kinds for the unified import grammar: `ImportMembersNode`,
+  `ImportMemberNode`, and `SymbolicModulePathNode`
+  ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+* Parsing of the three import forms from
+  [`openwdl/wdl#765`](https://github.com/openwdl/wdl/pull/765): namespace
+  import with optional `as <alias>` and `alias` clauses, `* from <source>`
+  wildcard, and `{ <member> [as <Name>], ... } from <source>` selection.
+  Each `<source>` is either a quoted URI or an unquoted symbolic module
+  path ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+
+#### Changed
+
+* Keywords can no longer be used as identifiers ([#751](https://github.com/stjude-rust-labs/sprocket/pull/751)).
+* The `from` keyword is now lexed as `Token::FromKeyword` for every WDL
+  version. The parser still accepts `from` in identifier positions through
+  `ANY_IDENT`, so pre-`1.4` documents that use `from` as a struct member,
+  variable name, alias slot, or selected import member continue to parse
+  without modification ([#831](https://github.com/stjude-rust-labs/sprocket/pull/831)).
+
 ## 0.21.1 - 2026-04-02
 
 #### Fixed

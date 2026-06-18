@@ -4,5 +4,4 @@ version 1.1
 
 import "foo://bar" as foo
 
-workflow test {
-}
+workflow test {}

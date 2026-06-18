@@ -1,0 +1,2 @@
+[check]
+baseline = "my-baselines/custom.toml"

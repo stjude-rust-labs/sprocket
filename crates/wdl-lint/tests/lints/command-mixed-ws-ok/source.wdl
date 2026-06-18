@@ -1,4 +1,4 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, ShellCheck, DeprecatedPlaceholder
+#@ except: MetaDescription, ExpectedRuntimeKeys, ShellCheck, DeprecatedPlaceholder, EmptyOutputs
 
 ## This is a test of having mixed indentation inside of a placeholder.
 ## This should not cause a warning for the `CommandSectionIndentation` rule.

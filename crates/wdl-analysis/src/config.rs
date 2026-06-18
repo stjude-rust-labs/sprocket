@@ -2,30 +2,44 @@
 
 use std::sync::Arc;
 
+use toml_spanner::Context;
+use toml_spanner::Failed;
+use toml_spanner::FromToml;
+use toml_spanner::Item;
+use toml_spanner::Toml;
+use toml_spanner::helper::parse_string;
 use tracing::warn;
 use wdl_ast::Severity;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
 use crate::Exceptable as _;
+use crate::MisleadingDeclarationOrderRule;
 use crate::Rule;
-use crate::UNNECESSARY_FUNCTION_CALL;
-use crate::UNUSED_CALL_RULE_ID;
-use crate::UNUSED_DECL_RULE_ID;
-use crate::UNUSED_IMPORT_RULE_ID;
-use crate::UNUSED_INPUT_RULE_ID;
-use crate::USING_FALLBACK_VERSION;
+use crate::UnnecessaryFunctionCall;
+use crate::UnusedCallRule;
+use crate::UnusedDeclarationRule;
+use crate::UnusedImportRule;
+use crate::UnusedInputRule;
+use crate::UsingFallbackVersion;
 use crate::rules;
 
 /// Configuration for `wdl-analysis`.
 ///
 /// This type is a wrapper around an `Arc`, and so can be cheaply cloned and
 /// sent between threads.
-#[derive(Clone, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Config {
     /// The actual fields, `Arc`ed up for easy cloning.
-    #[serde(flatten)]
     inner: Arc<ConfigInner>,
+}
+
+impl<'de> FromToml<'de> for Config {
+    fn from_toml(ctx: &mut Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
+        Ok(Self {
+            inner: ConfigInner::from_toml(ctx, item)?.into(),
+        })
+    }
 }
 
 // Custom `Debug` impl for the `Config` wrapper type that simplifies away the
@@ -170,43 +184,47 @@ impl Config {
 }
 
 /// The actual configuration fields inside the [`Config`] wrapper.
-#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Toml)]
 struct ConfigInner {
     /// See [`DiagnosticsConfig`].
-    #[serde(default)]
+    #[toml(default, style = Header)]
     diagnostics: DiagnosticsConfig,
     /// See [`Config::with_fallback_version()`]
-    #[serde(default)]
+    #[toml(FromToml with = parse_string)]
     fallback_version: Option<SupportedVersion>,
     /// See [`Config::with_ignore_filename()`]
     ignore_filename: Option<String>,
     /// A list of all known rule identifiers.
-    #[serde(default)]
+    #[toml(default)]
     all_rules: Vec<String>,
     /// The set of feature flags that can be enabled or disabled.
-    #[serde(default)]
+    #[toml(default)]
     feature_flags: FeatureFlags,
 }
 
 /// A set of feature flags that can be enabled.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Toml)]
 pub struct FeatureFlags {
     /// Formerly enabled experimental WDL 1.3 features.
     ///
     /// This flag is now a no-op as WDL 1.3 is fully supported. Setting this to
     /// `false` will emit a warning.
-    #[serde(default = "default_wdl_1_3")]
+    #[toml(default = true)]
     wdl_1_3: bool,
-}
-
-/// Returns the default value for the `wdl_1_3` feature flag.
-fn default_wdl_1_3() -> bool {
-    true
+    /// Enables experimental WDL 1.4 features.
+    ///
+    /// Defaults to `false`. While `false`, `wdl-analysis` reports an error for
+    /// any document declaring `version 1.4`.
+    #[toml(default)]
+    wdl_1_4: bool,
 }
 
 impl Default for FeatureFlags {
     fn default() -> Self {
-        Self { wdl_1_3: true }
+        Self {
+            wdl_1_3: true,
+            wdl_1_4: false,
+        }
     }
 }
 
@@ -224,6 +242,17 @@ impl FeatureFlags {
     pub fn with_wdl_1_3(self) -> Self {
         self
     }
+
+    /// Returns whether WDL 1.4 is enabled.
+    pub fn wdl_1_4(&self) -> bool {
+        self.wdl_1_4
+    }
+
+    /// Returns a new `FeatureFlags` with WDL 1.4 features enabled.
+    pub fn with_wdl_1_4(mut self) -> Self {
+        self.wdl_1_4 = true;
+        self
+    }
 }
 
 /// Configuration for analysis diagnostics.
@@ -232,34 +261,45 @@ impl FeatureFlags {
 /// represented here.
 ///
 /// These diagnostics default to a warning severity.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Toml)]
 pub struct DiagnosticsConfig {
     /// The severity for the unused import diagnostic.
     ///
     /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
     pub unused_import: Option<Severity>,
     /// The severity for the unused input diagnostic.
     ///
     /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
     pub unused_input: Option<Severity>,
     /// The severity for the unused declaration diagnostic.
     ///
     /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
     pub unused_declaration: Option<Severity>,
     /// The severity for the unused call diagnostic.
     ///
     /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
     pub unused_call: Option<Severity>,
     /// The severity for the unnecessary function call diagnostic.
     ///
     /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
     pub unnecessary_function_call: Option<Severity>,
     /// The severity for the using fallback version diagnostic.
     ///
     /// A value of `None` disables the diagnostic. If there is no version
     /// configured with [`Config::with_fallback_version()`], this diagnostic
     /// will not be emitted.
+    #[toml(FromToml with = parse_string)]
     pub using_fallback_version: Option<Severity>,
+    /// The severity for the misleading declaration order diagnostic.
+    ///
+    /// A value of `None` disables the diagnostic.
+    #[toml(FromToml with = parse_string)]
+    pub misleading_declaration_order: Option<Severity>,
 }
 
 impl Default for DiagnosticsConfig {
@@ -277,16 +317,20 @@ impl DiagnosticsConfig {
         let mut unused_call = None;
         let mut unnecessary_function_call = None;
         let mut using_fallback_version = None;
+        let mut misleading_declaration_order = None;
 
         for rule in rules {
             let rule = rule.as_ref();
             match rule.id() {
-                UNUSED_IMPORT_RULE_ID => unused_import = Some(rule.severity()),
-                UNUSED_INPUT_RULE_ID => unused_input = Some(rule.severity()),
-                UNUSED_DECL_RULE_ID => unused_declaration = Some(rule.severity()),
-                UNUSED_CALL_RULE_ID => unused_call = Some(rule.severity()),
-                UNNECESSARY_FUNCTION_CALL => unnecessary_function_call = Some(rule.severity()),
-                USING_FALLBACK_VERSION => using_fallback_version = Some(rule.severity()),
+                UnusedImportRule::ID => unused_import = Some(rule.severity()),
+                UnusedInputRule::ID => unused_input = Some(rule.severity()),
+                UnusedDeclarationRule::ID => unused_declaration = Some(rule.severity()),
+                UnusedCallRule::ID => unused_call = Some(rule.severity()),
+                UnnecessaryFunctionCall::ID => unnecessary_function_call = Some(rule.severity()),
+                UsingFallbackVersion::ID => using_fallback_version = Some(rule.severity()),
+                MisleadingDeclarationOrderRule::ID => {
+                    misleading_declaration_order = Some(rule.severity())
+                }
                 unrecognized => {
                     warn!(unrecognized, "unrecognized rule");
                     if cfg!(test) {
@@ -303,6 +347,7 @@ impl DiagnosticsConfig {
             unused_call,
             unnecessary_function_call,
             using_fallback_version,
+            misleading_declaration_order,
         }
     }
 
@@ -311,27 +356,27 @@ impl DiagnosticsConfig {
     pub fn excepted_for_node(mut self, node: &SyntaxNode) -> Self {
         let exceptions = node.rule_exceptions();
 
-        if exceptions.contains(UNUSED_IMPORT_RULE_ID) {
+        if exceptions.contains(UnusedImportRule::ID) {
             self.unused_import = None;
         }
 
-        if exceptions.contains(UNUSED_INPUT_RULE_ID) {
+        if exceptions.contains(UnusedInputRule::ID) {
             self.unused_input = None;
         }
 
-        if exceptions.contains(UNUSED_DECL_RULE_ID) {
+        if exceptions.contains(UnusedDeclarationRule::ID) {
             self.unused_declaration = None;
         }
 
-        if exceptions.contains(UNUSED_CALL_RULE_ID) {
+        if exceptions.contains(UnusedCallRule::ID) {
             self.unused_call = None;
         }
 
-        if exceptions.contains(UNNECESSARY_FUNCTION_CALL) {
+        if exceptions.contains(UnnecessaryFunctionCall::ID) {
             self.unnecessary_function_call = None;
         }
 
-        if exceptions.contains(USING_FALLBACK_VERSION) {
+        if exceptions.contains(UsingFallbackVersion::ID) {
             self.using_fallback_version = None;
         }
 
@@ -347,6 +392,7 @@ impl DiagnosticsConfig {
             unused_call: None,
             unnecessary_function_call: None,
             using_fallback_version: None,
+            misleading_declaration_order: None,
         }
     }
 }

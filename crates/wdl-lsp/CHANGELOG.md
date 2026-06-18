@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.20.0 - 2026-06-03
+
+### Added
+
+* Added support for the `textDocument/prepareCallHierarchy`, `callHierarchy/incomingCalls`, and
+  `callHierarchy/outgoingCalls` requests ([#874](https://github.com/stjude-rust-labs/sprocket/pull/874)).
+* Added support for the `textDocument/foldingRange` request ([#867](https://github.com/stjude-rust-labs/sprocket/pull/867)).
+
+### Changed
+
+* Improved `textDocument/semanticTokens` output, allowing for better syntax highlighting ([#870](https://github.com/stjude-rust-labs/sprocket/pull/870)).
+* Extended hover to render docs when the cursor is over a doc comment or the file preamble ([#873](https://github.com/stjude-rust-labs/sprocket/pull/873)).
+* Switched from [`tower-lsp`](https://crates.io/crates/tower-lsp) to [`async-lsp`](https://crates.io/crates/async-lsp) ([#888](https://github.com/stjude-rust-labs/sprocket/pull/888)).
+* `Server::new()` and `Server::run()` now take a `UserOptions` ([#888](https://github.com/stjude-rust-labs/sprocket/pull/888)).
+
+## 0.19.1 - 2026-05-14
+
+## 0.19.0 - 2026-04-22
+
 ## 0.18.0 - 2026-04-02
 
 ### Added

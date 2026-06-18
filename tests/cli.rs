@@ -110,12 +110,17 @@ struct CommandOutput {
 }
 
 /// Runs a test given the test root directory.
-fn run_test(test_path: &Path) -> Result<()> {
+fn run_test(test_path: &Path, test_name: String) -> Result<()> {
     let working_test_directory = setup_working_test_directory(test_path)
         .context("failed to setup working test directory")?;
     let command_output = run_sprocket(test_path, working_test_directory.path())
         .context("failed to run sprocket command")?;
-    compare_test_results(test_path, working_test_directory.path(), &command_output)
+    compare_test_results(
+        test_path,
+        &test_name,
+        working_test_directory.path(),
+        &command_output,
+    )
 }
 
 /// Sets up the working test directory by copying initial files.
@@ -148,26 +153,26 @@ fn recursive_copy(source: &Path, target: &Path) -> Result<()> {
 
         if file_type.is_dir() {
             fs::create_dir_all(&to)
-                .with_context(|| format!("failed to create directory at {:?}", &to))?;
+                .with_context(|| format!("failed to create directory at {:?}", to))?;
         } else if file_type.is_symlink() {
             // Recreate symlink with same target
             let link_target = fs::read_link(from)
                 .with_context(|| format!("failed to read symlink at {:?}", from))?;
             #[cfg(unix)]
             std::os::unix::fs::symlink(&link_target, &to)
-                .with_context(|| format!("failed to create symlink at {:?}", &to))?;
+                .with_context(|| format!("failed to create symlink at {:?}", to))?;
             #[cfg(windows)]
             {
                 if link_target.is_dir() {
                     std::os::windows::fs::symlink_dir(&link_target, &to)
-                        .with_context(|| format!("failed to create symlink at {:?}", &to))?;
+                        .with_context(|| format!("failed to create symlink at {:?}", to))?;
                 } else {
                     std::os::windows::fs::symlink_file(&link_target, &to)
-                        .with_context(|| format!("failed to create symlink at {:?}", &to))?;
+                        .with_context(|| format!("failed to create symlink at {:?}", to))?;
                 }
             }
         } else {
-            fs::copy(from, &to).with_context(|| format!("failed to copy file to {:?}", &to))?;
+            fs::copy(from, &to).with_context(|| format!("failed to copy file to {:?}", to))?;
         }
     }
     Ok(())
@@ -179,7 +184,7 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
     let sprocket_exe = PathBuf::from(env!("CARGO_BIN_EXE_sprocket"));
     let args_path = test_path.join("args");
     let args_string = fs::read_to_string(&args_path)
-        .with_context(|| format!("failed to read command at path {:?}", &args_path))?;
+        .with_context(|| format!("failed to read command at path {:?}", args_path))?;
     let args_string = args_string.replace("\r\n", "\n");
     let args = shlex::split(&format!("--skip-config-search {args_string}"))
         .ok_or_else(|| anyhow!("failed to split command args"))?;
@@ -235,7 +240,7 @@ fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
     if test_path.starts_with("tests/cli/run")
         && let Some(env_config) = env::var_os("SPROCKET_TEST_ENGINE_CONFIG")
     {
-        sprocket_config.run.engine = toml::from_str(&fs::read_to_string(env_config)?)?;
+        sprocket_config.run.engine = toml_spanner::from_str(&fs::read_to_string(env_config)?)?;
         config_overridden = true;
     }
 
@@ -264,6 +269,27 @@ fn normalize_string(input: &str) -> String {
     static DRIVE_PREFIX: std::sync::LazyLock<regex::Regex> =
         std::sync::LazyLock::new(|| regex::Regex::new(r"[A-Za-z]:(/[^\s])").unwrap());
     let s = DRIVE_PREFIX.replace_all(&s, "$1");
+
+    // Normalize Windows OS error messages to their Unix equivalents.
+    const WINDOWS_TO_UNIX_ERRORS: &[(&str, &str)] = &[
+        (
+            "The system cannot find the file specified. (os error 2)",
+            "No such file or directory (os error 2)",
+        ),
+        (
+            "The system cannot find the path specified. (os error 3)",
+            "No such file or directory (os error 2)",
+        ),
+        (
+            "Access is denied. (os error 5)",
+            "Permission denied (os error 13)",
+        ),
+    ];
+
+    let mut s = s.into_owned();
+    for (windows, unix) in WINDOWS_TO_UNIX_ERRORS {
+        s = s.replace(windows, unix);
+    }
 
     let s = UUID_PATTERN.replace_all(&s, "_UUID_");
     let s = TIMESTAMP_PATTERN.replace_all(&s, "_TIMESTAMP_");
@@ -387,8 +413,6 @@ fn compare_results(expected_path: &Path, actual: &str) -> Result<()> {
     let expected = normalize_string(&expected);
     let actual = normalize_string(actual);
     if expected != actual {
-        eprintln!("expected:{expected:?}");
-        eprintln!("actual:{actual:?}");
         bail!(
             "result from `{}` is not as expected:\nafter normalization:\n{}",
             expected_path.display(),
@@ -508,24 +532,10 @@ __UNEXPECTED_FILES_FOUND__
     Ok(())
 }
 
-/// Returns true if the working directory contains files that were not in the
-/// inputs directory, indicating that the test produced output files.
-fn has_output_files(test_path: &Path, working_test_directory: &Path) -> Result<bool> {
-    let inputs_dir = test_path.join("inputs");
-    let input_files = build_relative_path_list(&inputs_dir)?;
-    let working_files = build_relative_path_list(working_test_directory)?;
-
-    let input_normalized: std::collections::HashSet<_> =
-        input_files.iter().map(|(n, _)| n).collect();
-
-    Ok(working_files
-        .iter()
-        .any(|(n, _)| !input_normalized.contains(n)))
-}
-
 /// Compares the result of the command output with the expected baseline.
 fn compare_test_results(
     test_path: &Path,
+    test_name: &str,
     working_test_directory: &Path,
     command_output: &CommandOutput,
 ) -> Result<()> {
@@ -536,10 +546,20 @@ fn compare_test_results(
     let expects_outputs = expected_output_dir.is_dir();
 
     if env::var_os("BLESS").is_some() {
-        fs::write(&expected_stderr_file, &command_output.stderr)
-            .context("failed to write stderr output")?;
-        fs::write(&expected_stdout_file, &command_output.stdout)
-            .context("failed to write stdout output")?;
+        fs::write(
+            &expected_stderr_file,
+            TIMESTAMP_PATTERN
+                .replace_all(&command_output.stderr, "_TIMESTAMP_")
+                .as_ref(),
+        )
+        .context("failed to write stderr output")?;
+        fs::write(
+            &expected_stdout_file,
+            TIMESTAMP_PATTERN
+                .replace_all(&command_output.stdout, "_TIMESTAMP_")
+                .as_ref(),
+        )
+        .context("failed to write stdout output")?;
         fs::remove_dir_all(&expected_output_dir).unwrap_or_default();
         fs::write(
             &expected_exit_code_file,
@@ -547,9 +567,8 @@ fn compare_test_results(
         )
         .context("failed to write exit code")?;
 
-        // Create outputs directory if the test produced output files
-        let produced_outputs = has_output_files(test_path, working_test_directory)?;
-        if expects_outputs || produced_outputs {
+        // Only re-bless outputs if the test already had an outputs directory
+        if expects_outputs {
             recursive_copy(working_test_directory, &expected_output_dir).context(
                 "failed to copy output files from test results to setup new expected outputs",
             )?;
@@ -562,6 +581,13 @@ fn compare_test_results(
 
     if expects_outputs {
         recursive_compare(&expected_output_dir, working_test_directory)?;
+    }
+
+    // https://github.com/stjude-rust-labs/sprocket/issues/861
+    if test_name == "run/missing-required-array-input"
+        && working_test_directory.join("out").exists()
+    {
+        bail!("invalid CLI inputs shouldn't produce an output directory")
     }
 
     compare_results(
@@ -584,8 +610,9 @@ fn main() {
     let trials = tests
         .into_iter()
         .map(|test| {
-            Trial::test(get_test_name(&test, test_root), move || {
-                run_test(&test).map_err(Into::into)
+            let name = get_test_name(&test, test_root);
+            Trial::test(name.clone(), move || {
+                run_test(&test, name).map_err(Into::into)
             })
         })
         .collect();

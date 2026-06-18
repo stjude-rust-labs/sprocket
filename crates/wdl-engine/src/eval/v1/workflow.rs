@@ -984,15 +984,10 @@ impl State {
         // Either use the specified input or evaluate the input's expression
         let (value, span) = match self.inputs.get(name.text()) {
             Some(input) => {
-                // For WDL 1.2 evaluation, a `None` value when the expected type is non-optional
+                // A `None` value when the expected type is non-optional
                 // will invoke the default expression
                 if input.is_none()
                     && !expected_ty.is_optional()
-                    && self
-                        .document
-                        .version()
-                        .map(|v| v >= SupportedVersion::V1(V1::Two))
-                        .unwrap_or(false)
                     && let Some(expr) = decl.expr()
                 {
                     debug!(
@@ -1220,7 +1215,7 @@ impl State {
     ) -> EvaluationResult<()> {
         let mut scope_union = ScopeUnion::new();
         for clause in stmt.clauses() {
-            if let Some(braced_scope_span) = clause.braced_scope_span() {
+            if let Some(braced_scope_span) = clause.braced_scope_span(false) {
                 let clause_scope = self
                     .document
                     .find_scope_by_position(braced_scope_span.start())
@@ -1531,7 +1526,7 @@ impl State {
         let stmt_scope = self
             .document
             .find_scope_by_position(
-                stmt.braced_scope_span()
+                stmt.braced_scope_span(false)
                     .expect("should have braces")
                     .start(),
             )
@@ -1843,9 +1838,9 @@ mod test {
     use super::*;
     use crate::CancellationContext;
     use crate::Events;
-    use crate::config::BackendConfig;
     use crate::config::Config;
     use crate::config::FailureMode;
+    use crate::config::LocalBackendConfig;
 
     #[tokio::test]
     async fn it_writes_input_and_output_files() {
@@ -1916,11 +1911,7 @@ workflow test {
         assert_eq!(results.len(), 1, "expected only one result");
 
         let config = Config {
-            backends: [(
-                "default".to_string(),
-                BackendConfig::Local(Default::default()),
-            )]
-            .into(),
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
             ..Default::default()
         };
         let evaluator = Evaluator::new(
@@ -2073,11 +2064,7 @@ workflow foo {
         assert_eq!(results.len(), 1, "expected only one result");
 
         let config = Config {
-            backends: [(
-                "default".to_string(),
-                BackendConfig::Local(Default::default()),
-            )]
-            .into(),
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
             experimental_features_enabled: true,
             ..Default::default()
         };
@@ -2293,11 +2280,7 @@ workflow w {
 
         // Use a progress callback that simply increments the appropriate counter
         let config = Config {
-            backends: [(
-                "default".to_string(),
-                BackendConfig::Local(Default::default()),
-            )]
-            .into(),
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
             ..Default::default()
         };
         let state = Arc::<State>::default();
@@ -2398,11 +2381,7 @@ workflow w {
         assert_eq!(results.len(), 1, "expected only one result");
 
         let config = Config {
-            backends: [(
-                "default".to_string(),
-                BackendConfig::Local(Default::default()),
-            )]
-            .into(),
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
             ..Default::default()
         };
         let cancellation = CancellationContext::new(FailureMode::Slow);

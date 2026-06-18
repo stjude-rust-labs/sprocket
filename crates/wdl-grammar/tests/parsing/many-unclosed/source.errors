@@ -1,0 +1,138 @@
+error: an unterminated string was encountered
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:1
+  │
+3 │ "${a(;b{{{{{{{{
+  │ ^ this quote is not matched
+
+error: expected import statement, struct definition, enum definition, task definition, or workflow definition, but found string
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:1
+  │
+3 │ "${a(;b{{{{{{{{
+  │ ^^^^^^^^^^^^^^^ unexpected string
+
+error: an unknown token was encountered
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:6
+  │
+3 │ "${a(;b{{{{{{{{
+  │      ^ this is not a supported WDL token
+
+error: expected `,`, but found `{`
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:9
+  │
+3 │ "${a(;b{{{{{{{{
+  │        -^ unexpected `{`
+  │        │ 
+  │        consider adding a `,` after this
+
+error: expected `}`, but found `{`
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:9
+  │
+3 │ "${a(;b{{{{{{{{
+  │        -^ unexpected `{`
+  │        │ 
+  │        this `{` is not matched
+
+error: expected `,`, but found `{`
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:10
+  │
+3 │ "${a(;b{{{{{{{{
+  │         -^ unexpected `{`
+  │         │ 
+  │         consider adding a `,` after this
+
+error: expected `}`, but found `{`
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:10
+  │
+3 │ "${a(;b{{{{{{{{
+  │         -^ unexpected `{`
+  │         │ 
+  │         this `{` is not matched
+
+error: expected `,`, but found `{`
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:11
+  │
+3 │ "${a(;b{{{{{{{{
+  │          -^ unexpected `{`
+  │          │ 
+  │          consider adding a `,` after this
+
+error: expected `}`, but found `{`
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:11
+  │
+3 │ "${a(;b{{{{{{{{
+  │          -^ unexpected `{`
+  │          │ 
+  │          this `{` is not matched
+
+error: expected `,`, but found `{`
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:12
+  │
+3 │ "${a(;b{{{{{{{{
+  │           -^ unexpected `{`
+  │           │ 
+  │           consider adding a `,` after this
+
+error: expected `}`, but found `{`
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:12
+  │
+3 │ "${a(;b{{{{{{{{
+  │           -^ unexpected `{`
+  │           │ 
+  │           this `{` is not matched
+
+error: expected `,`, but found `{`
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:13
+  │
+3 │ "${a(;b{{{{{{{{
+  │            -^ unexpected `{`
+  │            │ 
+  │            consider adding a `,` after this
+
+error: expected `}`, but found `{`
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:13
+  │
+3 │ "${a(;b{{{{{{{{
+  │            -^ unexpected `{`
+  │            │ 
+  │            this `{` is not matched
+
+error: expected `,`, but found `{`
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:14
+  │
+3 │ "${a(;b{{{{{{{{
+  │             -^ unexpected `{`
+  │             │ 
+  │             consider adding a `,` after this
+
+error: expected `}`, but found `{`
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:14
+  │
+3 │ "${a(;b{{{{{{{{
+  │             -^ unexpected `{`
+  │             │ 
+  │             this `{` is not matched
+
+error: expected `,`, but found `{`
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:15
+  │
+3 │ "${a(;b{{{{{{{{
+  │              -^ unexpected `{`
+  │              │ 
+  │              consider adding a `,` after this
+
+error: expected `}`, but found `{`
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:15
+  │
+3 │ "${a(;b{{{{{{{{
+  │              -^ unexpected `{`
+  │              │ 
+  │              this `{` is not matched
+
+error: expected `}`, but found end of input
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:16
+  │
+3 │ "${a(;b{{{{{{{{
+  │               -^ unexpected end of input
+  │               │
+  │               this `{` is not matched
+

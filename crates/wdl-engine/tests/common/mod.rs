@@ -15,18 +15,20 @@ use anyhow::bail;
 use futures::future::BoxFuture;
 use libtest_mimic::Trial;
 use pretty_assertions::StrComparison;
+use toml_spanner::Toml;
 use wdl_analysis::Config as AnalysisConfig;
-use wdl_engine::config::BackendConfig;
 use wdl_engine::config::Config as EngineConfig;
 
 /// The set of tests that should only use the Docker backend
 const DOCKER_ONLY_TESTS: &[&str] = &[
+    // Exercises container image fallback, which requires a real pull
+    "container-fallback",
     // Disabled for local backend due to paths coming from the download cache
     "url-symlink",
 ];
 
 /// The set of configs that determine how a test is run.
-#[derive(Debug, Clone, Default, serde::Deserialize, serde::Serialize)]
+#[derive(Debug, Clone, Default, Toml)]
 pub struct TestConfig {
     /// The analysis configuration for the tests.
     pub analysis: AnalysisConfig,
@@ -73,27 +75,36 @@ pub fn find_tests(
 /// Gets the configurations to use for the test, merging in any
 /// `config-override.toml` files that may be present in the test directory.
 pub fn resolve_configs(path: &Path) -> Result<HashMap<String, TestConfig>, anyhow::Error> {
-    let mut base_configs = base_configs()?;
     let config_override_path = path.join("config-override.toml");
-    if config_override_path.exists() {
-        for config in base_configs.values_mut() {
-            let combined = config::Config::builder()
-                .add_source(config::Config::try_from(config).unwrap())
-                .add_source(config::File::from(config_override_path.as_path()).required(true))
-                .build()?
-                .try_deserialize()?;
-            *config = combined;
-        }
-    }
+    let exists = config_override_path.exists();
+
+    let mut configs: HashMap<String, TestConfig> = base_configs()?
+        .into_iter()
+        .map(|(name, config)| {
+            let mut builder = wdl_engine::Config::builder().with_string_source(config);
+
+            if exists {
+                builder = builder.with_file_source(&config_override_path);
+            }
+
+            Ok((
+                name,
+                TestConfig {
+                    engine: builder.try_build()?,
+                    ..Default::default()
+                },
+            ))
+        })
+        .collect::<anyhow::Result<_>>()?;
 
     // Remove the local configuration if the test is marked as Docker-only
     if let Some(test) = path.file_name().and_then(OsStr::to_str)
         && DOCKER_ONLY_TESTS.contains(&test)
     {
-        base_configs.remove("local");
+        configs.remove("local");
     }
 
-    Ok(base_configs)
+    Ok(configs)
 }
 
 /// Get the baseline configs for executing the tests.
@@ -108,30 +119,22 @@ pub fn resolve_configs(path: &Path) -> Result<HashMap<String, TestConfig>, anyho
 ///
 /// Otherwise, a default set containing at least the default analysis config and
 /// a local backend config will be used.
-pub fn base_configs() -> Result<HashMap<String, TestConfig>, anyhow::Error> {
+pub fn base_configs() -> Result<HashMap<String, String>, anyhow::Error> {
     if let Some(env_config) = env::var_os("SPROCKET_TEST_ENGINE_CONFIG") {
-        let engine = toml::from_str(&std::fs::read_to_string(env_config)?)?;
-        let config = TestConfig {
-            engine,
-            ..TestConfig::default()
-        };
-        return Ok(HashMap::from([("env_config".to_string(), config)]));
+        return Ok(HashMap::from([(
+            "env_config".to_string(),
+            std::fs::read_to_string(env_config)?,
+        )]));
     }
 
     #[allow(unused_mut)]
     let mut configs = HashMap::from([(
         "local".to_string(),
-        TestConfig {
-            engine: EngineConfig {
-                backends: [(
-                    "default".to_string(),
-                    BackendConfig::Local(Default::default()),
-                )]
-                .into(),
-                ..Default::default()
-            },
-            ..TestConfig::default()
-        },
+        r#"
+[backends.default]
+type = "local"
+"#
+        .into(),
     )]);
 
     // Currently we limit running the Docker backend to Linux as GitHub does not
@@ -140,17 +143,11 @@ pub fn base_configs() -> Result<HashMap<String, TestConfig>, anyhow::Error> {
     #[cfg(not(docker_tests_disabled))]
     configs.insert(
         "docker".to_string(),
-        TestConfig {
-            engine: EngineConfig {
-                backends: [(
-                    "default".to_string(),
-                    BackendConfig::Docker(Default::default()),
-                )]
-                .into(),
-                ..Default::default()
-            },
-            ..TestConfig::default()
-        },
+        r#"
+[backends.default]
+type = "docker"
+"#
+        .into(),
     );
 
     Ok(configs)

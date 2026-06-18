@@ -14,12 +14,6 @@ use wdl_ast::Node as AstNode;
 
 use crate::element::FormatElement;
 
-/// Newline constant used for formatting on windows platforms.
-#[cfg(windows)]
-pub const NEWLINE: &str = "\r\n";
-/// Newline constant used for formatting on non-windows platforms.
-#[cfg(not(windows))]
-pub const NEWLINE: &str = "\n";
 /// A space.
 pub const SPACE: &str = " ";
 /// A tab.
@@ -86,6 +80,13 @@ impl Writable for &FormatElement {
                 AstNode::ImportAlias(_) => v1::import::format_import_alias(self, stream, config),
                 AstNode::ImportStatement(_) => {
                     v1::import::format_import_statement(self, stream, config)
+                }
+                AstNode::ImportMembers(_) => {
+                    v1::import::format_import_members(self, stream, config)
+                }
+                AstNode::ImportMember(_) => v1::import::format_import_member(self, stream, config),
+                AstNode::SymbolicModulePath(_) => {
+                    v1::import::format_symbolic_module_path(self, stream, config)
                 }
                 AstNode::IndexExpr(_) => v1::expr::format_index_expr(self, stream, config),
                 AstNode::InequalityExpr(_) => {
@@ -287,6 +288,7 @@ workflow bar # This is an inline comment on the workflow ident.
   # This is attached to the call keyword.
   call foo {}
 } # This is an inline comment on the workflow close brace.",
+            None,
         );
 
         assert!(diagnostics.is_empty());

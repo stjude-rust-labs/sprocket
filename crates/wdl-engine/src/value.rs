@@ -3087,7 +3087,8 @@ impl Coercible for HiddenValue {
 /// Contains all evaluated requirement fields.
 #[derive(Debug, Clone)]
 pub(crate) struct TaskPostEvaluationData {
-    /// The container of the task.
+    /// The container image that was actually used for execution, if the task
+    /// runs in a container.
     container: Option<Arc<String>>,
     /// The allocated number of cpus for the task.
     cpu: f64,
@@ -3373,10 +3374,11 @@ impl TaskPostEvaluationValue {
             name: Arc::new(name.into()),
             id: Arc::new(id.into()),
             data: Arc::new(TaskPostEvaluationData {
-                container: constraints
-                    .container
-                    .as_ref()
-                    .map(|c| Arc::new(c.to_string())),
+                // NOTE: initialized as `None` because the actual container
+                // used is not known until after execution completes. It is
+                // set via `set_container()` once the backend resolves which
+                // candidate image was pulled.
+                container: None,
                 cpu: constraints.cpu,
                 memory: constraints
                     .memory
@@ -3506,6 +3508,12 @@ impl TaskPostEvaluationValue {
         &self.0.ext
     }
 
+    /// Sets the container image after task execution has completed.
+    pub(crate) fn set_container(&mut self, container: String) {
+        let inner = Arc::get_mut(&mut self.0).expect("task value must be uniquely owned to mutate");
+        Arc::make_mut(&mut inner.data).container = Some(Arc::new(container));
+    }
+
     /// Sets the return code after the task execution has completed.
     pub(crate) fn set_return_code(&mut self, code: i32) {
         Arc::get_mut(&mut self.0)
@@ -3564,14 +3572,12 @@ impl TaskPostEvaluationValue {
                         .expect("failed to get task field type"),
                 )
             })),
-            TASK_FIELD_RETURN_CODE => {
-                Some(self.0.return_code.map(Into::into).unwrap_or_else(|| {
-                    Value::new_none(
-                        task_member_type_post_evaluation(version, TASK_FIELD_RETURN_CODE)
-                            .expect("failed to get task field type"),
-                    )
-                }))
-            }
+            TASK_FIELD_RETURN_CODE => Some(
+                self.0
+                    .return_code
+                    .map(Into::into)
+                    .expect("task return codes can only be accessed after being set"),
+            ),
             TASK_FIELD_META => Some(self.0.meta.clone().into()),
             TASK_FIELD_PARAMETER_META => Some(self.0.parameter_meta.clone().into()),
             TASK_FIELD_EXT => Some(self.0.ext.clone().into()),

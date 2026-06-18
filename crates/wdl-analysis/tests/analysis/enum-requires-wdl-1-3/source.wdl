@@ -1,11 +1,11 @@
-#@ except: UnusedDeclaration
+#@ except: UnusedDeclaration
 
 version 1.2
 
 enum Status {
     Active,
     Pending,
-    Complete
+    Complete,
 }
 
 workflow test {

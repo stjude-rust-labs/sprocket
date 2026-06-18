@@ -1,4 +1,5 @@
 Rules with the tag `Completeness`:
+  - EmptyOutputs
   - ExpectedRuntimeKeys
   - MatchingOutputMeta
   - MetaDescription

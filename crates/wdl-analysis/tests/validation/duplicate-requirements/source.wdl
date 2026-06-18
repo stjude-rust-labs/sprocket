@@ -3,26 +3,18 @@
 version 1.3
 
 task t {
-    requirements {
+    requirements {}
 
-    }
-
-    requirements {
-
-    }
+    requirements {}
 
     command <<<>>>
 }
 
 # A duplicate task should trigger a single error and then be ignored.
 task t {
-    requirements {
+    requirements {}
 
-    }
-
-    requirements {
-
-    }
+    requirements {}
 
     command <<<>>>
 }

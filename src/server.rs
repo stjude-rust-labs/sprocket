@@ -3,6 +3,7 @@
 use anyhow::Context;
 use axum::Router;
 use axum::http::HeaderValue;
+use tokio::net::TcpListener;
 use tower_http::LatencyUnit;
 use tower_http::cors::CorsLayer;
 use tower_http::trace::DefaultMakeSpan;
@@ -20,6 +21,8 @@ use crate::system::v1::exec::svc::RunManagerSvc;
 mod api;
 
 pub use api::AppState;
+pub(crate) use api::v1::error::ErrorResponse;
+pub(crate) use api::v1::runs::SubmitRunRequest;
 
 /// The default channel buffer size.
 ///
@@ -49,12 +52,12 @@ pub fn create_router(state: AppState, cors_layer: CorsLayer) -> Router {
         .layer(trace_layer)
 }
 
-/// Run the server.
+/// Build the Sprocket server as an axum Router.
 ///
 /// # Errors
 ///
-/// Returns an error if the server fails to start or bind to the address.
-pub async fn run(config: Config) -> anyhow::Result<()> {
+/// Returns an error if we fail to initialize the database.
+async fn create_server_app(config: Config) -> anyhow::Result<Router> {
     let db_path = config.server.database_url();
 
     let db = open_database(&db_path).await?;
@@ -71,13 +74,30 @@ pub async fn run(config: Config) -> anyhow::Result<()> {
         cors_layer = cors_layer.allow_origin(header);
     }
 
-    let app = create_router().state(state).cors_layer(cors_layer).call();
+    Ok(create_router().state(state).cors_layer(cors_layer).call())
+}
 
+/// Run the server with a pre-defined listener.
+///
+/// # Errors
+///
+/// Returns an error if the server fails to start.
+pub async fn run_with_listener(config: Config, tcp_listener: TcpListener) -> anyhow::Result<()> {
+    let app = create_server_app(config).await?;
+    axum::serve(tcp_listener, app).await?;
+    Ok(())
+}
+
+/// Run the server.
+///
+/// # Errors
+///
+/// Returns an error if the server fails to start or bind to the address.
+pub async fn run(config: Config) -> anyhow::Result<()> {
     let addr = format!("{}:{}", config.server.host, config.server.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
-
     tracing::info!("server listening on {}", addr);
-    axum::serve(listener, app).await?;
+    run_with_listener(config, listener).await?;
 
     Ok(())
 }

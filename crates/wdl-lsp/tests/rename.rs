@@ -2,43 +2,31 @@
 
 use std::collections::HashMap;
 
+use async_lsp::lsp_types::*;
 use pretty_assertions::assert_eq;
 use serde_json::Value;
-use tower_lsp::lsp_types::*;
 
-mod common;
+pub mod common;
+use async_lsp::lsp_types::request::Rename;
 use common::TestContext;
-use tower_lsp::lsp_types::request::Rename;
 
 async fn rename_request(
     ctx: &mut TestContext,
     path: &str,
     position: Position,
     new_name: &str,
-) -> Option<WorkspaceEdit> {
-    let response = ctx
-        .request::<Rename>(RenameParams {
-            text_document_position: TextDocumentPositionParams {
-                text_document: TextDocumentIdentifier {
-                    uri: ctx.doc_uri(path),
-                },
-                position,
+) -> async_lsp::Result<Option<WorkspaceEdit>> {
+    ctx.request::<Rename>(RenameParams {
+        text_document_position: TextDocumentPositionParams {
+            text_document: TextDocumentIdentifier {
+                uri: ctx.doc_uri(path),
             },
-            new_name: new_name.to_string(),
-            work_done_progress_params: Default::default(),
-        })
-        .await;
-
-    workspace_edit_from_response(response)
-}
-
-fn workspace_edit_from_response(response: impl serde::Serialize) -> Option<WorkspaceEdit> {
-    let response = serde_json::to_value(response).expect("rename response should serialize");
-    if response.is_null() {
-        return None;
-    }
-
-    Some(serde_json::from_value(response).expect("rename response should be a workspace edit"))
+            position,
+        },
+        new_name: new_name.to_string(),
+        work_done_progress_params: Default::default(),
+    })
+    .await
 }
 
 fn workspace_edit_to_changes(edit: &WorkspaceEdit) -> HashMap<Url, Vec<TextEdit>> {
@@ -106,6 +94,7 @@ async fn should_rename_workspace_wide() {
 
     let edit = rename_request(&mut ctx, "source.wdl", Position::new(10, 13), NEW_NAME)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let changes = workspace_edit_to_changes(&edit);
@@ -130,7 +119,9 @@ async fn should_reject_invalid_identifier() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;
 
-    let result = rename_request(&mut ctx, "source.wdl", Position::new(10, 13), "1notValid").await;
+    let result = rename_request(&mut ctx, "source.wdl", Position::new(10, 13), "1notValid")
+        .await
+        .expect("request should succeed");
 
     assert!(result.is_none());
 }
@@ -147,6 +138,7 @@ async fn should_rename_struct_definition() {
         "PersonRenamed",
     )
     .await
+    .expect("request should succeed")
     .unwrap();
 
     let changes = workspace_edit_to_changes(&edit);
@@ -172,6 +164,7 @@ async fn should_rename_import_namespace_alias() {
 
     let edit = rename_request(&mut ctx, "source.wdl", Position::new(3, 22), "libx")
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let changes = workspace_edit_to_changes(&edit);
@@ -193,6 +186,7 @@ async fn should_not_rename_shadowed_declaration() {
 
     let edit = rename_request(&mut ctx, "shadowed.wdl", Position::new(10, 22), NEW_NAME)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let changes = workspace_edit_to_changes(&edit);
@@ -232,6 +226,7 @@ async fn should_rename_local_variable_used_in_output_section() {
 
     let edit = rename_request(&mut ctx, "local_output.wdl", Position::new(3, 11), NEW_NAME)
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let changes = workspace_edit_to_changes(&edit);
@@ -267,6 +262,7 @@ async fn should_rename_enum() {
     // Position of `Status` in `enum Status`
     let edit = rename_request(&mut ctx, "enum.wdl", Position::new(2, 7), "State")
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let changes = workspace_edit_to_changes(&edit);
@@ -286,6 +282,7 @@ async fn should_rename_enum_variant() {
     // Position of `Active` in variant definition
     let edit = rename_request(&mut ctx, "enum.wdl", Position::new(3, 4), "Running")
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let changes = workspace_edit_to_changes(&edit);
@@ -304,6 +301,7 @@ async fn should_rename_imported_type_alias() {
 
     let edit = rename_request(&mut ctx, "aliases.wdl", Position::new(2, 39), "Patient")
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let changes = workspace_edit_to_changes(&edit);
@@ -338,6 +336,7 @@ async fn should_rename_call_alias() {
 
     let edit = rename_request(&mut ctx, "aliases.wdl", Position::new(10, 26), "job")
         .await
+        .expect("request should succeed")
         .unwrap();
 
     let changes = workspace_edit_to_changes(&edit);

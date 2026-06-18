@@ -1322,9 +1322,12 @@ impl DocsTree {
                 }"
             {
                 div class="w-full grid grid-cols-3 items-center h-12 px-6" {
-                    a href=(self.root_index_relative_to(base).to_string_lossy()) {
-                        img src=(self.get_asset(base, LOGO_FILE_NAME)) class="w-[120px] flex-none block light:hidden" alt="Logo";
-                        img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="w-[120px] flex-none hidden light:block" alt="Logo";
+                    a
+                        href=(self.root_index_relative_to(base).to_string_lossy())
+                        class="flex items-center justify-start w-32 h-12"
+                    {
+                        img src=(self.get_asset(base, LOGO_FILE_NAME)) class="max-w-full max-h-full w-auto h-auto object-contain p-1 block light:hidden" alt="Logo";
+                        img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="max-w-full max-h-full w-auto h-auto object-contain p-1 hidden light:block" alt="Logo";
                     }
                     div id="search" class="w-sm h-10 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" {
                         input id="searchbox" "x-ref"="searchBox" "x-model.debounce"="$store.search.query" type="text" placeholder="Search...";

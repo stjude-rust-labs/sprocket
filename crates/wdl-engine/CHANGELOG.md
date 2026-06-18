@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added `ConfigBuilder` type for merging engine configurations together ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+
+#### Changed
+
+* Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+
+## 0.15.0 - 2026-06-03
+
+#### Added
+
+* Added `CancellationContext::child()` to create dependent cancellation contexts ([#891](https://github.com/stjude-rust-labs/sprocket/pull/891)).
+
+#### Fixed
+
+* Fixed shared lock acquisition to reopen new lock files read-only before locking ([#869](https://github.com/stjude-rust-labs/sprocket/pull/869)).
+
+#### Dependencies
+
+* Bumped `cloud-copy` to `0.8.0`, which adds support for downloading files using multiple parallel streams ([#909](https://github.com/stjude-rust-labs/sprocket/pull/909)).
+
+## 0.14.0 - 2026-05-14
+
+## 0.13.2 - 2026-04-22
+
+#### Changed
+
+* `TaskInputs::join_paths` and `WorkflowInputs::join_paths` now accept
+  a per-key slice of origins (`&[EvaluationPath]`) instead of a single
+  reference, enabling per-element path resolution for array inputs
+  ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
+* `TaskInputs::set_path_value` and `WorkflowInputs::set_path_value` now
+  auto-wrap scalar values into single-element arrays when the expected
+  WDL type is `Array[T]`
+  ([#820](https://github.com/stjude-rust-labs/sprocket/pull/820)).
+
+#### Fixed
+
+* When a task's `container` requirement is an array, each candidate is
+  now tried in order until one pulls successfully instead of silently
+  using only the first entry
+  ([#698](https://github.com/stjude-rust-labs/sprocket/pull/698)).
+* Optional-to-default input coercion in `check_input_type` is no longer
+  gated behind WDL 1.2+
+  ([#814](https://github.com/stjude-rust-labs/sprocket/pull/814)).
+
 ## 0.13.1 - 2026-04-02
 
 #### Fixed
@@ -172,7 +219,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Removed
 
 * Removed the `codespan` cargo feature in favor of enabling codespan reporting always ([#462](https://github.com/stjude-rust-labs/sprocket/pull/462)).
-
 
 ## 0.9.0 - 10-14-2025
 

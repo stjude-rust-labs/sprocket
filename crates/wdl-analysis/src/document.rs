@@ -7,9 +7,12 @@ use std::collections::hash_map::Entry;
 use std::path::Path;
 use std::sync::Arc;
 
+use arrayvec::ArrayString;
 use indexmap::IndexMap;
 use petgraph::graph::NodeIndex;
 use rowan::GreenNode;
+use rowan::TextRange;
+use rowan::TextSize;
 use url::Url;
 use uuid::Uuid;
 use wdl_ast::Ast;
@@ -570,6 +573,8 @@ pub struct Task {
     name_span: Span,
     /// The name of the task.
     name: String,
+    /// The span of the task definition.
+    span: Span,
     /// The scopes contained in the task.
     ///
     /// The first scope will always be the task's scope.
@@ -591,6 +596,11 @@ impl Task {
     /// Gets the span of the name.
     pub fn name_span(&self) -> Span {
         self.name_span
+    }
+
+    /// Gets the span of the workflow definition.
+    pub fn span(&self) -> Span {
+        self.span
     }
 
     /// Gets the scope of the task.
@@ -616,6 +626,8 @@ pub struct Workflow {
     name_span: Span,
     /// The name of the workflow.
     name: String,
+    /// The span of the workflow definition.
+    span: Span,
     /// The scopes contained in the workflow.
     ///
     /// The first scope will always be the workflow's scope.
@@ -643,6 +655,11 @@ impl Workflow {
         self.name_span
     }
 
+    /// Gets the span of the workflow definition.
+    pub fn span(&self) -> Span {
+        self.span
+    }
+
     /// Gets the scope of the workflow.
     pub fn scope(&self) -> ScopeRef<'_> {
         ScopeRef::new(&self.scopes, ScopeIndex(0))
@@ -666,6 +683,41 @@ impl Workflow {
     /// Determines if the workflow allows nested inputs.
     pub fn allows_nested_inputs(&self) -> bool {
         self.allows_nested_inputs
+    }
+}
+
+/// A callable item.
+#[derive(Debug)]
+pub enum Callable<'a> {
+    /// A workflow.
+    Workflow(&'a Workflow),
+    /// A task.
+    Task(&'a Task),
+}
+
+impl Callable<'_> {
+    /// Get the name of this callable.
+    pub fn name(&self) -> &str {
+        match self {
+            Callable::Workflow(w) => w.name(),
+            Callable::Task(t) => t.name(),
+        }
+    }
+
+    /// Get the [`Span`] of the callable's name.
+    pub fn name_span(&self) -> Span {
+        match self {
+            Callable::Workflow(w) => w.name_span(),
+            Callable::Task(t) => t.name_span(),
+        }
+    }
+
+    /// Get the [`Span`] of the callable's full definition.
+    pub fn span(&self) -> Span {
+        match self {
+            Callable::Workflow(w) => w.span(),
+            Callable::Task(t) => t.span(),
+        }
     }
 }
 
@@ -900,6 +952,31 @@ impl Document {
         self.data.uri.as_str().into()
     }
 
+    /// Computes the `blake3` hash of the document's source text over the
+    /// given span and returns the hex form.
+    ///
+    /// Uses `rowan::SyntaxText::for_each_chunk` so the span's text is never
+    /// materialized as a `String`.
+    ///
+    /// Returns `None` if `span` falls outside the document's source text.
+    pub fn hash_span(&self, span: Span) -> Option<ArrayString<64>> {
+        let text = self.root().inner().text();
+        let text_len = usize::from(text.len());
+        if span.end() > text_len {
+            return None;
+        }
+        let range = TextRange::new(
+            TextSize::new(span.start() as u32),
+            TextSize::new(span.end() as u32),
+        );
+        let slice = text.slice(range);
+        let mut hasher = blake3::Hasher::new();
+        slice.for_each_chunk(|chunk| {
+            hasher.update(chunk.as_bytes());
+        });
+        Some(hasher.finalize().to_hex())
+    }
+
     /// Gets the supported version of the document.
     ///
     /// Returns `None` if the document could not be parsed or contains an
@@ -933,6 +1010,24 @@ impl Document {
     /// Returns `None` if the document did not contain a workflow.
     pub fn workflow(&self) -> Option<&Workflow> {
         self.data.workflow.as_ref()
+    }
+
+    /// Gets a [`Callable`] in the document by name.
+    ///
+    /// Returns `None` if the document did not contain a callable definition
+    /// with the given name.
+    pub fn callable_by_name(&self, name: &str) -> Option<Callable<'_>> {
+        if let Some(workflow) = self.workflow()
+            && workflow.name() == name
+        {
+            return Some(Callable::Workflow(workflow));
+        }
+
+        if let Some(task) = self.task_by_name(name) {
+            return Some(Callable::Task(task));
+        }
+
+        None
     }
 
     /// Gets the structs in the document.

@@ -12,10 +12,13 @@ use tracing::warn;
 use wdl::analysis::Document;
 use wdl::ast::AstNode;
 use wdl::ast::Node;
+use wdl::diagnostics::Mode;
+use wdl::diagnostics::emit_diagnostics;
 use wdl::format::Config as FormatConfig;
 use wdl::format::Formatter;
 use wdl::format::Indent;
 use wdl::format::MaxLineLength;
+use wdl::format::NewlineStyle;
 use wdl::format::element::node::AstNodeFormatExt;
 
 use crate::Config;
@@ -23,8 +26,6 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::diagnostics::Mode;
-use crate::diagnostics::emit_diagnostics;
 
 /// Arguments for the `format` subcommand.
 #[derive(Parser, Debug)]
@@ -52,6 +53,10 @@ pub struct Args {
     /// line length.
     #[arg(long, value_name = "LENGTH", global = true)]
     pub max_line_length: Option<String>,
+
+    /// The newline style to use.
+    #[arg(long, value_name = "STYLE", global = true, value_parser = ["auto", "unix", "windows"])]
+    pub newline_style: Option<NewlineStyle>,
 
     /// Subcommand for the `format` command.
     #[command(subcommand)]
@@ -100,7 +105,7 @@ fn format_document(
         .collect::<Vec<_>>();
     if !diagnostics.is_empty() {
         let path = document.path();
-        emit_diagnostics(&path, source.clone(), diagnostics, &[], mode, colorize)?;
+        emit_diagnostics(&path, &source, diagnostics, mode, colorize)?;
         return Err(anyhow!("cannot format a malformed document"));
     }
 
@@ -116,7 +121,7 @@ fn format_document(
 /// Runs the `format` command.
 pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
-    let fallback_version = config.common.wdl.fallback_version.inner().cloned();
+    let fallback_version = config.common.wdl.fallback_version.into();
 
     let indent = if args.with_tabs || args.indentation_size.is_some() {
         Indent::try_new(args.with_tabs, args.indentation_size)
@@ -138,12 +143,15 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
         config.format.max_line_length
     };
 
+    let newline_style = args.newline_style.unwrap_or(config.format.newline_style);
+
     let config = FormatConfig::default()
         .indent(indent)
         .max_line_length(max_line_length)
         .sort_inputs(config.format.sort_inputs)
         .sort_imports(config.format.sort_imports)
-        .trailing_commas(config.format.trailing_commas);
+        .trailing_commas(config.format.trailing_commas)
+        .newline_style(newline_style);
     let formatter = Formatter::new(config);
 
     let mut errors = 0;

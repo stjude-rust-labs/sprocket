@@ -4,28 +4,28 @@ use std::collections::HashMap;
 
 use anyhow::Context;
 use anyhow::Result;
+use async_lsp::lsp_types::Diagnostic;
+use async_lsp::lsp_types::DiagnosticRelatedInformation;
+use async_lsp::lsp_types::DiagnosticSeverity;
+use async_lsp::lsp_types::DocumentDiagnosticParams;
+use async_lsp::lsp_types::DocumentDiagnosticReport;
+use async_lsp::lsp_types::DocumentDiagnosticReportResult;
+use async_lsp::lsp_types::FullDocumentDiagnosticReport;
+use async_lsp::lsp_types::Location;
+use async_lsp::lsp_types::NumberOrString;
+use async_lsp::lsp_types::Position;
+use async_lsp::lsp_types::Range;
+use async_lsp::lsp_types::RelatedFullDocumentDiagnosticReport;
+use async_lsp::lsp_types::RelatedUnchangedDocumentDiagnosticReport;
+use async_lsp::lsp_types::UnchangedDocumentDiagnosticReport;
+use async_lsp::lsp_types::WorkspaceDiagnosticParams;
+use async_lsp::lsp_types::WorkspaceDiagnosticReport;
+use async_lsp::lsp_types::WorkspaceDiagnosticReportResult;
+use async_lsp::lsp_types::WorkspaceDocumentDiagnosticReport;
+use async_lsp::lsp_types::WorkspaceFullDocumentDiagnosticReport;
+use async_lsp::lsp_types::WorkspaceUnchangedDocumentDiagnosticReport;
 use line_index::LineIndex;
 use line_index::WideEncoding;
-use tower_lsp::lsp_types::Diagnostic;
-use tower_lsp::lsp_types::DiagnosticRelatedInformation;
-use tower_lsp::lsp_types::DiagnosticSeverity;
-use tower_lsp::lsp_types::DocumentDiagnosticParams;
-use tower_lsp::lsp_types::DocumentDiagnosticReport;
-use tower_lsp::lsp_types::DocumentDiagnosticReportResult;
-use tower_lsp::lsp_types::FullDocumentDiagnosticReport;
-use tower_lsp::lsp_types::Location;
-use tower_lsp::lsp_types::NumberOrString;
-use tower_lsp::lsp_types::Position;
-use tower_lsp::lsp_types::Range;
-use tower_lsp::lsp_types::RelatedFullDocumentDiagnosticReport;
-use tower_lsp::lsp_types::RelatedUnchangedDocumentDiagnosticReport;
-use tower_lsp::lsp_types::UnchangedDocumentDiagnosticReport;
-use tower_lsp::lsp_types::WorkspaceDiagnosticParams;
-use tower_lsp::lsp_types::WorkspaceDiagnosticReport;
-use tower_lsp::lsp_types::WorkspaceDiagnosticReportResult;
-use tower_lsp::lsp_types::WorkspaceDocumentDiagnosticReport;
-use tower_lsp::lsp_types::WorkspaceFullDocumentDiagnosticReport;
-use tower_lsp::lsp_types::WorkspaceUnchangedDocumentDiagnosticReport;
 use tracing::debug;
 use url::Url;
 use wdl_analysis::AnalysisResult;
@@ -116,6 +116,7 @@ pub fn document_diagnostic_report(
     params: DocumentDiagnosticParams,
     results: Vec<AnalysisResult>,
     source: &str,
+    mut matcher: Option<&mut wdl_lint::BaselineMatcher<'_>>,
 ) -> Option<DocumentDiagnosticReportResult> {
     let result = results
         .iter()
@@ -146,6 +147,12 @@ pub fn document_diagnostic_report(
     let items = result
         .document()
         .diagnostics()
+        .filter(|d| {
+            if let Some(matcher) = &mut matcher {
+                return !matcher.is_suppressed(d, result.document());
+            }
+            true
+        })
         .map(|d| {
             diagnostic(
                 result.document().uri(),
@@ -173,6 +180,7 @@ pub fn workspace_diagnostic_report(
     params: WorkspaceDiagnosticParams,
     results: Vec<AnalysisResult>,
     source: &str,
+    mut matcher: Option<&mut wdl_lint::BaselineMatcher<'_>>,
 ) -> WorkspaceDiagnosticReportResult {
     let ids = params
         .previous_result_ids
@@ -215,6 +223,12 @@ pub fn workspace_diagnostic_report(
         let diagnostics = result
             .document()
             .diagnostics()
+            .filter(|d| {
+                if let Some(matcher) = &mut matcher {
+                    return !matcher.is_suppressed(d, result.document());
+                }
+                true
+            })
             .filter_map(|d| {
                 diagnostic(
                     result.document().uri(),

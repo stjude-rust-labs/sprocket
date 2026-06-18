@@ -1,5 +1,6 @@
-#@ except: UnusedDeclaration
 ## This is a test of type mismatches in a task.
+
+#@ except: UnusedDeclaration
 
 version 1.1
 

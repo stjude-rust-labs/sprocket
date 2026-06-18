@@ -1,0 +1,1 @@
+lint --no-baseline --deny-warnings source.wdl

@@ -1,6 +1,6 @@
 [package]
 name = "wdl-lsp"
-version = "0.18.0"
+version = "0.20.0"
 description = "Language Server Protocol implementation for WDL"
 license.workspace = true
 rust-version.workspace = true
@@ -12,22 +12,26 @@ documentation = "https://docs.rs/wdl-lsp"
 
 [dependencies]
 anyhow = { workspace = true }
+async-lsp = { workspace = true, features = ["tokio"] }
+futures.workspace = true
 line-index = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 struct-patch = { workspace = true, features = ["nesting"] }
 tokio = { workspace = true }
-tower-lsp = { workspace = true }
+tokio-util = { workspace = true, features = ["compat"] }
+tower.workspace = true
 tracing = { workspace = true, features = ["log"] }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
 url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
-wdl-analysis = { path = "../wdl-analysis", version = "0.19.0" }
-wdl-ast = { path = "../wdl-ast", version = "0.22.1" }
-wdl-lint = { path = "../wdl-lint", version = "0.22.0" }
+wdl-analysis = { path = "../wdl-analysis", version = "0.21.0" }
+wdl-ast = { path = "../wdl-ast", version = "0.24.0" }
+wdl-lint = { path = "../wdl-lint", version = "0.24.0" }
 
 [dev-dependencies]
+blake3 = { workspace = true }
 fs_extra = { workspace = true }
 pretty_assertions = { workspace = true }
 serde = { workspace = true }

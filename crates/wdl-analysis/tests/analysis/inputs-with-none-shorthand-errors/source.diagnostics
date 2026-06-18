@@ -1,0 +1,12 @@
+error: type mismatch: expected type `Int`, but found type `Int?`
+   ┌─ tests/analysis/inputs-with-none-shorthand-errors/source.wdl:38:9
+   │
+38 │         input4,
+   │         ^^^^^^ input `input4` is type `Int`, but name `input4` is type `Int?`
+
+error: type mismatch: expected type `Int`, but found type `Int?`
+   ┌─ tests/analysis/inputs-with-none-shorthand-errors/source.wdl:45:9
+   │
+45 │         input4,
+   │         ^^^^^^ input `input4` is type `Int`, but name `input4` is type `Int?`
+

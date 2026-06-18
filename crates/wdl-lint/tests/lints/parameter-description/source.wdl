@@ -3,19 +3,19 @@
 version 1.1
 
 # Test workflow for ParameterDescription lint rule
-workflow test_parameter_description{
+workflow test_parameter_description {
     meta {
         description: "Test workflow for ParameterDescription rule"
         outputs: {
             # Valid: simple string description
-            result: "The final result" ,
+            result: "The final result",
             # Valid: object with description key
             count: {
-                description: "Number of items processed"
+                description: "Number of items processed",
             },
             # INVALID: object without description key
             error_output: {
-                help: "Some help text"
+                help: "Some help text",
             },
             # INVALID: non-string, non-object value
             bad_output: 123,

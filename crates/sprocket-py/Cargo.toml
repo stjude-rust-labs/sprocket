@@ -1,0 +1,25 @@
+[package]
+name = "sprocket-py"
+version = "0.1.0"
+# This crate is not published on crates.io, rather it is bundled in a Python package that is
+# published to PyPI.
+publish = false
+authors.workspace = true
+description = "Python bindings to Sprocket, a bioinformatics toolkit for Workflow Description Language (WDL)"
+rust-version.workspace = true
+license.workspace = true
+edition.workspace = true
+homepage.workspace = true
+repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/sprocket_py"
+readme = "../../python/README.md"
+
+[dependencies]
+pyo3 = "0.29.0"
+
+[lints]
+workspace = true
+
+[lib]
+# Build a dynamic library for the Python package, but still build a Rust library so we can run doc
+# tests.
+crate-type = ["cdylib", "rlib"]

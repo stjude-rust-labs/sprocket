@@ -11,8 +11,13 @@ use clap::ValueEnum;
 use clap::builder::PossibleValuesParser;
 use colored::Colorize;
 use serde::Serialize;
+use serde::Serializer;
+use serde::ser::SerializeSeq;
+use serde::ser::SerializeStruct;
 use serde_json::Value;
 use wdl::analysis;
+use wdl::analysis::Example;
+use wdl::analysis::LabeledSnippet;
 use wdl::lint;
 use wdl::lint::ALL_TAG_NAMES;
 use wdl::lint::ALL_TAGS;
@@ -136,8 +141,10 @@ pub struct Rule {
     pub description: &'static str,
     /// An extended description of the rule (possibly Markdown formatted).
     pub explanation: &'static str,
-    /// Markdown-formatted examples that would trigger the rule.
-    pub examples: &'static [&'static str],
+    /// Structured examples that would trigger the rule, each with an optional
+    /// revision.
+    #[serde(serialize_with = "serialize_examples")]
+    pub examples: &'static [Example],
     /// An optional URL associated with the rule.
     pub url: Option<&'static str>,
     /// A list of rule IDs related to this rule, if the crate supports them.
@@ -147,12 +154,71 @@ pub struct Rule {
     pub config: Option<Vec<ConfigField>>,
 }
 
+/// Helper function for serializing `Example`.
+///
+/// Currently the `wdl-analysis` crate doesn't depend on `serde`, so this exists
+/// to serialize examples for this command's JSON output.
+///
+/// Note: due to limitations in serde, we can't easily use a remote type for
+/// `Example` as we're serializing a sequence of them.
+fn serialize_examples<S>(examples: &[Example], serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    struct SerializableSnippet<'a>(&'a LabeledSnippet);
+
+    impl Serialize for SerializableSnippet<'_> {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let LabeledSnippet { label, snippet } = self.0;
+            let mut s = serializer.serialize_struct("LabeledSnippet", 2)?;
+
+            if let Some(label) = label {
+                s.serialize_field("label", label)?;
+            }
+
+            s.serialize_field("snippet", snippet)?;
+            s.end()
+        }
+    }
+
+    struct SerializableExample<'a>(&'a Example);
+
+    impl Serialize for SerializableExample<'_> {
+        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+        where
+            S: Serializer,
+        {
+            let Example { negative, revised } = self.0;
+            let mut s = serializer.serialize_struct("Example", 2)?;
+            s.serialize_field("negative", &SerializableSnippet(negative))?;
+
+            if let Some(revised) = revised {
+                s.serialize_field("revised", &SerializableSnippet(revised))?;
+            }
+
+            s.end()
+        }
+    }
+
+    let mut seq = serializer.serialize_seq(Some(examples.len()))?;
+    for example in examples {
+        seq.serialize_element(&SerializableExample(example))?;
+    }
+
+    seq.end()
+}
+
 impl Rule {
     /// Convert this rule to a string of the given format.
     fn format(&self, format: Format) -> String {
         match format {
             Format::Default => self.to_string(),
-            Format::Json => serde_json::to_string(self).expect("Rule should be JSON serializable"),
+            Format::Json => {
+                serde_json::to_string_pretty(self).expect("Rule should be JSON serializable")
+            }
         }
     }
 }
@@ -183,6 +249,22 @@ impl Display for Rule {
                 writeln!(f, "  - {}", rule.cyan())?;
             }
         };
+
+        if !self.examples.is_empty() {
+            writeln!(f, "\n{}", "Examples:".bold())?;
+            for example in self.examples {
+                if let Some(label) = &example.negative.label {
+                    writeln!(f, "{label}:\n")?;
+                }
+
+                writeln!(f, "```wdl\n{}```", example.negative.snippet)?;
+
+                if let Some(revision) = &example.revised {
+                    writeln!(f, "{}:\n", revision.label.unwrap_or("Use instead"))?;
+                    writeln!(f, "```wdl\n{}```", revision.snippet)?;
+                }
+            }
+        }
 
         Ok(())
     }
