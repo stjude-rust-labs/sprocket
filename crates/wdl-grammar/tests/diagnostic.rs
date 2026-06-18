@@ -1,3 +1,5 @@
+//! Tests related to the `Diagnostic` struct.
+
 use wdl_grammar::Diagnostic;
 
 #[test]
