@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Fixed `#@ except: ContainerUri` not being honored when placed on individual
+  `container:`/`docker:` entries within `requirements` and `runtime` sections
+  ([#879](https://github.com/stjude-rust-labs/sprocket/issues/879)).
+  
 ### Added
 
 * Nix flake providing `packages.sprocket`, a development shell with the

@@ -224,3 +224,31 @@ task l {
         container: "~{image}:latest"
     }
 }
+
+task m {
+    meta {}
+    parameter_meta {}
+    command <<<
+        echo "Hello, World!"
+    >>>
+    output {}
+    requirements {
+        # This should NOT be flagged because the per-entry except suppresses it.
+        #@ except: ContainerUri
+        container: "ubuntu:latest"
+    }
+}
+
+task n {
+    meta {}
+    parameter_meta {}
+    command <<<
+        echo "Hello, World!"
+    >>>
+    output {}
+    runtime {
+        # This should NOT be flagged because the per-entry except suppresses it.
+        #@ except: ContainerUri
+        docker: "ubuntu"
+    }
+}
