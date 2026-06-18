@@ -28,6 +28,7 @@ use tracing::debug;
 use tracing::enabled;
 use tracing::info;
 use tracing::warn;
+use url::Url;
 use walkdir::WalkDir;
 use wdl_analysis::Document;
 use wdl_analysis::diagnostics::Io;
@@ -578,15 +579,30 @@ impl<'a> State<'a> {
             // A direct mapping between the guest and host wasn't found, so scan for a
             // matching guest prefix
             for (host, guest) in self.path_map.iter() {
-                if let Some(path) = path
+                // Check to see if the provided guest path is prefixed by this entry
+                if let Some(remainder) = path
                     .0
                     .strip_prefix(guest.0.as_str())
                     .and_then(|p| p.strip_prefix('/'))
                 {
-                    // Strip the guest path prefix and join the remainder onto the associated host
-                    // path
+                    // If the host is a URL, parse it and join it with the remainder
+                    if is_supported_url(host.as_str()) {
+                        let mut host: Url = host.as_str().parse().ok()?;
+
+                        // Push a separator to force join to treat the path as a "directory"
+                        if let Ok(mut segments) = host.path_segments_mut() {
+                            segments.pop_if_empty();
+                            segments.push("");
+                        }
+
+                        let mut joined = host.join(remainder).ok()?;
+                        joined.set_query(host.query());
+                        return Some(HostPath::new(joined));
+                    }
+
+                    // Otherwise, join paths
                     return Some(HostPath::new(
-                        clean(Path::new(host.0.as_str()).join(path))
+                        clean(Path::new(host.0.as_str()).join(remainder))
                             .into_os_string()
                             .into_string()
                             .ok()?,
@@ -603,18 +619,56 @@ impl<'a> State<'a> {
     /// Returns `None` if there is no guest path representation of the host
     /// path.
     fn guest_path(&self, path: &HostPath) -> Option<GuestPath> {
+        // Check to see if the given path is a URL
+        let path_url = if is_supported_url(path.as_str()) {
+            path.as_str().parse::<Url>().ok()
+        } else {
+            None
+        };
+
         self.path_map.get_by_left(path).cloned().or_else(|| {
             // A direct mapping between the guest and host wasn't found, so scan for a
             // matching host prefix
             for (host, guest) in self.path_map.iter() {
-                if let Ok(path) = Path::new(path.0.as_str()).strip_prefix(host.0.as_str()) {
-                    // Strip the host path prefix and append the join onto the associated guest
-                    // path. Note: guest paths always use the Unix path separator.
-                    return Some(GuestPath::new(format!(
-                        "{base}/{remainder}",
-                        base = guest.0.trim_end_matches('/'),
-                        remainder = path.to_str()?.replace('\\', "/")
-                    )));
+                // Check to see if this host path entry is a URL
+                let host_url = if is_supported_url(host.as_str()) {
+                    host.as_str().parse::<Url>().ok()
+                } else {
+                    None
+                };
+
+                match (&path_url, &host_url) {
+                    (None, None) => {
+                        // The paths are not URLs, treat as local paths
+                        if let Ok(remainder) =
+                            Path::new(path.0.as_str()).strip_prefix(host.0.as_str())
+                        {
+                            // Note: guest paths are always Unix-style paths
+                            return Some(GuestPath::new(format!(
+                                "{base}/{remainder}",
+                                base = guest.0.trim_end_matches('/'),
+                                remainder = remainder.to_str()?.replace('\\', "/")
+                            )));
+                        }
+                    }
+                    (Some(path_url), Some(host_url))
+                        if path_url.scheme() == host_url.scheme()
+                            && path_url.authority() == host_url.authority()
+                            && path_url.host_str() == host_url.host_str() =>
+                    {
+                        // The paths are both URLs that have matching scheme, authority, and hosts
+                        if let Ok(remainder) =
+                            Path::new(path_url.path()).strip_prefix(host_url.path())
+                        {
+                            // Note: guest paths are always Unix-style paths
+                            return Some(GuestPath::new(format!(
+                                "{base}/{remainder}",
+                                base = guest.0.trim_end_matches('/'),
+                                remainder = remainder.to_str()?.replace('\\', "/"),
+                            )));
+                        }
+                    }
+                    _ => continue,
                 }
             }
 
