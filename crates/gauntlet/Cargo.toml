@@ -15,7 +15,7 @@ codespan-reporting.workspace = true
 colored.workspace = true
 dirs.workspace = true
 faster-hex.workspace = true
-git2.workspace = true
+git2 = { workspace = true, features = ["https"] }
 indexmap.workspace = true
 tempfile.workspace = true
 tokio.workspace = true

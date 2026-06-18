@@ -14,7 +14,7 @@ repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/spro
 readme = "../../python/README.md"
 
 [dependencies]
-pyo3 = "0.28.3"
+pyo3 = "0.29.0"
 
 [lints]
 workspace = true
