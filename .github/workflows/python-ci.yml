@@ -5,6 +5,11 @@ on:
     branches:
       - main
   pull_request:
+    paths:
+      - "python/**"
+      - "pyproject.toml"
+      - "crates/sprocket-py/**"
+      - ".github/workflows/python-ci.yml"
   workflow_dispatch:
 
 env:
@@ -27,9 +32,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-      
+
       - name: Update Rust
-        run: rustup update stable && rustup default stable && rustup component add llvm-tools
+        run: rustup update stable && rustup default stable
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -65,9 +70,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-      
+
       - name: Update Rust
-        run: rustup update stable && rustup default stable && rustup component add llvm-tools
+        run: rustup update stable && rustup default stable
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -99,28 +104,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-      
-      - name: Update Rust
-        run: rustup update stable && rustup default stable && rustup component add llvm-tools
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.10"
-
-      - name: Create virtual environment
-        run: python -m venv --upgrade-deps .venv
-
-      - name: Activate virtual environment
-        run: |
-          echo "VIRTUAL_ENV=$(pwd)/.venv" >> "${GITHUB_ENV}"
-          echo "$(pwd)/.venv/bin" >> "${GITHUB_PATH}"
-
-      - name: Build package
-        uses: PyO3/maturin-action@v1
-        with:
-          command: develop
-          args: --locked
 
       - name: Check formatting
-        run: black --check python
+        uses: psf/black@stable
+        with:
+          use_pyproject: true

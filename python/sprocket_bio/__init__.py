@@ -1,4 +1,4 @@
-# Import the Python extension (`sprocket_py`).
+# Import the Python extension (`_sprocket_bio.so` on Unix and `_sprocket_bio.pyd` on Windows).
 from . import _sprocket_bio
 
 # Re-export all items from the Python extension.
