@@ -19,13 +19,16 @@ use wdl::analysis::types::Type;
 #[derive(Default, serde::Deserialize, Debug)]
 pub(crate) struct Assertions {
     /// The expected exit code of the task (ignored when testing workflows).
+    ///
+    /// Defaults to `0` if not specified. Cannot be combined with
+    /// `should_fail`.
     #[serde(default)]
-    pub exit_code: i32,
+    pub exit_code: Option<i32>,
     /// Whether the test is expected to fail.
     ///
     /// For workflows, any failure is expected.
-    /// For tasks, any nonzero exit code is expected. It is an error to set
-    /// this alongside a nonzero `exit_code` assertion.
+    /// For tasks, any nonzero exit code is expected.
+    /// Cannot be combined with `exit_code`.
     #[serde(default)]
     pub should_fail: bool,
     /// Regular expressions that should match within STDOUT of the task (ignored
@@ -52,10 +55,14 @@ impl Assertions {
         is_workflow: bool,
         outputs: &IndexMap<String, Output>,
     ) -> Result<ParsedAssertions> {
+        if self.should_fail && self.exit_code.is_some() {
+            bail!("`should_fail` and `exit_code` cannot both be specified");
+        }
+
         let mut stdout = None;
         let mut stderr = None;
         if is_workflow {
-            if self.exit_code != 0 {
+            if self.exit_code.is_some() {
                 warn!("ignoring `exit_code` assertion for workflow");
             }
             if !self.stdout.is_empty() {
@@ -65,13 +72,6 @@ impl Assertions {
                 warn!("ignoring `stderr` assertion for workflow");
             }
         } else {
-            if self.should_fail && self.exit_code != 0 {
-                bail!(
-                    "cannot specify both `should_fail` and a nonzero `exit_code` assertion for a \
-                     task; remove one of them"
-                );
-            }
-
             let stdout_regexs = self
                 .stdout
                 .iter()
@@ -103,7 +103,7 @@ impl Assertions {
         }
 
         Ok(ParsedAssertions {
-            exit_code: self.exit_code,
+            exit_code: self.exit_code.unwrap_or(0),
             should_fail: self.should_fail,
             stdout,
             stderr,
@@ -385,6 +385,8 @@ impl OutputAssertion {
 #[derive(Debug)]
 pub(crate) struct ParsedAssertions {
     /// The expected exit code of the task (ignored when testing workflows).
+    ///
+    /// Defaults to `0`.
     pub exit_code: i32,
     /// For workflows: whether the workflow is expected to fail.
     /// For tasks: whether any nonzero exit code is acceptable (i.e. the task
@@ -1061,7 +1063,7 @@ mod tests {
     fn parse_should_fail_ok_for_task() {
         let assertions = Assertions {
             should_fail: true,
-            exit_code: 0,
+            exit_code: None,
             ..Default::default()
         };
         let result = assertions.parse(false, &IndexMap::new());
@@ -1070,13 +1072,24 @@ mod tests {
     }
 
     #[test]
-    fn parse_should_fail_with_nonzero_exit_code_errors_for_task() {
+    fn parse_should_fail_with_exit_code_errors_for_task() {
         let assertions = Assertions {
             should_fail: true,
-            exit_code: 1,
+            exit_code: Some(1),
             ..Default::default()
         };
         let result = assertions.parse(false, &IndexMap::new());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_should_fail_with_exit_code_errors_for_workflow() {
+        let assertions = Assertions {
+            should_fail: true,
+            exit_code: Some(1),
+            ..Default::default()
+        };
+        let result = assertions.parse(true, &IndexMap::new());
         assert!(result.is_err());
     }
 }

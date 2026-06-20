@@ -2,3 +2,8 @@ always_fails:
   - name: should_fail_passes
     assertions:
       should_fail: true
+
+always_succeeds:
+  - name: always_succeeds
+    assertions:
+      should_fail: true

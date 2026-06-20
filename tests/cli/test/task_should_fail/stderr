@@ -1,0 +1,1 @@
+error: source::always_succeeds::always_succeeds (iteration #1) exited with code `0` but `should_fail` expected a nonzero exit code: see `/private/var/folders/vj/tzg7mph959x__wcn75h221th0000gn/T/.tmpGMxwHo/test/runs/always_succeeds/always_succeeds/1`
