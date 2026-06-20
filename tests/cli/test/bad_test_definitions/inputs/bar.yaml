@@ -16,4 +16,8 @@ bar:
       two:
         - correct
       three:
-       - also correct
+        - also correct
+  - name: conflicting options
+    assertions:
+      exit_code: 0
+      should_fail: true

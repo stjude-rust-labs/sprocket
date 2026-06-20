@@ -56,7 +56,7 @@ impl Assertions {
         outputs: &IndexMap<String, Output>,
     ) -> Result<ParsedAssertions> {
         if self.should_fail && self.exit_code.is_some() {
-            bail!("`should_fail` and `exit_code` cannot both be specified");
+            bail!("`should_fail` cannot be used with `exit_code`");
         }
 
         let mut stdout = None;
