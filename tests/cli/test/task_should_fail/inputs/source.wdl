@@ -4,8 +4,6 @@ task always_fails {
     command <<<
         exit 1
     >>>
-
-    output {}
 }
 
 task always_succeeds {

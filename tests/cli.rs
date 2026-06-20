@@ -254,11 +254,12 @@ fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
 }
 
 /// Normalizes a string for OS platform differences and dynamic content.
-fn normalize_string(input: &str) -> String {
+fn normalize_string(input: &str, temp_dir: &Path) -> String {
     // NOTE: the drive prefix removal (e.g., `C:`) must occur after backslash
     // normalization so that paths like `C:\foo` are first converted to `C:/foo`
     // before the prefix is stripped.
     let s = input
+        .replace(&*temp_dir.to_string_lossy(), "_TEMP_DIR_")
         .replace("\r\n", "\n")
         .replace("\\r\\n", "\\n")
         .replace("sprocket.exe", "sprocket")
@@ -267,7 +268,7 @@ fn normalize_string(input: &str) -> String {
 
     // Strip Windows drive prefixes (e.g., `C:`) from absolute paths.
     static DRIVE_PREFIX: std::sync::LazyLock<regex::Regex> =
-        std::sync::LazyLock::new(|| regex::Regex::new(r"[A-Za-z]:(/[^\s])").unwrap());
+        std::sync::LazyLock::new(|| regex::Regex::new(r"[A-Za-z]:(/\S)").unwrap());
     let s = DRIVE_PREFIX.replace_all(&s, "$1");
 
     // Normalize Windows OS error messages to their Unix equivalents.
@@ -406,12 +407,12 @@ fn normalize_expected_outputs(path: &Path) -> Result<()> {
 }
 
 /// Compares the contents in the expected file with the actual test results.
-fn compare_results(expected_path: &Path, actual: &str) -> Result<()> {
+fn compare_results(expected_path: &Path, actual: &str, temp_dir: &Path) -> Result<()> {
     let expected = fs::read_to_string(expected_path)
         .with_context(|| format!("failed to read result file {expected_path:?}"))?;
 
-    let expected = normalize_string(&expected);
-    let actual = normalize_string(actual);
+    let expected = normalize_string(&expected, temp_dir);
+    let actual = normalize_string(actual, temp_dir);
     if expected != actual {
         bail!(
             "result from `{}` is not as expected:\nafter normalization:\n{}",
@@ -424,10 +425,10 @@ fn compare_results(expected_path: &Path, actual: &str) -> Result<()> {
 }
 
 /// Compares the contents of two text files.
-fn compare_files(expected_path: &Path, actual_path: &Path) -> Result<()> {
+fn compare_files(expected_path: &Path, actual_path: &Path, temp_dir: &Path) -> Result<()> {
     let actual = fs::read_to_string(actual_path)
         .with_context(|| format!("failed to read actual file {actual_path:?}"))?;
-    compare_results(expected_path, &actual)
+    compare_results(expected_path, &actual, temp_dir)
 }
 
 /// Builds a list of entry paths in a directory relative to the directory's
@@ -474,7 +475,7 @@ fn build_relative_path_list(path: &Path) -> Result<Vec<(PathBuf, PathBuf)>> {
 /// Paths are normalized before comparison so that dynamic components like
 /// timestamps match their `_TIMESTAMP_` placeholders in expected outputs.
 /// Binary files (e.g., `.db`) are only checked for existence, not content.
-fn recursive_compare(expected_path: &Path, actual_path: &Path) -> Result<()> {
+fn recursive_compare(expected_path: &Path, actual_path: &Path, temp_dir: &Path) -> Result<()> {
     use std::collections::HashMap;
     use std::collections::HashSet;
 
@@ -516,7 +517,7 @@ __UNEXPECTED_FILES_FOUND__
             let expected_full_path = expected_path.join(expected_original);
             let actual_original = actual_map.get(normalized).expect("path should exist");
             let actual_full_path = actual_path.join(actual_original);
-            compare_files(&expected_full_path, &actual_full_path).err()
+            compare_files(&expected_full_path, &actual_full_path, temp_dir).err()
         })
         .collect::<Vec<_>>();
 
@@ -548,16 +549,12 @@ fn compare_test_results(
     if env::var_os("BLESS").is_some() {
         fs::write(
             &expected_stderr_file,
-            TIMESTAMP_PATTERN
-                .replace_all(&command_output.stderr, "_TIMESTAMP_")
-                .as_ref(),
+            normalize_string(&command_output.stderr, working_test_directory),
         )
         .context("failed to write stderr output")?;
         fs::write(
             &expected_stdout_file,
-            TIMESTAMP_PATTERN
-                .replace_all(&command_output.stdout, "_TIMESTAMP_")
-                .as_ref(),
+            normalize_string(&command_output.stdout, working_test_directory),
         )
         .context("failed to write stdout output")?;
         fs::remove_dir_all(&expected_output_dir).unwrap_or_default();
@@ -576,11 +573,23 @@ fn compare_test_results(
                 .context("failed to normalize expected outputs")?;
         }
     }
-    compare_results(&expected_stderr_file, &command_output.stderr)?;
-    compare_results(&expected_stdout_file, &command_output.stdout)?;
+    compare_results(
+        &expected_stderr_file,
+        &command_output.stderr,
+        working_test_directory,
+    )?;
+    compare_results(
+        &expected_stdout_file,
+        &command_output.stdout,
+        working_test_directory,
+    )?;
 
     if expects_outputs {
-        recursive_compare(&expected_output_dir, working_test_directory)?;
+        recursive_compare(
+            &expected_output_dir,
+            working_test_directory,
+            working_test_directory,
+        )?;
     }
 
     // https://github.com/stjude-rust-labs/sprocket/issues/861
@@ -593,6 +602,7 @@ fn compare_test_results(
     compare_results(
         &expected_exit_code_file,
         &command_output.exit_code.to_string(),
+        working_test_directory,
     )?;
     Ok(())
 }
