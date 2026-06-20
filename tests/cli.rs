@@ -115,10 +115,23 @@ fn run_test(test_path: &Path, test_name: String) -> Result<()> {
         .context("failed to setup working test directory")?;
     let command_output = run_sprocket(test_path, working_test_directory.path())
         .context("failed to run sprocket command")?;
+
+    // Canonicalize the temp directory path before using it for output
+    // normalization/comparison. On macOS, `/var` is a symlink to
+    // `/private/var`, so the path returned by `TempDir::new()` (e.g.
+    // `/var/folders/...`) differs from the path the OS actually reports
+    // back in subprocess output (e.g. `/private/var/folders/...`).
+    // Canonicalizing here ensures the literal string replace in
+    // `normalize_string` matches what the test binary actually prints.
+    let canonical_working_directory = working_test_directory
+        .path()
+        .canonicalize()
+        .context("failed to canonicalize working test directory")?;
+
     compare_test_results(
         test_path,
         &test_name,
-        working_test_directory.path(),
+        &canonical_working_directory,
         &command_output,
     )
 }
