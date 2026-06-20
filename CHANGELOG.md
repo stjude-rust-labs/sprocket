@@ -19,9 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added `--show-task-stderr` option to the `run` subcommand to show task stderr during execution ([#743](https://github.com/stjude-rust-labs/sprocket/pull/743)).
 * Added `--fixtures-dir` and `--run-dir` options to the `sprocket dev test`
   command ([#747](https://github.com/stjude-rust-labs/sprocket/pull/747)).
-* Added support for the `should_fail` assertion in `sprocket dev test` tasks
-  ([#897](https://github.com/stjude-rust-labs/sprocket/issues/897)).
-  
+* Added support for the `should_fail` assertion on tasks in `sprocket dev test` ([#942](https://github.com/stjude-rust-labs/sprocket/issues/942)).
+
 ### Changed
 
 * Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
