@@ -560,7 +560,7 @@ mod python {
 
         /// Returns a printable representation of this object.
         fn __repr__(&self) -> String {
-            format!("Span({}..{})", self.start, self.end)
+            format!("Span({}, {})", self.start, self.len())
         }
     }
 
