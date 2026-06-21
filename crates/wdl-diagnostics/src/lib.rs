@@ -12,6 +12,8 @@ use codespan_reporting::term::DisplayStyle;
 use codespan_reporting::term::emit_to_write_style;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
+#[cfg(feature = "python")]
+pub use python::py_emit_diagnostics;
 use wdl_ast::Diagnostic;
 
 /// Configuration for full display style.
@@ -246,7 +248,7 @@ pub fn emit_diagnostics_with_backtrace<'a>(
 
 /// Python-specific APIs.
 #[cfg(feature = "python")]
-pub mod python {
+mod python {
     use pyo3::prelude::*;
 
     use super::*;
