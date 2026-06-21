@@ -10,7 +10,7 @@ use rowan::TextSize;
 /// Represents a span of source.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[cfg_attr(
-    feature = "python",
+    feature = "unstable-python",
     pyo3::pyclass(
         module = "sprocket_bio.grammar",
         frozen,
@@ -122,7 +122,7 @@ impl TryFrom<Span> for TextRange {
 /// Represents the severity of a diagnostic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 #[cfg_attr(
-    feature = "python",
+    feature = "unstable-python",
     pyo3::pyclass(
         module = "sprocket_bio.grammar",
         frozen,
@@ -193,7 +193,7 @@ impl FromStr for Severity {
 /// Represents a diagnostic to display to the user.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(
-    feature = "python",
+    feature = "unstable-python",
     pyo3::pyclass(
         module = "sprocket_bio.grammar",
         frozen,
@@ -444,7 +444,7 @@ impl Diagnostic {
 /// Represents a label that annotates the source code.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 #[cfg_attr(
-    feature = "python",
+    feature = "unstable-python",
     pyo3::pyclass(
         module = "sprocket_bio.grammar",
         frozen,
@@ -504,7 +504,7 @@ impl Label {
 }
 
 /// Python-specific APIs.
-#[cfg(feature = "python")]
+#[cfg(feature = "unstable-python")]
 mod python {
     use pyo3::prelude::*;
 

@@ -11,7 +11,11 @@ repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-
 documentation = "https://docs.rs/wdl-grammar"
 
 [features]
-python = ["dep:pyo3"]
+# Enables APIs related to Sprocket's Python bindings.
+#
+# This feature is not subject to `wdl-grammar`'s semver guarantees. There may be breaking changes
+# across patch versions. Use at your own risk.
+unstable-python = ["dep:pyo3"]
 
 [dependencies]
 codespan-reporting = { workspace = true }

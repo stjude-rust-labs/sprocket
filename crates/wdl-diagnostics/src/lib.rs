@@ -12,7 +12,7 @@ use codespan_reporting::term::DisplayStyle;
 use codespan_reporting::term::emit_to_write_style;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
-#[cfg(feature = "python")]
+#[cfg(feature = "unstable-python")]
 pub use python::py_emit_diagnostics;
 use wdl_ast::Diagnostic;
 
@@ -93,7 +93,7 @@ impl DiagnosticCounts {
 /// The diagnostic mode to use for reporting diagnostics.
 #[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
 #[cfg_attr(
-    feature = "python",
+    feature = "unstable-python",
     pyo3::pyclass(
         module = "sprocket_bio.diagnostics",
         frozen,
@@ -247,7 +247,7 @@ pub fn emit_diagnostics_with_backtrace<'a>(
 }
 
 /// Python-specific APIs.
-#[cfg(feature = "python")]
+#[cfg(feature = "unstable-python")]
 mod python {
     use pyo3::prelude::*;
 

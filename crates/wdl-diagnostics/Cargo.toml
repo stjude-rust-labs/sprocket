@@ -12,7 +12,11 @@ rust-version.workspace = true
 
 [features]
 backtrace = ["dep:wdl-engine"]
-python = ["dep:pyo3"]
+# Enables APIs related to Sprocket's Python bindings.
+#
+# This feature is not subject to `wdl-diagnostics`'s semver guarantees. There may be breaking
+# changes across patch versions. Use at your own risk.
+unstable-python = ["dep:pyo3"]
 
 [dependencies]
 anyhow.workspace = true
