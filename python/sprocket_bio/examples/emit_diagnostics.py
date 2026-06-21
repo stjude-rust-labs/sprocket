@@ -3,11 +3,6 @@ from sprocket_bio.grammar import Diagnostic, Span
 
 import os
 
-workflow_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "example.wdl")
-
-with open(workflow_path, "rt") as f:
-    workflow_source = f.read()
-
 diagnostics = [
     # Annotate the `command` section with an error.
     Diagnostic.error("this is an error").with_highlight(Span(77, 54)),
@@ -19,6 +14,14 @@ diagnostics = [
 
 
 def main() -> None:
+    # Get the full path of `example.wdl` from this script's location.
+    workflow_path = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), "example.wdl"
+    )
+
+    with open(workflow_path, "rt") as f:
+        workflow_source = f.read()
+
     emit_diagnostics(
         workflow_path,
         workflow_source,
