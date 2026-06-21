@@ -545,7 +545,7 @@ mod python {
         /// # Examples
         ///
         /// ```python
-        /// >>> Span.intersect(Span(0, 10), Span(5, 10))
+        /// >>> Span(0, 10).intersect(Span(5, 10))
         /// Span(5..10)
         /// ```
         #[pyo3(name = "intersect")]
