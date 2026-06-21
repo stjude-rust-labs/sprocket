@@ -242,7 +242,12 @@ impl Ord for Diagnostic {
             ord => return ord,
         }
 
-        self.fix.cmp(&other.fix)
+        match self.fix.cmp(&other.fix) {
+            Ordering::Equal => {}
+            ord => return ord,
+        }
+
+        self.help.cmp(&other.help)
     }
 }
 
