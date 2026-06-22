@@ -252,3 +252,19 @@ task n {
         docker: "ubuntu"
     }
 }
+
+task o {
+    meta {}
+    parameter_meta {}
+    command <<<
+        echo "Hello, World!"
+    >>>
+    output {}
+    requirements {
+        # This sibling task intentionally has no per-entry except, so the
+        # diagnostic for the floating tag below should still fire. This
+        # guards against the per-entry except being applied too broadly
+        # (e.g., leaking across sibling tasks/sections).
+        container: "ubuntu:latest"
+    }
+}
