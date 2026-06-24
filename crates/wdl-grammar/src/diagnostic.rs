@@ -452,6 +452,7 @@ impl Diagnostic {
         skip_from_py_object,
         get_all,
         eq,
+        ord,
         hash
     )
 )]
