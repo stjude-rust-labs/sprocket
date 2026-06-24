@@ -12,6 +12,8 @@ on:
       - "python/**"
       - "pyproject.toml"
       - "crates/sprocket-py/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
       - ".github/workflows/python-ci.yml"
   workflow_dispatch:
 
