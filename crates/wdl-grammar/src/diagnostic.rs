@@ -198,6 +198,7 @@ impl FromStr for Severity {
         module = "sprocket_bio.grammar",
         frozen,
         skip_from_py_object,
+        get_all,
         eq,
         ord,
         hash
@@ -634,39 +635,6 @@ mod python {
         #[pyo3(name = "with_severity")]
         fn py_with_severity(&self, severity: Bound<'_, Severity>) -> Self {
             self.clone().with_severity(*severity.get())
-        }
-
-        /// Gets the optional rule associated with the diagnostic.
-        #[getter(rule)]
-        fn py_rule(&self) -> Option<&str> {
-            self.rule()
-        }
-
-        /// Gets the default severity level of the diagnostic.
-        ///
-        /// The severity level may be upgraded to error depending on
-        /// configuration.
-        #[getter(severity)]
-        fn py_severity(&self) -> Severity {
-            self.severity()
-        }
-
-        /// Gets the message of the diagnostic.
-        #[getter(message)]
-        fn py_message(&self) -> &str {
-            self.message()
-        }
-
-        /// Gets the optional fix of the diagnostic.
-        #[getter(fix)]
-        fn py_fix(&self) -> Option<&str> {
-            self.fix()
-        }
-
-        /// Gets the labels of the diagnostic.
-        #[getter(labels)]
-        fn py_labels(&self) -> Vec<Label> {
-            self.labels().cloned().collect()
         }
     }
 

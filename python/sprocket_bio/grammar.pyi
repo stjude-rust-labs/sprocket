@@ -5,6 +5,7 @@ class Diagnostic:
     rule: str | None
     severity: Severity
     message: str
+    help: str | None
     fix: str | None
     labels: list[Label]
 
