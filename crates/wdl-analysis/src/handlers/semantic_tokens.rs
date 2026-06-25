@@ -285,8 +285,8 @@ fn resolve_identifier_ty(
             return Some(SemanticTokenType::VARIABLE);
         }
         SyntaxKind::EnumChoiceNode => {
-            let variant = EnumChoice::cast(parent.clone()).expect("should cast");
-            if variant.name().inner() == token {
+            let choice = EnumChoice::cast(parent.clone()).expect("should cast");
+            if choice.name().inner() == token {
                 add_modifier(modifiers, SemanticTokenModifier::DEFINITION);
                 return Some(SemanticTokenType::ENUM_MEMBER);
             }
