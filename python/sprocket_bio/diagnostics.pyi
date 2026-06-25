@@ -1,6 +1,6 @@
-from .grammar import Diagnostic
-
 import typing
+
+from .grammar import Diagnostic
 
 @typing.final
 class Mode:

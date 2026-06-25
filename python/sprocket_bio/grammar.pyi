@@ -1,5 +1,6 @@
-from collections.abc import Sequence
 import typing
+
+from collections.abc import Sequence
 
 @typing.final
 class Diagnostic:

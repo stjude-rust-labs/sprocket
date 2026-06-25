@@ -1,6 +1,6 @@
-from sprocket_bio.grammar import Diagnostic, Label, Span, Severity
-
 import pytest
+
+from sprocket_bio.grammar import Diagnostic, Label, Severity, Span
 
 
 def test_diagnostic_builder() -> None:

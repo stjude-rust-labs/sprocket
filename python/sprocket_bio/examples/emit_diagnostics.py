@@ -1,7 +1,7 @@
+import os
+
 from sprocket_bio.diagnostics import Mode, emit_diagnostics
 from sprocket_bio.grammar import Diagnostic, Span
-
-import os
 
 diagnostics = [
     # Annotate the `command` section with an error.

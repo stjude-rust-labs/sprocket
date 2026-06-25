@@ -1,6 +1,7 @@
 from pytest import CaptureFixture
-from sprocket_bio.grammar import Diagnostic, Span
+
 from sprocket_bio.diagnostics import Mode, emit_diagnostics
+from sprocket_bio.grammar import Diagnostic, Span
 
 
 def test_mode_eq() -> None:
