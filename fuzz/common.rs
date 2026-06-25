@@ -1,6 +1,5 @@
 //! Utilities for fuzz targets.
 
-use std::io::ErrorKind;
 use std::path::Path;
 
 use globset::Glob;
@@ -16,7 +15,7 @@ pub fn init_corpus_dir(target: &str) -> std::io::Result<()> {
         .join(target);
     std::fs::create_dir_all(&corpus_dir)?;
 
-    if std::fs::read_dir(corpus_dir)?.count() > 0 {
+    if std::fs::read_dir(&corpus_dir)?.count() > 0 {
         return Ok(());
     }
 

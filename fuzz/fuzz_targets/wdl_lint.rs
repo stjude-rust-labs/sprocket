@@ -63,14 +63,14 @@ fuzz_target!(
         file.write_all(data.as_bytes()).expect("failed to write to temp file");
 
         let ctx = CONTEXT.get().expect("context should be initialized");
-        let _ = ctx.runtime.block_on(async {
+        ctx.runtime.block_on(async {
             let url = Url::from_file_path(file.path()).unwrap();
             if ctx.analyzer.add_document(url.clone()).await.is_err() {
                 return;
             }
-            ctx.analyzer
+            let _ = ctx.analyzer
                 .analyze_document((), url)
-                .await
+                .await;
         });
     }
 );
