@@ -15,6 +15,8 @@ use crate::signing::VerifyingKey;
 pub struct MaterializedFile {
     /// Absolute path to the resolved file.
     pub path: PathBuf,
+    /// Absolute path to the root directory of the module that owns the file.
+    pub module_root: PathBuf,
     /// The source the file's owning module came from.
     pub source: ResolvedSource,
     /// The parsed manifest of the dependency that owns this file.

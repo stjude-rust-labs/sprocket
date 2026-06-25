@@ -1490,18 +1490,13 @@ where
                         // scope by the dep name so transitive imports from
                         // this file resolve their own relative paths and
                         // lockfile entries correctly.
-                        let import_manifest_dir = materialized
-                            .path
-                            .parent()
-                            .map(Path::to_path_buf)
-                            .unwrap_or_else(|| materialized.path.clone());
                         let consumer_module = self
                             .find_module_for_document(graph.get(importer).uri())
                             .expect("consumer module must exist; was present in Phase A");
                         let import_module = consumer_module.child(
                             symbolic_path.dep_name().clone(),
                             materialized.manifest.clone(),
-                            import_manifest_dir,
+                            materialized.module_root,
                         );
 
                         self.document_modules

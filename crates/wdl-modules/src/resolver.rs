@@ -750,6 +750,7 @@ impl Resolver for GitResolver {
 
         Ok(MaterializedFile {
             path: canonical,
+            module_root: root_path.to_path_buf(),
             source: resolved_source,
             manifest: std::sync::Arc::new(manifest),
         })

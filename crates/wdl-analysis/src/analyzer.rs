@@ -1441,6 +1441,7 @@ workflow test {
                 let manifest = Manifest::parse(&manifest_bytes).unwrap();
                 Ok(MaterializedFile {
                     path: file_path,
+                    module_root: self.dep_path.clone(),
                     source: ResolvedSource::Path {
                         path: self.dep_path.clone(),
                     },
@@ -1567,6 +1568,7 @@ workflow test {
                 let manifest = Manifest::parse(&manifest_bytes).unwrap();
                 Ok(MaterializedFile {
                     path: file_path,
+                    module_root: self.dep_path.clone(),
                     source: ResolvedSource::Path {
                         path: self.dep_path.clone(),
                     },
