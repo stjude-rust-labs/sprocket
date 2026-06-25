@@ -1,0 +1,6 @@
+error: failed to evaluate output `bad` for task `test`: guest path `/mnt/task/inputs/11/foo/../../bar` is not an input or within the task's working directory
+   ┌─ tests/tasks/subdir-output-escape/source.wdl:15:19
+   │
+15 │         Directory bad = dir + "/../../bar"
+   │                   ^^^
+

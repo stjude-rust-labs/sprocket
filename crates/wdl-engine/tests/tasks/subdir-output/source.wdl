@@ -7,17 +7,13 @@ task test {
         Directory dir
     }
 
-    # Perform some unnecessary conversions which internally map guest <-> host
-    String s = dir + "/sub"
-    Directory d = s + "/../sub/../sub"
-
     command <<<
     >>>
 
     output {
         # These outputs should all have the same value
-        Directory sub = d
+        Directory sub = dir + "/sub/../sub/../sub"
         Directory sub2 = join_paths(dir, "sub")
-        Directory sub3 = join_paths(d, "../sub/../sub/../sub")
+        Directory sub3 = join_paths(dir, "sub/../sub/../sub/../sub")
     }
 }

@@ -8,6 +8,7 @@ use std::fs::read_link;
 use std::fs::remove_file;
 use std::io::BufRead;
 use std::mem;
+use std::path::Component;
 use std::path::Path;
 use std::path::absolute;
 use std::sync::Arc;
@@ -596,17 +597,21 @@ impl<'a> State<'a> {
                         }
 
                         let mut joined = host.join(remainder).ok()?;
+
+                        // Ensure the path of the joined URL is prefixed, otherwise it escapes the
+                        // corresponding host path
+                        joined.path().strip_prefix(host.path())?;
                         joined.set_query(host.query());
                         return Some(HostPath::new(joined));
                     }
 
-                    // Otherwise, join paths
-                    return Some(HostPath::new(
-                        clean(Path::new(host.0.as_str()).join(remainder))
-                            .into_os_string()
-                            .into_string()
-                            .ok()?,
-                    ));
+                    // Otherwise, join paths and ensure the resulting path is prefixed
+                    let joined = clean(Path::new(host.0.as_str()).join(remainder));
+                    if joined.strip_prefix(host.0.as_str()).is_err() {
+                        return None;
+                    }
+
+                    return Some(HostPath::new(joined.into_os_string().into_string().ok()?));
                 }
             }
 
@@ -640,9 +645,16 @@ impl<'a> State<'a> {
                 match (&path_url, &host_url) {
                     (None, None) => {
                         // The paths are not URLs, treat as local paths
-                        if let Ok(remainder) =
-                            Path::new(path.0.as_str()).strip_prefix(host.0.as_str())
+                        if let Ok(remainder) = Path::new(path.0.as_str())
+                            .strip_prefix(host.0.as_str())
+                            .map(clean)
                         {
+                            // If the cleaned remainder starts with a parent directory reference,
+                            // then it escapes the corresponding guest directory
+                            if remainder.components().next() == Some(Component::ParentDir) {
+                                return None;
+                            }
+
                             // Note: guest paths are always Unix-style paths
                             return Some(GuestPath::new(format!(
                                 "{base}/{remainder}",
@@ -657,9 +669,16 @@ impl<'a> State<'a> {
                             && path_url.host_str() == host_url.host_str() =>
                     {
                         // The paths are both URLs that have matching scheme, authority, and hosts
-                        if let Ok(remainder) =
-                            Path::new(path_url.path()).strip_prefix(host_url.path())
+                        if let Ok(remainder) = Path::new(path_url.path())
+                            .strip_prefix(host_url.path())
+                            .map(clean)
                         {
+                            // If the cleaned remainder starts with a parent directory reference,
+                            // then it escapes the corresponding guest directory
+                            if remainder.components().next() == Some(Component::ParentDir) {
+                                return None;
+                            }
+
                             // Note: guest paths are always Unix-style paths
                             return Some(GuestPath::new(format!(
                                 "{base}/{remainder}",
