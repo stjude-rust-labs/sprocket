@@ -2,7 +2,7 @@
 
 use petname::Generator;
 use petname::Petnames;
-use rand::Rng;
+use rand::RngExt;
 
 /// Generate a random run name.
 ///
