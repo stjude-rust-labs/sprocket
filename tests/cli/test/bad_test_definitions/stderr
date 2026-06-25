@@ -10,6 +10,10 @@ error: parsing assertions of test `conflicting options` for WDL document `bar.wd
 
 Caused by:
     `should_fail` cannot be used with `exit_code`
+error: parsing assertions of test `conflicting options with should_fail false` for WDL document `bar.wdl`
+
+Caused by:
+    `should_fail` cannot be used with `exit_code`
 error: parsing input matrix of test `unequal lengths` for WDL document `foo.wdl`
 
 Caused by:
