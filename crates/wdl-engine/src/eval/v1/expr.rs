@@ -1978,7 +1978,7 @@ pub(crate) mod test {
             }
             Err((marker, diagnostic)) => {
                 marker.abandon(&mut parser);
-                Err(diagnostic)
+                Err(diagnostic.into())
             }
         }
     }
