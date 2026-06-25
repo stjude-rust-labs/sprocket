@@ -15,6 +15,33 @@ use wdl::analysis::types::CompoundType;
 use wdl::analysis::types::PrimitiveType;
 use wdl::analysis::types::Type;
 
+/// Deserializes an `Option<i32>` field that rejects an explicit `null` value.
+///
+/// - Omitted field → `None` (treated as unspecified, defaults to `0` later)
+/// - Explicit integer → `Some(value)`
+/// - Explicit `null` → deserialization error (malformed input)
+fn deserialize_optional_exit_code<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize as _;
+
+    let value = serde_yaml_ng::Value::deserialize(deserializer)?;
+    match value {
+        serde_yaml_ng::Value::Null => Err(serde::de::Error::custom(
+            "`exit_code` must be an integer, not `null`",
+        )),
+        serde_yaml_ng::Value::Number(n) => n
+            .as_i64()
+            .and_then(|v| i32::try_from(v).ok())
+            .map(Some)
+            .ok_or_else(|| serde::de::Error::custom("`exit_code` must be a valid i32")),
+        other => Err(serde::de::Error::custom(format!(
+            "`exit_code` must be an integer, got `{other:?}`"
+        ))),
+    }
+}
+
 /// Possible assertions for a test.
 #[derive(Default, serde::Deserialize, Debug)]
 pub(crate) struct Assertions {
@@ -22,7 +49,7 @@ pub(crate) struct Assertions {
     ///
     /// Defaults to `0` if not specified. Cannot be combined with
     /// `should_fail`.
-    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_optional_exit_code", default)]
     pub exit_code: Option<i32>,
     /// Whether the test is expected to fail.
     ///
@@ -1119,5 +1146,12 @@ mod tests {
         let result = assertions.parse(false, &IndexMap::new());
         assert!(result.is_ok());
         assert!(!result.unwrap().should_fail);
+    }
+
+    #[test]
+    fn parse_explicit_null_exit_code_errors() {
+        // exit_code: null is malformed — must be rejected at deserialization
+        let result = serde_yaml_ng::from_str::<Assertions>("exit_code: null");
+        assert!(result.is_err());
     }
 }
