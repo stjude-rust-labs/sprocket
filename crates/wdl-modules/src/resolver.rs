@@ -35,6 +35,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 #[cfg(feature = "resolver")]
 use std::path::PathBuf;
+#[cfg(feature = "resolver")]
 use std::sync::Arc;
 
 use async_trait::async_trait;

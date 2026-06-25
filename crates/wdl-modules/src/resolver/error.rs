@@ -2,15 +2,20 @@
 
 use std::path::PathBuf;
 
+#[cfg(feature = "resolver")]
 use semver::Version;
 use thiserror::Error;
 
+#[cfg(feature = "resolver")]
 use crate::hash::ContentHash;
+#[cfg(feature = "resolver")]
 use crate::hash::HashError;
 use crate::lockfile::LockfileError;
 use crate::manifest::ManifestError;
+#[cfg(feature = "resolver")]
 use crate::module_walk::ModuleWalkError;
 use crate::signing::VerifyingKey;
+#[cfg(feature = "resolver")]
 use crate::version_requirement::VersionRequirement;
 
 /// An error returned by the [`Resolver`](crate::Resolver) trait or
@@ -42,6 +47,7 @@ pub enum ResolverError {
 
     /// A path-prefixed Git tag's `module.json` declares a different
     /// version than the tag itself.
+    #[cfg(feature = "resolver")]
     #[error("tag `{tag}` points to a `module.json` declaring version `{declared}`")]
     TagManifestMismatch {
         /// The tag name (after stripping any path prefix).
@@ -51,6 +57,7 @@ pub enum ResolverError {
     },
 
     /// The dependency graph contains a cycle.
+    #[cfg(feature = "resolver")]
     #[error("dependency cycle: {}", format_cycle(.path))]
     Cycle {
         /// The cycle path, in resolution order.
@@ -59,6 +66,7 @@ pub enum ResolverError {
 
     /// No discovered version satisfies the dependency's version
     /// requirement.
+    #[cfg(feature = "resolver")]
     #[error(
         "no version satisfies `{dep}` requirement `{requirement}` (considered: {})",
         format_versions(.considered)
@@ -92,6 +100,7 @@ pub enum ResolverError {
 
     /// A cached module's content hash does not match the lockfile's
     /// recorded checksum.
+    #[cfg(feature = "resolver")]
     #[error(
         "cached `{dep}` content hash does not match the lockfile (expected `{expected}`, observed \
          `{observed}`)"
@@ -134,6 +143,7 @@ pub enum ResolverError {
 
     /// A Git tag or branch named in a dependency's selector does not
     /// exist on the remote.
+    #[cfg(feature = "resolver")]
     #[error("`{dep}` selector references unknown {kind} `{name}`")]
     UnknownGitRef {
         /// The owning dependency.
@@ -146,6 +156,7 @@ pub enum ResolverError {
 
     /// A `commit` selector did not parse as a valid 40-character lowercase
     /// hex SHA.
+    #[cfg(feature = "resolver")]
     #[error("`{dep}` `commit` value `{value}` is not a valid Git commit SHA")]
     InvalidCommit {
         /// The owning dependency.
@@ -156,6 +167,7 @@ pub enum ResolverError {
 
     /// A `module.sig` file was present but failed to verify against the
     /// observed content hash.
+    #[cfg(feature = "resolver")]
     #[error(
         "`{dep}` signature does not match observed content (signer: `{}`)",
         signer.to_openssh()
@@ -168,6 +180,7 @@ pub enum ResolverError {
     },
 
     /// A `module.sig` file failed to parse.
+    #[cfg(feature = "resolver")]
     #[error("`{dep}` `module.sig` failed to parse")]
     SignatureParse {
         /// The owning dependency.
@@ -178,6 +191,7 @@ pub enum ResolverError {
     },
 
     /// A manifest `exclude` pattern is not a valid glob.
+    #[cfg(feature = "resolver")]
     #[error("invalid `exclude` pattern `{pattern}`")]
     InvalidExclude {
         /// The offending pattern.
@@ -196,6 +210,7 @@ pub enum ResolverError {
 
     /// A transitive dependency declared a local-path source from a
     /// non-local parent.
+    #[cfg(feature = "resolver")]
     #[error(
         "`{dep}` declares a local-path source but is reachable through a non-local parent; only \
          locally-rooted projects may use local-path dependencies"
@@ -207,6 +222,7 @@ pub enum ResolverError {
 
     /// A dependency declared by the consumer was missing from the
     /// freshly-resolved tree and not satisfied by the prior lockfile.
+    #[cfg(feature = "resolver")]
     #[error("`{dep}` is declared by the consumer but absent from the freshly-resolved tree")]
     MissingFreshDependency {
         /// The missing dependency name.
@@ -214,6 +230,7 @@ pub enum ResolverError {
     },
 
     /// A Git URL violates the configured scheme policy.
+    #[cfg(feature = "resolver")]
     #[error("`{dep}` git URL `{url}` uses scheme `{scheme}` which is not allowed by policy")]
     GitUrlPolicyViolation {
         /// The owning dependency.
@@ -227,6 +244,7 @@ pub enum ResolverError {
     /// DNS resolution for a Git URL's hostname failed. The resolver
     /// rejects the URL rather than allowing a potentially spoofed host
     /// through.
+    #[cfg(feature = "resolver")]
     #[error("`{dep}` git URL `{url}` host `{host}` could not be resolved")]
     GitHostResolutionFailed {
         /// The owning dependency.
@@ -238,6 +256,7 @@ pub enum ResolverError {
     },
 
     /// A Git URL violates the configured host policy.
+    #[cfg(feature = "resolver")]
     #[error("`{dep}` git URL `{url}` targets host `{host}` which is not allowed by policy")]
     GitHostPolicyViolation {
         /// The owning dependency.
@@ -249,6 +268,7 @@ pub enum ResolverError {
     },
 
     /// A Git URL's host is not in the configured allow list for its scope.
+    #[cfg(feature = "resolver")]
     #[error(
         "`{dep}` git URL `{url}` targets host `{host}` which is not in the configured allow list; \
          to allow it, add `{host}` to `{config_key}` in the `[modules]` section of your \
@@ -266,6 +286,7 @@ pub enum ResolverError {
     },
 
     /// A materialized module tree exceeded configured resource limits.
+    #[cfg(feature = "resolver")]
     #[error("`{dep}` materialized tree exceeds limits (files: {files}, bytes: {bytes})")]
     MaterializedTreeLimitExceeded {
         /// The owning dependency.
@@ -277,11 +298,13 @@ pub enum ResolverError {
     },
 
     /// A Git operation failed.
+    #[cfg(feature = "resolver")]
     #[error(transparent)]
     Git(#[from] crate::resolver::git::GitError),
 
     /// A materialized file resolved through a symlink that escapes the
     /// module root.
+    #[cfg(feature = "resolver")]
     #[error("`{dep}` materialized path escapes module root: `{path}`")]
     MaterializedSymlinkEscape {
         /// The owning dependency.
@@ -301,10 +324,12 @@ pub enum ResolverError {
     },
 
     /// A module-walk error (symlink containment, metadata target, etc.).
+    #[cfg(feature = "resolver")]
     #[error(transparent)]
     Walk(#[from] ModuleWalkError),
 
     /// Hashing a cache leaf or local path failed.
+    #[cfg(feature = "resolver")]
     #[error(transparent)]
     Hash(#[from] HashError),
 
@@ -365,11 +390,13 @@ fn missing_file_message(dep: &str, path: &std::path::Path, kind: &MissingFileKin
 }
 
 /// Renders a cycle path as a chain of arrows for error display.
+#[cfg(feature = "resolver")]
 fn format_cycle(path: &[String]) -> String {
     path.join(" → ")
 }
 
 /// Renders a list of versions for error display, or `<none>` when empty.
+#[cfg(feature = "resolver")]
 fn format_versions(versions: &[Version]) -> String {
     if versions.is_empty() {
         return "<none>".to_string();

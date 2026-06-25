@@ -37,7 +37,7 @@ uuid = { workspace = true, features = ["v4"] }
 wdl-ast = { path = "../wdl-ast", version = "0.24.0" }
 wdl-format = { path = "../wdl-format", version = "0.18.1" }
 wdl-grammar = { path = "../wdl-grammar", version = "0.23.0" }
-wdl-modules = { path = "../wdl-modules", version = "0.2.0", features = ["resolver"] }
+wdl-modules = { path = "../wdl-modules", version = "0.2.0" }
 
 [dev-dependencies]
 async-trait = { workspace = true }
