@@ -2201,6 +2201,7 @@ fn resolve_import(
     stmt: &ImportStatement,
     importer_index: NodeIndex,
 ) -> Result<(Arc<Url>, Document), Option<Diagnostic>> {
+    let importer_node = graph.get(importer_index);
     let (span, imported_index, source_label) = match stmt.source() {
         ImportSource::Uri(uri) => {
             let span = uri.span();
@@ -2211,7 +2212,6 @@ fn resolve_import(
                 None => return Err(None),
             };
             let label = text.text().to_string();
-            let importer_node = graph.get(importer_index);
             let resolved = match importer_node.uri().join(text.text()) {
                 Ok(uri) => uri,
                 Err(e) => return Err(Some(invalid_relative_import(&e, span))),
@@ -2223,6 +2223,10 @@ fn resolve_import(
         }
         ImportSource::ModulePath(module_path) => {
             let span = module_path.span();
+            if !symbolic_imports_enabled(graph, importer_node) {
+                return Err(None);
+            }
+
             let path_text = module_path.text();
             match graph.get_resolved_symbolic_import(importer_index, &path_text) {
                 Some(uri) => {
@@ -2309,6 +2313,21 @@ fn resolve_import(
     }
 
     Ok((imported_node.uri().clone(), imported_document))
+}
+
+/// Returns whether symbolic imports may be resolved for a parsed document.
+fn symbolic_imports_enabled(graph: &DocumentGraph, node: &crate::graph::DocumentGraphNode) -> bool {
+    if !graph.config().feature_flags().wdl_1_4() {
+        return false;
+    }
+
+    matches!(
+        node.parse_state(),
+        ParseState::Parsed {
+            wdl_version: Some(version),
+            ..
+        } if *version >= SupportedVersion::V1(V1::Four)
+    )
 }
 
 /// Sets the struct types in the document.

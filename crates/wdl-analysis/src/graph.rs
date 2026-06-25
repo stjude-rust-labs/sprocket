@@ -530,6 +530,11 @@ impl DocumentGraph {
         }
     }
 
+    /// Gets the analyzer configuration used by this graph.
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+
     /// Add a node to the document graph.
     pub fn add_node(&mut self, uri: Url, rooted: bool) -> NodeIndex {
         let index = match self.indexes.get(&uri) {

@@ -5,7 +5,6 @@ use std::marker::PhantomData;
 use std::ops::Range;
 use std::panic;
 use std::panic::AssertUnwindSafe;
-use std::path::Path;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -44,7 +43,9 @@ use url::Url;
 use wdl_ast::Ast;
 use wdl_ast::Node;
 use wdl_ast::Severity;
+use wdl_ast::SupportedVersion;
 use wdl_ast::v1::ImportSource;
+use wdl_ast::version::V1;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
 use wdl_modules::module::Module;
@@ -1352,6 +1353,8 @@ where
                 {
                     None | Some(Ast::Unsupported) => {}
                     Some(Ast::V1(ast)) => {
+                        let symbolic_imports_enabled =
+                            symbolic_imports_enabled(&self.config, graph.get(index).parse_state());
                         for import in ast.imports() {
                             match import.source() {
                                 ImportSource::Uri(uri) => {
@@ -1378,6 +1381,10 @@ where
                                     subgraph.insert(import_index);
                                 }
                                 ImportSource::ModulePath(module_path) => {
+                                    if !symbolic_imports_enabled {
+                                        continue;
+                                    }
+
                                     let consumer_module = match self
                                         .find_module_for_document(graph.get(index).uri())
                                     {
@@ -1594,6 +1601,21 @@ where
     fn find_module_for_document(&self, uri: &Url) -> Option<Module> {
         self.document_modules.lock().get(uri).cloned()
     }
+}
+
+/// Returns whether symbolic imports may be resolved for a parse state.
+fn symbolic_imports_enabled(config: &Config, state: &ParseState) -> bool {
+    if !config.feature_flags().wdl_1_4() {
+        return false;
+    }
+
+    matches!(
+        state,
+        ParseState::Parsed {
+            wdl_version: Some(version),
+            ..
+        } if *version >= SupportedVersion::V1(V1::Four)
+    )
 }
 
 /// Formats the panic payload for display.
