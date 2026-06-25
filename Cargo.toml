@@ -13,6 +13,7 @@ members = [
     "crates/wdl-lint",
     "crates/wdl-lsp",
     "crates/wdl-modules",
+    "fuzz",
 ]
 resolver = "2"
 
