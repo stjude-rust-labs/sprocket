@@ -175,32 +175,17 @@ async fn real_main() -> CommandResult<()> {
             commands::run::run(args, config, colorize, file_handle, writer).await
         }
         Commands::Validate(args) => commands::validate::validate(args, config).await,
-        Commands::Dev(commands::DevCommands::Cancel(args)) => {
-            commands::cancel::cancel(args, config).await
-        }
         Commands::Dev(commands::DevCommands::Doc(args)) => {
             commands::doc::doc(args, config, colorize).await
-        }
-        Commands::Dev(commands::DevCommands::Inspect(args)) => {
-            commands::inspect::inspect(args, config, colorize).await
         }
         Commands::Dev(commands::DevCommands::Lock(args)) => {
             commands::lock::lock(args, config).await
         }
-        Commands::Dev(commands::DevCommands::Retry(args)) => {
-            commands::retry::retry(args, config, colorize).await
-        }
         Commands::Dev(commands::DevCommands::Server(args)) => {
-            commands::server::server(args, config).await
-        }
-        Commands::Dev(commands::DevCommands::Status(args)) => {
-            commands::status::status(args, config, colorize).await
+            commands::server::server(args, config, colorize).await
         }
         Commands::Dev(commands::DevCommands::Test(args)) => {
             commands::test::test(args, config, colorize).await
-        }
-        Commands::Dev(commands::DevCommands::Submit(args)) => {
-            commands::submit::submit(args, config, colorize).await
         }
     }
 }

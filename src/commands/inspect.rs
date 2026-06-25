@@ -8,7 +8,7 @@ use colored::Color;
 use colored::Colorize as _;
 
 use crate::commands::CommandResult;
-use crate::commands::client::SprocketClientConnectionArgs;
+use crate::commands::client::ServerConnectionArgs;
 use crate::commands::client::check_response;
 use crate::commands::client::fetch_run_tasks;
 use crate::commands::client::fetch_task_counts;
@@ -28,7 +28,7 @@ pub struct Args {
     ///
     /// May be a UUID or the human-readable generated name of the run (e.g.
     /// `happy-dolphin-42`).
-    #[clap(value_name = "RUN_ID")]
+    #[clap(value_name = "RUN")]
     run_id: String,
 
     /// Output the raw JSON response instead of the formatted summary.
@@ -43,7 +43,7 @@ pub struct Args {
     detailed: bool,
 
     #[command(flatten)]
-    client_args: SprocketClientConnectionArgs,
+    client_args: ServerConnectionArgs,
 }
 
 /// Returns the color to use when displaying a run status.
@@ -276,6 +276,7 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
         field!("Completed:", completed_at.format("%Y-%m-%d %H:%M:%S UTC"));
     }
 
+    if let Some(directory) = &run.directory {
         field!("Directory:", format!("`{directory}`"));
 
         // Note the outputs file location if outputs are available.

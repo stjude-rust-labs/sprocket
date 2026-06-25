@@ -277,17 +277,11 @@ pub async fn list_runs(
         _ => Error::BadRequest("invalid query parameters".to_string()),
     })?;
 
-    let offset = match query.next_token.as_deref() {
-        Some(t) => t
-            .parse::<i64>()
-            .map_err(|_| Error::BadRequest(format!("invalid `next_token`: `{}`", t)))?,
-        None => 0,
-    };
-    let limit = query.limit.unwrap_or(100);
+    let (limit, offset) = super::validate_pagination(query.limit, query.next_token.as_deref())?;
 
     let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::List {
         status: query.status,
-        limit: query.limit,
+        limit: Some(limit),
         offset: Some(offset),
         rx,
     })

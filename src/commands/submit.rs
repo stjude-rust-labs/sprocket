@@ -10,7 +10,7 @@ use wdl::diagnostics::emit_diagnostics;
 
 use crate::analysis::Source;
 use crate::commands::CommandResult;
-use crate::commands::client::SprocketClientConnectionArgs;
+use crate::commands::client::ServerConnectionArgs;
 use crate::commands::client::check_response;
 use crate::commands::run::inputs_to_json;
 use crate::commands::validate::analyze_source;
@@ -66,7 +66,7 @@ pub struct SubmitRunRequestArgs {
 #[command(author, version, about)]
 pub struct Args {
     #[command(flatten)]
-    client_args: SprocketClientConnectionArgs,
+    client_args: ServerConnectionArgs,
 
     #[command(flatten)]
     run_request_args: SubmitRunRequestArgs,
@@ -170,7 +170,7 @@ mod tests {
     use crate::Config;
     use crate::analysis::Source;
     use crate::commands::CommandError;
-    use crate::commands::client::SprocketClientConnectionArgs;
+    use crate::commands::client::ServerConnectionArgs;
     use crate::commands::submit::Args;
     use crate::commands::submit::SubmitRunRequestArgs;
     use crate::commands::submit::submit;
@@ -250,7 +250,7 @@ command <<<>>>
         let config = Config::default();
         submit(
             Args {
-                client_args: SprocketClientConnectionArgs {
+                client_args: ServerConnectionArgs {
                     host: Some("127.0.0.1".to_string()),
                     port: Some(port),
                 },
@@ -317,7 +317,7 @@ command <<<>>>
 
         let submit_result = submit(
             Args {
-                client_args: SprocketClientConnectionArgs {
+                client_args: ServerConnectionArgs {
                     host: Some("127.0.0.1".to_string()),
                     port: Some(1234),
                 },
@@ -356,7 +356,7 @@ command <<<>>>
 
         let submit_result = submit(
             Args {
-                client_args: SprocketClientConnectionArgs {
+                client_args: ServerConnectionArgs {
                     host: Some("127.0.0.1".to_string()),
                     port: Some(1234),
                 },

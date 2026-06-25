@@ -4,7 +4,7 @@ use anyhow::Context;
 use clap::Parser;
 
 use crate::commands::CommandResult;
-use crate::commands::client::SprocketClientConnectionArgs;
+use crate::commands::client::ServerConnectionArgs;
 use crate::commands::client::check_response;
 use crate::commands::client::resolve_run_id;
 use crate::config::Config;
@@ -18,11 +18,11 @@ pub struct Args {
     ///
     /// May be a UUID or the human-readable generated name of the run (e.g.
     /// `happy-dolphin-42`).
-    #[clap(value_name = "RUN_ID")]
+    #[clap(value_name = "RUN")]
     run_id: String,
 
     #[command(flatten)]
-    client_args: SprocketClientConnectionArgs,
+    client_args: ServerConnectionArgs,
 }
 
 /// Handles the `cancel` subcommand.
@@ -52,7 +52,7 @@ pub async fn cancel(args: Args, config: Config) -> CommandResult<()> {
     );
     println!(
         "Note: in slow-failure mode, currently executing tasks will be allowed to finish before \
-         the run is marked as canceled. Use `sprocket dev status {uuid}` to track progress.",
+         the run is marked as canceled. Use `sprocket dev server status {uuid}` to track progress.",
         uuid = body.uuid,
     );
 

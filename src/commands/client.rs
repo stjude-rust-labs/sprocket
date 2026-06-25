@@ -16,7 +16,7 @@ use crate::server::Task;
 
 /// CLI arguments for connecting to a Sprocket server instance.
 #[derive(ClapArgs, Debug)]
-pub struct SprocketClientConnectionArgs {
+pub struct ServerConnectionArgs {
     /// The hostname of the running Sprocket server to talk to.
     ///
     /// If not provided, falls back to the value in the Sprocket config.
@@ -30,7 +30,7 @@ pub struct SprocketClientConnectionArgs {
     pub port: Option<u16>,
 }
 
-impl SprocketClientConnectionArgs {
+impl ServerConnectionArgs {
     /// Returns the base URL for the Sprocket server.
     pub fn base_url(&self, config: &Config) -> String {
         let host = self.host.as_deref().unwrap_or(&config.server.host);

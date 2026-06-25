@@ -126,3 +126,114 @@ where
         Ok(Ok(response)) => Ok(response),
     }
 }
+
+/// The default page size used for paginated list endpoints when the caller does
+/// not specify a `limit`.
+pub const DEFAULT_PAGE_SIZE: i64 = 100;
+
+/// Validates the `limit` and `next_token` query parameters for a paginated list
+/// endpoint and returns the `(limit, offset)` pair that should be forwarded to
+/// the run manager / database.
+///
+/// `limit` defaults to [`DEFAULT_PAGE_SIZE`] when unspecified and must be
+/// positive. `next_token` is parsed as a non-negative integer offset; a
+/// missing token is treated as offset `0`.
+///
+/// Returns a `400 BadRequest` error if either value is invalid. Centralizing
+/// this validation prevents pathological values (e.g. SQLite's interpretation
+/// of `LIMIT -1` as unbounded, or `limit = 0` producing a repeated pagination
+/// token) from reaching the database layer.
+pub fn validate_pagination(
+    limit: Option<i64>,
+    next_token: Option<&str>,
+) -> Result<(i64, i64), Error> {
+    let limit = limit.unwrap_or(DEFAULT_PAGE_SIZE);
+    if limit <= 0 {
+        return Err(Error::BadRequest("`limit` must be positive".to_string()));
+    }
+
+    let offset = match next_token {
+        Some(t) => {
+            let parsed = t
+                .parse::<i64>()
+                .map_err(|_| Error::BadRequest(format!("invalid `next_token`: `{}`", t)))?;
+            if parsed < 0 {
+                return Err(Error::BadRequest(
+                    "`next_token` must be non-negative".to_string(),
+                ));
+            }
+            parsed
+        }
+        None => 0,
+    };
+
+    Ok((limit, offset))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Asserts that a [`validate_pagination`] result is a `BadRequest` whose
+    /// message contains the given substring.
+    fn assert_bad_request(result: Result<(i64, i64), Error>, contains: &str) {
+        match result {
+            Err(Error::BadRequest(msg)) => assert!(
+                msg.contains(contains),
+                "expected message to contain `{contains}`, got `{msg}`"
+            ),
+            other => panic!("expected BadRequest, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn defaults_when_unspecified() {
+        let (limit, offset) = validate_pagination(None, None).unwrap();
+        assert_eq!(limit, DEFAULT_PAGE_SIZE);
+        assert_eq!(offset, 0);
+    }
+
+    #[test]
+    fn accepts_positive_limit_and_non_negative_token() {
+        let (limit, offset) = validate_pagination(Some(50), Some("0")).unwrap();
+        assert_eq!(limit, 50);
+        assert_eq!(offset, 0);
+
+        let (limit, offset) = validate_pagination(Some(1), Some("250")).unwrap();
+        assert_eq!(limit, 1);
+        assert_eq!(offset, 250);
+    }
+
+    #[test]
+    fn rejects_zero_limit() {
+        assert_bad_request(
+            validate_pagination(Some(0), None),
+            "`limit` must be positive",
+        );
+    }
+
+    #[test]
+    fn rejects_negative_limit() {
+        assert_bad_request(
+            validate_pagination(Some(-1), None),
+            "`limit` must be positive",
+        );
+    }
+
+    #[test]
+    fn rejects_negative_next_token() {
+        assert_bad_request(
+            validate_pagination(None, Some("-5")),
+            "`next_token` must be non-negative",
+        );
+    }
+
+    #[test]
+    fn rejects_unparseable_next_token() {
+        assert_bad_request(
+            validate_pagination(None, Some("nope")),
+            "invalid `next_token`",
+        );
+        assert_bad_request(validate_pagination(None, Some("")), "invalid `next_token`");
+    }
+}

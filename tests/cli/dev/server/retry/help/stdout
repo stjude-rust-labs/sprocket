@@ -1,9 +1,9 @@
 Retry a previous run, optionally with input overrides
 
-Usage: sprocket dev retry [OPTIONS] <RUN_ID> [OVERRIDES]...
+Usage: sprocket dev server retry [OPTIONS] <RUN> [OVERRIDES]...
 
 Arguments:
-  <RUN_ID>
+  <RUN>
           The run to retry.
           
           May be a UUID or the human-readable generated name of the run (e.g. `happy-dolphin-42`). The original run's source, target, and inputs are reused as the base for the new submission.
@@ -11,7 +11,7 @@ Arguments:
   [OVERRIDES]...
           Input overrides for the new run.
           
-          Overrides use the same syntax as `dev submit`: key-value pairs (e.g. `task.name=value`), input files prefixed with `@` (e.g. `@inputs.json`), or bare values appended to the preceding key's array. Any key provided here takes precedence over the value from the original run.
+          Overrides use the same syntax as `dev server submit`: key-value pairs (e.g. `task.name=value`), input files prefixed with `@` (e.g. `@inputs.json`), or bare values appended to the preceding key's array. Any key provided here takes precedence over the value from the original run.
 
 Options:
   -t, --target <NAME>

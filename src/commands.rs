@@ -137,22 +137,13 @@ pub enum Commands {
 #[derive(Subcommand, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum DevCommands {
-    /// Cancel a running or queued run.
-    Cancel(cancel::Args),
     /// Document a workspace.
     Doc(doc::Args),
-    /// Show detailed information about a run.
-    Inspect(inspect::Args),
     /// Locks Docker images to a sha256 digest.
     Lock(lock::Args),
-    /// Retry a previous run, optionally with input overrides.
-    Retry(retry::Args),
-    /// Runs the HTTP API server for run execution.
+    /// Run-management server commands (start, submit, status, inspect, cancel,
+    /// retry).
     Server(server::Args),
-    /// Show the status of one or all runs.
-    Status(status::Args),
-    /// Submit a workflow to a Sprocket HTTP API server.
-    Submit(submit::Args),
     /// Runs unit tests for a WDL workspace.
     Test(test::Args),
 }

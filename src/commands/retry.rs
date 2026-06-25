@@ -10,7 +10,7 @@ use wdl::diagnostics::emit_diagnostics;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::commands::client::SprocketClientConnectionArgs;
+use crate::commands::client::ServerConnectionArgs;
 use crate::commands::client::check_response;
 use crate::commands::client::resolve_run_id;
 use crate::commands::validate::analyze_source;
@@ -27,12 +27,12 @@ pub struct Args {
     /// May be a UUID or the human-readable generated name of the run (e.g.
     /// `happy-dolphin-42`). The original run's source, target, and inputs are
     /// reused as the base for the new submission.
-    #[clap(value_name = "RUN_ID")]
+    #[clap(value_name = "RUN")]
     run_id: String,
 
     /// Input overrides for the new run.
     ///
-    /// Overrides use the same syntax as `dev submit`: key-value pairs
+    /// Overrides use the same syntax as `dev server submit`: key-value pairs
     /// (e.g. `task.name=value`), input files prefixed with `@` (e.g.
     /// `@inputs.json`), or bare values appended to the preceding key's array.
     /// Any key provided here takes precedence over the value from the original
@@ -60,7 +60,7 @@ pub struct Args {
     report_mode: Option<Mode>,
 
     #[command(flatten)]
-    client_args: SprocketClientConnectionArgs,
+    client_args: ServerConnectionArgs,
 }
 
 /// Handles the `retry` subcommand.

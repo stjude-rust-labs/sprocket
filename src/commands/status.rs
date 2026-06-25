@@ -6,7 +6,7 @@ use colored::Colorize as _;
 
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::commands::client::SprocketClientConnectionArgs;
+use crate::commands::client::ServerConnectionArgs;
 use crate::commands::client::check_response;
 use crate::commands::client::fetch_task_counts;
 use crate::commands::client::resolve_run_id;
@@ -25,20 +25,20 @@ pub struct Args {
     ///
     /// May be a UUID or the human-readable generated name of the run (e.g.
     /// `happy-dolphin-42`). If omitted, all runs are listed.
-    #[clap(value_name = "RUN_ID")]
+    #[clap(value_name = "RUN")]
     run_id: Option<String>,
 
     /// Filter the run list by status.
     ///
     /// Valid values: `queued`, `running`, `completed`, `failed`, `canceling`,
-    /// `canceled`. Only used when no `RUN_ID` is provided.
+    /// `canceled`. Only used when no `RUN` is provided.
     #[clap(long, value_name = "STATUS")]
     status: Option<String>,
 
     /// Maximum number of runs to return per page.
     ///
-    /// Only used when no `RUN_ID` is provided.
-    #[clap(long, value_name = "N", default_value = "100")]
+    /// Only used when no `RUN` is provided.
+    #[clap(long, value_name = "N", default_value = "100", value_parser = clap::value_parser!(i64).range(1..))]
     limit: i64,
 
     /// Output the raw JSON response instead of the formatted summary.
@@ -46,12 +46,12 @@ pub struct Args {
     json: bool,
 
     #[command(flatten)]
-    client_args: SprocketClientConnectionArgs,
+    client_args: ServerConnectionArgs,
 }
 
 /// Handles the `status` subcommand.
 ///
-/// With a `RUN_ID`, prints a brief summary of that run. Without one, lists all
+/// With a `RUN`, prints a brief summary of that run. Without one, lists all
 /// runs one per line.
 pub async fn status(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let base_url = args.client_args.base_url(&config);
@@ -153,7 +153,6 @@ async fn status_single(
     if let Some(target) = &run.target {
         println!("{:>14}  `{target}`", "Target:");
     }
-    }
 
     if let Some(summary) = task_counts_summary(&counts, colorize) {
         println!("{:>14}  {summary}", "Tasks:");
@@ -244,7 +243,6 @@ async fn status_list(
             status = status_display,
             target = target,
             timestamp = timestamp,
-        );
         );
     }
 

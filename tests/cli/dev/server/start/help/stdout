@@ -1,23 +1,28 @@
-Cancel a running or queued run
+Run the HTTP API server for run execution
 
-Usage: sprocket dev cancel [OPTIONS] <RUN_ID>
-
-Arguments:
-  <RUN_ID>
-          The run to cancel.
-          
-          May be a UUID or the human-readable generated name of the run (e.g. `happy-dolphin-42`).
+Usage: sprocket dev server start [OPTIONS]
 
 Options:
       --host <HOST>
-          The hostname of the running Sprocket server to talk to.
-          
-          If not provided, falls back to the value in the Sprocket config.
+          Host to bind to
 
-  -p, --port <PORT>
-          The port of the running Sprocket server to talk to.
-          
-          If not provided, falls back to the value in the Sprocket config.
+      --port <PORT>
+          Port to bind to
+
+      --database-url <DATABASE_URL>
+          Database URL
+
+  -o, --output-dir <OUTPUT_DIR>
+          The output directory (default: `./out`)
+
+      --allowed-file-paths <ALLOWED_FILE_PATHS>
+          Allowed file paths for file-based workflows
+
+      --allowed-urls <ALLOWED_URLS>
+          Allowed URL prefixes for URL-based workflows
+
+      --allowed-origins <ALLOWED_ORIGINS>
+          Allowed CORS origins
 
   -v, --verbose...
           Increase logging verbosity

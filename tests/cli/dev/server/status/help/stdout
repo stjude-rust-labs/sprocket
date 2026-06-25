@@ -1,21 +1,28 @@
-Show detailed information about a run
+Show the status of one or all runs
 
-Usage: sprocket dev inspect [OPTIONS] <RUN_ID>
+Usage: sprocket dev server status [OPTIONS] [RUN]
 
 Arguments:
-  <RUN_ID>
+  [RUN]
           The run to inspect.
           
-          May be a UUID or the human-readable generated name of the run (e.g. `happy-dolphin-42`).
+          May be a UUID or the human-readable generated name of the run (e.g. `happy-dolphin-42`). If omitted, all runs are listed.
 
 Options:
+      --status <STATUS>
+          Filter the run list by status.
+          
+          Valid values: `queued`, `running`, `completed`, `failed`, `canceling`, `canceled`. Only used when no `RUN` is provided.
+
+      --limit <N>
+          Maximum number of runs to return per page.
+          
+          Only used when no `RUN` is provided.
+          
+          [default: 100]
+
       --json
           Output the raw JSON response instead of the formatted summary
-
-      --detailed
-          Include a per-task breakdown for the run.
-          
-          Lists every task with its status, duration, and any error. In `--json` mode, embeds the full task list under a `tasks` key.
 
       --host <HOST>
           The hostname of the running Sprocket server to talk to.
