@@ -981,7 +981,7 @@ mod test {
         assert_eq!(map["value"], MaxConcurrentRuns::Limited(12));
 
         let expected_error =
-            "expected a positive integer or `unlimited` for maximum concurrent runs";
+            "expected a positive integer or `unlimited` for maximum concurrent runs at `value`";
 
         let error = toml_spanner::from_str::<HashMap<String, MaxConcurrentRuns>>("value = 'wrong'")
             .unwrap_err();
