@@ -580,7 +580,7 @@ impl Database for SqliteDatabase {
         }
         query.push_str(" order by t.created_at desc limit ? offset ?");
 
-        let mut q = sqlx::query_as(&query);
+        let mut q = sqlx::query_as(sqlx::AssertSqlSafe(query));
 
         if let Some(run_id) = run_id {
             q = q.bind(run_id.to_string());
@@ -605,7 +605,7 @@ impl Database for SqliteDatabase {
             query.push_str(" and t.status = ?");
         }
 
-        let mut q = sqlx::query_scalar(&query);
+        let mut q = sqlx::query_scalar(sqlx::AssertSqlSafe(query));
 
         if let Some(run_id) = run_id {
             q = q.bind(run_id.to_string());
@@ -672,7 +672,7 @@ impl Database for SqliteDatabase {
         }
         query.push_str(" order by created_at asc limit ? offset ?");
 
-        let mut q = sqlx::query_as(&query);
+        let mut q = sqlx::query_as(sqlx::AssertSqlSafe(query));
         q = q.bind(task_name);
 
         if let Some(source) = source {
@@ -694,7 +694,7 @@ impl Database for SqliteDatabase {
             query.push_str(" and source = ?");
         }
 
-        let mut q = sqlx::query_scalar(&query);
+        let mut q = sqlx::query_scalar(sqlx::AssertSqlSafe(query));
         q = q.bind(task_name);
 
         if let Some(source) = source {

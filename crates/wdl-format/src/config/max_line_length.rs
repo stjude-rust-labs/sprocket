@@ -123,7 +123,7 @@ mod test {
 
         let expected_error = format!(
             "expected a positive integer between {MIN_MAX_LINE_LENGTH} and {MAX_MAX_LINE_LENGTH} \
-             or `{SENTINEL}` for max line length value"
+             or `{SENTINEL}` for max line length value at `value`"
         );
 
         let error = toml_spanner::from_str::<HashMap<String, MaxLineLength>>("value = 'wrong'")

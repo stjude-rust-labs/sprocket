@@ -211,6 +211,8 @@ task say_goodbye {
             SyntaxKind::VersionStatementNode,
             SyntaxKind::RuntimeSectionNode,
             SyntaxKind::RequirementsSectionNode,
+            SyntaxKind::RequirementsItemNode,
+            SyntaxKind::RuntimeItemNode,
         ])
     }
 
@@ -240,7 +242,7 @@ impl Visitor for ContainerUriRule {
             check_container_value(
                 diagnostics,
                 value,
-                SyntaxElement::from(section.inner().clone()),
+                SyntaxElement::from(container.inner().clone()),
                 &self.exceptable_nodes(),
             );
         }
@@ -262,7 +264,7 @@ impl Visitor for ContainerUriRule {
             check_container_value(
                 diagnostics,
                 value,
-                SyntaxElement::from(section.inner().clone()),
+                SyntaxElement::from(container.inner().clone()),
                 &self.exceptable_nodes(),
             );
         }
