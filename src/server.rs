@@ -21,9 +21,12 @@ use crate::system::v1::exec::svc::RunManagerSvc;
 mod api;
 
 pub use api::AppState;
+pub use api::v1::info::ServerFailureMode;
+pub use api::v1::paths;
 pub(crate) use api::v1::RunStatus;
 pub(crate) use api::v1::TaskStatus;
 pub(crate) use api::v1::error::ErrorResponse;
+pub(crate) use api::v1::info::ServerInfoResponse;
 pub(crate) use api::v1::runs::CancelRunResponse;
 pub(crate) use api::v1::runs::ListRunsResponse;
 pub(crate) use api::v1::runs::RunResponse;
@@ -52,8 +55,8 @@ pub fn create_router(state: AppState, cors_layer: CorsLayer) -> Router {
 
     Router::new()
         .merge(
-            SwaggerUi::new("/api/v1/swagger-ui")
-                .url("/api/v1/openapi.json", api::v1::ApiDoc::openapi()),
+            SwaggerUi::new(paths::SWAGGER_UI)
+                .url(paths::OPENAPI_JSON, api::v1::ApiDoc::openapi()),
         )
         .nest("/api", api::create_router(state))
         .layer(cors_layer)
@@ -69,9 +72,13 @@ async fn create_server_app(config: Config) -> anyhow::Result<Router> {
     let db_path = config.server.database_url();
 
     let db = open_database(&db_path).await?;
+    let failure_mode = ServerFailureMode::from(config.server.engine.failure_mode);
     let (_, run_manager_tx) = RunManagerSvc::spawn(DEFAULT_CHANNEL_BUFFER_SIZE, config.clone(), db);
 
-    let state = AppState::builder().run_manager_tx(run_manager_tx).build();
+    let state = AppState::builder()
+        .run_manager_tx(run_manager_tx)
+        .failure_mode(failure_mode)
+        .build();
 
     let mut cors_layer = CorsLayer::new();
     for origin in config.server.allowed_origins {

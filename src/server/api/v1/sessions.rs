@@ -88,7 +88,7 @@ pub struct ListSessionsResponse {
 /// List sessions.
 #[utoipa::path(
     get,
-    path = "/api/v1/sessions",
+    path = super::paths::LIST_SESSIONS,
     params(ListSessionsQueryParams),
     responses(
         (status = 200, description = "Sessions retrieved successfully", body = ListSessionsResponse),
@@ -132,7 +132,7 @@ pub async fn list_sessions(
 /// Get session by ID.
 #[utoipa::path(
     get,
-    path = "/api/v1/sessions/{id}",
+    path = super::paths::GET_SESSION,
     params(
         ("id" = String, Path, description = "Session ID")
     ),

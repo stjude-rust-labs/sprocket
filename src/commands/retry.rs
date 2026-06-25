@@ -17,6 +17,7 @@ use crate::commands::validate::analyze_source;
 use crate::config::Config;
 use crate::server::RunResponse;
 use crate::server::SubmitRunRequest;
+use crate::server::paths;
 
 /// Arguments for the `retry` subcommand.
 #[derive(Parser, Debug)]
@@ -72,7 +73,7 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
     let uuid = resolve_run_id(&args.run_id, &base_url).await?;
 
     // Fetch the original run.
-    let url = format!("{base_url}/api/v1/runs/{uuid}");
+    let url = format!("{base_url}{path}", path = paths::get_run(uuid));
     let resp = reqwest::Client::new()
         .get(&url)
         .send()
@@ -171,7 +172,7 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
     }
 
     // Submit the new run.
-    let submit_url = format!("{base_url}/api/v1/runs");
+    let submit_url = format!("{base_url}{path}", path = paths::SUBMIT_RUN);
     let request = SubmitRunRequest {
         source: original.source.clone(),
         inputs: serde_json::Value::Object(merged_inputs),

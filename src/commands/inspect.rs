@@ -19,6 +19,7 @@ use crate::server::RunStatus;
 use crate::server::RunTaskCountsResponse;
 use crate::server::Task;
 use crate::server::TaskStatus;
+use crate::server::paths;
 
 /// Arguments for the `inspect` subcommand.
 #[derive(Parser, Debug)]
@@ -185,7 +186,7 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
     let base_url = args.client_args.base_url(&config);
     let uuid = resolve_run_id(&args.run_id, &base_url).await?;
 
-    let url = format!("{base_url}/api/v1/runs/{uuid}");
+    let url = format!("{base_url}{path}", path = paths::get_run(uuid));
     let resp = reqwest::Client::new()
         .get(&url)
         .send()

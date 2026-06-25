@@ -10,6 +10,7 @@ use tracing::warn;
 use utoipa::OpenApi;
 
 use self::error::Error;
+use self::info::*;
 use self::runs::*;
 use self::sessions::*;
 use self::tasks::*;
@@ -17,6 +18,8 @@ use super::AppState;
 use crate::system::v1::exec::svc::run_manager::RunManagerCmd;
 
 pub mod error;
+pub mod info;
+pub mod paths;
 pub mod runs;
 pub mod sessions;
 pub mod tasks;
@@ -43,6 +46,7 @@ pub use crate::system::v1::db::TaskStatus;
         get_run_task_counts,
         get_task,
         get_task_logs,
+        get_server_info,
     ),
     components(schemas(
         CancelRunResponse,
@@ -62,6 +66,8 @@ pub use crate::system::v1::db::TaskStatus;
         RunResponse,
         RunStatus,
         RunTaskCountsResponse,
+        ServerFailureMode,
+        ServerInfoResponse,
         Session,
         SessionResponse,
         SprocketCommand,
@@ -74,7 +80,8 @@ pub use crate::system::v1::db::TaskStatus;
     tags(
         (name = "runs", description = "Run management endpoints"),
         (name = "tasks", description = "Task management endpoints"),
-        (name = "sessions", description = "Session management endpoints")
+        (name = "sessions", description = "Session management endpoints"),
+        (name = "server", description = "Server metadata endpoints")
     )
 )]
 pub struct ApiDoc;
@@ -82,17 +89,45 @@ pub struct ApiDoc;
 /// Create the V1 API router.
 pub fn create_router(state: AppState) -> Router {
     Router::new()
-        .route("/runs", post(submit_run).get(list_runs))
-        .route("/runs/{id}", get(get_run))
-        .route("/runs/{id}/cancel", post(cancel_run))
-        .route("/runs/{id}/outputs", get(get_run_outputs))
-        .route("/runs/{id}/tasks", get(list_run_tasks))
-        .route("/runs/{id}/tasks/counts", get(get_run_task_counts))
-        .route("/sessions", get(list_sessions))
-        .route("/sessions/{id}", get(get_session))
-        .route("/tasks", get(list_tasks))
-        .route("/tasks/{name}", get(get_task))
-        .route("/tasks/{name}/logs", get(get_task_logs))
+        .route(
+            paths::route_template(paths::LIST_RUNS),
+            post(submit_run).get(list_runs),
+        )
+        .route(paths::route_template(paths::GET_RUN), get(get_run))
+        .route(
+            paths::route_template(paths::CANCEL_RUN),
+            post(cancel_run),
+        )
+        .route(
+            paths::route_template(paths::GET_RUN_OUTPUTS),
+            get(get_run_outputs),
+        )
+        .route(
+            paths::route_template(paths::LIST_RUN_TASKS),
+            get(list_run_tasks),
+        )
+        .route(
+            paths::route_template(paths::RUN_TASK_COUNTS),
+            get(get_run_task_counts),
+        )
+        .route(
+            paths::route_template(paths::LIST_SESSIONS),
+            get(list_sessions),
+        )
+        .route(
+            paths::route_template(paths::GET_SESSION),
+            get(get_session),
+        )
+        .route(paths::route_template(paths::LIST_TASKS), get(list_tasks))
+        .route(paths::route_template(paths::GET_TASK), get(get_task))
+        .route(
+            paths::route_template(paths::GET_TASK_LOGS),
+            get(get_task_logs),
+        )
+        .route(
+            paths::route_template(paths::SERVER_INFO),
+            get(get_server_info),
+        )
         .with_state(state)
 }
 

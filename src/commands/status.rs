@@ -16,6 +16,7 @@ use crate::config::Config;
 use crate::server::ListRunsResponse;
 use crate::server::RunResponse;
 use crate::server::RunStatus;
+use crate::server::paths;
 
 /// Arguments for the `status` subcommand.
 #[derive(Parser, Debug)]
@@ -82,7 +83,7 @@ async fn status_single(
 ) -> CommandResult<()> {
     let uuid = resolve_run_id(run_id, base_url).await?;
 
-    let url = format!("{base_url}/api/v1/runs/{uuid}");
+    let url = format!("{base_url}{path}", path = paths::get_run(uuid));
     let resp = reqwest::Client::new()
         .get(&url)
         .send()
@@ -174,7 +175,10 @@ async fn status_list(
     let mut all_runs = Vec::new();
 
     loop {
-        let mut url = format!("{base_url}/api/v1/runs?limit={limit}");
+        let mut url = format!(
+            "{base_url}{path}?limit={limit}",
+            path = paths::LIST_RUNS,
+        );
         if let Some(s) = &status_filter {
             url.push_str(&format!("&status={s}"));
         }

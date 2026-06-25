@@ -10,7 +10,9 @@ use http_body_util::BodyExt;
 use sprocket::Config;
 use sprocket::ServerConfig;
 use sprocket::server::AppState;
+use sprocket::server::ServerFailureMode;
 use sprocket::server::create_router;
+use sprocket::server::paths;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::SprocketCommand;
 use sprocket::system::v1::db::SqliteDatabase;
@@ -52,7 +54,10 @@ async fn create_test_server(pool: sqlx::SqlitePool) -> (axum::Router, Arc<dyn Da
         .unwrap();
     rx.await.unwrap().unwrap();
 
-    let state = AppState::builder().run_manager_tx(run_manager_tx).build();
+    let state = AppState::builder()
+        .run_manager_tx(run_manager_tx)
+        .failure_mode(ServerFailureMode::Slow)
+        .build();
     let router = create_router()
         .state(state)
         .cors_layer(CorsLayer::new())
@@ -108,7 +113,7 @@ async fn run_task_counts_groups_by_status(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/runs/{}/tasks/counts", run_id))
+                .uri(paths::run_task_counts(run_id))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -139,7 +144,7 @@ async fn run_task_counts_unknown_run_is_all_zero(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/runs/{}/tasks/counts", unknown))
+                .uri(paths::run_task_counts(unknown))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -173,7 +178,10 @@ async fn list_run_tasks(
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/runs/{run_id}/tasks?{query}"))
+                .uri(format!(
+                    "{path}?{query}",
+                    path = paths::list_run_tasks(run_id),
+                ))
                 .body(Body::empty())
                 .unwrap(),
         )

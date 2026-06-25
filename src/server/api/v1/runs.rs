@@ -200,7 +200,7 @@ impl From<commands::RunOutputsResponse> for RunOutputsResponse {
 /// Submit a new run for execution.
 #[utoipa::path(
     post,
-    path = "/api/v1/runs",
+    path = super::paths::SUBMIT_RUN,
     request_body = SubmitRunRequest,
     responses(
         (status = 200, description = "Run submitted successfully", body = SubmitResponse),
@@ -234,7 +234,7 @@ pub async fn submit_run(
 /// Get run status by ID.
 #[utoipa::path(
     get,
-    path = "/api/v1/runs/{id}",
+    path = super::paths::GET_RUN,
     params(
         ("id" = String, Path, description = "Run ID")
     ),
@@ -259,7 +259,7 @@ pub async fn get_run(
 /// List runs with optional filtering.
 #[utoipa::path(
     get,
-    path = "/api/v1/runs",
+    path = super::paths::LIST_RUNS,
     params(ListRunsQueryParams),
     responses(
         (status = 200, description = "Runs retrieved", body = ListRunsResponse),
@@ -319,7 +319,7 @@ pub async fn list_runs(
 /// all executing tasks without waiting for them to complete.
 #[utoipa::path(
     post,
-    path = "/api/v1/runs/{id}/cancel",
+    path = super::paths::CANCEL_RUN,
     params(
         ("id" = String, Path, description = "Run ID")
     ),
@@ -342,7 +342,7 @@ pub async fn cancel_run(
 /// Get run outputs.
 #[utoipa::path(
     get,
-    path = "/api/v1/runs/{id}/outputs",
+    path = super::paths::GET_RUN_OUTPUTS,
     params(
         ("id" = String, Path, description = "Run ID")
     ),

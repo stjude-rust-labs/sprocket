@@ -228,7 +228,7 @@ pub struct ListTaskLogsResponse {
 /// List all tasks with optional filtering.
 #[utoipa::path(
     get,
-    path = "/api/v1/tasks",
+    path = super::paths::LIST_TASKS,
     params(ListTasksQueryParams),
     responses(
         (status = 200, description = "Tasks retrieved", body = ListTasksResponse),
@@ -274,7 +274,7 @@ pub async fn list_tasks(
 /// List all tasks for a specific run.
 #[utoipa::path(
     get,
-    path = "/api/v1/runs/{id}/tasks",
+    path = super::paths::LIST_RUN_TASKS,
     params(
         ("id" = String, Path, description = "Run ID"),
         ListRunTasksQueryParams
@@ -327,7 +327,7 @@ pub async fn list_run_tasks(
 /// report `0`. Unknown runs report all-zero counts (no error).
 #[utoipa::path(
     get,
-    path = "/api/v1/runs/{id}/tasks/counts",
+    path = super::paths::RUN_TASK_COUNTS,
     params(
         ("id" = String, Path, description = "Run ID")
     ),
@@ -351,7 +351,7 @@ pub async fn get_run_task_counts(
 /// Get a specific task by name.
 #[utoipa::path(
     get,
-    path = "/api/v1/tasks/{name}",
+    path = super::paths::GET_TASK,
     params(
         ("name" = String, Path, description = "Task name")
     ),
@@ -377,7 +377,7 @@ pub async fn get_task(
 /// Get logs for a specific task.
 #[utoipa::path(
     get,
-    path = "/api/v1/tasks/{name}/logs",
+    path = super::paths::GET_TASK_LOGS,
     params(
         ("name" = String, Path, description = "Task name"),
         ListTaskLogsQueryParams

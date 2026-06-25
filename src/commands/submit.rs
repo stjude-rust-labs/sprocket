@@ -17,6 +17,7 @@ use crate::commands::validate::analyze_source;
 use crate::commands::validate::validate_inputs;
 use crate::config::Config;
 use crate::server::SubmitRunRequest;
+use crate::server::paths;
 
 /// CLI arguments for specifying the body of the [`SubmitRunRequest`].
 #[derive(ClapArgs, Debug)]
@@ -117,8 +118,9 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         .context("deserializing previously serialized inputs shouldn't fail")?;
 
     let url = format!(
-        "{base}/api/v1/runs",
-        base = args.client_args.base_url(&config)
+        "{base}{path}",
+        base = args.client_args.base_url(&config),
+        path = paths::SUBMIT_RUN,
     );
 
     let source_str = match &args.run_request_args.source {
@@ -174,6 +176,7 @@ mod tests {
     use crate::commands::submit::Args;
     use crate::commands::submit::SubmitRunRequestArgs;
     use crate::commands::submit::submit;
+    use crate::server::paths;
     use crate::server::run_with_listener;
 
     struct ServerTestFixture {
@@ -273,7 +276,7 @@ command <<<>>>
 
         if !cfg!(docker_tests_disabled) {
             let runs: serde_json::Value = client
-                .get(format!("{base_url}/api/v1/runs"))
+                .get(format!("{base_url}{path}", path = paths::LIST_RUNS))
                 .send()
                 .await?
                 .json()
@@ -283,7 +286,10 @@ command <<<>>>
                 .as_str()
                 .expect("should have at least one run");
 
-            let poll_url = format!("{base_url}/api/v1/runs/{uuid}");
+            let poll_url = format!(
+                "{base_url}{path}",
+                path = paths::get_run(uuid.parse().expect("uuid should parse")),
+            );
             let mut status = String::new();
 
             for _ in 0..600 {

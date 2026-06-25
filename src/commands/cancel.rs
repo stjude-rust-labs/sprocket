@@ -2,13 +2,17 @@
 
 use anyhow::Context;
 use clap::Parser;
+use tracing::debug;
 
 use crate::commands::CommandResult;
 use crate::commands::client::ServerConnectionArgs;
 use crate::commands::client::check_response;
+use crate::commands::client::fetch_server_info;
 use crate::commands::client::resolve_run_id;
 use crate::config::Config;
 use crate::server::CancelRunResponse;
+use crate::server::ServerFailureMode;
+use crate::server::paths;
 
 /// Arguments for the `cancel` subcommand.
 #[derive(Parser, Debug)]
@@ -32,7 +36,7 @@ pub async fn cancel(args: Args, config: Config) -> CommandResult<()> {
     let base_url = args.client_args.base_url(&config);
     let uuid = resolve_run_id(&args.run_id, &base_url).await?;
 
-    let url = format!("{base_url}/api/v1/runs/{uuid}/cancel");
+    let url = format!("{base_url}{path}", path = paths::cancel_run(uuid));
     let resp = reqwest::Client::new()
         .post(&url)
         .send()
@@ -50,11 +54,27 @@ pub async fn cancel(args: Args, config: Config) -> CommandResult<()> {
         "Run `{uuid}` has been signaled for cancellation.",
         uuid = body.uuid,
     );
-    println!(
-        "Note: in slow-failure mode, currently executing tasks will be allowed to finish before \
-         the run is marked as canceled. Use `sprocket dev server status {uuid}` to track progress.",
-        uuid = body.uuid,
-    );
+
+    // Only print the slow-cancel advisory when the server is actually running
+    // in slow-failure mode. The fetch is best-effort: if `/info` is
+    // unavailable (e.g. older server) we silently skip the note rather than
+    // failing the overall command, since the cancel itself already succeeded.
+    match fetch_server_info(&base_url).await {
+        Ok(info) if info.failure_mode == ServerFailureMode::Slow => {
+            println!(
+                "Note: in slow-failure mode, currently executing tasks will be allowed to \
+                 finish before the run is marked as canceled. Use `sprocket dev server status \
+                 {uuid}` to track progress.",
+                uuid = body.uuid,
+            );
+        }
+        Ok(_) => {}
+        Err(err) => {
+            debug!(
+                "failed to fetch server info while preparing cancel advisory: {err:#}"
+            );
+        }
+    }
 
     Ok(())
 }

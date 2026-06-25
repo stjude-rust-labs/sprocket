@@ -12,7 +12,9 @@ use crate::server::ErrorResponse;
 use crate::server::ListRunsResponse;
 use crate::server::ListTasksResponse;
 use crate::server::RunTaskCountsResponse;
+use crate::server::ServerInfoResponse;
 use crate::server::Task;
+use crate::server::paths;
 
 /// CLI arguments for connecting to a Sprocket server instance.
 #[derive(ClapArgs, Debug)]
@@ -55,12 +57,35 @@ pub async fn check_response(resp: reqwest::Response) -> CommandResult<reqwest::R
     Err(CommandError::Single(anyhow::anyhow!(msg)))
 }
 
+/// Fetches static server metadata.
+///
+/// Queries `GET /api/v1/info`. The response describes the server's static
+/// configuration (e.g. its cancellation failure mode); CLI commands use it to
+/// adapt their output to the server's setup.
+pub async fn fetch_server_info(base_url: &str) -> CommandResult<ServerInfoResponse> {
+    let url = format!("{base_url}{path}", path = paths::SERVER_INFO);
+    let resp = reqwest::Client::new()
+        .get(&url)
+        .send()
+        .await
+        .context("failed to connect to Sprocket server")?;
+
+    let resp = check_response(resp).await?;
+
+    let info = resp
+        .json()
+        .await
+        .context("failed to deserialize server info response")?;
+
+    Ok(info)
+}
+
 /// Fetches the per-status task counts for a run.
 ///
 /// Queries `GET /api/v1/runs/{uuid}/tasks/counts`. The endpoint reports
 /// all-zero counts (rather than an error) for unknown runs.
 pub async fn fetch_task_counts(base_url: &str, uuid: Uuid) -> CommandResult<RunTaskCountsResponse> {
-    let url = format!("{base_url}/api/v1/runs/{uuid}/tasks/counts");
+    let url = format!("{base_url}{path}", path = paths::run_task_counts(uuid));
     let resp = reqwest::Client::new()
         .get(&url)
         .send()
@@ -88,7 +113,10 @@ pub async fn fetch_run_tasks(base_url: &str, uuid: Uuid) -> CommandResult<Vec<Ta
     let mut tasks = Vec::new();
 
     loop {
-        let mut url = format!("{base_url}/api/v1/runs/{uuid}/tasks?limit=100");
+        let mut url = format!(
+            "{base_url}{path}?limit=100",
+            path = paths::list_run_tasks(uuid),
+        );
         if let Some(token) = &next_token {
             url.push_str(&format!("&next_token={token}"));
         }
@@ -141,7 +169,10 @@ pub async fn resolve_run_id(input: &str, base_url: &str) -> CommandResult<Uuid> 
     let mut matches: Vec<Uuid> = Vec::new();
 
     loop {
-        let mut url = format!("{base_url}/api/v1/runs?limit=100");
+        let mut url = format!(
+            "{base_url}{path}?limit=100",
+            path = paths::LIST_RUNS,
+        );
         if let Some(token) = &next_token {
             url.push_str(&format!("&next_token={token}"));
         }
