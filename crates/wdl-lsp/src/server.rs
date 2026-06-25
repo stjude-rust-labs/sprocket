@@ -39,6 +39,7 @@ use tracing::debug_span;
 use tracing::error;
 use tracing::info;
 use tracing::warn;
+use tracing_subscriber::EnvFilter;
 use url::Url;
 use uuid::Uuid;
 use wdl_analysis::Analyzer;
@@ -373,8 +374,7 @@ where
 }
 
 /// Reload handle for dynamic level filter setting.
-pub type FilterReloadHandle<S> =
-    tracing_subscriber::reload::Handle<tracing::metadata::LevelFilter, S>;
+pub type FilterReloadHandle<S> = tracing_subscriber::reload::Handle<EnvFilter, S>;
 
 /// Mutable server state.
 #[derive(Debug)]
@@ -397,7 +397,11 @@ impl<S> ServerState<S> {
     ) {
         if let Some(log_level) = patch.log_level
             && let Some(reload_handle) = self.log_handle.as_ref()
-            && let Err(e) = reload_handle.modify(|filter| *filter = log_level.0)
+            && let Err(e) = reload_handle.modify(|filter| {
+                let current_directives = filter.to_string();
+                *filter = EnvFilter::builder()
+                    .parse_lossy(format!("{},{}", current_directives, log_level.0));
+            })
         {
             error!("failed to set log level: {e:?}");
         }

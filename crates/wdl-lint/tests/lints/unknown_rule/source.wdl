@@ -1,13 +1,13 @@
-#@ except: SnackCase, ThisIsNotARealRule, MetaSections
+#@ except: MetaSections, SnackCase, ThisIsNotARealRule
 
 version 1.1
 
 workflow test {
-  input {
-    String message = "Hello, World!"
-  }
+    input {
+        String message = "Hello, World!"
+    }
 
-  output {
-    String out = message
-  }
+    output {
+        String out = message
+    }
 }

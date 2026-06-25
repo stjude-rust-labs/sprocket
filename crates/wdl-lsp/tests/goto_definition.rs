@@ -1,6 +1,6 @@
 //! Integration tests for the `textDocument/gotoDefinition` request.
 
-mod common;
+pub mod common;
 use core::panic;
 
 use async_lsp::lsp_types::GotoDefinitionParams;
@@ -399,7 +399,7 @@ async fn should_goto_enum_definition() {
 }
 
 #[tokio::test]
-async fn should_goto_enum_variant_definition() {
+async fn should_goto_enum_choice_definition() {
     let mut ctx = setup().await;
 
     // Position of `Active` in `Status.Active`

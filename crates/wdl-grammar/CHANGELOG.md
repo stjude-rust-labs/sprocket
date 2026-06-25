@@ -7,11 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
+* Removed dependency on `serde` ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+* `Parser` now produces `ParseDiagnostic`s instead of `Diagnostic`s ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
+* `Parser` now handles deduplication of diagnostics, so the `Output` will no longer contain
+  identical diagnostics ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
+* In nested expressions, only the innermost expression will produce an "unexpected end of input"
+  diagnostic ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
+* `Parser` now has a hard recursion limit of `128` on nested expressions ([#930](https://github.com/stjude-rust-labs/sprocket/pull/930)).
+
 ## 0.23.0 - 2026-06-03
 
 #### Changed
 
 * `SyntaxKind::is_keyword()` no longer includes types, see `SyntaxKind::is_type()` ([#870](https://github.com/stjude-rust-labs/sprocket/pull/870)).
+* `Parser` now produces a single `Unknown` token and diagnostic for consecutive unknown tokens ([#908](https://github.com/stjude-rust-labs/sprocket/pull/908)).
 
 ## 0.22.0 - 2026-05-14
 

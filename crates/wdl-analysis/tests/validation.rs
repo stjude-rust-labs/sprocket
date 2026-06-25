@@ -136,7 +136,7 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     let config_path = base.join("config.toml");
 
     let config = if config_path.exists() {
-        toml::from_str(&std::fs::read_to_string(config_path)?)?
+        toml_spanner::from_str(&std::fs::read_to_string(config_path)?)?
     } else {
         Config::default().with_diagnostics_config(DiagnosticsConfig::except_all())
     };

@@ -1147,6 +1147,64 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn transitive_dep_on_unallowed_host_is_rejected() {
+        let cache = tempdir().unwrap();
+        let r = resolver(&cache);
+
+        let dep: DependencyName = "widget".parse().unwrap();
+        let source: DependencySource = serde_json::from_str(
+            r#"{"git": "https://bitbucket.org/acme/widget", "version": "^1.0.0"}"#,
+        )
+        .unwrap();
+
+        let err = r
+            .discover_versions(&dep, &source, DependencyScope::Transitive)
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "`widget` git URL `https://bitbucket.org/acme/widget` targets host `bitbucket.org` \
+             which is not in the configured allow list; to allow it, add `bitbucket.org` to \
+             `allowed_transitive_hosts` in the `[modules]` section of your `sprocket.toml`"
+        );
+    }
+
+    #[tokio::test]
+    async fn github_rejected_when_removed_from_transitive_allowlist() {
+        let cache = tempdir().unwrap();
+        let policy = ResolverPolicy::try_from(&ModulesConfig {
+            allowed_transitive_hosts: vec!["gitlab.com".into()],
+            ..ModulesConfig::default()
+        })
+        .unwrap();
+        let r = GitResolver::builder()
+            .cache_root(cache.path())
+            .trust(TrustStore::default())
+            .lockfile(Lockfile::default())
+            .policy(policy)
+            .build();
+
+        let dep: DependencyName = "widget".parse().unwrap();
+        let source: DependencySource = serde_json::from_str(
+            r#"{"git": "https://github.com/acme/widget", "version": "^1.0.0"}"#,
+        )
+        .unwrap();
+
+        let err = r
+            .discover_versions(&dep, &source, DependencyScope::Transitive)
+            .await
+            .unwrap_err();
+
+        assert_eq!(
+            err.to_string(),
+            "`widget` git URL `https://github.com/acme/widget` targets host `github.com` which is \
+             not in the configured allow list; to allow it, add `github.com` to \
+             `allowed_transitive_hosts` in the `[modules]` section of your `sprocket.toml`"
+        );
+    }
+
+    #[tokio::test]
     async fn resolve_tree_recurses_into_local_path_deps() {
         let workdir = tempdir().unwrap();
         let consumer_dir = workdir.path().join("consumer");
@@ -1162,10 +1220,7 @@ mod tests {
 
         let cache = tempdir().unwrap();
         let tree = resolver(&cache).resolve_tree(&consumer).await.unwrap();
-        let dep = tree
-            .dependencies
-            .get(&DependencyName::try_from("dep".to_string()).unwrap())
-            .unwrap();
+        let dep = tree.dependencies.get(&"dep".parse().unwrap()).unwrap();
         assert!(matches!(&dep.source, ResolvedSource::Path { .. }));
         assert!(dep.dependencies.is_empty());
         assert_eq!(dep.version, Version::parse("1.0.0").unwrap());
@@ -1220,7 +1275,7 @@ mod tests {
 
         let cache = tempdir().unwrap();
         let (_, mut lockfile) = resolve_and_lock(&cache, &consumer).await;
-        let dep_name = DependencyName::try_from("dep".to_string()).unwrap();
+        let dep_name = "dep".parse().unwrap();
         lockfile.dependencies.get_mut(&dep_name).unwrap().checksum = hash_from_byte(42);
         let r = resolver_with_lockfile(&cache, lockfile);
         let err = r
@@ -1342,7 +1397,7 @@ mod tests {
         write_manifest(&parent_dir, "parent", "1.0.0", &[]);
         let parent = Manifest::parse(&fs::read(parent_dir.join(crate::MANIFEST_FILENAME))?)?;
         let parent = module(parent, &parent_dir);
-        let child_name = DependencyName::try_from("child".to_string())?;
+        let child_name = "child".parse()?;
         let child = parent.child(child_name, Arc::new(child), child_dir);
 
         let cache = tempdir()?;
@@ -1417,7 +1472,7 @@ mod tests {
             "dep",
             locked_git_entry(GitSelector::Version("^1".parse().unwrap())),
         );
-        let dep = DependencyName::try_from("dep".to_string()).unwrap();
+        let dep = "dep".parse().unwrap();
         let url = "https://github.com/openwdl/tasks".parse().unwrap();
         let selector = GitSelector::Version("^2".parse().unwrap());
         let err = r
@@ -1444,7 +1499,7 @@ mod tests {
             "dep",
             locked_git_entry(GitSelector::Version("^1".parse().unwrap())),
         );
-        let dep = DependencyName::try_from("dep".to_string()).unwrap();
+        let dep = "dep".parse().unwrap();
         let url = "https://github.com/openwdl/tasks".parse().unwrap();
         let selector =
             GitSelector::Commit("0000000000000000000000000000000000000002".parse().unwrap());
@@ -1472,7 +1527,7 @@ mod tests {
             "dep",
             locked_git_entry(GitSelector::Tag("v1.0.0".to_string())),
         );
-        let dep = DependencyName::try_from("dep".to_string()).unwrap();
+        let dep = "dep".parse().unwrap();
         let url = "https://github.com/openwdl/tasks".parse().unwrap();
         let selector = GitSelector::Tag("v2.0.0".to_string());
         let err = r
@@ -1496,8 +1551,8 @@ mod tests {
     -> Result<(), Box<dyn std::error::Error>> {
         let cache = tempdir()?;
         let parent_dir = cache.path().join("parent");
-        let parent = DependencyName::try_from("parent".to_string())?;
-        let dep = DependencyName::try_from("dep".to_string())?;
+        let parent: DependencyName = "parent".parse()?;
+        let dep: DependencyName = "dep".parse()?;
         let selector = GitSelector::Commit("0000000000000000000000000000000000000001".parse()?);
 
         let mut parent_entry = DependencyEntry {
@@ -1685,10 +1740,13 @@ mod tests {
         let r = GitResolver::builder()
             .cache_root(cache.path())
             .trust(TrustStore::default())
-            .policy(ResolverPolicy::from(&ModulesConfig {
-                require_signed: true,
-                ..ModulesConfig::default()
-            }))
+            .policy(
+                ResolverPolicy::try_from(&ModulesConfig {
+                    require_signed: true,
+                    ..ModulesConfig::default()
+                })
+                .unwrap(),
+            )
             .lockfile(lockfile)
             .build();
         let err = r
@@ -1761,7 +1819,7 @@ mod tests {
         let pinned = crate::signing::test_utils::signing_key_from_seed(99).verifying_key();
         let trust = TrustStore {
             entries: vec![TrustEntry {
-                dep: DependencyName::try_from("dep".to_string()).unwrap(),
+                dep: "dep".parse().unwrap(),
                 source: json_path(&dep_dir),
                 path: None,
                 key: pinned,
@@ -1861,10 +1919,7 @@ mod tests {
 
         let cache = tempdir().unwrap();
         let tree = resolver(&cache).resolve_tree(&consumer).await.unwrap();
-        let dep = tree
-            .dependencies
-            .get(&DependencyName::try_from("dep".to_string()).unwrap())
-            .unwrap();
+        let dep = tree.dependencies.get(&"dep".parse().unwrap()).unwrap();
         assert_eq!(dep.signer.as_ref(), Some(&signer.verifying_key()));
     }
 
@@ -1886,10 +1941,13 @@ mod tests {
         let r = GitResolver::builder()
             .cache_root(cache.path())
             .trust(TrustStore::default())
-            .policy(ResolverPolicy::from(&ModulesConfig {
-                require_signed: true,
-                ..ModulesConfig::default()
-            }))
+            .policy(
+                ResolverPolicy::try_from(&ModulesConfig {
+                    require_signed: true,
+                    ..ModulesConfig::default()
+                })
+                .unwrap(),
+            )
             .lockfile(Lockfile::default())
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
@@ -1926,10 +1984,13 @@ mod tests {
         let r = GitResolver::builder()
             .cache_root(cache.path())
             .trust(TrustStore::default())
-            .policy(ResolverPolicy::from(&ModulesConfig {
-                require_signed: true,
-                ..ModulesConfig::default()
-            }))
+            .policy(
+                ResolverPolicy::try_from(&ModulesConfig {
+                    require_signed: true,
+                    ..ModulesConfig::default()
+                })
+                .unwrap(),
+            )
             .lockfile(Lockfile::default())
             .build();
 
@@ -1985,7 +2046,7 @@ mod tests {
         let pinned = crate::signing::test_utils::signing_key_from_seed(99).verifying_key();
         let trust = TrustStore {
             entries: vec![TrustEntry {
-                dep: DependencyName::try_from("dep".to_string()).unwrap(),
+                dep: "dep".parse().unwrap(),
                 source: json_path(&dep_dir),
                 path: None,
                 key: pinned,
@@ -2059,10 +2120,13 @@ mod tests {
             .cache_root(cache.path())
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
-            .policy(ResolverPolicy::from(&ModulesConfig {
-                max_materialized_files: Some(1),
-                ..ModulesConfig::default()
-            }))
+            .policy(
+                ResolverPolicy::try_from(&ModulesConfig {
+                    max_materialized_files: Some(1),
+                    ..ModulesConfig::default()
+                })
+                .unwrap(),
+            )
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
         assert!(
@@ -2091,10 +2155,13 @@ mod tests {
             .cache_root(cache.path())
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
-            .policy(ResolverPolicy::from(&ModulesConfig {
-                max_materialized_bytes: Some(100),
-                ..ModulesConfig::default()
-            }))
+            .policy(
+                ResolverPolicy::try_from(&ModulesConfig {
+                    max_materialized_bytes: Some(100),
+                    ..ModulesConfig::default()
+                })
+                .unwrap(),
+            )
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
         assert!(
@@ -2124,10 +2191,13 @@ mod tests {
             .cache_root(cache.path())
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
-            .policy(ResolverPolicy::from(&ModulesConfig {
-                max_materialized_files: Some(1),
-                ..ModulesConfig::default()
-            }))
+            .policy(
+                ResolverPolicy::try_from(&ModulesConfig {
+                    max_materialized_files: Some(1),
+                    ..ModulesConfig::default()
+                })
+                .unwrap(),
+            )
             .build();
         let err = r.resolve_tree(&consumer).await.unwrap_err();
         assert!(matches!(
@@ -2161,7 +2231,7 @@ mod tests {
         let (_, lockfile_v1) = resolve_and_lock(&cache, &consumer).await;
         let v1_checksum = lockfile_v1
             .dependencies
-            .get(&DependencyName::try_from("dep".to_string()).unwrap())
+            .get(&"dep".parse().unwrap())
             .unwrap()
             .checksum;
 
@@ -2170,7 +2240,7 @@ mod tests {
         let (_, lockfile_v2) = resolve_and_lock(&cache, &consumer).await;
         let v2_checksum = lockfile_v2
             .dependencies
-            .get(&DependencyName::try_from("dep".to_string()).unwrap())
+            .get(&"dep".parse().unwrap())
             .unwrap()
             .checksum;
 
@@ -2276,7 +2346,7 @@ mod tests {
 
         let cache = tempdir().unwrap();
         let (_, lockfile) = resolve_and_lock(&cache, &consumer).await;
-        let dep_name = DependencyName::try_from("dep".to_string()).unwrap();
+        let dep_name = "dep".parse().unwrap();
         assert!(
             lockfile
                 .dependencies
@@ -2374,12 +2444,8 @@ mod tests {
         let oid = repo
             .commit(Some("HEAD"), &sig, &sig, "v1.0.0", &tree, &[])
             .unwrap();
-        repo.tag_lightweight(
-            "v1.0.0",
-            &repo.find_object(oid.into(), None).unwrap(),
-            false,
-        )
-        .unwrap();
+        repo.tag_lightweight("v1.0.0", &repo.find_object(oid, None).unwrap(), false)
+            .unwrap();
 
         let source = DependencySource::Git {
             url: url::Url::from_file_path(upstream.path()).unwrap(),
@@ -2393,12 +2459,15 @@ mod tests {
             .cache_root(cache.path())
             .trust(TrustStore::default())
             .lockfile(Lockfile::default())
-            .policy(ResolverPolicy::from(&ModulesConfig {
-                allowed_schemes: vec!["https".into(), "ssh".into(), "file".into()],
-                ..ModulesConfig::default()
-            }))
+            .policy(
+                ResolverPolicy::try_from(&ModulesConfig {
+                    allowed_schemes: vec!["https".into(), "ssh".into(), "file".into()],
+                    ..ModulesConfig::default()
+                })
+                .unwrap(),
+            )
             .build();
-        let dep = DependencyName::try_from("tasks".to_string()).unwrap();
+        let dep = "tasks".parse().unwrap();
         let versions = r
             .discover_versions(&dep, &source, DependencyScope::TopLevel)
             .await

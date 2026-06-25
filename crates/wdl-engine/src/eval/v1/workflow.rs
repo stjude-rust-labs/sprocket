@@ -85,7 +85,7 @@ use crate::v1::Evaluator;
 use crate::v1::ExprEvaluator;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
-use crate::v1::resolve_enum_variant_value;
+use crate::v1::resolve_enum_choice_value;
 use crate::v1::write_json_file;
 
 /// Helper for formatting a workflow or task identifier for a call statement.
@@ -171,14 +171,14 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
         crate::resolve_type_name(&self.state.document, name, span)
     }
 
-    fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic> {
+    fn enum_choice_value(&self, enum_name: &str, choice_name: &str) -> Result<Value, Diagnostic> {
         let cache_key = self
             .state
             .document
-            .get_variant_cache_key(enum_name, variant_name)
+            .get_choice_cache_key(enum_name, choice_name)
             .ok_or_else(|| unknown_enum(enum_name))?;
 
-        let cache = self.state.evaluator.variant_cache.lock().unwrap();
+        let cache = self.state.evaluator.choice_cache.lock().unwrap();
         if let Some(cached_value) = cache.get(&cache_key) {
             return Ok(cached_value.clone());
         }
@@ -190,9 +190,9 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
             .document
             .enum_by_name(enum_name)
             .ok_or(unknown_enum(enum_name))?;
-        let value = resolve_enum_variant_value(r#enum, variant_name)?;
+        let value = resolve_enum_choice_value(r#enum, choice_name)?;
 
-        let mut cache = self.state.evaluator.variant_cache.lock().unwrap();
+        let mut cache = self.state.evaluator.choice_cache.lock().unwrap();
         cache.insert(cache_key, value.clone());
         drop(cache);
 
@@ -1838,9 +1838,9 @@ mod test {
     use super::*;
     use crate::CancellationContext;
     use crate::Events;
-    use crate::config::BackendConfig;
     use crate::config::Config;
     use crate::config::FailureMode;
+    use crate::config::LocalBackendConfig;
 
     #[tokio::test]
     async fn it_writes_input_and_output_files() {
@@ -1912,11 +1912,7 @@ workflow test {
         assert_eq!(results.len(), 1, "expected only one result");
 
         let config = Config {
-            backends: [(
-                "default".to_string(),
-                BackendConfig::Local(Default::default()),
-            )]
-            .into(),
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
             ..Default::default()
         };
         let evaluator = Evaluator::new(
@@ -2070,11 +2066,7 @@ workflow foo {
         assert_eq!(results.len(), 1, "expected only one result");
 
         let config = Config {
-            backends: [(
-                "default".to_string(),
-                BackendConfig::Local(Default::default()),
-            )]
-            .into(),
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
             experimental_features_enabled: true,
             ..Default::default()
         };
@@ -2291,11 +2283,7 @@ workflow w {
 
         // Use a progress callback that simply increments the appropriate counter
         let config = Config {
-            backends: [(
-                "default".to_string(),
-                BackendConfig::Local(Default::default()),
-            )]
-            .into(),
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
             ..Default::default()
         };
         let state = Arc::<State>::default();
@@ -2397,11 +2385,7 @@ workflow w {
         assert_eq!(results.len(), 1, "expected only one result");
 
         let config = Config {
-            backends: [(
-                "default".to_string(),
-                BackendConfig::Local(Default::default()),
-            )]
-            .into(),
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
             ..Default::default()
         };
         let cancellation = CancellationContext::new(FailureMode::Slow);

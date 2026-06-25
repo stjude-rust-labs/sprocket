@@ -42,7 +42,7 @@ impl SprocketClientConnectionArgs {
     }
 }
 
-/// CLI arguments for specifying the body of the [`SubmitRunRequest`].
+/// CLI arguments for specifying a submit run request.
 #[derive(ClapArgs, Debug)]
 pub struct SubmitRunRequestArgs {
     /// The WDL source file to submit.
@@ -110,7 +110,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
 
     let document = analyze_source(
         &source,
-        config.common.wdl.fallback_version.inner().cloned(),
+        config.common.wdl.fallback_version.into(),
         config.modules.clone(),
         config.common.wdl.feature_flags,
     )

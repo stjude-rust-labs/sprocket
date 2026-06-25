@@ -3,9 +3,10 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use serde::Deserialize;
-use serde::Serialize;
 use thiserror::Error;
+use toml_spanner::Toml;
+use toml_spanner::helper::display;
+use toml_spanner::helper::parse_string;
 
 use crate::dependency::DependencyName;
 use crate::signing::VerifyingKey;
@@ -35,7 +36,7 @@ pub enum TrustStoreError {
         path: PathBuf,
         /// The underlying parse error.
         #[source]
-        source: toml::de::Error,
+        source: toml_spanner::FromTomlError,
     },
     /// TOML serialization error.
     #[error("failed to serialize trust store for `{path}`")]
@@ -44,30 +45,34 @@ pub enum TrustStoreError {
         path: PathBuf,
         /// The underlying serialization error.
         #[source]
-        source: toml::ser::Error,
+        source: toml_spanner::ToTomlError,
     },
 }
 
 /// The user-level trust store loaded from `modules-trust.toml`.
-#[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Toml)]
+#[toml(Toml)]
 pub struct TrustStore {
     /// The list of explicit trust entries.
-    #[serde(default, rename = "trust", skip_serializing_if = "Vec::is_empty")]
+    #[toml(default, style = Header, rename = "trust", skip_if = Vec::is_empty)]
     pub entries: Vec<TrustEntry>,
 }
 
 /// One explicit trust entry.
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Eq, PartialEq, Toml)]
+#[toml(Toml)]
 pub struct TrustEntry {
     /// The dependency this entry covers.
+    #[toml(FromToml with = parse_string, ToToml with = display)]
     pub dep: DependencyName,
     /// The Git URL or local path that this trust pin applies to.
     pub source: String,
     /// The sub-path within the source repository. `None` when the
     /// module sits at the repository root.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[toml(skip_if = Option::is_none)]
     pub path: Option<String>,
     /// The required signer public key in OpenSSH format.
+    #[toml(FromToml with = parse_string, ToToml with = display)]
     pub key: VerifyingKey,
 }
 
@@ -90,7 +95,7 @@ impl TrustStore {
         let s = std::str::from_utf8(&bytes).map_err(|_| TrustStoreError::NonUtf8 {
             path: path.to_path_buf(),
         })?;
-        toml::from_str(s).map_err(|source| TrustStoreError::Parse {
+        toml_spanner::from_str(s).map_err(|source| TrustStoreError::Parse {
             path: path.to_path_buf(),
             source,
         })
@@ -107,7 +112,7 @@ impl TrustStore {
                 source,
             })?;
         }
-        let s = toml::to_string_pretty(self).map_err(|source| TrustStoreError::Serialize {
+        let s = toml_spanner::to_string(self).map_err(|source| TrustStoreError::Serialize {
             path: path.to_path_buf(),
             source,
         })?;
@@ -146,7 +151,7 @@ mod tests {
 
     #[test]
     fn parses_empty_file() {
-        let store: TrustStore = toml::from_str("").unwrap();
+        let store: TrustStore = toml_spanner::from_str("").unwrap();
         assert!(store.entries.is_empty());
     }
 
@@ -154,7 +159,7 @@ mod tests {
 
     #[test]
     fn round_trips_via_toml() {
-        let dep = DependencyName::try_from("openwdl".to_string()).unwrap();
+        let dep: DependencyName = "openwdl".parse().unwrap();
         let key = test_key();
         let store = TrustStore {
             entries: vec![TrustEntry {
@@ -164,8 +169,8 @@ mod tests {
                 key,
             }],
         };
-        let s = toml::to_string_pretty(&store).unwrap();
-        let parsed: TrustStore = toml::from_str(&s).unwrap();
+        let s = toml_spanner::to_string(&store).unwrap();
+        let parsed: TrustStore = toml_spanner::from_str(&s).unwrap();
         assert_eq!(parsed.entries.len(), 1);
         assert!(parsed.lookup(&dep, TEST_SOURCE, None).is_some());
     }
@@ -182,7 +187,7 @@ mod tests {
     fn save_and_reload_round_trips() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("nested").join("trust.toml");
-        let dep = DependencyName::try_from("openwdl".to_string()).unwrap();
+        let dep: DependencyName = "openwdl".parse().unwrap();
         let key = test_key();
         let store = TrustStore {
             entries: vec![TrustEntry {
@@ -204,7 +209,7 @@ mod tests {
 
     #[test]
     fn lookup_requires_matching_source() {
-        let dep = DependencyName::try_from("openwdl".to_string()).unwrap();
+        let dep: DependencyName = "openwdl".parse().unwrap();
         let store = TrustStore {
             entries: vec![TrustEntry {
                 dep: dep.clone(),
@@ -224,7 +229,7 @@ mod tests {
 
     #[test]
     fn lookup_distinguishes_paths_within_same_source() {
-        let dep = DependencyName::try_from("dep".to_string()).unwrap();
+        let dep: DependencyName = "dep".parse().unwrap();
         let store = TrustStore {
             entries: vec![TrustEntry {
                 dep: dep.clone(),
@@ -249,7 +254,7 @@ mod tests {
 
     #[test]
     fn lookup_matches_local_path_source() {
-        let dep = DependencyName::try_from("utils".to_string()).unwrap();
+        let dep: DependencyName = "utils".parse().unwrap();
         let local_source = "/home/user/projects/shared/utils";
         let store = TrustStore {
             entries: vec![TrustEntry {

@@ -107,7 +107,7 @@ use crate::units::convert_unit_string;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
 use crate::v1::expr::ExprEvaluator;
-use crate::v1::resolve_enum_variant_value;
+use crate::v1::resolve_enum_choice_value;
 use crate::v1::write_json_file;
 
 pub(crate) mod hints;
@@ -121,7 +121,7 @@ const DEFAULT_TASK_REQUIREMENT_CPU: f64 = 1.0;
 /// The default value for the `memory` requirement.
 const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
 /// The default value for the `max_retries` requirement.
-const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
+pub(crate) const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
 /// The default value for the `disks` requirement (in GiB).
 pub(crate) const DEFAULT_TASK_REQUIREMENT_DISKS: f64 = 1.0;
 /// The default mount point for disk requirements when none is specified.
@@ -265,14 +265,14 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
         crate::resolve_type_name(self.state.document, name, span)
     }
 
-    fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic> {
+    fn enum_choice_value(&self, enum_name: &str, choice_name: &str) -> Result<Value, Diagnostic> {
         let cache_key = self
             .state
             .document
-            .get_variant_cache_key(enum_name, variant_name)
+            .get_choice_cache_key(enum_name, choice_name)
             .ok_or_else(|| unknown_enum(enum_name))?;
 
-        let cache = self.state.evaluator.variant_cache.lock().unwrap();
+        let cache = self.state.evaluator.choice_cache.lock().unwrap();
         if let Some(cached_value) = cache.get(&cache_key) {
             return Ok(cached_value.clone());
         }
@@ -284,9 +284,9 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
             .document
             .enum_by_name(enum_name)
             .ok_or(unknown_enum(enum_name))?;
-        let value = resolve_enum_variant_value(r#enum, variant_name)?;
+        let value = resolve_enum_choice_value(r#enum, choice_name)?;
 
-        let mut cache = self.state.evaluator.variant_cache.lock().unwrap();
+        let mut cache = self.state.evaluator.choice_cache.lock().unwrap();
         cache.insert(cache_key, value.clone());
         drop(cache);
 
@@ -2057,9 +2057,9 @@ mod test {
     use crate::CancellationContext;
     use crate::Events;
     use crate::TaskInputs;
-    use crate::config::BackendConfig;
     use crate::config::CallCachingMode;
     use crate::config::Config;
+    use crate::config::LocalBackendConfig;
     use crate::eval::EvaluatedTask;
     use crate::v1::Evaluator;
 
@@ -2090,7 +2090,7 @@ mod test {
         config.task.cache_dir = root_dir.join("cache").to_string_lossy().into();
         config
             .backends
-            .insert("default".into(), BackendConfig::Local(Default::default()));
+            .insert("default".into(), LocalBackendConfig::default().into());
 
         let evaluator = Evaluator::new(
             &root_dir.join("runs"),

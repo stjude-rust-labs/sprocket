@@ -1,18 +1,18 @@
 error: task `foo` contains a conflicting section
-   ┌─ tests/validation/conflicting-sections/source.wdl:12:5
+   ┌─ tests/validation/conflicting-sections/source.wdl:10:5
    │
- 8 │     runtime {
+ 8 │     runtime {}
    │     ------- the conflicting runtime section is defined here
-   ·
-12 │     requirements {
+ 9 │ 
+10 │     requirements {}
    │     ^^^^^^^^^^^^ this requirements section conflicts with a runtime section
 
 error: task `bar` contains a conflicting section
-   ┌─ tests/validation/conflicting-sections/source.wdl:24:5
+   ┌─ tests/validation/conflicting-sections/source.wdl:18:5
    │
-20 │     requirements {
+16 │     requirements {}
    │     ------------ the conflicting requirements section is defined here
-   ·
-24 │     runtime {
+17 │ 
+18 │     runtime {}
    │     ^^^^^^^ this runtime section conflicts with a requirements section
 

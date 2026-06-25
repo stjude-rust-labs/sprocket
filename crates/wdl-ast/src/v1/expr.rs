@@ -1845,7 +1845,7 @@ impl<N: TreeNode> LiteralFloat<N> {
             .text()
             .parse()
             .ok()
-            .and_then(|f: f64| if f.is_infinite() { None } else { Some(f) })
+            .filter(|f: &f64| !f.is_infinite())
     }
 }
 

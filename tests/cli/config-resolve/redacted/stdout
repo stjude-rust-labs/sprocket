@@ -1,0 +1,186 @@
+[format]
+indent = 4
+max_line_length = 90
+sort_imports = true
+sort_inputs = false
+trailing_commas = true
+newline_style = "auto"
+
+[check]
+except = []
+deny_warnings = false
+deny_notes = false
+hide_notes = false
+hide_warnings = false
+all_lint_rules = false
+only_lint_tags = []
+filter_lint_tags = []
+
+[check.lint]
+allowed_runtime_keys = []
+allowed_names = []
+
+[analyzer]
+lint = false
+except = []
+
+[run]
+output_dir = "./out"
+events_capacity = 5000
+backend = "first"
+suppress_env_specific_output = false
+experimental_features_enabled = false
+fail = "slow"
+
+[run.http]
+cache_dir = "system"
+retries = 5
+parallelism = "available"
+
+[run.workflow]
+
+[run.workflow.scatter]
+concurrency = 1000
+
+[run.task]
+retries = "default"
+container = "ubuntu:latest"
+shell = "bash"
+cpu_limit_behavior = "deny"
+memory_limit_behavior = "deny"
+cache_dir = "system"
+cache = "off"
+digests = "weak"
+excluded_cache_requirements = []
+excluded_cache_hints = []
+excluded_cache_inputs = []
+
+[run.backends.first]
+type = "tes"
+insecure = false
+
+[run.backends.first.auth]
+type = "basic"
+username = "foo"
+password = "<REDACTED>"
+
+[run.backends.second]
+type = "tes"
+insecure = false
+
+[run.backends.second.auth]
+type = "bearer"
+token = "<REDACTED>"
+
+[run.storage]
+
+[run.storage.azure]
+
+[run.storage.azure.auth]
+account_name = "foo"
+access_key = "<REDACTED>"
+
+[run.storage.s3]
+
+[run.storage.s3.auth]
+access_key_id = "foo"
+secret_access_key = "<REDACTED>"
+
+[run.storage.google]
+
+[run.storage.google.auth]
+access_key = "foo"
+secret = "<REDACTED>"
+
+[server]
+host = "127.0.0.1"
+port = 8080
+allowed_origins = []
+output_dir = "./out"
+allowed_file_paths = []
+allowed_urls = []
+max_concurrent_runs = "unlimited"
+
+[server.database]
+url = "default"
+
+[server.engine]
+backend = "default"
+suppress_env_specific_output = false
+experimental_features_enabled = false
+fail = "slow"
+
+[server.engine.http]
+cache_dir = "system"
+retries = 5
+parallelism = "available"
+
+[server.engine.workflow]
+
+[server.engine.workflow.scatter]
+concurrency = 1000
+
+[server.engine.task]
+retries = "default"
+container = "ubuntu:latest"
+shell = "bash"
+cpu_limit_behavior = "deny"
+memory_limit_behavior = "deny"
+cache_dir = "system"
+cache = "off"
+digests = "weak"
+excluded_cache_requirements = []
+excluded_cache_hints = []
+excluded_cache_inputs = []
+
+[server.engine.backends]
+
+[server.engine.storage]
+
+[server.engine.storage.azure]
+
+[server.engine.storage.s3]
+
+[server.engine.storage.google]
+
+[test]
+parallelism = 50
+throttle = 100
+
+[doc]
+index_page = "none"
+logo = "none"
+alt_light_logo = "none"
+homepage_url = "none"
+github_url = "none"
+light_mode = false
+with_doc_comments = false
+
+[doc.extra_html]
+head = "none"
+body_open = "none"
+body_close = "none"
+
+[common]
+color = "auto"
+report_mode = "full"
+
+[common.wdl]
+fallback_version = "none"
+
+[modules]
+large_file_warning = "1.0 MiB"
+require_signed = false
+trust_mode = "auto"
+allowed_schemes = ["https", "ssh"]
+allowed_transitive_schemes = ["https"]
+max_advertised_refs = 100000
+denied_hosts = [
+    "localhost",
+    "127.0.0.1",
+    "::1",
+    "0.0.0.0",
+]
+allowed_hosts = []
+allowed_transitive_hosts = ["github.com", "gitlab.com"]
+

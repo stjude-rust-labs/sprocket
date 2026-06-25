@@ -462,7 +462,7 @@ pub async fn inputs(args: Args, config: Config) -> CommandResult<()> {
     };
     let results = Analysis::default()
         .add_source(source.clone())
-        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
+        .fallback_version(config.common.wdl.fallback_version.into())
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
         .run()
@@ -472,7 +472,8 @@ pub async fn inputs(args: Args, config: Config) -> CommandResult<()> {
     let document = results
         .filter(&[&source])
         .next()
-        .expect("the root source should always be included in the results")
+        // SAFETY: the root source was added to the analysis above.
+        .unwrap()
         .document();
 
     let mut processor = InputProcessor::new(

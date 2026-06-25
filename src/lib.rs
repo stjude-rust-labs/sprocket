@@ -41,6 +41,7 @@ use tracing_subscriber::fmt::format::Format;
 use tracing_subscriber::layer::Layered;
 use tracing_subscriber::layer::SubscriberExt as _;
 use tracing_subscriber::reload;
+use wdl::diagnostics::emit_diagnostics;
 
 use crate::commands::CommandResult;
 
@@ -102,21 +103,48 @@ async fn real_main() -> CommandResult<()> {
         }
         _ => {
             // For all other commands, load config normally
-            let mut config = Config::new(
+            match Config::new(
                 cli.config.iter().map(PathBuf::as_path),
                 cli.skip_config_search,
-            )?;
-            config
-                .validate()
-                .context("validating provided configuration")?;
-            config
+            ) {
+                Ok(mut config) => {
+                    config
+                        .validate()
+                        .context("failed to validate configuration")?;
+                    config
+                }
+                Err(e) => {
+                    // If there is source associated with the error, emit a diagnostic
+                    if let Some(source) = e.source() {
+                        emit_diagnostics(
+                            &e.path().to_string(),
+                            source,
+                            &[e.to_diagnostic()],
+                            Default::default(),
+                            match cli.color {
+                                ColorMode::Auto => stderr().is_terminal(),
+                                ColorMode::Always => true,
+                                ColorMode::Never => false,
+                            },
+                        )
+                        .context("failed to emit diagnostics")?;
+
+                        // Bail out without returning to caller as the diagnostic was displayed
+                        std::process::exit(1);
+                    }
+
+                    return Err(e)
+                        .context("failed to load configuration")
+                        .map_err(Into::into);
+                }
+            }
         }
     };
 
     // Write effective configuration to the log
     trace!(
         "effective configuration:\n{}",
-        toml::to_string_pretty(&config).unwrap_or_default()
+        toml_spanner::to_string(&config).unwrap_or_default()
     );
 
     let colorize = match (cli.color, config.common.color) {
@@ -143,7 +171,9 @@ async fn real_main() -> CommandResult<()> {
         Commands::Format(args) => commands::format::format(args, config, colorize).await,
         Commands::Inputs(args) => commands::inputs::inputs(args, config).await,
         Commands::Lint(args) => commands::check::lint(args, config, colorize).await,
-        Commands::Run(args) => commands::run::run(args, config, colorize, file_handle).await,
+        Commands::Run(args) => {
+            commands::run::run(args, config, colorize, file_handle, writer).await
+        }
         Commands::Validate(args) => commands::validate::validate(args, config).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => {
             commands::doc::doc(args, config, colorize).await
@@ -164,16 +194,16 @@ async fn real_main() -> CommandResult<()> {
 }
 
 /// The type of the logging subscriber.
-pub type Subscriber = FmtSubscriber<DefaultFields, Format, EnvFilter, IndicatifWriter>;
+pub type Subscriber = FmtSubscriber<DefaultFields, Format, LevelFilter, IndicatifWriter>;
 
 /// Represents the type of the filter (i.e. controls logging output) layer.
-pub type FilterLayer = Layered<reload::Layer<LevelFilter, Subscriber>, Subscriber>;
+pub type FilterLayer = Layered<reload::Layer<EnvFilter, Subscriber>, Subscriber>;
 
 /// The handle type for the logging filter reload handle.
 ///
 /// This type is used to temporarily disable logging during `sprocket test`
 /// evaluation.
-pub type FilterReloadHandle = reload::Handle<LevelFilter, Subscriber>;
+pub type FilterReloadHandle = reload::Handle<EnvFilter, Subscriber>;
 
 /// The handle type for the logging file reload handle.
 ///
@@ -219,7 +249,7 @@ fn initialize_logging(
 
     // Set up a reload layer where we can change the level filter on the fly
     // This layer should always come first in the subscriber
-    let (filter_layer, filter_reload_handle) = reload::Layer::new(LevelFilter::from(verbosity));
+    let (filter_layer, filter_reload_handle) = reload::Layer::new(env_filter);
 
     // Set up an indicatif layer so that progress bars don't interfere with logging
     // output
@@ -227,13 +257,14 @@ fn initialize_logging(
 
     // To start, the file layer is `None` and may be reloaded later
     let (file_layer, file_reload_handle) =
-        reload::Layer::new(None::<File>.map(|f| fmt::layer().with_writer(f)));
+        reload::Layer::new(None::<File>.map(|f| fmt::layer().with_writer(f).with_ansi(false)));
 
     // Build the subscriber and set it as the global default
     let subscriber = fmt::Subscriber::builder()
-        .with_env_filter(env_filter)
+        .with_max_level(LevelFilter::TRACE)
         .with_writer(indicatif_layer.get_stderr_writer())
         .with_ansi(colorize)
+        .with_ansi_sanitization(false)
         .finish()
         .with(filter_layer)
         .with(indicatif_layer)

@@ -163,7 +163,7 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
 
     let document = analyze_source(
         &args.source,
-        config.common.wdl.fallback_version.inner().cloned(),
+        config.common.wdl.fallback_version.into(),
         config.modules.clone(),
         config.common.wdl.feature_flags,
     )

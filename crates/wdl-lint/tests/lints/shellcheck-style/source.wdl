@@ -1,6 +1,7 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, ParameterMetaMatched, HereDocCommands, EmptyOutputs
-
 ## This is a test of having shellcheck style lints
+
+#@ except: EmptyOutputs, ExpectedRuntimeKeys, HereDocCommands, MetaDescription
+#@ except: ParameterMetaMatched
 
 version 1.1
 
@@ -10,12 +11,12 @@ task test1 {
     parameter_meta {}
 
     input {
-      Int placeholder
+        Int placeholder
     }
 
     command <<<
-      [[ ]]
-      [ true ]
+        [[ ]]
+        [ true ]
     >>>
 
     output {}
@@ -29,12 +30,12 @@ task test2 {
     parameter_meta {}
 
     input {
-      Int placeholder
+        Int placeholder
     }
 
     command {
-      [[ ]]
-      [ true ]
+        [[ ]]
+        [ true ]
     }
 
     output {}

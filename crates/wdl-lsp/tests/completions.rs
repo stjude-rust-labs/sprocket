@@ -1,6 +1,6 @@
 //! Integration tests for the `textDocument/completion` request.
 
-mod common;
+pub mod common;
 
 use async_lsp::lsp_types::CompletionContext;
 use async_lsp::lsp_types::CompletionItem;
@@ -592,7 +592,7 @@ async fn should_complete_struct_literal_as_snippet() {
 }
 
 #[tokio::test]
-async fn should_complete_enum_variants() {
+async fn should_complete_enum_choices() {
     let mut ctx = setup().await;
 
     let response = completion_request(&mut ctx, "snippet_enum.wdl", Position::new(9, 22))

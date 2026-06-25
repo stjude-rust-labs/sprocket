@@ -1,6 +1,6 @@
 //! Integration tests for the `textDocument/completion` request.
 
-mod common;
+pub mod common;
 
 use core::panic;
 
@@ -268,7 +268,7 @@ async fn should_hover_enum_type() {
 }
 
 #[tokio::test]
-async fn should_hover_enum_variant() {
+async fn should_hover_enum_choice() {
     let mut ctx = setup().await;
     // Position of `Active` in `Status.Active`
     let response = hover_request(&mut ctx, "enum.wdl", Position::new(9, 22))

@@ -6,7 +6,10 @@
 //! The design of this is very much based on `rust-analyzer`.
 
 use std::fmt;
+use std::ops::Deref;
+use std::ops::DerefMut;
 
+use indexmap::IndexSet;
 use logos::Logos;
 
 use super::Diagnostic;
@@ -90,31 +93,51 @@ impl fmt::Display for Expected<'_> {
     }
 }
 
-/// Creates an "expected, but found" diagnostic error.
-pub(crate) fn expected_found(expected: &str, found: Option<&str>, span: Span) -> Diagnostic {
-    let found = found.unwrap_or("end of input");
-    Diagnostic::error(format!("expected {expected}, but found {found}"))
-        .with_label(format!("unexpected {found}"), span)
+/// [`Diagnostic`] wrapper with [`Parser`]-specific metadata.
+#[derive(Debug)]
+#[must_use]
+pub struct ParseDiagnostic {
+    /// The actual diagnostic.
+    inner: Diagnostic,
+    /// Whether the diagnostic was caused by reaching the end of the input.
+    ///
+    /// This is used in [`Parser::diagnostic()`] to guard against emitting
+    /// multiple EOF errors in nested structures.
+    eof: bool,
 }
 
-/// Creates an "expected one of, but found" diagnostic error.
-pub(crate) fn expected_one_of(expected: &[&str], found: Option<&str>, span: Span) -> Diagnostic {
-    let found = found.unwrap_or("end of input");
-    Diagnostic::error(format!(
-        "expected {expected}, but found {found}",
-        expected = Expected::new(expected)
-    ))
-    .with_label(format!("unexpected {found}"), span)
+impl From<Diagnostic> for ParseDiagnostic {
+    fn from(diagnostic: Diagnostic) -> Self {
+        Self {
+            inner: diagnostic,
+            eof: false,
+        }
+    }
+}
+
+impl From<ParseDiagnostic> for Diagnostic {
+    fn from(diagnostic: ParseDiagnostic) -> Self {
+        diagnostic.inner
+    }
+}
+
+impl ParseDiagnostic {
+    /// Set the end-of-file flag.
+    fn with_eof(mut self, eof: bool) -> Self {
+        self.eof = eof;
+        self
+    }
 }
 
 /// Creates an "unterminated string" diagnostic error.
-pub(crate) fn unterminated_string(span: Span) -> Diagnostic {
+pub(crate) fn unterminated_string(span: Span) -> ParseDiagnostic {
     Diagnostic::error("an unterminated string was encountered")
         .with_label("this quote is not matched", span)
+        .into()
 }
 
 /// Creates an "unterminated heredoc" diagnostic error.
-pub(crate) fn unterminated_heredoc(opening: &str, span: Span, command: bool) -> Diagnostic {
+pub(crate) fn unterminated_heredoc(opening: &str, span: Span, command: bool) -> ParseDiagnostic {
     Diagnostic::error(format!(
         "an unterminated {kind} was encountered",
         kind = if command {
@@ -124,24 +147,14 @@ pub(crate) fn unterminated_heredoc(opening: &str, span: Span, command: bool) -> 
         }
     ))
     .with_label(format!("this {opening} is not matched"), span)
+    .into()
 }
 
 /// Creates an "unterminated braced command" diagnostic error.
-pub(crate) fn unterminated_braced_command(opening: &str, span: Span) -> Diagnostic {
+pub(crate) fn unterminated_braced_command(opening: &str, span: Span) -> ParseDiagnostic {
     Diagnostic::error("an unterminated braced command was encountered")
         .with_label(format!("this {opening} is not matched"), span)
-}
-
-/// Creates an "unmatched token" diagnostic error.
-pub(crate) fn unmatched(
-    open: &str,
-    open_span: Span,
-    close: &str,
-    found: &str,
-    span: Span,
-) -> Diagnostic {
-    expected_found(close, Some(found), span)
-        .with_label(format!("this {open} is not matched"), open_span)
+        .into()
 }
 
 /// A trait implemented by parser tokens.
@@ -302,10 +315,12 @@ where
     events: Vec<Event>,
     /// The recovery token set stack.
     recovery: Vec<TokenSet>,
-    /// The parser diagnostics.
-    diagnostics: Vec<Diagnostic>,
+    /// The context for diagnostics produced by the parser.
+    diagnostic_context: DiagnosticContext,
     /// The buffered events from a peek operation.
     buffered: Vec<Event>,
+    /// The current expression depth of the parser.
+    expr_depth: usize,
 }
 
 impl<'a, T> Interpolator<'a, T>
@@ -318,8 +333,15 @@ where
     }
 
     /// Adds a diagnostic to the parser error list.
-    pub fn diagnostic(&mut self, diagnostic: Diagnostic) {
-        self.diagnostics.push(diagnostic);
+    pub fn diagnostic(&mut self, diagnostic: ParseDiagnostic) {
+        if diagnostic.eof {
+            if self.diagnostic_context.eof {
+                return;
+            }
+            self.diagnostic_context.eof = true;
+        }
+
+        self.diagnostic_context.diagnostics.insert(diagnostic.inner);
     }
 
     /// Starts a new node event.
@@ -353,8 +375,9 @@ where
             lexer: Some(self.lexer.morph()),
             events: self.events,
             recovery: self.recovery,
-            diagnostics: self.diagnostics,
+            diagnostic_context: self.diagnostic_context,
             buffered: Default::default(),
+            expr_depth: self.expr_depth,
         }
     }
 }
@@ -395,6 +418,17 @@ pub struct Peek2<T> {
     pub second: (T, Span),
 }
 
+/// Context for managing parse diagnostics.
+#[derive(Default, Debug)]
+struct DiagnosticContext {
+    /// The diagnostics encountered so far.
+    diagnostics: IndexSet<Diagnostic>,
+    /// Whether the parser has reached the end of the input.
+    eof: bool,
+    /// Whether the parser has encountered a fatal error.
+    halt: bool,
+}
+
 /// Implements a WDL parser.
 ///
 /// The parser produces a list of events that can be used to
@@ -416,10 +450,54 @@ where
     events: Vec<Event>,
     /// The recovery token set stack.
     recovery: Vec<TokenSet>,
-    /// The diagnostics encountered so far.
-    diagnostics: Vec<Diagnostic>,
+    /// The context for diagnostics produced by the parser.
+    diagnostic_context: DiagnosticContext,
     /// The buffered events from a peek operation.
     buffered: Vec<Event>,
+    /// The current expression depth.
+    expr_depth: usize,
+}
+
+/// The maximum recursion depth for nested expressions.
+const MAX_DEPTH: usize = 128;
+
+/// Guard for limiting the depth of recursive expression parsing.
+#[allow(missing_debug_implementations)]
+pub struct RecursionGuard<'a, 'b, T>
+where
+    T: ParserToken<'a>,
+{
+    /// The parser that is being guarded.
+    parser: &'b mut Parser<'a, T>,
+}
+
+impl<'a, 'b, T> Drop for RecursionGuard<'a, 'b, T>
+where
+    T: ParserToken<'a>,
+{
+    fn drop(&mut self) {
+        self.parser.expr_depth -= 1;
+    }
+}
+
+impl<'a, 'b, T> Deref for RecursionGuard<'a, 'b, T>
+where
+    T: ParserToken<'a>,
+{
+    type Target = Parser<'a, T>;
+
+    fn deref(&self) -> &Self::Target {
+        self.parser
+    }
+}
+
+impl<'a, 'b, T> DerefMut for RecursionGuard<'a, 'b, T>
+where
+    T: ParserToken<'a>,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.parser
+    }
 }
 
 impl<'a, T> Parser<'a, T>
@@ -433,9 +511,22 @@ where
             lexer: Some(lexer),
             events: Default::default(),
             recovery: Default::default(),
-            diagnostics: Default::default(),
+            diagnostic_context: Default::default(),
             buffered: Default::default(),
+            expr_depth: 0,
         }
+    }
+
+    /// Increase the current expression depth by 1.
+    pub(super) fn recurse(&mut self) -> Result<RecursionGuard<'a, '_, T>, ParseDiagnostic> {
+        self.expr_depth += 1;
+        if self.expr_depth > MAX_DEPTH {
+            self.diagnostic_context.halt = true;
+            return Err(Diagnostic::error("expression nested too deep")
+                .with_label("this exceeds the parser's nesting limit", self.span())
+                .into());
+        }
+        Ok(RecursionGuard { parser: self })
     }
 
     /// Get the version of the document.
@@ -538,9 +629,9 @@ where
         close: T,
         allow_empty: bool,
         cb: F,
-    ) -> Result<(), Diagnostic>
+    ) -> Result<(), ParseDiagnostic>
     where
-        F: FnOnce(&mut Self, Span) -> Result<(), Diagnostic>,
+        F: FnOnce(&mut Self, Span) -> Result<(), ParseDiagnostic>,
     {
         let open_span = self.expect(open)?;
 
@@ -559,19 +650,7 @@ where
 
         match self.next() {
             Some((token, _)) if token == close => Ok(()),
-            found => {
-                let (found, span) = found
-                    .map(|(t, s)| (t.describe(), s))
-                    .unwrap_or_else(|| ("end of input", self.span()));
-
-                Err(unmatched(
-                    open.describe(),
-                    open_span,
-                    close.describe(),
-                    found,
-                    span,
-                ))
-            }
+            found => Err(self.unmatched(open.describe(), open_span, close.describe(), found)),
         }
     }
 
@@ -595,9 +674,9 @@ where
         termination: TokenSet,
         recovery: TokenSet,
         cb: F,
-    ) -> Result<(), Diagnostic>
+    ) -> Result<(), ParseDiagnostic>
     where
-        F: FnMut(&mut Self, Marker) -> Result<(), (Marker, Diagnostic)>,
+        F: FnMut(&mut Self, Marker) -> Result<(), (Marker, ParseDiagnostic)>,
     {
         let open_span = self.expect(open)?;
         self.delimited(close, termination, delimiter, recovery, cb);
@@ -614,20 +693,12 @@ where
             return;
         }
 
-        let (found, span) = self
-            .peek()
-            .map(|(t, s)| (t.describe(), s))
-            .unwrap_or_else(|| ("end of input", self.span()));
-
-        self.diagnostic(unmatched(
-            open.describe(),
-            open_span,
-            close.describe(),
-            found,
-            span,
-        ));
+        let found = self.peek();
+        let diagnostic = self.unmatched(open.describe(), open_span, close.describe(), found);
+        self.diagnostic(diagnostic);
 
         // Synthesize a close token event of zero width
+        let span = found.map(|(_, s)| s).unwrap_or_else(|| self.span());
         self.events.push(Event::Token {
             kind: close.into_syntax(),
             span: Span::new(span.start(), 0),
@@ -649,7 +720,7 @@ where
         recovery: TokenSet,
         mut cb: F,
     ) where
-        F: FnMut(&mut Self, Marker) -> Result<(), (Marker, Diagnostic)>,
+        F: FnMut(&mut Self, Marker) -> Result<(), (Marker, ParseDiagnostic)>,
     {
         let recovery = if let Some(delimiter) = delimiter {
             recovery
@@ -666,7 +737,7 @@ where
 
         let mut next: Option<(T, Span)> = self.peek();
         while let Some((token, _)) = next {
-            if token == until {
+            if token == until || self.diagnostic_context.halt {
                 break;
             }
 
@@ -694,6 +765,10 @@ where
 
                 self.recover(e);
                 marker.abandon(self);
+
+                if self.diagnostic_context.halt {
+                    break;
+                }
             }
 
             next = self.peek();
@@ -705,25 +780,28 @@ where
                     break;
                 }
 
-                if let Err(e) = self.expect(delimiter) {
+                if let Err(mut e) = self.expect(delimiter) {
                     // Attach a label to the diagnostic hinting at where we expected the
                     // delimiter to be; to do this, look back at the last non-trivia token event
                     // in the parser events and use its span for the label.
-                    let e = if let Some(span) = self.events.iter().rev().find_map(|e| match e {
+                    let span = self.events.iter().rev().find_map(|e| match e {
                         Event::Token { kind, span }
                             if *kind != SyntaxKind::Whitespace && *kind != SyntaxKind::Comment =>
                         {
                             Some(*span)
                         }
                         _ => None,
-                    }) {
-                        e.with_label(
+                    });
+
+                    let e = if let Some(span) = span {
+                        e.inner = e.inner.with_label(
                             format!(
                                 "consider adding a {desc} after this",
                                 desc = delimiter.describe()
                             ),
                             Span::new(span.end() - 1, 1),
-                        )
+                        );
+                        e
                     } else {
                         e
                     };
@@ -740,8 +818,15 @@ where
     }
 
     /// Adds a diagnostic to the parser output.
-    pub fn diagnostic(&mut self, diagnostic: Diagnostic) {
-        self.diagnostics.push(diagnostic);
+    pub fn diagnostic(&mut self, diagnostic: ParseDiagnostic) {
+        if diagnostic.eof {
+            if self.diagnostic_context.eof {
+                return;
+            }
+            self.diagnostic_context.eof = true;
+        }
+
+        self.diagnostic_context.diagnostics.insert(diagnostic.inner);
     }
 
     /// Pushes a token set to the parser's recovery token set stack.
@@ -764,7 +849,7 @@ where
     /// # Panics
     ///
     /// Panics if a recovery set was not pushed with [Self::push_recovery_set].
-    pub fn recover(&mut self, mut diagnostic: Diagnostic) {
+    pub fn recover(&mut self, mut diagnostic: ParseDiagnostic) {
         let tokens = *self.recovery.last().expect("expected a top recovery set");
 
         while let Some((token, span)) = self.peek() {
@@ -780,7 +865,7 @@ where
             if T::recover_interpolation(token, span, self) {
                 // If the diagnostic label started at this token, we need to extend its length
                 // to cover the interpolation
-                for label in diagnostic.labels_mut() {
+                for label in diagnostic.inner.labels_mut() {
                     let label_span = label.span();
                     if label_span.start() != span.start() {
                         continue;
@@ -801,11 +886,11 @@ where
             }
         }
 
-        self.diagnostics.push(diagnostic);
+        self.diagnostic(diagnostic);
     }
 
     /// Performs recovery with the given recovery token set.
-    pub fn recover_with_set(&mut self, diagnostic: Diagnostic, recovery: TokenSet) {
+    pub fn recover_with_set(&mut self, diagnostic: ParseDiagnostic, recovery: TokenSet) {
         self.recovery.push(recovery);
         self.recover(diagnostic);
         self.recovery.pop();
@@ -863,21 +948,82 @@ where
         }
     }
 
+    /// Determines if the `found` token is EOF, which is used by
+    /// [`Self::diagnostic()`] for deduplication.
+    fn maybe_eof_diagnostic(
+        &mut self,
+        found: Option<(T, Span)>,
+    ) -> (Option<&'static str>, Span, bool) {
+        let (found, span) = found
+            .map(|(t, s)| (Some(t.describe()), s))
+            .unwrap_or_else(|| (None, self.span()));
+
+        let eof = found.is_none();
+        (found, span, eof)
+    }
+
+    /// Creates an "expected, but found" diagnostic error.
+    pub(crate) fn unexpected(
+        &mut self,
+        expected: &str,
+        found: Option<(T, Span)>,
+    ) -> ParseDiagnostic {
+        let (found, span, eof) = self.maybe_eof_diagnostic(found);
+
+        let found = found.unwrap_or("end of input");
+        let diagnostic: ParseDiagnostic =
+            Diagnostic::error(format!("expected {expected}, but found {found}"))
+                .with_label(format!("unexpected {found}"), span)
+                .into();
+
+        diagnostic.with_eof(eof)
+    }
+
+    /// Creates an "expected one of, but found" diagnostic error.
+    pub(crate) fn unexpected_many(
+        &mut self,
+        expected: &[&str],
+        found: Option<(T, Span)>,
+    ) -> ParseDiagnostic {
+        let (found, span, eof) = self.maybe_eof_diagnostic(found);
+
+        let found = found.unwrap_or("end of input");
+        let diagnostic: ParseDiagnostic = Diagnostic::error(format!(
+            "expected {expected}, but found {found}",
+            expected = Expected::new(expected)
+        ))
+        .with_label(format!("unexpected {found}"), span)
+        .into();
+
+        diagnostic.with_eof(eof)
+    }
+
+    /// Creates an "unmatched token" diagnostic error.
+    pub(crate) fn unmatched(
+        &mut self,
+        open: &str,
+        open_span: Span,
+        close: &str,
+        found: Option<(T, Span)>,
+    ) -> ParseDiagnostic {
+        let mut diagnostic = self.unexpected(close, found);
+        diagnostic.inner = diagnostic
+            .inner
+            .with_label(format!("this {open} is not matched"), open_span);
+
+        diagnostic
+    }
+
     /// Expects the next token to be the given token.
     ///
     /// Returns an error if the token is not the given token.
-    pub fn expect(&mut self, token: T) -> Result<Span, Diagnostic> {
+    pub fn expect(&mut self, token: T) -> Result<Span, ParseDiagnostic> {
         match self.peek() {
             Some((t, span)) if t == token => {
                 self.next();
                 Ok(span)
             }
-            found => {
-                let (found, span) = found
-                    .map(|(t, s)| (Some(t.describe()), s))
-                    .unwrap_or_else(|| (None, self.span()));
-                Err(expected_found(token.describe(), found, span))
-            }
+            found => Err(self.unexpected(token.describe(), found)),
         }
     }
 
@@ -885,18 +1031,17 @@ where
     /// the provided name in the error.
     ///
     /// Returns an error if the token is not the given token.
-    pub fn expect_with_name(&mut self, token: T, name: &'static str) -> Result<Span, Diagnostic> {
+    pub fn expect_with_name(
+        &mut self,
+        token: T,
+        name: &'static str,
+    ) -> Result<Span, ParseDiagnostic> {
         match self.peek() {
             Some((t, span)) if t == token => {
                 self.next();
                 Ok(span)
             }
-            found => {
-                let (found, span) = found
-                    .map(|(t, s)| (Some(t.describe()), s))
-                    .unwrap_or_else(|| (None, self.span()));
-                Err(expected_found(name, found, span))
-            }
+            found => Err(self.unexpected(name, found)),
         }
     }
 
@@ -907,19 +1052,13 @@ where
         &mut self,
         tokens: TokenSet,
         expected: &[&str],
-    ) -> Result<(T, Span), Diagnostic> {
+    ) -> Result<(T, Span), ParseDiagnostic> {
         match self.peek() {
             Some((t, span)) if tokens.contains(t.into_raw()) => {
                 self.next();
                 Ok((t, span))
             }
-            found => {
-                let (found, span) = found
-                    .map(|(t, s)| (Some(t.describe()), s))
-                    .unwrap_or_else(|| (None, self.span()));
-
-                Err(expected_one_of(expected, found, span))
-            }
+            found => Err(self.unexpected_many(expected, found)),
         }
     }
 
@@ -941,8 +1080,9 @@ where
                 .morph(),
             recovery: std::mem::take(&mut self.recovery),
             events: std::mem::take(&mut self.events),
-            diagnostics: std::mem::take(&mut self.diagnostics),
+            diagnostic_context: std::mem::take(&mut self.diagnostic_context),
             buffered: std::mem::take(&mut self.buffered),
+            expr_depth: self.expr_depth,
         };
         let (p, result) = cb(input);
         *self = p;
@@ -963,8 +1103,9 @@ where
             lexer: self.lexer.map(|l| l.morph()),
             events: self.events,
             recovery: self.recovery,
-            diagnostics: self.diagnostics,
+            diagnostic_context: self.diagnostic_context,
             buffered: self.buffered,
+            expr_depth: self.expr_depth,
         }
     }
 
@@ -978,8 +1119,9 @@ where
             lexer: self.lexer.expect("lexer should be present").morph(),
             events: self.events,
             recovery: self.recovery,
-            diagnostics: self.diagnostics,
+            diagnostic_context: self.diagnostic_context,
             buffered: self.buffered,
+            expr_depth: self.expr_depth,
         }
     }
 
@@ -1000,7 +1142,7 @@ where
         Output {
             lexer: self.lexer.expect("lexer should be present"),
             events: self.events,
-            diagnostics: self.diagnostics,
+            diagnostics: self.diagnostic_context.diagnostics.into_iter().collect(),
         }
     }
 
@@ -1058,29 +1200,55 @@ where
                     return Some((token, span));
                 }
 
+                if peeked {
+                    self.lexer.as_mut().expect("should have a lexer").next();
+                }
+
                 Event::Token {
                     kind: token.into_syntax(),
                     span,
                 }
             }
             Err(_) => {
+                let mut unknown_span = span;
+                let lexer = self.lexer.as_mut().expect("should have a lexer");
+
+                if peeked {
+                    lexer.next();
+                }
+
+                // Consecutive unknown tokens of the same type get condensed into a single
+                // diagnostic and event
+                while let Some((Err(_), peeked_span)) = lexer.peek() {
+                    unknown_span = Span::new(
+                        unknown_span.start(),
+                        peeked_span.end() - unknown_span.start(),
+                    );
+                    lexer.next();
+                }
+
                 self.diagnostic(
                     Diagnostic::error("an unknown token was encountered")
-                        .with_label(Self::unsupported_token_text(self.source(span)), span),
+                        .with_label(
+                            Self::unsupported_token_text(self.source(span)),
+                            unknown_span,
+                        )
+                        .into(),
                 );
+
                 Event::Token {
                     kind: SyntaxKind::Unknown,
-                    span,
+                    span: unknown_span,
                 }
             }
         };
 
         if peeked {
-            self.lexer.as_mut().expect("should have a lexer").next();
             self.buffered.push(event);
         } else {
             self.events.push(event);
         }
+
         None
     }
 
@@ -1116,5 +1284,41 @@ where
         }
 
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn expression_depth_limit() {
+        let ok_map_literal = format!(
+            "{} : {}",
+            "{".repeat(MAX_DEPTH - 1),
+            "}".repeat(MAX_DEPTH - 1)
+        );
+        let source = format!(
+            r#"task foo {{
+            command <<<>>>
+
+            Map[String, Int] woah = {ok_map_literal}
+        }}"#
+        );
+        let mut parser = Parser::new(Lexer::new(&source));
+        crate::grammar::v1::items(&mut parser);
+        assert!(!parser.diagnostic_context.halt);
+
+        let bad_map_literal = format!("{} : {}", "{".repeat(MAX_DEPTH), "}".repeat(MAX_DEPTH));
+        let source = format!(
+            r#"task foo {{
+            command <<<>>>
+
+            Map[String, Int] woah = {bad_map_literal}
+        }}"#
+        );
+        let mut parser = Parser::new(Lexer::new(&source));
+        crate::grammar::v1::items(&mut parser);
+        assert!(parser.diagnostic_context.halt);
     }
 }

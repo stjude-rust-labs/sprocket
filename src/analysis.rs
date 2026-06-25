@@ -433,7 +433,9 @@ pub fn build_resolver(
         .cache_root(cache_root)
         .trust(trust)
         .lockfile(lockfile)
-        .policy(wdl_modules::resolver::ResolverPolicy::from(modules_config))
+        .policy(wdl_modules::resolver::ResolverPolicy::try_from(
+            modules_config,
+        )?)
         .build();
 
     Ok(Some((Arc::new(resolver), manifest_path.to_path_buf())))

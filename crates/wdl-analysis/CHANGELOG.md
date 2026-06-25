@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `Analyzer::new` and `Analyzer::new_with_validator` now take a `ResolutionContext` (a resolver plus an optional manifest path) in place of separate arguments; pass `ResolutionContext::default()` to preserve the previous non-resolving behavior ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
 
+* Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+
+#### Fixed
+* The `UnusedInput` rule now fires in `task`s without `command` sections ([#849](https://github.com/stjude-rust-labs/sprocket/pull/849)).
+* The `UnusedInput` rule now fires in `task`s without `command` sections ([#849](https://github.com/stjude-rust-labs/sprocket/pull/849)).
+
 ## 0.21.0 - 2026-06-03
 
 #### Added

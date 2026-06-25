@@ -172,8 +172,8 @@ fn resolve_by_context(
             resolve_decl_definition::<v1::BoundDecl>(parent_node, token, document_uri, lines)
         }
 
-        SyntaxKind::EnumVariantNode => {
-            resolve_enum_variant_definition(parent_node, token, document_uri, lines)
+        SyntaxKind::EnumChoiceNode => {
+            resolve_enum_choice_definition(parent_node, token, document_uri, lines)
         }
 
         SyntaxKind::LiteralStructItemNode => resolve_struct_literal_item(
@@ -618,14 +618,14 @@ fn resolve_access_expression(
                 v1::EnumDefinition::cast(SyntaxNode::new_root(original_enum.node().clone()))
                     .expect("should cast to enum definition");
 
-            if let Some(variant) = enum_node
-                .variants()
+            if let Some(choice) = enum_node
+                .choices()
                 .find(|v| v.name().text() == access_ident.text())
             {
-                let variant_span = variant.name().span();
+                let choice_span = choice.name().span();
                 let span = Span::new(
-                    variant_span.start() + original_enum.offset(),
-                    variant_span.len(),
+                    choice_span.start() + original_enum.offset(),
+                    choice_span.len(),
                 );
                 return Ok(Some(location_from_span(ns.source(), span, imported_lines)?));
             }
@@ -651,16 +651,16 @@ fn resolve_access_expression(
         let enum_node = v1::EnumDefinition::cast(SyntaxNode::new_root(enum_def.node().clone()))
             .expect("should cast to enum definition");
 
-        let Some(variant) = enum_node
-            .variants()
+        let Some(choice) = enum_node
+            .choices()
             .find(|v| v.name().text() == access_ident.text())
         else {
             return Ok(None);
         };
 
-        let variant_span = variant.name().span();
-        let span = Span::new(variant_span.start() + enum_def.offset(), variant_span.len());
-        // Returns found enum variant definition location.
+        let choice_span = choice.name().span();
+        let span = Span::new(choice_span.start() + enum_def.offset(), choice_span.len());
+        // Returns found enum choice definition location.
         return Ok(Some(location_from_span(uri, span, def_lines)?));
     }
 
@@ -716,16 +716,16 @@ fn resolve_access_expression(
 
         let enum_node = enum_def.definition();
 
-        let Some(variant) = enum_node
-            .variants()
+        let Some(choice) = enum_node
+            .choices()
             .find(|v| v.name().text() == access_ident.text())
         else {
             return Ok(None);
         };
 
-        let variant_span = variant.name().span();
-        let span = Span::new(variant_span.start() + enum_def.offset(), variant_span.len());
-        // Returns found enum variant definition location.
+        let choice_span = choice.name().span();
+        let span = Span::new(choice_span.start() + enum_def.offset(), choice_span.len());
+        // Returns found enum choice definition location.
         return Ok(Some(location_from_span(uri, span, def_lines)?));
     }
 
@@ -756,8 +756,8 @@ where
     Ok(None)
 }
 
-/// Resolve enum variant declarations to themselves.
-fn resolve_enum_variant_definition(
+/// Resolve enum choice declarations to themselves.
+fn resolve_enum_choice_definition(
     _: &SyntaxNode,
     token: &SyntaxToken,
     document_uri: &Url,

@@ -48,7 +48,7 @@ fn find_tests(runtime: &tokio::runtime::Handle) -> Vec<Trial> {
         .unwrap()
         .filter_map(|entry| {
             let entry = entry.expect("failed to read directory");
-            let path = entry.path();
+            let path: std::path::PathBuf = entry.path();
             if !path.is_dir() {
                 return None;
             }
@@ -160,7 +160,7 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     let base = absolute(test).expect("should be made absolute").clean();
     let config_path = base.join("config.toml");
     let config = if config_path.exists() {
-        toml::from_str(&std::fs::read_to_string(config_path)?)?
+        toml_spanner::from_str(&std::fs::read_to_string(config_path)?)?
     } else {
         Config::default()
     };

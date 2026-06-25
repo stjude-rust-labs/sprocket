@@ -421,13 +421,14 @@ impl DocumentGraphNode {
                     wdl_version = Some(version);
                 }
                 // The version in the document is not supported, but fallback behavior is configured
-                (Err(unrecognized), Some(fallback)) => {
+                (Err(_), Some(fallback)) => {
                     if let Some(severity) = self.config.diagnostics_config().using_fallback_version
                     {
                         diagnostics.push(
                             Diagnostic::warning(format!(
-                                "unsupported WDL version `{unrecognized}`; interpreting document \
-                                 as version `{fallback}`"
+                                "unsupported WDL version `{version}`; interpreting document as \
+                                 version `{fallback}`",
+                                version = version_token.text(),
                             ))
                             .with_rule(UsingFallbackVersion::ID)
                             .with_severity(severity)

@@ -1,10 +1,10 @@
-#@ except: EmptyOutputs
-
 ## This is a test of the `DeprecatedPlaceholder` lint.
+
+#@ except: EmptyOutputs
 
 version 1.0
 
-# None of these lints other than the $ interpolation rule should trigger 
+# None of these lints other than the $ interpolation rule should trigger
 # as the version is WDL v1.0 (prior to placeholder options being deprecated).
 task a_task {
     #@ except: MetaDescription

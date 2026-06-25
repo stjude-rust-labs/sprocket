@@ -48,6 +48,8 @@ static TEST_CATEGORIES: LazyLock<HashMap<&'static str, TestMap>> = LazyLock::new
 });
 ```
 
+<!-- TODO: Document metadata comments -->
+
 ## Updating Outputs
 
 By default, the documentation will be reused between runs. Setting the `BLESS` environment variable will force

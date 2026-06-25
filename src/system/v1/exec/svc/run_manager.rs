@@ -93,11 +93,8 @@ impl RunManagerSvc {
         let feature_flags = config.common.wdl.feature_flags;
         let modules_config = config.modules.clone();
         let config = config.server;
-        let semaphore = config
-            .max_concurrent_runs
-            .inner()
-            .cloned()
-            .map(|n| Arc::new(Semaphore::new(n)));
+        let semaphore =
+            Option::<usize>::from(config.max_concurrent_runs).map(|n| Arc::new(Semaphore::new(n)));
 
         let output_dir = OutputDirectory::new(&config.output_dir);
 
@@ -300,7 +297,7 @@ impl RunManagerSvc {
             .runs(self.runs.clone())
             .run_id(run_id)
             .run_name(run_generated_name.clone())
-            .maybe_fallback_version(self.fallback_version.inner().cloned())
+            .maybe_fallback_version(self.fallback_version.into())
             .feature_flags(self.feature_flags)
             .modules_config(self.modules_config.clone())
             .source(source)
@@ -315,7 +312,7 @@ impl RunManagerSvc {
                 // SAFETY: the semaphore is Arc-wrapped and held by the manager for its
                 // entire lifetime. It is never explicitly closed. If this fails, it
                 // indicates a catastrophic programming error.
-                Some(sem.acquire().await.expect("semaphore closed"))
+                Some(sem.acquire().await.unwrap())
             } else {
                 None
             };

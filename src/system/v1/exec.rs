@@ -589,7 +589,7 @@ pub async fn analyze_wdl_document(
         .await
         .map_err(|errors| {
             anyhow!(
-                "failed to analyze document: {}",
+                "failed to analyze document; {}",
                 errors
                     .iter()
                     .map(|e| format!("{e:#}"))

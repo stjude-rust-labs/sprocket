@@ -28,6 +28,7 @@ use tokio_util::sync::CancellationToken;
 use tracing::Level;
 use tracing::error;
 use tracing_indicatif::span_ext::IndicatifSpanExt as _;
+use tracing_subscriber::EnvFilter;
 use tracing_subscriber::fmt::layer;
 use wdl::analysis::Document;
 use wdl::ast::AstNode as _;
@@ -50,6 +51,7 @@ use wdl::engine::config::SecretString;
 
 use crate::Config;
 use crate::FileReloadHandle;
+use crate::FilterReloadHandle;
 use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
@@ -190,6 +192,12 @@ pub struct Args {
     #[clap(long)]
     pub no_call_cache: bool,
 
+    /// Show task stderr during execution.
+    ///
+    /// Note that not all execution backends support this option.
+    #[clap(long)]
+    pub show_task_stderr: bool,
+
     /// Optional suffix to append to the run directory name.
     #[clap(long, value_name = "SUFFIX")]
     pub suffix: Option<String>,
@@ -282,6 +290,20 @@ struct Task {
     ///
     /// This is used to cancel Crankshaft tasks that haven't yet executed.
     token: CancellationToken,
+    /// Buffer for the task's stderr output.
+    stderr_buffer: Vec<u8>,
+}
+
+impl Task {
+    const STDERR_BUFFER_SIZE: usize = 4096;
+
+    fn new(name: Arc<String>, token: CancellationToken) -> Self {
+        Self {
+            name,
+            token,
+            stderr_buffer: Vec::new(),
+        }
+    }
 }
 
 /// Represents state for reporting evaluation progress.
@@ -306,6 +328,7 @@ struct State {
 /// Displays evaluation progress.
 async fn progress(
     progress_bar: tracing::Span,
+    show_stderr: bool,
     colorize: bool,
     target: Arc<Target>,
     mut crankshaft: Receiver<CrankshaftEvent>,
@@ -398,7 +421,7 @@ async fn progress(
                                 task_token.cancel();
                             }
 
-                            state.tasks.insert(id, Task { name: name.into(), token: task_token });
+                            state.tasks.insert(id, Task::new(name.into(), task_token));
                             None
                         }
                         CrankshaftEvent::TaskStarted { id } => {
@@ -419,6 +442,54 @@ async fn progress(
                         CrankshaftEvent::TaskCanceled { id } => {
                             state.canceled += 1;
                             Some(id)
+                        }
+                        CrankshaftEvent::TaskStderr { id, message } if show_stderr => {
+                            let Some(task) = state.tasks.get_mut(&id) else {
+                                continue;
+                            };
+
+                            if task.stderr_buffer.capacity() == 0 {
+                                task.stderr_buffer.reserve(Task::STDERR_BUFFER_SIZE);
+                            }
+
+                            task.stderr_buffer.extend_from_slice(&message);
+                            while let Some(line_end) = task.stderr_buffer.iter().position(|&b| b == b'\n') {
+                                if line_end > Task::STDERR_BUFFER_SIZE {
+                                    tracing::warn!(
+                                        target: "task-stderr",
+                                        "{} {}",
+                                        task.name.magenta().bold(),
+                                        format!("line too long, dropped {line_end} bytes").yellow()
+                                    );
+                                } else {
+                                    let line_bytes = &task.stderr_buffer[..line_end];
+                                    let line = String::from_utf8_lossy(line_bytes);
+                                    tracing::debug!(
+                                        target: "task-stderr",
+                                        "{} {}",
+                                        task.name.magenta().bold(),
+                                        line.blue()
+                                    );
+                                }
+
+                                task.stderr_buffer.drain(..=line_end);
+                            }
+
+                            if task.stderr_buffer.len() > Task::STDERR_BUFFER_SIZE {
+                                tracing::warn!(
+                                    target: "task-stderr",
+                                    "{} {}",
+                                    task.name.magenta().bold(),
+                                    format!("line too long, dropped {} bytes", task.stderr_buffer.len()).yellow()
+                                );
+                                task.stderr_buffer.clear();
+                            }
+
+                            if task.stderr_buffer.capacity() > Task::STDERR_BUFFER_SIZE {
+                                task.stderr_buffer.shrink_to(Task::STDERR_BUFFER_SIZE);
+                            }
+
+                            continue
                         }
                         CrankshaftEvent::TaskContainerCreated { .. }
                         | CrankshaftEvent::TaskContainerExited { .. }
@@ -545,6 +616,7 @@ pub async fn run(
     mut config: Config,
     colorize: bool,
     handle: FileReloadHandle,
+    filter_handle: FilterReloadHandle,
 ) -> CommandResult<()> {
     let source = match args.source {
         Source::Directory(ref dir) => {
@@ -552,6 +624,16 @@ pub async fn run(
         }
         ref other => other.clone(),
     };
+
+    if args.show_task_stderr {
+        filter_handle
+            .modify(|filter| {
+                let current_directives = filter.to_string();
+                *filter = EnvFilter::builder()
+                    .parse_lossy(format!("{},task-stderr=debug", current_directives));
+            })
+            .context("failed to modify tracing filter")?;
+    }
 
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     args.apply_engine_config(&mut config.run.engine);
@@ -561,7 +643,7 @@ pub async fn run(
 
     let results = Analysis::default()
         .add_source(source.clone())
-        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
+        .fallback_version(config.common.wdl.fallback_version.into())
         .init({
             let progress_bar = progress_bar.clone();
 
@@ -641,7 +723,13 @@ pub async fn run(
         setup_run_context(handle, &args, &config, &source, &target, &inputs).await?;
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
-    let events = Events::new(config.run.events_capacity);
+    let events = Events::new(
+        config
+            .run
+            .events_capacity
+            .try_into()
+            .context("invalid events capacity")?,
+    );
     let transfer_progress = tokio::spawn(cloud_copy::cli::handle_events(
         events
             .subscribe_transfer()
@@ -651,6 +739,7 @@ pub async fn run(
     ));
     let crankshaft_progress = tokio::spawn(progress(
         progress_bar,
+        args.show_task_stderr,
         colorize,
         target.clone(),
         events

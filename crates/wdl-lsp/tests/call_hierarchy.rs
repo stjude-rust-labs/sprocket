@@ -17,7 +17,7 @@ use async_lsp::lsp_types::request::CallHierarchyPrepare;
 
 use crate::common::TestContext;
 
-mod common;
+pub mod common;
 
 // textDocument/prepareCallHierarchy
 async fn call_hierarchy_request(

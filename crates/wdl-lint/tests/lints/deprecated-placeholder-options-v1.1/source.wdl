@@ -1,6 +1,6 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, ShellCheck, EmptyOutputs
-
 ## This is a test of the `DeprecatedPlaceholder` lint.
+
+#@ except: EmptyOutputs, ExpectedRuntimeKeys, MetaDescription, ShellCheck
 
 version 1.1
 
@@ -36,16 +36,31 @@ task a_better_task {
     String bar = "bar"
 
     String good_sep_option = "~{sep(",", numbers)}"
-    String good_true_false_option = "~{if allow_foo then "--enable-foo" else ""}"
-    String good_default_option = "~{select_first([bar, "false"])}"
+    String good_true_false_option = "~{if allow_foo
+        then "--enable-foo"
+        else ""
+    }"
+    String good_default_option = "~{select_first([
+        bar,
+        "false",
+    ])}"
     String good_interpolation_option = "~{bar}"
 
     command <<<
         python script.py ~{sep(" ", numbers)}
-        example-command ~{if allow_foo then "--enable-foo" else ""}
-        another-command ~{select_first([bar, "foobar"])}
+        example-command ~{if allow_foo
+            then "--enable-foo"
+            else ""
+        }
+        another-command ~{select_first([
+            bar,
+            "foobar",
+        ])}
         # OR also equivalent
-        another-command ~{if defined(bar) then bar else "foobar"}
+        another-command ~{if defined(bar)
+            then bar
+            else "foobar"
+        }
     >>>
 
     output {}

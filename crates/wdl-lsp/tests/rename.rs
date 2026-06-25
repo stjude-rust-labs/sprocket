@@ -3,7 +3,7 @@
 use async_lsp::lsp_types::*;
 use pretty_assertions::assert_eq;
 
-mod common;
+pub mod common;
 use async_lsp::lsp_types::request::Rename;
 use common::TestContext;
 
@@ -174,11 +174,11 @@ async fn should_rename_enum() {
 }
 
 #[tokio::test]
-async fn should_rename_enum_variant() {
+async fn should_rename_enum_choice() {
     let mut ctx = TestContext::new("rename");
     ctx.initialize().await;
 
-    // Position of `Active` in variant definition
+    // Position of `Active` in choice definition
     let edit = rename_request(&mut ctx, "enum.wdl", Position::new(3, 4), "Running")
         .await
         .expect("request should succeed")
@@ -189,5 +189,5 @@ async fn should_rename_enum_variant() {
         .get(&ctx.doc_uri("enum.wdl"))
         .expect("should have edits for enum.wdl");
 
-    assert_eq!(edits.len(), 2); // variant definition + one usage
+    assert_eq!(edits.len(), 2); // choice definition + one usage
 }

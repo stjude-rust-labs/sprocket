@@ -3,6 +3,8 @@
 version 1.1
 
 task test {
+    command <<<>>>
+
     runtime {
         foo: "first"
         bar: "first"
@@ -12,16 +14,14 @@ task test {
         bar: "dup"
         foo: "dup"
     }
-
-    command <<<>>>
 }
 
 # Check for duplicated aliases in the runtime section.
 task test2 {
+    command <<<>>>
+
     runtime {
         docker: "foo"
         container: "bar"
     }
-
-    command <<<>>>
 }

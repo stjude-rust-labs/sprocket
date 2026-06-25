@@ -24,7 +24,7 @@ const DEFAULT_ARENA_CONFIG_FILE: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/Ar
 #[derive(Debug)]
 pub enum Error {
     /// An error serializing TOML.
-    DeserializeToml(toml::de::Error),
+    DeserializeToml(toml_spanner::FromTomlError),
 
     /// An input/output error.
     InputOutput(std::io::Error),
@@ -34,7 +34,7 @@ pub enum Error {
     SaveOnAnonymousConfig,
 
     /// An error serializing TOML.
-    SerializeToml(toml::ser::Error),
+    SerializeToml(toml_spanner::ToTomlError),
 }
 
 impl std::fmt::Display for Error {
@@ -128,7 +128,7 @@ impl Config {
 
         debug!("loading from {}.", path.display());
         let contents = std::fs::read_to_string(&path).map_err(Error::InputOutput)?;
-        let mut inner: Inner = toml::from_str(&contents).map_err(Error::DeserializeToml)?;
+        let mut inner: Inner = toml_spanner::from_str(&contents).map_err(Error::DeserializeToml)?;
         inner.sort();
 
         let result = Self {
@@ -168,7 +168,7 @@ impl Config {
             }
 
             let mut file = File::create(path).map_err(Error::InputOutput)?;
-            let contents = toml::to_string_pretty(&self.inner).map_err(Error::SerializeToml)?;
+            let contents = toml_spanner::to_string(&self.inner).map_err(Error::SerializeToml)?;
 
             write!(file, "{contents}").map_err(Error::InputOutput)
         } else {
@@ -181,7 +181,7 @@ impl std::str::FromStr for Config {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        let inner = toml::from_str(s).map_err(Error::DeserializeToml)?;
+        let inner = toml_spanner::from_str(s).map_err(Error::DeserializeToml)?;
         Ok(Self { path: None, inner })
     }
 }

@@ -1,5 +1,6 @@
-#@ except: UnusedDeclaration
 ## This is a test of a type mismatch for the negation operator.
+
+#@ except: UnusedDeclaration
 
 version 1.1
 

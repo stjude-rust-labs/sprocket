@@ -120,7 +120,7 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     let config_path = test.join("config.toml");
     if config_path.exists() {
         let config_str = fs::read_to_string(&config_path)?;
-        let config = toml::from_str(&config_str)?;
+        let config = toml_spanner::from_str(&config_str)?;
 
         run_test_inner(test, "source.errors.default", Config::default()).await?;
         run_test_inner(test, "source.errors", config).await?;

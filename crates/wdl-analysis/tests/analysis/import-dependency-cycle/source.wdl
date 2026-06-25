@@ -4,5 +4,4 @@ version 1.1
 
 import "foo.wdl"
 
-workflow test {
-}
+workflow test {}

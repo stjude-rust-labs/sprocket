@@ -1,7 +1,6 @@
 //! Server configuration validation tests.
 
 use anyhow::Result;
-use sprocket::MaxConcurrentRuns;
 use sprocket::ServerConfig;
 use tempfile::TempDir;
 
@@ -15,7 +14,7 @@ fn make_config(
         output_dir: output_directory,
         allowed_file_paths,
         allowed_urls,
-        max_concurrent_runs: MaxConcurrentRuns::try_new(max_concurrent_runs).unwrap(),
+        max_concurrent_runs: max_concurrent_runs.into(),
         ..Default::default()
     }
 }
