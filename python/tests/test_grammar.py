@@ -1,4 +1,4 @@
-from sprocket_bio.grammar import Diagnostic, Label, Span
+from sprocket_bio.grammar import Diagnostic, Label, Span, Severity
 
 import pytest
 
@@ -7,12 +7,21 @@ def test_diagnostic_builder():
     d = (
         Diagnostic.error("an error occurred")
         .with_highlight(Span(2, 3))
+        .with_label("custom label", Span(0, 2))
         .with_fix("don't do that")
+        .with_help("helpful help")
+        .with_rule("LintRule")
     )
 
+    assert d.severity is Severity.ERROR
     assert d.message == "an error occurred"
-    assert d.labels == [Label("", Span(2, 3))]
+    assert sorted(d.labels) == [
+        Label("custom label", Span(0, 2)),
+        Label("", Span(2, 3)),
+    ]
     assert d.fix == "don't do that"
+    assert d.help == "helpful help"
+    assert d.rule == "LintRule"
 
 
 def test_label_new():
