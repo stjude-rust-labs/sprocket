@@ -14,12 +14,10 @@ pub fn init_corpus_dir(target: &str) -> std::io::Result<()> {
     let corpus_dir = Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("corpus")
         .join(target);
-    if let Err(e) = std::fs::create_dir_all(&corpus_dir) {
-        if e.kind() == ErrorKind::AlreadyExists {
-            return Ok(());
-        }
+    std::fs::create_dir_all(&corpus_dir)?;
 
-        return Err(e);
+    if std::fs::read_dir(corpus_dir)?.count() > 0 {
+        return Ok(());
     }
 
     let project_root = Path::new(env!("CARGO_MANIFEST_DIR")).parent().unwrap();

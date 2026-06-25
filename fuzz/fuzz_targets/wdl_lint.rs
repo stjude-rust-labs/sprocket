@@ -64,8 +64,12 @@ fuzz_target!(
 
         let ctx = CONTEXT.get().expect("context should be initialized");
         let _ = ctx.runtime.block_on(async {
+            let url = Url::from_file_path(file.path()).unwrap();
+            if ctx.analyzer.add_document(url.clone()).await.is_err() {
+                return;
+            }
             ctx.analyzer
-                .analyze_document((), Url::from_file_path(file.path()).unwrap())
+                .analyze_document((), url)
                 .await
         });
     }
