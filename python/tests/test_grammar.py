@@ -104,3 +104,10 @@ def test_span_ord() -> None:
 
     assert lesser < greater
     assert greater > lesser
+
+
+def test_span_overflow() -> None:
+    with pytest.raises(
+        OverflowError, match="sum of `start` and `len` is greater than or equal to"
+    ):
+        Span(2**64 - 1, 1)

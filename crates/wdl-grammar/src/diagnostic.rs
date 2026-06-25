@@ -508,6 +508,7 @@ impl Label {
 /// Python-specific APIs.
 #[cfg(feature = "unstable-python")]
 mod python {
+    use pyo3::exceptions::PyOverflowError;
     use pyo3::prelude::*;
 
     use super::*;
@@ -515,9 +516,23 @@ mod python {
     #[pymethods]
     impl Span {
         /// Creates a new span from the given start and length.
+        ///
+        /// # Errors
+        ///
+        /// This method will throw an `OverflowError` if the sum of `start` and
+        /// `len` is greater than or equal to 2^64 on 64-bit platforms and 2^32
+        /// on 32-bit platforms.
         #[new]
-        fn __new__(start: usize, len: usize) -> Self {
-            Self::new(start, len)
+        fn __new__(start: usize, len: usize) -> PyResult<Self> {
+            Ok(Self {
+                start,
+                end: start.checked_add(len).ok_or_else(|| {
+                    PyOverflowError::new_err(format!(
+                        "the sum of `start` and `len` is greater than or equal to 2^{}",
+                        usize::BITS
+                    ))
+                })?,
+            })
         }
 
         /// Gets the length of the span.
