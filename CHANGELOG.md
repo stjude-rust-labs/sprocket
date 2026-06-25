@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * `sprocket dev server` will canonicalize paths passed as CLI arguments ([#913](https://github.com/stjude-rust-labs/sprocket/pull/913))
+* Fixed `#@ except: ContainerUri` not being honored when placed on individual `container:`/`docker:` entries within `requirements` and `runtime` sections ([#879](https://github.com/stjude-rust-labs/sprocket/issues/879)).
 
 ## 0.26.0 - 2026-06-03
 
