@@ -3,7 +3,7 @@ from sprocket_bio.grammar import Diagnostic, Span
 from sprocket_bio.diagnostics import Mode, emit_diagnostics
 
 
-def test_mode_eq():
+def test_mode_eq() -> None:
     assert Mode.FULL == Mode.FULL
     assert Mode.ONE_LINE == Mode.ONE_LINE
     assert Mode.FULL != Mode.ONE_LINE
@@ -26,7 +26,7 @@ struct Test {
         "struct `Test` must have at least one declared member"
     ).with_label("this struct cannot be empty", Span(66, 4))
 
-    def test_full(self, capfd: CaptureFixture[str]):
+    def test_full(self, capfd: CaptureFixture[str]) -> None:
         # Emit the diagnostic to stderr.
         emit_diagnostics(self.path, self.source, [self.diagnostic], Mode.FULL, False)
 
@@ -44,7 +44,7 @@ error: struct `Test` must have at least one declared member
 
         assert captured.err == expected
 
-    def test_one_line(self, capfd: CaptureFixture[str]):
+    def test_one_line(self, capfd: CaptureFixture[str]) -> None:
         # Emit the diagnostic to stderr.
         emit_diagnostics(
             self.path, self.source, [self.diagnostic], Mode.ONE_LINE, False

@@ -3,7 +3,7 @@ from sprocket_bio.grammar import Diagnostic, Label, Span, Severity
 import pytest
 
 
-def test_diagnostic_builder():
+def test_diagnostic_builder() -> None:
     d = (
         Diagnostic.error("an error occurred")
         .with_highlight(Span(2, 3))
@@ -24,7 +24,7 @@ def test_diagnostic_builder():
     assert d.rule == "LintRule"
 
 
-def test_diagnostic_eq():
+def test_diagnostic_eq() -> None:
     a = Diagnostic.note("a note").with_highlight(Span(3, 5))
     b = Diagnostic.note("a note").with_highlight(Span(3, 5))
     c = Diagnostic.warning("a note").with_highlight(Span(3, 5))
@@ -34,20 +34,20 @@ def test_diagnostic_eq():
     assert a != c
 
 
-def test_label_new():
+def test_label_new() -> None:
     label = Label("My message", Span(0, 10))
 
     assert label.message == "My message"
     assert label.span == Span(0, 10)
 
 
-def test_severity_ordering():
+def test_severity_ordering() -> None:
     assert Severity.ERROR < Severity.WARNING
     assert Severity.WARNING < Severity.NOTE
     assert Severity.ERROR < Severity.NOTE
 
 
-def test_span_getters():
+def test_span_getters() -> None:
     x = Span(3, 10)
 
     assert x.start == 3
@@ -60,19 +60,19 @@ def test_span_getters():
         x.end = 0
 
 
-def test_span_len():
+def test_span_len() -> None:
     x = Span(5, 10)
 
     assert x.len() == 10
     assert len(x) == 10
 
 
-def test_span_is_empty():
+def test_span_is_empty() -> None:
     x = Span(1, 0)
     assert x.is_empty()
 
 
-def test_span_contains():
+def test_span_contains() -> None:
     x = Span(3, 3)
 
     assert not x.contains(2)
@@ -81,14 +81,14 @@ def test_span_contains():
     assert not x.contains(6)
 
 
-def test_span_intersect():
+def test_span_intersect() -> None:
     x = Span(0, 5)
     y = Span(3, 4)
 
     assert x.intersect(y) == Span(3, 2)
 
 
-def test_span_eq():
+def test_span_eq() -> None:
     a = Span(2, 3)
     b = Span(2, 3)
     c = Span(3, 0)
@@ -98,7 +98,7 @@ def test_span_eq():
     assert a != c
 
 
-def test_span_ord():
+def test_span_ord() -> None:
     lesser = Span(3, 2)
     greater = Span(8, 2)
 
