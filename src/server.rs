@@ -21,12 +21,12 @@ use crate::system::v1::exec::svc::RunManagerSvc;
 mod api;
 
 pub use api::AppState;
-pub use api::v1::info::ServerFailureMode;
-pub use api::v1::paths;
 pub(crate) use api::v1::RunStatus;
 pub(crate) use api::v1::TaskStatus;
 pub(crate) use api::v1::error::ErrorResponse;
+pub use api::v1::info::ServerFailureMode;
 pub(crate) use api::v1::info::ServerInfoResponse;
+pub use api::v1::paths;
 pub(crate) use api::v1::runs::CancelRunResponse;
 pub(crate) use api::v1::runs::ListRunsResponse;
 pub(crate) use api::v1::runs::RunResponse;
@@ -55,8 +55,7 @@ pub fn create_router(state: AppState, cors_layer: CorsLayer) -> Router {
 
     Router::new()
         .merge(
-            SwaggerUi::new(paths::SWAGGER_UI)
-                .url(paths::OPENAPI_JSON, api::v1::ApiDoc::openapi()),
+            SwaggerUi::new(paths::SWAGGER_UI).url(paths::OPENAPI_JSON, api::v1::ApiDoc::openapi()),
         )
         .nest("/api", api::create_router(state))
         .layer(cors_layer)

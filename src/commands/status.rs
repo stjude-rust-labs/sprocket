@@ -175,10 +175,7 @@ async fn status_list(
     let mut all_runs = Vec::new();
 
     loop {
-        let mut url = format!(
-            "{base_url}{path}?limit={limit}",
-            path = paths::LIST_RUNS,
-        );
+        let mut url = format!("{base_url}{path}?limit={limit}", path = paths::LIST_RUNS,);
         if let Some(s) = &status_filter {
             url.push_str(&format!("&status={s}"));
         }

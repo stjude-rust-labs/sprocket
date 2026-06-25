@@ -94,10 +94,7 @@ pub fn create_router(state: AppState) -> Router {
             post(submit_run).get(list_runs),
         )
         .route(paths::route_template(paths::GET_RUN), get(get_run))
-        .route(
-            paths::route_template(paths::CANCEL_RUN),
-            post(cancel_run),
-        )
+        .route(paths::route_template(paths::CANCEL_RUN), post(cancel_run))
         .route(
             paths::route_template(paths::GET_RUN_OUTPUTS),
             get(get_run_outputs),
@@ -114,10 +111,7 @@ pub fn create_router(state: AppState) -> Router {
             paths::route_template(paths::LIST_SESSIONS),
             get(list_sessions),
         )
-        .route(
-            paths::route_template(paths::GET_SESSION),
-            get(get_session),
-        )
+        .route(paths::route_template(paths::GET_SESSION), get(get_session))
         .route(paths::route_template(paths::LIST_TASKS), get(list_tasks))
         .route(paths::route_template(paths::GET_TASK), get(get_task))
         .route(

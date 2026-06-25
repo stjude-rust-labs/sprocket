@@ -208,7 +208,10 @@ mod tests {
         let id_str = id.to_string();
         assert_eq!(get_run(id), format!("/api/v1/runs/{id_str}"));
         assert_eq!(cancel_run(id), format!("/api/v1/runs/{id_str}/cancel"));
-        assert_eq!(get_run_outputs(id), format!("/api/v1/runs/{id_str}/outputs"));
+        assert_eq!(
+            get_run_outputs(id),
+            format!("/api/v1/runs/{id_str}/outputs")
+        );
         assert_eq!(localize_run(id), format!("/api/v1/runs/{id_str}/localize"));
         assert_eq!(list_run_tasks(id), format!("/api/v1/runs/{id_str}/tasks"));
         assert_eq!(

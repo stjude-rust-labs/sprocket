@@ -373,9 +373,12 @@ async fn list_run_tasks_filters_by_status(pool: sqlx::SqlitePool) {
     }
 
     // Single-row statuses.
-    for (status_param, expected_name) in
-        [("running", "s3"), ("completed", "s4"), ("failed", "s5"), ("canceled", "s6")]
-    {
+    for (status_param, expected_name) in [
+        ("running", "s3"),
+        ("completed", "s4"),
+        ("failed", "s5"),
+        ("canceled", "s6"),
+    ] {
         let (resp_status, body) =
             list_run_tasks(&app, run_id, &format!("status={status_param}")).await;
         assert_eq!(resp_status, StatusCode::OK);
@@ -390,7 +393,12 @@ async fn list_run_tasks_filters_by_status(pool: sqlx::SqlitePool) {
     let (status, body) = list_run_tasks(&app, run_id, "status=preempted").await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["total"], 0);
-    assert!(body["tasks"].as_array().expect("tasks should be an array").is_empty());
+    assert!(
+        body["tasks"]
+            .as_array()
+            .expect("tasks should be an array")
+            .is_empty()
+    );
 }
 
 #[sqlx::test]
@@ -450,9 +458,15 @@ async fn list_run_tasks_paginates(pool: sqlx::SqlitePool) {
     all_names.extend(names_of(&page2));
     all_names.extend(names_of(&page3));
     let unique: std::collections::HashSet<&String> = all_names.iter().collect();
-    assert_eq!(unique.len(), all_names.len(), "duplicates across pages: {all_names:?}");
-    let expected: std::collections::HashSet<String> =
-        ["t1", "t2", "t3", "t4", "t5"].into_iter().map(String::from).collect();
+    assert_eq!(
+        unique.len(),
+        all_names.len(),
+        "duplicates across pages: {all_names:?}"
+    );
+    let expected: std::collections::HashSet<String> = ["t1", "t2", "t3", "t4", "t5"]
+        .into_iter()
+        .map(String::from)
+        .collect();
     let returned: std::collections::HashSet<String> = all_names.into_iter().collect();
     assert_eq!(returned, expected);
 }
@@ -467,7 +481,12 @@ async fn list_run_tasks_unknown_run_returns_empty(pool: sqlx::SqlitePool) {
     // Mirrors `GET /runs/{id}/tasks/counts`: unknown runs are not an error.
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["total"], 0);
-    assert!(body["tasks"].as_array().expect("tasks should be an array").is_empty());
+    assert!(
+        body["tasks"]
+            .as_array()
+            .expect("tasks should be an array")
+            .is_empty()
+    );
     assert!(
         body["next_token"].is_null(),
         "expected absent `next_token`, got {}",
