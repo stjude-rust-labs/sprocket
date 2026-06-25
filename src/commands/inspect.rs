@@ -253,8 +253,8 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
         status_str
     };
 
-    field!("Name:", run.name);
-    field!("UUID:", run.uuid);
+    field!("Name:", format!("`{}`", run.name));
+    field!("UUID:", format!("`{}`", run.uuid));
     field!("Status:", status_display);
 
     if let Some(summary) = task_counts_summary(&counts, colorize) {
@@ -262,10 +262,10 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
     }
 
     if let Some(target) = &run.target {
-        field!("Target:", target);
+        field!("Target:", format!("`{target}`"));
     }
 
-    field!("Source:", run.source);
+    field!("Source:", format!("`{}`", run.source));
     field!("Created:", run.created_at.format("%Y-%m-%d %H:%M:%S UTC"));
 
     if let Some(started_at) = run.started_at {
@@ -276,15 +276,14 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
         field!("Completed:", completed_at.format("%Y-%m-%d %H:%M:%S UTC"));
     }
 
-    if let Some(directory) = &run.directory {
-        field!("Directory:", directory);
+        field!("Directory:", format!("`{directory}`"));
 
         // Note the outputs file location if outputs are available.
         if run.outputs.is_some() {
             let outputs_path = std::path::Path::new(directory).join("outputs.json");
             field!(
                 "Outputs:",
-                format!("available at {}", outputs_path.display())
+                format!("available at `{}`", outputs_path.display())
             );
         }
     }

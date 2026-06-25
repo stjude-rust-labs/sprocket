@@ -47,7 +47,7 @@ pub async fn cancel(args: Args, config: Config) -> CommandResult<()> {
         .context("failed to deserialize cancel response")?;
 
     println!(
-        "Run {uuid} has been signaled for cancellation.",
+        "Run `{uuid}` has been signaled for cancellation.",
         uuid = body.uuid,
     );
     println!(

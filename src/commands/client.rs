@@ -179,7 +179,7 @@ pub async fn resolve_run_id(input: &str, base_url: &str) -> CommandResult<Uuid> 
         _ => {
             let ids = matches
                 .iter()
-                .map(|u| u.to_string())
+                .map(|u| format!("`{u}`"))
                 .collect::<Vec<_>>()
                 .join(", ");
             Err(CommandError::Single(anyhow::anyhow!(
