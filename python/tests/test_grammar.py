@@ -54,10 +54,10 @@ def test_span_getters() -> None:
     assert x.end == 13
 
     with pytest.raises(AttributeError, match="is not writable"):
-        x.start = 0
+        x.start = 0  # type: ignore # purposefully assigning to a constant
 
     with pytest.raises(AttributeError, match="is not writable"):
-        x.end = 0
+        x.end = 0  # type: ignore # purposefully assigning to a constant
 
 
 def test_span_len() -> None:

@@ -1,13 +1,14 @@
+from collections.abc import Sequence
 import typing
 
 @typing.final
 class Diagnostic:
-    rule: str | None
-    severity: Severity
-    message: str
-    help: str | None
-    fix: str | None
-    labels: list[Label]
+    rule: typing.Final[str | None]
+    severity: typing.Final[Severity]
+    message: typing.Final[str]
+    help: typing.Final[str | None]
+    fix: typing.Final[str | None]
+    labels: Sequence[Label]
 
     @staticmethod
     def error(message: str) -> Diagnostic: ...
@@ -28,8 +29,8 @@ class Diagnostic:
 
 @typing.final
 class Label:
-    message: str
-    span: Span
+    message: typing.Final[str]
+    span: typing.Final[Span]
 
     def __new__(cls, message: str, span: Span) -> Label: ...
     def __lt__(self, other: typing.Any, /) -> bool: ...
@@ -50,8 +51,8 @@ class Severity:
 
 @typing.final
 class Span:
-    start: int
-    end: int
+    start: typing.Final[int]
+    end: typing.Final[int]
 
     def __new__(cls, start: int, len: int) -> Span: ...
     def len(self) -> int: ...
