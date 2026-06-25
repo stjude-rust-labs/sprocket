@@ -34,7 +34,7 @@ use crate::parser::Parser;
         module = "sprocket_bio.grammar",
         frozen,
         rename_all = "SCREAMING_SNAKE_CASE",
-        skip_from_py_object,
+        from_py_object,
         eq,
         ord,
         hash

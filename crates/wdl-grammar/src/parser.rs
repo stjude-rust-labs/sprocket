@@ -11,6 +11,8 @@ use std::ops::DerefMut;
 
 use indexmap::IndexSet;
 use logos::Logos;
+#[cfg(feature = "unstable-python")]
+pub use python::PyEvent;
 
 use super::Diagnostic;
 use super::Span;
@@ -1284,6 +1286,100 @@ where
         }
 
         None
+    }
+}
+
+#[cfg(feature = "unstable-python")]
+mod python {
+    use pyo3::IntoPyObjectExt;
+    use pyo3::prelude::*;
+    use pyo3::types::PyType;
+
+    use crate::Span;
+    use crate::SyntaxKind;
+    use crate::parser::Event;
+
+    /// Represents an event produced by the parser.
+    ///
+    /// The parser produces a stream of events that can be used to construct
+    /// a CST.
+    #[pyclass(module = "sprocket_bio.grammar.parser", name = "Event", eq)]
+    #[derive(PartialEq)]
+    #[expect(missing_debug_implementations)]
+    pub enum PyEvent {
+        /// A new node has started.
+        NodeStarted {
+            /// The kind of the node.
+            kind: SyntaxKind,
+            /// For left-recursive syntactic constructs, the parser produces
+            /// a child node before it sees a parent. `forward_parent`
+            /// saves the position of current event's parent.
+            forward_parent: Option<usize>,
+        },
+
+        /// A node has finished.
+        NodeFinished(),
+
+        /// A token was encountered.
+        Token {
+            /// The syntax kind of the token.
+            kind: SyntaxKind,
+            /// The source span of the token.
+            span: Span,
+        },
+    }
+
+    #[pymethods]
+    impl PyEvent {
+        /// Gets an start node event for an abandoned node.
+        #[classmethod]
+        fn abandoned(_cls: &Bound<'_, PyType>) -> Self {
+            Self::from_event(Event::abandoned())
+        }
+
+        /// Returns a printable representation of this object.
+        fn __repr__(&self, py: Python<'_>) -> PyResult<String> {
+            match self {
+                Self::NodeStarted {
+                    kind,
+                    forward_parent,
+                } => Ok(format!(
+                    "Event.NodeStarted({}, {})",
+                    // Equivalent to `repr(SyntaxKind)`.
+                    kind.into_bound_py_any(py)?.repr()?.to_str()?,
+                    // If `forward_parent` is `Some` write the plain integer, else write "None".
+                    std::fmt::from_fn(|f| match forward_parent {
+                        Some(forward_parent) => write!(f, "{forward_parent}"),
+                        None => write!(f, "None"),
+                    }),
+                )),
+                Self::NodeFinished() => Ok("Event.NodeFinished()".to_owned()),
+                Self::Token { kind, span } => Ok(format!(
+                    "Event.Token({}, {})",
+                    // Equivalent to `repr(SyntaxKind)`.
+                    kind.into_bound_py_any(py)?.repr()?.to_str()?,
+                    span.__repr__(),
+                )),
+            }
+        }
+    }
+
+    /// Internal utilities not exposed to Python.
+    impl PyEvent {
+        /// Converts an [`Event`] into a [`PyEvent`].
+        pub(crate) fn from_event(event: Event) -> Self {
+            match event {
+                Event::NodeStarted {
+                    kind,
+                    forward_parent,
+                } => Self::NodeStarted {
+                    kind,
+                    forward_parent,
+                },
+                Event::NodeFinished => Self::NodeFinished(),
+                Event::Token { kind, span } => Self::Token { kind, span },
+            }
+        }
     }
 }
 

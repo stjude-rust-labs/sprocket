@@ -2,6 +2,8 @@ import typing
 
 from collections.abc import Sequence
 
+from . import parser
+
 @typing.final
 class Diagnostic:
     rule: typing.Final[str | None]
@@ -257,4 +259,4 @@ class SyntaxKind:
     def __gt__(self, other: typing.Any, /) -> bool: ...
     def __ge__(self, other: typing.Any, /) -> bool: ...
 
-__all__ = ["Diagnostic", "Label", "Severity", "Span", "SyntaxKind"]
+__all__ = ["Diagnostic", "Label", "Severity", "Span", "SyntaxKind", "parser"]
