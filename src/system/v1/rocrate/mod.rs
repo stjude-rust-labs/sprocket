@@ -1,10 +1,13 @@
 //! Workflow Run RO-Crate emission for completed runs.
 
+mod build;
 mod context;
 mod formal;
 mod source;
 mod value;
 
+pub use build::add_workflow_parts;
+pub use build::build_run_crate;
 pub use context::EngineInfo;
 pub use context::RunCrateContext;
 pub use formal::formal_parameter;

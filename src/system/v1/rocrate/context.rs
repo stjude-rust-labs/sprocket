@@ -53,6 +53,17 @@ pub struct RunCrateContext<'a> {
     pub engine: EngineInfo,
 }
 
+impl RunCrateContext<'_> {
+    /// Iterates the realized inputs as `(name, value)`, flattening the
+    /// task/workflow `Inputs` enum.
+    pub fn inputs_iter(&self) -> Box<dyn Iterator<Item = (&str, &wdl::engine::Value)> + '_> {
+        match self.inputs {
+            wdl::engine::Inputs::Task(t) => Box::new(t.iter()),
+            wdl::engine::Inputs::Workflow(w) => Box::new(w.iter()),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
