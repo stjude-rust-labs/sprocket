@@ -2,7 +2,7 @@ version 1.3
 
 ## An RGB24 color enum
 ##
-## Each variant is represented as a 24-bit hexadecimal RGB string with exactly one non-zero channel.
+## Each choice is represented as a 24-bit hexadecimal RGB string with exactly one non-zero channel.
 enum Color[String] {
     ## Pure red
     Red = "#FF0000",
