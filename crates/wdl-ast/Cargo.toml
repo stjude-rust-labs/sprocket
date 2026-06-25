@@ -10,6 +10,13 @@ homepage.workspace = true
 repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-ast"
 documentation = "https://docs.rs/wdl-ast"
 
+[features]
+# Enables APIs related to Sprocket's Python bindings.
+#
+# This feature is not subject to `wdl-ast`'s semver guarantees. There may be breaking changes
+# across patch versions. Use at your own risk.
+unstable-python = ["wdl-grammar/unstable-python"]
+
 [dependencies]
 macropol = { workspace = true }
 paste = { workspace = true }

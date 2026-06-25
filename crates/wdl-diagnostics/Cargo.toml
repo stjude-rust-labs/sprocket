@@ -16,7 +16,7 @@ backtrace = ["dep:wdl-engine"]
 #
 # This feature is not subject to `wdl-diagnostics`'s semver guarantees. There may be breaking
 # changes across patch versions. Use at your own risk.
-unstable-python = ["dep:pyo3"]
+unstable-python = ["dep:pyo3", "wdl-ast/unstable-python"]
 
 [dependencies]
 anyhow.workspace = true
