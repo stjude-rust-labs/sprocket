@@ -1,4 +1,4 @@
-Fuzz targets for the `*-wdl` crates.
+Fuzz targets for the `wdl-*` crates.
 
 These are intended to be run with [cargo-fuzz](https://github.com/rust-fuzz/cargo-fuzz).
 
