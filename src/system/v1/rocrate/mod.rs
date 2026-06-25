@@ -169,4 +169,119 @@ mod tests {
         };
         assert!(validate(&crate_).is_err());
     }
+
+    /// End-to-end: analyze a tiny workflow, build a `RunCrateContext` from
+    /// hand-built provenance, and assert the written crate is well-formed. Uses
+    /// the real analyzer; no execution backend (and thus no Docker) is required.
+    #[tokio::test]
+    async fn writes_workflow_run_crate_end_to_end() {
+        use std::str::FromStr as _;
+
+        use chrono::Utc;
+        use uuid::Uuid;
+        use wdl::engine::Inputs;
+        use wdl::engine::Outputs;
+        use wdl::engine::WorkflowInputs;
+
+        use crate::analysis::Source;
+        use crate::commands::validate::analyze_source;
+        use crate::system::v1::db::models::Run;
+        use crate::system::v1::db::models::RunStatus;
+        use crate::system::v1::db::models::Session;
+        use crate::system::v1::db::models::SprocketCommand;
+        use crate::system::v1::exec::Target;
+        use crate::system::v1::fs::OutputDirectory;
+
+        let dir = tempfile::tempdir().unwrap();
+        let wdl = dir.path().join("source.wdl");
+        std::fs::write(
+            &wdl,
+            r#"version 1.3
+
+workflow myworkflow {
+    input {
+        String greeting = "hi"
+    }
+
+    output {
+        String message = greeting
+    }
+}
+"#,
+        )
+        .unwrap();
+
+        let source = Source::from_str(wdl.to_str().unwrap()).unwrap();
+        let document = analyze_source(&source, None)
+            .await
+            .expect("analysis should succeed");
+
+        let output_dir = OutputDirectory::new(dir.path().join("out"));
+        let run_dir = output_dir.ensure_workflow_run("myworkflow").unwrap();
+
+        let now = Utc::now();
+        let session = Session {
+            uuid: Uuid::new_v4(),
+            subcommand: SprocketCommand::Run,
+            created_by: "tester".to_string(),
+            created_at: now,
+        };
+        let run = Run {
+            uuid: Uuid::new_v4(),
+            session_uuid: session.uuid,
+            name: "tiny-run".to_string(),
+            source: "source.wdl".to_string(),
+            target: Some("myworkflow".to_string()),
+            status: RunStatus::Completed,
+            inputs: "{}".to_string(),
+            outputs: Some("{}".to_string()),
+            error: None,
+            directory: Some(run_dir.root().display().to_string()),
+            index_directory: None,
+            started_at: Some(now),
+            completed_at: Some(now),
+            created_at: now,
+        };
+        let target = Target::Workflow("myworkflow".to_string());
+        let inputs = Inputs::Workflow(WorkflowInputs::default());
+        let outputs = Outputs::default();
+
+        let ctx = RunCrateContext {
+            run: &run,
+            session: Some(&session),
+            document: &document,
+            target: &target,
+            inputs: &inputs,
+            outputs: &outputs,
+            run_dir: &run_dir,
+            engine: EngineInfo::from_build(),
+        };
+
+        write_run_crate(&ctx, &RoCrateOptions::from_flags(true, false, false, false))
+            .expect("should write the crate");
+
+        let meta = run_dir.root().join(METADATA_FILE);
+        assert!(meta.exists(), "metadata file should exist");
+
+        let text = std::fs::read_to_string(&meta).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+        let graph = json["@graph"].as_array().expect("@graph array");
+        let run_action = graph
+            .iter()
+            .find(|e| e["@id"] == "#run")
+            .expect("#run entity");
+        assert_eq!(run_action["@type"], "CreateAction");
+
+        for marker in [
+            "https://w3id.org/ro/wfrun/workflow/0.1",
+            "https://w3id.org/workflowhub/workflow-ro-crate/1.0",
+            ROCRATE_CONTEXT,
+            WFRUN_CONTEXT,
+        ] {
+            assert!(text.contains(marker), "crate should reference `{marker}`");
+        }
+
+        // The WDL source is materialized into the crate.
+        assert!(run_dir.root().join(WORKFLOW_ID).exists());
+    }
 }
