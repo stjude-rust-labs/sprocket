@@ -1,10 +1,12 @@
 //! Workflow Run RO-Crate emission for completed runs.
 
 mod context;
+mod formal;
 mod value;
 
 pub use context::EngineInfo;
 pub use context::RunCrateContext;
+pub use formal::formal_parameter;
 pub use value::value_to_entities;
 
 /// Controls whether and how a run emits an RO-Crate.
