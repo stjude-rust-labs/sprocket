@@ -1,0 +1,294 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sprocket test definitions",
+  "description": "JSON schema for `sprocket` test definition YAML files.",
+  "type": "object",
+  "additionalProperties": {
+    "type": "array",
+    "items": {
+      "$ref": "#/$defs/TestDefinition"
+    }
+  },
+  "$defs": {
+    "TestDefinition": {
+      "title": "Test definition",
+      "description": "A test definition, defining one or more executions.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "Name for the test.",
+          "type": "string"
+        },
+        "tags": {
+          "description": "Any tags associated with the test.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "inputs": {
+          "description": "Matrix of inputs to combinatorially execute.",
+          "type": "object",
+          "patternProperties": {
+            "^[$].*": {
+              "description": "A grouping of input sequences that will be iterated through together.",
+              "type": "object",
+              "additionalProperties": {
+                "type": "array"
+              }
+            },
+            "^[^$].*": {
+              "description": "Standard inputs that will be combinatorially expanded.",
+              "type": "array"
+            }
+          },
+          "additionalProperties": false,
+          "default": {}
+        },
+        "assertions": {
+          "description": "Assertions (shared for all executions).\n\nIf no assertions defined, it is assumed that failing execution for any\nreason is considered a test fail.",
+          "$ref": "#/$defs/Assertions"
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "Assertions": {
+      "description": "Possible assertions for a test.",
+      "type": "object",
+      "properties": {
+        "exit_code": {
+          "description": "The expected exit code of the task (ignored when testing workflows).\n\nDefaults to `0` if not specified. Cannot be combined with\n`should_fail`.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "int32",
+          "default": null
+        },
+        "should_fail": {
+          "description": "Whether the test is expected to fail.\n\nFor workflows, any failure is expected.\nFor tasks, any nonzero exit code is expected.\nCannot be combined with `exit_code` (any value, including `exit_code:\n0`).",
+          "type": [
+            "boolean",
+            "null"
+          ],
+          "default": null
+        },
+        "stdout": {
+          "description": "Regular expressions that should match within STDOUT of the task (ignored\nwhen testing workflows).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "stderr": {
+          "description": "Regular expressions that should match within STDERR of the task (ignored\nwhen testing workflows).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "outputs": {
+          "description": "Assertions about WDL outputs.",
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "items": {
+              "$ref": "#/$defs/OutputAssertion"
+            }
+          }
+        },
+        "custom": {
+          "description": "A custom command to execute.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "OutputAssertion": {
+      "description": "Possible assertions on a WDL output.",
+      "oneOf": [
+        {
+          "description": "Is the WDL value defined?\n\nOnly supported for optional WDL types.",
+          "type": "object",
+          "properties": {
+            "Defined": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "Defined"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Is the WDL `Boolean` equal to this?",
+          "type": "object",
+          "properties": {
+            "BoolEquals": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "BoolEquals"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Is the WDL `String` equal to this?",
+          "type": "object",
+          "properties": {
+            "StrEquals": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "StrEquals"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Is the WDL `Int` equal to this?",
+          "type": "object",
+          "properties": {
+            "IntEquals": {
+              "type": "integer",
+              "format": "int64"
+            }
+          },
+          "required": [
+            "IntEquals"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Is the WDL `Float` equal to this?",
+          "type": "object",
+          "properties": {
+            "FloatEquals": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          "required": [
+            "FloatEquals"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Does the WDL `String` contain this substring?",
+          "type": "object",
+          "properties": {
+            "Contains": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Contains"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Does the WDL `File` or `Directory` have this basename?",
+          "type": "object",
+          "properties": {
+            "Name": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "Name"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Unpacks the first element of an `Array` and applies the inner assertion.",
+          "type": "object",
+          "properties": {
+            "First": {
+              "$ref": "#/$defs/OutputAssertion"
+            }
+          },
+          "required": [
+            "First"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Unpacks the last element of an `Array` and applies the inner assertion.",
+          "type": "object",
+          "properties": {
+            "Last": {
+              "$ref": "#/$defs/OutputAssertion"
+            }
+          },
+          "required": [
+            "Last"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Does the WDL `String`, `Array`, or `Map` have this length?",
+          "type": "object",
+          "properties": {
+            "Length": {
+              "type": "integer",
+              "format": "uint",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "Length"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Unpacks the left element of a `Pair` and applies the inner assertion.",
+          "type": "object",
+          "properties": {
+            "Left": {
+              "$ref": "#/$defs/OutputAssertion"
+            }
+          },
+          "required": [
+            "Left"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Unpacks the right element of a `Pair` and applies the inner assertion.",
+          "type": "object",
+          "properties": {
+            "Right": {
+              "$ref": "#/$defs/OutputAssertion"
+            }
+          },
+          "required": [
+            "Right"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "description": "Is this WDL `Array`, `Map`, or `String` empty?",
+          "type": "object",
+          "properties": {
+            "Empty": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "Empty"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}
