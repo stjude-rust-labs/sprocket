@@ -17,6 +17,7 @@ use toml_spanner::FromToml;
 use toml_spanner::Item;
 use toml_spanner::Key;
 use toml_spanner::Table;
+use toml_spanner::TableStyle;
 use toml_spanner::ToToml;
 use toml_spanner::ToTomlError;
 use toml_spanner::Toml;
@@ -266,6 +267,7 @@ mod feature_flags {
         arena: &'a Arena,
     ) -> Result<Item<'a>, ToTomlError> {
         let mut table = Table::new();
+        table.set_style(TableStyle::Header);
         table.insert(Key::new("wdl_1_3"), value.wdl_1_3().into(), arena);
         table.insert(Key::new("wdl_1_4"), value.wdl_1_4().into(), arena);
         Ok(table.into_item())
