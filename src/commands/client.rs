@@ -16,6 +16,12 @@ use crate::server::ServerInfoResponse;
 use crate::server::Task;
 use crate::server::paths;
 
+/// The page size requested by the CLI's paginated helpers.
+///
+/// All multi-page fetches use this batch size; the value matches the maximum
+/// page the server is willing to return per the v1 API contract.
+const DEFAULT_PAGE_SIZE: u32 = 100;
+
 /// CLI arguments for connecting to a Sprocket server instance.
 #[derive(ClapArgs, Debug)]
 pub struct ServerConnectionArgs {
@@ -114,7 +120,7 @@ pub async fn fetch_run_tasks(base_url: &str, uuid: Uuid) -> CommandResult<Vec<Ta
 
     loop {
         let mut url = format!(
-            "{base_url}{path}?limit=100",
+            "{base_url}{path}?limit={DEFAULT_PAGE_SIZE}",
             path = paths::list_run_tasks(uuid),
         );
         if let Some(token) = &next_token {
@@ -170,7 +176,7 @@ pub async fn resolve_run_id(input: &str, base_url: &str) -> CommandResult<Uuid> 
 
     loop {
         let mut url = format!(
-            "{base_url}{path}?limit=100",
+            "{base_url}{path}?limit={DEFAULT_PAGE_SIZE}",
             path = paths::LIST_RUNS,
         );
         if let Some(token) = &next_token {
