@@ -59,6 +59,10 @@ pub struct RunManagerSvc {
     config: ServerConfig,
     /// The fallback WDL version for documents with unrecognized versions.
     fallback_version: FallbackVersion,
+    /// Feature flags used during analysis.
+    feature_flags: wdl::analysis::FeatureFlags,
+    /// Module resolver configuration used during analysis.
+    modules_config: wdl_modules::resolver::ModulesConfig,
     /// The output directory root.
     output_dir: OutputDirectory,
     /// A handle to the database.
@@ -86,6 +90,8 @@ impl RunManagerSvc {
     /// Create a new run manager.
     pub fn new(config: Config, db: Arc<dyn Database>, rx: Rx) -> Self {
         let fallback_version = config.common.wdl.fallback_version;
+        let feature_flags = config.common.wdl.feature_flags;
+        let modules_config = config.modules.clone();
         let config = config.server;
         let semaphore = config
             .max_concurrent_runs
@@ -98,6 +104,8 @@ impl RunManagerSvc {
         Self {
             config,
             fallback_version,
+            feature_flags,
+            modules_config,
             output_dir,
             db,
             // NOTE: this is empty upon creation, but it's created lazily upon
@@ -293,6 +301,8 @@ impl RunManagerSvc {
             .run_id(run_id)
             .run_name(run_generated_name.clone())
             .maybe_fallback_version(self.fallback_version.inner().cloned())
+            .feature_flags(self.feature_flags)
+            .modules_config(self.modules_config.clone())
             .source(source)
             .maybe_target(target)
             .inputs(inputs)

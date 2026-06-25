@@ -29,7 +29,7 @@ use wdl::lint::TagSet;
 use crate::IGNORE_FILENAME;
 
 /// The type of the initialization callback.
-type InitCb = Box<dyn Fn() + 'static>;
+type InitCb = Box<dyn Fn() + Send + 'static>;
 
 /// The type of the progress callback.
 type ProgressCb =
@@ -100,7 +100,7 @@ impl Analysis {
     /// Sets the initialization callback.
     pub fn init<F>(mut self, init: F) -> Self
     where
-        F: Fn() + 'static,
+        F: Fn() + Send + 'static,
     {
         self.init = Box::new(init);
         self
@@ -146,22 +146,19 @@ impl Analysis {
         self
     }
 
-    /// Determines the directory to search for a `module.json`, derived from
-    /// the first local source. Remote URL sources have no on-disk manifest.
-    ///
-    /// The search is anchored to the sources being analyzed rather than the
-    /// process working directory so that a command invoked from elsewhere
-    /// (for example `sprocket check ./project`) still discovers the manifest
-    /// that governs those sources.
-    fn module_search_dir(&self) -> Option<PathBuf> {
-        self.sources.iter().find_map(|source| match source {
-            Source::Directory(path) => Some(path.clone()),
-            Source::File(url) => url
-                .to_file_path()
-                .ok()
-                .and_then(|path| path.parent().map(Path::to_path_buf)),
-            Source::Url(_) => None,
-        })
+    /// Determines all local directories to search for a `module.json`.
+    fn module_search_dirs(&self) -> Vec<PathBuf> {
+        self.sources
+            .iter()
+            .filter_map(|source| match source {
+                Source::Directory(path) => Some(path.clone()),
+                Source::File(url) => url
+                    .to_file_path()
+                    .ok()
+                    .and_then(|path| path.parent().map(Path::to_path_buf)),
+                Source::Url(_) => None,
+            })
+            .collect()
     }
 
     /// Checks the source directory and its ancestors for a `module.json` and
@@ -171,18 +168,43 @@ impl Analysis {
     fn build_resolver_from_sources(
         &self,
     ) -> anyhow::Result<(Arc<dyn wdl_modules::Resolver>, Option<PathBuf>)> {
+        if !self.feature_flags.wdl_1_4() {
+            return Ok((Arc::new(wdl_modules::resolver::NullResolver), None));
+        }
+
         let Some(ref modules_config) = self.modules_config else {
             return Ok((Arc::new(wdl_modules::resolver::NullResolver), None));
         };
 
-        let Some(start) = self.module_search_dir() else {
+        let starts = self.module_search_dirs();
+        if starts.is_empty() {
             return Ok((Arc::new(wdl_modules::resolver::NullResolver), None));
-        };
+        }
 
-        let manifest_path = match discover_manifest_upward(&start)? {
-            Some((path, _)) => path,
-            None => return Ok((Arc::new(wdl_modules::resolver::NullResolver), None)),
-        };
+        let mut manifest_paths = HashSet::new();
+        let mut saw_source_without_manifest = false;
+        for start in starts {
+            match discover_manifest_upward(&start)? {
+                Some((path, _)) => {
+                    manifest_paths.insert(path);
+                }
+                None => saw_source_without_manifest = true,
+            }
+        }
+
+        if manifest_paths.is_empty() {
+            return Ok((Arc::new(wdl_modules::resolver::NullResolver), None));
+        }
+
+        anyhow::ensure!(
+            !saw_source_without_manifest && manifest_paths.len() == 1,
+            "all local sources must be governed by the same `module.json` to resolve symbolic \
+             imports"
+        );
+
+        // SAFETY: the `is_empty` check above returned early, and the `ensure`
+        // above verified that exactly one manifest remains.
+        let manifest_path = manifest_paths.into_iter().next().unwrap();
 
         match build_resolver(modules_config, &manifest_path)? {
             Some((resolver, path)) => {
@@ -603,7 +625,7 @@ mod tests {
     }
 
     #[test]
-    fn module_search_dir_uses_file_parent() {
+    fn module_search_dirs_use_file_parent() {
         let dir = tempfile::TempDir::new().unwrap();
         let file = dir.path().join("main.wdl");
         std::fs::write(&file, "version 1.2\n").unwrap();
@@ -611,9 +633,9 @@ mod tests {
 
         let analysis = Analysis::default().add_source(Source::File(url));
         assert_eq!(
-            analysis.module_search_dir().as_deref(),
-            Some(dir.path()),
-            "`module_search_dir` should return the parent directory of a file source"
+            analysis.module_search_dirs(),
+            vec![dir.path().to_path_buf()],
+            "`module_search_dirs` should return the parent directory of a file source"
         );
     }
 }
