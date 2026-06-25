@@ -1493,7 +1493,12 @@ workflow test {
         .unwrap();
         fs::write(
             consumer_dir.join("source.wdl"),
-            "version 1.4\n\nimport dep\n\nworkflow main {}\n",
+            "version 1.4\n\nimport dep\nimport \"lib.wdl\"\n\nworkflow main {}\n",
+        )
+        .unwrap();
+        fs::write(
+            consumer_dir.join("lib.wdl"),
+            "version 1.4\n\nimport dep\n\ntask lib {\n    command <<<>>>\n}\n",
         )
         .unwrap();
 
@@ -1524,6 +1529,20 @@ workflow test {
         assert!(
             errors.is_empty(),
             "consumer should have no errors, got: {:?}",
+            errors.iter().map(|d| d.message()).collect::<Vec<_>>()
+        );
+        let lib_result = results
+            .iter()
+            .find(|r| r.document.uri().path().contains("lib.wdl"))
+            .expect("should find uri import result");
+        let errors: Vec<_> = lib_result
+            .document
+            .diagnostics()
+            .filter(|d| d.severity() == Severity::Error)
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "uri import should have no errors, got: {:?}",
             errors.iter().map(|d| d.message()).collect::<Vec<_>>()
         );
     }

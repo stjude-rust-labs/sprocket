@@ -1369,6 +1369,14 @@ where
                                         Err(_) => continue,
                                     };
 
+                                    if let Some(module) = self
+                                        .module_for_uri_import(graph.get(index).uri(), &import_uri)
+                                    {
+                                        self.document_modules
+                                            .lock()
+                                            .insert(import_uri.clone(), module);
+                                    }
+
                                     let import_index = graph
                                         .get_index(&import_uri)
                                         .unwrap_or_else(|| graph.add_node(import_uri, false));
@@ -1600,6 +1608,30 @@ where
     /// Returns the [`Module`] that governs the document at `uri`.
     fn find_module_for_document(&self, uri: &Url) -> Option<Module> {
         self.document_modules.lock().get(uri).cloned()
+    }
+
+    /// Returns the importer module for a URI import inside the same module.
+    fn module_for_uri_import(&self, importer_uri: &Url, import_uri: &Url) -> Option<Module> {
+        let module = self.find_module_for_document(importer_uri)?;
+        let import_path = import_uri.to_file_path().ok()?;
+        if !import_path.starts_with(&module.root) {
+            return None;
+        }
+
+        let mut dir = import_path.parent();
+        while let Some(current) = dir {
+            if current == module.root {
+                return Some(module);
+            }
+
+            if wdl_modules::module::is_module_root(current) {
+                return None;
+            }
+
+            dir = current.parent();
+        }
+
+        None
     }
 }
 
