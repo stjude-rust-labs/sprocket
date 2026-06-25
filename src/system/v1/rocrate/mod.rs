@@ -1,5 +1,10 @@
 //! Workflow Run RO-Crate emission for completed runs.
 
+mod context;
+
+pub use context::EngineInfo;
+pub use context::RunCrateContext;
+
 /// Controls whether and how a run emits an RO-Crate.
 #[derive(Debug, Clone, Copy)]
 pub struct RoCrateOptions {
