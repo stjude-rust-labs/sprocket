@@ -498,7 +498,7 @@ where
                 }) => {
                     let start = Instant::now();
                     debug!(
-                        "received request to delete {count} documents(s)",
+                        "received request to delete {count} document(s)",
                         count = documents.len()
                     );
 
