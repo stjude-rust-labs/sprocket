@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added the `unstable-python` feature flag, which enables APIs related to Sprocket's Python bindings ([#941](https://github.com/stjude-rust-labs/sprocket/pull/941))
+
 #### Changed
 
 * Removed dependency on `serde` ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
@@ -16,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * In nested expressions, only the innermost expression will produce an "unexpected end of input"
   diagnostic ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
 * `Parser` now has a hard recursion limit of `128` on nested expressions ([#930](https://github.com/stjude-rust-labs/sprocket/pull/930)).
+
+#### Fixed
+
+* `Diagnostic` now considers its `help` field in its `Ord` implementation
 
 ## 0.23.0 - 2026-06-03
 
