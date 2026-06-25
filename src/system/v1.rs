@@ -3,3 +3,4 @@
 pub mod db;
 pub mod exec;
 pub mod fs;
+pub mod rocrate;

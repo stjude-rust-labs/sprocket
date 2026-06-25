@@ -200,6 +200,24 @@ pub struct Args {
     /// Optional suffix to append to the run directory name.
     #[clap(long, value_name = "SUFFIX")]
     pub suffix: Option<String>,
+
+    /// Emit a Workflow Run RO-Crate (`ro-crate-metadata.json`) into the run
+    /// directory on success.
+    #[clap(long)]
+    pub ro_crate: bool,
+
+    /// Fail the command if RO-Crate emission fails (implies it was requested).
+    #[clap(long, requires = "ro_crate")]
+    pub ro_crate_strict: bool,
+
+    /// Skip SHA-256 digests for files in the RO-Crate (faster on large outputs).
+    #[clap(long, requires = "ro_crate")]
+    pub no_ro_crate_checksums: bool,
+
+    /// Do not localize input/output data values into stable crate-relative
+    /// paths.
+    #[clap(long, requires = "ro_crate")]
+    pub no_ro_crate_localize: bool,
 }
 
 impl Args {
@@ -986,4 +1004,36 @@ fn initialize_file_logging(handle: FileReloadHandle, run_dir: &Path) -> Result<(
     handle
         .reload(layer().with_ansi(false).with_writer(log_file))
         .context("failed to initialize file logging")
+}
+
+#[cfg(test)]
+mod ro_crate_flag_tests {
+    use clap::Parser;
+
+    use super::Args;
+
+    // A URL source parses without a filesystem-existence check, isolating the
+    // flag behavior under test.
+    const SOURCE: &str = "https://example.com/wf.wdl";
+
+    #[test]
+    fn parses_ro_crate_flags() {
+        let args = Args::parse_from([
+            "run",
+            SOURCE,
+            "--ro-crate",
+            "--no-ro-crate-checksums",
+            "--no-ro-crate-localize",
+        ]);
+        assert!(args.ro_crate);
+        assert!(args.no_ro_crate_checksums);
+        assert!(args.no_ro_crate_localize);
+        assert!(!args.ro_crate_strict);
+    }
+
+    #[test]
+    fn strict_requires_ro_crate() {
+        let res = Args::try_parse_from(["run", SOURCE, "--ro-crate-strict"]);
+        assert!(res.is_err(), "strict without --ro-crate should error");
+    }
 }
