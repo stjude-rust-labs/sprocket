@@ -258,7 +258,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_unparseable_next_token() {
+    fn rejects_unparsable_next_token() {
         assert_bad_request(
             validate_pagination(None, Some("nope")),
             "invalid `next_token`",

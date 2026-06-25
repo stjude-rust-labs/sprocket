@@ -251,7 +251,7 @@ async fn list_run_tasks_rejects_negative_next_token(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
-async fn list_run_tasks_rejects_unparseable_next_token(pool: sqlx::SqlitePool) {
+async fn list_run_tasks_rejects_unparsable_next_token(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
 
     let session_id = Uuid::new_v4();
