@@ -2,12 +2,29 @@
 
 mod context;
 mod formal;
+mod source;
 mod value;
 
 pub use context::EngineInfo;
 pub use context::RunCrateContext;
 pub use formal::formal_parameter;
+pub use source::materialize_sources;
 pub use value::value_to_entities;
+
+/// RO-Crate 1.1 base context.
+pub const ROCRATE_CONTEXT: &str = "https://w3id.org/ro/crate/1.1/context";
+/// Workflow Run RO-Crate term context.
+pub const WFRUN_CONTEXT: &str = "https://w3id.org/ro/terms/workflow-run/context";
+/// Profiles the root dataset conforms to in M1 (workflow + workflow-ro-crate).
+/// M2 adds the Provenance Run Crate profile.
+pub const PROFILES: &[&str] = &[
+    "https://w3id.org/ro/wfrun/workflow/0.1",
+    "https://w3id.org/workflowhub/workflow-ro-crate/1.0",
+];
+/// The metadata descriptor filename.
+pub const METADATA_FILE: &str = "ro-crate-metadata.json";
+/// The main workflow entity id, materialized under `workflow/`.
+pub const WORKFLOW_ID: &str = "workflow/workflow.wdl";
 
 /// Controls whether and how a run emits an RO-Crate.
 #[derive(Debug, Clone, Copy)]
