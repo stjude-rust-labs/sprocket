@@ -164,7 +164,7 @@ mod test {
 
         let expected_error = format!(
             "expected an integer less than or equal to {MAX_SPACE_INDENT} or `tabs` for \
-             indentation value"
+             indentation value at `value`"
         );
 
         let error =
