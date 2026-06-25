@@ -24,11 +24,27 @@ def test_diagnostic_builder():
     assert d.rule == "LintRule"
 
 
+def test_diagnostic_eq():
+    a = Diagnostic.note("a note").with_highlight(Span(3, 5))
+    b = Diagnostic.note("a note").with_highlight(Span(3, 5))
+    c = Diagnostic.warning("a note").with_highlight(Span(3, 5))
+
+    assert a == a
+    assert a == b
+    assert a != c
+
+
 def test_label_new():
     label = Label("My message", Span(0, 10))
 
     assert label.message == "My message"
     assert label.span == Span(0, 10)
+
+
+def test_severity_ordering():
+    assert Severity.ERROR < Severity.WARNING
+    assert Severity.WARNING < Severity.NOTE
+    assert Severity.ERROR < Severity.NOTE
 
 
 def test_span_getters():
