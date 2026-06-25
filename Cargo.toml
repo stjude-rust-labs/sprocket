@@ -42,7 +42,7 @@ chrono = "0.4.43"
 clap = { version = "4.5.57", features = ["derive", "string"] }
 clap-verbosity-flag = { version = "3.0.4", features = ["tracing"] }
 clap_complete = "4.5.65"
-cloud-copy = { version = "0.8.0", features = ["cli"] }
+cloud-copy = { version = "0.9.0", features = ["cli"] }
 codespan-reporting = "0.13.1"
 colored = "3.1.1"
 convert_case = "0.11.0"

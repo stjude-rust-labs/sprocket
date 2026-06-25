@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added `run.http.hash_algorithm` to configure input upload content digest
+  algorithm to use (use `none` to disable, defaults to `sha256`) ([#954](https://github.com/stjude-rust-labs/sprocket/pull/954)).
 * Added `ConfigBuilder` type for merging engine configurations together ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 
 #### Changed
@@ -20,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Fixed an issue where a task could not output a `Directory` value that was a
   subpath of a `Directory` input ([#933](https://github.com/stjude-rust-labs/sprocket/pull/933)).
+
+#### Dependencies
+
+* Updated to `cloud-copy` 0.9.0 for a number of fixes ([#954](https://github.com/stjude-rust-labs/sprocket/pull/954)).
 
 ## 0.15.0 - 2026-06-03
 

@@ -521,6 +521,12 @@ pub struct HttpConfig {
     /// Defaults to the host's available parallelism.
     #[toml(default)]
     pub parallelism: Parallelism,
+    /// The hash algorithm to use for calculating content digests for file
+    /// uploads.
+    ///
+    /// Defaults to `sha256`.
+    #[toml(default, FromToml with = parse_string, ToToml with = display)]
+    pub hash_algorithm: cloud_copy::HashAlgorithm,
 }
 
 impl Default for HttpConfig {
@@ -529,6 +535,7 @@ impl Default for HttpConfig {
             cache_dir: CACHE_DIR_SENTINEL.into(),
             retries: DEFAULT_HTTP_RETRIES,
             parallelism: Default::default(),
+            hash_algorithm: Default::default(),
         }
     }
 }

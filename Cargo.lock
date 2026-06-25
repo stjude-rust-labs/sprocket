@@ -721,9 +721,9 @@ checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
 name = "cloud-copy"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e8aaa77032b7b2de8372d393a15eb3f916d16fa9b6eddf78cbe40873295552a6"
+checksum = "24a7d1332fd09dbc2421893e885a4470efb0d8522de643e0131a17fc08ca180e"
 dependencies = [
  "anyhow",
  "base64",
@@ -735,20 +735,21 @@ dependencies = [
  "clap-verbosity-flag",
  "colored",
  "crc64fast-nvme",
+ "digest-io",
  "futures",
  "git-testament",
  "hex",
- "hmac 0.12.1",
+ "hmac 0.13.0",
  "http-cache-stream-reqwest",
  "opool",
  "pin-project-lite",
- "rand 0.9.4",
+ "rand 0.10.1",
  "reqwest",
  "reqwest-middleware",
  "secrecy",
  "serde",
  "serde-xml-rs",
- "sha2 0.10.9",
+ "sha2 0.11.0",
  "tempfile",
  "thiserror",
  "tokio",
@@ -1330,6 +1331,15 @@ dependencies = [
  "const-oid 0.10.2",
  "crypto-common 0.2.2",
  "ctutils",
+]
+
+[[package]]
+name = "digest-io"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2de63d600bc7fab91180bc17385f29b342468dc8ef2af09dceba450a293de3da"
+dependencies = [
+ "digest 0.11.3",
 ]
 
 [[package]]
