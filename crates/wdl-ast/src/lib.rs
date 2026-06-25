@@ -672,7 +672,10 @@ impl FromStr for Directive {
         let (directive, contents) = s.trim().split_once(DIRECTIVE_DELIMITER).ok_or(())?;
         match directive.trim_end() {
             "except" => Ok(Self::Except(HashSet::from_iter(
-                contents.split(',').map(|id| id.trim().to_string()),
+                contents
+                    .split(',')
+                    .map(|id| id.trim().to_string())
+                    .filter(|id| !id.is_empty()),
             ))),
             _ => Err(()),
         }

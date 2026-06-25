@@ -67,3 +67,11 @@ warning[ContainerUri]: empty arrays are ambiguous and should contain at least on
     │
     = fix: add an entry or remove the entry altogether
 
+note[ContainerUri]: container URI uses a mutable tag
+    ┌─ tests/lints/container-value/source.wdl:268:20
+    │
+268 │         container: "ubuntu:latest"
+    │                    ^^^^^^^^^^^^^^^
+    │
+    = fix: replace the mutable tag with its SHA256 equivalent (e.g., `ubuntu@sha256:foobar` instead of `ubuntu:latest`)
+

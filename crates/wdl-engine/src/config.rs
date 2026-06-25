@@ -2960,7 +2960,8 @@ type = 'lsf_apptainer'
         let map: HashMap<String, Parallelism> = toml_spanner::from_str("value = 123").unwrap();
         assert_eq!(map["value"], Parallelism::Use(123));
 
-        let expected_error = "expected a positive integer or `available` for parallelism";
+        let expected_error =
+            "expected a positive integer or `available` for parallelism at `value`";
 
         let error =
             toml_spanner::from_str::<HashMap<String, Parallelism>>("value = 'wrong'").unwrap_err();
@@ -2998,8 +2999,9 @@ type = 'lsf_apptainer'
         let map: HashMap<String, Retries> = toml_spanner::from_str("value = 0").unwrap();
         assert_eq!(map["value"], Retries::Use(0));
 
-        let expected_error =
-            format!("expected an integer less than {MAX_RETRIES} or `default` for retries");
+        let expected_error = format!(
+            "expected an integer less than {MAX_RETRIES} or `default` for retries at `value`"
+        );
 
         let error =
             toml_spanner::from_str::<HashMap<String, Retries>>("value = 'wrong'").unwrap_err();
