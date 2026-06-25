@@ -35,7 +35,7 @@ use thirtyfour::WebDriver;
 use thirtyfour::WindowHandle;
 use thirtyfour::prelude::ElementQueryable;
 use thirtyfour::prelude::WebDriverResult;
-use thirtyfour::support::block_on;
+use tokio::runtime::Runtime;
 use tokio::sync::Mutex;
 use tokio::sync::OnceCell;
 use tokio::task::JoinSet;
@@ -318,14 +318,17 @@ async fn global_state(tests: Arc<Vec<Test>>, tmp_dir: PathBuf) -> GlobalState {
     guard.as_ref().expect("taken").clone()
 }
 
-#[tokio::main]
-async fn main() -> ExitCode {
+fn main() -> ExitCode {
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
         )
         .init();
+
+    let runtime = Runtime::new()
+        .map(Arc::new)
+        .expect("failed to create Tokio runtime");
 
     let args = libtest_mimic::Arguments::from_args();
     if !should_run_headless() {
@@ -343,7 +346,7 @@ async fn main() -> ExitCode {
         println!("{}\n", warning.red());
         for i in (1..6).rev() {
             println!("The tests will start in {i} seconds.");
-            tokio::time::sleep(Duration::from_secs(1)).await;
+            runtime.block_on(tokio::time::sleep(Duration::from_secs(1)));
         }
     }
 
@@ -363,21 +366,22 @@ async fn main() -> ExitCode {
         }
     };
 
-    let trials = create_trials(tmp.path().to_path_buf(), tests);
+    let trials = create_trials(tmp.path().to_path_buf(), tests, runtime.clone());
     let conclusion = libtest_mimic::run(&args, trials);
 
-    cleanup_global_state().await;
+    runtime.block_on(cleanup_global_state());
     conclusion.exit_code()
 }
 
 /// Create [`Trial`] instances for all tests.
-fn create_trials(tmp: PathBuf, tests: Arc<Vec<Test>>) -> Vec<Trial> {
+fn create_trials(tmp: PathBuf, tests: Arc<Vec<Test>>, runtime: Arc<Runtime>) -> Vec<Trial> {
     let mut trials = Vec::new();
 
     for test in &*tests {
         let test = test.clone();
         let tests = tests.clone();
         let tmp = tmp.clone();
+        let runtime = runtime.clone();
 
         trials.push(Trial::test(
             format!("{}::{}", test.category, test.name),
@@ -415,7 +419,7 @@ fn create_trials(tmp: PathBuf, tests: Arc<Vec<Test>>) -> Vec<Trial> {
                     test_result.map_err(|e: anyhow::Error| e.into())
                 };
 
-                block_on(task)
+                runtime.block_on(task)
             },
         ));
     }
