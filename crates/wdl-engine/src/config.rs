@@ -1691,9 +1691,9 @@ impl ApptainerConfig {
 
 /// Represents a condition in a conditional argument.
 ///
-/// The expression is evaluated in a context where a task's evaluated
-/// `requirements` and `hints` sections are made available as `Object`
-/// `requirement` and `hint` variables, respectively.
+/// The expression is evaluated in a context where a task's computed `cpu`,
+/// `memory`, `gpu`, `fpga`, and `disks` values and evaluated `hint` object are
+/// available as variables.
 ///
 /// The expression is type checked during configuration deserialization to
 /// ensure it is a valid WDL expression of type `Boolean`.
