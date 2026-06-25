@@ -7,4 +7,3 @@ always_succeeds:
   - name: always_succeeds
     assertions:
       should_fail: true
-

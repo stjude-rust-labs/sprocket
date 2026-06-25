@@ -21,3 +21,7 @@ bar:
     assertions:
       exit_code: 0
       should_fail: true
+  - name: conflicting options with should_fail false
+    assertions:
+      exit_code: 1
+      should_fail: false

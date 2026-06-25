@@ -28,9 +28,10 @@ pub(crate) struct Assertions {
     ///
     /// For workflows, any failure is expected.
     /// For tasks, any nonzero exit code is expected.
-    /// Cannot be combined with `exit_code`.
+    /// Cannot be combined with `exit_code` (any value, including `exit_code:
+    /// 0`).
     #[serde(default)]
-    pub should_fail: bool,
+    pub should_fail: Option<bool>,
     /// Regular expressions that should match within STDOUT of the task (ignored
     /// when testing workflows).
     #[serde(default)]
@@ -55,9 +56,11 @@ impl Assertions {
         is_workflow: bool,
         outputs: &IndexMap<String, Output>,
     ) -> Result<ParsedAssertions> {
-        if self.should_fail && self.exit_code.is_some() {
+        if self.should_fail.is_some() && self.exit_code.is_some() {
             bail!("`should_fail` cannot be used with `exit_code`");
         }
+
+        let should_fail = self.should_fail.unwrap_or(false);
 
         let mut stdout = None;
         let mut stderr = None;
@@ -104,7 +107,7 @@ impl Assertions {
 
         Ok(ParsedAssertions {
             exit_code: self.exit_code.unwrap_or(0),
-            should_fail: self.should_fail,
+            should_fail,
             stdout,
             stderr,
             outputs: self.outputs,
@@ -390,8 +393,8 @@ pub(crate) struct ParsedAssertions {
     pub exit_code: i32,
     /// For workflows: whether the workflow is expected to fail.
     /// For tasks: whether any nonzero exit code is acceptable (i.e. the task
-    /// is expected to fail). Combining this with a nonzero `exit_code`
-    /// assertion is rejected in `Assertions::parse`.
+    /// is expected to fail). Combining this with any specified `exit_code`
+    /// (including `exit_code: 0`) is rejected in `Assertions::parse`.
     pub should_fail: bool,
     /// Regular expressions that should match within STDOUT of the task (ignored
     /// when testing workflows).
@@ -1062,7 +1065,7 @@ mod tests {
     #[test]
     fn parse_should_fail_ok_for_task() {
         let assertions = Assertions {
-            should_fail: true,
+            should_fail: Some(true),
             exit_code: None,
             ..Default::default()
         };
@@ -1074,7 +1077,7 @@ mod tests {
     #[test]
     fn parse_should_fail_with_exit_code_errors_for_task() {
         let assertions = Assertions {
-            should_fail: true,
+            should_fail: Some(true),
             exit_code: Some(1),
             ..Default::default()
         };
@@ -1085,11 +1088,36 @@ mod tests {
     #[test]
     fn parse_should_fail_with_exit_code_errors_for_workflow() {
         let assertions = Assertions {
-            should_fail: true,
+            should_fail: Some(true),
             exit_code: Some(1),
             ..Default::default()
         };
         let result = assertions.parse(true, &IndexMap::new());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_should_fail_false_with_exit_code_errors_for_task() {
+        // should_fail: false is explicitly specified alongside exit_code — must error
+        let assertions = Assertions {
+            should_fail: Some(false),
+            exit_code: Some(1),
+            ..Default::default()
+        };
+        let result = assertions.parse(false, &IndexMap::new());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_should_fail_false_without_exit_code_ok_for_task() {
+        // should_fail: false alone is valid — treated as omitted
+        let assertions = Assertions {
+            should_fail: Some(false),
+            exit_code: None,
+            ..Default::default()
+        };
+        let result = assertions.parse(false, &IndexMap::new());
+        assert!(result.is_ok());
+        assert!(!result.unwrap().should_fail);
     }
 }

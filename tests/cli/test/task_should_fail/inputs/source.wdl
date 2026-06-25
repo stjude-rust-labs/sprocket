@@ -1,4 +1,4 @@
-version 1.2
+version 1.3
 
 task always_fails {
     command <<<
@@ -11,4 +11,3 @@ task always_succeeds {
         exit 0
     >>>
 }
-

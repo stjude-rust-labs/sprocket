@@ -419,6 +419,35 @@ fn normalize_expected_outputs(path: &Path) -> Result<()> {
     Ok(())
 }
 
+/// Normalizes temp dir paths inside text files copied into the expected outputs
+/// directory during `BLESS`.
+///
+/// `recursive_copy` preserves file contents verbatim. If a task wrote the temp
+/// directory path into an output file, blessing would store that one-run
+/// absolute path and every future comparison would fail. This function rewrites
+/// any such occurrences with `_TEMP_DIR_`.
+fn normalize_output_files(outputs_dir: &Path, temp_dir: &Path) -> Result<()> {
+    for entry in WalkDir::new(outputs_dir)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|e| e.file_type().is_file())
+    {
+        let path = entry.path();
+        if is_binary_file(path) {
+            continue;
+        }
+        if let Ok(contents) = fs::read_to_string(path) {
+            let normalized = normalize_string(&contents, temp_dir);
+            if normalized != contents {
+                fs::write(path, normalized)
+                    .with_context(|| format!("failed to normalize output file {path:?}"))?;
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Compares the contents in the expected file with the actual test results.
 fn compare_results(expected_path: &Path, actual: &str, temp_dir: &Path) -> Result<()> {
     let expected = fs::read_to_string(expected_path)
@@ -584,6 +613,12 @@ fn compare_test_results(
             )?;
             normalize_expected_outputs(&expected_output_dir)
                 .context("failed to normalize expected outputs")?;
+            // Normalize temp dir paths inside any text files copied into outputs/
+            // during BLESS. `recursive_copy` preserves file contents verbatim, so
+            // any file that captured the temp path will embed a one-run absolute
+            // path that future comparisons will never match.
+            normalize_output_files(&expected_output_dir, working_test_directory)
+                .context("failed to normalize output file contents")?;
         }
     }
     compare_results(
