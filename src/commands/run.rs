@@ -768,6 +768,13 @@ pub async fn run(
     let cwd = std::env::current_dir().context("failed to get current working directory")?;
     let base_dir = EvaluationPath::from(cwd.as_path());
 
+    let ro_crate = crate::system::v1::rocrate::RoCrateOptions::from_flags(
+        args.ro_crate,
+        args.ro_crate_strict,
+        args.no_ro_crate_checksums,
+        args.no_ro_crate_localize,
+    );
+
     let mut execute = Box::pin(execute_target(
         db.clone(),
         &ctx,
@@ -780,6 +787,7 @@ pub async fn run(
         &run_dir,
         &base_dir,
         args.index_on.as_deref(),
+        ro_crate,
     ));
 
     loop {

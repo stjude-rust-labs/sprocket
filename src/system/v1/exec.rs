@@ -517,6 +517,9 @@ impl RunnableExecutor {
             &run_dir,
             &base_dir,
             self.index_on.as_deref(),
+            // RO-Crate emission is a CLI-only `sprocket run` feature; the HTTP
+            // execution path does not emit.
+            crate::system::v1::rocrate::RoCrateOptions::disabled(),
         )
         .await
         {
@@ -609,6 +612,7 @@ pub async fn analyze_wdl_document(
 ///
 /// Creates provenance index entries (if `index_on` is provided), serializes
 /// outputs, and marks the run as completed.
+#[allow(clippy::too_many_arguments)]
 async fn set_run_success(
     db: &dyn Database,
     ctx: &RunContext,
@@ -616,6 +620,9 @@ async fn set_run_success(
     outputs: Outputs,
     run_dir: &RunDirectory,
     index_on: Option<&str>,
+    document: &AnalysisDocument,
+    inputs: Option<&Inputs>,
+    ro_crate: &crate::system::v1::rocrate::RoCrateOptions,
 ) -> Result<()> {
     // Serialize outputs
     let outputs_with_name = outputs.with_name(target.name());
@@ -667,6 +674,23 @@ async fn set_run_success(
         "run `{}` ({}) completed successfully",
         ctx.run_generated_name, ctx.run_id
     );
+
+    // Emit the RO-Crate after the run is recorded complete. A strict-mode failure
+    // here propagates as a nonzero command exit but leaves the run successful.
+    if let Some(inputs) = inputs {
+        crate::system::v1::rocrate::emit(
+            db,
+            ctx.run_id,
+            target,
+            document,
+            inputs,
+            &outputs_with_name,
+            run_dir,
+            ro_crate,
+        )
+        .await?;
+    }
+
     Ok(())
 }
 
@@ -836,11 +860,20 @@ pub async fn execute_target(
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
     index_on: Option<&str>,
+    ro_crate: crate::system::v1::rocrate::RoCrateOptions,
 ) -> Result<(), EvaluationError> {
     let config = Arc::new(config);
     db.start_run(ctx.run_id, ctx.started_at)
         .await
         .map_err(anyhow::Error::from)?;
+
+    // Capture a typed copy of the inputs for RO-Crate emission before they are
+    // consumed by execution.
+    let inputs_for_crate = if ro_crate.enabled {
+        Some(inputs.clone())
+    } else {
+        None
+    };
 
     let result: Result<Option<Outputs>, EvaluationError> = async {
         match target {
@@ -879,7 +912,18 @@ pub async fn execute_target(
 
     match result {
         Ok(Some(outputs)) => {
-            set_run_success(db.as_ref(), ctx, target, outputs, run_dir, index_on).await?;
+            set_run_success(
+                db.as_ref(),
+                ctx,
+                target,
+                outputs,
+                run_dir,
+                index_on,
+                &document,
+                inputs_for_crate.as_ref(),
+                &ro_crate,
+            )
+            .await?;
             Ok(())
         }
         Ok(None) => {
