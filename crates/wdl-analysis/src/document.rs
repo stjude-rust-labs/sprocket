@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use arrayvec::ArrayString;
 use indexmap::IndexMap;
+use indexmap::IndexSet;
 use petgraph::graph::NodeIndex;
 use rowan::GreenNode;
 use rowan::TextRange;
@@ -751,6 +752,8 @@ pub(crate) struct DocumentData {
     imported_tasks: IndexMap<String, ImportedTask>,
     /// Workflows imported via wildcard or selected-member imports.
     imported_workflows: IndexMap<String, ImportedWorkflow>,
+    /// Selected task or workflow imports that failed to resolve.
+    failed_selected_imports: IndexSet<String>,
     /// The diagnostics from parsing.
     parse_diagnostics: Vec<Diagnostic>,
     /// The diagnostics from analysis.
@@ -780,6 +783,7 @@ impl DocumentData {
             enums: Default::default(),
             imported_tasks: Default::default(),
             imported_workflows: Default::default(),
+            failed_selected_imports: Default::default(),
             parse_diagnostics: diagnostics,
             analysis_diagnostics: Default::default(),
         }

@@ -640,7 +640,6 @@ fn add_selected_import(
         Err(None) => return,
     };
 
-    let span = import.source().span();
     let Some(members) = import.members() else {
         return;
     };
@@ -684,7 +683,7 @@ fn add_selected_import(
             member_name.text(),
             &local_name,
             member_span,
-            span,
+            member_span,
         ) {
             found_any = true;
         }
@@ -695,12 +694,13 @@ fn add_selected_import(
             member_name.text(),
             &local_name,
             member_span,
-            span,
+            member_span,
         ) {
             found_any = true;
         }
 
         if !found_any {
+            document.failed_selected_imports.insert(local_name);
             document
                 .analysis_diagnostics
                 .push(selected_member_not_found(
@@ -1485,8 +1485,8 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
     if let Some(prev) = document.imported_tasks.get(name.text()) {
         document.analysis_diagnostics.push(selected_import_conflict(
             name.text(),
-            name.span(),
             prev.span,
+            name.span(),
         ));
     }
 
@@ -2145,6 +2145,8 @@ fn resolve_call_type(
                         imported.inputs.clone(),
                         imported.outputs.clone(),
                     )
+                } else if document.failed_selected_imports.contains(name.text()) {
+                    return None;
                 } else {
                     document.analysis_diagnostics.push(unknown_task_or_workflow(
                         None,

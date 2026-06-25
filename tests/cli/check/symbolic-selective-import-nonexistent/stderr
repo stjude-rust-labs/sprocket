@@ -4,10 +4,4 @@ error: `brew_kombucha` does not exist in the imported module
 3 │ import { brew_kombucha } from coffeeshop
   │          ^^^^^^^^^^^^^
 
-error: unknown task or workflow `brew_kombucha`
-  ┌─ main.wdl:6:10
-  │
-6 │     call brew_kombucha
-  │          ^^^^^^^^^^^^^
-
-error: failing due to 2 errors
+error: failing due to 1 error
