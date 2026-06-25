@@ -1168,7 +1168,7 @@ impl Coercible for StructType {
 }
 
 /// Cache key for enum choice values.
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct EnumChoiceCacheKey {
     /// The index of the enum in the document.
     enum_index: usize,
