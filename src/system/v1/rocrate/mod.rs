@@ -545,4 +545,102 @@ workflow myworkflow {
             "a single task has no orchestration action"
         );
     }
+
+    /// A `File` input is localized under `inputs/`, listed in the root
+    /// `hasPart`, and linked to its `FormalParameter` via `exampleOfWork`.
+    #[tokio::test]
+    async fn localizes_file_input_end_to_end() {
+        use std::str::FromStr as _;
+
+        use chrono::Utc;
+        use uuid::Uuid;
+        use wdl::engine::Inputs;
+        use wdl::engine::Outputs;
+        use wdl::engine::PrimitiveValue;
+        use wdl::engine::WorkflowInputs;
+
+        use crate::analysis::Source;
+        use crate::commands::validate::analyze_source;
+        use crate::system::v1::db::models::Run;
+        use crate::system::v1::db::models::RunStatus;
+        use crate::system::v1::exec::Target;
+        use crate::system::v1::fs::OutputDirectory;
+
+        let dir = tempfile::tempdir().unwrap();
+        let wdl = dir.path().join("source.wdl");
+        std::fs::write(
+            &wdl,
+            "version 1.3\n\nworkflow myworkflow {\n    input {\n        File reads\n    }\n\n    output {\n    }\n}\n",
+        )
+        .unwrap();
+        // The input file lives outside the run directory, so it is localized.
+        let reads = dir.path().join("reads.bam");
+        std::fs::write(&reads, b"BAM").unwrap();
+
+        let source = Source::from_str(wdl.to_str().unwrap()).unwrap();
+        let document = analyze_source(&source, None).await.expect("analysis");
+
+        let output_dir = OutputDirectory::new(dir.path().join("out"));
+        let run_dir = output_dir.ensure_workflow_run("myworkflow").unwrap();
+
+        let now = Utc::now();
+        let run = Run {
+            uuid: Uuid::new_v4(),
+            session_uuid: Uuid::new_v4(),
+            name: "tiny-run".to_string(),
+            source: "source.wdl".to_string(),
+            target: Some("myworkflow".to_string()),
+            status: RunStatus::Completed,
+            inputs: "{}".to_string(),
+            outputs: Some("{}".to_string()),
+            error: None,
+            directory: Some(run_dir.root().display().to_string()),
+            index_directory: None,
+            started_at: Some(now),
+            completed_at: Some(now),
+            created_at: now,
+        };
+        let target = Target::Workflow("myworkflow".to_string());
+        let mut wi = WorkflowInputs::default();
+        wi.set("reads", PrimitiveValue::new_file(reads.to_str().unwrap()));
+        let inputs = Inputs::Workflow(wi);
+        let outputs = Outputs::default();
+
+        let ctx = RunCrateContext {
+            run: &run,
+            session: None,
+            document: &document,
+            target: &target,
+            inputs: &inputs,
+            outputs: &outputs,
+            run_dir: &run_dir,
+            engine: EngineInfo::from_build(),
+        };
+
+        write_run_crate(&ctx, &RoCrateOptions::from_flags(true, false, false, false))
+            .expect("should write the crate");
+
+        // The file was copied into the crate under `inputs/`.
+        assert!(run_dir.root().join("inputs/reads/reads.bam").exists());
+
+        let text = std::fs::read_to_string(run_dir.root().join(METADATA_FILE)).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+        let graph = json["@graph"].as_array().unwrap();
+
+        let file = graph
+            .iter()
+            .find(|e| e["@id"] == "inputs/reads/reads.bam")
+            .expect("localized file entity");
+        assert_eq!(file["@type"], "File");
+        assert_eq!(file["exampleOfWork"]["@id"], "#param-in-reads");
+
+        let root = graph.iter().find(|e| e["@id"] == "./").unwrap();
+        let has_part = root["hasPart"].as_array().unwrap();
+        assert!(
+            has_part
+                .iter()
+                .any(|p| p["@id"] == "inputs/reads/reads.bam"),
+            "localized input should be in root hasPart"
+        );
+    }
 }
