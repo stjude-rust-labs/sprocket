@@ -1,0 +1,9 @@
+warning[BashSetSyntax]: bad `set` command
+   ┌─ tests/lints/bash-set-syntax-config/source.wdl:27:9
+   │
+27 │         set -uo pipefail
+   │         ^^^^^^^^^^^^^^^^
+   │
+   = help: the config expects the following options to be present: errexit, pipefail
+   = fix: update the `set` command to: `set -eo pipefail`
+
