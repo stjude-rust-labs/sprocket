@@ -290,6 +290,7 @@ workflow myworkflow {
         assert!(compact.contains("\"output\":[{\"@id\":\"#param-out-message\"}]"));
         assert!(compact.contains("\"exampleOfWork\":{\"@id\":\"#param-in-greeting\"}"));
         assert!(compact.contains("\"exampleOfWork\":{\"@id\":\"#param-out-message\"}"));
+        assert!(compact.contains("\"valueRequired\":false"));
 
         // The WDL source is materialized into the crate.
         assert!(run_dir.root().join(WORKFLOW_ID).exists());

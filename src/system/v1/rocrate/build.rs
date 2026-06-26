@@ -17,6 +17,7 @@ use rocraters::ro_crate::rocrate::RoCrateContext;
 use rocraters::ro_crate::root::RootDataEntity;
 use wdl::analysis::document::Input;
 use wdl::analysis::document::Output;
+use wdl::analysis::types::Optional;
 
 use super::METADATA_FILE;
 use super::PROFILES;
@@ -203,13 +204,18 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
     // Formal parameters from the selected callable's interface.
     for (name, input) in inputs_iface {
         let pid = format!("#param-in-{name}");
-        crate_.graph.push(formal_parameter(&pid, &name, input.ty()));
+        crate_
+            .graph
+            .push(formal_parameter(&pid, &name, input.ty(), input.required()));
     }
     for (name, output) in outputs_iface {
         let pid = format!("#param-out-{name}");
-        crate_
-            .graph
-            .push(formal_parameter(&pid, &name, output.ty()));
+        crate_.graph.push(formal_parameter(
+            &pid,
+            &name,
+            output.ty(),
+            !output.ty().is_optional(),
+        ));
     }
 
     // Realized inputs/outputs.

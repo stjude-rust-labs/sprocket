@@ -6,7 +6,6 @@ use rocraters::ro_crate::constraints::DataType;
 use rocraters::ro_crate::constraints::EntityValue;
 use rocraters::ro_crate::contextual_entity::ContextualEntity;
 use rocraters::ro_crate::graph_vector::GraphVector;
-use wdl::analysis::types::Optional;
 use wdl::analysis::types::PrimitiveType;
 use wdl::analysis::types::Type;
 
@@ -41,7 +40,7 @@ fn bag(pairs: Vec<(&str, EntityValue)>) -> Option<HashMap<String, EntityValue>> 
 }
 
 /// Builds a `FormalParameter` contextual entity for a named declaration.
-pub fn formal_parameter(id: &str, name: &str, ty: &Type) -> GraphVector {
+pub fn formal_parameter(id: &str, name: &str, ty: &Type, value_required: bool) -> GraphVector {
     GraphVector::ContextualEntity(ContextualEntity {
         id: id.to_string(),
         type_: DataType::Term("FormalParameter".to_string()),
@@ -51,7 +50,7 @@ pub fn formal_parameter(id: &str, name: &str, ty: &Type) -> GraphVector {
                 "additionalType",
                 EntityValue::EntityString(additional_type(ty)),
             ),
-            ("valueRequired", EntityValue::EntityBool(!ty.is_optional())),
+            ("valueRequired", EntityValue::EntityBool(value_required)),
         ]),
     })
 }
@@ -69,10 +68,11 @@ mod tests {
     #[test]
     fn formal_parameter_has_id_and_type() {
         let ty = Type::Primitive(PrimitiveType::String, false);
-        let gv = formal_parameter("#param-x", "x", &ty);
+        let gv = formal_parameter("#param-x", "x", &ty, true);
         assert_eq!(gv.get_id().as_str(), "#param-x");
         let json = serde_json::to_string(&gv).unwrap();
         assert!(json.contains("FormalParameter"));
         assert!(json.contains("\"name\":\"x\""));
+        assert!(json.contains("\"valueRequired\":true"));
     }
 }
