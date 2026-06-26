@@ -52,9 +52,9 @@ use crate::CancellationContext;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
+use crate::Object;
 use crate::PrimitiveValue;
 use crate::TaskInputs;
-use crate::Value;
 use crate::backend::ExecuteTaskRequest;
 use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::backend::TaskExecutionConstraints;
@@ -536,6 +536,7 @@ impl Monitor {
         request: &ExecuteTaskRequest<'_>,
         crankshaft_id: u64,
         command_path: &Path,
+        transferer: &dyn Transferer,
     ) -> Result<SubmittedJob> {
         let task_name = {
             let mut state = self.state.lock().expect("failed to lock state");
@@ -571,7 +572,16 @@ impl Monitor {
         }
 
         // Add any user-configured extra arguments.
-        command.args(&config.extra_sbatch_args);
+        command.args(&config.sbatch.args);
+
+        // Evaluate the conditional args
+        // First one that evaluates to `true` wins
+        for conditional in &config.sbatch.conditional {
+            if conditional.condition.evaluate(request, transferer).await? {
+                command.args(&conditional.args);
+                break;
+            }
+        }
 
         // Format a name for the Slurm job
         let job_name = format!(
@@ -801,7 +811,7 @@ impl SlurmApptainerBackend {
 
         let apptainer = ApptainerRuntime::new(
             run_root_dir,
-            backend_config.apptainer_config.image_cache_dir.as_deref(),
+            backend_config.apptainer.image_cache_dir.as_deref(),
         )?;
 
         Ok(Self {
@@ -847,8 +857,8 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
     fn constraints(
         &self,
         inputs: &TaskInputs,
-        requirements: &HashMap<String, Value>,
-        hints: &HashMap<String, crate::Value>,
+        requirements: &Object,
+        hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
         let mut required_cpu = requirements::cpu(inputs, requirements);
         let mut required_memory = ByteSize::b(requirements::memory(inputs, requirements)? as u64);
@@ -940,7 +950,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
 
     fn execute<'a>(
         &'a self,
-        _: &'a Arc<dyn Transferer>,
+        transferer: &'a Arc<dyn Transferer>,
         request: ExecuteTaskRequest<'a>,
     ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
@@ -990,7 +1000,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             let Some((apptainer_script, container)) = self
                 .apptainer
                 .generate_script(
-                    &backend_config.apptainer_config,
+                    &backend_config.apptainer,
                     &self.config.task.shell,
                     &request,
                     self.cancellation.first(),
@@ -1028,7 +1038,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                 .await
                 .context("failed to acquire permit for submitting job")?;
 
-            let job = self.monitor.submit_job(backend_config, &request, crankshaft_id, &apptainer_command_path).await?;
+            let job = self.monitor.submit_job(backend_config, &request, crankshaft_id, &apptainer_command_path, transferer.as_ref()).await?;
             drop(permit);
 
             let name = job.task_name;

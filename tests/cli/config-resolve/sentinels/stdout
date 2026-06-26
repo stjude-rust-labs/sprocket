@@ -36,6 +36,7 @@ fail = "slow"
 cache_dir = "system"
 retries = 5
 parallelism = "available"
+hash_algorithm = "sha256"
 
 [run.workflow]
 
@@ -87,6 +88,7 @@ fail = "slow"
 cache_dir = "system"
 retries = 5
 parallelism = "available"
+hash_algorithm = "sha256"
 
 [server.engine.workflow]
 

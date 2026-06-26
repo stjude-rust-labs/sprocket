@@ -1,1 +1,1 @@
-error: a `module.json` was found in `_WORKDIR_`, but the WDL module system requires version 1.4; set `common.wdl.feature_flags.wdl_1_4 = true` in `sprocket.toml` to enable it
+error: a `module.json` was found in `_TEMP_DIR_`, but the WDL module system requires version 1.4; set `common.wdl.feature_flags.wdl_1_4 = true` in `sprocket.toml` to enable it

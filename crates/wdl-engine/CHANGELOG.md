@@ -9,12 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
+* Added dynamic `bsub` arguments to the LSF backend ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
+* Added dynamic `sbatch` arguments to the Slurm backend ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
+* Added `run.http.hash_algorithm` to configure input upload content digest
+  algorithm to use (use `none` to disable, defaults to `sha256`) ([#954](https://github.com/stjude-rust-labs/sprocket/pull/954)).
 * Added `ConfigBuilder` type for merging engine configurations together ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 
 #### Changed
 
+* Apptainer settings for the LSF and Slurm backends have moved into an
+  `apptainer` sub-collection, and `extra_apptainer_exec_args` has been
+  renamed to `apptainer.extra_args` ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
+* LSF backend setting `extra_bsub_args` has been renamed to `bsub.args` ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
+* Slurm backend setting `extra_sbatch_args` has been renamed to `sbatch.args` ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
 * Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
 * Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+
+#### Dependencies
+
+* Updated to `cloud-copy` 0.9.0 for a number of fixes ([#954](https://github.com/stjude-rust-labs/sprocket/pull/954)).
 
 ## 0.15.0 - 2026-06-03
 

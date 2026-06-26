@@ -952,7 +952,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 self.context.version()
             }
 
-            fn resolve_name(&self, name: &str, span: Span) -> Option<Type> {
+            fn resolve_name(&mut self, name: &str, span: Span) -> Option<Type> {
                 self.context.resolve_name(name, span).map(|v| v.ty()).ok()
             }
 
@@ -1439,7 +1439,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     .expect("should be a map type")
                     .key_type()
                     .as_primitive()
-                    .expect("key type should be primitive");
+                    .ok_or_else(|| map_key_not_found(index.span()))?;
 
                 let key = match self.evaluate_expr(&index).await? {
                     Value::Primitive(key) if key.ty().is_coercible_to(&key_type.into()) => key,
@@ -1482,10 +1482,11 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     &name,
                 )),
             },
-            Value::Compound(CompoundValue::Object(object)) => match object.get(name.text()) {
-                Some(value) => Ok(value.clone()),
-                None => Err(not_an_object_member(&name)),
-            },
+            Value::Compound(CompoundValue::Object(object)) => self
+                .context
+                .object_access(&object, name.text())
+                .or_else(|| object.get(name.text()).cloned())
+                .ok_or_else(|| not_an_object_member(&name)),
             Value::Hidden(HiddenValue::TaskPreEvaluation(task)) => match task.field(name.text()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_a_task_member(&name)),
@@ -3733,5 +3734,16 @@ pub(crate) mod test {
             .await
             .unwrap_err();
         assert_eq!(diagnostic.message(), "cannot access type `Int`");
+    }
+
+    #[tokio::test]
+    async fn empty_map_access() {
+        // This test will to ensure accessing an empty map does not panic
+        let env = TestEnv::default();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, "{}['foo']").await.unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "the map does not contain an entry for the specified key"
+        );
     }
 }

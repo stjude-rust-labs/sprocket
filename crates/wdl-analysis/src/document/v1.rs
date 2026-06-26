@@ -2748,7 +2748,7 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
             .expect("document should have a version")
     }
 
-    fn resolve_name(&self, name: &str, _: Span) -> Option<Type> {
+    fn resolve_name(&mut self, name: &str, _: Span) -> Option<Type> {
         // Check if there are any variables with this name and return if so.
         if let Some(var) = self.scope.lookup(name).map(|n| n.ty().clone()) {
             return Some(var);
