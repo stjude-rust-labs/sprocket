@@ -1,0 +1,1 @@
+error: source::always_succeeds::always_succeeds (iteration #1) exited with code `0` but `should_fail` expected a nonzero exit code: see `_TEMP_DIR_/test/runs/always_succeeds/always_succeeds/1`

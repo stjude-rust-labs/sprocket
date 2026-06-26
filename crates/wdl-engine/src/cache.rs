@@ -23,6 +23,7 @@ use url::Url;
 
 use crate::ContentKind;
 use crate::EvaluationPath;
+use crate::Object;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::backend::Input;
@@ -345,11 +346,11 @@ pub struct KeyRequest<'a> {
     /// The evaluated requirements of the task.
     ///
     /// This field contributes to the digests stored in a cache entry.
-    pub requirements: &'a HashMap<String, Value>,
+    pub requirements: &'a Object,
     /// The evaluated hints of the task.
     ///
     /// This field contributes to the digests stored in a cache entry.
-    pub hints: &'a HashMap<String, Value>,
+    pub hints: &'a Object,
     /// The backend inputs of the task.
     ///
     /// This field contributes to the digests stored in a cache entry.
@@ -423,7 +424,7 @@ impl CallCache {
             .map(|(k, v)| {
                 let mut hasher = blake3::Hasher::new();
                 v.hash(&mut hasher);
-                (k.clone(), hasher.finalize().to_hex())
+                (k.to_string(), hasher.finalize().to_hex())
             })
             .collect();
 
@@ -434,7 +435,7 @@ impl CallCache {
             .map(|(k, v)| {
                 let mut hasher = blake3::Hasher::new();
                 v.hash(&mut hasher);
-                (k.clone(), hasher.finalize().to_hex())
+                (k.to_string(), hasher.finalize().to_hex())
             })
             .collect();
 
@@ -593,12 +594,14 @@ impl CallCache {
 
 #[cfg(test)]
 mod test {
+    use indexmap::IndexMap;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
     use tempfile::tempdir;
 
     use super::*;
     use crate::GuestPath;
+    use crate::Object;
     use crate::digest::test::DigestTransferer;
     use crate::digest::test::clear_digest_cache;
 
@@ -621,8 +624,8 @@ mod test {
         paths: Paths,
         document_uri: Url,
         inputs: BTreeMap<String, Value>,
-        requirements: HashMap<String, Value>,
-        hints: HashMap<String, Value>,
+        requirements: Object,
+        hints: Object,
         default_container: Option<String>,
         backend_inputs: [Input; 1],
     }
@@ -641,14 +644,14 @@ mod test {
                     "file".into(),
                     PrimitiveValue::new_file(input.to_str().unwrap()).into(),
                 )]),
-                requirements: HashMap::from_iter([(
+                requirements: Object::new(IndexMap::from_iter([(
                     "container".into(),
                     PrimitiveValue::new_string("ubuntu:latest").into(),
-                )]),
-                hints: HashMap::from_iter([(
+                )])),
+                hints: Object::new(IndexMap::from_iter([(
                     "foo".into(),
                     PrimitiveValue::new_string("bar").into(),
-                )]),
+                )])),
                 default_container: None,
                 backend_inputs: [Input::new(
                     ContentKind::File,
@@ -833,7 +836,7 @@ mod test {
         // is what drives cache invalidation.
         let root_dir = tempdir().expect("failed to create temporary directory");
         let mut task = prepare_task(root_dir.path()).await;
-        task.requirements.clear();
+        task.requirements = Object::empty();
         task.default_container = Some("ubuntu:latest".into());
 
         let transfer = Arc::new(DigestTransferer::new([]));
@@ -894,7 +897,7 @@ mod test {
         let key = ctx
             .cache
             .key(KeyRequest {
-                requirements: &Default::default(),
+                requirements: &Object::empty(),
                 ..request
             })
             .await
@@ -914,13 +917,13 @@ mod test {
         let key = ctx
             .cache
             .key(KeyRequest {
-                requirements: &HashMap::from_iter([
+                requirements: &Object::new(IndexMap::from_iter([
                     (
                         "container".into(),
                         PrimitiveValue::new_string("ubuntu:latest").into(),
                     ),
                     ("memory".into(), 1000.into()),
-                ]),
+                ])),
                 ..request
             })
             .await
@@ -940,10 +943,10 @@ mod test {
         let key = ctx
             .cache
             .key(KeyRequest {
-                requirements: &HashMap::from_iter([(
+                requirements: &Object::new(IndexMap::from_iter([(
                     "container".into(),
                     PrimitiveValue::new_string("ubuntu:cthulhu").into(),
-                )]),
+                )])),
                 ..request
             })
             .await
@@ -963,7 +966,7 @@ mod test {
         let key = ctx
             .cache
             .key(KeyRequest {
-                hints: &Default::default(),
+                hints: &Object::empty(),
                 ..request
             })
             .await
@@ -983,10 +986,10 @@ mod test {
         let key = ctx
             .cache
             .key(KeyRequest {
-                hints: &HashMap::from_iter([
+                hints: &Object::new(IndexMap::from_iter([
                     ("foo".into(), PrimitiveValue::new_string("bar").into()),
                     ("max_memory".into(), 1000.into()),
-                ]),
+                ])),
                 ..request
             })
             .await
@@ -1006,10 +1009,10 @@ mod test {
         let key = ctx
             .cache
             .key(KeyRequest {
-                hints: &HashMap::from_iter([(
+                hints: &Object::new(IndexMap::from_iter([(
                     "foo".into(),
                     PrimitiveValue::new_string("baz!").into(),
-                )]),
+                )])),
                 ..request
             })
             .await
@@ -1236,13 +1239,13 @@ mod test {
         // since "memory" is in the exclusion list
         let key = cache
             .key(KeyRequest {
-                requirements: &HashMap::from_iter([
+                requirements: &Object::new(IndexMap::from_iter([
                     (
                         "container".into(),
                         PrimitiveValue::new_string("ubuntu:latest").into(),
                     ),
                     ("memory".into(), 1000.into()),
-                ]),
+                ])),
                 ..request
             })
             .await
@@ -1257,10 +1260,10 @@ mod test {
         // Modify a non-excluded requirement - this SHOULD invalidate the cache
         let key = cache
             .key(KeyRequest {
-                requirements: &HashMap::from_iter([(
+                requirements: &Object::new(IndexMap::from_iter([(
                     "container".into(),
                     PrimitiveValue::new_string("ubuntu:cthulhu").into(),
-                )]),
+                )])),
                 ..request
             })
             .await
@@ -1295,13 +1298,13 @@ mod test {
         // since "localization_optional" is in the exclusion list
         let key = cache
             .key(KeyRequest {
-                hints: &HashMap::from_iter([
+                hints: &Object::new(IndexMap::from_iter([
                     ("foo".into(), PrimitiveValue::new_string("bar").into()),
                     (
                         "localization_optional".into(),
                         PrimitiveValue::new_string("true").into(),
                     ),
-                ]),
+                ])),
                 ..request
             })
             .await
@@ -1317,13 +1320,13 @@ mod test {
         // Modify a non-excluded hint - this SHOULD invalidate the cache
         let key = cache
             .key(KeyRequest {
-                hints: &HashMap::from_iter([
+                hints: &Object::new(IndexMap::from_iter([
                     ("foo".into(), PrimitiveValue::new_string("baz").into()),
                     (
                         "localization_optional".into(),
                         PrimitiveValue::new_string("true").into(),
                     ),
-                ]),
+                ])),
                 ..request
             })
             .await

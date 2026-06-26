@@ -120,9 +120,9 @@ pub(crate) mod requirements;
 const MAX_STDERR_LINES: usize = 10;
 
 /// The default value for the `cpu` requirement.
-const DEFAULT_TASK_REQUIREMENT_CPU: f64 = 1.0;
+pub(crate) const DEFAULT_TASK_REQUIREMENT_CPU: f64 = 1.0;
 /// The default value for the `memory` requirement.
-const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
+pub(crate) const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
 /// The default value for the `max_retries` requirement.
 pub(crate) const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
 /// The default value for the `disks` requirement (in GiB).
@@ -378,9 +378,9 @@ struct EvaluatedSections {
     /// The evaluated command.
     command: String,
     /// The evaluated requirements.
-    requirements: HashMap<String, Value>,
+    requirements: Object,
     /// The evaluated hints.
-    hints: HashMap<String, Value>,
+    hints: Object,
     /// The task's execution constraints.
     constraints: TaskExecutionConstraints,
 }
@@ -855,7 +855,7 @@ impl<'a> State<'a> {
         id: &str,
         section: &RuntimeSection<SyntaxNode>,
         inputs: &TaskInputs,
-    ) -> Result<(HashMap<String, Value>, HashMap<String, Value>), Diagnostic> {
+    ) -> Result<(Object, Object), Diagnostic> {
         debug!(
             task_id = id,
             task_name = self.task.name(),
@@ -863,8 +863,8 @@ impl<'a> State<'a> {
             "evaluating runtimes section",
         );
 
-        let mut requirements = HashMap::new();
-        let mut hints = HashMap::new();
+        let mut requirements = IndexMap::new();
+        let mut hints = IndexMap::new();
 
         let version = self
             .document
@@ -926,7 +926,7 @@ impl<'a> State<'a> {
             }
         }
 
-        Ok((requirements, hints))
+        Ok((Object::new(requirements), Object::new(hints)))
     }
 
     /// Evaluates the requirements section.
@@ -935,7 +935,7 @@ impl<'a> State<'a> {
         id: &str,
         section: &RequirementsSection<SyntaxNode>,
         inputs: &TaskInputs,
-    ) -> Result<HashMap<String, Value>, Diagnostic> {
+    ) -> Result<Object, Diagnostic> {
         debug!(
             task_id = id,
             task_name = self.task.name(),
@@ -943,7 +943,7 @@ impl<'a> State<'a> {
             "evaluating requirements",
         );
 
-        let mut requirements = HashMap::new();
+        let mut requirements = IndexMap::new();
 
         let version = self
             .document
@@ -986,7 +986,7 @@ impl<'a> State<'a> {
             requirements.insert(name.text().to_string(), value);
         }
 
-        Ok(requirements)
+        Ok(Object::new(requirements))
     }
 
     /// Evaluates the hints section.
@@ -995,7 +995,7 @@ impl<'a> State<'a> {
         id: &str,
         section: &TaskHintsSection<SyntaxNode>,
         inputs: &TaskInputs,
-    ) -> Result<HashMap<String, Value>, Diagnostic> {
+    ) -> Result<Object, Diagnostic> {
         debug!(
             task_id = id,
             task_name = self.task.name(),
@@ -1003,7 +1003,7 @@ impl<'a> State<'a> {
             "evaluating hints section",
         );
 
-        let mut hints = HashMap::new();
+        let mut hints = IndexMap::new();
 
         let version = self
             .document
@@ -1031,7 +1031,7 @@ impl<'a> State<'a> {
             hints.insert(name.text().to_string(), value);
         }
 
-        Ok(hints)
+        Ok(Object::new(hints))
     }
 
     /// Evaluates the command of a task.
@@ -1798,6 +1798,7 @@ impl Evaluator {
                                 hints: &hints,
                                 env: &state.env,
                                 constraints: &constraints,
+                                base_dir: &state.base_dir,
                                 attempt_dir: &attempt_dir,
                                 temp_dir: &temp_dir,
                             },
@@ -1949,7 +1950,7 @@ impl Evaluator {
     }
 
     /// Determines if the task failed based on its requirements and exit code.
-    fn did_task_fail(requirements: &HashMap<String, Value>, exit_code: i32) -> bool {
+    fn did_task_fail(requirements: &Object, exit_code: i32) -> bool {
         if let Some(return_codes) = requirements
             .get(TASK_REQUIREMENT_RETURN_CODES)
             .or_else(|| requirements.get(TASK_REQUIREMENT_RETURN_CODES_ALIAS))

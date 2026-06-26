@@ -23,6 +23,7 @@ use wdl_ast::SupportedVersion;
 use crate::EvaluationPath;
 use crate::GuestPath;
 use crate::HostPath;
+use crate::Object;
 use crate::Outputs;
 use crate::Value;
 use crate::backend::TaskExecutionResult;
@@ -590,6 +591,17 @@ pub(crate) trait EvaluationContext: Send + Sync {
     fn notify_file_created(&mut self, path: &HostPath) -> Result<()> {
         let _ = path;
         Ok(())
+    }
+
+    /// Callback that is invoked prior to accessing an object.
+    ///
+    /// If the callback returns `Some`, the returned value will be treated as
+    /// the result of the access.
+    ///
+    /// If the callback returns `None`, the object will be accessed normally.
+    fn object_access(&self, object: &Object, name: &str) -> Option<Value> {
+        let _ = (object, name);
+        None
     }
 }
 
