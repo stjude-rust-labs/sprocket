@@ -182,6 +182,7 @@ mod tests {
         use uuid::Uuid;
         use wdl::engine::Inputs;
         use wdl::engine::Outputs;
+        use wdl::engine::Value;
         use wdl::engine::WorkflowInputs;
 
         use crate::analysis::Source;
@@ -244,8 +245,10 @@ workflow myworkflow {
             created_at: now,
         };
         let target = Target::Workflow("myworkflow".to_string());
-        let inputs = Inputs::Workflow(WorkflowInputs::default());
-        let outputs = Outputs::default();
+        let mut workflow_inputs = WorkflowInputs::default();
+        workflow_inputs.set("greeting", Value::from("hi".to_string()));
+        let inputs = Inputs::Workflow(workflow_inputs);
+        let outputs = Outputs::from_iter([("message".to_string(), Value::from("hi".to_string()))]);
 
         let ctx = RunCrateContext {
             run: &run,
@@ -282,6 +285,11 @@ workflow myworkflow {
         ] {
             assert!(text.contains(marker), "crate should reference `{marker}`");
         }
+        let compact = text.split_whitespace().collect::<String>();
+        assert!(compact.contains("\"input\":[{\"@id\":\"#param-in-greeting\"}]"));
+        assert!(compact.contains("\"output\":[{\"@id\":\"#param-out-message\"}]"));
+        assert!(compact.contains("\"exampleOfWork\":{\"@id\":\"#param-in-greeting\"}"));
+        assert!(compact.contains("\"exampleOfWork\":{\"@id\":\"#param-out-message\"}"));
 
         // The WDL source is materialized into the crate.
         assert!(run_dir.root().join(WORKFLOW_ID).exists());

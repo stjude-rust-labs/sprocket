@@ -97,6 +97,23 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
             format!("Implicit one-task workflow wrapping WDL task `{name}`"),
         ),
     };
+    let (inputs_iface, outputs_iface) = callable_interface(ctx);
+    let input_param_ids = inputs_iface
+        .iter()
+        .map(|(name, _)| format!("#param-in-{name}"))
+        .collect::<Vec<_>>();
+    let output_param_ids = outputs_iface
+        .iter()
+        .map(|(name, _)| format!("#param-out-{name}"))
+        .collect::<Vec<_>>();
+    let input_params = inputs_iface
+        .iter()
+        .map(|(name, _)| (name.clone(), format!("#param-in-{name}")))
+        .collect::<HashMap<_, _>>();
+    let output_params = outputs_iface
+        .iter()
+        .map(|(name, _)| (name.clone(), format!("#param-out-{name}")))
+        .collect::<HashMap<_, _>>();
 
     // Timing is recorded only when actually known; `startTime`/`endTime` are not
     // required, so we omit them rather than fabricate values.
@@ -151,6 +168,18 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
     }
 
     // Workflow entity (the materialized WDL source; written by `materialize_sources`).
+    let mut workflow_props = vec![
+        ("name", ev_str(&wf_name)),
+        ("description", ev_str(&wf_desc)),
+        ("url", ev_str(&ctx.run.source)),
+        ("programmingLanguage", ev_id("#wdl")),
+    ];
+    if !input_param_ids.is_empty() {
+        workflow_props.push(("input", ev_ids(input_param_ids)));
+    }
+    if !output_param_ids.is_empty() {
+        workflow_props.push(("output", ev_ids(output_param_ids)));
+    }
     crate_.graph.push(GraphVector::DataEntity(DataEntity {
         id: WORKFLOW_ID.to_string(),
         type_: DataType::TermArray(vec![
@@ -158,12 +187,7 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
             "SoftwareSourceCode".to_string(),
             "ComputationalWorkflow".to_string(),
         ]),
-        dynamic_entity: bag(vec![
-            ("name", ev_str(&wf_name)),
-            ("description", ev_str(&wf_desc)),
-            ("url", ev_str(&ctx.run.source)),
-            ("programmingLanguage", ev_id("#wdl")),
-        ]),
+        dynamic_entity: bag(workflow_props),
     }));
     crate_
         .graph
@@ -177,7 +201,6 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
         }));
 
     // Formal parameters from the selected callable's interface.
-    let (inputs_iface, outputs_iface) = callable_interface(ctx);
     for (name, input) in inputs_iface {
         let pid = format!("#param-in-{name}");
         crate_.graph.push(formal_parameter(&pid, &name, input.ty()));
@@ -193,11 +216,21 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
     let mut input_ids = Vec::new();
     for (name, value) in ctx.inputs_iter() {
         let id = value_to_entities("input", name, value, crate_root, opts, &mut crate_.graph)?;
+        if let Some(param_id) = input_params.get(name) {
+            let mut property = HashMap::new();
+            property.insert("exampleOfWork".to_string(), ev_id(param_id));
+            crate_.add_dynamic_entity_property(&id, property);
+        }
         input_ids.push(id);
     }
     let mut output_ids = Vec::new();
     for (name, value) in ctx.outputs.iter() {
         let id = value_to_entities("output", name, value, crate_root, opts, &mut crate_.graph)?;
+        if let Some(param_id) = output_params.get(name) {
+            let mut property = HashMap::new();
+            property.insert("exampleOfWork".to_string(), ev_id(param_id));
+            crate_.add_dynamic_entity_property(&id, property);
+        }
         output_ids.push(id);
     }
 
