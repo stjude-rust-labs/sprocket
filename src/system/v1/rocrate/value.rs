@@ -200,36 +200,38 @@ fn directory_part_entities(
     dir_abs: &Path,
     opts: &RoCrateOptions,
     graph: &mut Vec<GraphVector>,
-) -> Vec<String> {
+) -> Result<Vec<String>> {
     let mut parts = Vec::new();
     let mut stack = vec![dir_abs.to_path_buf()];
     while let Some(dir) = stack.pop() {
-        let Ok(entries) = std::fs::read_dir(&dir) else {
-            continue;
-        };
-        for entry in entries.flatten() {
+        let entries = std::fs::read_dir(&dir)
+            .with_context(|| format!("reading localized directory `{}`", dir.display()))?;
+        for entry in entries {
+            let entry = entry
+                .with_context(|| format!("reading localized directory `{}`", dir.display()))?;
             let path = entry.path();
-            let Ok(file_type) = entry.file_type() else {
-                continue;
-            };
+            let file_type = entry
+                .file_type()
+                .with_context(|| format!("reading file type for `{}`", path.display()))?;
             if file_type.is_dir() {
                 stack.push(path);
                 continue;
             }
-            let Ok(rel) = path.strip_prefix(dir_abs) else {
-                continue;
-            };
-            let Some(rel_str) = rel.to_str() else {
-                continue;
-            };
+            let rel = path
+                .strip_prefix(dir_abs)
+                .with_context(|| format!("relativizing localized file `{}`", path.display()))?;
+            let rel_str = rel.to_str().with_context(|| {
+                format!("localized file path was not utf-8 `{}`", path.display())
+            })?;
             let id = format!("{dir_id}/{rel_str}");
             let mut props = vec![("name", EntityValue::EntityString(rel_str.to_string()))];
-            if let Ok(meta) = std::fs::metadata(&path) {
-                props.push(("contentSize", EntityValue::Entityi64(meta.len() as i64)));
-            }
-            if opts.checksums
-                && let Ok(hex) = sha256_hex(&path)
-            {
+            let meta = std::fs::metadata(&path).with_context(|| {
+                format!("reading metadata for localized file `{}`", path.display())
+            })?;
+            props.push(("contentSize", EntityValue::Entityi64(meta.len() as i64)));
+            if opts.checksums {
+                let hex = sha256_hex(&path)
+                    .with_context(|| format!("checksumming localized file `{}`", path.display()))?;
                 props.push(("sha256", EntityValue::EntityString(hex)));
             }
             graph.push(GraphVector::DataEntity(DataEntity {
@@ -240,7 +242,7 @@ fn directory_part_entities(
             parts.push(id);
         }
     }
-    parts
+    Ok(parts)
 }
 
 /// Pushes a `File`/`Dataset` data entity for a data value and returns its
@@ -274,7 +276,7 @@ fn data_entity(
     props.extend(extra);
 
     if is_dir {
-        let parts = directory_part_entities(&id, &stat_path, opts, graph);
+        let parts = directory_part_entities(&id, &stat_path, opts, graph)?;
         if !parts.is_empty() {
             props.push(("hasPart", EntityValue::EntityId(Id::IdArray(parts))));
         }
@@ -702,6 +704,24 @@ mod tests {
                 .join("inputs/dataset/input/link.txt")
                 .exists()
         );
+
+        Ok(())
+    }
+
+    #[test]
+    fn directory_part_entities_reports_read_errors() -> Result<()> {
+        let missing_dir = tempfile::tempdir()?.path().join("missing");
+        let opts = RoCrateOptions::from_flags(true, false, false, false);
+        let mut graph = Vec::new();
+
+        let Err(err) =
+            directory_part_entities("inputs/dataset/input", &missing_dir, &opts, &mut graph)
+        else {
+            anyhow::bail!("directory part generation unexpectedly succeeded");
+        };
+
+        assert!(err.to_string().contains("reading localized directory"));
+        assert!(graph.is_empty());
 
         Ok(())
     }
