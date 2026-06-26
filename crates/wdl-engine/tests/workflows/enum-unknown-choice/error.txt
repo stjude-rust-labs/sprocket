@@ -1,0 +1,6 @@
+error: unknown choice named `InvalidChoice` for enum `Status`
+   ┌─ tests/workflows/enum-unknown-choice/source.wdl:10:23
+   │
+10 │     Status s = Status.InvalidChoice
+   │                       ^^^^^^^^^^^^^ the choice is referenced here
+

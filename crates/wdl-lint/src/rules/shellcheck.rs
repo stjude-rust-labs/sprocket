@@ -379,7 +379,7 @@ impl EvaluationContext for CommandContext<'_> {
         self.document.version().expect("document has a version")
     }
 
-    fn resolve_name(&self, name: &str, _span: Span) -> Option<wdl_analysis::types::Type> {
+    fn resolve_name(&mut self, name: &str, _span: Span) -> Option<wdl_analysis::types::Type> {
         // Check if there are any variables with this name and return if so.
         if let Some(var) = self.scope.lookup(name).map(|n| n.ty().clone()) {
             return Some(var);

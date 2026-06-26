@@ -20,7 +20,7 @@ use serde::Serialize;
 pub(crate) use task::*;
 use tokio::sync::broadcast;
 use tracing::info;
-use wdl_analysis::types::EnumVariantCacheKey;
+use wdl_analysis::types::EnumChoiceCacheKey;
 
 use super::CancellationContext;
 use super::Events;
@@ -71,8 +71,8 @@ pub struct Evaluator {
     cache: Option<CallCache>,
     /// The events for evaluation.
     events: Option<broadcast::Sender<EngineEvent>>,
-    /// Cache for evaluated enum variant values to avoid redundant AST lookups.
-    variant_cache: Arc<Mutex<HashMap<EnumVariantCacheKey, Value>>>,
+    /// Cache for evaluated enum choice values to avoid redundant AST lookups.
+    choice_cache: Arc<Mutex<HashMap<EnumChoiceCacheKey, Value>>>,
 }
 
 impl Evaluator {
@@ -86,12 +86,17 @@ impl Evaluator {
         cancellation: CancellationContext,
         events: Events,
     ) -> Result<Self> {
-        config.validate().await?;
+        config
+            .validate()
+            .await
+            .context("failed to validate configuration")?;
 
         let root_dir = root_dir.as_ref();
         let backend = config
             .create_backend(root_dir, events.clone(), cancellation.clone())
-            .await?;
+            .await
+            .context("failed to create task execution backend")?;
+
         let transferer = Arc::new(HttpTransferer::new(
             config.clone(),
             cancellation.first(),
@@ -129,7 +134,7 @@ impl Evaluator {
             transferer,
             cache,
             events: events.engine().clone(),
-            variant_cache: Default::default(),
+            choice_cache: Default::default(),
         })
     }
 }

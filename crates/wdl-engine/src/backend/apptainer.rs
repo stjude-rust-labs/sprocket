@@ -241,7 +241,7 @@ impl ApptainerRuntime {
             writeln!(&mut apptainer_command, "--nv \\")?;
         }
 
-        for arg in &config.extra_apptainer_exec_args {
+        for arg in &config.extra_args {
             writeln!(&mut apptainer_command, "{arg} \\")?;
         }
 
@@ -472,7 +472,9 @@ mod tests {
     use url::Url;
 
     use super::*;
+    use crate::EvaluationPath;
     use crate::ONE_GIBIBYTE;
+    use crate::Object;
     use crate::TaskInputs;
     use crate::backend::ExecuteTaskRequest;
     use crate::backend::TaskExecutionConstraints;
@@ -496,8 +498,8 @@ mod tests {
                     command: "echo hello",
                     inputs: &TaskInputs::default(),
                     backend_inputs: &[],
-                    requirements: &Default::default(),
-                    hints: &Default::default(),
+                    requirements: &Object::empty(),
+                    hints: &Object::empty(),
                     env: &env,
                     constraints: &TaskExecutionConstraints {
                         container: Some(vec![
@@ -513,6 +515,7 @@ mod tests {
                         fpga: Default::default(),
                         disks: Default::default(),
                     },
+                    base_dir: &EvaluationPath::from_local_path(root.path().into()),
                     attempt_dir: &root.path().join("0"),
                     temp_dir: &root.path().join("temp"),
                 },
@@ -549,8 +552,8 @@ mod tests {
                     command: "echo hello",
                     inputs: &TaskInputs::default(),
                     backend_inputs: &[],
-                    requirements: &Default::default(),
-                    hints: &Default::default(),
+                    requirements: &Object::empty(),
+                    hints: &Object::empty(),
                     env: &env,
                     constraints: &TaskExecutionConstraints {
                         container: Some(vec![
@@ -566,6 +569,7 @@ mod tests {
                         fpga: Default::default(),
                         disks: Default::default(),
                     },
+                    base_dir: &EvaluationPath::from_local_path(root.path().into()),
                     attempt_dir: &root.path().join("0"),
                     temp_dir: &root.path().join("temp"),
                 },

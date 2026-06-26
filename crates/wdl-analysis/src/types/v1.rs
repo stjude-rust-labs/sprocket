@@ -541,7 +541,7 @@ pub trait EvaluationContext {
     ///   that custom type. For example, returns a type name reference to
     ///   `Status` in the expression `Status.Active` (where `Status`) is an
     ///   enum.
-    fn resolve_name(&self, name: &str, span: Span) -> Option<Type>;
+    fn resolve_name(&mut self, name: &str, span: Span) -> Option<Type>;
 
     /// Resolves a type name to a type.
     ///

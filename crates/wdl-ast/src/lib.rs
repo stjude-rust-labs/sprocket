@@ -731,14 +731,19 @@ impl Comment {
 
         match directive.trim_end() {
             "except" => Some(Directive::Except(HashSet::from_iter(
-                contents.split(',').map(|original_id| {
-                    let name = original_id.trim().to_string();
+                contents.split(',').filter_map(|original_id| {
+                    let trimmed = original_id.trim();
+                    if trimmed.is_empty() {
+                        return None;
+                    }
+
+                    let name = trimmed.to_string();
                     offset += original_id.len() - name.len();
 
                     let span = Span::new(offset, name.len());
                     offset += name.len() + 1; // + 1 for the comma
 
-                    ExceptRule { name, span }
+                    Some(ExceptRule { name, span })
                 }),
             ))),
             _ => None,

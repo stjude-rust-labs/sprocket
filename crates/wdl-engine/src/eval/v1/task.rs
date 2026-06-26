@@ -8,6 +8,7 @@ use std::fs::read_link;
 use std::fs::remove_file;
 use std::io::BufRead;
 use std::mem;
+use std::path::Component;
 use std::path::Path;
 use std::path::absolute;
 use std::sync::Arc;
@@ -28,6 +29,7 @@ use tracing::debug;
 use tracing::enabled;
 use tracing::info;
 use tracing::warn;
+use url::Url;
 use walkdir::WalkDir;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
@@ -69,6 +71,7 @@ use crate::EngineEvent;
 use crate::EvaluationContext;
 use crate::EvaluationError;
 use crate::EvaluationPath;
+use crate::EvaluationPathKind;
 use crate::EvaluationResult;
 use crate::GuestPath;
 use crate::HiddenValue;
@@ -108,7 +111,7 @@ use crate::units::convert_unit_string;
 use crate::v1::INPUTS_FILE;
 use crate::v1::OUTPUTS_FILE;
 use crate::v1::expr::ExprEvaluator;
-use crate::v1::resolve_enum_variant_value;
+use crate::v1::resolve_enum_choice_value;
 use crate::v1::write_json_file;
 
 pub(crate) mod hints;
@@ -118,9 +121,9 @@ pub(crate) mod requirements;
 const MAX_STDERR_LINES: usize = 10;
 
 /// The default value for the `cpu` requirement.
-const DEFAULT_TASK_REQUIREMENT_CPU: f64 = 1.0;
+pub(crate) const DEFAULT_TASK_REQUIREMENT_CPU: f64 = 1.0;
 /// The default value for the `memory` requirement.
-const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
+pub(crate) const DEFAULT_TASK_REQUIREMENT_MEMORY: i64 = 2 * (ONE_GIBIBYTE as i64);
 /// The default value for the `max_retries` requirement.
 pub(crate) const DEFAULT_TASK_REQUIREMENT_MAX_RETRIES: u64 = 0;
 /// The default value for the `disks` requirement (in GiB).
@@ -172,6 +175,41 @@ fn parse_storage_value(value: &Value, error_message: impl Fn(&str) -> String) ->
     }
 
     unreachable!("value should be an integer or string");
+}
+
+/// Utility function for stripping a path and ensuring the resulting remainder
+/// does not escape via a parent directory reference.
+///
+/// The returned remainder is always cleaned.
+///
+/// Returns `None` if the given path is not prefixed with the given base path.
+fn strip_path_prefix(path: impl AsRef<Path>, base: impl AsRef<Path>) -> Option<String> {
+    let remainder = clean(path.as_ref().strip_prefix(base.as_ref()).ok()?);
+
+    // If the cleaned remainder starts with a parent directory reference,
+    // then it isn't actually prefixed
+    if remainder.components().next() == Some(Component::ParentDir) {
+        return None;
+    }
+
+    remainder.into_os_string().into_string().ok()
+}
+
+/// Utility function for stripping the path prefix of a URL given a base URL.
+///
+/// The returned remainder is always cleaned.
+///
+/// Returns `None` if the given URL is not prefixed with the given base URL.
+fn strip_url_path_prefix(url: &Url, base: &Url) -> Option<String> {
+    if url.scheme() == base.scheme()
+        && url.authority() == base.authority()
+        && url.host_str() == base.host_str()
+        && url.port() == base.port()
+    {
+        return strip_path_prefix(url.path(), base.path());
+    }
+
+    None
 }
 
 /// Used to evaluate expressions in tasks.
@@ -266,14 +304,14 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
         crate::resolve_type_name(self.state.document, name, span)
     }
 
-    fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic> {
+    fn enum_choice_value(&self, enum_name: &str, choice_name: &str) -> Result<Value, Diagnostic> {
         let cache_key = self
             .state
             .document
-            .get_variant_cache_key(enum_name, variant_name)
+            .get_choice_cache_key(enum_name, choice_name)
             .ok_or_else(|| unknown_enum(enum_name))?;
 
-        let cache = self.state.evaluator.variant_cache.lock().unwrap();
+        let cache = self.state.evaluator.choice_cache.lock().unwrap();
         if let Some(cached_value) = cache.get(&cache_key) {
             return Ok(cached_value.clone());
         }
@@ -285,9 +323,9 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
             .document
             .enum_by_name(enum_name)
             .ok_or(unknown_enum(enum_name))?;
-        let value = resolve_enum_variant_value(r#enum, variant_name)?;
+        let value = resolve_enum_choice_value(r#enum, choice_name)?;
 
-        let mut cache = self.state.evaluator.variant_cache.lock().unwrap();
+        let mut cache = self.state.evaluator.choice_cache.lock().unwrap();
         cache.insert(cache_key, value.clone());
         drop(cache);
 
@@ -323,17 +361,29 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
     }
 
     fn host_path(&self, path: &GuestPath) -> Option<HostPath> {
-        self.state.path_map.get_by_right(path).cloned()
+        self.state.host_path(path)
     }
 
     fn guest_path(&self, path: &HostPath) -> Option<GuestPath> {
-        self.state.path_map.get_by_left(path).cloned()
+        self.state.guest_path(path)
     }
 
     fn notify_file_created(&mut self, path: &HostPath) -> Result<()> {
         self.state.insert_backend_input(ContentKind::File, path)?;
         Ok(())
     }
+}
+
+/// Represents the result of evaluating task sections before execution.
+struct EvaluatedSections {
+    /// The evaluated command.
+    command: String,
+    /// The evaluated requirements.
+    requirements: Object,
+    /// The evaluated hints.
+    hints: Object,
+    /// The task's execution constraints.
+    constraints: TaskExecutionConstraints,
 }
 
 /// Represents task evaluation state.
@@ -557,18 +607,859 @@ impl<'a> State<'a> {
 
         Ok(None)
     }
-}
 
-/// Represents the result of evaluating task sections before execution.
-struct EvaluatedSections {
-    /// The evaluated command.
-    command: String,
-    /// The evaluated requirements.
-    requirements: HashMap<String, Value>,
-    /// The evaluated hints.
-    hints: HashMap<String, Value>,
-    /// The task's execution constraints.
-    constraints: TaskExecutionConstraints,
+    /// Gets a host path representation of a guest path.
+    ///
+    /// Returns `None` if there is no host path representation of the guest
+    /// path.
+    fn host_path(&self, path: &GuestPath) -> Option<HostPath> {
+        self.path_map.get_by_right(path).cloned().or_else(|| {
+            // A direct mapping between the guest and host wasn't found, so scan for a
+            // matching guest prefix
+            for (host, guest) in self.path_map.iter() {
+                // Check to see if the provided guest path is prefixed by this entry
+                if let Some(remainder) = strip_path_prefix(path.0.as_str(), guest.0.as_str()) {
+                    // If the host is a URL, parse it and join it with the remainder
+                    if is_supported_url(host.as_str()) {
+                        let mut host: Url = host.as_str().parse().ok()?;
+
+                        // Push a separator to force join to treat the path as a "directory"
+                        if let Ok(mut segments) = host.path_segments_mut() {
+                            segments.pop_if_empty();
+                            segments.push("");
+                        }
+
+                        let mut joined = host.join(&remainder).ok()?;
+                        joined.set_query(host.query());
+                        return Some(HostPath::new(joined));
+                    }
+
+                    // Otherwise, join paths
+                    let joined = Path::new(host.0.as_str()).join(remainder);
+                    return Some(HostPath::new(joined.into_os_string().into_string().ok()?));
+                }
+            }
+
+            None
+        })
+    }
+
+    /// Gets a guest path representation of a host path.
+    ///
+    /// Returns `None` if there is no guest path representation of the host
+    /// path.
+    fn guest_path(&self, path: &HostPath) -> Option<GuestPath> {
+        // Check to see if the given path is a URL
+        let path_url = if is_supported_url(path.as_str()) {
+            path.as_str().parse::<Url>().ok()
+        } else {
+            None
+        };
+
+        self.path_map.get_by_left(path).cloned().or_else(|| {
+            // A direct mapping between the guest and host wasn't found, so scan for a
+            // matching host prefix
+            for (host, guest) in self.path_map.iter() {
+                // Check to see if this host path entry is a URL
+                let host_url = if is_supported_url(host.as_str()) {
+                    host.as_str().parse::<Url>().ok()
+                } else {
+                    None
+                };
+
+                match (&path_url, &host_url) {
+                    (None, None) => {
+                        if let Some(remainder) = strip_path_prefix(path.0.as_str(), host.0.as_str())
+                        {
+                            // Note: guest paths are always Unix-style paths
+                            return Some(GuestPath::new(format!(
+                                "{base}/{remainder}",
+                                base = guest.0.trim_end_matches('/'),
+                                remainder = remainder.replace('\\', "/")
+                            )));
+                        }
+                    }
+                    (Some(path_url), Some(host_url)) => {
+                        if let Some(remainder) = strip_url_path_prefix(path_url, host_url) {
+                            // Note: guest paths are always Unix-style paths
+                            return Some(GuestPath::new(format!(
+                                "{base}/{remainder}",
+                                base = guest.0.trim_end_matches('/')
+                            )));
+                        }
+                    }
+                    _ => continue,
+                }
+            }
+
+            None
+        })
+    }
+
+    /// Evaluates a task input.
+    async fn evaluate_input(
+        &mut self,
+        id: &str,
+        decl: &Decl<SyntaxNode>,
+        inputs: &TaskInputs,
+    ) -> Result<(), Diagnostic> {
+        let name = decl.name();
+        let decl_ty = decl.ty();
+        let expected_ty = crate::convert_ast_type_v1(self.document, &decl_ty)?;
+
+        // Evaluate the input if not provided one
+        let (value, span) = match inputs.get(name.text()) {
+            Some(input) => {
+                // A `None` value when the expected type is non-optional
+                // will invoke the default expression
+                if input.is_none()
+                    && !expected_ty.is_optional()
+                    && let Some(expr) = decl.expr()
+                {
+                    debug!(
+                        task_id = id,
+                        task_name = self.task.name(),
+                        document = self.document.uri().as_str(),
+                        input_name = name.text(),
+                        "evaluating input default expression"
+                    );
+
+                    let mut evaluator =
+                        ExprEvaluator::new(TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX));
+                    (evaluator.evaluate_expr(&expr).await?, expr.span())
+                } else {
+                    (input.clone(), name.span())
+                }
+            }
+            None => match decl.expr() {
+                Some(expr) => {
+                    debug!(
+                        task_id = id,
+                        task_name = self.task.name(),
+                        document = self.document.uri().as_str(),
+                        input_name = name.text(),
+                        "evaluating input default expression"
+                    );
+
+                    let mut evaluator =
+                        ExprEvaluator::new(TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX));
+                    (evaluator.evaluate_expr(&expr).await?, expr.span())
+                }
+                _ => {
+                    assert!(expected_ty.is_optional(), "type should be optional");
+                    (Value::new_none(expected_ty.clone()), name.span())
+                }
+            },
+        };
+
+        // Coerce the value to the expected type
+        let mut value = value
+            .coerce(
+                Some(&TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX)),
+                &expected_ty,
+            )
+            .map_err(|e| runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), span))?;
+
+        // Add any file or directory backend inputs
+        self.add_backend_inputs(
+            decl_ty.is_optional(),
+            &mut value,
+            self.transferer().clone(),
+            self.evaluator.backend.needs_local_inputs(),
+        )
+        .await
+        .map_err(|e| {
+            decl_evaluation_failed(
+                e,
+                self.task.name(),
+                true,
+                name.text(),
+                Some(Io::Input),
+                name.span(),
+            )
+        })?;
+
+        // Insert the name into the scope
+        self.scopes[ROOT_SCOPE_INDEX.0].insert(name.text(), value.clone());
+        self.inputs.insert(name.text().to_string(), value.clone());
+
+        // Insert an environment variable, if it is one
+        if decl.env().is_some() {
+            let value = value
+                .as_primitive()
+                .expect("value should be primitive")
+                .raw(Some(&TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX)))
+                .to_string();
+            self.env.insert(name.text().to_string(), value);
+        }
+
+        Ok(())
+    }
+
+    /// Evaluates a task private declaration.
+    async fn evaluate_decl(&mut self, id: &str, decl: &Decl<SyntaxNode>) -> Result<(), Diagnostic> {
+        let name = decl.name();
+        debug!(
+            task_id = id,
+            task_name = self.task.name(),
+            document = self.document.uri().as_str(),
+            decl_name = name.text(),
+            "evaluating private declaration",
+        );
+
+        let decl_ty = decl.ty();
+        let ty = crate::convert_ast_type_v1(self.document, &decl_ty)?;
+
+        let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX));
+
+        let expr = decl.expr().expect("private decls should have expressions");
+        let value = evaluator.evaluate_expr(&expr).await?;
+        let mut value = value
+            .coerce(
+                Some(&TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX)),
+                &ty,
+            )
+            .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), expr.span()))?;
+
+        // Add any file or directory backend inputs
+        self.add_backend_inputs(
+            decl_ty.is_optional(),
+            &mut value,
+            self.transferer().clone(),
+            self.evaluator.backend.needs_local_inputs(),
+        )
+        .await
+        .map_err(|e| {
+            decl_evaluation_failed(e, self.task.name(), true, name.text(), None, name.span())
+        })?;
+
+        self.scopes[ROOT_SCOPE_INDEX.0].insert(name.text(), value.clone());
+
+        // Insert an environment variable, if it is one
+        if decl.env().is_some() {
+            let value = value
+                .as_primitive()
+                .expect("value should be primitive")
+                .raw(Some(&TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX)))
+                .to_string();
+            self.env.insert(name.text().to_string(), value);
+        }
+
+        Ok(())
+    }
+
+    /// Evaluates the runtime section.
+    ///
+    /// Returns both the task's hints and requirements.
+    async fn evaluate_runtime_section(
+        &mut self,
+        id: &str,
+        section: &RuntimeSection<SyntaxNode>,
+        inputs: &TaskInputs,
+    ) -> Result<(Object, Object), Diagnostic> {
+        debug!(
+            task_id = id,
+            task_name = self.task.name(),
+            document = self.document.uri().as_str(),
+            "evaluating runtimes section",
+        );
+
+        let mut requirements = IndexMap::new();
+        let mut hints = IndexMap::new();
+
+        let version = self
+            .document
+            .version()
+            .expect("document should have version");
+
+        // In WDL 1.3+, use `TASK_SCOPE_INDEX` to access the `task` variable.
+        let scope_index = if version >= SupportedVersion::V1(V1::Three) {
+            TASK_SCOPE_INDEX
+        } else {
+            ROOT_SCOPE_INDEX
+        };
+
+        for item in section.items() {
+            let name = item.name();
+            match inputs.requirement(name.text()) {
+                Some(value) => {
+                    requirements.insert(name.text().to_string(), value.clone());
+                    continue;
+                }
+                _ => {
+                    if let Some(value) = inputs.hint(name.text()) {
+                        hints.insert(name.text().to_string(), value.clone());
+                        continue;
+                    }
+                }
+            }
+
+            let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(self, scope_index));
+
+            let (types, requirement) = match task_requirement_types(version, name.text()) {
+                Some(types) => (Some(types), true),
+                None => match task_hint_types(version, name.text(), false) {
+                    Some(types) => (Some(types), false),
+                    None => (None, false),
+                },
+            };
+
+            // Evaluate and coerce to the expected type
+            let expr = item.expr();
+            let mut value = evaluator.evaluate_expr(&expr).await?;
+            if let Some(types) = types {
+                value = types
+                    .iter()
+                    .find_map(|ty| {
+                        value
+                            .coerce(Some(&TaskEvaluationContext::new(self, scope_index)), ty)
+                            .ok()
+                    })
+                    .ok_or_else(|| {
+                        multiple_type_mismatch(types, name.span(), &value.ty(), expr.span())
+                    })?;
+            }
+
+            if requirement {
+                requirements.insert(name.text().to_string(), value);
+            } else {
+                hints.insert(name.text().to_string(), value);
+            }
+        }
+
+        Ok((Object::new(requirements), Object::new(hints)))
+    }
+
+    /// Evaluates the requirements section.
+    async fn evaluate_requirements_section(
+        &mut self,
+        id: &str,
+        section: &RequirementsSection<SyntaxNode>,
+        inputs: &TaskInputs,
+    ) -> Result<Object, Diagnostic> {
+        debug!(
+            task_id = id,
+            task_name = self.task.name(),
+            document = self.document.uri().as_str(),
+            "evaluating requirements",
+        );
+
+        let mut requirements = IndexMap::new();
+
+        let version = self
+            .document
+            .version()
+            .expect("document should have version");
+
+        // In WDL 1.3+, use `TASK_SCOPE_INDEX` to access the `task` variable.
+        let scope_index = if version >= SupportedVersion::V1(V1::Three) {
+            TASK_SCOPE_INDEX
+        } else {
+            ROOT_SCOPE_INDEX
+        };
+
+        for item in section.items() {
+            let name = item.name();
+            if let Some(value) = inputs.requirement(name.text()) {
+                requirements.insert(name.text().to_string(), value.clone());
+                continue;
+            }
+
+            let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(self, scope_index));
+
+            let types =
+                task_requirement_types(version, name.text()).expect("requirement should be known");
+
+            // Evaluate and coerce to the expected type
+            let expr = item.expr();
+            let value = evaluator.evaluate_expr(&expr).await?;
+            let value = types
+                .iter()
+                .find_map(|ty| {
+                    value
+                        .coerce(Some(&TaskEvaluationContext::new(self, scope_index)), ty)
+                        .ok()
+                })
+                .ok_or_else(|| {
+                    multiple_type_mismatch(types, name.span(), &value.ty(), expr.span())
+                })?;
+
+            requirements.insert(name.text().to_string(), value);
+        }
+
+        Ok(Object::new(requirements))
+    }
+
+    /// Evaluates the hints section.
+    async fn evaluate_hints_section(
+        &mut self,
+        id: &str,
+        section: &TaskHintsSection<SyntaxNode>,
+        inputs: &TaskInputs,
+    ) -> Result<Object, Diagnostic> {
+        debug!(
+            task_id = id,
+            task_name = self.task.name(),
+            document = self.document.uri().as_str(),
+            "evaluating hints section",
+        );
+
+        let mut hints = IndexMap::new();
+
+        let version = self
+            .document
+            .version()
+            .expect("document should have version");
+
+        // In WDL 1.3+, use `TASK_SCOPE_INDEX` to access task.attempt and task.previous
+        let scope_index = if version >= SupportedVersion::V1(V1::Three) {
+            TASK_SCOPE_INDEX
+        } else {
+            ROOT_SCOPE_INDEX
+        };
+
+        for item in section.items() {
+            let name = item.name();
+            if let Some(value) = inputs.hint(name.text()) {
+                hints.insert(name.text().to_string(), value.clone());
+                continue;
+            }
+
+            let mut evaluator =
+                ExprEvaluator::new(TaskEvaluationContext::new(self, scope_index).with_task());
+
+            let value = evaluator.evaluate_hints_item(&name, &item.expr()).await?;
+            hints.insert(name.text().to_string(), value);
+        }
+
+        Ok(Object::new(hints))
+    }
+
+    /// Evaluates the command of a task.
+    ///
+    /// Returns the evaluated command as a string.
+    async fn evaluate_command(
+        &mut self,
+        id: &str,
+        section: &CommandSection<SyntaxNode>,
+    ) -> EvaluationResult<String> {
+        debug!(
+            task_id = id,
+            task_name = self.task.name(),
+            document = self.document.uri().as_str(),
+            "evaluating command section",
+        );
+
+        let document = self.document.clone();
+        let mut command = String::new();
+        match section.strip_whitespace() {
+            Some(parts) => {
+                let mut evaluator =
+                    ExprEvaluator::new(TaskEvaluationContext::new(self, TASK_SCOPE_INDEX));
+
+                for part in parts {
+                    match part {
+                        StrippedCommandPart::Text(t) => {
+                            command.push_str(t.as_str());
+                        }
+                        StrippedCommandPart::Placeholder(placeholder) => {
+                            evaluator
+                                .evaluate_placeholder(&placeholder, &mut command)
+                                .await
+                                .map_err(|d| EvaluationError::new(document.clone(), d))?;
+                        }
+                    }
+                }
+            }
+            _ => {
+                warn!(
+                    "command for task `{task}` in `{uri}` has mixed indentation; whitespace \
+                     stripping was skipped",
+                    task = self.task.name(),
+                    uri = self.document.uri(),
+                );
+
+                let mut evaluator =
+                    ExprEvaluator::new(TaskEvaluationContext::new(self, TASK_SCOPE_INDEX));
+
+                let heredoc = section.is_heredoc();
+                for part in section.parts() {
+                    match part {
+                        CommandPart::Text(t) => {
+                            t.unescape_to(heredoc, &mut command);
+                        }
+                        CommandPart::Placeholder(placeholder) => {
+                            evaluator
+                                .evaluate_placeholder(&placeholder, &mut command)
+                                .await
+                                .map_err(|d| EvaluationError::new(document.clone(), d))?;
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(command)
+    }
+
+    /// Evaluates sections prior to executing the task.
+    ///
+    /// This method evaluates the following sections:
+    ///   * runtime
+    ///   * requirements
+    ///   * hints
+    ///   * command
+    async fn evaluate_sections(
+        &mut self,
+        id: &str,
+        definition: &TaskDefinition<SyntaxNode>,
+        inputs: &TaskInputs,
+        attempt: u64,
+        previous_task_data: Option<Arc<TaskPostEvaluationData>>,
+    ) -> EvaluationResult<EvaluatedSections> {
+        let version = self.document.version();
+
+        // Extract task metadata once to avoid walking the AST multiple times
+        let task_meta = definition
+            .metadata()
+            .map(|s| Object::from_v1_metadata(s.items()))
+            .unwrap_or_else(Object::empty);
+        let task_parameter_meta = definition
+            .parameter_metadata()
+            .map(|s| Object::from_v1_metadata(s.items()))
+            .unwrap_or_else(Object::empty);
+        // Note: Sprocket does not currently support workflow-level extension metadata,
+        // so `ext` is always an empty object.
+        let task_ext = Object::empty();
+
+        // In WDL 1.3+, insert a [`TaskPreEvaluation`] before evaluating the
+        // requirements/hints/runtime section.
+        if version >= Some(SupportedVersion::V1(V1::Three)) {
+            let mut task = TaskPreEvaluationValue::new(
+                self.task.name(),
+                id,
+                attempt.try_into().expect("attempt should fit in i64"),
+                task_meta.clone(),
+                task_parameter_meta.clone(),
+                task_ext.clone(),
+            );
+
+            if let Some(prev_data) = &previous_task_data {
+                task.set_previous(prev_data.clone());
+            }
+
+            let scope = &mut self.scopes[TASK_SCOPE_INDEX.0];
+            if let Some(v) = scope.get_mut(TASK_VAR_NAME) {
+                *v = HiddenValue::TaskPreEvaluation(task).into();
+            } else {
+                scope.insert(TASK_VAR_NAME, HiddenValue::TaskPreEvaluation(task));
+            }
+        }
+
+        // Evaluate requirements and hints
+        let (requirements, hints) = match definition.runtime() {
+            Some(section) => self
+                .evaluate_runtime_section(id, &section, inputs)
+                .await
+                .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
+            _ => (
+                match definition.requirements() {
+                    Some(section) => self
+                        .evaluate_requirements_section(id, &section, inputs)
+                        .await
+                        .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
+                    None => Default::default(),
+                },
+                match definition.hints() {
+                    Some(section) => self
+                        .evaluate_hints_section(id, &section, inputs)
+                        .await
+                        .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
+                    None => Default::default(),
+                },
+            ),
+        };
+
+        // Get the execution constraints
+        let constraints = self
+            .evaluator
+            .backend
+            .constraints(inputs, &requirements, &hints)
+            .with_context(|| {
+                format!(
+                    "failed to get constraints for task `{task}`",
+                    task = self.task.name()
+                )
+            })?;
+
+        // Now that those are evaluated, insert a [`TaskPostEvaluation`] for
+        // `task` which includes those calculated requirements before the
+        // command/output sections are evaluated.
+        if version >= Some(SupportedVersion::V1(V1::Two)) {
+            let max_retries =
+                requirements::max_retries(inputs, &requirements, &self.evaluator.config)?;
+
+            let mut task = TaskPostEvaluationValue::new(
+                self.task.name(),
+                id,
+                &constraints,
+                max_retries.try_into().with_context(|| {
+                    format!(
+                        "the number of max retries is too large to run task `{task}`",
+                        task = self.task.name()
+                    )
+                })?,
+                attempt.try_into().with_context(|| {
+                    format!(
+                        "too many attempts were made to run task `{task}`",
+                        task = self.task.name()
+                    )
+                })?,
+                task_meta,
+                task_parameter_meta,
+                task_ext,
+            );
+
+            // In WDL 1.3+, insert the previous requirements.
+            if let Some(version) = version
+                && version >= SupportedVersion::V1(V1::Three)
+                && let Some(prev_data) = &previous_task_data
+            {
+                task.set_previous(prev_data.clone());
+            }
+
+            let scope = &mut self.scopes[TASK_SCOPE_INDEX.0];
+            if let Some(v) = scope.get_mut(TASK_VAR_NAME) {
+                *v = HiddenValue::TaskPostEvaluation(task).into();
+            } else {
+                scope.insert(TASK_VAR_NAME, HiddenValue::TaskPostEvaluation(task));
+            }
+        }
+
+        let command = self
+            .evaluate_command(
+                id,
+                &definition.command().expect("must have command section"),
+            )
+            .await?;
+
+        Ok(EvaluatedSections {
+            command,
+            requirements,
+            hints,
+            constraints,
+        })
+    }
+
+    /// Evaluates a task output.
+    async fn evaluate_output(
+        &mut self,
+        id: &str,
+        decl: &Decl<SyntaxNode>,
+        evaluated: &EvaluatedTask,
+    ) -> Result<(), Diagnostic> {
+        let name = decl.name();
+        debug!(
+            task_id = id,
+            task_name = self.task.name(),
+            document = self.document.uri().as_str(),
+            output_name = name.text(),
+            "evaluating output",
+        );
+
+        let decl_ty = decl.ty();
+        let ty = crate::convert_ast_type_v1(self.document, &decl_ty)?;
+        let mut evaluator = ExprEvaluator::new(
+            TaskEvaluationContext::new(self, TASK_SCOPE_INDEX)
+                .with_work_dir(&evaluated.result.work_dir)
+                .with_stdout(&evaluated.result.stdout)
+                .with_stderr(&evaluated.result.stderr),
+        );
+
+        let expr = decl.expr().expect("outputs should have expressions");
+        let value = evaluator.evaluate_expr(&expr).await?;
+
+        // Coerce the output value to the expected type
+        let mut value = value
+            .coerce(Some(evaluator.context()), &ty)
+            .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), expr.span()))?;
+        value = value
+            .resolve_paths(
+                ty.is_optional(),
+                self.base_dir.as_local(),
+                Some(self.transferer().as_ref()),
+                &|path| {
+                    // To be a valid output, the output must be one of the following:
+                    // * the path to the `stdout` file
+                    // * the path to the `stderr` file
+                    // * a known input path
+                    // * prefixed with the work directory (when the backend uses containers)
+
+                    // Check for a reference to the stdout/stderr files
+                    if path.as_str() == evaluated.stdout().as_file().unwrap().as_str()
+                        || path.as_str() == evaluated.stderr().as_file().unwrap().as_str()
+                    {
+                        return Ok(path.clone());
+                    }
+
+                    // Check for known input paths if this is a guest path
+                    if let Some(host) = self.host_path(&GuestPath(path.0.clone())) {
+                        return Ok(host);
+                    }
+
+                    // Otherwise, if this is already a host path to a known input, return it
+                    if self.guest_path(path).is_some() {
+                        return Ok(path.clone());
+                    }
+
+                    // Join the path with the work directory.
+                    let joined = evaluated.result.work_dir.join(path.as_str())?;
+
+                    // If the backend doesn't use containers, allow the path
+                    if self.evaluator.backend.guest_inputs_dir().is_none() {
+                        return Ok(HostPath::new(String::try_from(joined)?));
+                    }
+
+                    // Check for work directory prefix
+                    match (joined.kind(), evaluated.result.work_dir.kind()) {
+                        (
+                            EvaluationPathKind::Local(output),
+                            EvaluationPathKind::Local(work_dir),
+                        ) if strip_path_prefix(output, work_dir).is_some() => {
+                            return Ok(HostPath::new(String::try_from(joined)?));
+                        }
+                        (
+                            EvaluationPathKind::Remote(output),
+                            EvaluationPathKind::Remote(work_dir),
+                        ) if strip_url_path_prefix(output, work_dir).is_some() => {
+                            return Ok(HostPath::new(String::try_from(joined)?));
+                        }
+                        _ => {
+                            // The output isn't prefixed by the work directory.
+                        }
+                    }
+
+                    bail!(
+                        "guest path `{path}` is not an input or within the task's working \
+                         directory"
+                    )
+                },
+            )
+            .await
+            .map_err(|e| {
+                decl_evaluation_failed(
+                    e,
+                    self.task.name(),
+                    true,
+                    name.text(),
+                    Some(Io::Output),
+                    name.span(),
+                )
+            })?;
+
+        self.scopes[OUTPUT_SCOPE_INDEX.0].insert(name.text(), value);
+        Ok(())
+    }
+
+    /// Localizes inputs for execution.
+    async fn localize_inputs(&mut self, task_id: &str) -> EvaluationResult<()> {
+        // If the backend needs local inputs, download them now
+        if self.evaluator.backend.needs_local_inputs() {
+            let mut downloads = JoinSet::new();
+
+            // Download any necessary files
+            for (idx, input) in self.backend_inputs.as_slice_mut().iter_mut().enumerate() {
+                if input.local_path().is_some() {
+                    continue;
+                }
+
+                if let Some(url) = input.path().as_remote() {
+                    let transferer = self.evaluator.transferer.clone();
+                    let url = url.clone();
+                    downloads.spawn(async move {
+                        transferer
+                            .download(&url)
+                            .await
+                            .map(|l| (idx, l))
+                            .with_context(|| anyhow!("failed to localize `{url}`"))
+                    });
+                }
+            }
+
+            // Wait for the downloads to complete
+            while let Some(result) = downloads.join_next().await {
+                match result.unwrap_or_else(|e| Err(anyhow!("download task failed: {e}"))) {
+                    Ok((idx, location)) => {
+                        self.backend_inputs.as_slice_mut()[idx].set_location(location);
+                    }
+                    Err(e) => {
+                        return Err(EvaluationError::new(
+                            self.document.clone(),
+                            task_localization_failed(e, self.task.name(), self.task.name_span()),
+                        ));
+                    }
+                }
+            }
+        }
+
+        if enabled!(Level::DEBUG) {
+            for input in self.backend_inputs.as_slice() {
+                match (
+                    input.path().as_local().is_some(),
+                    input.local_path(),
+                    input.guest_path(),
+                ) {
+                    // Input is unmapped and either local or remote and not downloaded
+                    (true, _, None) | (false, None, None) => {}
+                    // Input is local and was mapped to a guest path
+                    (true, _, Some(guest_path)) => {
+                        debug!(
+                            task_id,
+                            task_name = self.task.name(),
+                            document = self.document.uri().as_str(),
+                            "task input `{path}` mapped to `{guest_path}`",
+                            path = input.path(),
+                        );
+                    }
+                    // Input is remote and was downloaded to a local path
+                    (false, Some(local_path), None) => {
+                        debug!(
+                            task_id,
+                            task_name = self.task.name(),
+                            document = self.document.uri().as_str(),
+                            "task input `{path}` downloaded to `{local_path}`",
+                            path = input.path(),
+                            local_path = local_path.display()
+                        );
+                    }
+                    // Input is remote and was not downloaded, but mapped to a guest path
+                    (false, None, Some(guest_path)) => {
+                        debug!(
+                            task_id,
+                            task_name = self.task.name(),
+                            document = self.document.uri().as_str(),
+                            "task input `{path}` mapped to `{guest_path}`",
+                            path = input.path(),
+                        );
+                    }
+                    // Input is remote and was both downloaded and mapped to a guest path
+                    (false, Some(local_path), Some(guest_path)) => {
+                        debug!(
+                            task_id,
+                            task_name = self.task.name(),
+                            document = self.document.uri().as_str(),
+                            "task input `{path}` downloaded to `{local_path}` and mapped to \
+                             `{guest_path}`",
+                            path = input.path(),
+                            local_path = local_path.display(),
+                        );
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 impl Evaluator {
@@ -904,6 +1795,7 @@ impl Evaluator {
                                 hints: &hints,
                                 env: &state.env,
                                 constraints: &constraints,
+                                base_dir: &state.base_dir,
                                 attempt_dir: &attempt_dir,
                                 temp_dir: &temp_dir,
                             },
@@ -1055,7 +1947,7 @@ impl Evaluator {
     }
 
     /// Determines if the task failed based on its requirements and exit code.
-    fn did_task_fail(requirements: &HashMap<String, Value>, exit_code: i32) -> bool {
+    fn did_task_fail(requirements: &Object, exit_code: i32) -> bool {
         if let Some(return_codes) = requirements
             .get(TASK_REQUIREMENT_RETURN_CODES)
             .or_else(|| requirements.get(TASK_REQUIREMENT_RETURN_CODES_ALIAS))
@@ -1276,770 +2168,6 @@ impl Evaluator {
             state.document.clone(),
             task_execution_failed(&error, state.task.name(), id, state.task.name_span()),
         )
-    }
-}
-
-impl<'a> State<'a> {
-    /// Evaluates a task input.
-    async fn evaluate_input(
-        &mut self,
-        id: &str,
-        decl: &Decl<SyntaxNode>,
-        inputs: &TaskInputs,
-    ) -> Result<(), Diagnostic> {
-        let name = decl.name();
-        let decl_ty = decl.ty();
-        let expected_ty = crate::convert_ast_type_v1(self.document, &decl_ty)?;
-
-        // Evaluate the input if not provided one
-        let (value, span) = match inputs.get(name.text()) {
-            Some(input) => {
-                // A `None` value when the expected type is non-optional
-                // will invoke the default expression
-                if input.is_none()
-                    && !expected_ty.is_optional()
-                    && let Some(expr) = decl.expr()
-                {
-                    debug!(
-                        task_id = id,
-                        task_name = self.task.name(),
-                        document = self.document.uri().as_str(),
-                        input_name = name.text(),
-                        "evaluating input default expression"
-                    );
-
-                    let mut evaluator =
-                        ExprEvaluator::new(TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX));
-                    (evaluator.evaluate_expr(&expr).await?, expr.span())
-                } else {
-                    (input.clone(), name.span())
-                }
-            }
-            None => match decl.expr() {
-                Some(expr) => {
-                    debug!(
-                        task_id = id,
-                        task_name = self.task.name(),
-                        document = self.document.uri().as_str(),
-                        input_name = name.text(),
-                        "evaluating input default expression"
-                    );
-
-                    let mut evaluator =
-                        ExprEvaluator::new(TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX));
-                    (evaluator.evaluate_expr(&expr).await?, expr.span())
-                }
-                _ => {
-                    assert!(expected_ty.is_optional(), "type should be optional");
-                    (Value::new_none(expected_ty.clone()), name.span())
-                }
-            },
-        };
-
-        // Coerce the value to the expected type
-        let mut value = value
-            .coerce(
-                Some(&TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX)),
-                &expected_ty,
-            )
-            .map_err(|e| runtime_type_mismatch(e, &expected_ty, name.span(), &value.ty(), span))?;
-
-        // Add any file or directory backend inputs
-        self.add_backend_inputs(
-            decl_ty.is_optional(),
-            &mut value,
-            self.transferer().clone(),
-            self.evaluator.backend.needs_local_inputs(),
-        )
-        .await
-        .map_err(|e| {
-            decl_evaluation_failed(
-                e,
-                self.task.name(),
-                true,
-                name.text(),
-                Some(Io::Input),
-                name.span(),
-            )
-        })?;
-
-        // Insert the name into the scope
-        self.scopes[ROOT_SCOPE_INDEX.0].insert(name.text(), value.clone());
-        self.inputs.insert(name.text().to_string(), value.clone());
-
-        // Insert an environment variable, if it is one
-        if decl.env().is_some() {
-            let value = value
-                .as_primitive()
-                .expect("value should be primitive")
-                .raw(Some(&TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX)))
-                .to_string();
-            self.env.insert(name.text().to_string(), value);
-        }
-
-        Ok(())
-    }
-
-    /// Evaluates a task private declaration.
-    async fn evaluate_decl(&mut self, id: &str, decl: &Decl<SyntaxNode>) -> Result<(), Diagnostic> {
-        let name = decl.name();
-        debug!(
-            task_id = id,
-            task_name = self.task.name(),
-            document = self.document.uri().as_str(),
-            decl_name = name.text(),
-            "evaluating private declaration",
-        );
-
-        let decl_ty = decl.ty();
-        let ty = crate::convert_ast_type_v1(self.document, &decl_ty)?;
-
-        let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX));
-
-        let expr = decl.expr().expect("private decls should have expressions");
-        let value = evaluator.evaluate_expr(&expr).await?;
-        let mut value = value
-            .coerce(
-                Some(&TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX)),
-                &ty,
-            )
-            .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), expr.span()))?;
-
-        // Add any file or directory backend inputs
-        self.add_backend_inputs(
-            decl_ty.is_optional(),
-            &mut value,
-            self.transferer().clone(),
-            self.evaluator.backend.needs_local_inputs(),
-        )
-        .await
-        .map_err(|e| {
-            decl_evaluation_failed(e, self.task.name(), true, name.text(), None, name.span())
-        })?;
-
-        self.scopes[ROOT_SCOPE_INDEX.0].insert(name.text(), value.clone());
-
-        // Insert an environment variable, if it is one
-        if decl.env().is_some() {
-            let value = value
-                .as_primitive()
-                .expect("value should be primitive")
-                .raw(Some(&TaskEvaluationContext::new(self, ROOT_SCOPE_INDEX)))
-                .to_string();
-            self.env.insert(name.text().to_string(), value);
-        }
-
-        Ok(())
-    }
-
-    /// Evaluates the runtime section.
-    ///
-    /// Returns both the task's hints and requirements.
-    async fn evaluate_runtime_section(
-        &mut self,
-        id: &str,
-        section: &RuntimeSection<SyntaxNode>,
-        inputs: &TaskInputs,
-    ) -> Result<(HashMap<String, Value>, HashMap<String, Value>), Diagnostic> {
-        debug!(
-            task_id = id,
-            task_name = self.task.name(),
-            document = self.document.uri().as_str(),
-            "evaluating runtimes section",
-        );
-
-        let mut requirements = HashMap::new();
-        let mut hints = HashMap::new();
-
-        let version = self
-            .document
-            .version()
-            .expect("document should have version");
-
-        // In WDL 1.3+, use `TASK_SCOPE_INDEX` to access the `task` variable.
-        let scope_index = if version >= SupportedVersion::V1(V1::Three) {
-            TASK_SCOPE_INDEX
-        } else {
-            ROOT_SCOPE_INDEX
-        };
-
-        for item in section.items() {
-            let name = item.name();
-            match inputs.requirement(name.text()) {
-                Some(value) => {
-                    requirements.insert(name.text().to_string(), value.clone());
-                    continue;
-                }
-                _ => {
-                    if let Some(value) = inputs.hint(name.text()) {
-                        hints.insert(name.text().to_string(), value.clone());
-                        continue;
-                    }
-                }
-            }
-
-            let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(self, scope_index));
-
-            let (types, requirement) = match task_requirement_types(version, name.text()) {
-                Some(types) => (Some(types), true),
-                None => match task_hint_types(version, name.text(), false) {
-                    Some(types) => (Some(types), false),
-                    None => (None, false),
-                },
-            };
-
-            // Evaluate and coerce to the expected type
-            let expr = item.expr();
-            let mut value = evaluator.evaluate_expr(&expr).await?;
-            if let Some(types) = types {
-                value = types
-                    .iter()
-                    .find_map(|ty| {
-                        value
-                            .coerce(Some(&TaskEvaluationContext::new(self, scope_index)), ty)
-                            .ok()
-                    })
-                    .ok_or_else(|| {
-                        multiple_type_mismatch(types, name.span(), &value.ty(), expr.span())
-                    })?;
-            }
-
-            if requirement {
-                requirements.insert(name.text().to_string(), value);
-            } else {
-                hints.insert(name.text().to_string(), value);
-            }
-        }
-
-        Ok((requirements, hints))
-    }
-
-    /// Evaluates the requirements section.
-    async fn evaluate_requirements_section(
-        &mut self,
-        id: &str,
-        section: &RequirementsSection<SyntaxNode>,
-        inputs: &TaskInputs,
-    ) -> Result<HashMap<String, Value>, Diagnostic> {
-        debug!(
-            task_id = id,
-            task_name = self.task.name(),
-            document = self.document.uri().as_str(),
-            "evaluating requirements",
-        );
-
-        let mut requirements = HashMap::new();
-
-        let version = self
-            .document
-            .version()
-            .expect("document should have version");
-
-        // In WDL 1.3+, use `TASK_SCOPE_INDEX` to access the `task` variable.
-        let scope_index = if version >= SupportedVersion::V1(V1::Three) {
-            TASK_SCOPE_INDEX
-        } else {
-            ROOT_SCOPE_INDEX
-        };
-
-        for item in section.items() {
-            let name = item.name();
-            if let Some(value) = inputs.requirement(name.text()) {
-                requirements.insert(name.text().to_string(), value.clone());
-                continue;
-            }
-
-            let mut evaluator = ExprEvaluator::new(TaskEvaluationContext::new(self, scope_index));
-
-            let types =
-                task_requirement_types(version, name.text()).expect("requirement should be known");
-
-            // Evaluate and coerce to the expected type
-            let expr = item.expr();
-            let value = evaluator.evaluate_expr(&expr).await?;
-            let value = types
-                .iter()
-                .find_map(|ty| {
-                    value
-                        .coerce(Some(&TaskEvaluationContext::new(self, scope_index)), ty)
-                        .ok()
-                })
-                .ok_or_else(|| {
-                    multiple_type_mismatch(types, name.span(), &value.ty(), expr.span())
-                })?;
-
-            requirements.insert(name.text().to_string(), value);
-        }
-
-        Ok(requirements)
-    }
-
-    /// Evaluates the hints section.
-    async fn evaluate_hints_section(
-        &mut self,
-        id: &str,
-        section: &TaskHintsSection<SyntaxNode>,
-        inputs: &TaskInputs,
-    ) -> Result<HashMap<String, Value>, Diagnostic> {
-        debug!(
-            task_id = id,
-            task_name = self.task.name(),
-            document = self.document.uri().as_str(),
-            "evaluating hints section",
-        );
-
-        let mut hints = HashMap::new();
-
-        let version = self
-            .document
-            .version()
-            .expect("document should have version");
-
-        // In WDL 1.3+, use `TASK_SCOPE_INDEX` to access task.attempt and task.previous
-        let scope_index = if version >= SupportedVersion::V1(V1::Three) {
-            TASK_SCOPE_INDEX
-        } else {
-            ROOT_SCOPE_INDEX
-        };
-
-        for item in section.items() {
-            let name = item.name();
-            if let Some(value) = inputs.hint(name.text()) {
-                hints.insert(name.text().to_string(), value.clone());
-                continue;
-            }
-
-            let mut evaluator =
-                ExprEvaluator::new(TaskEvaluationContext::new(self, scope_index).with_task());
-
-            let value = evaluator.evaluate_hints_item(&name, &item.expr()).await?;
-            hints.insert(name.text().to_string(), value);
-        }
-
-        Ok(hints)
-    }
-
-    /// Evaluates the command of a task.
-    ///
-    /// Returns the evaluated command as a string.
-    async fn evaluate_command(
-        &mut self,
-        id: &str,
-        section: &CommandSection<SyntaxNode>,
-    ) -> EvaluationResult<String> {
-        debug!(
-            task_id = id,
-            task_name = self.task.name(),
-            document = self.document.uri().as_str(),
-            "evaluating command section",
-        );
-
-        let document = self.document.clone();
-        let mut command = String::new();
-        match section.strip_whitespace() {
-            Some(parts) => {
-                let mut evaluator =
-                    ExprEvaluator::new(TaskEvaluationContext::new(self, TASK_SCOPE_INDEX));
-
-                for part in parts {
-                    match part {
-                        StrippedCommandPart::Text(t) => {
-                            command.push_str(t.as_str());
-                        }
-                        StrippedCommandPart::Placeholder(placeholder) => {
-                            evaluator
-                                .evaluate_placeholder(&placeholder, &mut command)
-                                .await
-                                .map_err(|d| EvaluationError::new(document.clone(), d))?;
-                        }
-                    }
-                }
-            }
-            _ => {
-                warn!(
-                    "command for task `{task}` in `{uri}` has mixed indentation; whitespace \
-                     stripping was skipped",
-                    task = self.task.name(),
-                    uri = self.document.uri(),
-                );
-
-                let mut evaluator =
-                    ExprEvaluator::new(TaskEvaluationContext::new(self, TASK_SCOPE_INDEX));
-
-                let heredoc = section.is_heredoc();
-                for part in section.parts() {
-                    match part {
-                        CommandPart::Text(t) => {
-                            t.unescape_to(heredoc, &mut command);
-                        }
-                        CommandPart::Placeholder(placeholder) => {
-                            evaluator
-                                .evaluate_placeholder(&placeholder, &mut command)
-                                .await
-                                .map_err(|d| EvaluationError::new(document.clone(), d))?;
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok(command)
-    }
-
-    /// Evaluates sections prior to executing the task.
-    ///
-    /// This method evaluates the following sections:
-    ///   * runtime
-    ///   * requirements
-    ///   * hints
-    ///   * command
-    async fn evaluate_sections(
-        &mut self,
-        id: &str,
-        definition: &TaskDefinition<SyntaxNode>,
-        inputs: &TaskInputs,
-        attempt: u64,
-        previous_task_data: Option<Arc<TaskPostEvaluationData>>,
-    ) -> EvaluationResult<EvaluatedSections> {
-        let version = self.document.version();
-
-        // Extract task metadata once to avoid walking the AST multiple times
-        let task_meta = definition
-            .metadata()
-            .map(|s| Object::from_v1_metadata(s.items()))
-            .unwrap_or_else(Object::empty);
-        let task_parameter_meta = definition
-            .parameter_metadata()
-            .map(|s| Object::from_v1_metadata(s.items()))
-            .unwrap_or_else(Object::empty);
-        // Note: Sprocket does not currently support workflow-level extension metadata,
-        // so `ext` is always an empty object.
-        let task_ext = Object::empty();
-
-        // In WDL 1.3+, insert a [`TaskPreEvaluation`] before evaluating the
-        // requirements/hints/runtime section.
-        if version >= Some(SupportedVersion::V1(V1::Three)) {
-            let mut task = TaskPreEvaluationValue::new(
-                self.task.name(),
-                id,
-                attempt.try_into().expect("attempt should fit in i64"),
-                task_meta.clone(),
-                task_parameter_meta.clone(),
-                task_ext.clone(),
-            );
-
-            if let Some(prev_data) = &previous_task_data {
-                task.set_previous(prev_data.clone());
-            }
-
-            let scope = &mut self.scopes[TASK_SCOPE_INDEX.0];
-            if let Some(v) = scope.get_mut(TASK_VAR_NAME) {
-                *v = HiddenValue::TaskPreEvaluation(task).into();
-            } else {
-                scope.insert(TASK_VAR_NAME, HiddenValue::TaskPreEvaluation(task));
-            }
-        }
-
-        // Evaluate requirements and hints
-        let (requirements, hints) = match definition.runtime() {
-            Some(section) => self
-                .evaluate_runtime_section(id, &section, inputs)
-                .await
-                .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
-            _ => (
-                match definition.requirements() {
-                    Some(section) => self
-                        .evaluate_requirements_section(id, &section, inputs)
-                        .await
-                        .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
-                    None => Default::default(),
-                },
-                match definition.hints() {
-                    Some(section) => self
-                        .evaluate_hints_section(id, &section, inputs)
-                        .await
-                        .map_err(|d| EvaluationError::new(self.document.clone(), d))?,
-                    None => Default::default(),
-                },
-            ),
-        };
-
-        // Get the execution constraints
-        let constraints = self
-            .evaluator
-            .backend
-            .constraints(inputs, &requirements, &hints)
-            .with_context(|| {
-                format!(
-                    "failed to get constraints for task `{task}`",
-                    task = self.task.name()
-                )
-            })?;
-
-        // Now that those are evaluated, insert a [`TaskPostEvaluation`] for
-        // `task` which includes those calculated requirements before the
-        // command/output sections are evaluated.
-        if version >= Some(SupportedVersion::V1(V1::Two)) {
-            let max_retries =
-                requirements::max_retries(inputs, &requirements, &self.evaluator.config)?;
-
-            let mut task = TaskPostEvaluationValue::new(
-                self.task.name(),
-                id,
-                &constraints,
-                max_retries.try_into().with_context(|| {
-                    format!(
-                        "the number of max retries is too large to run task `{task}`",
-                        task = self.task.name()
-                    )
-                })?,
-                attempt.try_into().with_context(|| {
-                    format!(
-                        "too many attempts were made to run task `{task}`",
-                        task = self.task.name()
-                    )
-                })?,
-                task_meta,
-                task_parameter_meta,
-                task_ext,
-            );
-
-            // In WDL 1.3+, insert the previous requirements.
-            if let Some(version) = version
-                && version >= SupportedVersion::V1(V1::Three)
-                && let Some(prev_data) = &previous_task_data
-            {
-                task.set_previous(prev_data.clone());
-            }
-
-            let scope = &mut self.scopes[TASK_SCOPE_INDEX.0];
-            if let Some(v) = scope.get_mut(TASK_VAR_NAME) {
-                *v = HiddenValue::TaskPostEvaluation(task).into();
-            } else {
-                scope.insert(TASK_VAR_NAME, HiddenValue::TaskPostEvaluation(task));
-            }
-        }
-
-        let command = self
-            .evaluate_command(
-                id,
-                &definition.command().expect("must have command section"),
-            )
-            .await?;
-
-        Ok(EvaluatedSections {
-            command,
-            requirements,
-            hints,
-            constraints,
-        })
-    }
-
-    /// Evaluates a task output.
-    async fn evaluate_output(
-        &mut self,
-        id: &str,
-        decl: &Decl<SyntaxNode>,
-        evaluated: &EvaluatedTask,
-    ) -> Result<(), Diagnostic> {
-        let name = decl.name();
-        debug!(
-            task_id = id,
-            task_name = self.task.name(),
-            document = self.document.uri().as_str(),
-            output_name = name.text(),
-            "evaluating output",
-        );
-
-        let decl_ty = decl.ty();
-        let ty = crate::convert_ast_type_v1(self.document, &decl_ty)?;
-        let mut evaluator = ExprEvaluator::new(
-            TaskEvaluationContext::new(self, TASK_SCOPE_INDEX)
-                .with_work_dir(&evaluated.result.work_dir)
-                .with_stdout(&evaluated.result.stdout)
-                .with_stderr(&evaluated.result.stderr),
-        );
-
-        let expr = decl.expr().expect("outputs should have expressions");
-        let value = evaluator.evaluate_expr(&expr).await?;
-
-        // Coerce the output value to the expected type
-        let mut value = value
-            .coerce(Some(evaluator.context()), &ty)
-            .map_err(|e| runtime_type_mismatch(e, &ty, name.span(), &value.ty(), expr.span()))?;
-        value = value
-            .resolve_paths(
-                ty.is_optional(),
-                self.base_dir.as_local(),
-                Some(self.transferer().as_ref()),
-                &|path| {
-                    // If the path is already a host path, return it as-is.
-                    if self.path_map.contains_left(path) {
-                        return Ok(path.clone());
-                    }
-
-                    // Join the path with the work directory.
-                    let output_path = evaluated.result.work_dir.join(path.as_str())?;
-
-                    // If the backend does not use guest paths (i.e. the local backend), don't
-                    // translate it
-                    if self.evaluator.backend.guest_inputs_dir().is_none() {
-                        return Ok(HostPath::new(String::try_from(output_path)?));
-                    }
-
-                    // Perform guest to host path translation
-                    let output_path = if let (Some(joined), Some(base)) =
-                        (output_path.as_local(), evaluated.result.work_dir.as_local())
-                    {
-                        if joined.starts_with(base)
-                            || joined == evaluated.stdout().as_file().unwrap().as_str()
-                            || joined == evaluated.stderr().as_file().unwrap().as_str()
-                        {
-                            // The joined path is contained within the work directory or is
-                            // stdout/stderr
-                            HostPath::new(String::try_from(output_path)?)
-                        } else {
-                            // The joined path is not within the work directory, it must be a known
-                            // guest path
-                            self.path_map
-                                .get_by_right(&GuestPath(path.0.clone()))
-                                .ok_or_else(|| {
-                                    anyhow!(
-                                        "guest path `{path}` is not an input or within the task's \
-                                         working directory"
-                                    )
-                                })?
-                                .0
-                                .clone()
-                                .into()
-                        }
-                    } else if let (Some(_), Some(_)) = (
-                        output_path.as_local(),
-                        evaluated.result.work_dir.as_remote(),
-                    ) {
-                        // Path is local (and absolute) and the working directory is remote
-                        bail!("cannot access guest path `{path}` from a remotely executing task")
-                    } else {
-                        HostPath::new(String::try_from(output_path)?)
-                    };
-
-                    Ok(output_path)
-                },
-            )
-            .await
-            .map_err(|e| {
-                decl_evaluation_failed(
-                    e,
-                    self.task.name(),
-                    true,
-                    name.text(),
-                    Some(Io::Output),
-                    name.span(),
-                )
-            })?;
-
-        self.scopes[OUTPUT_SCOPE_INDEX.0].insert(name.text(), value);
-        Ok(())
-    }
-
-    /// Localizes inputs for execution.
-    async fn localize_inputs(&mut self, task_id: &str) -> EvaluationResult<()> {
-        // If the backend needs local inputs, download them now
-        if self.evaluator.backend.needs_local_inputs() {
-            let mut downloads = JoinSet::new();
-
-            // Download any necessary files
-            for (idx, input) in self.backend_inputs.as_slice_mut().iter_mut().enumerate() {
-                if input.local_path().is_some() {
-                    continue;
-                }
-
-                if let Some(url) = input.path().as_remote() {
-                    let transferer = self.evaluator.transferer.clone();
-                    let url = url.clone();
-                    downloads.spawn(async move {
-                        transferer
-                            .download(&url)
-                            .await
-                            .map(|l| (idx, l))
-                            .with_context(|| anyhow!("failed to localize `{url}`"))
-                    });
-                }
-            }
-
-            // Wait for the downloads to complete
-            while let Some(result) = downloads.join_next().await {
-                match result.unwrap_or_else(|e| Err(anyhow!("download task failed: {e}"))) {
-                    Ok((idx, location)) => {
-                        self.backend_inputs.as_slice_mut()[idx].set_location(location);
-                    }
-                    Err(e) => {
-                        return Err(EvaluationError::new(
-                            self.document.clone(),
-                            task_localization_failed(e, self.task.name(), self.task.name_span()),
-                        ));
-                    }
-                }
-            }
-        }
-
-        if enabled!(Level::DEBUG) {
-            for input in self.backend_inputs.as_slice() {
-                match (
-                    input.path().as_local().is_some(),
-                    input.local_path(),
-                    input.guest_path(),
-                ) {
-                    // Input is unmapped and either local or remote and not downloaded
-                    (true, _, None) | (false, None, None) => {}
-                    // Input is local and was mapped to a guest path
-                    (true, _, Some(guest_path)) => {
-                        debug!(
-                            task_id,
-                            task_name = self.task.name(),
-                            document = self.document.uri().as_str(),
-                            "task input `{path}` mapped to `{guest_path}`",
-                            path = input.path(),
-                        );
-                    }
-                    // Input is remote and was downloaded to a local path
-                    (false, Some(local_path), None) => {
-                        debug!(
-                            task_id,
-                            task_name = self.task.name(),
-                            document = self.document.uri().as_str(),
-                            "task input `{path}` downloaded to `{local_path}`",
-                            path = input.path(),
-                            local_path = local_path.display()
-                        );
-                    }
-                    // Input is remote and was not downloaded, but mapped to a guest path
-                    (false, None, Some(guest_path)) => {
-                        debug!(
-                            task_id,
-                            task_name = self.task.name(),
-                            document = self.document.uri().as_str(),
-                            "task input `{path}` mapped to `{guest_path}`",
-                            path = input.path(),
-                        );
-                    }
-                    // Input is remote and was both downloaded and mapped to a guest path
-                    (false, Some(local_path), Some(guest_path)) => {
-                        debug!(
-                            task_id,
-                            task_name = self.task.name(),
-                            document = self.document.uri().as_str(),
-                            "task input `{path}` downloaded to `{local_path}` and mapped to \
-                             `{guest_path}`",
-                            path = input.path(),
-                            local_path = local_path.display(),
-                        );
-                    }
-                }
-            }
-        }
-
-        Ok(())
     }
 }
 

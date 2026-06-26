@@ -11,10 +11,10 @@ workflow enum_serialization {
     Color color = Color.Red
   }
 
-  # Test write_json serializes to bare variant name
+  # Test write_json serializes to bare choice name
   File color_json = write_json(color)
 
-  # Test read_json deserializes from bare variant name
+  # Test read_json deserializes from bare choice name
   Color color_back = read_json(color_json)
 
   # Test with array of enums using write_json/read_json

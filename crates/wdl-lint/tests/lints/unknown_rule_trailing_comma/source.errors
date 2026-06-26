@@ -1,0 +1,16 @@
+note[KnownRules]: unknown rule `SnackCase`
+  ┌─ tests/lints/unknown_rule_trailing_comma/source.wdl:1:26
+  │
+1 │ #@ except: MetaSections, SnackCase, ThisIsNotARealRule,
+  │                          ^^^^^^^^^ cannot make an exception for this rule
+  │
+  = fix: did you mean `SnakeCase`?
+
+note[KnownRules]: unknown rule `ThisIsNotARealRule`
+  ┌─ tests/lints/unknown_rule_trailing_comma/source.wdl:1:37
+  │
+1 │ #@ except: MetaSections, SnackCase, ThisIsNotARealRule,
+  │                                     ^^^^^^^^^^^^^^^^^^ cannot make an exception for this rule
+  │
+  = fix: remove the unknown rule from the exception list
+

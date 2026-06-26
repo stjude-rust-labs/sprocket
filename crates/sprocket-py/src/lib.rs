@@ -10,4 +10,4 @@ use pyo3::prelude::*;
 /// Python bindings to [Sprocket](https://sprocket.bio), a bioinformatics toolkit for Workflow
 /// Description Language (WDL).
 #[pymodule]
-mod sprocket_bio {}
+mod _sprocket_bio {}

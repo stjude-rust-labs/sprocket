@@ -15,15 +15,74 @@ use wdl::analysis::types::CompoundType;
 use wdl::analysis::types::PrimitiveType;
 use wdl::analysis::types::Type;
 
+/// Deserializes an optional `exit_code` field while rejecting explicit `null`.
+///
+/// Omitted fields become `None`.
+/// Explicit integers become `Some(value)`.
+/// Explicit `null` values produce a deserialization error.
+fn deserialize_optional_exit_code<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize as _;
+
+    let value = serde_yaml_ng::Value::deserialize(deserializer)?;
+    match value {
+        serde_yaml_ng::Value::Null => Err(serde::de::Error::custom(
+            "`exit_code` must be an integer, not `null`",
+        )),
+        serde_yaml_ng::Value::Number(n) => n
+            .as_i64()
+            .and_then(|v| i32::try_from(v).ok())
+            .map(Some)
+            .ok_or_else(|| serde::de::Error::custom("`exit_code` must be a valid i32")),
+        other => Err(serde::de::Error::custom(format!(
+            "`exit_code` must be an integer, got `{other:?}`"
+        ))),
+    }
+}
+
+/// Deserializes an optional `should_fail` field while rejecting explicit
+/// `null`.
+///
+/// Omitted fields become `None`.
+/// Explicit booleans become `Some(value)`.
+/// Explicit `null` values produce a deserialization error.
+fn deserialize_optional_should_fail<'de, D>(deserializer: D) -> Result<Option<bool>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize as _;
+
+    let value = serde_yaml_ng::Value::deserialize(deserializer)?;
+    match value {
+        serde_yaml_ng::Value::Null => Err(serde::de::Error::custom(
+            "`should_fail` must be a boolean, not `null`",
+        )),
+        serde_yaml_ng::Value::Bool(value) => Ok(Some(value)),
+        other => Err(serde::de::Error::custom(format!(
+            "`should_fail` must be a boolean, got `{other:?}`"
+        ))),
+    }
+}
+
 /// Possible assertions for a test.
 #[derive(Default, serde::Deserialize, Debug)]
 pub(crate) struct Assertions {
     /// The expected exit code of the task (ignored when testing workflows).
-    #[serde(default)]
-    pub exit_code: i32,
-    /// Whether a workflow should fail or not (ignored when testing tasks).
-    #[serde(default)]
-    pub should_fail: bool,
+    ///
+    /// Defaults to `0` if not specified. Cannot be combined with
+    /// `should_fail`.
+    #[serde(deserialize_with = "deserialize_optional_exit_code", default)]
+    pub exit_code: Option<i32>,
+    /// Whether the test is expected to fail.
+    ///
+    /// For workflows, any failure is expected.
+    /// For tasks, any nonzero exit code is expected.
+    /// Cannot be combined with `exit_code` (any value, including `exit_code:
+    /// 0`).
+    #[serde(deserialize_with = "deserialize_optional_should_fail", default)]
+    pub should_fail: Option<bool>,
     /// Regular expressions that should match within STDOUT of the task (ignored
     /// when testing workflows).
     #[serde(default)]
@@ -48,10 +107,16 @@ impl Assertions {
         is_workflow: bool,
         outputs: &IndexMap<String, Output>,
     ) -> Result<ParsedAssertions> {
+        if self.should_fail.is_some() && self.exit_code.is_some() {
+            bail!("`should_fail` cannot be used with `exit_code`");
+        }
+
+        let should_fail = self.should_fail.unwrap_or(false);
+
         let mut stdout = None;
         let mut stderr = None;
         if is_workflow {
-            if self.exit_code != 0 {
+            if self.exit_code.is_some() {
                 warn!("ignoring `exit_code` assertion for workflow");
             }
             if !self.stdout.is_empty() {
@@ -61,10 +126,6 @@ impl Assertions {
                 warn!("ignoring `stderr` assertion for workflow");
             }
         } else {
-            if self.should_fail {
-                warn!("ignoring `should_fail` assertion for task");
-            }
-
             let stdout_regexs = self
                 .stdout
                 .iter()
@@ -96,8 +157,8 @@ impl Assertions {
         }
 
         Ok(ParsedAssertions {
-            exit_code: self.exit_code,
-            should_fail: self.should_fail,
+            exit_code: self.exit_code.unwrap_or(0),
+            should_fail,
             stdout,
             stderr,
             outputs: self.outputs,
@@ -378,8 +439,13 @@ impl OutputAssertion {
 #[derive(Debug)]
 pub(crate) struct ParsedAssertions {
     /// The expected exit code of the task (ignored when testing workflows).
+    ///
+    /// Defaults to `0`.
     pub exit_code: i32,
-    /// Whether a workflow should fail or not (ignored when testing tasks).
+    /// For workflows: whether the workflow is expected to fail.
+    /// For tasks: whether any nonzero exit code is acceptable (i.e. the task
+    /// is expected to fail). Combining this with any specified `exit_code`
+    /// (including `exit_code: 0`) is rejected in `Assertions::parse`.
     pub should_fail: bool,
     /// Regular expressions that should match within STDOUT of the task (ignored
     /// when testing workflows).
@@ -1045,5 +1111,78 @@ mod tests {
             .unwrap(),
         ));
         assert!(assertion.evaluate(&o).is_err());
+    }
+
+    #[test]
+    fn parse_should_fail_ok_for_task() {
+        let assertions = Assertions {
+            should_fail: Some(true),
+            exit_code: None,
+            ..Default::default()
+        };
+        let result = assertions.parse(false, &IndexMap::new());
+        assert!(result.is_ok());
+        assert!(result.unwrap().should_fail);
+    }
+
+    #[test]
+    fn parse_should_fail_with_exit_code_errors_for_task() {
+        let assertions = Assertions {
+            should_fail: Some(true),
+            exit_code: Some(1),
+            ..Default::default()
+        };
+        let result = assertions.parse(false, &IndexMap::new());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_should_fail_with_exit_code_errors_for_workflow() {
+        let assertions = Assertions {
+            should_fail: Some(true),
+            exit_code: Some(1),
+            ..Default::default()
+        };
+        let result = assertions.parse(true, &IndexMap::new());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_should_fail_false_with_exit_code_errors_for_task() {
+        // should_fail: false is explicitly specified alongside exit_code — must error
+        let assertions = Assertions {
+            should_fail: Some(false),
+            exit_code: Some(1),
+            ..Default::default()
+        };
+        let result = assertions.parse(false, &IndexMap::new());
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_should_fail_false_without_exit_code_ok_for_task() {
+        // should_fail: false alone is valid — treated as omitted
+        let assertions = Assertions {
+            should_fail: Some(false),
+            exit_code: None,
+            ..Default::default()
+        };
+        let result = assertions.parse(false, &IndexMap::new());
+        assert!(result.is_ok());
+        assert!(!result.unwrap().should_fail);
+    }
+
+    #[test]
+    fn parse_explicit_null_exit_code_errors() {
+        // exit_code: null is malformed — must be rejected at deserialization
+        let result = serde_yaml_ng::from_str::<Assertions>("exit_code: null");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_explicit_null_should_fail_errors() {
+        // should_fail: null is malformed — must be rejected at deserialization
+        let result = serde_yaml_ng::from_str::<Assertions>("should_fail: null");
+        assert!(result.is_err());
     }
 }

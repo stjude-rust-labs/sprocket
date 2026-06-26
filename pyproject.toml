@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "sprocket_bio"
 readme = "python/README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 classifiers = [
     "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
@@ -20,6 +20,23 @@ dynamic = ["version"]
 [project.urls]
 repository = "https://github.com/stjude-rust-labs/sprocket"
 
+# Dependencies for local development, not visible to downstream consumers.
+[dependency-groups]
+# Installed by default with `maturin develop`.
+dev = ["pytest~=9.0", "mypy~=2.1", "black~=26.5"]
+
 [tool.maturin]
+module-name = "sprocket_bio._sprocket_bio"
 manifest-path = "crates/sprocket-py/Cargo.toml"
 python-source = "python"
+
+[tool.pytest]
+strict = true
+addopts = ["--import-mode=importlib"]
+testpaths = ["python/tests"]
+
+[tool.mypy]
+strict = true
+
+[tool.black]
+target-version = ["py310"]
