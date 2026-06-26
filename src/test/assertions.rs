@@ -15,11 +15,11 @@ use wdl::analysis::types::CompoundType;
 use wdl::analysis::types::PrimitiveType;
 use wdl::analysis::types::Type;
 
-/// Deserializes an `Option<i32>` field that rejects an explicit `null` value.
+/// Deserializes an optional `exit_code` field while rejecting explicit `null`.
 ///
-/// - Omitted field → `None` (treated as unspecified, defaults to `0` later)
-/// - Explicit integer → `Some(value)`
-/// - Explicit `null` → deserialization error (malformed input)
+/// Omitted fields become `None`.
+/// Explicit integers become `Some(value)`.
+/// Explicit `null` values produce a deserialization error.
 fn deserialize_optional_exit_code<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>
 where
     D: serde::Deserializer<'de>,
@@ -42,6 +42,29 @@ where
     }
 }
 
+/// Deserializes an optional `should_fail` field while rejecting explicit `null`.
+///
+/// Omitted fields become `None`.
+/// Explicit booleans become `Some(value)`.
+/// Explicit `null` values produce a deserialization error.
+fn deserialize_optional_should_fail<'de, D>(deserializer: D) -> Result<Option<bool>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    use serde::Deserialize as _;
+
+    let value = serde_yaml_ng::Value::deserialize(deserializer)?;
+    match value {
+        serde_yaml_ng::Value::Null => Err(serde::de::Error::custom(
+            "`should_fail` must be a boolean, not `null`",
+        )),
+        serde_yaml_ng::Value::Bool(value) => Ok(Some(value)),
+        other => Err(serde::de::Error::custom(format!(
+            "`should_fail` must be a boolean, got `{other:?}`"
+        ))),
+    }
+}
+
 /// Possible assertions for a test.
 #[derive(Default, serde::Deserialize, Debug)]
 pub(crate) struct Assertions {
@@ -57,7 +80,7 @@ pub(crate) struct Assertions {
     /// For tasks, any nonzero exit code is expected.
     /// Cannot be combined with `exit_code` (any value, including `exit_code:
     /// 0`).
-    #[serde(default)]
+    #[serde(deserialize_with = "deserialize_optional_should_fail", default)]
     pub should_fail: Option<bool>,
     /// Regular expressions that should match within STDOUT of the task (ignored
     /// when testing workflows).
@@ -1152,6 +1175,13 @@ mod tests {
     fn parse_explicit_null_exit_code_errors() {
         // exit_code: null is malformed — must be rejected at deserialization
         let result = serde_yaml_ng::from_str::<Assertions>("exit_code: null");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn parse_explicit_null_should_fail_errors() {
+        // should_fail: null is malformed — must be rejected at deserialization
+        let result = serde_yaml_ng::from_str::<Assertions>("should_fail: null");
         assert!(result.is_err());
     }
 }
