@@ -994,10 +994,10 @@ where
     fn add_documents(&self, documents: IndexSet<Url>) {
         let mut graph = self.graph.write();
         for document in documents {
-            if let Some(ref module) = self.consumer_module {
+            if let Some(module) = self.module_for_root_document(&document) {
                 self.document_modules
                     .lock()
-                    .insert(document.clone(), module.clone());
+                    .insert(document.clone(), module);
             }
             graph.add_node(document, true);
         }
@@ -1608,6 +1608,30 @@ where
     /// Returns the [`Module`] that governs the document at `uri`.
     fn find_module_for_document(&self, uri: &Url) -> Option<Module> {
         self.document_modules.lock().get(uri).cloned()
+    }
+
+    /// Returns the consumer module for a root document governed by it.
+    fn module_for_root_document(&self, uri: &Url) -> Option<Module> {
+        let module = self.consumer_module.clone()?;
+        let path = uri.to_file_path().ok()?;
+        if !path.starts_with(&module.root) {
+            return None;
+        }
+
+        let mut dir = path.parent();
+        while let Some(current) = dir {
+            if current == module.root {
+                return Some(module);
+            }
+
+            if wdl_modules::module::is_module_root(current) {
+                return None;
+            }
+
+            dir = current.parent();
+        }
+
+        None
     }
 
     /// Returns the importer module for a URI import inside the same module.
