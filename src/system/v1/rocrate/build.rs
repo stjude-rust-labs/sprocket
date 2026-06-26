@@ -28,6 +28,7 @@ use super::RunCrateContext;
 use super::WFRUN_CONTEXT;
 use super::WORKFLOW_ID;
 use super::WORKFLOW_RO_CRATE_PROFILE;
+use super::WORKFLOW_RUN_CRATE_PROFILE;
 use super::formal::formal_parameter;
 use super::value::value_to_entities;
 use crate::system::v1::exec::Target;
@@ -50,6 +51,26 @@ fn ev_str(s: &str) -> EntityValue {
 /// Builds the `dynamic_entity` map from `(key, value)` pairs.
 fn bag(pairs: Vec<(&str, EntityValue)>) -> Option<HashMap<String, EntityValue>> {
     Some(pairs.into_iter().map(|(k, v)| (k.to_string(), v)).collect())
+}
+
+/// Builds the `CreativeWork` contextual entity that a `conformsTo` profile URI
+/// resolves to, so the reference is not dangling.
+fn profile_entity(id: &str) -> GraphVector {
+    let (name, version) = match id {
+        PROCESS_PROFILE => ("Process Run Crate", "0.1"),
+        WORKFLOW_RUN_CRATE_PROFILE => ("Workflow Run Crate", "0.1"),
+        WORKFLOW_RO_CRATE_PROFILE => ("Workflow RO-Crate", "1.0"),
+        _ => ("RO-Crate profile", ""),
+    };
+    let mut props = vec![("name", ev_str(name))];
+    if !version.is_empty() {
+        props.push(("version", ev_str(version)));
+    }
+    GraphVector::ContextualEntity(ContextualEntity {
+        id: id.to_string(),
+        type_: DataType::Term("CreativeWork".to_string()),
+        dynamic_entity: bag(props),
+    })
 }
 
 /// The selected callable's input and output declarations, by name.
@@ -288,10 +309,13 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
     if is_workflow {
         let mut organize_props = vec![
             ("name", ev_str("Workflow orchestration")),
-            ("agent", ev_id("#engine")),
             ("instrument", ev_id("#engine")),
             ("result", ev_id("#run")),
         ];
+        // The agent is the submitter (when known); the engine is the instrument.
+        if agent_name.is_some() {
+            organize_props.push(("agent", ev_id("#agent")));
+        }
         if let Some(s) = &started {
             organize_props.push(("startTime", ev_str(s)));
         }
@@ -335,13 +359,18 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
             dynamic_entity: bag(run_props),
         }));
 
-    // Root dataset.
+    // Define a `CreativeWork` entity for each conformance profile so the
+    // `conformsTo` references resolve.
+    for profile in &profiles {
+        crate_.graph.push(profile_entity(profile));
+    }
+
+    // Root dataset. `mentions` references the action entities that describe the
+    // run (data entities are referenced from `hasPart`, not `mentions`).
     let mut mentions = vec!["#run".to_string()];
     if is_workflow {
         mentions.push("#organize".to_string());
     }
-    mentions.extend(input_ids);
-    mentions.extend(output_ids);
     // `hasPart` lists the crate-contained data entities: the main WDL source and
     // every localized/in-place input/output file or directory.
     let mut has_part = vec![WORKFLOW_ID.to_string()];

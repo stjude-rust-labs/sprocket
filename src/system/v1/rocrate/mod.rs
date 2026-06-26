@@ -20,13 +20,15 @@ pub const ROCRATE_CONTEXT: &str = "https://w3id.org/ro/crate/1.1/context";
 pub const WFRUN_CONTEXT: &str = "https://w3id.org/ro/terms/workflow-run/context";
 /// Process Run Crate profile, claimed by both workflow and task targets.
 pub const PROCESS_PROFILE: &str = "https://w3id.org/ro/wfrun/process/0.1";
+/// Workflow Run Crate profile.
+pub const WORKFLOW_RUN_CRATE_PROFILE: &str = "https://w3id.org/ro/wfrun/workflow/0.1";
 /// Workflow RO-Crate profile.
 pub const WORKFLOW_RO_CRATE_PROFILE: &str = "https://w3id.org/workflowhub/workflow-ro-crate/1.0";
 /// Profiles a workflow-target crate conforms to. Task targets conform only to
 /// the Process Run Crate profile, since there is no `ComputationalWorkflow`.
 pub const PROFILES: &[&str] = &[
     PROCESS_PROFILE,
-    "https://w3id.org/ro/wfrun/workflow/0.1",
+    WORKFLOW_RUN_CRATE_PROFILE,
     WORKFLOW_RO_CRATE_PROFILE,
 ];
 /// The metadata descriptor filename.
