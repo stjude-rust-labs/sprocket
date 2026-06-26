@@ -20,12 +20,14 @@ use wdl::analysis::document::Output;
 use wdl::analysis::types::Optional;
 
 use super::METADATA_FILE;
+use super::PROCESS_PROFILE;
 use super::PROFILES;
 use super::ROCRATE_CONTEXT;
 use super::RoCrateOptions;
 use super::RunCrateContext;
 use super::WFRUN_CONTEXT;
 use super::WORKFLOW_ID;
+use super::WORKFLOW_RO_CRATE_PROFILE;
 use super::formal::formal_parameter;
 use super::value::value_to_entities;
 use crate::system::v1::exec::Target;
@@ -89,14 +91,29 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
     };
     crate_.add_context(ContextItem::ReferenceItem(WFRUN_CONTEXT.to_string()));
 
-    // Task targets produce a Task Run Crate: a Workflow Run Crate whose main
-    // executable entity is an implicit one-task workflow wrapping the task.
-    let (wf_name, wf_desc) = match ctx.target {
-        Target::Workflow(name) => (name.clone(), format!("WDL workflow `{name}`")),
-        Target::Task(name) => (
-            format!("{name} (implicit workflow)"),
-            format!("Implicit one-task workflow wrapping WDL task `{name}`"),
-        ),
+    // Workflow targets emit a Workflow Run Crate with a `ComputationalWorkflow`
+    // main entity. Direct task targets emit a Process Run Crate: a task is a
+    // single process, not a workflow, so we type its WDL source as plain
+    // `SoftwareSourceCode` and claim only the Process Run Crate profile rather
+    // than fabricating a workflow that does not exist.
+    let is_workflow = matches!(ctx.target, Target::Workflow(_));
+    let wf_name = ctx.target.name().to_string();
+    let (wf_desc, wf_types, profiles): (String, Vec<String>, Vec<&str>) = if is_workflow {
+        (
+            format!("WDL workflow `{wf_name}`"),
+            vec![
+                "File".to_string(),
+                "SoftwareSourceCode".to_string(),
+                "ComputationalWorkflow".to_string(),
+            ],
+            PROFILES.to_vec(),
+        )
+    } else {
+        (
+            format!("WDL task `{wf_name}`"),
+            vec!["File".to_string(), "SoftwareSourceCode".to_string()],
+            vec![PROCESS_PROFILE],
+        )
     };
     let (inputs_iface, outputs_iface) = callable_interface(ctx);
     let input_param_ids = inputs_iface
@@ -128,13 +145,22 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
         .unwrap_or(ctx.run.created_at)
         .to_rfc3339();
 
-    // Metadata descriptor.
+    // Metadata descriptor. Per Workflow RO-Crate, it conforms to RO-Crate 1.1 and
+    // (for workflow targets) the Workflow RO-Crate profile.
+    let descriptor_conforms = if is_workflow {
+        Id::IdArray(vec![
+            "https://w3id.org/ro/crate/1.1".to_string(),
+            WORKFLOW_RO_CRATE_PROFILE.to_string(),
+        ])
+    } else {
+        Id::Id("https://w3id.org/ro/crate/1.1".to_string())
+    };
     crate_
         .graph
         .push(GraphVector::MetadataDescriptor(MetadataDescriptor {
             id: METADATA_FILE.to_string(),
             type_: DataType::Term("CreativeWork".to_string()),
-            conforms_to: Id::Id("https://w3id.org/ro/crate/1.1".to_string()),
+            conforms_to: descriptor_conforms,
             about: Id::Id("./".to_string()),
             dynamic_entity: None,
         }));
@@ -168,26 +194,32 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
             }));
     }
 
-    // Workflow entity (the materialized WDL source; written by `materialize_sources`).
+    // Main executable entity (the materialized WDL source, written by
+    // `materialize_sources`).
     let mut workflow_props = vec![
         ("name", ev_str(&wf_name)),
         ("description", ev_str(&wf_desc)),
-        ("url", ev_str(&ctx.run.source)),
         ("programmingLanguage", ev_id("#wdl")),
     ];
-    if !input_param_ids.is_empty() {
-        workflow_props.push(("input", ev_ids(input_param_ids)));
+    // Record the source location only when it is a remote URL; a local source
+    // path would leak host filesystem layout.
+    if ctx.run.source.contains("://") {
+        workflow_props.push(("url", ev_str(&ctx.run.source)));
     }
-    if !output_param_ids.is_empty() {
-        workflow_props.push(("output", ev_ids(output_param_ids)));
+    // `input`/`output` are `ComputationalWorkflow` properties; only attach them to
+    // a workflow entity. For task targets the formal parameters are still emitted
+    // and linked from the realized values via `exampleOfWork`.
+    if is_workflow {
+        if !input_param_ids.is_empty() {
+            workflow_props.push(("input", ev_ids(input_param_ids)));
+        }
+        if !output_param_ids.is_empty() {
+            workflow_props.push(("output", ev_ids(output_param_ids)));
+        }
     }
     crate_.graph.push(GraphVector::DataEntity(DataEntity {
         id: WORKFLOW_ID.to_string(),
-        type_: DataType::TermArray(vec![
-            "File".to_string(),
-            "SoftwareSourceCode".to_string(),
-            "ComputationalWorkflow".to_string(),
-        ]),
+        type_: DataType::TermArray(wf_types),
         dynamic_entity: bag(workflow_props),
     }));
     crate_
@@ -218,7 +250,10 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
         ));
     }
 
-    // Realized inputs/outputs.
+    // Realized inputs/outputs. Crate-contained data entities (those whose `@id`
+    // is a crate-relative path, not a `#`-prefixed `PropertyValue`) are collected
+    // so the root dataset can reference them from `hasPart`.
+    let mut data_parts = Vec::new();
     let mut input_ids = Vec::new();
     for (name, value) in ctx.inputs_iter() {
         let id = value_to_entities("input", name, value, crate_root, opts, &mut crate_.graph)?;
@@ -226,6 +261,9 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
             let mut property = HashMap::new();
             property.insert("exampleOfWork".to_string(), ev_id(param_id));
             crate_.add_dynamic_entity_property(&id, property);
+        }
+        if !id.starts_with('#') {
+            data_parts.push(id.clone());
         }
         input_ids.push(id);
     }
@@ -237,29 +275,37 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
             property.insert("exampleOfWork".to_string(), ev_id(param_id));
             crate_.add_dynamic_entity_property(&id, property);
         }
+        if !id.starts_with('#') {
+            data_parts.push(id.clone());
+        }
         output_ids.push(id);
     }
 
-    // Engine `OrganizeAction`.
-    let mut organize_props = vec![
-        ("name", ev_str("Workflow orchestration")),
-        ("agent", ev_id("#engine")),
-        ("instrument", ev_id("#engine")),
-        ("object", ev_id("#run")),
-    ];
-    if let Some(s) = &started {
-        organize_props.push(("startTime", ev_str(s)));
+    // Engine `OrganizeAction` — the workflow engine orchestrating the run. Only
+    // meaningful for workflow targets; a single task is one process with no
+    // orchestration. Its `result` is the run `CreateAction` (`object` is reserved
+    // for the step/control actions added with step-level provenance later).
+    if is_workflow {
+        let mut organize_props = vec![
+            ("name", ev_str("Workflow orchestration")),
+            ("agent", ev_id("#engine")),
+            ("instrument", ev_id("#engine")),
+            ("result", ev_id("#run")),
+        ];
+        if let Some(s) = &started {
+            organize_props.push(("startTime", ev_str(s)));
+        }
+        if let Some(e) = &ended {
+            organize_props.push(("endTime", ev_str(e)));
+        }
+        crate_
+            .graph
+            .push(GraphVector::ContextualEntity(ContextualEntity {
+                id: "#organize".to_string(),
+                type_: DataType::Term("OrganizeAction".to_string()),
+                dynamic_entity: bag(organize_props),
+            }));
     }
-    if let Some(e) = &ended {
-        organize_props.push(("endTime", ev_str(e)));
-    }
-    crate_
-        .graph
-        .push(GraphVector::ContextualEntity(ContextualEntity {
-            id: "#organize".to_string(),
-            type_: DataType::Term("OrganizeAction".to_string()),
-            dynamic_entity: bag(organize_props),
-        }));
 
     // Workflow-level `CreateAction`.
     let mut run_props = vec![
@@ -290,17 +336,24 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
         }));
 
     // Root dataset.
-    let mut mentions = vec!["#run".to_string(), "#organize".to_string()];
+    let mut mentions = vec!["#run".to_string()];
+    if is_workflow {
+        mentions.push("#organize".to_string());
+    }
     mentions.extend(input_ids);
     mentions.extend(output_ids);
+    // `hasPart` lists the crate-contained data entities: the main WDL source and
+    // every localized/in-place input/output file or directory.
+    let mut has_part = vec![WORKFLOW_ID.to_string()];
+    has_part.extend(data_parts);
     let mut root_props = vec![
         (
             "conformsTo",
-            ev_ids(PROFILES.iter().map(|s| s.to_string()).collect()),
+            ev_ids(profiles.iter().map(|s| s.to_string()).collect()),
         ),
         ("mainEntity", ev_id(WORKFLOW_ID)),
         ("mentions", ev_ids(mentions)),
-        ("hasPart", ev_id(WORKFLOW_ID)),
+        ("hasPart", ev_ids(has_part)),
     ];
     if agent_name.is_some() {
         root_props.push(("author", ev_id("#agent")));
@@ -322,15 +375,14 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
     Ok(crate_)
 }
 
-/// Appends materialized import `@id`s to the workflow entity's `hasPart`.
+/// Links materialized import `@id`s to the workflow entity's `hasPart`. The
+/// workflow does not list itself.
 pub fn add_workflow_parts(crate_: &mut RoCrate, import_ids: &[String]) {
     if import_ids.is_empty() {
         return;
     }
-    let mut parts = vec![WORKFLOW_ID.to_string()];
-    parts.extend(import_ids.iter().cloned());
     let mut property = HashMap::new();
-    property.insert("hasPart".to_string(), ev_ids(parts));
+    property.insert("hasPart".to_string(), ev_ids(import_ids.to_vec()));
     crate_.add_dynamic_entity_property(WORKFLOW_ID, property);
 }
 
