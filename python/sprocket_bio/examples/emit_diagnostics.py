@@ -19,7 +19,7 @@ def main() -> None:
         os.path.dirname(os.path.realpath(__file__)), "example.wdl"
     )
 
-    with open(workflow_path, "rt") as f:
+    with open(workflow_path, mode="rt", encoding="utf-8") as f:
         workflow_source = f.read()
 
     emit_diagnostics(
