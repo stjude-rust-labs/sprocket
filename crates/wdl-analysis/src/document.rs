@@ -657,6 +657,8 @@ impl Workflow {
 /// A task imported into scope by a wildcard or selected-member import.
 #[derive(Debug)]
 pub(crate) struct ImportedTask {
+    /// The task name in the source document.
+    pub name: String,
     /// The span of the import statement that introduced this task.
     pub span: Span,
     /// The source URI the task came from.
@@ -670,6 +672,8 @@ pub(crate) struct ImportedTask {
 /// A workflow imported into scope by a wildcard or selected-member import.
 #[derive(Debug)]
 pub(crate) struct ImportedWorkflow {
+    /// The workflow name in the source document.
+    pub name: String,
     /// The span of the import statement.
     pub span: Span,
     /// The source URI.
@@ -1017,11 +1021,21 @@ impl Document {
         self.data.tasks.get(name)
     }
 
+    /// Gets an imported task in the document by local name.
+    pub(crate) fn imported_task_by_name(&self, name: &str) -> Option<&ImportedTask> {
+        self.data.imported_tasks.get(name)
+    }
+
     /// Gets a workflow in the document.
     ///
     /// Returns `None` if the document did not contain a workflow.
     pub fn workflow(&self) -> Option<&Workflow> {
         self.data.workflow.as_ref()
+    }
+
+    /// Gets an imported workflow in the document by local name.
+    pub(crate) fn imported_workflow_by_name(&self, name: &str) -> Option<&ImportedWorkflow> {
+        self.data.imported_workflows.get(name)
     }
 
     /// Gets a [`Callable`] in the document by name.

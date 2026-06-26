@@ -381,6 +381,46 @@ fn resolve_call_target(
                     lines,
                 )?));
             }
+
+            if let Some(imported_task) = analysis_doc.imported_task_by_name(callee_name_str) {
+                let Some(index) = graph.get_index(imported_task.source.as_ref()) else {
+                    return Ok(None);
+                };
+                let node = graph.get(index);
+                let Some(imported_doc) = node.document() else {
+                    return Ok(None);
+                };
+                let Some(task_def) = imported_doc.task_by_name(&imported_task.name) else {
+                    return Ok(None);
+                };
+                return Ok(Some(location_from_span(
+                    &imported_task.source,
+                    task_def.name_span(),
+                    node.parse_state().lines().unwrap(),
+                )?));
+            }
+
+            if let Some(imported_workflow) = analysis_doc.imported_workflow_by_name(callee_name_str)
+            {
+                let Some(index) = graph.get_index(imported_workflow.source.as_ref()) else {
+                    return Ok(None);
+                };
+                let node = graph.get(index);
+                let Some(imported_doc) = node.document() else {
+                    return Ok(None);
+                };
+                let Some(workflow_def) = imported_doc
+                    .workflow()
+                    .filter(|workflow| workflow.name() == imported_workflow.name)
+                else {
+                    return Ok(None);
+                };
+                return Ok(Some(location_from_span(
+                    &imported_workflow.source,
+                    workflow_def.name_span(),
+                    node.parse_state().lines().unwrap(),
+                )?));
+            }
         } else {
             // More than 2 names (e.g. foo.bar.baz) - invalid expression.
             return Ok(None);

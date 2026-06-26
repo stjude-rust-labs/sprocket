@@ -564,6 +564,7 @@ fn add_wildcard_import(
             document,
             name,
             ImportedTask {
+                name: task.name.clone(),
                 span,
                 source: uri.clone(),
                 inputs: task.inputs.clone(),
@@ -579,6 +580,7 @@ fn add_wildcard_import(
             document,
             name,
             ImportedTask {
+                name: task.name.clone(),
                 span,
                 source: task.source.clone(),
                 inputs: task.inputs.clone(),
@@ -594,6 +596,7 @@ fn add_wildcard_import(
             document,
             &workflow.name,
             ImportedWorkflow {
+                name: workflow.name.clone(),
                 span,
                 source: uri.clone(),
                 inputs: workflow.inputs.clone(),
@@ -609,6 +612,7 @@ fn add_wildcard_import(
             document,
             name,
             ImportedWorkflow {
+                name: workflow.name.clone(),
                 span,
                 source: workflow.source.clone(),
                 inputs: workflow.inputs.clone(),
@@ -801,6 +805,7 @@ fn import_selected_task(
 ) -> bool {
     let entry = if let Some(task) = imported.data.tasks.get(member_name) {
         ImportedTask {
+            name: task.name.clone(),
             span,
             source: uri.clone(),
             inputs: task.inputs.clone(),
@@ -808,6 +813,7 @@ fn import_selected_task(
         }
     } else if let Some(task) = imported.data.imported_tasks.get(member_name) {
         ImportedTask {
+            name: task.name.clone(),
             span,
             source: task.source.clone(),
             inputs: task.inputs.clone(),
@@ -845,6 +851,7 @@ fn import_selected_workflow(
         .filter(|w| w.name == member_name)
     {
         ImportedWorkflow {
+            name: workflow.name.clone(),
             span,
             source: uri.clone(),
             inputs: workflow.inputs.clone(),
@@ -852,6 +859,7 @@ fn import_selected_workflow(
         }
     } else if let Some(workflow) = imported.data.imported_workflows.get(member_name) {
         ImportedWorkflow {
+            name: workflow.name.clone(),
             span,
             source: workflow.source.clone(),
             inputs: workflow.inputs.clone(),
