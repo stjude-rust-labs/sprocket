@@ -206,7 +206,7 @@ pub struct Args {
     #[clap(long)]
     pub ro_crate: bool,
 
-    /// Fail the command if RO-Crate emission fails (implies it was requested).
+    /// Fail the command if requested RO-Crate emission fails.
     #[clap(long, requires = "ro_crate")]
     pub ro_crate_strict: bool,
 
