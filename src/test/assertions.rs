@@ -9,6 +9,7 @@ use anyhow::anyhow;
 use anyhow::bail;
 use indexmap::IndexMap;
 use regex::Regex;
+use schemars::JsonSchema;
 use tracing::warn;
 use wdl::analysis::document::Output;
 use wdl::analysis::types::CompoundType;
@@ -67,7 +68,7 @@ where
 }
 
 /// Possible assertions for a test.
-#[derive(Default, serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, JsonSchema, Default, Debug)]
 pub(crate) struct Assertions {
     /// The expected exit code of the task (ignored when testing workflows).
     ///
@@ -168,7 +169,7 @@ impl Assertions {
 }
 
 /// Possible assertions on a WDL output.
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, JsonSchema)]
 pub(crate) enum OutputAssertion {
     /// Is the WDL value defined?
     ///
