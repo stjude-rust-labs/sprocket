@@ -70,6 +70,7 @@ use crate::EngineEvent;
 use crate::EvaluationContext;
 use crate::EvaluationError;
 use crate::EvaluationPath;
+use crate::EvaluationPathKind;
 use crate::EvaluationResult;
 use crate::GuestPath;
 use crate::HiddenValue;
@@ -173,6 +174,41 @@ fn parse_storage_value(value: &Value, error_message: impl Fn(&str) -> String) ->
     }
 
     unreachable!("value should be an integer or string");
+}
+
+/// Utility function for stripping a path and ensuring the resulting remainder
+/// does not escape via a parent directory reference.
+///
+/// The returned remainder is always cleaned.
+///
+/// Returns `None` if the given path is not prefixed with the given base path.
+fn strip_path_prefix(path: impl AsRef<Path>, base: impl AsRef<Path>) -> Option<String> {
+    let remainder = clean(path.as_ref().strip_prefix(base.as_ref()).ok()?);
+
+    // If the cleaned remainder starts with a parent directory reference,
+    // then it isn't actually prefixed
+    if remainder.components().next() == Some(Component::ParentDir) {
+        return None;
+    }
+
+    remainder.into_os_string().into_string().ok()
+}
+
+/// Utility function for stripping the path prefix of a URL given a base URL.
+///
+/// The returned remainder is always cleaned.
+///
+/// Returns `None` if the given URL is not prefixed with the given base URL.
+fn strip_url_path_prefix(url: &Url, base: &Url) -> Option<String> {
+    if url.scheme() == base.scheme()
+        && url.authority() == base.authority()
+        && url.host_str() == base.host_str()
+        && url.port() == base.port()
+    {
+        return strip_path_prefix(url.path(), base.path());
+    }
+
+    None
 }
 
 /// Used to evaluate expressions in tasks.
@@ -581,11 +617,7 @@ impl<'a> State<'a> {
             // matching guest prefix
             for (host, guest) in self.path_map.iter() {
                 // Check to see if the provided guest path is prefixed by this entry
-                if let Some(remainder) = path
-                    .0
-                    .strip_prefix(guest.0.as_str())
-                    .and_then(|p| p.strip_prefix('/'))
-                {
+                if let Some(remainder) = strip_path_prefix(path.0.as_str(), guest.0.as_str()) {
                     // If the host is a URL, parse it and join it with the remainder
                     if is_supported_url(host.as_str()) {
                         let mut host: Url = host.as_str().parse().ok()?;
@@ -596,21 +628,13 @@ impl<'a> State<'a> {
                             segments.push("");
                         }
 
-                        let mut joined = host.join(remainder).ok()?;
-
-                        // Ensure the path of the joined URL is prefixed, otherwise it escapes the
-                        // corresponding host path
-                        joined.path().strip_prefix(host.path())?;
+                        let mut joined = host.join(&remainder).ok()?;
                         joined.set_query(host.query());
                         return Some(HostPath::new(joined));
                     }
 
-                    // Otherwise, join paths and ensure the resulting path is prefixed
-                    let joined = clean(Path::new(host.0.as_str()).join(remainder));
-                    if joined.strip_prefix(host.0.as_str()).is_err() {
-                        return None;
-                    }
-
+                    // Otherwise, join paths
+                    let joined = Path::new(host.0.as_str()).join(remainder);
                     return Some(HostPath::new(joined.into_os_string().into_string().ok()?));
                 }
             }
@@ -644,46 +668,22 @@ impl<'a> State<'a> {
 
                 match (&path_url, &host_url) {
                     (None, None) => {
-                        // The paths are not URLs, treat as local paths
-                        if let Ok(remainder) = Path::new(path.0.as_str())
-                            .strip_prefix(host.0.as_str())
-                            .map(clean)
+                        if let Some(remainder) = strip_path_prefix(path.0.as_str(), host.0.as_str())
                         {
-                            // If the cleaned remainder starts with a parent directory reference,
-                            // then it escapes the corresponding guest directory
-                            if remainder.components().next() == Some(Component::ParentDir) {
-                                return None;
-                            }
-
                             // Note: guest paths are always Unix-style paths
                             return Some(GuestPath::new(format!(
                                 "{base}/{remainder}",
                                 base = guest.0.trim_end_matches('/'),
-                                remainder = remainder.to_str()?.replace('\\', "/")
+                                remainder = remainder.replace('\\', "/")
                             )));
                         }
                     }
-                    (Some(path_url), Some(host_url))
-                        if path_url.scheme() == host_url.scheme()
-                            && path_url.authority() == host_url.authority()
-                            && path_url.host_str() == host_url.host_str() =>
-                    {
-                        // The paths are both URLs that have matching scheme, authority, and hosts
-                        if let Ok(remainder) = Path::new(path_url.path())
-                            .strip_prefix(host_url.path())
-                            .map(clean)
-                        {
-                            // If the cleaned remainder starts with a parent directory reference,
-                            // then it escapes the corresponding guest directory
-                            if remainder.components().next() == Some(Component::ParentDir) {
-                                return None;
-                            }
-
+                    (Some(path_url), Some(host_url)) => {
+                        if let Some(remainder) = strip_url_path_prefix(path_url, host_url) {
                             // Note: guest paths are always Unix-style paths
                             return Some(GuestPath::new(format!(
                                 "{base}/{remainder}",
-                                base = guest.0.trim_end_matches('/'),
-                                remainder = remainder.to_str()?.replace('\\', "/"),
+                                base = guest.0.trim_end_matches('/')
                             )));
                         }
                     }
@@ -1288,58 +1288,64 @@ impl<'a> State<'a> {
                 self.base_dir.as_local(),
                 Some(self.transferer().as_ref()),
                 &|path| {
-                    // If the path is already a host path, or prefixed with one, return it as-is.
-                    if self.path_map.contains_left(path)
-                        || self.path_map.left_values().any(|host| {
-                            Path::new(path.0.as_str())
-                                .strip_prefix(host.as_str())
-                                .is_ok()
-                        })
+                    // To be a valid output, the output must be one of the following:
+                    // * the path to the `stdout` file
+                    // * the path to the `stderr` file
+                    // * a known input path
+                    // * prefixed with the work directory (when the backend uses containers)
+
+                    // Check for a reference to the stdout/stderr files
+                    if path.as_str() == evaluated.stdout().as_file().unwrap().as_str()
+                        || path.as_str() == evaluated.stderr().as_file().unwrap().as_str()
                     {
                         return Ok(path.clone());
                     }
 
-                    // Join the path with the work directory.
-                    let output_path = evaluated.result.work_dir.join(path.as_str())?;
-
-                    // If the backend does not use guest paths (i.e. the local backend), don't
-                    // translate it
-                    if self.evaluator.backend.guest_inputs_dir().is_none() {
-                        return Ok(HostPath::new(String::try_from(output_path)?));
+                    // Check for known input paths if this is a guest path
+                    if let Some(host) = self.host_path(&GuestPath(path.0.clone())) {
+                        return Ok(host);
                     }
 
-                    // Perform guest to host path translation
-                    let output_path = if let (Some(joined), Some(base)) =
-                        (output_path.as_local(), evaluated.result.work_dir.as_local())
-                    {
-                        if joined.starts_with(base)
-                            || joined == evaluated.stdout().as_file().unwrap().as_str()
-                            || joined == evaluated.stderr().as_file().unwrap().as_str()
-                        {
-                            // The joined path is contained within the work directory or is
-                            // stdout/stderr
-                            HostPath::new(String::try_from(output_path)?)
-                        } else {
-                            // The joined path is not within the work directory, it must be a known
-                            // guest path
-                            self.host_path(&GuestPath(path.0.clone())).ok_or_else(|| {
-                                anyhow!(
-                                    "guest path `{path}` is not an input or within the task's \
-                                     working directory"
-                                )
-                            })?
-                        }
-                    } else if let (Some(_), Some(_)) = (
-                        output_path.as_local(),
-                        evaluated.result.work_dir.as_remote(),
-                    ) {
-                        // Path is local (and absolute) and the working directory is remote
-                        bail!("cannot access guest path `{path}` from a remotely executing task")
-                    } else {
-                        HostPath::new(String::try_from(output_path)?)
-                    };
+                    // Otherwise, if this is already a host path to a known input, return it
+                    if self.guest_path(path).is_some() {
+                        return Ok(path.clone());
+                    }
 
-                    Ok(output_path)
+                    // Join the path with the work directory.
+                    let joined = evaluated.result.work_dir.join(path.as_str())?;
+
+                    // If the backend doesn't use containers, allow the path
+                    if self.evaluator.backend.guest_inputs_dir().is_none() {
+                        return Ok(HostPath::new(String::try_from(joined)?));
+                    }
+
+                    // Check for work directory prefix
+                    match (joined.kind(), evaluated.result.work_dir.kind()) {
+                        (
+                            EvaluationPathKind::Local(output),
+                            EvaluationPathKind::Local(work_dir),
+                        ) => {
+                            if strip_path_prefix(output, work_dir).is_some() {
+                                return Ok(HostPath::new(String::try_from(joined)?));
+                            }
+                        }
+                        (
+                            EvaluationPathKind::Remote(output),
+                            EvaluationPathKind::Remote(work_dir),
+                        ) => {
+                            if strip_url_path_prefix(output, work_dir).is_some() {
+                                return Ok(HostPath::new(String::try_from(joined)?));
+                            }
+                        }
+                        _ => {
+                            // The output isn't prefixed by the work directory.
+                        }
+                    }
+
+                    bail!(
+                        "guest path `{path}` is not an input or within the task's working \
+                         directory"
+                    )
                 },
             )
             .await
