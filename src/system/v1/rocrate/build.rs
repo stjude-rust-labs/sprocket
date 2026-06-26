@@ -98,16 +98,17 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
         ),
     };
 
-    let started = ctx
+    // Timing is recorded only when actually known; `startTime`/`endTime` are not
+    // required, so we omit them rather than fabricate values.
+    let started = ctx.run.started_at.map(|t| t.to_rfc3339());
+    let ended = ctx.run.completed_at.map(|t| t.to_rfc3339());
+    // `date_published` is required on the root dataset; use a real run timestamp
+    // (start when known, else the creation time) rather than inventing one.
+    let date_published = ctx
         .run
         .started_at
         .unwrap_or(ctx.run.created_at)
         .to_rfc3339();
-    let ended = ctx
-        .run
-        .completed_at
-        .map(|t| t.to_rfc3339())
-        .unwrap_or_else(|| started.clone());
 
     // Metadata descriptor.
     crate_
@@ -133,18 +134,21 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
             ]),
         }));
 
-    // Submitter agent.
+    // Submitter agent — emitted only when a real submitter is known; never
+    // invented.
     let agent_name = ctx
         .session
         .map(|s| s.created_by.as_str())
-        .unwrap_or("unknown");
-    crate_
-        .graph
-        .push(GraphVector::ContextualEntity(ContextualEntity {
-            id: "#agent".to_string(),
-            type_: DataType::Term("Person".to_string()),
-            dynamic_entity: bag(vec![("name", ev_str(agent_name))]),
-        }));
+        .filter(|n| !n.is_empty());
+    if let Some(name) = agent_name {
+        crate_
+            .graph
+            .push(GraphVector::ContextualEntity(ContextualEntity {
+                id: "#agent".to_string(),
+                type_: DataType::Term("Person".to_string()),
+                dynamic_entity: bag(vec![("name", ev_str(name))]),
+            }));
+    }
 
     // Workflow entity (the materialized WDL source; written by `materialize_sources`).
     crate_.graph.push(GraphVector::DataEntity(DataEntity {
@@ -198,46 +202,70 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
     }
 
     // Engine `OrganizeAction`.
+    let mut organize_props = vec![
+        ("name", ev_str("Workflow orchestration")),
+        ("agent", ev_id("#engine")),
+        ("instrument", ev_id("#engine")),
+        ("object", ev_id("#run")),
+    ];
+    if let Some(s) = &started {
+        organize_props.push(("startTime", ev_str(s)));
+    }
+    if let Some(e) = &ended {
+        organize_props.push(("endTime", ev_str(e)));
+    }
     crate_
         .graph
         .push(GraphVector::ContextualEntity(ContextualEntity {
             id: "#organize".to_string(),
             type_: DataType::Term("OrganizeAction".to_string()),
-            dynamic_entity: bag(vec![
-                ("name", ev_str("Workflow orchestration")),
-                ("agent", ev_id("#engine")),
-                ("instrument", ev_id("#engine")),
-                ("object", ev_id("#run")),
-                ("startTime", ev_str(&started)),
-                ("endTime", ev_str(&ended)),
-            ]),
+            dynamic_entity: bag(organize_props),
         }));
 
     // Workflow-level `CreateAction`.
+    let mut run_props = vec![
+        ("name", ev_str(&ctx.run.name)),
+        ("instrument", ev_id(WORKFLOW_ID)),
+        ("object", ev_ids(input_ids.clone())),
+        ("result", ev_ids(output_ids.clone())),
+        (
+            "actionStatus",
+            ev_id("http://schema.org/CompletedActionStatus"),
+        ),
+    ];
+    if agent_name.is_some() {
+        run_props.push(("agent", ev_id("#agent")));
+    }
+    if let Some(s) = &started {
+        run_props.push(("startTime", ev_str(s)));
+    }
+    if let Some(e) = &ended {
+        run_props.push(("endTime", ev_str(e)));
+    }
     crate_
         .graph
         .push(GraphVector::ContextualEntity(ContextualEntity {
             id: "#run".to_string(),
             type_: DataType::Term("CreateAction".to_string()),
-            dynamic_entity: bag(vec![
-                ("name", ev_str(&ctx.run.name)),
-                ("instrument", ev_id(WORKFLOW_ID)),
-                ("agent", ev_id("#agent")),
-                ("object", ev_ids(input_ids.clone())),
-                ("result", ev_ids(output_ids.clone())),
-                ("startTime", ev_str(&started)),
-                ("endTime", ev_str(&ended)),
-                (
-                    "actionStatus",
-                    ev_id("http://schema.org/CompletedActionStatus"),
-                ),
-            ]),
+            dynamic_entity: bag(run_props),
         }));
 
     // Root dataset.
     let mut mentions = vec!["#run".to_string(), "#organize".to_string()];
     mentions.extend(input_ids);
     mentions.extend(output_ids);
+    let mut root_props = vec![
+        (
+            "conformsTo",
+            ev_ids(PROFILES.iter().map(|s| s.to_string()).collect()),
+        ),
+        ("mainEntity", ev_id(WORKFLOW_ID)),
+        ("mentions", ev_ids(mentions)),
+        ("hasPart", ev_id(WORKFLOW_ID)),
+    ];
+    if agent_name.is_some() {
+        root_props.push(("author", ev_id("#agent")));
+    }
     crate_
         .graph
         .push(GraphVector::RootDataEntity(RootDataEntity {
@@ -245,19 +273,11 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
             type_: DataType::Term("Dataset".to_string()),
             name: ctx.run.name.clone(),
             description: wf_desc,
-            date_published: started,
-            // Neutral default: Sprocket does not assert a license for the run's data.
+            date_published,
+            // Required by the data model; Sprocket does not assert a license for
+            // the run's data, so this honestly records that none was specified.
             license: License::Description("license not specified".to_string()),
-            dynamic_entity: bag(vec![
-                (
-                    "conformsTo",
-                    ev_ids(PROFILES.iter().map(|s| s.to_string()).collect()),
-                ),
-                ("mainEntity", ev_id(WORKFLOW_ID)),
-                ("author", ev_id("#agent")),
-                ("mentions", ev_ids(mentions)),
-                ("hasPart", ev_id(WORKFLOW_ID)),
-            ]),
+            dynamic_entity: bag(root_props),
         }));
 
     Ok(crate_)

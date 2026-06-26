@@ -284,4 +284,80 @@ workflow myworkflow {
         // The WDL source is materialized into the crate.
         assert!(run_dir.root().join(WORKFLOW_ID).exists());
     }
+
+    /// Unknown timing and an unknown submitter are omitted, not fabricated.
+    #[tokio::test]
+    async fn omits_unknown_timing_and_agent() {
+        use std::str::FromStr as _;
+
+        use chrono::Utc;
+        use uuid::Uuid;
+        use wdl::engine::Inputs;
+        use wdl::engine::Outputs;
+        use wdl::engine::WorkflowInputs;
+
+        use crate::analysis::Source;
+        use crate::commands::validate::analyze_source;
+        use crate::system::v1::db::models::Run;
+        use crate::system::v1::db::models::RunStatus;
+        use crate::system::v1::exec::Target;
+        use crate::system::v1::fs::OutputDirectory;
+
+        let dir = tempfile::tempdir().unwrap();
+        let wdl = dir.path().join("source.wdl");
+        std::fs::write(
+            &wdl,
+            "version 1.3\n\nworkflow myworkflow {\n    output {\n    }\n}\n",
+        )
+        .unwrap();
+
+        let source = Source::from_str(wdl.to_str().unwrap()).unwrap();
+        let document = analyze_source(&source, None).await.expect("analysis");
+
+        let output_dir = OutputDirectory::new(dir.path().join("out"));
+        let run_dir = output_dir.ensure_workflow_run("myworkflow").unwrap();
+
+        // No `started_at`/`completed_at`, and no session.
+        let run = Run {
+            uuid: Uuid::new_v4(),
+            session_uuid: Uuid::new_v4(),
+            name: "tiny-run".to_string(),
+            source: "source.wdl".to_string(),
+            target: Some("myworkflow".to_string()),
+            status: RunStatus::Completed,
+            inputs: "{}".to_string(),
+            outputs: Some("{}".to_string()),
+            error: None,
+            directory: Some(run_dir.root().display().to_string()),
+            index_directory: None,
+            started_at: None,
+            completed_at: None,
+            created_at: Utc::now(),
+        };
+        let target = Target::Workflow("myworkflow".to_string());
+        let inputs = Inputs::Workflow(WorkflowInputs::default());
+        let outputs = Outputs::default();
+
+        let ctx = RunCrateContext {
+            run: &run,
+            session: None,
+            document: &document,
+            target: &target,
+            inputs: &inputs,
+            outputs: &outputs,
+            run_dir: &run_dir,
+            engine: EngineInfo::from_build(),
+        };
+
+        write_run_crate(&ctx, &RoCrateOptions::from_flags(true, false, false, false))
+            .expect("should write the crate");
+
+        let text = std::fs::read_to_string(run_dir.root().join(METADATA_FILE)).unwrap();
+        assert!(!text.contains("startTime"), "must not fabricate startTime");
+        assert!(!text.contains("endTime"), "must not fabricate endTime");
+        assert!(!text.contains("#agent"), "must not fabricate an agent");
+        assert!(!text.contains("unknown"), "must not invent an agent name");
+        // The required root `datePublished` is still present (a real timestamp).
+        assert!(text.contains("datePublished"));
+    }
 }
