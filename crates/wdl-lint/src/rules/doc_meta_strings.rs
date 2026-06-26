@@ -248,8 +248,9 @@ impl Visitor for DocMetaStringsRule {
                     );
                 }
 
-                // Any other type - warn that parameter descriptions should be strings
-                _ => {
+                // Any other type - warn that parameter descriptions should be strings, but only
+                // when `description` is a reserved key.
+                _ if self.reserved_keys.iter().any(|k| k == "description") => {
                     let value_type = get_value_type_name(&value);
                     diagnostics.exceptable_add(
                         non_string_value_diagnostic("description", value_type, item.span()),
@@ -257,6 +258,8 @@ impl Visitor for DocMetaStringsRule {
                         &self.exceptable_nodes(),
                     );
                 }
+
+                _ => {}
             }
         }
     }
