@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* Added the `unstable-python` feature flag, which enables APIs related to Sprocket's Python bindings ([#941](https://github.com/stjude-rust-labs/sprocket/pull/941))
+* Added the `unstable-python` feature flag, which enables APIs related to Sprocket's Python bindings ([#941](https://github.com/stjude-rust-labs/sprocket/pull/941)).
 
 #### Changed
 
@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
-* `Diagnostic` now considers its `help` field in its `Ord` implementation
+* `Diagnostic` now considers its `help` field in its `Ord` implementation ([#941](https://github.com/stjude-rust-labs/sprocket/pull/941)).
 
 ## 0.23.0 - 2026-06-03
 
