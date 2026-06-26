@@ -1,0 +1,73 @@
+Retry a previous run, optionally with input overrides
+
+Usage: sprocket dev server retry [OPTIONS] <RUN> [OVERRIDES]...
+
+Arguments:
+  <RUN>
+          The run to retry.
+          
+          May be a UUID or the human-readable generated name of the run (e.g. `happy-dolphin-42`). The original run's source, target, and inputs are reused as the base for the new submission.
+
+  [OVERRIDES]...
+          Input overrides for the new run.
+          
+          Overrides use the same syntax as `dev server submit`: key-value pairs (e.g. `task.name=value`), input files prefixed with `@` (e.g. `@inputs.json`), or bare values appended to the preceding key's array. Any key provided here takes precedence over the value from the original run.
+
+Options:
+  -t, --target <NAME>
+          Override the target task or workflow name
+
+      --index-on <OUTPUT_NAME>
+          Override the output name to index on
+
+      --no-validate
+          Skip local re-analysis of the WDL source file.
+          
+          By default, `retry` re-analyzes the source file to catch errors before submitting. Use this flag if the source file is no longer accessible from the client.
+
+  -m, --report-mode <MODE>
+          The report mode
+
+          Possible values:
+          - full:     Prints diagnostics as multiple lines
+          - one-line: Prints diagnostics as one line
+
+      --host <HOST>
+          The hostname of the running Sprocket server to talk to.
+          
+          If not provided, falls back to the value in the Sprocket config.
+
+  -p, --port <PORT>
+          The port of the running Sprocket server to talk to.
+          
+          If not provided, falls back to the value in the Sprocket config.
+
+  -v, --verbose...
+          Increase logging verbosity
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+      --color <COLOR>
+          Controls output colorization
+
+          Possible values:
+          - auto:   Automatically colorize output depending on output device
+          - always: Always colorize output
+          - never:  Never colorize output
+          
+          [default: auto]
+
+  -c, --config <CONFIG>
+          Path to the configuration file
+
+  -s, --skip-config-search
+          Skip searching for and loading configuration files.
+          
+          Only a configuration file specified as a command line argument will be used.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
