@@ -1110,9 +1110,9 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
         fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
             if let Some(s) = self.0.structs.get(name) {
                 let ty = s.ty().cloned().unwrap_or(Type::Union);
-                if let Some(uri) = s.source().cloned()
+                if let Some(uri) = s.source()
                     && let Some(resolved) =
-                        self.0.namespaces.values_mut().find(|n| n.source() == &uri)
+                        self.0.namespaces.values_mut().find(|n| n.source() == uri)
                 {
                     resolved.used = true;
                 }
@@ -1121,9 +1121,9 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
 
             if let Some(e) = self.0.enums.get(name) {
                 let ty = e.ty().cloned().unwrap_or(Type::Union);
-                if let Some(uri) = e.source().cloned()
+                if let Some(uri) = e.source()
                     && let Some(resolved) =
-                        self.0.namespaces.values_mut().find(|n| n.source() == &uri)
+                        self.0.namespaces.values_mut().find(|n| n.source() == uri)
                 {
                     resolved.used = true;
                 }
@@ -2266,8 +2266,8 @@ fn resolve_import(
                     {
                         format!("failed to resolve symbolic import `{path_text}`: {error}")
                     } else {
-                        "symbolic imports are only resolvable from within a module; run `sprocket \
-                         module init` to create one"
+                        "symbolic import resolution is enabled, but no module context was found \
+                         for this document; run `sprocket module init` to create one"
                             .to_string()
                     };
                     return Err(Some(Diagnostic::error(message).with_highlight(span)));
@@ -2369,12 +2369,12 @@ fn populate_types(document: &mut DocumentData) {
         fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
             if let Some(s) = self.document.structs.get(name) {
                 let ty = s.ty().cloned().unwrap_or(Type::Union);
-                if let Some(uri) = s.source().cloned()
+                if let Some(uri) = s.source()
                     && let Some(resolved) = self
                         .document
                         .namespaces
                         .values_mut()
-                        .find(|n| n.source() == &uri)
+                        .find(|n| n.source() == uri)
                 {
                     resolved.used = true;
                 }
@@ -2383,12 +2383,12 @@ fn populate_types(document: &mut DocumentData) {
 
             if let Some(e) = self.document.enums.get(name) {
                 let ty = e.ty().cloned().unwrap_or(Type::Union);
-                if let Some(uri) = e.source().cloned()
+                if let Some(uri) = e.source()
                     && let Some(resolved) = self
                         .document
                         .namespaces
                         .values_mut()
-                        .find(|n| n.source() == &uri)
+                        .find(|n| n.source() == uri)
                 {
                     resolved.used = true;
                 }
@@ -2782,12 +2782,12 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
     fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         if let Some(s) = self.document.structs.get(name) {
             let ty = s.ty().expect("struct should have type").clone();
-            if let Some(uri) = s.source().cloned()
+            if let Some(uri) = s.source()
                 && let Some(resolved) = self
                     .document
                     .namespaces
                     .values_mut()
-                    .find(|n| n.source() == &uri)
+                    .find(|n| n.source() == uri)
             {
                 resolved.used = true;
             }
@@ -2797,12 +2797,12 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
 
         if let Some(e) = self.document.enums.get(name) {
             let ty = e.ty().expect("enum should have type").clone();
-            if let Some(uri) = e.source().cloned()
+            if let Some(uri) = e.source()
                 && let Some(resolved) = self
                     .document
                     .namespaces
                     .values_mut()
-                    .find(|n| n.source() == &uri)
+                    .find(|n| n.source() == uri)
             {
                 resolved.used = true;
             }

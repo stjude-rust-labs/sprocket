@@ -1,16 +1,16 @@
-error: symbolic imports are only resolvable from within a module; run `sprocket module init` to create one
+error: symbolic import resolution is enabled, but no module context was found for this document; run `sprocket module init` to create one
   ┌─ tests/validation/wdl-1-4-symbolic-import-with-flag/source.wdl:3:8
   │
 3 │ import openwdl/csvkit
   │        ^^^^^^^^^^^^^^
 
-error: symbolic imports are only resolvable from within a module; run `sprocket module init` to create one
+error: symbolic import resolution is enabled, but no module context was found for this document; run `sprocket module init` to create one
   ┌─ tests/validation/wdl-1-4-symbolic-import-with-flag/source.wdl:4:15
   │
 4 │ import * from openwdl/csvkit
   │               ^^^^^^^^^^^^^^
 
-error: symbolic imports are only resolvable from within a module; run `sprocket module init` to create one
+error: symbolic import resolution is enabled, but no module context was found for this document; run `sprocket module init` to create one
   ┌─ tests/validation/wdl-1-4-symbolic-import-with-flag/source.wdl:5:22
   │
 5 │ import { sort } from openwdl/csvkit
