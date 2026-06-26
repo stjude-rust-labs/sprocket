@@ -211,10 +211,48 @@ pub struct LintArgs {
 
 /// Performs the `check` subcommand.
 pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandResult<()> {
-    let mut except = args.common.except;
-    except.extend(config.check.except.iter().cloned());
-    // Rules disabled via `severity = "off"` are treated as exceptions.
-    except.extend(config.check.rules.disabled_rules());
+    // Command line severity flags take precedence over the configuration file.
+    // `note`, `warn`, then `deny` are applied in order so the strongest flag
+    // wins when a rule appears under more than one. Rule names are canonicalized
+    // because the flags accept them case-insensitively.
+    let canonicalize = |name: &str| -> String {
+        ALL_RULE_IDS
+            .iter()
+            .find(|id| id.eq_ignore_ascii_case(name))
+            .cloned()
+            .unwrap_or_else(|| name.to_string())
+    };
+    let cli_severities = args
+        .common
+        .note
+        .iter()
+        .map(|r| (canonicalize(r), wdl::lint::RuleSeverity::Note))
+        .chain(
+            args.common
+                .warn
+                .iter()
+                .map(|r| (canonicalize(r), wdl::lint::RuleSeverity::Warning)),
+        )
+        .chain(
+            args.common
+                .deny
+                .iter()
+                .map(|r| (canonicalize(r), wdl::lint::RuleSeverity::Error)),
+        )
+        .collect::<Vec<_>>();
+    let cli_flagged: HashSet<String> = cli_severities.iter().map(|(r, _)| r.clone()).collect();
+
+    // A rule named by a severity flag is never excepted, so `--deny` can
+    // re-enable a rule disabled via config.
+    let except: Vec<String> = args
+        .common
+        .except
+        .iter()
+        .chain(config.check.except.iter())
+        .cloned()
+        .chain(config.check.rules.disabled_rules())
+        .filter(|id| !cli_flagged.iter().any(|f| f.eq_ignore_ascii_case(id)))
+        .collect();
 
     let deny_notes = args.common.deny_notes || config.check.deny_notes;
     let deny_warnings = args.common.deny_warnings || config.check.deny_warnings || deny_notes;
@@ -321,35 +359,13 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
     };
 
     // Overlay the CLI severity flags onto the configured per-rule severities.
-    // Command line flags take precedence over the configuration file. `note`,
-    // `warn`, then `deny` are applied in order so that the strongest flag wins
-    // if a rule appears under more than one.
-    let cli_severities = args
-        .common
-        .note
-        .iter()
-        .map(|r| (r, wdl::lint::RuleSeverity::Note))
-        .chain(
-            args.common
-                .warn
-                .iter()
-                .map(|r| (r, wdl::lint::RuleSeverity::Warning)),
-        )
-        .chain(
-            args.common
-                .deny
-                .iter()
-                .map(|r| (r, wdl::lint::RuleSeverity::Error)),
-        )
-        .collect::<Vec<_>>();
-
     let mut lint_config = config.check.rules.lint_config().clone();
     let mut analysis_overrides = config.check.rules.analysis_severity_overrides();
     let mut force_enabled = config.check.rules.enabled_rules();
     for (rule, severity) in &cli_severities {
         lint_config.set_severity(rule, *severity);
-        analysis_overrides.insert((*rule).clone(), severity.as_severity());
-        force_enabled.push((*rule).clone());
+        analysis_overrides.insert(rule.clone(), severity.as_severity());
+        force_enabled.push(rule.clone());
     }
 
     let results = Analysis::default()
