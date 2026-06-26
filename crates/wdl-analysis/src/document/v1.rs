@@ -1246,6 +1246,9 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
             prev_span,
             name.span(),
         ));
+        document
+            .failed_selected_imports
+            .insert(name.text().to_string());
         return;
     }
 
@@ -1562,6 +1565,9 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
             prev_span,
             name.span(),
         ));
+        document
+            .failed_selected_imports
+            .insert(name.text().to_string());
         return false;
     }
 
@@ -2150,7 +2156,9 @@ fn resolve_call_type(
                 workflow.outputs.clone(),
             ),
             _ if namespace.is_none() => {
-                if let Some(imported) = document.imported_tasks.get(name.text()) {
+                if document.failed_selected_imports.contains(name.text()) {
+                    return None;
+                } else if let Some(imported) = document.imported_tasks.get(name.text()) {
                     (
                         CallKind::Task,
                         imported.inputs.clone(),
@@ -2162,8 +2170,6 @@ fn resolve_call_type(
                         imported.inputs.clone(),
                         imported.outputs.clone(),
                     )
-                } else if document.failed_selected_imports.contains(name.text()) {
-                    return None;
                 } else {
                     document.analysis_diagnostics.push(unknown_task_or_workflow(
                         None,

@@ -10,8 +10,8 @@
     <a href="https://pypi.org/project/sprocket_bio/" target="_blank">
       <img alt="PyPI: Version" src="https://img.shields.io/pypi/v/sprocket_bio">
     </a>
-    <a href="https://rustseq.zulipchat.com/join/coxb7c7b3bbahlfx7poeqqrd/" target="_blank">
-      <img alt="Chat: Zulip" src="https://img.shields.io/badge/chat-%23workflows--lib--wdl-blue?logo=zulip&logoColor=f6f6f6" />
+    <a href="https://join.slack.com/t/openwdl/shared_invite/zt-ctmj4mhf-cFBNxIiZYs6SY9HgM9UAVw" target="_blank">
+      <img alt="Chat: Slack" src="https://badgen.net/badge/icon/%23sprocket/4A154B?icon=slack&label=slack" />
     </a>
     <img alt="PyPI: Downloads" src="https://img.shields.io/pypi/dm/sprocket_bio">
   </p>

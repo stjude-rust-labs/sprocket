@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.16.0 - 2026-06-26
+
 #### Added
 
 * Added dynamic `bsub` arguments to the LSF backend ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
@@ -24,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Slurm backend setting `extra_sbatch_args` has been renamed to `sbatch.args` ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
 * Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
 * Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+
+#### Fixed
+
+* Fixed an issue where a task could not output a `Directory` value that was a
+  subpath of a `Directory` input ([#933](https://github.com/stjude-rust-labs/sprocket/pull/933)).
 
 #### Dependencies
 
