@@ -570,7 +570,6 @@ fn add_wildcard_import(
                 outputs: task.outputs.clone(),
             },
             span,
-            span,
             wildcard_import_conflict,
         );
     }
@@ -585,7 +584,6 @@ fn add_wildcard_import(
                 inputs: task.inputs.clone(),
                 outputs: task.outputs.clone(),
             },
-            span,
             span,
             wildcard_import_conflict,
         );
@@ -602,7 +600,6 @@ fn add_wildcard_import(
                 outputs: workflow.outputs.clone(),
             },
             span,
-            span,
             wildcard_import_conflict,
         );
     }
@@ -617,7 +614,6 @@ fn add_wildcard_import(
                 inputs: workflow.inputs.clone(),
                 outputs: workflow.outputs.clone(),
             },
-            span,
             span,
             wildcard_import_conflict,
         );
@@ -826,7 +822,6 @@ fn import_selected_task(
         local_name,
         entry,
         member_span,
-        span,
         selected_import_conflict,
     );
     true
@@ -871,7 +866,6 @@ fn import_selected_workflow(
         local_name,
         entry,
         member_span,
-        span,
         selected_import_conflict,
     );
     true
@@ -879,25 +873,17 @@ fn import_selected_workflow(
 
 /// Inserts a re-exported task into `document` under `local_name`.
 ///
-/// When a task or imported task by that name already exists, the `conflict`
+/// When a callable by that name already exists, the `conflict`
 /// diagnostic is emitted (highlighting `conflict_span` and the previous
-/// definition) and the entry is not inserted. `fallback_span` is used as the
-/// previous-definition span when neither map records one.
+/// definition) and the entry is not inserted.
 fn insert_imported_task(
     document: &mut DocumentData,
     local_name: &str,
     entry: ImportedTask,
     conflict_span: Span,
-    fallback_span: Span,
     conflict: impl Fn(&str, Span, Span) -> Diagnostic,
 ) {
-    if document.tasks.contains_key(local_name) || document.imported_tasks.contains_key(local_name) {
-        let prev_span = document
-            .tasks
-            .get(local_name)
-            .map(|t| t.name_span)
-            .or_else(|| document.imported_tasks.get(local_name).map(|t| t.span))
-            .unwrap_or(fallback_span);
+    if let Some(prev_span) = callable_conflict_span(document, local_name) {
         document
             .analysis_diagnostics
             .push(conflict(local_name, conflict_span, prev_span));
@@ -911,24 +897,17 @@ fn insert_imported_task(
 
 /// Inserts a re-exported workflow into `document` under `local_name`.
 ///
-/// When an imported workflow by that name already exists, the `conflict`
+/// When a callable by that name already exists, the `conflict`
 /// diagnostic is emitted (highlighting `conflict_span` and the previous
-/// definition) and the entry is not inserted. `fallback_span` is used as the
-/// previous-definition span when the map records none.
+/// definition) and the entry is not inserted.
 fn insert_imported_workflow(
     document: &mut DocumentData,
     local_name: &str,
     entry: ImportedWorkflow,
     conflict_span: Span,
-    fallback_span: Span,
     conflict: impl Fn(&str, Span, Span) -> Diagnostic,
 ) {
-    if document.imported_workflows.contains_key(local_name) {
-        let prev_span = document
-            .imported_workflows
-            .get(local_name)
-            .map(|w| w.span)
-            .unwrap_or(fallback_span);
+    if let Some(prev_span) = callable_conflict_span(document, local_name) {
         document
             .analysis_diagnostics
             .push(conflict(local_name, conflict_span, prev_span));
@@ -938,6 +917,28 @@ fn insert_imported_workflow(
     document
         .imported_workflows
         .insert(local_name.to_string(), entry);
+}
+
+/// Returns the span of a callable that already owns `name`.
+fn callable_conflict_span(document: &DocumentData, name: &str) -> Option<Span> {
+    document
+        .tasks
+        .get(name)
+        .map(|task| task.name_span)
+        .or_else(|| {
+            document
+                .workflow
+                .as_ref()
+                .filter(|workflow| workflow.name == name)
+                .map(|workflow| workflow.name_span)
+        })
+        .or_else(|| document.imported_tasks.get(name).map(|task| task.span))
+        .or_else(|| {
+            document
+                .imported_workflows
+                .get(name)
+                .map(|workflow| workflow.span)
+        })
 }
 
 /// Creates a diagnostic for a wildcard import conflict.
@@ -1231,6 +1232,14 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
         ));
         return;
     }
+    if let Some(prev_span) = callable_conflict_span(document, name.text()) {
+        document.analysis_diagnostics.push(selected_import_conflict(
+            name.text(),
+            prev_span,
+            name.span(),
+        ));
+        return;
+    }
 
     // Populate type maps for the tasks's inputs and outputs
     let inputs = match definition.input() {
@@ -1482,14 +1491,6 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
     // Sort the scopes
     sort_scopes(&mut task.scopes);
 
-    if let Some(prev) = document.imported_tasks.get(name.text()) {
-        document.analysis_diagnostics.push(selected_import_conflict(
-            name.text(),
-            prev.span,
-            name.span(),
-        ));
-    }
-
     document.tasks.insert(name.text().to_string(), task);
 }
 
@@ -1544,6 +1545,14 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
             name.text(),
             Context::Workflow(name.span()),
             ctx,
+        ));
+        return false;
+    }
+    if let Some(prev_span) = callable_conflict_span(document, name.text()) {
+        document.analysis_diagnostics.push(selected_import_conflict(
+            name.text(),
+            prev_span,
+            name.span(),
         ));
         return false;
     }

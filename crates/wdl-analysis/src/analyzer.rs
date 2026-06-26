@@ -1494,6 +1494,53 @@ workflow nested {
     }
 
     #[tokio::test]
+    async fn selected_imported_task_conflicts_with_local_workflow() {
+        let dir = TempDir::new().expect("failed to create temporary directory");
+        fs::write(
+            dir.path().join("lib.wdl"),
+            r#"version 1.4
+task run {
+    command <<<>>>
+}
+"#,
+        )
+        .expect("failed to create library document");
+        fs::write(
+            dir.path().join("source.wdl"),
+            r#"version 1.4
+import { run } from "lib.wdl"
+workflow run {
+}
+"#,
+        )
+        .expect("failed to create source document");
+
+        let config = Config::default()
+            .with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+        let analyzer = Analyzer::new(config, |(), _, _, _| async {});
+        analyzer
+            .add_document(path_to_uri(dir.path().join("source.wdl")).expect("should convert"))
+            .await
+            .expect("should add document");
+
+        let results = analyzer.analyze(()).await.expect("analysis should succeed");
+        let source = results
+            .iter()
+            .find(|result| result.document.uri().path().contains("source.wdl"))
+            .expect("should find source result");
+        let errors = source
+            .document
+            .diagnostics()
+            .filter(|diagnostic| diagnostic.severity() == Severity::Error)
+            .map(|diagnostic| diagnostic.message())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            errors,
+            ["import of `run` conflicts with an existing definition"]
+        );
+    }
+
+    #[tokio::test]
     async fn symbolic_import_resolves_through_mock_resolver() {
         use wdl_modules::Manifest;
         use wdl_modules::lockfile::ResolvedSource;
