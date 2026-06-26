@@ -50,7 +50,7 @@ maturin develop
 pytest
 
 # Check types and type stubs.
-mypy --package sprocket_bio
+mypy python/
 python -m mypy.stubtest sprocket_bio
 
 # Format code.

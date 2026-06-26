@@ -99,7 +99,7 @@ jobs:
           args: --locked
 
       - name: Check types
-        run: mypy --package sprocket_bio
+        run: mypy python
 
       - name: Check stubs
         run: python -m mypy.stubtest sprocket_bio
