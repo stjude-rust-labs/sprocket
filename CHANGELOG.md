@@ -9,12 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added `--ro-crate` to `sprocket run`, which emits a Workflow Run RO-Crate
-  (`ro-crate-metadata.json`) into the run directory on success. Direct task
-  targets produce a Workflow Run RO-Crate for an implicit one-task workflow.
-  The companion `--ro-crate-strict`, `--no-ro-crate-checksums`, and
-  `--no-ro-crate-localize` flags control the failure policy, file digests, and
-  input/output localization.
+* Added `--ro-crate` to `sprocket run`, which emits an RO-Crate
+  (`ro-crate-metadata.json`) into the run directory on success. Workflow
+  targets produce a Workflow Run Crate and direct task targets produce a
+  Process Run Crate. The companion `--ro-crate-strict`,
+  `--no-ro-crate-checksums`, and `--no-ro-crate-localize` flags control the
+  failure policy, file digests, and input/output localization
+  ([#955](https://github.com/stjude-rust-labs/sprocket/pull/955)).
 * Nix flake providing `packages.sprocket`, a development shell with the
   full toolchain, `nix flake check` entries (package build, binary smoke
   test, and `nixfmt`/`statix`/`deadnix` lints), and a `nix fmt`
