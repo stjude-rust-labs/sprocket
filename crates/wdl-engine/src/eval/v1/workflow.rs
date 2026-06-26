@@ -612,6 +612,18 @@ impl Evaluator {
         inputs: WorkflowInputs,
         eval_root_dir: impl AsRef<Path>,
     ) -> EvaluationResult<Outputs> {
+        self.evaluate_workflow_with_inputs(document, inputs, eval_root_dir)
+            .await
+            .map(|(outputs, _)| outputs)
+    }
+
+    /// Evaluates a workflow and returns the outputs and effective inputs.
+    pub async fn evaluate_workflow_with_inputs(
+        &self,
+        document: &Document,
+        inputs: WorkflowInputs,
+        eval_root_dir: impl AsRef<Path>,
+    ) -> EvaluationResult<(Outputs, WorkflowInputs)> {
         let workflow = document
             .workflow()
             .context("document does not contain a workflow")?;
@@ -644,7 +656,7 @@ impl Evaluator {
         inputs: WorkflowInputs,
         eval_root_dir: &Path,
         id: &str,
-    ) -> EvaluationResult<Outputs> {
+    ) -> EvaluationResult<(Outputs, WorkflowInputs)> {
         // Validate the inputs for the workflow
         let workflow = document
             .workflow()
@@ -748,7 +760,18 @@ impl Evaluator {
             .evaluate_subgraph(Scopes::ROOT_INDEX, subgraph, Arc::new(id.to_string()))
             .await?;
 
-        let mut outputs: Outputs = state.scopes.write().await.take(Scopes::OUTPUT_INDEX).into();
+        let mut scopes = state.scopes.write().await;
+        let root = scopes.reference(Scopes::ROOT_INDEX);
+        let mut effective_inputs = WorkflowInputs::default();
+        if let Some(section) = definition.input() {
+            for decl in section.declarations() {
+                let name = decl.name();
+                if let Some(value) = root.local(name.text()) {
+                    effective_inputs.set(name.text(), value.clone());
+                }
+            }
+        }
+        let mut outputs: Outputs = scopes.take(Scopes::OUTPUT_INDEX).into();
         if let Some(section) = definition.output() {
             let indexes: HashMap<_, _> = section
                 .declarations()
@@ -757,10 +780,12 @@ impl Evaluator {
                 .collect();
             outputs.sort_by(move |a, b| indexes[a].cmp(&indexes[b]))
         }
+        drop(scopes);
 
         // Write the outputs to the workflow's root directory
         write_json_file(eval_root_dir.join(OUTPUTS_FILE), &outputs)?;
-        Ok(outputs)
+
+        Ok((outputs, effective_inputs))
     }
 }
 
@@ -1612,6 +1637,7 @@ impl State {
                                 callee_id,
                             )
                             .await
+                            .map(|(outputs, _)| outputs)
                     }
                 }
             }
@@ -1990,6 +2016,73 @@ workflow test {
                 .expect("failed to read bar `outputs.json`"),
             "{\n  \"x\": \"bar\",\n  \"y\": 1,\n  \"z\": []\n}"
         );
+    }
+
+    #[tokio::test]
+    async fn it_returns_defaulted_workflow_inputs() -> Result<()> {
+        let root_dir = TempDir::new().context("failed to create temporary directory")?;
+        fs::write(
+            root_dir.path().join("source.wdl"),
+            r#"
+version 1.2
+
+workflow test {
+    input {
+        String message = "hello"
+    }
+
+    output {
+        String out = message
+    }
+}
+"#,
+        )
+        .context("failed to write WDL source file")?;
+
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path())
+            .await
+            .context("failed to add directory")?;
+        let results = analyzer
+            .analyze(())
+            .await
+            .context("failed to analyze document")?;
+        assert_eq!(results.len(), 1, "expected only one result");
+
+        let config = Config {
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
+            ..Default::default()
+        };
+        let evaluator = Evaluator::new(
+            root_dir.path(),
+            config.into(),
+            Default::default(),
+            Events::disabled(),
+        )
+        .await?;
+
+        let (_, inputs) = evaluator
+            .evaluate_workflow_with_inputs(
+                results
+                    .first()
+                    .context("expected analysis result")?
+                    .document(),
+                WorkflowInputs::default(),
+                root_dir.path().join("outputs"),
+            )
+            .await
+            .map_err(|e| anyhow!("{e:?}"))?;
+
+        let Some(message) = inputs.get("message") else {
+            bail!("defaulted input was not returned");
+        };
+        assert_eq!(message.as_string().map(|s| s.as_str()), Some("hello"));
+
+        Ok(())
     }
 
     #[tokio::test]

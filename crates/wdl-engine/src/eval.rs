@@ -24,6 +24,7 @@ use crate::EvaluationPath;
 use crate::GuestPath;
 use crate::HostPath;
 use crate::Outputs;
+use crate::TaskInputs;
 use crate::Value;
 use crate::backend::TaskExecutionResult;
 use crate::config::FailureMode;
@@ -742,6 +743,8 @@ pub struct EvaluatedTask {
     result: TaskExecutionResult,
     /// The evaluated outputs of the task.
     outputs: Outputs,
+    /// The effective task inputs after defaults are evaluated.
+    inputs: TaskInputs,
     /// Stores the execution error for the evaluated task.
     ///
     /// This is `None` when the evaluated task successfully executed.
@@ -756,6 +759,7 @@ impl EvaluatedTask {
         Self {
             result,
             outputs: Default::default(),
+            inputs: Default::default(),
             error,
             cached,
         }
@@ -791,6 +795,11 @@ impl EvaluatedTask {
     /// Gets the stderr value of the evaluated task.
     pub fn stderr(&self) -> &Value {
         &self.result.stderr
+    }
+
+    /// Gets the effective task inputs after defaults are evaluated.
+    pub fn inputs(&self) -> &TaskInputs {
+        &self.inputs
     }
 
     /// Converts the evaluated task into its [`Outputs`].

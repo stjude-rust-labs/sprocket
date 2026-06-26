@@ -1048,6 +1048,9 @@ impl Evaluator {
 
             // Finally, associate the outputs with the evaluated task
             evaluated.outputs = outputs;
+            for (name, value) in state.inputs {
+                evaluated.inputs.set(name, value);
+            }
         }
 
         Ok(evaluated)
