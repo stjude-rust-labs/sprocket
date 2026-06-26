@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.16.0 - 2026-06-26
+
 #### Added
 
 * Added dynamic `bsub` arguments to the LSF backend ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
