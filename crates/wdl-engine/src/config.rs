@@ -65,7 +65,7 @@ use crate::Value;
 use crate::backend::ExecuteTaskRequest;
 use crate::backend::TaskExecutionBackend;
 use crate::convert_unit_string;
-use crate::diagnostics::unknown_enum_variant;
+use crate::diagnostics::unknown_enum_choice;
 use crate::http::Transferer;
 use crate::path::is_supported_url;
 use crate::tree::SyntaxNode;
@@ -1857,12 +1857,12 @@ impl Condition {
                 Err(unknown_type(name, span))
             }
 
-            fn enum_variant_value(
+            fn enum_choice_value(
                 &self,
                 enum_name: &str,
-                variant_name: &str,
+                choice_name: &str,
             ) -> Result<Value, Diagnostic> {
-                Err(unknown_enum_variant(enum_name, variant_name))
+                Err(unknown_enum_choice(enum_name, choice_name))
             }
 
             fn base_dir(&self) -> &EvaluationPath {
