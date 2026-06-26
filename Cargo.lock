@@ -4732,7 +4732,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket"
-version = "0.27.0"
+version = "0.27.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6121,7 +6121,7 @@ dependencies = [
 
 [[package]]
 name = "wdl"
-version = "0.23.2"
+version = "0.23.3"
 dependencies = [
  "anyhow",
  "clap",
@@ -6313,7 +6313,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lint"
-version = "0.24.1"
+version = "0.24.2"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -6346,7 +6346,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lsp"
-version = "0.20.1"
+version = "0.20.2"
 dependencies = [
  "anyhow",
  "async-lsp",
