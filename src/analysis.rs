@@ -182,13 +182,9 @@ impl Analysis {
         }
 
         let mut manifest_paths = HashSet::new();
-        let mut saw_source_without_manifest = false;
         for start in starts {
-            match discover_manifest_upward(&start)? {
-                Some((path, _)) => {
-                    manifest_paths.insert(path);
-                }
-                None => saw_source_without_manifest = true,
+            if let Some((path, _)) = discover_manifest_upward(&start)? {
+                manifest_paths.insert(path);
             }
         }
 
@@ -197,9 +193,9 @@ impl Analysis {
         }
 
         anyhow::ensure!(
-            !saw_source_without_manifest && manifest_paths.len() == 1,
-            "all local sources must be governed by the same `module.json` to resolve symbolic \
-             imports"
+            manifest_paths.len() == 1,
+            "local sources with symbolic import resolution enabled must be governed by a single \
+             `module.json`"
         );
 
         // SAFETY: the `is_empty` check above returned early, and the `ensure`
@@ -638,6 +634,34 @@ mod tests {
             analysis.module_search_dirs(),
             vec![dir.path().to_path_buf()],
             "`module_search_dirs` should return the parent directory of a file source"
+        );
+    }
+
+    #[test]
+    fn resolver_allows_mixed_module_and_nonmodule_sources() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let module_dir = dir.path().join("module");
+        let plain_dir = dir.path().join("plain");
+        std::fs::create_dir_all(&module_dir).unwrap();
+        std::fs::create_dir_all(&plain_dir).unwrap();
+        std::fs::write(module_dir.join(wdl_modules::MANIFEST_FILENAME), MANIFEST).unwrap();
+        std::fs::write(module_dir.join("main.wdl"), "version 1.4\n").unwrap();
+        std::fs::write(plain_dir.join("main.wdl"), "version 1.4\n").unwrap();
+
+        let module_url = url::Url::from_file_path(module_dir.join("main.wdl")).unwrap();
+        let plain_url = url::Url::from_file_path(plain_dir.join("main.wdl")).unwrap();
+        let analysis = Analysis::default()
+            .add_source(Source::File(module_url))
+            .add_source(Source::File(plain_url))
+            .feature_flags(super::FeatureFlags::default().with_wdl_1_4())
+            .modules_config(wdl_modules::resolver::ModulesConfig::default());
+
+        let (_, manifest_path) = analysis
+            .build_resolver_from_sources()
+            .expect("resolver construction should succeed");
+        assert_eq!(
+            manifest_path,
+            Some(module_dir.join(wdl_modules::MANIFEST_FILENAME))
         );
     }
 }

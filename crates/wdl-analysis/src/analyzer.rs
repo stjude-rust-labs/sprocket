@@ -529,7 +529,14 @@ where
     pub async fn add_directory(&self, path: impl AsRef<Path>) -> Result<()> {
         let path = path.as_ref().to_path_buf();
         let config = self.config.clone();
-        let stop_at_module_boundaries = self.resolution.manifest_path.is_some();
+        let active_module_root = self
+            .resolution
+            .manifest_path
+            .as_ref()
+            .and_then(|path| path.parent().map(Path::to_path_buf));
+        let stop_at_module_boundaries = active_module_root
+            .as_ref()
+            .is_some_and(|root| path.starts_with(root));
         // Start by searching for documents
         let documents = RayonHandle::spawn(move || -> Result<IndexSet<Url>> {
             let mut documents = IndexSet::new();
