@@ -1,9 +1,6 @@
 //! Converts runtime WDL values into type-aware RO-Crate entities.
 
 use std::collections::HashMap;
-use std::collections::hash_map::DefaultHasher;
-use std::hash::Hash;
-use std::hash::Hasher;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -34,16 +31,24 @@ fn sha256_hex(path: &Path) -> std::io::Result<String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
+/// Adds one length-delimited string to a stable hash.
+fn update_stable_hash(hasher: &mut Sha256, value: &str) {
+    hasher.update((value.len() as u64).to_be_bytes());
+    hasher.update(value.as_bytes());
+}
+
 /// Stable, path-free placeholder `@id` for a non-localized data value. The hash
 /// is derived from `role` + `rel` (the WDL traversal position), NOT from the
 /// source absolute path, so it is stable and reveals no host layout.
 fn external_placeholder_id(role: &str, rel: &str, basename: &str) -> String {
-    let mut h = DefaultHasher::new();
-    role.hash(&mut h);
-    rel.hash(&mut h);
+    let mut hasher = Sha256::new();
+    update_stable_hash(&mut hasher, role);
+    update_stable_hash(&mut hasher, rel);
+    let hash = format!("{:x}", hasher.finalize());
     format!(
-        "external/{role}/{:016x}/{}",
-        h.finish(),
+        "external/{}/{}/{}",
+        sanitize_component(role),
+        hash,
         sanitize_component(basename)
     )
 }
@@ -567,6 +572,16 @@ mod tests {
         );
         let json = serde_json::to_string(&graph).unwrap();
         assert!(json.contains("contentLocation"));
+    }
+
+    #[test]
+    fn external_placeholder_ids_are_stable() {
+        let id = external_placeholder_id("inputs", "input.file", "artifact.bin");
+
+        assert_eq!(
+            id,
+            "external/inputs/0196bfc88e0b2be3c90cabc955115006e0e05db28b4362304d53c06fc6a9193c/artifact.bin"
+        );
     }
 
     #[test]
