@@ -41,7 +41,54 @@ fn external_placeholder_id(role: &str, rel: &str, basename: &str) -> String {
     let mut h = DefaultHasher::new();
     role.hash(&mut h);
     rel.hash(&mut h);
-    format!("external/{role}/{:016x}/{basename}", h.finish())
+    format!(
+        "external/{role}/{:016x}/{}",
+        h.finish(),
+        sanitize_component(basename)
+    )
+}
+
+/// Encodes one path component so it cannot affect crate layout.
+fn sanitize_component(component: &str) -> String {
+    if component == "." {
+        return "%2e".to_string();
+    }
+    if component == ".." {
+        return "%2e%2e".to_string();
+    }
+
+    let mut sanitized = String::new();
+    for byte in component.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'.' | b'_' | b'-' => {
+                sanitized.push(byte as char);
+            }
+            _ => {
+                sanitized.push_str(&format!("%{byte:02x}"));
+            }
+        }
+    }
+
+    if sanitized.is_empty() {
+        "_".to_string()
+    } else {
+        sanitized
+    }
+}
+
+/// Encodes a traversal path while preserving its component structure.
+fn sanitize_relative_path(path: &str) -> String {
+    let components = path
+        .split(['/', '\\'])
+        .filter(|component| !component.is_empty())
+        .map(sanitize_component)
+        .collect::<Vec<_>>();
+
+    if components.is_empty() {
+        "_".to_string()
+    } else {
+        components.join("/")
+    }
 }
 
 /// Recursively copies a directory tree.
@@ -108,8 +155,17 @@ fn localize_data_path(
         );
     }
 
-    let id = format!("{role}/{rel}/{basename}");
+    let id = format!(
+        "{}/{}/{}",
+        sanitize_component(role),
+        sanitize_relative_path(rel),
+        sanitize_component(basename)
+    );
     let dest = crate_root.join(&id);
+    anyhow::ensure!(
+        dest.starts_with(crate_root),
+        "localized crate path escaped the crate root"
+    );
     if let Some(parent) = dest.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("creating crate directory `{}`", parent.display()))?;
@@ -392,6 +448,9 @@ pub fn value_to_entities(
 #[cfg(test)]
 mod tests {
     use rocraters::ro_crate::graph_vector::GraphVector;
+    use wdl::analysis::types::MapType;
+    use wdl::analysis::types::PrimitiveType;
+    use wdl::engine::Map;
     use wdl::engine::PrimitiveValue;
     use wdl::engine::Value;
 
@@ -493,5 +552,70 @@ mod tests {
         );
         let json = serde_json::to_string(&graph).unwrap();
         assert!(json.contains("contentLocation"));
+    }
+
+    #[test]
+    fn localization_sanitizes_traversal_components() -> Result<()> {
+        let src_dir = tempfile::tempdir()?;
+        let src = src_dir.path().join("reads.bam");
+        std::fs::write(&src, b"BAM")?;
+        let crate_dir = tempfile::tempdir()?;
+        let opts = RoCrateOptions::from_flags(true, false, false, false);
+        let mut graph = Vec::new();
+
+        let id = value_to_entities_roled(
+            "input",
+            "inputs",
+            "samples/../../escape",
+            &file_value(&src),
+            crate_dir.path(),
+            &opts,
+            &mut graph,
+        )?;
+
+        assert_eq!(id, "inputs/samples/%2e%2e/%2e%2e/escape/reads.bam");
+        assert!(crate_dir.path().join(&id).exists());
+        assert!(!crate_dir.path().join("escape/reads.bam").exists());
+
+        Ok(())
+    }
+
+    #[test]
+    fn localization_sanitizes_map_keys() -> Result<()> {
+        let src_dir = tempfile::tempdir()?;
+        let src = src_dir.path().join("reads.bam");
+        std::fs::write(&src, b"BAM")?;
+        let crate_dir = tempfile::tempdir()?;
+        let opts = RoCrateOptions::from_flags(true, false, false, false);
+        let value = Value::from(Map::new(
+            MapType::new(PrimitiveType::String, PrimitiveType::File),
+            [("../../../outside".to_string(), file_value(&src))],
+        )?);
+        let mut graph = Vec::new();
+
+        value_to_entities(
+            "input",
+            "samples",
+            &value,
+            crate_dir.path(),
+            &opts,
+            &mut graph,
+        )?;
+
+        let id = ids(&graph)
+            .into_iter()
+            .find(|id| id.starts_with("inputs/samples/") && id.ends_with("/reads.bam"))
+            .ok_or_else(|| anyhow::anyhow!("localized file entity was not emitted"))?;
+        assert!(
+            !Path::new(&id)
+                .components()
+                .any(|component| matches!(component, std::path::Component::ParentDir))
+        );
+        assert!(crate_dir.path().join(id).exists());
+        if let Some(parent) = crate_dir.path().parent() {
+            assert!(!parent.join("outside/reads.bam").exists());
+        }
+
+        Ok(())
     }
 }
