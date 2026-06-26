@@ -42,7 +42,8 @@ where
     }
 }
 
-/// Deserializes an optional `should_fail` field while rejecting explicit `null`.
+/// Deserializes an optional `should_fail` field while rejecting explicit
+/// `null`.
 ///
 /// Omitted fields become `None`.
 /// Explicit booleans become `Some(value)`.
