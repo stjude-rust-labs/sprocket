@@ -463,6 +463,16 @@ impl ServerOptions {
 
         // TODO ACF 2025-07-07: add configurability around the fallback behavior; see
         // https://github.com/stjude-rust-labs/wdl/issues/517
+        // Exceptions take precedence over severity overrides, so an excepted
+        // rule is never re-enabled by a configured severity.
+        let analysis_overrides: std::collections::BTreeMap<String, Option<wdl_ast::Severity>> =
+            lint_options
+                .analysis_severity_overrides
+                .iter()
+                .filter(|(id, _)| !exceptions.contains(*id))
+                .map(|(id, severity)| (id.clone(), *severity))
+                .collect();
+
         let analyzer_config = AnalysisConfig::default()
             .with_fallback_version(Some(Default::default()))
             .with_diagnostics_config(
@@ -471,7 +481,7 @@ impl ServerOptions {
                         .iter()
                         .filter(|r| !exceptions.contains(&r.id().into())),
                 )
-                .with_overrides(&lint_options.analysis_severity_overrides),
+                .with_overrides(&analysis_overrides),
             )
             .with_ignore_filename(ignore_name)
             .with_all_rules(all_rules)

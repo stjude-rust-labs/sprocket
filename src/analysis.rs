@@ -179,11 +179,24 @@ impl Analysis {
             info!("enabled lint rules: {:?}", enabled_rules);
             info!("disabled lint rules: {:?}", disabled_rules);
         }
+        // Exceptions take precedence over severity overrides, so an excepted
+        // rule is never re-enabled by a configured severity.
+        let analysis_overrides: std::collections::BTreeMap<String, Option<wdl::ast::Severity>> =
+            self.analysis_severity_overrides
+                .iter()
+                .filter(|(id, _)| {
+                    !self
+                        .exceptions
+                        .iter()
+                        .any(|exception| exception.eq_ignore_ascii_case(id))
+                })
+                .map(|(id, severity)| (id.clone(), *severity))
+                .collect();
+
         let config = wdl::analysis::Config::default()
             .with_fallback_version(self.fallback_version)
             .with_diagnostics_config(
-                get_diagnostics_config(&self.exceptions)
-                    .with_overrides(&self.analysis_severity_overrides),
+                get_diagnostics_config(&self.exceptions).with_overrides(&analysis_overrides),
             )
             .with_ignore_filename(self.ignore_filename)
             .with_feature_flags(self.feature_flags);
