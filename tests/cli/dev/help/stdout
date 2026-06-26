@@ -1,0 +1,42 @@
+Developmental and experimental commands
+
+Usage: sprocket dev [OPTIONS] <COMMAND>
+
+Commands:
+  doc     Document a workspace
+  lock    Locks Docker images to a sha256 digest
+  server  Runs the HTTP API server for run execution
+  submit  Submit a workflow to a Sprocket HTTP API server
+  test    Runs unit tests for a WDL workspace
+  help    Print this message or the help of the given subcommand(s)
+
+Options:
+  -v, --verbose...
+          Increase logging verbosity
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+      --color <COLOR>
+          Controls output colorization
+
+          Possible values:
+          - auto:   Automatically colorize output depending on output device
+          - always: Always colorize output
+          - never:  Never colorize output
+          
+          [default: auto]
+
+  -c, --config <CONFIG>
+          Path to the configuration file
+
+  -s, --skip-config-search
+          Skip searching for and loading configuration files.
+          
+          Only a configuration file specified as a command line argument will be used.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
