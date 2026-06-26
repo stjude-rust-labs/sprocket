@@ -4,12 +4,20 @@ use std::collections::HashMap;
 
 use rocraters::ro_crate::constraints::DataType;
 use rocraters::ro_crate::constraints::EntityValue;
+use rocraters::ro_crate::constraints::Id;
 use rocraters::ro_crate::contextual_entity::ContextualEntity;
 use rocraters::ro_crate::graph_vector::GraphVector;
 use wdl::analysis::types::PrimitiveType;
 use wdl::analysis::types::Type;
 
-/// Returns a coarse, human-readable type term for a WDL type.
+/// Bioschemas `FormalParameter` profile that the parameter entities conform to.
+const FORMAL_PARAMETER_PROFILE: &str =
+    "https://bioschemas.org/profiles/FormalParameter/1.0-RELEASE";
+
+/// Returns the `additionalType` term for a WDL type. Primitives map to
+/// schema.org `DataType`s (with `File`/`Dataset` for `File`/`Directory` per
+/// RO-Crate convention); compound values map to `PropertyValue`, the schema.org
+/// type for structured values.
 pub fn additional_type(ty: &Type) -> String {
     if let Some(p) = ty.as_primitive() {
         return match p {
@@ -22,16 +30,8 @@ pub fn additional_type(ty: &Type) -> String {
         }
         .to_string();
     }
-    if ty.as_array().is_some() {
-        return "Array".to_string();
-    }
-    if ty.as_map().is_some() || ty.as_struct().is_some() {
-        return "Object".to_string();
-    }
-    if ty.as_pair().is_some() {
-        return "Array".to_string();
-    }
-    "Text".to_string()
+    // Arrays, pairs, maps, and structs are all structured values.
+    "PropertyValue".to_string()
 }
 
 /// Builds the `dynamic_entity` map from `(key, value)` pairs.
@@ -51,6 +51,10 @@ pub fn formal_parameter(id: &str, name: &str, ty: &Type, value_required: bool) -
                 EntityValue::EntityString(additional_type(ty)),
             ),
             ("valueRequired", EntityValue::EntityBool(value_required)),
+            (
+                "conformsTo",
+                EntityValue::EntityId(Id::Id(FORMAL_PARAMETER_PROFILE.to_string())),
+            ),
         ]),
     })
 }

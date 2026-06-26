@@ -72,15 +72,62 @@ impl RoCrateOptions {
     }
 }
 
-/// Minimal structural validation before writing: the graph must contain the
-/// metadata descriptor, the root dataset, the workflow entity, and the run
-/// action.
+/// Recursively collects every `{"@id": "..."}` reference value in a JSON tree.
+fn collect_id_refs(value: &serde_json::Value, out: &mut Vec<String>) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (k, v) in map {
+                if k == "@id"
+                    && let Some(s) = v.as_str()
+                {
+                    out.push(s.to_string());
+                } else {
+                    collect_id_refs(v, out);
+                }
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                collect_id_refs(item, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Structural validation before writing. The graph must contain the required
+/// entities, every `@id` must be unique, and every `@id` reference must resolve
+/// to a defined entity or an absolute URI (no dangling references).
 fn validate(crate_: &rocraters::ro_crate::rocrate::RoCrate) -> anyhow::Result<()> {
     let ids = crate_.get_all_ids();
     for required in [METADATA_FILE, "./", WORKFLOW_ID, "#run"] {
         anyhow::ensure!(
             ids.iter().any(|i| *i == required),
             "RO-Crate missing required entity `{required}`"
+        );
+    }
+
+    let mut defined = std::collections::HashSet::new();
+    for id in &ids {
+        anyhow::ensure!(
+            defined.insert((*id).clone()),
+            "RO-Crate has a duplicate `@id` `{id}`"
+        );
+    }
+
+    use anyhow::Context as _;
+    let json = serde_json::to_value(crate_).context("serializing RO-Crate for validation")?;
+    let mut refs = Vec::new();
+    collect_id_refs(&json, &mut refs);
+    for r in refs {
+        // Entity self-ids are in `defined`; references must resolve there, unless
+        // they are absolute URIs (contexts, profiles, schema.org terms).
+        if r.starts_with("http://") || r.starts_with("https://") {
+            continue;
+        }
+        anyhow::ensure!(
+            defined.contains(&r),
+            "RO-Crate has a dangling `@id` reference `{r}`"
         );
     }
     Ok(())
@@ -173,6 +220,45 @@ mod tests {
             graph: Vec::new(),
         };
         assert!(validate(&crate_).is_err());
+    }
+
+    #[test]
+    fn validation_rejects_dangling_reference() {
+        use rocraters::ro_crate::constraints::DataType;
+        use rocraters::ro_crate::constraints::EntityValue;
+        use rocraters::ro_crate::constraints::Id;
+        use rocraters::ro_crate::contextual_entity::ContextualEntity;
+        use rocraters::ro_crate::graph_vector::GraphVector;
+
+        let stub = |id: &str| {
+            GraphVector::ContextualEntity(ContextualEntity {
+                id: id.to_string(),
+                type_: DataType::Term("Thing".to_string()),
+                dynamic_entity: None,
+            })
+        };
+        let mut graph = vec![stub(METADATA_FILE), stub("./"), stub(WORKFLOW_ID)];
+        // `#run` references an entity that is never defined.
+        graph.push(GraphVector::ContextualEntity(ContextualEntity {
+            id: "#run".to_string(),
+            type_: DataType::Term("CreateAction".to_string()),
+            dynamic_entity: Some(
+                [(
+                    "agent".to_string(),
+                    EntityValue::EntityId(Id::Id("#ghost".to_string())),
+                )]
+                .into_iter()
+                .collect(),
+            ),
+        }));
+        let crate_ = rocraters::ro_crate::rocrate::RoCrate {
+            context: rocraters::ro_crate::rocrate::RoCrateContext::ReferenceContext(
+                ROCRATE_CONTEXT.to_string(),
+            ),
+            graph,
+        };
+        let err = validate(&crate_).unwrap_err();
+        assert!(err.to_string().contains("dangling"), "{err}");
     }
 
     /// End-to-end: analyze a tiny workflow, build a `RunCrateContext` from

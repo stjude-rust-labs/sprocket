@@ -324,6 +324,14 @@ fn data_entity(
     graph: &mut Vec<GraphVector>,
 ) -> Result<String> {
     let (id, extra) = localize_data_path(src, is_dir, role, rel, crate_root, opts)?;
+
+    // Deduplicate: the same path used as both an input and an output (or repeated
+    // in a structure) must be a single data entity with a unique `@id`, not a
+    // duplicate. If it is already in the graph, just reference it.
+    if graph.iter().any(|g| g.get_id() == &id) {
+        return Ok(id);
+    }
+
     let name = Path::new(&id)
         .file_name()
         .and_then(|n| n.to_str())
