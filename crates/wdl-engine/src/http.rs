@@ -193,6 +193,7 @@ impl HttpTransferer {
         let copy_config = cloud_copy::Config::builder()
             .with_link_to_cache(true)
             .with_overwrite(true)
+            .with_hash_algorithm(config.http.hash_algorithm)
             .with_maybe_retries(Some(
                 config
                     .http

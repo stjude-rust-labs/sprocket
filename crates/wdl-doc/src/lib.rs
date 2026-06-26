@@ -403,6 +403,12 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
         );
     }
 
+    let results = analyze_workspace(&workspace_abs_path, config.analysis_config).await?;
+
+    if config.check {
+        return Ok(());
+    }
+
     let docs_dir = absolute(&config.output_dir)?.clean();
     if !docs_dir.exists() {
         std::fs::create_dir_all(&docs_dir)
@@ -415,8 +421,6 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
             })?;
     }
 
-    let results = analyze_workspace(&workspace_abs_path, config.analysis_config).await?;
-
     let mut docs_tree = DocsTreeBuilder::new(docs_dir.clone())
         .maybe_index_page(index_page)
         .init_light_mode(config.init_light_mode)
@@ -425,8 +429,7 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
         .maybe_alt_logo(config.alt_logo)
         .additional_html(config.additional_html)
         .external_urls(config.external_urls)
-        .build()
-        .with_context(|| "failed to build documentation tree with provided paths".to_string())?;
+        .build()?;
 
     for result in results {
         let uri = result.document().uri();
