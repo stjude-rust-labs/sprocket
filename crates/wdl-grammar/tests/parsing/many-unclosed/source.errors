@@ -10,6 +10,16 @@ error: expected import statement, struct definition, enum definition, task defin
 3 │ "${a(;b{{{{{{{{
   │ ^^^^^^^^^^^^^^^ unexpected string
 
+error: expected `{`, but found end of input
+  ┌─ tests/parsing/many-unclosed/source.wdl:3:5
+  │
+3 │ "${a(;b{{{{{{{{
+  │     ^   --- another 5 unclosed delimiters begin from here
+  │     │   ││ 
+  │     │   │unclosed delimiter
+  │     │   unclosed delimiter
+  │     unclosed delimiter
+
 error: an unknown token was encountered
   ┌─ tests/parsing/many-unclosed/source.wdl:3:6
   │
@@ -127,12 +137,4 @@ error: expected `}`, but found `{`
   │              -^ unexpected `{`
   │              │ 
   │              this `{` is not matched
-
-error: expected `}`, but found end of input
-  ┌─ tests/parsing/many-unclosed/source.wdl:3:16
-  │
-3 │ "${a(;b{{{{{{{{
-  │               -^ unexpected end of input
-  │               │
-  │               this `{` is not matched
 
