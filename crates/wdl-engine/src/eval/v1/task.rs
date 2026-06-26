@@ -1324,18 +1324,14 @@ impl<'a> State<'a> {
                         (
                             EvaluationPathKind::Local(output),
                             EvaluationPathKind::Local(work_dir),
-                        ) => {
-                            if strip_path_prefix(output, work_dir).is_some() {
-                                return Ok(HostPath::new(String::try_from(joined)?));
-                            }
+                        ) if strip_path_prefix(output, work_dir).is_some() => {
+                            return Ok(HostPath::new(String::try_from(joined)?));
                         }
                         (
                             EvaluationPathKind::Remote(output),
                             EvaluationPathKind::Remote(work_dir),
-                        ) => {
-                            if strip_url_path_prefix(output, work_dir).is_some() {
-                                return Ok(HostPath::new(String::try_from(joined)?));
-                            }
+                        ) if strip_url_path_prefix(output, work_dir).is_some() => {
+                            return Ok(HostPath::new(String::try_from(joined)?));
                         }
                         _ => {
                             // The output isn't prefixed by the work directory.
