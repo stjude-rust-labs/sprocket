@@ -1,5 +1,6 @@
 //! Linter config definition.
 
+use schemars::JsonSchema;
 use toml_spanner::Toml;
 
 /// Define the lint rule config and doc generation utilities.
@@ -20,6 +21,7 @@ macro_rules! define_lint_rule_config {
             $(
                 $(#[doc = $doc])+
                 #[toml(default)]
+                #[schemars(default)]
                 pub $field: $ty,
             )+
         }
@@ -72,7 +74,8 @@ pub struct ConfigField {
 
 define_lint_rule_config! {
     /// The configuration for lint rules.
-    #[derive(Clone, Debug, PartialEq, Eq, Toml)]
+    #[derive(Clone, Debug, PartialEq, Eq, Toml, JsonSchema)]
+    #[schemars(rename = "WdlLintConfig")]
     pub struct Config {
         /// List of keys to ignore in the [`ExpectedRuntimeKeys`] lint.
         ///

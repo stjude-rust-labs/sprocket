@@ -1,5 +1,6 @@
 //! Configuration for max line length formatting.
 
+use schemars::JsonSchema;
 use toml_spanner::Arena;
 use toml_spanner::Context;
 use toml_spanner::Failed;
@@ -30,7 +31,8 @@ pub const MAX_MAX_LINE_LENGTH: usize = 240;
 const SENTINEL: &str = "none";
 
 /// The maximum line length.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, JsonSchema)]
+#[schemars(transparent)]
 pub struct MaxLineLength(Option<usize>);
 
 impl MaxLineLength {
