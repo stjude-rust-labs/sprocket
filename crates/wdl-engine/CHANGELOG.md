@@ -18,7 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Changed
 
 * Apptainer settings for the LSF and Slurm backends have moved into an
-  `apptainer` sub-collection ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
+  `apptainer` sub-collection, and `extra_apptainer_exec_args` has been
+  renamed to `apptainer.extra_args` ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
 * LSF backend setting `extra_bsub_args` has been renamed to `bsub.args` ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
 * Slurm backend setting `extra_sbatch_args` has been renamed to `sbatch.args` ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
 * Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
