@@ -23,6 +23,7 @@ use wdl_ast::SupportedVersion;
 use crate::EvaluationPath;
 use crate::GuestPath;
 use crate::HostPath;
+use crate::Object;
 use crate::Outputs;
 use crate::Value;
 use crate::backend::TaskExecutionResult;
@@ -525,8 +526,8 @@ pub(crate) trait EvaluationContext: Send + Sync {
     /// Resolves a type name to a type.
     fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic>;
 
-    /// Returns the literal value of an enum variant.
-    fn enum_variant_value(&self, enum_name: &str, variant_name: &str) -> Result<Value, Diagnostic>;
+    /// Returns the literal value of an enum choice.
+    fn enum_choice_value(&self, enum_name: &str, choice_name: &str) -> Result<Value, Diagnostic>;
 
     /// Gets the base directory for the evaluation.
     ///
@@ -590,6 +591,17 @@ pub(crate) trait EvaluationContext: Send + Sync {
     fn notify_file_created(&mut self, path: &HostPath) -> Result<()> {
         let _ = path;
         Ok(())
+    }
+
+    /// Callback that is invoked prior to accessing an object.
+    ///
+    /// If the callback returns `Some`, the returned value will be treated as
+    /// the result of the access.
+    ///
+    /// If the callback returns `None`, the object will be accessed normally.
+    fn object_access(&self, object: &Object, name: &str) -> Option<Value> {
+        let _ = (object, name);
+        None
     }
 }
 

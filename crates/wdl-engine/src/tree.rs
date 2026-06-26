@@ -322,6 +322,12 @@ impl NewRoot<wdl_ast::SyntaxNode> for SyntaxNode {
     }
 }
 
+impl From<GreenNode> for SyntaxNode {
+    fn from(green: GreenNode) -> Self {
+        Self(ElementData::new_root(green).into())
+    }
+}
+
 impl From<SyntaxNode> for SyntaxElement {
     fn from(value: SyntaxNode) -> Self {
         Self::Node(value)

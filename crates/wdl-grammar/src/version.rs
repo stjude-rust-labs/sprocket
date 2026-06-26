@@ -1,5 +1,6 @@
 //! Representation for version definitions.
 
+use std::mem;
 use std::str::FromStr;
 
 use strum::IntoEnumIterator;
@@ -70,9 +71,9 @@ impl SupportedVersion {
     /// assert!(SupportedVersion::V1(V1::Zero).has_same_major_version(SupportedVersion::V1(V1::Two)));
     /// ```
     pub fn has_same_major_version(self, other: SupportedVersion) -> bool {
-        match (self, other) {
-            (SupportedVersion::V1(_), SupportedVersion::V1(_)) => true,
-        }
+        // Check only that the discriminants are equal, ignoring the value contained by
+        // each.
+        mem::discriminant(&self) == mem::discriminant(&other)
     }
 
     /// Returns an iterator over all supported WDL versions.

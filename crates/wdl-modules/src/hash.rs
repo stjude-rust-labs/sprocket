@@ -4,6 +4,7 @@ use std::collections::BTreeSet;
 use std::fmt;
 use std::fs::File;
 use std::io;
+use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -241,10 +242,19 @@ impl Hasher {
                 })?
                 .len();
             sha.update(len.to_le_bytes());
-            io::copy(&mut file, &mut sha).map_err(|source| HashError::Io {
-                path: canonical_abs,
-                source,
-            })?;
+            let mut buffer = [0; 8192];
+            loop {
+                let bytes = file.read(&mut buffer).map_err(|source| HashError::Io {
+                    path: canonical_abs.clone(),
+                    source,
+                })?;
+
+                if bytes == 0 {
+                    break;
+                }
+
+                sha.update(&buffer[..bytes]);
+            }
         }
 
         sha.update((self.paths.len() as u64).to_le_bytes());
