@@ -43,8 +43,9 @@ pub use baseline::Baseline;
 pub use baseline::BaselineEntry;
 pub use baseline::BaselineMatcher;
 pub use config::Config;
-#[doc(hidden)]
-pub use config::ConfigField;
+pub use config::ParamSpec;
+pub use config::RuleConfig;
+pub use config::RuleSeverity;
 pub use linter::*;
 pub use tags::*;
 pub use util::find_nearest_rule;

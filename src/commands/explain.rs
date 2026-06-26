@@ -275,13 +275,13 @@ fn wdl_lint() -> impl Iterator<Item = Rule> {
     wdl::lint::rules(&wdl::lint::Config::default())
         .into_iter()
         .map(|rule| {
-            let applicable_config_fields = Config::fields()
+            let applicable_config_fields = Config::params()
                 .into_iter()
-                .filter(|field| field.applicable_lints.contains(&rule.id()))
-                .map(|field| ConfigField {
-                    name: field.name,
-                    description: field.description,
-                    default: field.default,
+                .filter(|param| param.applicable_rules.contains(&rule.id()))
+                .map(|param| ConfigField {
+                    name: param.name,
+                    description: param.description,
+                    default: param.default,
                 })
                 .collect::<Vec<_>>();
 
