@@ -1,6 +1,5 @@
 //! Implementation of the local backend.
 
-use std::collections::HashMap;
 use std::ffi::OsStr;
 use std::fs;
 use std::fs::File;
@@ -32,10 +31,10 @@ use crate::CancellationContext;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
+use crate::Object;
 use crate::PrimitiveValue;
 use crate::SYSTEM;
 use crate::TaskInputs;
-use crate::Value;
 use crate::backend::ExecuteTaskRequest;
 use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::backend::TaskExecutionResult;
@@ -289,8 +288,8 @@ impl TaskExecutionBackend for LocalBackend {
     fn constraints(
         &self,
         inputs: &TaskInputs,
-        requirements: &HashMap<String, Value>,
-        _: &HashMap<String, Value>,
+        requirements: &Object,
+        _: &Object,
     ) -> Result<TaskExecutionConstraints> {
         let mut cpu = requirements::cpu(inputs, requirements);
         if self.cpu < cpu {

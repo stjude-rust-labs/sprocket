@@ -1,6 +1,5 @@
 //! Implementation of the Docker backend.
 
-use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -39,9 +38,9 @@ use crate::CancellationContext;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
+use crate::Object;
 use crate::PrimitiveValue;
 use crate::TaskInputs;
-use crate::Value;
 use crate::backend::ExecuteTaskRequest;
 use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::backend::manager::TaskManager;
@@ -527,8 +526,8 @@ impl TaskExecutionBackend for DockerBackend {
     fn constraints(
         &self,
         inputs: &TaskInputs,
-        requirements: &HashMap<String, Value>,
-        hints: &HashMap<String, Value>,
+        requirements: &Object,
+        hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
         let containers = requirements::container(inputs, requirements, &self.config.task.container);
 
