@@ -473,7 +473,6 @@ impl ServerOptions {
         let wdl_lint_config = lint_options.config.clone();
         Analyzer::<ProgressToken>::new_with_validator(
             analyzer_config,
-            wdl_analysis::ResolutionContext::default(),
             move |token, kind, current, total| {
                 let client = analyzer_client.clone();
                 async move {

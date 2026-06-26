@@ -44,11 +44,7 @@ mod common;
 /// Runs a single test.
 fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
     async move {
-        let analyzer = Analyzer::new(
-            config.analysis,
-            wdl_analysis::ResolutionContext::default(),
-            |(), _, _, _| async {},
-        );
+        let analyzer = Analyzer::new(config.analysis, |(), _, _, _| async {});
         analyzer
             .add_directory(test)
             .await

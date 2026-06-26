@@ -140,11 +140,7 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     } else {
         Config::default().with_diagnostics_config(DiagnosticsConfig::except_all())
     };
-    let analyzer = Analyzer::new(
-        config,
-        wdl_analysis::ResolutionContext::default(),
-        |_, _, _, _| async {},
-    );
+    let analyzer = Analyzer::new(config, |_, _, _, _| async {});
     analyzer
         .add_directory(base)
         .await

@@ -401,7 +401,22 @@ where
     /// The analyzer will use a default validator for validation.
     ///
     /// The analyzer must be constructed from the context of a Tokio runtime.
-    pub fn new<Progress, Return>(
+    pub fn new<Progress, Return>(config: Config, progress: Progress) -> Self
+    where
+        Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
+        Return: Future<Output = ()>,
+    {
+        Self::new_with_resolution(config, ResolutionContext::default(), progress)
+    }
+
+    /// Constructs a new analyzer with the given config and resolution context.
+    ///
+    /// The provided progress callback will be invoked during analysis.
+    ///
+    /// The analyzer will use a default validator for validation.
+    ///
+    /// The analyzer must be constructed from the context of a Tokio runtime.
+    pub fn new_with_resolution<Progress, Return>(
         config: Config,
         resolution: ResolutionContext,
         progress: Progress,
@@ -410,7 +425,12 @@ where
         Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
         Return: Future<Output = ()>,
     {
-        Self::new_with_validator(config, resolution, progress, crate::Validator::default)
+        Self::new_with_validator_and_resolution(
+            config,
+            resolution,
+            progress,
+            crate::Validator::default,
+        )
     }
 
     /// Constructs a new analyzer with the given config and validator function.
@@ -422,6 +442,33 @@ where
     ///
     /// The analyzer must be constructed from the context of a Tokio runtime.
     pub fn new_with_validator<Progress, Return, Validator>(
+        config: Config,
+        progress: Progress,
+        validator: Validator,
+    ) -> Self
+    where
+        Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
+        Return: Future<Output = ()>,
+        Validator: Fn() -> crate::Validator + Send + Sync + 'static,
+    {
+        Self::new_with_validator_and_resolution(
+            config,
+            ResolutionContext::default(),
+            progress,
+            validator,
+        )
+    }
+
+    /// Constructs a new analyzer with the given config, resolution context, and
+    /// validator function.
+    ///
+    /// The provided progress callback will be invoked during analysis.
+    ///
+    /// This validator function will be called once per worker thread to
+    /// initialize a thread-local validator.
+    ///
+    /// The analyzer must be constructed from the context of a Tokio runtime.
+    pub fn new_with_validator_and_resolution<Progress, Return, Validator>(
         config: Config,
         resolution: ResolutionContext,
         progress: Progress,
@@ -1106,11 +1153,7 @@ where
 
 impl Default for Analyzer<()> {
     fn default() -> Self {
-        Self::new(
-            Default::default(),
-            ResolutionContext::default(),
-            |_, _, _, _| async {},
-        )
+        Self::new(Default::default(), |_, _, _, _| async {})
     }
 }
 
@@ -1550,7 +1593,7 @@ workflow nested {
         });
         let manifest_path = consumer_dir.join("module.json");
         let resolution = ResolutionContext::new(resolver, Some(manifest_path));
-        let analyzer = Analyzer::new(config, resolution, |(), _, _, _| async {});
+        let analyzer = Analyzer::new_with_resolution(config, resolution, |(), _, _, _| async {});
         analyzer
             .add_document(path_to_uri(consumer_dir.join("source.wdl")).expect("should convert"))
             .await
@@ -1708,7 +1751,7 @@ workflow nested {
         });
         let manifest_path = consumer_dir.join("module.json");
         let resolution = ResolutionContext::new(resolver, Some(manifest_path));
-        let analyzer = Analyzer::new(config, resolution, |(), _, _, _| async {});
+        let analyzer = Analyzer::new_with_resolution(config, resolution, |(), _, _, _| async {});
         analyzer
             .add_document(path_to_uri(consumer_dir.join("source.wdl")).expect("should convert"))
             .await

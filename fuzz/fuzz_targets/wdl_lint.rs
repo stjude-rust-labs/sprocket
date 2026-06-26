@@ -42,7 +42,6 @@ fuzz_target!(
         let analyzer = runtime.block_on(async move {
             Analyzer::new_with_validator(
                 Config::default(),
-                ResolutionContext::default(),
                 |_, _, _, _| async move {},
                 || {
                     let mut validator = Validator::default();

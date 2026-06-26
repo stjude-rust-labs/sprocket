@@ -267,7 +267,7 @@ impl Analysis {
             validator
         });
 
-        let mut analyzer = Analyzer::new_with_validator(
+        let mut analyzer = Analyzer::new_with_validator_and_resolution(
             config,
             wdl::analysis::ResolutionContext::new(resolver, manifest_path),
             move |_, kind, count, total| (self.progress)(kind, count, total),

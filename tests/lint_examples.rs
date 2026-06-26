@@ -141,7 +141,6 @@ impl TestContext {
 
         let analyzer = Analyzer::new_with_validator(
             AnalysisConfig::default(),
-            wdl::analysis::ResolutionContext::default(),
             |_, _, _, _| async {},
             validator,
         );
@@ -163,7 +162,6 @@ impl TestContext {
             AnalysisConfig::default()
                 .with_diagnostics_config(DiagnosticsConfig::new(std::iter::once(rule)))
                 .with_fallback_version(Some(FALLBACK_VERSION)),
-            wdl::analysis::ResolutionContext::default(),
             |_, _, _, _| async {},
             validator,
         );

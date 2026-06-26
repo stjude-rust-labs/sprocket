@@ -202,7 +202,6 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                     rules()
                 }))
                 .with_ignore_filename(Some(".sprocketignore".into())),
-            wdl::analysis::ResolutionContext::default(),
             move |_: (), _, _, _| async move {},
             move || {
                 let mut validator = if args.arena {

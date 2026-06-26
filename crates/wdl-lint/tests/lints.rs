@@ -139,7 +139,6 @@ async fn run_test_inner(
 ) -> Result<(), anyhow::Error> {
     let analyzer = Analyzer::new_with_validator(
         AnalysisConfig::default().with_diagnostics_config(DiagnosticsConfig::except_all()),
-        wdl_analysis::ResolutionContext::default(),
         |_, _, _, _| async {},
         move || {
             let mut validator = Validator::default();

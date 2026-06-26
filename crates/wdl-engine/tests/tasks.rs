@@ -67,11 +67,7 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
     async move {
         debug!(test = %test.display(), ?config, "running test");
 
-        let analyzer = Analyzer::new(
-            config.analysis,
-            wdl_analysis::ResolutionContext::default(),
-            |(), _, _, _| async {},
-        );
+        let analyzer = Analyzer::new(config.analysis, |(), _, _, _| async {});
         analyzer
             .add_directory(test)
             .await

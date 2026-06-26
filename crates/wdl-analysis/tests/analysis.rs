@@ -164,11 +164,7 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     } else {
         Config::default()
     };
-    let analyzer = Analyzer::new(
-        config,
-        wdl_analysis::ResolutionContext::default(),
-        |_, _, _, _| async {},
-    );
+    let analyzer = Analyzer::new(config, |_, _, _, _| async {});
 
     let results =
         if SINGLE_DOCUMENT_TESTS.contains(&base.file_stem().and_then(OsStr::to_str).unwrap()) {

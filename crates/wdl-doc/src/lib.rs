@@ -335,11 +335,7 @@ async fn analyze_workspace(
     config: AnalysisConfig,
 ) -> DocResult<Vec<AnalysisResult>> {
     let workspace = workspace_root.as_ref();
-    let analyzer = Analyzer::new(
-        config,
-        wdl_analysis::ResolutionContext::default(),
-        async |_, _, _, _| (),
-    );
+    let analyzer = Analyzer::new(config, async |_, _, _, _| ());
     analyzer
         .add_directory(workspace)
         .await
