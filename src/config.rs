@@ -1,10 +1,14 @@
 //! Implementation of the configuration module.
 
+use std::collections::BTreeMap;
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::env;
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::LazyLock;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -12,6 +16,7 @@ use anyhow::anyhow;
 use anyhow::bail;
 use clap::ValueEnum;
 use toml_spanner::Arena;
+use toml_spanner::Error as TomlError;
 use toml_spanner::Failed;
 use toml_spanner::FromToml;
 use toml_spanner::Item;
@@ -24,6 +29,7 @@ use toml_spanner::helper::parse_string;
 use tracing::debug;
 use tracing::warn;
 use url::Url;
+use wdl::ast::Severity;
 use wdl::ast::SupportedVersion;
 use wdl::diagnostics::Mode;
 use wdl::engine::Config as EngineConfig;
@@ -284,9 +290,170 @@ pub struct CheckConfig {
     pub filter_lint_tags: Vec<String>,
     /// Path to the diagnostic baseline file.
     pub baseline: Option<PathBuf>,
-    /// Lint rule configuration.
+    /// Per-rule configuration, keyed by rule ID.
     #[toml(default, style = Header)]
-    pub lint: wdl::lint::Config,
+    pub rules: RuleConfigs,
+    /// The removed `[check.lint]` table.
+    ///
+    /// This is retained only to detect configurations that predate per-rule
+    /// tables so a precise migration error can be reported.
+    #[toml(default, style = Header)]
+    pub lint: Option<LegacyLint>,
+}
+
+/// The removed `[check.lint]` table.
+///
+/// Its presence triggers a migration error pointing at the per-rule tables.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Toml)]
+#[toml(Toml, rename_all = "snake_case")]
+pub struct LegacyLint {
+    /// The old global `allowed_names` parameter.
+    #[toml(default)]
+    pub allowed_names: Option<Vec<String>>,
+    /// The old global `allowed_runtime_keys` parameter.
+    #[toml(default)]
+    pub allowed_runtime_keys: Option<Vec<String>>,
+}
+
+/// All `wdl-lint` rule IDs.
+static LINT_RULE_IDS: LazyLock<HashSet<&'static str>> =
+    LazyLock::new(|| wdl::lint::ALL_RULE_IDS.iter().map(String::as_str).collect());
+
+/// All `wdl-analysis` rule IDs.
+static ANALYSIS_RULE_IDS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
+    wdl::analysis::ALL_RULE_IDS
+        .iter()
+        .map(String::as_str)
+        .collect()
+});
+
+/// Maps a configurable parameter name to the rules it applies to.
+static PARAM_APPLICABILITY: LazyLock<HashMap<&'static str, &'static [&'static str]>> =
+    LazyLock::new(|| {
+        wdl::lint::Config::params()
+            .into_iter()
+            .map(|param| (param.name, param.applicable_rules))
+            .collect()
+    });
+
+/// The unified per-rule configuration table (`[check.rules]`).
+///
+/// Each entry is keyed by rule ID and may set a `severity` override plus any
+/// parameters applicable to that rule. Both `wdl-analysis` and `wdl-lint` rules
+/// share this namespace.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct RuleConfigs(wdl::lint::Config);
+
+impl RuleConfigs {
+    /// Returns the underlying lint configuration consumed by the linter.
+    pub fn lint_config(&self) -> &wdl::lint::Config {
+        &self.0
+    }
+
+    /// Returns the analysis-rule severity overrides.
+    ///
+    /// Only entries for `wdl-analysis` rules that set a severity are included.
+    /// A value of `None` disables the corresponding diagnostic.
+    pub fn analysis_severity_overrides(&self) -> BTreeMap<String, Option<Severity>> {
+        self.0
+            .iter()
+            .filter(|(id, _)| ANALYSIS_RULE_IDS.contains(id.as_str()))
+            .filter_map(|(id, rule)| rule.severity.map(|s| (id.clone(), s.as_severity())))
+            .collect()
+    }
+
+    /// Returns the IDs of rules disabled via `severity = "off"`.
+    pub fn disabled_rules(&self) -> Vec<String> {
+        self.0
+            .iter()
+            .filter(|(_, rule)| rule.severity == Some(wdl::lint::RuleSeverity::Off))
+            .map(|(id, _)| id.clone())
+            .collect()
+    }
+
+    /// Returns the IDs of rules that have a concrete (non-`off`) severity
+    /// override.
+    ///
+    /// Configuring a concrete severity opts a rule in regardless of tag
+    /// selection.
+    pub fn enabled_rules(&self) -> Vec<String> {
+        self.0
+            .iter()
+            .filter(
+                |(_, rule)| matches!(rule.severity, Some(s) if s != wdl::lint::RuleSeverity::Off),
+            )
+            .map(|(id, _)| id.clone())
+            .collect()
+    }
+}
+
+impl<'de> FromToml<'de> for RuleConfigs {
+    fn from_toml(ctx: &mut toml_spanner::Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
+        let table = item.require_table(ctx)?;
+        let mut map = BTreeMap::new();
+        let mut failed = false;
+
+        for (key, value) in table {
+            let rule_id = key.name;
+            let is_lint = LINT_RULE_IDS.contains(rule_id);
+            let is_analysis = ANALYSIS_RULE_IDS.contains(rule_id);
+
+            if !is_lint && !is_analysis {
+                let suggestion = wdl::lint::find_nearest_rule(rule_id)
+                    .map(|rule| format!("; did you mean `{rule}`?"))
+                    .unwrap_or_default();
+                ctx.push_error(TomlError::custom(
+                    format!("unknown rule `{rule_id}` in `[check.rules]`{suggestion}"),
+                    key.span,
+                ));
+                failed = true;
+                continue;
+            }
+
+            // Validate that each configured parameter applies to the rule. Keys
+            // unknown to every rule are left for the `deny_unknown_fields` check
+            // performed when the entry is parsed below.
+            if let Some(entry) = value.as_table() {
+                for (param, _) in entry {
+                    if param.name == "severity" {
+                        continue;
+                    }
+
+                    if let Some(rules) = PARAM_APPLICABILITY.get(param.name)
+                        && !(is_lint && rules.contains(&rule_id))
+                    {
+                        ctx.push_error(TomlError::custom(
+                            format!(
+                                "`{param}` is not a configurable parameter for rule `{rule_id}`",
+                                param = param.name
+                            ),
+                            param.span,
+                        ));
+                        failed = true;
+                    }
+                }
+            }
+
+            match wdl::lint::RuleConfig::from_toml(ctx, value) {
+                Ok(config) => {
+                    map.insert(rule_id.to_string(), config);
+                }
+                Err(_) => failed = true,
+            }
+        }
+
+        if failed {
+            Err(Failed)
+        } else {
+            Ok(Self(wdl::lint::Config::from_map(map)))
+        }
+    }
+}
+
+impl ToToml for RuleConfigs {
+    fn to_toml<'a>(&'a self, arena: &'a Arena) -> Result<Item<'a>, ToTomlError> {
+        self.0.to_toml(arena)
+    }
 }
 
 /// Represents the configuration for the Sprocket `analyzer` command.
@@ -865,6 +1032,15 @@ impl Config {
 
     /// Validate a configuration.
     pub fn validate(&mut self) -> Result<()> {
+        if self.check.lint.is_some() {
+            bail!(
+                "`[check.lint]` has been replaced by per-rule tables\n- move `allowed_names` \
+                 under `[check.rules.SnakeCase]` and/or `[check.rules.DeclarationName]` (it \
+                 previously applied to both)\n- move `allowed_runtime_keys` under \
+                 `[check.rules.ExpectedRuntimeKeys]`"
+            )
+        }
+
         if self.check.all_lint_rules && !self.check.only_lint_tags.is_empty() {
             bail!("`all_lint_rules` cannot be specified with `only_lint_tags`")
         }
@@ -956,6 +1132,55 @@ mod test {
     use std::collections::HashMap;
 
     use super::*;
+
+    #[test]
+    fn parses_check_rules() {
+        let config: Config = toml_spanner::from_str(
+            "[check.rules.SnakeCase]\nseverity = \"error\"\nallowed_names = [\"GATK\"]\n",
+        )
+        .unwrap();
+        assert_eq!(
+            config
+                .check
+                .rules
+                .lint_config()
+                .severity_override("SnakeCase"),
+            Some(wdl::lint::RuleSeverity::Error)
+        );
+    }
+
+    #[test]
+    fn rejects_unknown_rule() {
+        let err = toml_spanner::from_str::<Config>("[check.rules.SnkaeCase]\nseverity = \"off\"\n")
+            .unwrap_err();
+        assert!(err.to_string().contains("unknown rule"), "{err}");
+    }
+
+    #[test]
+    fn rejects_inapplicable_parameter() {
+        let err = toml_spanner::from_str::<Config>("[check.rules.SnakeCase]\nmax_length = 5\n")
+            .unwrap_err();
+        assert!(
+            err.to_string().contains("not a configurable parameter"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn collects_analysis_severity_overrides() {
+        let config: Config =
+            toml_spanner::from_str("[check.rules.UnusedImport]\nseverity = \"error\"\n").unwrap();
+        let overrides = config.check.rules.analysis_severity_overrides();
+        assert_eq!(overrides.get("UnusedImport"), Some(&Some(Severity::Error)));
+    }
+
+    #[test]
+    fn legacy_lint_table_reports_migration_error() {
+        let mut config: Config =
+            toml_spanner::from_str("[check.lint]\nallowed_names = [\"x\"]\n").unwrap();
+        let err = config.validate().unwrap_err();
+        assert!(err.to_string().contains("has been replaced"), "{err}");
+    }
 
     #[test]
     fn max_concurrent_runs_serialization() {

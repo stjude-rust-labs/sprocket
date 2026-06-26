@@ -174,6 +174,8 @@ pub struct LintArgs {
 pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandResult<()> {
     let mut except = args.common.except;
     except.extend(config.check.except.iter().cloned());
+    // Rules disabled via `severity = "off"` are treated as exceptions.
+    except.extend(config.check.rules.disabled_rules());
 
     let deny_notes = args.common.deny_notes || config.check.deny_notes;
     let deny_warnings = args.common.deny_warnings || config.check.deny_warnings || deny_notes;
@@ -284,6 +286,9 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         .extend_exceptions(except)
         .enabled_lint_tags(enabled_tags)
         .disabled_lint_tags(disabled_tags)
+        .lint_config(config.check.rules.lint_config().clone())
+        .analysis_severity_overrides(config.check.rules.analysis_severity_overrides())
+        .force_enabled_rules(config.check.rules.enabled_rules())
         .fallback_version(config.common.wdl.fallback_version.into())
         .run()
         .await

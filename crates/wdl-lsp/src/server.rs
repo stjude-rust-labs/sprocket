@@ -331,6 +331,10 @@ pub struct LintOptions {
     /// The lint rule configuration.
     #[patch(skip)]
     pub config: Arc<wdl_lint::Config>,
+    /// Per-rule severity overrides for analysis diagnostics.
+    #[patch(skip)]
+    pub analysis_severity_overrides:
+        Arc<std::collections::BTreeMap<String, Option<wdl_ast::Severity>>>,
 }
 
 /// Wrapper for [`tracing::metadata::LevelFilter`] to support deserialization.
@@ -461,16 +465,20 @@ impl ServerOptions {
         // https://github.com/stjude-rust-labs/wdl/issues/517
         let analyzer_config = AnalysisConfig::default()
             .with_fallback_version(Some(Default::default()))
-            .with_diagnostics_config(DiagnosticsConfig::new(
-                wdl_analysis::rules()
-                    .iter()
-                    .filter(|r| !exceptions.contains(&r.id().into())),
-            ))
+            .with_diagnostics_config(
+                DiagnosticsConfig::new(
+                    wdl_analysis::rules()
+                        .iter()
+                        .filter(|r| !exceptions.contains(&r.id().into())),
+                )
+                .with_overrides(&lint_options.analysis_severity_overrides),
+            )
             .with_ignore_filename(ignore_name)
             .with_all_rules(all_rules)
             .with_feature_flags(self.feature_flags);
 
         let wdl_lint_config = lint_options.config.clone();
+        let severity_overrides = wdl_lint::severity_overrides(&wdl_lint_config);
         Analyzer::<ProgressToken>::new_with_validator(
             analyzer_config,
             move |token, kind, current, total| {
@@ -487,11 +495,16 @@ impl ServerOptions {
             move || {
                 let mut validator = Validator::default();
                 if linting_enabled {
-                    validator.add_visitor(Linter::new(
+                    validator.add_visitor(Linter::new_with_overrides(
                         wdl_lint::rules(&wdl_lint_config)
                             .into_iter()
-                            .filter(|r| !exceptions.contains(&r.id().into()))
+                            .filter(|r| {
+                                !exceptions.contains(&r.id().into())
+                                    && wdl_lint_config.severity_override(r.id())
+                                        != Some(wdl_lint::RuleSeverity::Off)
+                            })
                             .map(|r| r as Box<dyn Rule>),
+                        severity_overrides.clone(),
                     ));
                 }
                 validator

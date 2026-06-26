@@ -91,7 +91,10 @@ pub async fn analyzer(
             ),
             lint: LintOptions {
                 enabled: args.lint,
-                config: Arc::new(config.check.lint),
+                config: Arc::new(config.check.rules.lint_config().clone()),
+                analysis_severity_overrides: Arc::new(
+                    config.check.rules.analysis_severity_overrides(),
+                ),
             },
         },
         Some(handle),

@@ -55,6 +55,15 @@ pub struct Analysis {
     /// The lint rule configuration.
     lint_config: wdl::lint::Config,
 
+    /// Per-rule severity overrides applied to analysis diagnostics.
+    analysis_severity_overrides: std::collections::BTreeMap<String, Option<wdl::ast::Severity>>,
+
+    /// Lint rules to run regardless of tag selection.
+    ///
+    /// A rule configured with an explicit severity is opted in even when its
+    /// tag is not in the active set.
+    force_enabled_rules: HashSet<String>,
+
     /// Basename for any ignorefiles which should be respected.
     ignore_filename: Option<String>,
 
@@ -128,6 +137,27 @@ impl Analysis {
         self
     }
 
+    /// Sets the lint rule configuration (per-rule parameters and severities).
+    pub fn lint_config(mut self, config: wdl::lint::Config) -> Self {
+        self.lint_config = config;
+        self
+    }
+
+    /// Sets the per-rule severity overrides applied to analysis diagnostics.
+    pub fn analysis_severity_overrides(
+        mut self,
+        overrides: std::collections::BTreeMap<String, Option<wdl::ast::Severity>>,
+    ) -> Self {
+        self.analysis_severity_overrides = overrides;
+        self
+    }
+
+    /// Sets the lint rules to run regardless of tag selection.
+    pub fn force_enabled_rules(mut self, rules: impl IntoIterator<Item = String>) -> Self {
+        self.force_enabled_rules = rules.into_iter().collect();
+        self
+    }
+
     /// Runs the analysis and returns all results (if any exist).
     pub async fn run(self) -> std::result::Result<AnalysisResults, NonEmpty<Arc<Error>>> {
         warn_unknown_rules(&self.exceptions);
@@ -151,7 +181,10 @@ impl Analysis {
         }
         let config = wdl::analysis::Config::default()
             .with_fallback_version(self.fallback_version)
-            .with_diagnostics_config(get_diagnostics_config(&self.exceptions))
+            .with_diagnostics_config(
+                get_diagnostics_config(&self.exceptions)
+                    .with_overrides(&self.analysis_severity_overrides),
+            )
             .with_ignore_filename(self.ignore_filename)
             .with_feature_flags(self.feature_flags);
 
@@ -160,12 +193,13 @@ impl Analysis {
         let validator = Box::new(move || {
             let mut validator = Validator::default();
 
-            if self.enabled_lint_tags.count() > 0 {
+            if self.enabled_lint_tags.count() > 0 || !self.force_enabled_rules.is_empty() {
                 let visitor = get_lint_visitor(
                     &self.enabled_lint_tags,
                     &self.disabled_lint_tags,
                     &self.exceptions,
                     &self.lint_config,
+                    &self.force_enabled_rules,
                 );
                 validator.add_visitor(visitor);
             }
@@ -202,6 +236,8 @@ impl Default for Analysis {
             enabled_lint_tags: TagSet::new(&[]),
             disabled_lint_tags: TagSet::new(&[]),
             lint_config: Default::default(),
+            analysis_severity_overrides: Default::default(),
+            force_enabled_rules: Default::default(),
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
             feature_flags: FeatureFlags::default(),
             fallback_version: None,
@@ -270,18 +306,81 @@ fn get_lint_visitor(
     disabled_lint_tags: &TagSet,
     exceptions: &HashSet<String>,
     lint_config: &wdl::lint::Config,
+    force_enabled_rules: &HashSet<String>,
 ) -> Linter {
-    Linter::new(
+    Linter::new_with_overrides(
         wdl::lint::rules(lint_config)
             .into_iter()
             .filter_map(|rule| {
-                is_rule_enabled(
-                    enabled_lint_tags,
-                    disabled_lint_tags,
-                    exceptions,
-                    rule.as_ref(),
-                )
-                .then_some(rule as Box<dyn Rule>)
+                let excepted = exceptions
+                    .iter()
+                    .any(|exception| exception.eq_ignore_ascii_case(rule.id()));
+                let enabled = !excepted
+                    && (is_rule_enabled(
+                        enabled_lint_tags,
+                        disabled_lint_tags,
+                        exceptions,
+                        rule.as_ref(),
+                    ) || force_enabled_rules.contains(rule.id()));
+                enabled.then_some(rule as Box<dyn Rule>)
             }),
+        wdl::lint::severity_overrides(lint_config),
     )
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::BTreeMap;
+
+    use url::Url;
+    use wdl::lint::Config as LintConfig;
+    use wdl::lint::RuleConfig;
+
+    use super::*;
+
+    /// Runs an analysis over a single source forcing the `SnakeCase` rule on
+    /// and returns the number of `SnakeCase` diagnostics produced.
+    async fn snake_case_diagnostics(lint_config: LintConfig) -> usize {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("source.wdl");
+        std::fs::write(
+            &path,
+            "version 1.2\n\ntask BadName {\n    command <<<>>>\n}\n",
+        )
+        .unwrap();
+
+        // SAFETY: the path is a real temporary file.
+        let url = Url::from_file_path(&path).unwrap();
+        let results = Analysis::default()
+            .add_source(Source::File(url))
+            .force_enabled_rules(["SnakeCase".to_string()])
+            .lint_config(lint_config)
+            .run()
+            .await
+            .unwrap();
+
+        results
+            .as_slice()
+            .iter()
+            .flat_map(|result| result.document().diagnostics())
+            .filter(|d| d.rule() == Some("SnakeCase"))
+            .count()
+    }
+
+    #[tokio::test]
+    async fn lint_config_is_applied_through_the_analysis_path() {
+        // Without configuration, the non-snake-case task name is flagged.
+        assert_eq!(snake_case_diagnostics(LintConfig::default()).await, 1);
+
+        // Allowing the name through the per-rule config suppresses it, proving
+        // the lint configuration reaches the linter via the check path.
+        let config = LintConfig::from_map(BTreeMap::from([(
+            "SnakeCase".to_string(),
+            RuleConfig {
+                allowed_names: vec!["BadName".to_string()],
+                ..Default::default()
+            },
+        )]));
+        assert_eq!(snake_case_diagnostics(config).await, 0);
+    }
 }
