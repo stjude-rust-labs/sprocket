@@ -1687,8 +1687,9 @@ workflow run {
 
     #[tokio::test]
     async fn concurrent_symbolic_imports_faster_than_serial() {
+        use std::sync::atomic::AtomicUsize;
+        use std::sync::atomic::Ordering;
         use std::time::Duration;
-        use std::time::Instant;
 
         use wdl_modules::Manifest;
         use wdl_modules::lockfile::ResolvedSource;
@@ -1696,12 +1697,12 @@ workflow run {
         use wdl_modules::resolver::ResolvedTree;
         use wdl_modules::resolver::ResolverError;
 
-        /// A resolver that sleeps 200 ms per `materialize` call so that N
-        /// serial calls would take N × 200 ms, but N concurrent calls should
-        /// finish in roughly 200 ms.
+        /// A resolver that tracks overlapping `materialize` calls.
         struct SlowMockResolver {
             dep_path: PathBuf,
             delay: Duration,
+            active: AtomicUsize,
+            max_active: AtomicUsize,
         }
 
         #[async_trait::async_trait]
@@ -1711,7 +1712,10 @@ workflow run {
                 _consumer: &wdl_modules::module::Module,
                 path: &wdl_modules::symbolic_path::SymbolicPath,
             ) -> Result<MaterializedFile, ResolverError> {
+                let active = self.active.fetch_add(1, Ordering::SeqCst) + 1;
+                self.max_active.fetch_max(active, Ordering::SeqCst);
                 tokio::time::sleep(self.delay).await;
+                self.active.fetch_sub(1, Ordering::SeqCst);
                 let rel = match path.sub_path() {
                     Some(sub) => {
                         let mut p = sub.to_path_buf();
@@ -1752,10 +1756,6 @@ workflow run {
 
         const IMPORT_COUNT: usize = 8;
         const DELAY_MS: u64 = 200;
-        // Serial wall-clock would be IMPORT_COUNT × DELAY_MS.
-        // Concurrent should finish in roughly DELAY_MS; allow 4× headroom for
-        // CI.
-        const MAX_ALLOWED_MS: u64 = DELAY_MS * 4;
 
         let dir = TempDir::new().expect("failed to create temporary directory");
 
@@ -1799,28 +1799,27 @@ workflow run {
 
         let config = Config::default()
             .with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
-        let resolver: Arc<dyn wdl_modules::Resolver> = Arc::new(SlowMockResolver {
+        let resolver = Arc::new(SlowMockResolver {
             dep_path: dep_dir.clone(),
             delay: Duration::from_millis(DELAY_MS),
+            active: AtomicUsize::new(0),
+            max_active: AtomicUsize::new(0),
         });
+        let resolver_trait: Arc<dyn wdl_modules::Resolver> = resolver.clone();
         let manifest_path = consumer_dir.join("module.json");
-        let resolution = ResolutionContext::new(resolver, Some(manifest_path));
+        let resolution = ResolutionContext::new(resolver_trait, Some(manifest_path));
         let analyzer = Analyzer::new_with_resolution(config, resolution, |(), _, _, _| async {});
         analyzer
             .add_document(path_to_uri(consumer_dir.join("source.wdl")).expect("should convert"))
             .await
             .expect("should add document");
 
-        let start = Instant::now();
         let results = analyzer.analyze(()).await.unwrap();
-        let elapsed = start.elapsed();
 
         assert!(!results.is_empty(), "should have analysis results");
         assert!(
-            elapsed.as_millis() < MAX_ALLOWED_MS as u128,
-            "`{IMPORT_COUNT}` concurrent symbolic imports should complete in under \
-             {MAX_ALLOWED_MS} ms; took {elapsed:?} (serial would be ~{serial_ms} ms)",
-            serial_ms = IMPORT_COUNT as u64 * DELAY_MS,
+            resolver.max_active.load(Ordering::SeqCst) > 1,
+            "symbolic imports should materialize concurrently"
         );
     }
 }
