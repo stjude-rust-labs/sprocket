@@ -250,6 +250,24 @@ impl Display for Rule {
             }
         };
 
+        writeln!(f, "\n{}", "Configuration:".bold())?;
+        writeln!(
+            f,
+            "  severity (default, off, note, warning, error) under `[check.rules.{id}]`",
+            id = self.id
+        )?;
+        if let Some(config) = &self.config {
+            for field in config {
+                let summary = field.description.lines().next().unwrap_or_default().trim();
+                writeln!(
+                    f,
+                    "  {name} (default: {default}) {summary}",
+                    name = field.name.cyan(),
+                    default = field.default,
+                )?;
+            }
+        }
+
         if !self.examples.is_empty() {
             writeln!(f, "\n{}", "Examples:".bold())?;
             for example in self.examples {
