@@ -10,6 +10,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -17,21 +18,32 @@ use crate::TagSet;
 /// The identifier for the todos rule.
 const ID: &str = "TodoComment";
 
-/// The `TODO` token.
-const TODO: &str = "TODO";
-
 /// Detects remaining TODOs within comments.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct TodoCommentRule;
+#[derive(Debug, Clone)]
+pub struct TodoCommentRule {
+    /// The comment keywords that trigger the rule.
+    keywords: Vec<String>,
+}
+
+impl TodoCommentRule {
+    /// Creates a new instance of the rule from the given configuration.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            keywords: config.resolved(ID).keywords,
+        }
+    }
+}
 
 /// Creates a "todo comment" diagnostic.
-fn todo_comment(comment: &str, comment_span: Span, offset: usize) -> Diagnostic {
+fn todo_comment(keyword: &str, matched: &str, comment_span: Span, offset: usize) -> Diagnostic {
     let start = comment_span.start() + offset;
 
-    Diagnostic::note(format!("remaining `{TODO}` item found"))
+    Diagnostic::note(format!("remaining `{keyword}` item found"))
         .with_rule(ID)
-        .with_highlight(Span::new(start, comment.len()))
-        .with_fix("remove the `TODO` item once it has been implemented")
+        .with_highlight(Span::new(start, matched.len()))
+        .with_fix(format!(
+            "remove the `{keyword}` item once it has been implemented"
+        ))
 }
 
 impl Rule for TodoCommentRule {
@@ -85,16 +97,20 @@ workflow example {
 
 impl Visitor for TodoCommentRule {
     fn reset(&mut self) {
-        *self = Self;
+        *self = Self {
+            keywords: std::mem::take(&mut self.keywords),
+        };
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
-        for (offset, pattern) in comment.text().match_indices(TODO) {
-            diagnostics.exceptable_add(
-                todo_comment(pattern, comment.span(), offset),
-                SyntaxElement::from(comment.inner().clone()),
-                &self.exceptable_nodes(),
-            );
+        for keyword in &self.keywords {
+            for (offset, pattern) in comment.text().match_indices(keyword.as_str()) {
+                diagnostics.exceptable_add(
+                    todo_comment(keyword, pattern, comment.span(), offset),
+                    SyntaxElement::from(comment.inner().clone()),
+                    &self.exceptable_nodes(),
+                );
+            }
         }
     }
 }

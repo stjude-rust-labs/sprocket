@@ -15,6 +15,7 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::InputSection;
 use wdl_ast::v1::UnboundDecl;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -23,11 +24,15 @@ use crate::TagSet;
 const ID: &str = "InputName";
 
 /// Declaration identifier too short
-fn decl_identifier_too_short(span: Span) -> Diagnostic {
-    Diagnostic::note("declaration identifier must be at least 3 characters")
-        .with_rule(ID)
-        .with_highlight(span)
-        .with_fix("rename the identifier to be at least 3 characters long")
+fn decl_identifier_too_short(span: Span, min_length: usize) -> Diagnostic {
+    Diagnostic::note(format!(
+        "declaration identifier must be at least {min_length} characters"
+    ))
+    .with_rule(ID)
+    .with_highlight(span)
+    .with_fix(format!(
+        "rename the identifier to be at least {min_length} characters long"
+    ))
 }
 
 /// Diagnostic for input names that start with [iI]n[A-Z_]
@@ -47,10 +52,26 @@ fn decl_identifier_starts_with_input(span: Span) -> Diagnostic {
 }
 
 /// A lint rule for disallowed input names.
-#[derive(Default, Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct InputNameRule {
     /// Track if we're in the input section.
     input_section: bool,
+    /// The minimum length below which a name is flagged as too short.
+    min_length: usize,
+    /// Whether to flag disallowed name prefixes.
+    check_prefixes: bool,
+}
+
+impl InputNameRule {
+    /// Creates a new instance of the rule from the given configuration.
+    pub fn new(config: &Config) -> Self {
+        let config = config.resolved(ID);
+        Self {
+            input_section: false,
+            min_length: config.min_length as usize,
+            check_prefixes: config.check_prefixes,
+        }
+    }
 }
 
 impl Rule for InputNameRule {
@@ -131,7 +152,11 @@ task say_hello {
 
 impl Visitor for InputNameRule {
     fn reset(&mut self) {
-        *self = Self::default();
+        *self = Self {
+            input_section: false,
+            min_length: self.min_length,
+            check_prefixes: self.check_prefixes,
+        };
     }
 
     fn input_section(&mut self, _: &mut Diagnostics, reason: VisitReason, _: &InputSection) {
@@ -144,6 +169,8 @@ impl Visitor for InputNameRule {
                 diagnostics,
                 &Decl::Bound(decl.clone()),
                 &self.exceptable_nodes(),
+                self.min_length,
+                self.check_prefixes,
             );
         }
     }
@@ -159,6 +186,8 @@ impl Visitor for InputNameRule {
                 diagnostics,
                 &Decl::Unbound(decl.clone()),
                 &self.exceptable_nodes(),
+                self.min_length,
+                self.check_prefixes,
             );
         }
     }
@@ -169,18 +198,24 @@ fn check_decl_name(
     diagnostics: &mut Diagnostics,
     decl: &Decl,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
+    min_length: usize,
+    check_prefixes: bool,
 ) {
     let name = decl.name();
     let name = name.text();
 
     let length = name.len();
-    if length < 3 {
+    if length < min_length {
         // name is too short
         diagnostics.exceptable_add(
-            decl_identifier_too_short(decl.name().span()),
+            decl_identifier_too_short(decl.name().span(), min_length),
             SyntaxElement::from(decl.inner().clone()),
             exceptable_nodes,
         );
+    }
+
+    if !check_prefixes {
+        return;
     }
 
     let mut name = name.chars().peekable();

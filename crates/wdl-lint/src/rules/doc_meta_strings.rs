@@ -15,22 +15,13 @@ use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::ParameterMetadataSection;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
 
 /// The identifier for the doc meta string rule.
 const ID: &str = "DocMetaStrings";
-
-/// Reserved keys that must have string values for Sprocket's doc command.
-const RESERVED_KEYS: &[&str] = &[
-    "description",
-    "help",
-    "external_help",
-    "warning",
-    "category",
-    "group",
-];
 
 /// Creates a diagnostic for non-string metadata values.
 fn non_string_value_diagnostic(key: &str, value_type: &str, span: Span) -> Diagnostic {
@@ -74,6 +65,7 @@ fn check_object_items(
     obj: &wdl_ast::v1::MetadataObject,
     diagnostics: &mut Diagnostics,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
+    reserved_keys: &[String],
 ) {
     for item in obj.items() {
         let name = item.name();
@@ -81,7 +73,7 @@ fn check_object_items(
         let value = item.value();
 
         // Check if this key is reserved and has a non-string value
-        if RESERVED_KEYS.contains(&key) && !is_string_value(&value) {
+        if reserved_keys.iter().any(|k| k == key) && !is_string_value(&value) {
             let value_type = get_value_type_name(&value);
             diagnostics.exceptable_add(
                 non_string_value_diagnostic(key, value_type, item.span()),
@@ -92,14 +84,26 @@ fn check_object_items(
 
         // Recursively check nested objects
         if let MetadataValue::Object(ref nested_obj) = value {
-            check_object_items(nested_obj, diagnostics, exceptable_nodes);
+            check_object_items(nested_obj, diagnostics, exceptable_nodes, reserved_keys);
         }
     }
 }
 
 /// Detects non-string values for reserved meta keys.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct DocMetaStringsRule;
+#[derive(Debug, Clone)]
+pub struct DocMetaStringsRule {
+    /// The reserved meta keys that must have string values.
+    reserved_keys: Vec<String>,
+}
+
+impl DocMetaStringsRule {
+    /// Creates a new instance of the rule from the given configuration.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            reserved_keys: config.resolved(ID).reserved_keys,
+        }
+    }
+}
 
 impl Rule for DocMetaStringsRule {
     fn id(&self) -> &'static str {
@@ -172,7 +176,9 @@ workflow example {
 
 impl Visitor for DocMetaStringsRule {
     fn reset(&mut self) {
-        *self = Default::default();
+        *self = Self {
+            reserved_keys: std::mem::take(&mut self.reserved_keys),
+        };
     }
 
     fn metadata_section(
@@ -192,7 +198,7 @@ impl Visitor for DocMetaStringsRule {
             let value = item.value();
 
             // Check if this is a reserved key with a non-string value
-            if RESERVED_KEYS.contains(&key) && !is_string_value(&value) {
+            if self.reserved_keys.iter().any(|k| k == key) && !is_string_value(&value) {
                 let value_type = get_value_type_name(&value);
                 diagnostics.exceptable_add(
                     non_string_value_diagnostic(key, value_type, item.span()),
@@ -204,7 +210,12 @@ impl Visitor for DocMetaStringsRule {
             // Recursively check any nested objects (handles "outputs" and other nested
             // structures)
             if let MetadataValue::Object(ref obj) = value {
-                check_object_items(obj, diagnostics, &self.exceptable_nodes());
+                check_object_items(
+                    obj,
+                    diagnostics,
+                    &self.exceptable_nodes(),
+                    &self.reserved_keys,
+                );
             }
         }
     }
@@ -229,7 +240,12 @@ impl Visitor for DocMetaStringsRule {
 
                 // Object with potential reserved keys - recursively check all nested objects
                 MetadataValue::Object(obj) => {
-                    check_object_items(&obj, diagnostics, &self.exceptable_nodes());
+                    check_object_items(
+                        &obj,
+                        diagnostics,
+                        &self.exceptable_nodes(),
+                        &self.reserved_keys,
+                    );
                 }
 
                 // Any other type - warn that parameter descriptions should be strings

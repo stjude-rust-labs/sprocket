@@ -203,6 +203,12 @@ define_rule_params! {
     /// ```
     #[rules(TodoComment)]
     keywords: Vec<String> = vec![String::from("TODO")],
+    /// The reserved meta keys that are required to have string values.
+    #[rules(DocMetaStrings)]
+    reserved_keys: Vec<String> = ["description", "help", "external_help", "warning", "category", "group"]
+        .into_iter()
+        .map(String::from)
+        .collect(),
 }
 
 /// The configuration for lint rules.
