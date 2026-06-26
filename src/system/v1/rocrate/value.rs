@@ -92,12 +92,18 @@ fn sanitize_relative_path(path: &str) -> String {
 }
 
 /// Recursively copies a directory tree.
-fn copy_dir_recursive(src: &Path, dest: &Path) -> std::io::Result<()> {
+fn copy_dir_recursive(src: &Path, dest: &Path) -> Result<()> {
     std::fs::create_dir_all(dest)?;
     for entry in std::fs::read_dir(src)? {
         let entry = entry?;
+        let file_type = entry.file_type()?;
+        anyhow::ensure!(
+            !file_type.is_symlink(),
+            "cannot localize symlink `{}` into the crate",
+            entry.path().display()
+        );
         let to = dest.join(entry.file_name());
-        if entry.file_type()?.is_dir() {
+        if file_type.is_dir() {
             copy_dir_recursive(&entry.path(), &to)?;
         } else {
             std::fs::copy(entry.path(), &to)?;
@@ -154,6 +160,13 @@ fn localize_data_path(
              `--no-ro-crate-localize` to record an external reference instead"
         );
     }
+    let metadata = std::fs::symlink_metadata(src)
+        .with_context(|| format!("inspecting data value `{src}` before localization"))?;
+    anyhow::ensure!(
+        !metadata.file_type().is_symlink(),
+        "cannot localize symlink `{src}` into the crate; rerun with \
+         `--no-ro-crate-localize` to record an external reference instead"
+    );
 
     let id = format!(
         "{}/{}/{}",
@@ -615,6 +628,80 @@ mod tests {
         if let Some(parent) = crate_dir.path().parent() {
             assert!(!parent.join("outside/reads.bam").exists());
         }
+
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn localization_rejects_symlink_files() -> Result<()> {
+        let src_dir = tempfile::tempdir()?;
+        let target = src_dir.path().join("target.bam");
+        std::fs::write(&target, b"BAM")?;
+        let link = src_dir.path().join("link.bam");
+        std::os::unix::fs::symlink(&target, &link)?;
+        let crate_dir = tempfile::tempdir()?;
+        let opts = RoCrateOptions::from_flags(true, false, false, false);
+        let mut graph = Vec::new();
+
+        let Err(err) = value_to_entities(
+            "input",
+            "reads",
+            &file_value(&link),
+            crate_dir.path(),
+            &opts,
+            &mut graph,
+        ) else {
+            anyhow::bail!("symlink localization unexpectedly succeeded");
+        };
+
+        assert!(
+            err.chain()
+                .any(|cause| cause.to_string().contains("cannot localize symlink"))
+        );
+        assert!(!crate_dir.path().join("inputs/reads/link.bam").exists());
+
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn localization_rejects_symlinks_inside_directories() -> Result<()> {
+        let src_dir = tempfile::tempdir()?;
+        let input_dir = src_dir.path().join("input");
+        std::fs::create_dir(&input_dir)?;
+        let target = src_dir.path().join("target.txt");
+        std::fs::write(&target, b"secret")?;
+        std::os::unix::fs::symlink(&target, input_dir.join("link.txt"))?;
+        let crate_dir = tempfile::tempdir()?;
+        let opts = RoCrateOptions::from_flags(true, false, false, false);
+        let mut graph = Vec::new();
+        let input_dir = input_dir
+            .to_str()
+            .ok_or_else(|| anyhow::anyhow!("input directory path was not utf-8"))?;
+
+        let Err(err) = value_to_entities_roled(
+            "input",
+            "inputs",
+            "dataset",
+            &PrimitiveValue::new_directory(input_dir).into(),
+            crate_dir.path(),
+            &opts,
+            &mut graph,
+        ) else {
+            anyhow::bail!("directory symlink localization unexpectedly succeeded");
+        };
+
+        assert!(
+            err.chain()
+                .any(|cause| cause.to_string().contains("cannot localize symlink"))
+        );
+        assert!(
+            !crate_dir
+                .path()
+                .join("inputs/dataset/input/link.txt")
+                .exists()
+        );
 
         Ok(())
     }
