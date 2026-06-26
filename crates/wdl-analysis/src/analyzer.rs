@@ -73,8 +73,6 @@ use crate::rayon::RayonHandle;
 /// Represents the kind of analysis progress being reported.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProgressKind {
-    /// The progress is for resolving modules.
-    Resolving,
     /// The progress is for parsing documents.
     Parsing,
     /// The progress is for analyzing documents.
@@ -84,7 +82,6 @@ pub enum ProgressKind {
 impl fmt::Display for ProgressKind {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Resolving => write!(f, "resolving"),
             Self::Parsing => write!(f, "parsing"),
             Self::Analyzing => write!(f, "analyzing"),
         }
