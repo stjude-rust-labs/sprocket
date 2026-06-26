@@ -18,9 +18,10 @@ pub use value::value_to_entities;
 pub const ROCRATE_CONTEXT: &str = "https://w3id.org/ro/crate/1.1/context";
 /// Workflow Run RO-Crate term context.
 pub const WFRUN_CONTEXT: &str = "https://w3id.org/ro/terms/workflow-run/context";
-/// Profiles the root dataset conforms to in M1 (workflow + workflow-ro-crate).
+/// Profiles the root dataset conforms to in M1.
 /// M2 adds the Provenance Run Crate profile.
 pub const PROFILES: &[&str] = &[
+    "https://w3id.org/ro/wfrun/process/0.1",
     "https://w3id.org/ro/wfrun/workflow/0.1",
     "https://w3id.org/workflowhub/workflow-ro-crate/1.0",
 ];
@@ -273,6 +274,7 @@ workflow myworkflow {
         assert_eq!(run_action["@type"], "CreateAction");
 
         for marker in [
+            "https://w3id.org/ro/wfrun/process/0.1",
             "https://w3id.org/ro/wfrun/workflow/0.1",
             "https://w3id.org/workflowhub/workflow-ro-crate/1.0",
             ROCRATE_CONTEXT,
