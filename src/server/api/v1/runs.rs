@@ -369,3 +369,98 @@ pub async fn get_run_outputs(
     .await?;
     Ok(Json(response.into()))
 }
+
+#[cfg(test)]
+mod tests {
+    use tokio::sync::mpsc;
+
+    use super::*;
+
+    fn app_state() -> AppState {
+        let (run_manager_tx, _run_manager_rx) = mpsc::channel(1);
+        AppState::builder().run_manager_tx(run_manager_tx).build()
+    }
+
+    fn db_run() -> crate::system::v1::db::Run {
+        let now = Utc::now();
+        crate::system::v1::db::Run {
+            uuid: Uuid::nil(),
+            session_uuid: Uuid::max(),
+            name: "run-name".to_string(),
+            source: "workflow.wdl".to_string(),
+            target: Some("target".to_string()),
+            status: RunStatus::Completed,
+            inputs: "{}".to_string(),
+            outputs: Some(r#"{"answer":42}"#.to_string()),
+            error: None,
+            directory: Some("/runs/run-name".to_string()),
+            index_directory: Some("/index/run-name".to_string()),
+            started_at: Some(now),
+            completed_at: Some(now),
+            created_at: now,
+        }
+    }
+
+    #[tokio::test]
+    async fn submit_run_rejects_non_object_inputs() {
+        let request = SubmitRunRequest {
+            source: "workflow.wdl".to_string(),
+            inputs: Value::Array(Vec::new()),
+            target: None,
+            index_on: None,
+        };
+
+        let error = submit_run(State(app_state()), Json(request))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(error, Error::BadRequest(message) if message == "inputs must be a JSON object")
+        );
+    }
+
+    #[tokio::test]
+    async fn list_runs_rejects_invalid_next_token() {
+        let query = ListRunsQueryParams {
+            status: None,
+            limit: None,
+            next_token: Some("not-an-offset".to_string()),
+        };
+
+        let error = list_runs(State(app_state()), Ok(Query(query)))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(error, Error::BadRequest(message) if message == "invalid `next_token`: `not-an-offset`")
+        );
+    }
+
+    #[test]
+    fn run_response_conversions_preserve_fields() {
+        let db_run = db_run();
+        let response = RunResponse::from(commands::RunResponse {
+            run: db_run.clone(),
+        });
+
+        assert_eq!(response.run.uuid, db_run.uuid);
+        assert_eq!(response.run.session_uuid, db_run.session_uuid);
+        assert_eq!(response.run.name, db_run.name);
+        assert_eq!(response.run.source, db_run.source);
+        assert_eq!(response.run.target, db_run.target);
+        assert_eq!(response.run.status, db_run.status);
+        assert_eq!(response.run.inputs, db_run.inputs);
+        assert_eq!(response.run.outputs, db_run.outputs);
+        assert_eq!(response.run.directory, db_run.directory);
+        assert_eq!(response.run.index_directory, db_run.index_directory);
+        assert_eq!(response.run.started_at, db_run.started_at);
+        assert_eq!(response.run.completed_at, db_run.completed_at);
+        assert_eq!(response.run.created_at, db_run.created_at);
+
+        let cancel = CancelRunResponse::from(commands::CancelRunResponse { id: Uuid::nil() });
+        assert_eq!(cancel.uuid, Uuid::nil());
+
+        let outputs = RunOutputsResponse::from(commands::RunOutputsResponse {
+            outputs: Some(serde_json::json!({ "answer": 42 })),
+        });
+        assert_eq!(outputs.outputs, Some(serde_json::json!({ "answer": 42 })));
+    }
+}

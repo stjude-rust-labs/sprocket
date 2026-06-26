@@ -1,0 +1,105 @@
+Document a workspace
+
+Usage: sprocket dev doc [OPTIONS] [WORKSPACE]
+
+Arguments:
+  [WORKSPACE]
+          Path to the local WDL workspace to document
+
+Options:
+      --check
+          Analyze the documents without producing an output
+
+      --index-page <MARKDOWN FILE>
+          Path to a Markdown file to embed in the `<output>/index.html` file
+
+      --logo <SVG FILE>
+          Path to an SVG logo to embed on each page.
+          
+          If not supplied, the default Sprocket logo will be used.
+
+      --homepage-url <LINK TO HOMEPAGE>
+          An optional link to the project's homepage
+
+      --github-url <LINK TO GITHUB>
+          An optional link to the project's GitHub repository
+
+      --alt-light-logo <SVG FILE>
+          Path to an alternate light mode SVG logo to embed on each page.
+          
+          If not supplied, the `--logo` SVG will be used; or if that is also not supplied, the default Sprocket logo will be used.
+
+  -l, --light-mode
+          Initialize pages in light mode instead of the default dark mode
+
+      --output <DIR>
+          Output directory for the generated documentation. If not specified, the documentation will be generated in `<workspace>/docs`
+
+      --overwrite
+          Overwrite any existing documentation.
+          
+          If specified, any existing files in the output directory will be deleted. Otherwise, the command will ignore existing files. Regardless of this flag, the command will overwrite any existing files which conflict with the generated documentation.
+
+      --open
+          Open the generated documentation in the default web browser
+
+      --html-head <FILE>
+          Path to an HTML file that should have its contents embedded in each HTML page, immediately before the closing `<head>` tag
+
+      --html-body-open <FILE>
+          Path to an HTML file that should have its contents embedded in each HTML page, immediately after the opening `<body>` tag
+
+  -v, --verbose...
+          Increase logging verbosity
+
+      --html-body-close <FILE>
+          Path to an HTML file that should have its contents embedded in each HTML page, immediately before the closing `<body>` tag
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+      --color <COLOR>
+          Controls output colorization
+
+          Possible values:
+          - auto:   Automatically colorize output depending on output device
+          - always: Always colorize output
+          - never:  Never colorize output
+          
+          [default: auto]
+
+      --theme <DIR>
+          An optional path to a custom theme directory.
+          
+          This argument is meant to be used by developers of the `wdl` crates; customizing the theme used for the generated documentation is currently unsupported.
+
+  -c, --config <CONFIG>
+          Path to the configuration file
+
+      --install
+          Install the theme if it is not already installed.
+          
+          `npm` and `npx` are expected to be available in the environment.
+
+  -s, --skip-config-search
+          Skip searching for and loading configuration files.
+          
+          Only a configuration file specified as a command line argument will be used.
+
+      --with-doc-comments
+          Enables support for documentation comments
+          
+          This option is *experimental* and will be removed in a future major version. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
+
+  -m, --report-mode <MODE>
+          The report mode
+
+          Possible values:
+          - full:     Prints diagnostics as multiple lines
+          - one-line: Prints diagnostics as one line
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version

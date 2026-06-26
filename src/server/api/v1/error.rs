@@ -51,8 +51,11 @@ pub enum Error {
 }
 
 impl From<DatabaseError> for Error {
-    fn from(_err: DatabaseError) -> Self {
-        Self::Internal
+    fn from(err: DatabaseError) -> Self {
+        match err {
+            DatabaseError::NotFound => Self::NotFound(err.to_string()),
+            _ => Self::Internal,
+        }
     }
 }
 
@@ -135,5 +138,78 @@ impl IntoResponse for Error {
         });
 
         (status, body).into_response()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use http_body_util::BodyExt;
+
+    use super::*;
+
+    async fn assert_error_response(error: Error, status: StatusCode, kind: &str, message: &str) {
+        let response = error.into_response();
+        assert_eq!(response.status(), status);
+
+        // SAFETY: test responses have small JSON bodies that fit in memory.
+        let body = response.into_body().collect().await.unwrap().to_bytes();
+        // SAFETY: API errors serialize as `ErrorResponse` JSON.
+        let body: ErrorResponse = serde_json::from_slice(&body).unwrap();
+        assert_eq!(body.kind, kind);
+        assert_eq!(body.message, message);
+    }
+
+    #[tokio::test]
+    async fn client_error_variants_serialize_status_kind_and_message() {
+        assert_error_response(
+            Error::BadRequest("bad input".to_string()),
+            StatusCode::BAD_REQUEST,
+            "BadRequest",
+            "bad input",
+        )
+        .await;
+        assert_error_response(
+            Error::Forbidden("blocked".to_string()),
+            StatusCode::FORBIDDEN,
+            "Forbidden",
+            "blocked",
+        )
+        .await;
+        assert_error_response(
+            Error::NotFound("missing".to_string()),
+            StatusCode::NOT_FOUND,
+            "NotFound",
+            "missing",
+        )
+        .await;
+        assert_error_response(
+            Error::Conflict("busy".to_string()),
+            StatusCode::CONFLICT,
+            "Conflict",
+            "busy",
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn internal_error_uses_generic_message() {
+        assert_error_response(
+            Error::Internal,
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal",
+            INTERNAL_ERROR_MESSAGE,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn database_not_found_maps_to_not_found_response() {
+        assert_error_response(
+            Error::from(DatabaseError::NotFound),
+            StatusCode::NOT_FOUND,
+            "NotFound",
+            "not found",
+        )
+        .await;
     }
 }
