@@ -1,4 +1,4 @@
-//! Value types returned by the [`Resolver`](crate::Resolver) trait.
+//! Value types returned by the [`Resolver`](super::Resolver) trait.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -15,8 +15,12 @@ use crate::signing::VerifyingKey;
 pub struct MaterializedFile {
     /// Absolute path to the resolved file.
     pub path: PathBuf,
+    /// Absolute path to the root directory of the module that owns the file.
+    pub module_root: PathBuf,
     /// The source the file's owning module came from.
     pub source: ResolvedSource,
+    /// The parsed manifest of the dependency that owns this file.
+    pub manifest: std::sync::Arc<crate::Manifest>,
 }
 
 /// A fully resolved dependency tree, suitable for `module-lock.json`
@@ -57,4 +61,35 @@ pub struct ResolvedModule {
     pub signer: Option<VerifyingKey>,
     /// The module's transitive resolved dependencies.
     pub dependencies: BTreeMap<DependencyName, ResolvedDependency>,
+}
+
+/// A resolver that rejects every materialization request. Used when
+/// the analyzer runs without a module context.
+pub struct NullResolver;
+
+#[async_trait::async_trait]
+impl super::Resolver for NullResolver {
+    async fn materialize(
+        &self,
+        _: &crate::module::Module,
+        _: &crate::symbolic_path::SymbolicPath,
+    ) -> Result<MaterializedFile, super::error::ResolverError> {
+        Err(super::error::ResolverError::NoModuleContext)
+    }
+
+    async fn resolve_tree(
+        &self,
+        _: &crate::module::Module,
+    ) -> Result<ResolvedTree, super::error::ResolverError> {
+        Ok(ResolvedTree::default())
+    }
+
+    async fn discover_versions(
+        &self,
+        _: &crate::dependency::DependencyName,
+        _: &crate::dependency::DependencySource,
+        _: super::scope::DependencyScope,
+    ) -> Result<Vec<semver::Version>, super::error::ResolverError> {
+        Ok(Vec::new())
+    }
 }

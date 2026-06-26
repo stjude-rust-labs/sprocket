@@ -1,6 +1,8 @@
 //! Facilities for performing a typical analysis using the `wdl-*` crates.
 
 use std::collections::HashSet;
+use std::path::Path;
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use anyhow::Error;
@@ -27,7 +29,7 @@ use wdl::lint::TagSet;
 use crate::IGNORE_FILENAME;
 
 /// The type of the initialization callback.
-type InitCb = Box<dyn Fn() + 'static>;
+type InitCb = Box<dyn Fn() + Send + 'static>;
 
 /// The type of the progress callback.
 type ProgressCb =
@@ -65,6 +67,10 @@ pub struct Analysis {
     /// unrecognized version.
     fallback_version: Option<SupportedVersion>,
 
+    /// The `[modules]` config for constructing a resolver when a
+    /// `module.json` is found near the sources.
+    modules_config: Option<wdl_modules::resolver::ModulesConfig>,
+
     /// The initialization callback.
     init: InitCb,
 
@@ -94,7 +100,7 @@ impl Analysis {
     /// Sets the initialization callback.
     pub fn init<F>(mut self, init: F) -> Self
     where
-        F: Fn() + 'static,
+        F: Fn() + Send + 'static,
     {
         self.init = Box::new(init);
         self
@@ -128,6 +134,86 @@ impl Analysis {
         self
     }
 
+    /// Sets the feature flags.
+    pub fn feature_flags(mut self, flags: FeatureFlags) -> Self {
+        self.feature_flags = flags;
+        self
+    }
+
+    /// Sets the `[modules]` configuration.
+    pub fn modules_config(mut self, config: wdl_modules::resolver::ModulesConfig) -> Self {
+        self.modules_config = Some(config);
+        self
+    }
+
+    /// Determines all local directories to search for a `module.json`.
+    fn module_search_dirs(&self) -> Vec<PathBuf> {
+        self.sources
+            .iter()
+            .filter_map(|source| match source {
+                Source::Directory(path) => Some(path.clone()),
+                Source::File(url) => url
+                    .to_file_path()
+                    .ok()
+                    .and_then(|path| path.parent().map(Path::to_path_buf)),
+                Source::Url(_) => None,
+            })
+            .collect()
+    }
+
+    /// Checks the source directory and its ancestors for a `module.json` and
+    /// constructs a resolver if one is found and `modules_config` is set.
+    ///
+    /// Returns an error if a `module.json` is present but malformed.
+    fn build_resolver_from_sources(
+        &self,
+    ) -> anyhow::Result<(Arc<dyn wdl_modules::Resolver>, Option<PathBuf>)> {
+        if !self.feature_flags.wdl_1_4() {
+            return Ok((Arc::new(wdl_modules::resolver::NullResolver), None));
+        }
+
+        let Some(ref modules_config) = self.modules_config else {
+            return Ok((Arc::new(wdl_modules::resolver::NullResolver), None));
+        };
+
+        let starts = self.module_search_dirs();
+        if starts.is_empty() {
+            return Ok((Arc::new(wdl_modules::resolver::NullResolver), None));
+        }
+
+        let mut manifest_paths = HashSet::new();
+        for start in starts {
+            if let Some((path, _)) = discover_manifest_upward(&start)? {
+                manifest_paths.insert(path);
+            }
+        }
+
+        if manifest_paths.is_empty() {
+            return Ok((Arc::new(wdl_modules::resolver::NullResolver), None));
+        }
+
+        anyhow::ensure!(
+            manifest_paths.len() == 1,
+            "local sources with symbolic import resolution enabled must be governed by a single \
+             `module.json`"
+        );
+
+        // SAFETY: the `is_empty` check above returned early, and the `ensure`
+        // above verified that exactly one manifest remains.
+        let manifest_path = manifest_paths.into_iter().next().unwrap();
+
+        match build_resolver(modules_config, &manifest_path)? {
+            Some((resolver, path)) => {
+                info!(
+                    manifest = %path.display(),
+                    "found `module.json`; symbolic imports will resolve through the module system"
+                );
+                Ok((resolver, Some(path)))
+            }
+            None => Ok((Arc::new(wdl_modules::resolver::NullResolver), None)),
+        }
+    }
+
     /// Runs the analysis and returns all results (if any exist).
     pub async fn run(self) -> std::result::Result<AnalysisResults, NonEmpty<Arc<Error>>> {
         warn_unknown_rules(&self.exceptions);
@@ -149,6 +235,10 @@ impl Analysis {
             info!("enabled lint rules: {:?}", enabled_rules);
             info!("disabled lint rules: {:?}", disabled_rules);
         }
+        let (resolver, manifest_path) = self
+            .build_resolver_from_sources()
+            .map_err(|e| NonEmpty::new(Arc::new(e)))?;
+
         let config = wdl::analysis::Config::default()
             .with_fallback_version(self.fallback_version)
             .with_diagnostics_config(get_diagnostics_config(&self.exceptions))
@@ -173,8 +263,9 @@ impl Analysis {
             validator
         });
 
-        let mut analyzer = Analyzer::new_with_validator(
+        let mut analyzer = Analyzer::new_with_validator_and_resolution(
             config,
+            wdl::analysis::ResolutionContext::new(resolver, manifest_path),
             move |_, kind, count, total| (self.progress)(kind, count, total),
             validator,
         );
@@ -205,10 +296,145 @@ impl Default for Analysis {
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
             feature_flags: FeatureFlags::default(),
             fallback_version: None,
+            modules_config: None,
             init: Box::new(|| {}),
             progress: Box::new(|_, _, _| Box::pin(async {})),
         }
     }
+}
+
+/// Returns the default cache root, anchored to `manifest_dir` when present.
+///
+/// Precedence: `manifest_dir/.sprocket/cache/modules` →
+/// `config_root/cache/modules` → `dirs::cache_dir()/sprocket/modules` →
+/// `.sprocket/cache/modules` (CWD-relative last resort).
+pub(crate) fn default_cache_root(manifest_dir: Option<&Path>) -> PathBuf {
+    if let Some(dir) = manifest_dir {
+        return dir.join(".sprocket").join("cache").join("modules");
+    }
+    if let Some(root) = crate::config::config_root() {
+        return root.join("cache").join("modules");
+    }
+    if let Some(cache) = dirs::cache_dir() {
+        return cache.join("sprocket").join("modules");
+    }
+    PathBuf::from(".sprocket/cache/modules")
+}
+
+/// Returns the default trust-store path, anchored to `manifest_dir` when
+/// present.
+///
+/// Precedence: `manifest_dir/.sprocket/modules-trust.toml` →
+/// `config_root/modules-trust.toml` →
+/// `dirs::config_dir()/sprocket/modules-trust.toml` →
+/// `modules-trust.toml` (CWD-relative last resort).
+pub(crate) fn default_trust_path(manifest_dir: Option<&Path>) -> PathBuf {
+    if let Some(dir) = manifest_dir {
+        return dir.join(".sprocket").join("modules-trust.toml");
+    }
+    if let Some(root) = crate::config::config_root() {
+        return root.join("modules-trust.toml");
+    }
+    if let Some(cfg) = dirs::config_dir() {
+        return cfg.join("sprocket").join("modules-trust.toml");
+    }
+    PathBuf::from("modules-trust.toml")
+}
+
+/// Discovers a `module.json` in the given directory.
+///
+/// Returns `Ok(None)` if no manifest file exists in `cwd`. Returns the
+/// manifest path and the parsed [`wdl_modules::Manifest`] on success, or an
+/// error if the file exists but cannot be read or parsed.
+pub(crate) fn discover_manifest(
+    cwd: &Path,
+) -> anyhow::Result<Option<(PathBuf, wdl_modules::Manifest)>> {
+    use anyhow::Context as _;
+
+    let manifest_path = cwd.join(wdl_modules::MANIFEST_FILENAME);
+
+    if !manifest_path.exists() {
+        return Ok(None);
+    }
+
+    let bytes = std::fs::read(&manifest_path)
+        .with_context(|| format!("reading `{}`", manifest_path.display()))?;
+    let manifest = wdl_modules::Manifest::parse(&bytes)
+        .with_context(|| format!("parsing `{}`", manifest_path.display()))?;
+
+    Ok(Some((manifest_path, manifest)))
+}
+
+/// Discovers a `module.json` at `start` or an ancestor directory, walking
+/// upward but never past the enclosing repository root.
+///
+/// Returns the first manifest found, or `Ok(None)` if none exists at or below
+/// the enclosing repository root. The walk stops after examining the first
+/// directory that contains a `.git` entry so discovery never reaches an
+/// unrelated `module.json` outside the project. Returns an error if a manifest
+/// exists but cannot be read or parsed.
+pub(crate) fn discover_manifest_upward(
+    start: &Path,
+) -> anyhow::Result<Option<(PathBuf, wdl_modules::Manifest)>> {
+    for dir in start.ancestors() {
+        if let Some(found) = discover_manifest(dir)? {
+            return Ok(Some(found));
+        }
+
+        if dir.join(".git").exists() {
+            break;
+        }
+    }
+
+    Ok(None)
+}
+
+/// Constructs a [`GitResolver`](wdl_modules::resolver::GitResolver) from the
+/// given `[modules]` config and a `module.json` path. Returns `None` if the
+/// manifest file does not exist; returns an error if the file exists but
+/// cannot be read or parsed.
+pub fn build_resolver(
+    modules_config: &wdl_modules::resolver::ModulesConfig,
+    manifest_path: &std::path::Path,
+) -> anyhow::Result<Option<(Arc<dyn wdl_modules::Resolver>, PathBuf)>> {
+    use anyhow::Context as _;
+
+    if !manifest_path.exists() {
+        return Ok(None);
+    }
+
+    let lockfile_path = manifest_path.with_file_name(wdl_modules::LOCKFILE_FILENAME);
+    let lockfile = if lockfile_path.exists() {
+        let lock_bytes = std::fs::read(&lockfile_path)
+            .with_context(|| format!("reading `{}`", lockfile_path.display()))?;
+        wdl_modules::Lockfile::parse(&lock_bytes)
+            .with_context(|| format!("parsing `{}`", lockfile_path.display()))?
+    } else {
+        wdl_modules::Lockfile::default()
+    };
+
+    let manifest_dir = manifest_path.parent();
+
+    let cache_root = modules_config
+        .cache_path
+        .clone()
+        .unwrap_or_else(|| default_cache_root(manifest_dir));
+
+    let trust_path = default_trust_path(manifest_dir);
+
+    let trust = wdl_modules::resolver::TrustStore::load_or_default(&trust_path)
+        .with_context(|| format!("loading trust store at `{}`", trust_path.display()))?;
+
+    let resolver = wdl_modules::resolver::GitResolver::builder()
+        .cache_root(cache_root)
+        .trust(trust)
+        .lockfile(lockfile)
+        .policy(
+            wdl_modules::resolver::ResolverPolicy::try_from(modules_config)?.without_credentials(),
+        )
+        .build();
+
+    Ok(Some((Arc::new(resolver), manifest_path.to_path_buf())))
 }
 
 /// Warns about any unknown rules.
@@ -284,4 +510,158 @@ fn get_lint_visitor(
                 .then_some(rule as Box<dyn Rule>)
             }),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use super::Analysis;
+    use super::Source;
+    use super::default_cache_root;
+    use super::default_trust_path;
+    use super::discover_manifest_upward;
+
+    /// Minimal valid `module.json` contents for discovery tests.
+    const MANIFEST: &[u8] = br#"{"name":"example","version":"0.1.0","license":"MIT"}"#;
+
+    #[test]
+    fn cache_root_uses_manifest_dir() {
+        let dir = Path::new("/some/project");
+        let result = default_cache_root(Some(dir));
+        assert_eq!(
+            result,
+            Path::new("/some/project/.sprocket/cache/modules"),
+            "`default_cache_root` with `Some(manifest_dir)` should be manifest-anchored"
+        );
+    }
+
+    #[test]
+    fn trust_path_uses_manifest_dir() {
+        let dir = Path::new("/some/project");
+        let result = default_trust_path(Some(dir));
+        assert_eq!(
+            result,
+            Path::new("/some/project/.sprocket/modules-trust.toml"),
+            "`default_trust_path` with `Some(manifest_dir)` should be manifest-anchored"
+        );
+    }
+
+    #[test]
+    fn cache_root_none_falls_back_to_os_or_string() {
+        let result = default_cache_root(None);
+        // The path always ends with `cache/modules` regardless of which
+        // fallback branch was taken.
+        assert!(
+            result.ends_with("cache/modules"),
+            "`default_cache_root(None)` should end with `cache/modules`, got `{}`",
+            result.display()
+        );
+        // When any OS/config dir is available the path must be absolute.
+        if crate::config::config_root().is_some() || dirs::cache_dir().is_some() {
+            assert!(
+                result.is_absolute(),
+                "`default_cache_root(None)` should be absolute, got `{}`",
+                result.display()
+            );
+        }
+    }
+
+    #[test]
+    fn trust_path_none_falls_back_to_os_or_string() {
+        let result = default_trust_path(None);
+        let file_name = result.file_name().map(|n| n.to_string_lossy().into_owned());
+        assert_eq!(
+            file_name.as_deref(),
+            Some("modules-trust.toml"),
+            "`default_trust_path(None)` should always end with `modules-trust.toml`, got `{}`",
+            result.display()
+        );
+        // Must not be CWD-relative when an OS config dir is available.
+        if dirs::config_dir().is_some() {
+            assert!(
+                result.is_absolute(),
+                "`default_trust_path(None)` should be absolute when `dirs::config_dir()` is \
+                 available, got `{}`",
+                result.display()
+            );
+        }
+    }
+
+    #[test]
+    fn discover_manifest_upward_finds_ancestor() {
+        let root = tempfile::TempDir::new().unwrap();
+        std::fs::write(root.path().join(wdl_modules::MANIFEST_FILENAME), MANIFEST).unwrap();
+        let nested = root.path().join("a").join("b");
+        std::fs::create_dir_all(&nested).unwrap();
+
+        let found = discover_manifest_upward(&nested)
+            .unwrap()
+            .expect("`discover_manifest_upward` should find a `module.json` in an ancestor");
+        assert_eq!(
+            found.0,
+            root.path().join(wdl_modules::MANIFEST_FILENAME),
+            "`discover_manifest_upward` should return the ancestor `module.json` path"
+        );
+    }
+
+    #[test]
+    fn discover_manifest_upward_stops_at_git_root() {
+        let outer = tempfile::TempDir::new().unwrap();
+        // A `module.json` above the repository root must not be discovered.
+        std::fs::write(outer.path().join(wdl_modules::MANIFEST_FILENAME), MANIFEST).unwrap();
+        let repo = outer.path().join("repo");
+        std::fs::create_dir_all(repo.join(".git")).unwrap();
+        let nested = repo.join("src");
+        std::fs::create_dir_all(&nested).unwrap();
+
+        assert!(
+            discover_manifest_upward(&nested).unwrap().is_none(),
+            "the walk should stop at the `.git` repository root and ignore an ancestor \
+             `module.json`"
+        );
+    }
+
+    #[test]
+    fn module_search_dirs_use_file_parent() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let file = dir.path().join("main.wdl");
+        std::fs::write(&file, "version 1.2\n").unwrap();
+        let url = url::Url::from_file_path(&file).unwrap();
+
+        let analysis = Analysis::default().add_source(Source::File(url));
+        assert_eq!(
+            analysis.module_search_dirs(),
+            vec![dir.path().to_path_buf()],
+            "`module_search_dirs` should return the parent directory of a file source"
+        );
+    }
+
+    #[test]
+    fn resolver_allows_mixed_module_and_nonmodule_sources() {
+        let dir = tempfile::TempDir::new().unwrap();
+        let module_dir = dir.path().join("module");
+        let plain_dir = dir.path().join("plain");
+        std::fs::create_dir_all(&module_dir).unwrap();
+        std::fs::create_dir_all(&plain_dir).unwrap();
+        std::fs::write(module_dir.join(wdl_modules::MANIFEST_FILENAME), MANIFEST).unwrap();
+        std::fs::write(module_dir.join("main.wdl"), "version 1.4\n").unwrap();
+        std::fs::write(plain_dir.join("main.wdl"), "version 1.4\n").unwrap();
+
+        let module_url = url::Url::from_file_path(module_dir.join("main.wdl")).unwrap();
+        let plain_url = url::Url::from_file_path(plain_dir.join("main.wdl")).unwrap();
+        let analysis = Analysis::default()
+            .add_source(Source::File(module_url))
+            .add_source(Source::File(plain_url))
+            .feature_flags(super::FeatureFlags::default().with_wdl_1_4())
+            .modules_config(wdl_modules::resolver::ModulesConfig::default());
+
+        let (_, manifest_path) = analysis
+            .build_resolver_from_sources()
+            .expect("resolver construction should succeed");
+        assert_eq!(
+            manifest_path,
+            Some(module_dir.join(wdl_modules::MANIFEST_FILENAME))
+        );
+    }
 }

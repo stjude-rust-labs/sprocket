@@ -1,5 +1,6 @@
 //! Implements the analysis queue.
 
+use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::ops::Range;
 use std::panic;
@@ -42,9 +43,13 @@ use url::Url;
 use wdl_ast::Ast;
 use wdl_ast::Node;
 use wdl_ast::Severity;
+use wdl_ast::SupportedVersion;
 use wdl_ast::v1::ImportSource;
+use wdl_ast::version::V1;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
+use wdl_modules::module::Module;
+use wdl_modules::symbolic_path::SymbolicPath;
 
 use crate::AnalysisResult;
 use crate::IncrementalChange;
@@ -55,12 +60,19 @@ use crate::config::Config;
 use crate::document::Document;
 use crate::graph::DfsSpace;
 use crate::graph::DocumentGraph;
+use crate::graph::EdgeKind;
 use crate::graph::ParseState;
 use crate::handlers;
 use crate::rayon::RayonHandle;
 
 /// The minimum number of milliseconds between analysis progress reports.
 const MINIMUM_PROGRESS_MILLIS: u128 = 50;
+
+/// The maximum number of symbolic-import `materialize` calls allowed to run
+/// concurrently. This bounds the parallel git clones and fetches a single
+/// document's imports can trigger so that a manifest with many dependencies
+/// cannot exhaust file descriptors, disk, or network during analysis.
+const MAX_CONCURRENT_MATERIALIZATIONS: usize = 8;
 
 /// Represents a request to the analysis queue.
 pub enum Request<Context> {
@@ -338,6 +350,13 @@ pub struct AnalysisQueue<Progress, Context, Return, Validator> {
     tokio: Handle,
     /// The HTTP client to use for fetching documents.
     client: Client,
+    /// The module resolver used for resolving WDL module imports.
+    resolver: Arc<dyn wdl_modules::Resolver>,
+    /// The consumer's [`Module`], if a `module.json` was found.
+    consumer_module: Option<Module>,
+    /// Maps each document URI to the [`Module`] that governs it.
+    /// Populated at resolution time so the lookup is direct.
+    document_modules: parking_lot::Mutex<HashMap<Url, Module>>,
     /// The progress callback to use.
     progress: Arc<Progress>,
     /// The validator callback to use.
@@ -354,11 +373,25 @@ where
     Validator: Fn() -> crate::Validator + Send + Sync + 'static,
 {
     /// Constructs a new analysis queue.
-    pub fn new(config: Config, tokio: Handle, progress: Progress, validator: Validator) -> Self {
+    pub fn new(
+        config: Config,
+        tokio: Handle,
+        resolution: crate::ResolutionContext,
+        progress: Progress,
+        validator: Validator,
+    ) -> Self {
+        let consumer_module = resolution
+            .manifest_path
+            .as_ref()
+            .and_then(|p| Module::load_from_path(p.parent()?).ok());
+
         Self {
             graph: Arc::new(RwLock::new(DocumentGraph::new(config.clone()))),
             config,
             tokio,
+            resolver: resolution.resolver,
+            consumer_module,
+            document_modules: parking_lot::Mutex::new(HashMap::new()),
             progress: Arc::new(progress),
             marker: PhantomData,
             client: Default::default(),
@@ -961,6 +994,11 @@ where
     fn add_documents(&self, documents: IndexSet<Url>) {
         let mut graph = self.graph.write();
         for document in documents {
+            if let Some(module) = self.module_for_root_document(&document) {
+                self.document_modules
+                    .lock()
+                    .insert(document.clone(), module);
+            }
             graph.add_node(document, true);
         }
     }
@@ -1160,6 +1198,13 @@ where
         }
 
         graph.gc();
+
+        // Drop module mappings for any document the collection removed from
+        // the graph so the map does not grow unbounded across edit and remove
+        // cycles in a long-lived session.
+        self.document_modules
+            .lock()
+            .retain(|uri, _| graph.get_index(uri).is_some());
     }
 
     /// Awaits the given set of futures while providing progress to the given
@@ -1262,84 +1307,269 @@ where
         range: Range<usize>,
         space: &mut DfsSpace,
     ) -> Result<()> {
-        let mut graph = self.graph.write();
+        // A work item collected during Phase A that requires an async
+        // `materialize` call in Phase B.
+        struct SymbolicWorkItem {
+            /// The node that contains the import statement.
+            importer: NodeIndex,
+            /// The resolved consumer module for the importer.
+            consumer_module: wdl_modules::module::Module,
+            /// The parsed symbolic path from the import statement.
+            symbolic_path: SymbolicPath,
+            /// The raw text of the module-path token, used as the edge label
+            /// and for error messages.
+            path_text: String,
+        }
 
-        // Start by updating the parsed nodes
-        for (index, state) in parsed {
-            let node = graph.get_mut(index);
-            let state = state
-                .with_context(|| format!("failed to parse document `{uri}`", uri = node.uri()))?;
-            node.parse_completed(state);
+        // Phase A: under graph.write(), handle parse completion and URI
+        // imports. Symbolic imports are collected as work items instead of
+        // being driven serially here, so the write lock is held for as short a
+        // time as possible.
+        let (parsed_indices, symbolic_work): (Vec<NodeIndex>, Vec<SymbolicWorkItem>) = {
+            let mut graph = self.graph.write();
+            let mut indices = Vec::new();
+            let mut work = Vec::new();
 
-            // Remove all dependency edges from the node as the imports might have changed
-            graph.remove_dependency_edges(index);
+            for (index, state) in parsed {
+                let node = graph.get_mut(index);
+                let state = state.with_context(|| {
+                    format!("failed to parse document `{uri}`", uri = node.uri())
+                })?;
+                node.parse_completed(state);
 
-            // Add back dependency edges for the document's imports
-            match graph
-                .get(index)
-                .root()
-                .map(|d| d.ast_with_version_fallback(self.config.fallback_version()))
-            {
-                None | Some(Ast::Unsupported) => {}
-                Some(Ast::V1(ast)) => {
-                    for import in ast.imports() {
-                        // Only quoted imports contribute dependency edges;
-                        // symbolic imports resolve through the module
-                        // resolver and do not add graph nodes here.
-                        let ImportSource::Uri(uri) = import.source() else {
-                            continue;
+                // Remove all dependency edges from the node as the imports
+                // might have changed, and clear any stale
+                // failed-symbolic-import diagnostics at the same time so they
+                // do not survive into the re-analysis pass.
+                graph.remove_dependency_edges(index);
+                graph.get_mut(index).clear_failed_symbolic_imports();
+
+                // Add back dependency edges for URI imports; queue symbolic
+                // imports for concurrent materialization.
+                match graph
+                    .get(index)
+                    .root()
+                    .map(|d| d.ast_with_version_fallback(self.config.fallback_version()))
+                {
+                    None | Some(Ast::Unsupported) => {}
+                    Some(Ast::V1(ast)) => {
+                        let symbolic_imports_enabled =
+                            symbolic_imports_enabled(&self.config, graph.get(index).parse_state());
+                        for import in ast.imports() {
+                            match import.source() {
+                                ImportSource::Uri(uri) => {
+                                    let text = match uri.text() {
+                                        Some(text) => text,
+                                        None => continue,
+                                    };
+
+                                    let import_uri = match graph.get(index).uri().join(text.text())
+                                    {
+                                        Ok(uri) => uri,
+                                        Err(_) => continue,
+                                    };
+
+                                    if let Some(module) = self
+                                        .module_for_uri_import(graph.get(index).uri(), &import_uri)
+                                    {
+                                        self.document_modules
+                                            .lock()
+                                            .insert(import_uri.clone(), module);
+                                    }
+
+                                    let import_index = graph
+                                        .get_index(&import_uri)
+                                        .unwrap_or_else(|| graph.add_node(import_uri, false));
+                                    graph.add_dependency_edge(
+                                        index,
+                                        import_index,
+                                        EdgeKind::Uri,
+                                        space,
+                                    );
+                                    subgraph.insert(import_index);
+                                }
+                                ImportSource::ModulePath(module_path) => {
+                                    if !symbolic_imports_enabled {
+                                        continue;
+                                    }
+
+                                    let consumer_module = match self
+                                        .find_module_for_document(graph.get(index).uri())
+                                    {
+                                        Some(m) => m,
+                                        None => continue,
+                                    };
+
+                                    let symbolic_path: SymbolicPath =
+                                        match module_path.text().parse() {
+                                            Ok(path) => path,
+                                            Err(e) => {
+                                                // Record the syntax failure so the
+                                                // import surfaces a precise diagnostic
+                                                // instead of the generic "not in a
+                                                // module" message during analysis.
+                                                graph.insert_failed_symbolic_import(
+                                                    index,
+                                                    module_path.text().to_string(),
+                                                    e.to_string(),
+                                                );
+                                                continue;
+                                            }
+                                        };
+
+                                    work.push(SymbolicWorkItem {
+                                        importer: index,
+                                        consumer_module,
+                                        symbolic_path,
+                                        path_text: module_path.text().to_string(),
+                                    });
+                                }
+                            }
+                        }
+                    }
+                }
+
+                indices.push(index);
+            }
+
+            (indices, work)
+        };
+        // graph write lock is released here.
+
+        // Phase B: drive the `materialize` calls concurrently, capped at
+        // `MAX_CONCURRENT_MATERIALIZATIONS` in flight so a manifest declaring
+        // many dependencies cannot drive an unbounded number of parallel
+        // clones or fetches.
+        //
+        // Each future yields the parsed `SymbolicPath` alongside the importer
+        // and raw path text so that Phase C can stitch the results back into
+        // the graph without holding the lock during I/O and without re-parsing
+        // the path.
+        type MaterializeOutcome = (
+            NodeIndex,
+            SymbolicPath,
+            String,
+            Result<wdl_modules::resolver::MaterializedFile, wdl_modules::resolver::ResolverError>,
+        );
+
+        let materialized_results: Vec<MaterializeOutcome> = if symbolic_work.is_empty() {
+            Vec::new()
+        } else {
+            tracing::debug!(
+                count = symbolic_work.len(),
+                "resolving symbolic imports concurrently",
+            );
+            let resolver = Arc::clone(&self.resolver);
+            let stream = futures::stream::iter(symbolic_work.into_iter().map(|item| {
+                let resolver = Arc::clone(&resolver);
+                async move {
+                    tracing::debug!(path = %item.path_text, "resolving symbolic import");
+                    let result = resolver
+                        .materialize(&item.consumer_module, &item.symbolic_path)
+                        .await;
+                    (item.importer, item.symbolic_path, item.path_text, result)
+                }
+            }))
+            .buffer_unordered(MAX_CONCURRENT_MATERIALIZATIONS);
+
+            self.tokio
+                .block_on(stream.collect::<Vec<MaterializeOutcome>>())
+        };
+
+        // Phase C: under graph.write(), stitch materialization results and run
+        // the BFS pass for all parsed nodes.
+        {
+            let mut graph = self.graph.write();
+
+            for (importer, symbolic_path, path_text, outcome) in materialized_results {
+                match outcome {
+                    Ok(materialized) => {
+                        let import_uri = match Url::from_file_path(&materialized.path) {
+                            Ok(u) => u,
+                            Err(()) => {
+                                graph.insert_failed_symbolic_import(
+                                    importer,
+                                    path_text,
+                                    format!(
+                                        "materialized path is not absolute: `{}`",
+                                        materialized.path.display()
+                                    ),
+                                );
+                                continue;
+                            }
                         };
-                        let text = match uri.text() {
-                            Some(text) => text,
-                            None => continue,
-                        };
 
-                        let import_uri = match graph.get(index).uri().join(text.text()) {
-                            Ok(uri) => uri,
-                            Err(_) => continue,
-                        };
+                        // The materialized dependency's manifest sits in the
+                        // parent of the materialized file. Build a child
+                        // [`Module`] that extends the consumer's lockfile
+                        // scope by the dep name so transitive imports from
+                        // this file resolve their own relative paths and
+                        // lockfile entries correctly.
+                        let consumer_module = self
+                            .find_module_for_document(graph.get(importer).uri())
+                            .expect("consumer module must exist; was present in Phase A");
+                        let import_module = consumer_module.child(
+                            symbolic_path.dep_name().clone(),
+                            materialized.manifest.clone(),
+                            materialized.module_root,
+                        );
 
-                        // Add a dependency edge to the import
+                        self.document_modules
+                            .lock()
+                            .insert(import_uri.clone(), import_module);
+
                         let import_index = graph
                             .get_index(&import_uri)
-                            .unwrap_or_else(|| graph.add_node(import_uri, false));
-                        graph.add_dependency_edge(index, import_index, space);
-
-                        // Add the import to the subgraph
+                            .unwrap_or_else(|| graph.add_node(import_uri.clone(), false));
+                        graph.add_dependency_edge(
+                            importer,
+                            import_index,
+                            EdgeKind::Symbolic(path_text),
+                            space,
+                        );
                         subgraph.insert(import_index);
+                    }
+                    Err(e) => {
+                        graph.insert_failed_symbolic_import(importer, path_text, e.to_string());
                     }
                 }
             }
 
-            // Because of the way WDL works by implicitly introducing import names into
-            // document scope, any change to a file must cause all transitive dependencies
-            // to be reanalyzed; therefore, do a BFS from the parsed node and add any
-            // discovered nodes to the subgraph
-            graph.bfs_mut(index, |graph, dependent: NodeIndex| {
-                if index == dependent {
-                    return;
-                }
+            // Because of the way WDL works by implicitly introducing import
+            // names into document scope, any change to a file must cause all
+            // transitive dependents to be reanalyzed; therefore, do a BFS
+            // from each parsed node and add any discovered nodes to the
+            // subgraph.
+            for index in &parsed_indices {
+                let index = *index;
+                graph.bfs_mut(index, |graph, dependent: NodeIndex| {
+                    if index == dependent {
+                        return;
+                    }
 
-                let node = graph.get_mut(dependent);
-                if !subgraph.contains(&dependent) {
-                    trace!(
-                        "adding dependent document `{uri}` for analysis",
-                        uri = node.uri()
-                    );
-                    subgraph.insert(dependent);
-                }
+                    let node = graph.get_mut(dependent);
+                    if !subgraph.contains(&dependent) {
+                        trace!(
+                            "adding dependent document `{uri}` for analysis",
+                            uri = node.uri()
+                        );
+                        subgraph.insert(dependent);
+                    }
 
-                node.reanalyze();
-            });
+                    node.reanalyze();
+                });
+            }
+
+            // Add the direct dependencies of the subgraph slice to the
+            // subgraph.
+            let mut dependencies = Vec::new();
+            for index in subgraph.get_range(range).expect("range should be valid") {
+                dependencies.extend(graph.dependencies(*index));
+            }
+
+            subgraph.extend(dependencies);
         }
 
-        // Add the direct dependencies of the subgraph slice to the subgraph
-        let mut dependencies = Vec::new();
-        for index in subgraph.get_range(range).expect("range should be valid") {
-            dependencies.extend(graph.dependencies(*index));
-        }
-
-        subgraph.extend(dependencies);
         Ok(())
     }
 
@@ -1374,6 +1604,74 @@ where
 
         (index, document)
     }
+
+    /// Returns the [`Module`] that governs the document at `uri`.
+    fn find_module_for_document(&self, uri: &Url) -> Option<Module> {
+        self.document_modules.lock().get(uri).cloned()
+    }
+
+    /// Returns the consumer module for a root document governed by it.
+    fn module_for_root_document(&self, uri: &Url) -> Option<Module> {
+        let module = self.consumer_module.clone()?;
+        let path = uri.to_file_path().ok()?;
+        if !path.starts_with(&module.root) {
+            return None;
+        }
+
+        let mut dir = path.parent();
+        while let Some(current) = dir {
+            if current == module.root {
+                return Some(module);
+            }
+
+            if wdl_modules::module::is_module_root(current) {
+                return None;
+            }
+
+            dir = current.parent();
+        }
+
+        None
+    }
+
+    /// Returns the importer module for a URI import inside the same module.
+    fn module_for_uri_import(&self, importer_uri: &Url, import_uri: &Url) -> Option<Module> {
+        let module = self.find_module_for_document(importer_uri)?;
+        let import_path = import_uri.to_file_path().ok()?;
+        if !import_path.starts_with(&module.root) {
+            return None;
+        }
+
+        let mut dir = import_path.parent();
+        while let Some(current) = dir {
+            if current == module.root {
+                return Some(module);
+            }
+
+            if wdl_modules::module::is_module_root(current) {
+                return None;
+            }
+
+            dir = current.parent();
+        }
+
+        None
+    }
+}
+
+/// Returns whether symbolic imports may be resolved for a parse state.
+fn symbolic_imports_enabled(config: &Config, state: &ParseState) -> bool {
+    if !config.feature_flags().wdl_1_4() {
+        return false;
+    }
+
+    matches!(
+        state,
+        ParseState::Parsed {
+            wdl_version: Some(version),
+            ..
+        } if *version >= SupportedVersion::V1(V1::Four)
+    )
 }
 
 /// Formats the panic payload for display.

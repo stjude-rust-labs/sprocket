@@ -6,7 +6,6 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::v1;
 use wdl_ast::v1::StringPart;
-use wdl_ast::version::V1;
 
 use crate::Config;
 use crate::Diagnostics;
@@ -31,14 +30,6 @@ fn invalid_import_namespace(span: Span) -> Diagnostic {
     Diagnostic::error("import namespace is not a valid WDL identifier")
         .with_label("a namespace cannot be derived from this import path", span)
         .with_fix("add an `as` clause to the import to specify a namespace")
-}
-
-/// Creates a "symbolic module resolution not yet implemented" diagnostic.
-fn symbolic_resolution_not_implemented(span: Span) -> Diagnostic {
-    Diagnostic::error("symbolic module resolution is not yet implemented").with_label(
-        "this symbolic module path cannot be resolved by the current Sprocket release",
-        span,
-    )
 }
 
 /// An AST visitor that ensures that imports are valid.
@@ -85,12 +76,7 @@ impl Visitor for ImportsVisitor {
 
         let uri = match stmt.source() {
             v1::ImportSource::Uri(uri) => uri,
-            v1::ImportSource::ModulePath(path) => {
-                if matches!(self.version, Some(SupportedVersion::V1(V1::Four)))
-                    && self.wdl_1_4_enabled
-                {
-                    diagnostics.add(symbolic_resolution_not_implemented(path.span()));
-                }
+            v1::ImportSource::ModulePath(_) => {
                 return;
             }
         };

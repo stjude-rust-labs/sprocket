@@ -6143,6 +6143,7 @@ version = "0.22.0"
 dependencies = [
  "anyhow",
  "arrayvec",
+ "async-trait",
  "blake3",
  "codespan-reporting",
  "convert_case",
@@ -6161,6 +6162,7 @@ dependencies = [
  "regex",
  "reqwest",
  "rowan",
+ "semver",
  "smallvec",
  "tempfile",
  "tokio",
@@ -6172,6 +6174,7 @@ dependencies = [
  "wdl-ast",
  "wdl-format",
  "wdl-grammar",
+ "wdl-modules",
 ]
 
 [[package]]
@@ -6342,6 +6345,7 @@ dependencies = [
  "url",
  "wdl-analysis",
  "wdl-ast",
+ "wdl-modules",
 ]
 
 [[package]]
