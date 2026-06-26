@@ -241,7 +241,7 @@ impl ApptainerRuntime {
             writeln!(&mut apptainer_command, "--nv \\")?;
         }
 
-        for arg in &config.extra_args {
+        for arg in &config.extra_apptainer_exec_args {
             writeln!(&mut apptainer_command, "{arg} \\")?;
         }
 

@@ -1677,7 +1677,7 @@ pub struct ApptainerConfig {
     /// Additional command-line arguments to pass to `apptainer exec` when
     /// executing tasks.
     #[toml(default)]
-    pub extra_args: Vec<String>,
+    pub extra_apptainer_exec_args: Vec<String>,
 }
 
 impl Default for ApptainerConfig {
@@ -1685,7 +1685,7 @@ impl Default for ApptainerConfig {
         Self {
             executable: DEFAULT_APPTAINER_EXECUTABLE.into(),
             image_cache_dir: None,
-            extra_args: Default::default(),
+            extra_apptainer_exec_args: Default::default(),
         }
     }
 }
