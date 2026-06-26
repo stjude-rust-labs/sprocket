@@ -1677,7 +1677,7 @@ pub struct ApptainerConfig {
     /// Additional command-line arguments to pass to `apptainer exec` when
     /// executing tasks.
     #[toml(default)]
-    pub extra_apptainer_exec_args: Vec<String>,
+    pub extra_args: Vec<String>,
 }
 
 impl Default for ApptainerConfig {
@@ -1685,7 +1685,7 @@ impl Default for ApptainerConfig {
         Self {
             executable: DEFAULT_APPTAINER_EXECUTABLE.into(),
             image_cache_dir: None,
-            extra_apptainer_exec_args: Default::default(),
+            extra_args: Default::default(),
         }
     }
 }
@@ -2231,10 +2231,6 @@ pub struct LsfApptainerBackendConfig {
     /// container execution runtimes in the future, rather than being
     /// hardcoded to Apptainer.
     #[toml(default)]
-    // TODO ACF 2025-10-16: temporarily flatten this into the overall config so that it doesn't
-    // break existing serialized configs. We'll save breaking the config file format for when we
-    // actually have meaningful composition of in-place runtimes.
-    #[toml(flatten, with = flatten_any)]
     pub apptainer: ApptainerConfig,
 }
 
@@ -2460,10 +2456,6 @@ pub struct SlurmApptainerBackendConfig {
     /// container execution runtimes in the future, rather than being
     /// hardcoded to Apptainer.
     #[toml(default)]
-    // TODO ACF 2025-10-16: temporarily flatten this into the overall config so that it doesn't
-    // break existing serialized configs. We'll save breaking the config file format for when we
-    // actually have meaningful composition of in-place runtimes.
-    #[toml(flatten, with = flatten_any)]
     pub apptainer: ApptainerConfig,
 }
 
