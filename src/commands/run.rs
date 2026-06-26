@@ -674,7 +674,7 @@ pub async fn run(
                 .boxed()
             }
         })
-        .run()
+        .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
 

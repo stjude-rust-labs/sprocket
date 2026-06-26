@@ -10,7 +10,6 @@ use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::TreeToken;
 use wdl_ast::v1::Placeholder;
@@ -190,7 +189,7 @@ impl Visitor for DeprecatedPlaceholderRule {
                     placeholder.open().span().start(),
                     1,
                 )),
-                SyntaxElement::from(placeholder.inner().clone()),
+                placeholder.inner(),
                 &self.exceptable_nodes(),
             );
         }
@@ -214,11 +213,7 @@ impl Visitor for DeprecatedPlaceholderRule {
                     deprecated_true_false_placeholder_option(option.span())
                 }
             };
-            diagnostics.exceptable_add(
-                diagnostic,
-                SyntaxElement::from(placeholder.inner().clone()),
-                &self.exceptable_nodes(),
-            )
+            diagnostics.exceptable_add(diagnostic, placeholder.inner(), &self.exceptable_nodes())
         }
     }
 }

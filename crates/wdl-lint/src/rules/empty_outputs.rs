@@ -9,7 +9,6 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::TaskDefinition;
 
@@ -117,7 +116,7 @@ impl Visitor for EmptyOutputs {
 
         diagnostics.exceptable_add(
             missing_outputs(task.name()),
-            SyntaxElement::from(task.inner().clone()),
+            task.inner(),
             &self.exceptable_nodes(),
         );
     }

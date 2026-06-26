@@ -50,6 +50,20 @@ impl Span {
         offset >= self.start && offset < self.end
     }
 
+    /// Whether this span is **fully** contained within `other`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use wdl_grammar::Span;
+    /// let parent = Span::new(0, 10);
+    /// let child = Span::new(5, 5);
+    /// assert!(child.within(parent));
+    /// ```
+    pub fn within(&self, other: Self) -> bool {
+        self.start >= other.start && self.end <= other.end
+    }
+
     /// Calculates an intersection of two spans, if one exists.
     ///
     /// If spans are adjacent, a zero-length span is returned.

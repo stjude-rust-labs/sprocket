@@ -1,4 +1,4 @@
-#@ except: MetaSections, SnackCase, ThisIsNotARealRule
+#@ except: UnusedKall, ThisIsNotARealRule, UnusedInput
 
 version 1.1
 

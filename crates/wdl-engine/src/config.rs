@@ -37,7 +37,9 @@ use toml_spanner::helper::parse_string;
 use tracing::error;
 use tracing::warn;
 use url::Url;
+use wdl_analysis::Diagnostics;
 use wdl_analysis::DiagnosticsConfig;
+use wdl_analysis::Exceptable;
 use wdl_analysis::diagnostics::unknown_name;
 use wdl_analysis::diagnostics::unknown_type;
 use wdl_analysis::document::Task;
@@ -48,8 +50,10 @@ use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::TreeNode;
 use wdl_ast::lexer::Lexer;
 use wdl_ast::v1::Expr;
+use wdl_grammar::SyntaxKind;
 use wdl_grammar::construct_tree;
 use wdl_grammar::grammar::v1;
 use wdl_grammar::grammar::v1::Parser;
@@ -1719,7 +1723,7 @@ impl Condition {
         /// Type evaluation context used for resolving the type of conditional
         /// expressions.
         #[derive(Default)]
-        struct Context(Vec<Diagnostic>);
+        struct Context(Diagnostics);
 
         impl wdl_analysis::types::v1::EvaluationContext for Context {
             fn version(&self) -> SupportedVersion {
@@ -1753,7 +1757,16 @@ impl Condition {
             }
 
             fn add_diagnostic(&mut self, diagnostic: Diagnostic) {
-                self.0.push(diagnostic);
+                self.0.add(diagnostic);
+            }
+
+            fn exceptable_add_diagnostic<N: TreeNode + Exceptable>(
+                &mut self,
+                diagnostic: Diagnostic,
+                element: &N,
+                exceptable_nodes: &Option<&'static [SyntaxKind]>,
+            ) {
+                self.0.exceptable_add(diagnostic, element, exceptable_nodes);
             }
         }
 
@@ -1784,7 +1797,7 @@ impl Condition {
                     .unwrap_or(Type::Union);
 
                 if !context.0.is_empty() {
-                    return Err(context.0);
+                    return Err(context.0.into());
                 }
 
                 match ty {
