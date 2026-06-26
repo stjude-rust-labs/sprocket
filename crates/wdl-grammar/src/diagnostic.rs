@@ -325,6 +325,11 @@ impl Diagnostic {
         self.fix.as_deref()
     }
 
+    /// Gets the optional help message of the diagnostic.
+    pub fn help(&self) -> Option<&str> {
+        self.help.as_deref()
+    }
+
     /// Gets the labels of the diagnostic.
     pub fn labels(&self) -> impl Iterator<Item = &Label> {
         self.labels.iter()

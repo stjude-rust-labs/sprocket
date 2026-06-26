@@ -622,6 +622,12 @@ pub struct HttpConfig {
     /// Defaults to the host's available parallelism.
     #[toml(default)]
     pub parallelism: Parallelism,
+    /// The hash algorithm to use for calculating content digests for file
+    /// uploads.
+    ///
+    /// Defaults to `sha256`.
+    #[toml(default, FromToml with = parse_string, ToToml with = display)]
+    pub hash_algorithm: cloud_copy::HashAlgorithm,
 }
 
 impl Default for HttpConfig {
@@ -630,6 +636,7 @@ impl Default for HttpConfig {
             cache_dir: CACHE_DIR_SENTINEL.into(),
             retries: DEFAULT_HTTP_RETRIES,
             parallelism: Default::default(),
+            hash_algorithm: Default::default(),
         }
     }
 }
@@ -3460,7 +3467,8 @@ type = 'lsf_apptainer'
         let map: HashMap<String, Parallelism> = toml_spanner::from_str("value = 123").unwrap();
         assert_eq!(map["value"], Parallelism::Use(123));
 
-        let expected_error = "expected a positive integer or `available` for parallelism";
+        let expected_error =
+            "expected a positive integer or `available` for parallelism at `value`";
 
         let error =
             toml_spanner::from_str::<HashMap<String, Parallelism>>("value = 'wrong'").unwrap_err();
@@ -3498,8 +3506,9 @@ type = 'lsf_apptainer'
         let map: HashMap<String, Retries> = toml_spanner::from_str("value = 0").unwrap();
         assert_eq!(map["value"], Retries::Use(0));
 
-        let expected_error =
-            format!("expected an integer less than {MAX_RETRIES} or `default` for retries");
+        let expected_error = format!(
+            "expected an integer less than {MAX_RETRIES} or `default` for retries at `value`"
+        );
 
         let error =
             toml_spanner::from_str::<HashMap<String, Retries>>("value = 'wrong'").unwrap_err();

@@ -1324,6 +1324,7 @@ impl DocsTree {
                 div class="w-full grid grid-cols-3 items-center h-12 px-6" {
                     a
                         href=(self.root_index_relative_to(base).to_string_lossy())
+                        id="logo"
                         class="flex items-center justify-start w-32 h-12"
                     {
                         img src=(self.get_asset(base, LOGO_FILE_NAME)) class="max-w-full max-h-full w-auto h-auto object-contain p-1 block light:hidden" alt="Logo";
