@@ -1,0 +1,4 @@
+say_hello:
+  - name: should_run
+say_hello2:
+  - name: should_also_run
