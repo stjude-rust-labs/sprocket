@@ -330,13 +330,37 @@ fn shellcheck_lint(
     command_text: &str,
     line_map: &HashMap<usize, Span>,
     shift_tree: &FenwickTree<usize>,
+    diagnostic_spans: &HashMap<(usize, usize), Span>,
 ) -> Diagnostic {
     let label = format!(
         "SC{}[{}]: {}",
         diagnostic.code, diagnostic.level, diagnostic.message
     );
+    // This span is relative to the command text.
+    let diagnostic_start = diagnostic.column + shift_tree.prefix_sum(diagnostic.line - 1, 0) - 1;
+    let diagnostic_end =
+        diagnostic.end_column + shift_tree.prefix_sum(diagnostic.end_line - 1, 0) - 1;
+
+    // Check if this diagnostic falls within a sanitized placeholder.
+    // If so, use the placeholder's selected source span.
+    let refined_span = diagnostic_spans
+        .iter()
+        .find_map(|((var_start, var_end), source_span)| {
+            if diagnostic_start >= *var_start && diagnostic_end < *var_end {
+                Some(*source_span)
+            } else {
+                None
+            }
+        });
+
     // This span is relative to the entire document.
-    let span = calculate_span(diagnostic, line_map);
+    let span = if let Some(source_span) = refined_span {
+        source_span
+    } else {
+        // Fallback to the original span mapping
+        calculate_span(diagnostic, line_map)
+    };
+
     let fix_msg = match diagnostic.fix {
         Some(ref fix)
             if !SHELLCHECK_IGNORE_FIX
@@ -345,12 +369,7 @@ fn shellcheck_lint(
         {
             let reps = normalize_replacements(&fix.replacements, shift_tree);
             // This span is relative to the command text.
-            let diagnostic_span = {
-                let start = diagnostic.column + shift_tree.prefix_sum(diagnostic.line - 1, 0) - 1;
-                let end =
-                    diagnostic.end_column + shift_tree.prefix_sum(diagnostic.end_line - 1, 0) - 1;
-                Span::new(start, end - start)
-            };
+            let diagnostic_span = Span::new(diagnostic_start, diagnostic_end - diagnostic_start);
             create_fix_message(reps, command_text, diagnostic_span)
         }
         Some(_) | None => String::from("address the diagnostic as recommended in the message"),
@@ -523,31 +542,82 @@ fn evaluates_to_bash_literal(expr: &Expr) -> bool {
     }
 }
 
+/// Determine whether an expression is an empty string literal.
+fn is_empty_string_literal(expr: &Expr) -> bool {
+    match expr.clone().strip_parenthesized() {
+        Expr::Literal(LiteralExpr::String(s)) => {
+            s.text().is_some_and(|text| text.text().is_empty())
+        }
+        _ => false,
+    }
+}
+
+/// Determine the source span to use for ShellCheck diagnostics on a
+/// placeholder.
+fn shellcheck_span_for_placeholder(placeholder: &Placeholder) -> Span {
+    let expr = placeholder.expr();
+    let Expr::If(if_expr) = expr.clone().strip_parenthesized() else {
+        return placeholder.span();
+    };
+
+    let (_, true_expr, false_expr) = if_expr.exprs();
+    match (
+        is_empty_string_literal(&true_expr),
+        is_empty_string_literal(&false_expr),
+    ) {
+        (true, false) => false_expr.span(),
+        (false, true) => true_expr.span(),
+        _ => placeholder.span(),
+    }
+}
+
+/// Result of converting a WDL placeholder to bash.
+struct BashVar {
+    /// The bash substitution string.
+    value: String,
+    /// Whether this is a literal (true) or bash variable (false).
+    literal: bool,
+    /// The span of the expression in the source.
+    span: Option<Span>,
+}
+
 /// Convert a WDL placeholder to a bash variable or literal.
 ///
-/// The boolean returned indicates whether the placeholder was replaced with a
+/// The `literal` field indicates whether the placeholder was replaced with a
 /// literal (true) or a bash variable (false).
 /// If the placeholder is an integer, float, or boolean,
 /// it is replaced with a literal value.
 /// If it is a string, then the string is checked to see if it evaluates to a
 /// literal. Otherwise, it is replaced with a bash variable.
-fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
+fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> BashVar {
     let placeholder_len: usize = placeholder.inner().text_range().len().into();
+    let expr = placeholder.expr();
+    let span = shellcheck_span_for_placeholder(placeholder);
 
     if let Some(Type::Primitive(pty, _)) = ty {
         match pty {
             PrimitiveType::Integer | PrimitiveType::Float => {
-                return ("4".repeat(placeholder_len), true);
+                return BashVar {
+                    value: "4".repeat(placeholder_len),
+                    literal: true,
+                    span: Some(span),
+                };
             }
             PrimitiveType::Boolean => {
-                return (
-                    format!("true{}", " ".repeat(placeholder_len.saturating_sub(4))),
-                    true,
-                );
+                return BashVar {
+                    value: format!("true{}", " ".repeat(placeholder_len.saturating_sub(4))),
+                    literal: true,
+                    span: Some(span),
+                };
             }
-            PrimitiveType::String if evaluates_to_bash_literal(&placeholder.expr()) => {
-                return ("a".repeat(placeholder_len), true);
+            PrimitiveType::String if evaluates_to_bash_literal(&expr) => {
+                return BashVar {
+                    value: "a".repeat(placeholder_len),
+                    literal: true,
+                    span: Some(span),
+                };
             }
+            PrimitiveType::String => {}
             _ => {}
         }
     };
@@ -557,7 +627,24 @@ fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
     let mut bash_var = String::from("wdl");
     bash_var
         .push_str(&Alphanumeric.sample_string(&mut rand::rng(), placeholder_len.saturating_sub(3)));
-    (bash_var, false)
+    BashVar {
+        value: bash_var,
+        literal: false,
+        span: Some(span),
+    }
+}
+
+/// Result of sanitizing a command section.
+struct SanitizedCommand {
+    /// The sanitized command text with placeholders replaced.
+    text: String,
+    /// Set of declared variables.
+    decls: HashSet<String>,
+    /// Amount of whitespace stripped from the beginning.
+    amount_stripped: usize,
+    /// Mapping from (start, end) positions in sanitized text to source
+    /// spans.
+    diagnostic_spans: HashMap<(usize, usize), Span>,
 }
 
 /// Sanitize a [CommandSection].
@@ -569,11 +656,12 @@ fn to_bash_var(placeholder: &Placeholder, ty: Option<Type>) -> (String, bool) {
 fn sanitize_command(
     section: &CommandSection,
     context: &mut CommandContext<'_>,
-) -> Option<(String, HashSet<String>, usize)> {
+) -> Option<SanitizedCommand> {
     let amount_stripped = section.count_whitespace()?;
     let mut sanitized_command = String::new();
     let mut decls = HashSet::new();
     let mut in_single_quotes = false;
+    let mut diagnostic_spans = HashMap::new();
 
     let mut evaluator = ExprTypeEvaluator::new(context);
 
@@ -586,21 +674,33 @@ fn sanitize_command(
                 }
                 StrippedCommandPart::Placeholder(placeholder) => {
                     let ty = evaluator.evaluate_expr(&placeholder.expr());
-                    let (substitution, literal_inserted) = to_bash_var(placeholder, ty);
+                    let bash = to_bash_var(placeholder, ty);
+                    let var_start = sanitized_command.len();
 
-                    if literal_inserted || in_single_quotes {
-                        sanitized_command.push_str(&substitution);
+                    if bash.literal || in_single_quotes {
+                        sanitized_command.push_str(&bash.value);
                     } else {
-                        let substitution = substitution
+                        let var_name = bash
+                            .value
                             .chars()
-                            .take(substitution.len().saturating_sub(3))
+                            .take(bash.value.len().saturating_sub(3))
                             .collect::<String>();
-                        decls.insert(substitution.clone());
-                        sanitized_command.push_str(&format!("${{{substitution}}}"));
+                        decls.insert(var_name.clone());
+                        sanitized_command.push_str(&format!("${{{var_name}}}"));
+                    }
+
+                    let var_end = sanitized_command.len();
+                    if let Some(span) = bash.span {
+                        diagnostic_spans.insert((var_start, var_end), span);
                     }
                 }
             });
-            Some((sanitized_command, decls, amount_stripped))
+            Some(SanitizedCommand {
+                text: sanitized_command,
+                decls,
+                amount_stripped,
+                diagnostic_spans,
+            })
         }
         _ => None,
     }
@@ -739,24 +839,22 @@ impl Visitor for ShellCheckRule {
             return;
         };
         let mut context = CommandContext::new(doc.clone(), scope);
-        let Some((sanitized_command, cmd_decls, amount_stripped)) =
-            sanitize_command(section, &mut context)
-        else {
+        let Some(sanitized) = sanitize_command(section, &mut context) else {
             // This is the case where the command section contains
             // mixed indentation. We silently return and allow
             // the mixed indentation lint to report this.
             return;
         };
-        let line_map = map_shellcheck_lines(section, amount_stripped);
+        let line_map = map_shellcheck_lines(section, sanitized.amount_stripped);
 
         // create a Fenwick tree where each index is a line number
         // and each value is the length of the line.
         // For efficiency, we do this only once.
-        let shift_values = lines_with_offset(&sanitized_command)
+        let shift_values = lines_with_offset(&sanitized.text)
             .map(|(_, line_start, next_start)| next_start - line_start);
         let shift_tree = FenwickTree::from_iter(shift_values);
 
-        match run_shellcheck(&sanitized_command) {
+        match run_shellcheck(&sanitized.text) {
             Ok(sc_diagnostics) => {
                 for sc_diagnostic in sc_diagnostics {
                     // Skip declarations that shellcheck is unaware of.
@@ -768,12 +866,18 @@ impl Visitor for ShellCheckRule {
                         .next()
                         .unwrap_or("");
                     if sc_diagnostic.code == SHELLCHECK_REFERENCED_UNASSIGNED
-                        && cmd_decls.contains(target_variable)
+                        && sanitized.decls.contains(target_variable)
                     {
                         continue;
                     }
                     diagnostics.exceptable_add(
-                        shellcheck_lint(&sc_diagnostic, &sanitized_command, &line_map, &shift_tree),
+                        shellcheck_lint(
+                            &sc_diagnostic,
+                            &sanitized.text,
+                            &line_map,
+                            &shift_tree,
+                            &sanitized.diagnostic_spans,
+                        ),
                         SyntaxElement::from(section.inner().clone()),
                         &self.exceptable_nodes(),
                     )
@@ -799,8 +903,10 @@ impl Visitor for ShellCheckRule {
 mod tests {
     use ftree::FenwickTree;
     use pretty_assertions::assert_eq;
+    use wdl_ast::AstNode;
     use wdl_ast::Document;
     use wdl_ast::v1::Expr;
+    use wdl_ast::v1::Placeholder;
 
     use super::ShellCheckReplacement;
     use super::normalize_replacements;
@@ -865,9 +971,9 @@ mod tests {
         assert_eq!(fixer.value(), expected);
     }
 
-    /// Parse a string containing a placeholder expression in the context of a
-    /// `command` with a handful of inputs in scope.
-    fn parse_placeholder_as_expr(command: &str) -> Expr {
+    /// Parse a string containing a placeholder in the context of a `command`
+    /// with a handful of inputs in scope.
+    fn parse_placeholder(command: &str) -> Placeholder {
         let source = format!(
             r#"
 version 1.2
@@ -899,7 +1005,12 @@ task test {{
             .nth(1)
             .expect("has a command part")
             .unwrap_placeholder()
-            .expr()
+    }
+
+    /// Parse a string containing a placeholder expression in the context of a
+    /// `command` with a handful of inputs in scope.
+    fn parse_placeholder_as_expr(command: &str) -> Expr {
+        parse_placeholder(command).expr()
     }
 
     #[test]
@@ -982,5 +1093,56 @@ task test {{
         assert!(!super::evaluates_to_bash_literal(
             &parse_placeholder_as_expr(r#"echo ~{if 1=1 then "hello '~{foo}' world" else ""}"#)
         ));
+    }
+
+    #[test]
+    fn test_shellcheck_span_for_placeholder_name_ref() {
+        let placeholder = parse_placeholder(r#"echo ~{foo}"#);
+
+        assert_eq!(
+            super::shellcheck_span_for_placeholder(&placeholder),
+            placeholder.span()
+        );
+    }
+
+    #[test]
+    fn test_shellcheck_span_for_placeholder_if_empty_false_branch() {
+        let placeholder =
+            parse_placeholder(r#"echo ~{if baz > 1 then "--threads " + baz else ""}"#);
+        let Expr::If(if_expr) = placeholder.expr() else {
+            panic!("placeholder expression should be an if expression");
+        };
+        let (_, true_expr, _) = if_expr.exprs();
+
+        assert_eq!(
+            super::shellcheck_span_for_placeholder(&placeholder),
+            true_expr.span()
+        );
+    }
+
+    #[test]
+    fn test_shellcheck_span_for_placeholder_if_empty_true_branch() {
+        let placeholder =
+            parse_placeholder(r#"echo ~{if baz > 1 then "" else "--threads " + baz}"#);
+        let Expr::If(if_expr) = placeholder.expr() else {
+            panic!("placeholder expression should be an if expression");
+        };
+        let (_, _, false_expr) = if_expr.exprs();
+
+        assert_eq!(
+            super::shellcheck_span_for_placeholder(&placeholder),
+            false_expr.span()
+        );
+    }
+
+    #[test]
+    fn test_shellcheck_span_for_placeholder_if_without_empty_branch() {
+        let placeholder =
+            parse_placeholder(r#"echo ~{if baz > 1 then "--threads " + baz else "--threads 1"}"#);
+
+        assert_eq!(
+            super::shellcheck_span_for_placeholder(&placeholder),
+            placeholder.span()
+        );
     }
 }
