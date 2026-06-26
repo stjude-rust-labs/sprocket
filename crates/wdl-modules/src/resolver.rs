@@ -45,6 +45,8 @@ use bon::Builder;
 use futures::future::BoxFuture;
 #[cfg(feature = "resolver")]
 use futures::future::FutureExt;
+#[cfg(feature = "resolver")]
+use path_clean::PathClean;
 use semver::Version;
 
 #[cfg(feature = "resolver")]
@@ -339,9 +341,9 @@ impl GitResolver {
                 let (resolved_source, manifest, module_root) = match source {
                     DependencySource::LocalPath { path, .. } => {
                         let resolved_path = if path.is_absolute() {
-                            path.clone()
+                            path.clean()
                         } else {
-                            parent_root.join(path)
+                            parent_root.join(path).clean()
                         };
                         let manifest = read_manifest(&resolved_path)?;
                         let resolved = ResolvedSource::Path {
@@ -2271,6 +2273,38 @@ mod tests {
             panic!("expected `Cycle`, got: {err}");
         };
         assert_eq!(path.len(), 2, "self-loop should report a 2-element chain");
+    }
+
+    #[tokio::test]
+    async fn resolve_tree_detects_relative_local_path_cycle() {
+        let workdir = tempdir().expect("failed to create temporary directory");
+        let consumer_dir = workdir.path().join("consumer");
+        let dep_a_dir = workdir.path().join("a");
+        let dep_b_dir = workdir.path().join("b");
+
+        write_manifest(&dep_a_dir, "a", "1.0.0", &[("b", r#"{"path":"../b"}"#)]);
+        write_manifest(&dep_b_dir, "b", "1.0.0", &[("a", r#"{"path":"../a"}"#)]);
+        write_manifest(
+            &consumer_dir,
+            "consumer",
+            "0.1.0",
+            &[("a", r#"{"path":"../a"}"#)],
+        );
+
+        let bytes = fs::read(consumer_dir.join(crate::MANIFEST_FILENAME))
+            .expect("failed to read consumer manifest");
+        let consumer = Manifest::parse(&bytes).expect("failed to parse consumer manifest");
+        let consumer = module(consumer, &consumer_dir);
+
+        let cache = tempdir().expect("failed to create cache directory");
+        let err = resolver(&cache)
+            .resolve_tree(&consumer)
+            .await
+            .expect_err("relative local path cycle should be rejected");
+        let ResolverError::Cycle { path } = err else {
+            panic!("expected `Cycle`, got: {err}");
+        };
+        assert_eq!(path, ["a", "b", "a"]);
     }
 
     #[tokio::test]

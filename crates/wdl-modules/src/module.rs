@@ -18,6 +18,8 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use path_clean::PathClean;
+
 use crate::Manifest;
 use crate::dependency::DependencyName;
 use crate::manifest::ManifestError;
@@ -90,9 +92,9 @@ impl Module {
     /// relative, or `path` itself when it is already absolute.
     pub fn resolve_local_path(&self, path: &Path) -> PathBuf {
         if path.is_absolute() {
-            path.to_path_buf()
+            path.clean()
         } else {
-            self.root.join(path)
+            self.root.join(path).clean()
         }
     }
 
