@@ -156,15 +156,15 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
 
     // Timing is recorded only when actually known; `startTime`/`endTime` are not
     // required, so we omit them rather than fabricate values.
-    let started = ctx.run.started_at.map(|t| t.to_rfc3339());
-    let ended = ctx.run.completed_at.map(|t| t.to_rfc3339());
+    // Use the canonical ISO 8601 / `xsd:dateTime` form (`...Z`, no fractional
+    // seconds) that RO-Crate consumers and validators expect.
+    let iso =
+        |t: chrono::DateTime<chrono::Utc>| t.to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let started = ctx.run.started_at.map(iso);
+    let ended = ctx.run.completed_at.map(iso);
     // `date_published` is required on the root dataset; use a real run timestamp
     // (start when known, else the creation time) rather than inventing one.
-    let date_published = ctx
-        .run
-        .started_at
-        .unwrap_or(ctx.run.created_at)
-        .to_rfc3339();
+    let date_published = iso(ctx.run.started_at.unwrap_or(ctx.run.created_at));
 
     // Metadata descriptor. Per Workflow RO-Crate, it conforms to RO-Crate 1.1 and
     // (for workflow targets) the Workflow RO-Crate profile.
@@ -332,16 +332,23 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
     }
 
     // Workflow-level `CreateAction`.
+    let run_description = format!("Execution of {wf_desc}");
     let mut run_props = vec![
         ("name", ev_str(&ctx.run.name)),
+        ("description", ev_str(&run_description)),
         ("instrument", ev_id(WORKFLOW_ID)),
-        ("object", ev_ids(input_ids.clone())),
-        ("result", ev_ids(output_ids.clone())),
         (
             "actionStatus",
             ev_id("http://schema.org/CompletedActionStatus"),
         ),
     ];
+    // Omit empty `object`/`result` rather than emitting empty arrays.
+    if !input_ids.is_empty() {
+        run_props.push(("object", ev_ids(input_ids.clone())));
+    }
+    if !output_ids.is_empty() {
+        run_props.push(("result", ev_ids(output_ids.clone())));
+    }
     if agent_name.is_some() {
         run_props.push(("agent", ev_id("#agent")));
     }
