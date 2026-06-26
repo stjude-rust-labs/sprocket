@@ -598,7 +598,9 @@ impl DocumentGraph {
                     "document `{uri}` needs to be reanalyzed",
                     uri = dep_node.uri
                 );
-                dep_node.reanalyze();
+
+                // Drop any dependents down to an unparsed state
+                dep_node.notify_change(true);
             });
 
             graph.roots.swap_remove(&index);

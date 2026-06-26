@@ -98,8 +98,15 @@ async fn no_baseline_reports_all_diagnostics() {
 
 #[tokio::test]
 async fn baseline_still_suppresses_after_repeated_pulls() {
-    let mut ctx = TestContextBuilder::new("baseline").build_with_options_fn(
-        |workspace, server_options, _| {
+    let mut ctx = TestContextBuilder::new("baseline")
+        .user_options(UserOptions {
+            lint: LintOptions {
+                enabled: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .build_with_options_fn(|workspace, server_options, _| {
             let hash = blake3::hash(b"x").to_hex();
             let baseline = Baseline::new(vec![
                 BaselineEntry::new("InputName", "source.wdl", hash),
@@ -108,8 +115,7 @@ async fn baseline_still_suppresses_after_repeated_pulls() {
             .with_base_dir(workspace.to_path_buf());
 
             server_options.baseline = Some(baseline);
-        },
-    );
+        });
 
     let (_, first) = ctx.initialize().await;
     let codes = diagnostic_codes(&first);

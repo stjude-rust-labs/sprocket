@@ -51,7 +51,6 @@ use crate::IncrementalChange;
 use crate::ProgressKind;
 use crate::SourcePosition;
 use crate::SourcePositionEncoding;
-use crate::ValidatorFn;
 use crate::config::Config;
 use crate::document::Document;
 use crate::graph::DfsSpace;
@@ -59,6 +58,9 @@ use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::handlers;
 use crate::rayon::RayonHandle;
+
+/// A validator constructor function.
+pub(crate) type ValidatorFn = Arc<dyn Fn() -> crate::Validator + Send + Sync + 'static>;
 
 /// The minimum number of milliseconds between analysis progress reports.
 const MINIMUM_PROGRESS_MILLIS: u128 = 50;

@@ -25,6 +25,8 @@ use serde_json::Value;
 use tokio::sync::Mutex;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::EnvFilter;
+use tracing_subscriber::FmtSubscriber;
+use wdl_lsp::FilterReloadHandle;
 use wdl_lsp::LintOptions;
 use wdl_lsp::UserOptions;
 
@@ -136,9 +138,14 @@ async fn should_respect_lint_settings() {
         DocumentDiagnosticReportResult::Report(DocumentDiagnosticReport::Full(report)) => {
             let items = report.full_document_diagnostic_report.items;
             assert_eq!(items.len(), 1);
-            assert_eq!(
-                items[0].code,
-                Some(NumberOrString::String(String::from("SnakeCase")))
+            assert!(
+                items.iter().any(|item| {
+                    matches!(
+                        item.code.as_ref(),
+                        Some(NumberOrString::String(code)) if code == "SnakeCase"
+                    )
+                }),
+                "expected a `SnakeCase` diagnostic, got: {items:?}"
             );
         }
         DocumentDiagnosticReportResult::Report(DocumentDiagnosticReport::Unchanged(_)) => {
@@ -152,6 +159,20 @@ async fn should_respect_lint_settings() {
 
 #[tokio::test]
 async fn should_respect_log_level() {
+    async fn wait_for_log_level(handle: FilterReloadHandle<FmtSubscriber>, expected: LevelFilter) {
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if handle.clone_current().unwrap().to_string() == expected.to_string() {
+                    break;
+                }
+
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .expect("timed out waiting for log level to update");
+    }
+
     let client = ConfigurableClient::default();
     let config = client.config.clone();
 
@@ -175,12 +196,7 @@ async fn should_respect_log_level() {
     })
     .expect("failed to send didChangeConfiguration notification");
 
-    // Give the server some time to update...
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    assert_eq!(
-        log_handle.clone_current().unwrap().to_string(),
-        current_level.to_string()
-    );
+    wait_for_log_level(log_handle.clone(), current_level).await;
 
     current_level = LevelFilter::ERROR;
     config.lock().await.log_level = current_level.into();
@@ -189,9 +205,5 @@ async fn should_respect_log_level() {
     })
     .expect("failed to send didChangeConfiguration notification");
 
-    tokio::time::sleep(Duration::from_millis(100)).await;
-    assert_eq!(
-        log_handle.clone_current().unwrap().to_string(),
-        current_level.to_string()
-    );
+    wait_for_log_level(log_handle.clone(), current_level).await;
 }

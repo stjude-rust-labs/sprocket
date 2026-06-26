@@ -51,7 +51,6 @@ use wdl_analysis::SourceEdit;
 use wdl_analysis::SourcePosition;
 use wdl_analysis::SourcePositionEncoding;
 use wdl_analysis::Validator;
-use wdl_analysis::ValidatorFn;
 use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_MODIFIERS;
 use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_TYPES;
 use wdl_analysis::path_to_uri;
@@ -440,12 +439,15 @@ struct ServerConfig {
 }
 
 /// Create an [`Analyzer`] validator for the current LSP configuration.
-fn validator(options: &ServerOptions, lint_options: &LintOptions) -> ValidatorFn {
+fn validator(
+    options: &ServerOptions,
+    lint_options: &LintOptions,
+) -> impl Fn() -> Validator + Send + Sync + 'static {
     let exceptions = options.exceptions.clone();
     let linting_enabled = lint_options.enabled;
     let lint_config = lint_options.config.clone();
 
-    Arc::new(move || {
+    move || {
         let mut validator = Validator::default();
         if linting_enabled {
             validator.add_visitor(Linter::new(
@@ -456,7 +458,7 @@ fn validator(options: &ServerOptions, lint_options: &LintOptions) -> ValidatorFn
             ));
         }
         validator
-    })
+    }
 }
 
 impl ServerOptions {

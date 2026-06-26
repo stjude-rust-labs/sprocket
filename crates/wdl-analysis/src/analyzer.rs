@@ -335,9 +335,6 @@ pub struct Analyzer<Context> {
     config: Config,
 }
 
-/// A validator constructor function.
-pub type ValidatorFn = Arc<dyn Fn() -> crate::Validator + Send + Sync + 'static>;
-
 impl<Context> Analyzer<Context>
 where
     Context: Send + Clone + 'static,
@@ -354,7 +351,7 @@ where
         Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
         Return: Future<Output = ()>,
     {
-        Self::new_with_validator(config, progress, Arc::new(crate::Validator::default))
+        Self::new_with_validator(config, progress, crate::Validator::default)
     }
 
     /// Constructs a new analyzer with the given config and validator function.
@@ -365,20 +362,21 @@ where
     /// initialize a thread-local validator.
     ///
     /// The analyzer must be constructed from the context of a Tokio runtime.
-    pub fn new_with_validator<Progress, Return>(
+    pub fn new_with_validator<Progress, Return, Validator>(
         config: Config,
         progress: Progress,
-        validator: ValidatorFn,
+        validator: Validator,
     ) -> Self
     where
         Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
         Return: Future<Output = ()>,
+        Validator: Fn() -> crate::Validator + Send + Sync + 'static,
     {
         let (tx, rx) = mpsc::unbounded_channel();
         let tokio = Handle::current();
         let inner_config = config.clone();
         let handle = std::thread::spawn(move || {
-            let queue = AnalysisQueue::new(inner_config, tokio, progress, validator);
+            let queue = AnalysisQueue::new(inner_config, tokio, progress, Arc::new(validator));
             queue.run(rx);
         });
 
@@ -392,11 +390,14 @@ where
     /// Replace the current validator function.
     ///
     /// This will mark all documents for re-analysis.
-    pub async fn swap_validator(&self, validator: ValidatorFn) -> Result<()> {
+    pub async fn swap_validator<Validator>(&self, validator: Validator) -> Result<()>
+    where
+        Validator: Fn() -> crate::Validator + Send + Sync + 'static,
+    {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(Request::SwapValidator(SwapValidatorRequest {
-                validator,
+                validator: Arc::new(validator),
                 completed: tx,
             }))
             .map_err(|_| {
@@ -1371,5 +1372,64 @@ workflow test {
             .unwrap();
         let results = analyzer.analyze(()).await.unwrap();
         assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn it_deletes_documents() {
+        let dir = TempDir::new().expect("failed to create temporary directory");
+        let foo = dir.path().join("foo.wdl");
+        fs::write(
+            &foo,
+            r#"version 1.1
+import "bar.wdl"
+
+workflow test {
+    call bar.test
+}
+"#,
+        )
+        .expect("failed to create test file");
+
+        let bar = dir.path().join("bar.wdl");
+        fs::write(
+            &bar,
+            r#"version 1.1
+workflow test {}
+"#,
+        )
+        .expect("failed to create test file");
+
+        // Add both documents to the analyzer
+        let analyzer = Analyzer::default();
+        analyzer
+            .add_directory(dir.path())
+            .await
+            .expect("should add documents");
+
+        // Analyze the documents
+        let results = analyzer.analyze(()).await.unwrap();
+        assert_eq!(results.len(), 2);
+        assert!(results[0].document.diagnostics().next().is_none());
+        assert!(results[1].document.diagnostics().next().is_none());
+
+        // Now delete bar.wdl, which foo.wdl depends on.
+        //
+        // Unlike removal, this should *force* the deletion of bar.wdl in the graph (and
+        // thus cause errors in foo.wdl)
+        fs::remove_file(&bar).expect("should delete file");
+        analyzer
+            .delete_documents(vec![path_to_uri(&bar).expect("should convert to URI")])
+            .await
+            .unwrap();
+
+        // Now foo.wdl should error
+        let results = analyzer.analyze(()).await.unwrap();
+        assert_eq!(results.len(), 1);
+
+        let has_import_failed_diagnostic = results[0]
+            .document
+            .diagnostics()
+            .any(|d| d.message().contains("failed to import `bar.wdl`"));
+        assert!(has_import_failed_diagnostic);
     }
 }
