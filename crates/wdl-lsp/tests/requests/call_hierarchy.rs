@@ -16,8 +16,7 @@ use async_lsp::lsp_types::request::CallHierarchyOutgoingCalls;
 use async_lsp::lsp_types::request::CallHierarchyPrepare;
 
 use crate::common::TestContext;
-
-pub mod common;
+use crate::common::TestContextBuilder;
 
 // textDocument/prepareCallHierarchy
 async fn call_hierarchy_request(
@@ -64,7 +63,7 @@ async fn outgoing_calls_request(
 }
 
 async fn setup() -> TestContext {
-    let mut ctx = TestContext::new("call_hierarchy");
+    let mut ctx = TestContextBuilder::new("call_hierarchy").build();
     ctx.initialize().await;
     ctx
 }

@@ -157,7 +157,7 @@ impl Analysis {
 
         (self.init)();
 
-        let validator = Box::new(move || {
+        let validator = move || {
             let mut validator = Validator::default();
 
             if self.enabled_lint_tags.count() > 0 {
@@ -171,7 +171,7 @@ impl Analysis {
             }
 
             validator
-        });
+        };
 
         let mut analyzer = Analyzer::new_with_validator(
             config,
