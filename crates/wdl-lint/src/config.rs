@@ -242,6 +242,12 @@ impl Config {
         self.0.get(rule_id).and_then(|c| c.severity)
     }
 
+    /// Sets the severity override for a rule, creating an entry with default
+    /// parameters if one does not already exist.
+    pub fn set_severity(&mut self, rule_id: &str, severity: RuleSeverity) {
+        self.0.entry(rule_id.to_string()).or_default().severity = Some(severity);
+    }
+
     /// Iterates over the configured rules and their settings.
     pub fn iter(&self) -> impl Iterator<Item = (&String, &RuleConfig)> {
         self.0.iter()

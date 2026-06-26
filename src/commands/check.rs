@@ -68,6 +68,45 @@ pub struct Common {
     )]
     pub except: Vec<String>,
 
+    /// Sets a rule's severity to error.
+    ///
+    /// Repeat the flag to escalate multiple rules. Takes precedence over
+    /// severities set in config files.
+    #[clap(long, value_name = "RULE",
+        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        ignore_case = true,
+        action = clap::ArgAction::Append,
+        num_args = 1,
+        hide_possible_values = true,
+    )]
+    pub deny: Vec<String>,
+
+    /// Sets a rule's severity to warning.
+    ///
+    /// Repeat the flag to set multiple rules. Takes precedence over severities
+    /// set in config files.
+    #[clap(long, value_name = "RULE",
+        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        ignore_case = true,
+        action = clap::ArgAction::Append,
+        num_args = 1,
+        hide_possible_values = true,
+    )]
+    pub warn: Vec<String>,
+
+    /// Sets a rule's severity to note.
+    ///
+    /// Repeat the flag to set multiple rules. Takes precedence over severities
+    /// set in config files.
+    #[clap(long, value_name = "RULE",
+        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        ignore_case = true,
+        action = clap::ArgAction::Append,
+        num_args = 1,
+        hide_possible_values = true,
+    )]
+    pub note: Vec<String>,
+
     /// Enable all lint rules. This includes additional rules outside the
     /// default set.
     ///
@@ -281,14 +320,46 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         TagSet::new(&[])
     };
 
+    // Overlay the CLI severity flags onto the configured per-rule severities.
+    // Command line flags take precedence over the configuration file. `note`,
+    // `warn`, then `deny` are applied in order so that the strongest flag wins
+    // if a rule appears under more than one.
+    let cli_severities = args
+        .common
+        .note
+        .iter()
+        .map(|r| (r, wdl::lint::RuleSeverity::Note))
+        .chain(
+            args.common
+                .warn
+                .iter()
+                .map(|r| (r, wdl::lint::RuleSeverity::Warning)),
+        )
+        .chain(
+            args.common
+                .deny
+                .iter()
+                .map(|r| (r, wdl::lint::RuleSeverity::Error)),
+        )
+        .collect::<Vec<_>>();
+
+    let mut lint_config = config.check.rules.lint_config().clone();
+    let mut analysis_overrides = config.check.rules.analysis_severity_overrides();
+    let mut force_enabled = config.check.rules.enabled_rules();
+    for (rule, severity) in &cli_severities {
+        lint_config.set_severity(rule, *severity);
+        analysis_overrides.insert((*rule).clone(), severity.as_severity());
+        force_enabled.push((*rule).clone());
+    }
+
     let results = Analysis::default()
         .extend_sources(sources)
         .extend_exceptions(except)
         .enabled_lint_tags(enabled_tags)
         .disabled_lint_tags(disabled_tags)
-        .lint_config(config.check.rules.lint_config().clone())
-        .analysis_severity_overrides(config.check.rules.analysis_severity_overrides())
-        .force_enabled_rules(config.check.rules.enabled_rules())
+        .lint_config(lint_config)
+        .analysis_severity_overrides(analysis_overrides)
+        .force_enabled_rules(force_enabled)
         .fallback_version(config.common.wdl.fallback_version.into())
         .run()
         .await
