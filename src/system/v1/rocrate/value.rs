@@ -54,7 +54,7 @@ fn external_placeholder_id(role: &str, rel: &str, basename: &str) -> String {
 }
 
 /// Encodes one path component so it cannot affect crate layout.
-fn sanitize_component(component: &str) -> String {
+pub(super) fn sanitize_component(component: &str) -> String {
     if component == "." {
         return "%2e".to_string();
     }
@@ -122,6 +122,55 @@ fn is_remote(path_str: &str) -> bool {
     path_str.contains("://")
 }
 
+/// Appends a trailing slash to directory `@id`s, per the RO-Crate convention
+/// that `Dataset` identifiers end with `/`.
+fn finalize_id(id: &str, is_dir: bool) -> String {
+    if is_dir && !id.ends_with('/') {
+        format!("{id}/")
+    } else {
+        id.to_string()
+    }
+}
+
+/// Ensures a path is a regular file (or a directory when `is_dir`), rejecting
+/// FIFOs, devices, sockets, and type mismatches that could hang or corrupt a
+/// copy/checksum.
+fn ensure_regular_or_dir(path: &Path, is_dir: bool) -> Result<()> {
+    let meta =
+        std::fs::metadata(path).with_context(|| format!("inspecting `{}`", path.display()))?;
+    if is_dir {
+        anyhow::ensure!(
+            meta.is_dir(),
+            "expected a directory at `{}`",
+            path.display()
+        );
+    } else {
+        anyhow::ensure!(
+            meta.is_file(),
+            "cannot represent non-regular file `{}` in the crate",
+            path.display()
+        );
+    }
+    Ok(())
+}
+
+/// Rejects symlinks and non-regular files before localizing an external value.
+fn ensure_localizable(src: &Path, is_dir: bool) -> Result<()> {
+    let meta = std::fs::symlink_metadata(src).with_context(|| {
+        format!(
+            "inspecting data value `{}` before localization",
+            src.display()
+        )
+    })?;
+    anyhow::ensure!(
+        !meta.file_type().is_symlink(),
+        "cannot localize symlink `{}` into the crate; rerun with \
+         `--no-ro-crate-localize` to record an external reference instead",
+        src.display()
+    );
+    ensure_regular_or_dir(src, is_dir)
+}
+
 /// Determines the crate-relative `@id` for a data value, copying local files and
 /// directories under `inputs/`/`outputs/` when `opts.localize`, else returning an
 /// `external/` placeholder plus a redacted original-location marker. Returns any
@@ -134,21 +183,29 @@ fn localize_data_path(
     crate_root: &Path,
     opts: &RoCrateOptions,
 ) -> Result<(String, Vec<(&'static str, EntityValue)>)> {
-    let basename = Path::new(src)
+    let src_path = Path::new(src);
+    let basename = src_path
         .file_name()
         .and_then(|n| n.to_str())
         .unwrap_or("data");
 
     // Already inside the crate root (e.g. run outputs): reference in place.
-    if let Ok(rel_existing) = Path::new(src).strip_prefix(crate_root)
-        && let Some(s) = rel_existing.to_str()
+    // Canonicalize both sides so a `..` segment or a symlink whose target escapes
+    // the crate root is NOT treated as in-crate; such paths fall through to the
+    // rejection logic below rather than being silently followed.
+    if let Ok(canon_root) = crate_root.canonicalize()
+        && let Ok(canon_src) = src_path.canonicalize()
+        && let Ok(rel_existing) = canon_src.strip_prefix(&canon_root)
+        && let Some(rel_str) = rel_existing.to_str()
     {
-        return Ok((s.to_string(), Vec::new()));
+        ensure_regular_or_dir(&canon_src, is_dir)?;
+        return Ok((finalize_id(rel_str, is_dir), Vec::new()));
     }
 
     if !opts.localize {
-        // Record that an external value exists, without leaking the host path.
-        let id = external_placeholder_id(role, rel, basename);
+        // Record that an external value exists, without leaking the host path or
+        // traversing its contents.
+        let id = finalize_id(&external_placeholder_id(role, rel, basename), is_dir);
         let marker = vec![(
             "contentLocation",
             EntityValue::EntityString("[redacted: external, not localized]".to_string()),
@@ -165,21 +222,15 @@ fn localize_data_path(
              `--no-ro-crate-localize` to record an external reference instead"
         );
     }
-    let metadata = std::fs::symlink_metadata(src)
-        .with_context(|| format!("inspecting data value `{src}` before localization"))?;
-    anyhow::ensure!(
-        !metadata.file_type().is_symlink(),
-        "cannot localize symlink `{src}` into the crate; rerun with \
-         `--no-ro-crate-localize` to record an external reference instead"
-    );
+    ensure_localizable(src_path, is_dir)?;
 
-    let id = format!(
+    let base = format!(
         "{}/{}/{}",
         sanitize_component(role),
         sanitize_relative_path(rel),
         sanitize_component(basename)
     );
-    let dest = crate_root.join(&id);
+    let dest = crate_root.join(&base);
     anyhow::ensure!(
         dest.starts_with(crate_root),
         "localized crate path escaped the crate root"
@@ -189,12 +240,12 @@ fn localize_data_path(
             .with_context(|| format!("creating crate directory `{}`", parent.display()))?;
     }
     if is_dir {
-        copy_dir_recursive(Path::new(src), &dest)
+        copy_dir_recursive(src_path, &dest)
             .with_context(|| format!("localizing directory `{src}`"))?;
     } else {
         std::fs::copy(src, &dest).with_context(|| format!("localizing file `{src}`"))?;
     }
-    Ok((id, Vec::new()))
+    Ok((finalize_id(&base, is_dir), Vec::new()))
 }
 
 /// Pushes a child `File` entity (with size and optional checksum) for every
@@ -218,10 +269,20 @@ fn directory_part_entities(
             let file_type = entry
                 .file_type()
                 .with_context(|| format!("reading file type for `{}`", path.display()))?;
+            anyhow::ensure!(
+                !file_type.is_symlink(),
+                "refusing to follow symlink `{}` inside a crate directory",
+                path.display()
+            );
             if file_type.is_dir() {
                 stack.push(path);
                 continue;
             }
+            anyhow::ensure!(
+                file_type.is_file(),
+                "refusing to include non-regular file `{}` in the crate",
+                path.display()
+            );
             let rel = path
                 .strip_prefix(dir_abs)
                 .with_context(|| format!("relativizing localized file `{}`", path.display()))?;
@@ -269,27 +330,35 @@ fn data_entity(
         .unwrap_or(&id)
         .to_string();
 
+    let is_external = id.starts_with("external/");
     // Where the materialized bytes live: under the crate for localized/in-place
-    // values, or at the original source for external (non-localized) values.
-    let stat_path: PathBuf = if id.starts_with("external/") {
+    // values, or at the original source for external (non-localized) values. The
+    // crate-relative id may carry a trailing slash (directories), so trim it when
+    // forming a filesystem path.
+    let stat_path: PathBuf = if is_external {
         PathBuf::from(src)
     } else {
-        crate_root.join(&id)
+        crate_root.join(id.trim_end_matches('/'))
     };
 
     let mut props = vec![("name", EntityValue::EntityString(name))];
     props.extend(extra);
 
     if is_dir {
-        let parts = directory_part_entities(&id, &stat_path, opts, graph)?;
-        if !parts.is_empty() {
-            props.push(("hasPart", EntityValue::EntityId(Id::IdArray(parts))));
+        // Enumerate only directories whose bytes live in the crate (localized or
+        // in-place). External, non-localized directories are referenced as a
+        // placeholder without traversing or checksumming host contents.
+        if !is_external {
+            let parts = directory_part_entities(id.trim_end_matches('/'), &stat_path, opts, graph)?;
+            if !parts.is_empty() {
+                props.push(("hasPart", EntityValue::EntityId(Id::IdArray(parts))));
+            }
         }
-    } else {
-        if let Ok(meta) = std::fs::metadata(&stat_path) {
-            props.push(("contentSize", EntityValue::Entityi64(meta.len() as i64)));
-        }
+    } else if let Ok(meta) = std::fs::metadata(&stat_path) {
+        props.push(("contentSize", EntityValue::Entityi64(meta.len() as i64)));
+        // Only checksum genuine regular files; hashing a FIFO/device would hang.
         if opts.checksums
+            && meta.is_file()
             && let Ok(hex) = sha256_hex(&stat_path)
         {
             props.push(("sha256", EntityValue::EntityString(hex)));
@@ -758,5 +827,90 @@ mod tests {
 
         assert!(err.to_string().contains("unknown ro-crate value prefix"));
         assert!(graph.is_empty());
+    }
+
+    #[test]
+    fn localized_directory_id_has_trailing_slash() -> Result<()> {
+        let src_dir = tempfile::tempdir()?;
+        std::fs::write(src_dir.path().join("a.txt"), b"a")?;
+        let crate_dir = tempfile::tempdir()?;
+        let opts = RoCrateOptions::from_flags(true, false, false, false);
+        let mut graph = Vec::new();
+
+        let id = data_entity(
+            src_dir.path().to_str().unwrap(),
+            true,
+            "inputs",
+            "d",
+            crate_dir.path(),
+            &opts,
+            &mut graph,
+        )?;
+
+        assert!(id.ends_with('/'), "directory id should end with `/`: {id}");
+        let json = serde_json::to_string(&graph).unwrap();
+        assert!(json.contains("Dataset"));
+        assert!(
+            json.contains("a.txt"),
+            "localized child file should be listed"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn external_directory_is_not_traversed() -> Result<()> {
+        let src_dir = tempfile::tempdir()?;
+        std::fs::write(src_dir.path().join("secret.txt"), b"s")?;
+        let crate_dir = tempfile::tempdir()?;
+        // no_localize = true
+        let opts = RoCrateOptions::from_flags(true, false, false, true);
+        let mut graph = Vec::new();
+
+        let id = data_entity(
+            src_dir.path().to_str().unwrap(),
+            true,
+            "inputs",
+            "d",
+            crate_dir.path(),
+            &opts,
+            &mut graph,
+        )?;
+
+        assert!(id.starts_with("external/") && id.ends_with('/'));
+        let json = serde_json::to_string(&graph).unwrap();
+        assert!(
+            !json.contains("secret.txt"),
+            "external directory contents must not be enumerated"
+        );
+        assert!(!json.contains("hasPart"));
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn in_crate_symlink_escape_is_rejected() -> Result<()> {
+        let outside = tempfile::tempdir()?;
+        let secret = outside.path().join("secret.txt");
+        std::fs::write(&secret, b"x")?;
+        let crate_dir = tempfile::tempdir()?;
+        let link = crate_dir.path().join("link.txt");
+        std::os::unix::fs::symlink(&secret, &link)?;
+        let opts = RoCrateOptions::from_flags(true, false, false, false);
+        let mut graph = Vec::new();
+
+        let result = data_entity(
+            link.to_str().unwrap(),
+            false,
+            "outputs",
+            "o",
+            crate_dir.path(),
+            &opts,
+            &mut graph,
+        );
+        assert!(
+            result.is_err(),
+            "a symlink in the crate root that escapes it must be rejected"
+        );
+        Ok(())
     }
 }

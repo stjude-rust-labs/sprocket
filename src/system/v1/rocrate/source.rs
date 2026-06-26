@@ -17,11 +17,13 @@ use super::WORKFLOW_ID;
 /// Derives a crate-relative `workflow/`-rooted file name for an import URL,
 /// collision-renaming repeated basenames using `used`.
 fn import_path_for(url: &Url, used: &mut HashSet<String>) -> String {
-    let base = url
+    let raw = url
         .path_segments()
         .and_then(|mut s| s.next_back())
         .filter(|s| !s.is_empty())
         .unwrap_or("import.wdl");
+    let base = super::value::sanitize_component(raw);
+    let base = base.as_str();
     let mut candidate = format!("workflow/{base}");
     let mut n = 1;
     while used.contains(&candidate) {
