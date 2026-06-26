@@ -471,3 +471,24 @@ pub fn explain(args: Args) -> CommandResult<()> {
 
     unreachable!();
 }
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashSet;
+
+    /// The unified `[check.rules]` configuration namespace relies on rule IDs
+    /// being globally unique across `wdl-analysis` and `wdl-lint`.
+    #[test]
+    fn rule_ids_are_globally_unique() {
+        let analysis: HashSet<&str> = wdl::analysis::ALL_RULE_IDS
+            .iter()
+            .map(String::as_str)
+            .collect();
+        for id in wdl::lint::ALL_RULE_IDS.iter() {
+            assert!(
+                !analysis.contains(id.as_str()),
+                "rule id `{id}` is defined in both `wdl-analysis` and `wdl-lint`"
+            );
+        }
+    }
+}
