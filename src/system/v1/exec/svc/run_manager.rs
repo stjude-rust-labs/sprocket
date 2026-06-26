@@ -17,6 +17,7 @@ use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::Events;
 
+use crate::analysis::Source;
 use crate::config::Config;
 use crate::config::FallbackVersion;
 use crate::config::ServerConfig;
@@ -273,7 +274,13 @@ impl RunManagerSvc {
         target: Option<String>,
         index_on: Option<String>,
     ) -> Result<SubmitResponse, SubmitRunError> {
-        let source = validate_source(&source, &self.config)?;
+        let source = match validate_source(&source, &self.config)? {
+            Source::Directory(dir) => {
+                crate::analysis::resolve_module_entrypoint(&dir, self.feature_flags)
+                    .map_err(SubmitRunError::Analysis)?
+            }
+            source => source,
+        };
 
         let (run_id, run_generated_name, _) = create_run_record(
             self.db.as_ref(),
