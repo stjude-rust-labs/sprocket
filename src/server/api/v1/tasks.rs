@@ -293,3 +293,97 @@ pub async fn get_task_logs(
         next_token,
     }))
 }
+
+#[cfg(test)]
+mod tests {
+    use tokio::sync::mpsc;
+
+    use super::*;
+
+    fn app_state() -> AppState {
+        let (run_manager_tx, _run_manager_rx) = mpsc::channel(1);
+        AppState::builder().run_manager_tx(run_manager_tx).build()
+    }
+
+    fn db_task() -> crate::system::v1::db::Task {
+        let now = Utc::now();
+        crate::system::v1::db::Task {
+            name: "task-name".to_string(),
+            run_uuid: Uuid::nil(),
+            status: TaskStatus::Completed,
+            exit_status: Some(0),
+            error: None,
+            created_at: now,
+            started_at: Some(now),
+            completed_at: Some(now),
+        }
+    }
+
+    #[tokio::test]
+    async fn list_tasks_rejects_invalid_next_token() {
+        let query = ListTasksQueryParams {
+            run_uuid: None,
+            status: None,
+            limit: None,
+            next_token: Some("bad-token".to_string()),
+        };
+
+        let error = list_tasks(State(app_state()), Ok(Query(query)))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(error, Error::BadRequest(message) if message == "invalid `next_token`: `bad-token`")
+        );
+    }
+
+    #[tokio::test]
+    async fn get_task_logs_rejects_invalid_next_token() {
+        let query = ListTaskLogsQueryParams {
+            source: None,
+            limit: None,
+            next_token: Some("bad-token".to_string()),
+        };
+
+        let error = get_task_logs(
+            State(app_state()),
+            Path("task-name".to_string()),
+            Ok(Query(query)),
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            matches!(error, Error::BadRequest(message) if message == "invalid `next_token`: `bad-token`")
+        );
+    }
+
+    #[test]
+    fn task_response_conversions_preserve_fields() {
+        let db_task = db_task();
+        let response = GetTaskResponse::from(commands::GetTaskResponse {
+            task: db_task.clone(),
+        });
+
+        assert_eq!(response.task.name, db_task.name);
+        assert_eq!(response.task.run_uuid, db_task.run_uuid);
+        assert_eq!(response.task.status, db_task.status);
+        assert_eq!(response.task.exit_status, db_task.exit_status);
+        assert_eq!(response.task.error, db_task.error);
+        assert_eq!(response.task.created_at, db_task.created_at);
+        assert_eq!(response.task.started_at, db_task.started_at);
+        assert_eq!(response.task.completed_at, db_task.completed_at);
+
+        let log = crate::system::v1::db::TaskLog {
+            id: 7,
+            task_name: "task-name".to_string(),
+            source: LogSource::Stdout,
+            chunk: Box::from(*b"hello"),
+            created_at: Utc::now(),
+        };
+        let converted = TaskLog::from(log.clone());
+        assert_eq!(converted.id, log.id);
+        assert_eq!(converted.task_name, log.task_name);
+        assert_eq!(converted.source, log.source);
+        assert_eq!(converted.chunk, log.chunk);
+        assert_eq!(converted.created_at, log.created_at);
+    }
+}
