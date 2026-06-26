@@ -4320,9 +4320,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2b42f36aa1cd011945615b92222f6bf73c599a102a300334cd7f8dbeec726cc"
 dependencies = [
  "dyn-clone",
+ "indexmap 2.14.0",
  "ref-cast",
+ "schemars_derive",
  "serde",
  "serde_json",
+ "url",
+]
+
+[[package]]
+name = "schemars_derive"
+version = "1.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d115b50f4aaeea07e79c1912f645c7513d81715d0420f8bc77a18c6260b307f"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "serde_derive_internals",
+ "syn 2.0.118",
 ]
 
 [[package]]
@@ -4440,6 +4455,17 @@ name = "serde_derive"
 version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d540f220d3187173da220f885ab66608367b6574e925011a9353e4badda91d79"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.118",
+]
+
+[[package]]
+name = "serde_derive_internals"
+version = "0.29.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "18d26a20a969b9e3fdf2fc2d9f21eda6c40e2de84c9408bb5d3b05d499aae711"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -4765,6 +4791,7 @@ dependencies = [
  "rand 0.10.1",
  "regex",
  "reqwest",
+ "schemars 1.2.1",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -6198,6 +6225,7 @@ dependencies = [
  "anyhow",
  "clap",
  "codespan-reporting",
+ "schemars 1.2.1",
  "wdl-ast",
  "wdl-engine",
 ]
@@ -6216,6 +6244,7 @@ dependencies = [
  "path-clean",
  "pathdiff",
  "pulldown-cmark",
+ "schemars 1.2.1",
  "serde",
  "serde_json",
  "tempfile",
@@ -6260,6 +6289,7 @@ dependencies = [
  "regex",
  "rev_buf_reader",
  "rowan",
+ "schemars 1.2.1",
  "secrecy",
  "serde",
  "serde_json",
@@ -6292,6 +6322,7 @@ dependencies = [
  "libtest-mimic",
  "nonempty",
  "pretty_assertions",
+ "schemars 1.2.1",
  "thiserror",
  "toml-spanner",
  "wdl-ast",
@@ -6329,6 +6360,7 @@ dependencies = [
  "pretty_assertions",
  "rand 0.10.1",
  "rowan",
+ "schemars 1.2.1",
  "serde",
  "serde_json",
  "strsim",
@@ -6388,6 +6420,7 @@ dependencies = [
  "hex",
  "path-clean",
  "pretty_assertions",
+ "schemars 1.2.1",
  "semver",
  "serde",
  "serde_json",

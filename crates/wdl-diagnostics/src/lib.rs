@@ -12,6 +12,7 @@ use codespan_reporting::term::DisplayStyle;
 use codespan_reporting::term::emit_to_write_style;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
+use schemars::JsonSchema;
 use wdl_ast::Diagnostic;
 
 /// Configuration for full display style.
@@ -89,7 +90,7 @@ impl DiagnosticCounts {
 }
 
 /// The diagnostic mode to use for reporting diagnostics.
-#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq, JsonSchema)]
 pub enum Mode {
     /// Prints diagnostics as multiple lines.
     #[default]

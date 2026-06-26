@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added `sprocket dev test schema` subcommand to generate a [JSON schema](https://json-schema.org) for
+  Sprocket test definitions ([#953](https://github.com/stjude-rust-labs/sprocket/pull/953)).
+<!-- TODO: Add PR number -->
+* Added `sprocket config schema` subcommand to generate a [JSON schema](https://json-schema.org) for
+  `sprocket.toml` files ([#](https://github.com/stjude-rust-labs/sprocket/pull/)).
+
 ## 0.27.0 - 2026-06-26
 
 ### Added

@@ -42,6 +42,7 @@ git2 = { workspace = true, optional = true, features = ["https", "ssh"] }
 globset = { workspace = true, optional = true }
 hex = { workspace = true }
 path-clean = { workspace = true }
+schemars = { workspace = true }
 semver = { workspace = true, features = ["serde"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
