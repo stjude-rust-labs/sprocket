@@ -58,6 +58,7 @@ use crate::CancellationContext;
 use crate::EvaluationContext;
 use crate::EvaluationPath;
 use crate::Events;
+use crate::NoneValue;
 use crate::Object;
 use crate::SYSTEM;
 use crate::Value;
@@ -1868,6 +1869,26 @@ impl Condition {
             fn transferer(&self) -> &dyn Transferer {
                 self.transferer
             }
+
+            fn object_access(&self, object: &Object, name: &str) -> Option<Value> {
+                // If the object being accessed is not the hint object, let the access proceed
+                // normally
+                if !Arc::ptr_eq(&object.members, &self.request.hints.members) {
+                    return None;
+                }
+
+                // Access to the hints object first checks for a hint override in the inputs and
+                // then falls back to the task's hints; if the name is not present in either, a
+                // `None` value is returned instead of an error
+                Some(
+                    self.request
+                        .inputs
+                        .hint(name)
+                        .or_else(|| object.get(name))
+                        .cloned()
+                        .unwrap_or_else(|| NoneValue::untyped().into()),
+                )
+            }
         }
 
         /// Helper for evaluating the given expression.
@@ -1875,7 +1896,7 @@ impl Condition {
         /// Returns a diagnostic that will be converted to any `anyhow::Error`
         /// by the caller.
         async fn eval(context: Context<'_>, expr: &Expr<SyntaxNode>) -> Result<bool, Diagnostic> {
-            let mut evaluator = ExprEvaluator::new(context).allow_unknown_object_members();
+            let mut evaluator = ExprEvaluator::new(context);
             let value = evaluator.evaluate_expr(expr).await?;
             match value.as_boolean() {
                 Some(res) => Ok(res),
@@ -2887,6 +2908,7 @@ mod test {
 
     use super::*;
     use crate::ONE_GIBIBYTE;
+    use crate::TaskInputs;
     use crate::backend::TaskExecutionConstraints;
     use crate::http::Location;
     use crate::v1::DEFAULT_TASK_REQUIREMENT_CPU;
@@ -3600,6 +3622,7 @@ type = 'lsf_apptainer'
             gpu: bool,
             fpga: bool,
             disks: i64,
+            inputs: TaskInputs,
             hints: Object,
         }
 
@@ -3611,6 +3634,7 @@ type = 'lsf_apptainer'
                     gpu: false,
                     fpga: false,
                     disks: (DEFAULT_TASK_REQUIREMENT_DISKS * ONE_GIBIBYTE) as i64,
+                    inputs: Default::default(),
                     hints: Default::default(),
                 }
             }
@@ -3658,7 +3682,7 @@ type = 'lsf_apptainer'
                     &ExecuteTaskRequest {
                         id: "test",
                         command: "",
-                        inputs: &Default::default(),
+                        inputs: &context.inputs,
                         backend_inputs: &[],
                         requirements: &Object::empty(),
                         hints: &context.hints,
@@ -3720,6 +3744,7 @@ type = 'lsf_apptainer'
                     gpu: true,
                     fpga: true,
                     disks: 1024 * 1024,
+                    inputs: Default::default(),
                     hints: Object::new(IndexMap::from_iter([(
                         "foo".into(),
                         "hi".to_string().into()
@@ -3729,6 +3754,22 @@ type = 'lsf_apptainer'
             )
             .await
             .unwrap(),
+            true
+        );
+
+        // Check for input hint override
+        let mut context = Context {
+            hints: Object::new(IndexMap::from_iter([(
+                "foo".into(),
+                "hi".to_string().into(),
+            )])),
+            ..Default::default()
+        };
+        context
+            .inputs
+            .override_hint("foo", "overridden!".to_string());
+        assert_eq!(
+            eval(context, r#"hint.foo == "overridden!""#).await.unwrap(),
             true
         );
     }

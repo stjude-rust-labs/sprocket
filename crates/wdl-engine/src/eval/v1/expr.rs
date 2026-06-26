@@ -100,7 +100,6 @@ use crate::HiddenValue;
 use crate::HintsValue;
 use crate::InputValue;
 use crate::Map;
-use crate::NoneValue;
 use crate::Object;
 use crate::OutputValue;
 use crate::Pair;
@@ -143,9 +142,6 @@ pub(crate) struct ExprEvaluator<C> {
     /// Tracks whether or not a `None`-resulting expression was evaluated during
     /// a placeholder evaluation.
     evaluated_none: bool,
-    /// Whether or not unknown object members will evaluate to `None` instead of
-    /// being treated as an error.
-    allow_unknown_object_members: bool,
 }
 
 impl<C: EvaluationContext> ExprEvaluator<C> {
@@ -155,17 +151,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             context,
             placeholders: 0,
             evaluated_none: false,
-            allow_unknown_object_members: false,
         }
-    }
-
-    /// Used to allow unknown object members during evaluation.
-    ///
-    /// An unknown object member will evaluate to `None` instead of causing an
-    /// error.
-    pub(crate) fn allow_unknown_object_members(mut self) -> Self {
-        self.allow_unknown_object_members = true;
-        self
     }
 
     /// Gets the context associated with the evaluator.
@@ -1496,11 +1482,11 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     &name,
                 )),
             },
-            Value::Compound(CompoundValue::Object(object)) => match object.get(name.text()) {
-                Some(value) => Ok(value.clone()),
-                None if self.allow_unknown_object_members => Ok(NoneValue::untyped().into()),
-                None => Err(not_an_object_member(&name)),
-            },
+            Value::Compound(CompoundValue::Object(object)) => self
+                .context
+                .object_access(&object, name.text())
+                .or_else(|| object.get(name.text()).cloned())
+                .ok_or_else(|| not_an_object_member(&name)),
             Value::Hidden(HiddenValue::TaskPreEvaluation(task)) => match task.field(name.text()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_a_task_member(&name)),
