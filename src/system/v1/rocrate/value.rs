@@ -457,10 +457,10 @@ pub fn value_to_entities(
     opts: &RoCrateOptions,
     graph: &mut Vec<GraphVector>,
 ) -> Result<String> {
-    let role = if id_prefix == "input" {
-        "inputs"
-    } else {
-        "outputs"
+    let role = match id_prefix {
+        "input" => "inputs",
+        "output" => "outputs",
+        other => anyhow::bail!("unknown ro-crate value prefix `{other}`"),
     };
     value_to_entities_roled(id_prefix, role, name, value, crate_root, opts, graph)
 }
@@ -739,5 +739,24 @@ mod tests {
         assert!(graph.is_empty());
 
         Ok(())
+    }
+
+    #[test]
+    fn value_to_entities_rejects_unknown_prefixes() {
+        let opts = RoCrateOptions::from_flags(true, false, false, false);
+        let mut graph = Vec::new();
+        let Err(err) = value_to_entities(
+            "parameter",
+            "item",
+            &Value::from("value".to_string()),
+            Path::new("/tmp"),
+            &opts,
+            &mut graph,
+        ) else {
+            panic!("unknown prefix unexpectedly succeeded");
+        };
+
+        assert!(err.to_string().contains("unknown ro-crate value prefix"));
+        assert!(graph.is_empty());
     }
 }
