@@ -314,6 +314,18 @@ mod test {
     }
 
     #[test]
+    fn severity_round_trips_through_toml() {
+        let config: Config =
+            toml_spanner::from_str("[ContainerUri]\nseverity = \"warning\"\n").unwrap();
+        let serialized = toml_spanner::to_string(&config).unwrap();
+        let reparsed: Config = toml_spanner::from_str(&serialized).unwrap();
+        assert_eq!(
+            reparsed.severity_override("ContainerUri"),
+            Some(RuleSeverity::Warning)
+        );
+    }
+
+    #[test]
     fn params_describe_applicable_rules() {
         let params = Config::params();
         let allowed_names = params

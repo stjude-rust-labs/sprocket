@@ -23,12 +23,14 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use dyn_clone::DynClone;
 use strum::VariantArray;
 use wdl_analysis::Example;
 use wdl_analysis::Visitor;
+use wdl_ast::Severity;
 use wdl_ast::SyntaxKind;
 
 pub mod baseline;
@@ -54,6 +56,22 @@ pub use wdl_ast as ast;
 
 /// The definitions of WDL concepts and terminology used in the linting rules.
 pub const DEFINITIONS_TEXT: &str = include_str!("../DEFINITIONS.md");
+
+/// Builds the map of rule id to overridden severity from a [`Config`].
+///
+/// Rules disabled via `severity = "off"` are not included; callers disable
+/// those rules by excluding them from the linter's rule set. Rules without a
+/// severity override are also omitted, leaving their built-in severity intact.
+pub fn severity_overrides(config: &Config) -> HashMap<String, Severity> {
+    config
+        .iter()
+        .filter_map(|(id, rule)| {
+            rule.severity
+                .and_then(|s| s.as_severity())
+                .map(|severity| (id.clone(), severity))
+        })
+        .collect()
+}
 
 /// All rule IDs sorted alphabetically.
 pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
