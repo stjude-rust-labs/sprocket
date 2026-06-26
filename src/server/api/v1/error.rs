@@ -51,8 +51,11 @@ pub enum Error {
 }
 
 impl From<DatabaseError> for Error {
-    fn from(_err: DatabaseError) -> Self {
-        Self::Internal
+    fn from(err: DatabaseError) -> Self {
+        match err {
+            DatabaseError::NotFound => Self::NotFound(err.to_string()),
+            _ => Self::Internal,
+        }
     }
 }
 
@@ -195,6 +198,17 @@ mod tests {
             StatusCode::INTERNAL_SERVER_ERROR,
             "Internal",
             INTERNAL_ERROR_MESSAGE,
+        )
+        .await;
+    }
+
+    #[tokio::test]
+    async fn database_not_found_maps_to_not_found_response() {
+        assert_error_response(
+            Error::from(DatabaseError::NotFound),
+            StatusCode::NOT_FOUND,
+            "NotFound",
+            "not found",
         )
         .await;
     }

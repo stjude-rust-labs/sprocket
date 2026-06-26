@@ -14,6 +14,7 @@ use sprocket::server::create_router;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::Run;
 use sprocket::system::v1::db::RunStatus;
+use sprocket::system::v1::db::SprocketCommand;
 use sprocket::system::v1::db::SqliteDatabase;
 use sprocket::system::v1::db::TaskStatus;
 use sprocket::system::v1::exec::svc::RunManagerCmd;
@@ -2090,4 +2091,124 @@ async fn invalid_next_token_returns_error(pool: sqlx::SqlitePool) {
             .unwrap()
             .contains("invalid `next_token`")
     );
+}
+
+#[sqlx::test]
+async fn list_runs_returns_empty_initially(pool: sqlx::SqlitePool) {
+    let (app, ..) = create_test_server().pool(pool).call().await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/runs")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["total"], 0);
+    assert!(json["runs"].as_array().unwrap().is_empty());
+}
+
+#[sqlx::test]
+async fn get_run_returns_seeded_run(pool: sqlx::SqlitePool) {
+    let (app, db, ..) = create_test_server().pool(pool).call().await;
+    let session_id = uuid::Uuid::new_v4();
+    let run_id = uuid::Uuid::new_v4();
+
+    db.create_session(session_id, SprocketCommand::Server, "tester")
+        .await
+        .unwrap();
+    db.create_run(
+        run_id,
+        session_id,
+        "seeded-run",
+        "workflow.wdl",
+        Some("workflow"),
+        r#"{"workflow.message":"hello"}"#,
+    )
+    .await
+    .unwrap();
+    db.update_run_outputs(run_id, r#"{"workflow.result":"ok"}"#)
+        .await
+        .unwrap();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/runs/{run_id}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["uuid"], run_id.to_string());
+    assert_eq!(json["session_uuid"], session_id.to_string());
+    assert_eq!(json["name"], "seeded-run");
+    assert_eq!(json["source"], "workflow.wdl");
+    assert_eq!(json["target"], "workflow");
+    assert_eq!(json["status"], "queued");
+    assert_eq!(json["inputs"], r#"{"workflow.message":"hello"}"#);
+    assert_eq!(json["outputs"], r#"{"workflow.result":"ok"}"#);
+}
+
+#[sqlx::test]
+async fn submit_run_rejects_non_object_inputs(pool: sqlx::SqlitePool) {
+    let (app, ..) = create_test_server().pool(pool).call().await;
+    let submit_request = json!({
+        "source": "workflow.wdl",
+        "inputs": [],
+    });
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/runs")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["message"], "inputs must be a JSON object");
+}
+
+#[sqlx::test]
+async fn missing_run_action_endpoints_return_404(pool: sqlx::SqlitePool) {
+    let (app, ..) = create_test_server().pool(pool).call().await;
+    let run_id = uuid::Uuid::new_v4();
+
+    for (method, uri) in [
+        ("POST", format!("/api/v1/runs/{run_id}/cancel")),
+        ("GET", format!("/api/v1/runs/{run_id}/outputs")),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(method)
+                    .uri(uri)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
 }

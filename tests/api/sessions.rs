@@ -281,3 +281,29 @@ async fn list_sessions_with_pagination(pool: sqlx::SqlitePool) {
         "`next_token` beyond available items should return empty"
     );
 }
+
+#[sqlx::test]
+async fn invalid_session_next_token_returns_error(pool: sqlx::SqlitePool) {
+    let (app, ..) = create_test_server().pool(pool).call().await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/sessions?next_token=not_a_number")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let error: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert!(
+        error["message"]
+            .as_str()
+            .unwrap()
+            .contains("invalid `next_token`")
+    );
+}
