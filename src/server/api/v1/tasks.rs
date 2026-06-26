@@ -17,9 +17,33 @@ use super::AppState;
 use super::LogSource;
 use super::TaskStatus;
 use super::error::Error;
+use super::pagination::decode_token;
+use super::pagination::encode_token;
 use super::send_command;
+use crate::system::v1::db::TaskCursor;
+use crate::system::v1::db::TaskLogCursor;
 use crate::system::v1::exec::svc::RunManagerCmd;
 use crate::system::v1::exec::svc::run_manager::commands;
+
+/// Cursor payload used for task pagination tokens.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TasksCursorToken {
+    /// Creation time of the last task on the previous page.
+    created_at: DateTime<Utc>,
+    /// Name of the last task on the previous page.
+    name: String,
+}
+
+/// Cursor payload used for task log pagination tokens.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct TaskLogsCursorToken {
+    /// Creation time of the last task log on the previous page.
+    created_at: DateTime<Utc>,
+    /// Row id of the last task log on the previous page.
+    id: i64,
+}
 
 /// Query parameters for listing tasks.
 #[derive(Debug, Clone, Serialize, Deserialize, IntoParams, ToSchema)]
@@ -34,7 +58,8 @@ pub struct ListTasksQueryParams {
     #[serde(default)]
     pub limit: Option<i64>,
     /// Token for pagination. It is expected that clients pass the value from a
-    /// previous response to retrieve the next page.
+    /// previous response to retrieve the next page. Legacy numeric tokens are
+    /// not supported.
     #[serde(default)]
     pub next_token: Option<String>,
 }
@@ -49,7 +74,8 @@ pub struct ListTaskLogsQueryParams {
     #[serde(default)]
     pub limit: Option<i64>,
     /// Token for pagination. It is expected that clients pass the value from a
-    /// previous response to retrieve the next page.
+    /// previous response to retrieve the next page. Legacy numeric tokens are
+    /// not supported.
     #[serde(default)]
     pub next_token: Option<String>,
 }
@@ -95,7 +121,9 @@ impl From<crate::system::v1::db::Task> for Task {
 pub struct ListTasksResponse {
     /// The tasks.
     pub tasks: Vec<Task>,
-    /// Total count before pagination.
+    /// Total count matching filters before applying cursor pagination.
+    ///
+    /// This is retained for compatibility with existing clients.
     pub total: i64,
     /// Next token for pagination. Pass this value as `next_token` in the next
     /// request to retrieve the next page of results.
@@ -151,7 +179,9 @@ impl From<crate::system::v1::db::TaskLog> for TaskLog {
 pub struct ListTaskLogsResponse {
     /// The task logs.
     pub logs: Vec<TaskLog>,
-    /// Total count before pagination.
+    /// Total count matching filters before applying cursor pagination.
+    ///
+    /// This is retained for compatibility with existing clients.
     pub total: i64,
     /// Next token for pagination. Pass this value as `next_token` in the next
     /// request to retrieve the next page of results.
@@ -180,26 +210,48 @@ pub async fn list_tasks(
         _ => Error::BadRequest("invalid query parameters".to_string()),
     })?;
 
-    let offset = match query.next_token.as_deref() {
-        Some(t) => t
-            .parse::<i64>()
-            .map_err(|_| Error::BadRequest(format!("invalid `next_token`: `{}`", t)))?,
-        None => 0,
+    let cursor = match query.next_token.as_deref() {
+        Some(token) => {
+            let parsed: TasksCursorToken = decode_token(token).map_err(Error::BadRequest)?;
+            Some(TaskCursor {
+                created_at: parsed.created_at,
+                name: parsed.name,
+            })
+        }
+        None => None,
     };
-    let limit = query.limit.unwrap_or(100);
 
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListTasks {
+    let limit = query.limit.unwrap_or(100);
+    let db_limit = if limit > 0 {
+        Some(limit.saturating_add(1))
+    } else {
+        Some(limit)
+    };
+
+    let mut response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListTasks {
         run_id: query.run_uuid,
         status: query.status,
-        limit: query.limit,
-        offset: Some(offset),
+        limit: db_limit,
+        cursor,
         rx,
     })
     .await?;
 
-    let next_offset = offset + limit;
-    let next_token = if next_offset < response.total {
-        Some(next_offset.to_string())
+    let has_more = if limit > 0 && response.tasks.len() > limit as usize {
+        response.tasks.truncate(limit as usize);
+        true
+    } else {
+        false
+    };
+
+    let next_token = if has_more {
+        response.tasks.last().and_then(|task| {
+            encode_token(&TasksCursorToken {
+                created_at: task.created_at,
+                name: task.name.clone(),
+            })
+            .ok()
+        })
     } else {
         None
     };
@@ -263,26 +315,48 @@ pub async fn get_task_logs(
         _ => Error::BadRequest("invalid query parameters".to_string()),
     })?;
 
-    let offset = match query.next_token.as_deref() {
-        Some(t) => t
-            .parse::<i64>()
-            .map_err(|_| Error::BadRequest(format!("invalid `next_token`: `{}`", t)))?,
-        None => 0,
+    let cursor = match query.next_token.as_deref() {
+        Some(token) => {
+            let parsed: TaskLogsCursorToken = decode_token(token).map_err(Error::BadRequest)?;
+            Some(TaskLogCursor {
+                created_at: parsed.created_at,
+                id: parsed.id,
+            })
+        }
+        None => None,
     };
-    let limit = query.limit.unwrap_or(100);
 
-    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetTaskLogs {
+    let limit = query.limit.unwrap_or(100);
+    let db_limit = if limit > 0 {
+        Some(limit.saturating_add(1))
+    } else {
+        Some(limit)
+    };
+
+    let mut response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetTaskLogs {
         name,
         stream: query.source,
-        limit: query.limit,
-        offset: Some(offset),
+        limit: db_limit,
+        cursor,
         rx,
     })
     .await?;
 
-    let next_offset = offset + limit;
-    let next_token = if next_offset < response.total {
-        Some(next_offset.to_string())
+    let has_more = if limit > 0 && response.logs.len() > limit as usize {
+        response.logs.truncate(limit as usize);
+        true
+    } else {
+        false
+    };
+
+    let next_token = if has_more {
+        response.logs.last().and_then(|log| {
+            encode_token(&TaskLogsCursorToken {
+                created_at: log.created_at,
+                id: log.id,
+            })
+            .ok()
+        })
     } else {
         None
     };

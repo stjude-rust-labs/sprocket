@@ -2,7 +2,9 @@
 
 use chrono::Utc;
 use sprocket::system::v1::db::Database;
+use sprocket::system::v1::db::RunCursor;
 use sprocket::system::v1::db::RunStatus;
+use sprocket::system::v1::db::SessionCursor;
 use sprocket::system::v1::db::SprocketCommand;
 use sprocket::system::v1::db::SqliteDatabase;
 use sqlx::SqlitePool;
@@ -967,17 +969,28 @@ async fn list_sessions_pagination(pool: SqlitePool) {
     let all_sessions = db.list_sessions(None, None).await.unwrap();
     assert_eq!(all_sessions.len(), 10);
 
-    let first_page = db.list_sessions(Some(5), Some(0)).await.unwrap();
+    let first_page = db.list_sessions(Some(5), None).await.unwrap();
     assert_eq!(first_page.len(), 5);
 
-    let second_page = db.list_sessions(Some(5), Some(5)).await.unwrap();
+    let second_cursor = SessionCursor {
+        created_at: first_page[4].created_at,
+        uuid: first_page[4].uuid,
+    };
+    let second_page = db
+        .list_sessions(Some(5), Some(second_cursor))
+        .await
+        .unwrap();
     assert_eq!(second_page.len(), 5);
 
-    let small_page = db.list_sessions(Some(3), Some(0)).await.unwrap();
+    let small_page = db.list_sessions(Some(3), None).await.unwrap();
     assert_eq!(small_page.len(), 3);
 
-    let offset_page = db.list_sessions(Some(10), Some(8)).await.unwrap();
-    assert_eq!(offset_page.len(), 2);
+    let tail_cursor = SessionCursor {
+        created_at: all_sessions[7].created_at,
+        uuid: all_sessions[7].uuid,
+    };
+    let cursor_page = db.list_sessions(Some(10), Some(tail_cursor)).await.unwrap();
+    assert_eq!(cursor_page.len(), 2);
 }
 
 #[sqlx::test]
@@ -1007,17 +1020,31 @@ async fn list_runs_pagination(pool: SqlitePool) {
     let all_runs = db.list_runs(None, None, None).await.unwrap();
     assert_eq!(all_runs.len(), 10);
 
-    let first_page = db.list_runs(None, Some(5), Some(0)).await.unwrap();
+    let first_page = db.list_runs(None, Some(5), None).await.unwrap();
     assert_eq!(first_page.len(), 5);
 
-    let second_page = db.list_runs(None, Some(5), Some(5)).await.unwrap();
+    let second_cursor = RunCursor {
+        created_at: first_page[4].created_at,
+        uuid: first_page[4].uuid,
+    };
+    let second_page = db
+        .list_runs(None, Some(5), Some(second_cursor))
+        .await
+        .unwrap();
     assert_eq!(second_page.len(), 5);
 
-    let small_page = db.list_runs(None, Some(3), Some(0)).await.unwrap();
+    let small_page = db.list_runs(None, Some(3), None).await.unwrap();
     assert_eq!(small_page.len(), 3);
 
-    let offset_page = db.list_runs(None, Some(10), Some(8)).await.unwrap();
-    assert_eq!(offset_page.len(), 2);
+    let tail_cursor = RunCursor {
+        created_at: all_runs[7].created_at,
+        uuid: all_runs[7].uuid,
+    };
+    let cursor_page = db
+        .list_runs(None, Some(10), Some(tail_cursor))
+        .await
+        .unwrap();
+    assert_eq!(cursor_page.len(), 2);
 }
 
 #[sqlx::test]
@@ -1305,15 +1332,15 @@ async fn pagination_with_zero_limit(pool: SqlitePool) {
         .unwrap();
     }
 
-    let workflows = db.list_runs(None, Some(0), Some(0)).await.unwrap();
+    let workflows = db.list_runs(None, Some(0), None).await.unwrap();
     assert_eq!(workflows.len(), 0);
 
-    let sessions = db.list_sessions(Some(0), Some(0)).await.unwrap();
+    let sessions = db.list_sessions(Some(0), None).await.unwrap();
     assert_eq!(sessions.len(), 0);
 }
 
 #[sqlx::test]
-async fn pagination_with_large_offset(pool: SqlitePool) {
+async fn pagination_with_large_cursor(pool: SqlitePool) {
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
 
     let session_id = Uuid::new_v4();
@@ -1335,9 +1362,38 @@ async fn pagination_with_large_offset(pool: SqlitePool) {
         .unwrap();
     }
 
-    let workflows = db.list_runs(None, Some(10), Some(100)).await.unwrap();
+    let newest_runs = db.list_runs(None, Some(1), None).await.unwrap();
+    let run_cursor = RunCursor {
+        created_at: newest_runs[0].created_at,
+        uuid: newest_runs[0].uuid,
+    };
+    let workflows = db
+        .list_runs(None, Some(10), Some(run_cursor))
+        .await
+        .unwrap();
+    assert_eq!(workflows.len(), 4);
+
+    let workflows = db
+        .list_runs(
+            None,
+            Some(10),
+            Some(RunCursor {
+                created_at: workflows[3].created_at,
+                uuid: workflows[3].uuid,
+            }),
+        )
+        .await
+        .unwrap();
     assert_eq!(workflows.len(), 0);
 
-    let sessions = db.list_sessions(Some(10), Some(100)).await.unwrap();
+    let newest_sessions = db.list_sessions(Some(1), None).await.unwrap();
+    let session_cursor = SessionCursor {
+        created_at: newest_sessions[0].created_at,
+        uuid: newest_sessions[0].uuid,
+    };
+    let sessions = db
+        .list_sessions(Some(10), Some(session_cursor))
+        .await
+        .unwrap();
     assert_eq!(sessions.len(), 0);
 }
