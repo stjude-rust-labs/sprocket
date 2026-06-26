@@ -25,6 +25,8 @@ const DOCKER_ONLY_TESTS: &[&str] = &[
     "container-fallback",
     // Disabled for local backend due to paths coming from the download cache
     "url-symlink",
+    // Error message contains a guest path
+    "subdir-output-escape",
 ];
 
 /// The set of configs that determine how a test is run.
