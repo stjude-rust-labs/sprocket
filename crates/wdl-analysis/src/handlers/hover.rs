@@ -152,6 +152,9 @@ fn resolve_hover_content(
     }
 
     for (_, ns) in document.namespaces() {
+        // SAFETY: we know `get_index` will return `Some` as `ns.source` comes from
+        // `document.namespaces` which only contains namespaces for documents that
+        // are guaranteed to be present in the graph.
         let node = graph.get(graph.get_index(ns.source()).unwrap());
         let Some(imported_doc) = node.document() else {
             continue;

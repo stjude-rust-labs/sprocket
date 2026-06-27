@@ -472,11 +472,16 @@ fn resolve_global_identifier(
     }
 
     for (_, ns) in analysis_doc.namespaces() {
+        // SAFETY: we know `get_index` will return `Some` as `ns.source` comes from
+        // `analysis_doc.namespaces` which only contains namespaces for documents that
+        // are guaranteed to be present in the graph.
         let node = graph.get(graph.get_index(ns.source()).unwrap());
         let Some(imported_doc) = node.document() else {
             continue;
         };
 
+        // SAFETY: we know `lines` will return Some as we only reach here when
+        // `node.document` is fully parsed.
         let imported_lines = node.parse_state().lines().unwrap();
 
         if let Some(location) = find_global_definition_in_doc(
@@ -565,6 +570,9 @@ fn resolve_access_expression(
 
         // Check for struct definition in imported namespaces.
         for (_, ns) in analysis_doc.namespaces() {
+            // SAFETY: `ns.source` comes from a `analysis_doc.namespaces` which
+            // only contains namespaces for documents that are guaranteed to be
+            // present in the graph.
             let node = graph.get(graph.get_index(ns.source()).unwrap());
 
             let Some(imported_doc) = node.document() else {
@@ -575,10 +583,15 @@ fn resolve_access_expression(
                 continue;
             };
 
+            // Only process structs defined in this namespace, not ones it
+            // re-imported from elsewhere.
             if original_struct.source().is_some() {
                 continue;
             };
 
+            // SAFETY: we know `lines` will return Some as we only reach here when
+            // `node.document` is fully parsed and in `ParsedState::Parse`
+            // state.
             let imported_lines = node.parse_state().lines().unwrap();
 
             let struct_node =
@@ -609,9 +622,15 @@ fn resolve_access_expression(
             })?;
 
         let (uri, def_lines) = match struct_def.source() {
+            // The struct was imported, so its definition lives in the source
+            // document the import resolved to.
             Some(source) => {
+                // SAFETY: `source` is the URI the import resolved to, which is
+                // guaranteed to be present in the graph.
                 let imported_node = graph.get(graph.get_index(source).unwrap());
 
+                // SAFETY: we successfully resolved the node above; it is in
+                // `ParseState::Parsed`, which always has a valid lines field.
                 let lines = imported_node.parse_state().lines().unwrap();
                 (source.as_ref(), lines)
             }
@@ -631,13 +650,18 @@ fn resolve_access_expression(
 
         let member_span = member.name().span();
         let span = Span::new(member_span.start() + struct_def.offset(), member_span.len());
+        // Returns found struct member definition location.
         return Ok(Some(location_from_span(uri, span, def_lines)?));
     }
 
     if let Type::TypeNameRef(CustomType::Enum(enum_ty)) = target_type {
         let original_enum_name = enum_ty.name();
 
+        // Check for enum definition in imported namespaces.
         for (_, ns) in analysis_doc.namespaces() {
+            // SAFETY: `ns.source` comes from a `analysis_doc.namespaces` which
+            // only contains namespaces for documents that are guaranteed to be
+            // present in the graph.
             let node = graph.get(graph.get_index(ns.source()).unwrap());
 
             let Some(imported_doc) = node.document() else {
@@ -648,10 +672,15 @@ fn resolve_access_expression(
                 continue;
             };
 
+            // Only process enums defined in this namespace, not ones it
+            // re-imported from elsewhere.
             if original_enum.source().is_some() {
                 continue;
             };
 
+            // SAFETY: we know `lines` will return `Some` as we only reach here
+            // when `node.document` is fully parsed and in `ParsedState::Parse`
+            // state.
             let imported_lines = node.parse_state().lines().unwrap();
 
             let enum_node =
@@ -671,6 +700,7 @@ fn resolve_access_expression(
             }
         }
 
+        // Check for enum definition in local document.
         let enum_def = analysis_doc.enum_by_name(enum_ty.name()).ok_or_else(|| {
             anyhow!(
                 "definition not found for enum `{name}`",
@@ -679,9 +709,15 @@ fn resolve_access_expression(
         })?;
 
         let (uri, def_lines) = match enum_def.source() {
+            // The enum was imported, so its definition lives in the source
+            // document the import resolved to.
             Some(source) => {
+                // SAFETY: `source` is the URI the import resolved to, which is
+                // guaranteed to be present in the graph.
                 let imported_node = graph.get(graph.get_index(source).unwrap());
 
+                // SAFETY: we successfully resolved the node above; it is in
+                // `ParseState::Parsed`, which always has a valid lines field.
                 let lines = imported_node.parse_state().lines().unwrap();
                 (source.as_ref(), lines)
             }
@@ -717,10 +753,16 @@ fn resolve_access_expression(
 
         let (uri, callee_lines) = match call_ty.namespace() {
             Some(ns_name) => {
+                // SAFETY: `namespace` returns `Some` only when the call target
+                // was imported from a namespace that exists in the document.
                 let ns = analysis_doc.namespace(ns_name).unwrap();
 
+                // SAFETY: `ns.source` comes from a valid namespace entry which
+                // guarantees the document is present in the graph.
                 let imported_node = graph.get(graph.get_index(ns.source()).unwrap());
 
+                // SAFETY: we successfully resolved the node above; it is in
+                // `ParseState::Parsed`, which always has a valid lines field.
                 let lines = imported_node.parse_state().lines().unwrap();
                 (ns.source().as_ref(), lines)
             }
@@ -745,9 +787,15 @@ fn resolve_access_expression(
         })?;
 
         let (uri, def_lines) = match enum_def.source() {
+            // The enum was imported, so its definition lives in the source
+            // document the import resolved to.
             Some(source) => {
+                // SAFETY: `source` is the URI the import resolved to, which is
+                // guaranteed to be present in the graph.
                 let imported_node = graph.get(graph.get_index(source).unwrap());
 
+                // SAFETY: we successfully resolved the node above; it is in
+                // `ParseState::Parsed`, which always has a valid lines field.
                 let lines = imported_node.parse_state().lines().unwrap();
                 (source.as_ref(), lines)
             }

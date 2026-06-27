@@ -76,6 +76,9 @@ impl Visitor for ImportsVisitor {
 
         let uri = match stmt.source() {
             v1::ImportSource::Uri(uri) => uri,
+            // Symbolic (module-path) imports are resolved and validated through
+            // the module resolver during analysis, not as plain URI imports, so
+            // there is nothing for this URI-shape validation to check here.
             v1::ImportSource::ModulePath(_) => {
                 return;
             }
