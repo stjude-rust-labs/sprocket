@@ -316,7 +316,8 @@ define_rule_params! {
     /// declarations, and struct members).
     #[rules(NamingConvention)]
     variable: CaseStyle = CaseStyle::Snake,
-    /// The case style required for user-defined type (struct) names.
+    /// The case style required for user-defined type names and their members
+    /// (struct and enum names, and enum choices).
     #[rules(NamingConvention)]
     r#type @ "type": CaseStyle = CaseStyle::Pascal,
 }
