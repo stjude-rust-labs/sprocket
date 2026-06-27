@@ -253,6 +253,9 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         .chain(config.check.except.iter())
         .cloned()
         .chain(config.check.rules.disabled_rules())
+        // Canonicalize so a deprecated alias (e.g. `SnakeCase`) excepts its
+        // current rule.
+        .map(|id| wdl::analysis::canonical_rule_id(&id).to_string())
         .filter(|id| !cli_flagged.iter().any(|f| f.eq_ignore_ascii_case(id)))
         .collect();
 
