@@ -2248,7 +2248,10 @@ fn resolve_import(
         }
         ImportSource::ModulePath(module_path) => {
             let span = module_path.span();
-            if !symbolic_imports_enabled(graph, importer_node) {
+            if !importer_node
+                .parse_state()
+                .symbolic_imports_enabled(graph.config())
+            {
                 return Err(None);
             }
 
@@ -2338,21 +2341,6 @@ fn resolve_import(
     }
 
     Ok((imported_node.uri().clone(), imported_document))
-}
-
-/// Returns whether symbolic imports may be resolved for a parsed document.
-fn symbolic_imports_enabled(graph: &DocumentGraph, node: &crate::graph::DocumentGraphNode) -> bool {
-    if !graph.config().feature_flags().wdl_1_4() {
-        return false;
-    }
-
-    matches!(
-        node.parse_state(),
-        ParseState::Parsed {
-            wdl_version: Some(version),
-            ..
-        } if *version >= SupportedVersion::V1(V1::Four)
-    )
 }
 
 /// Sets the struct types in the document.

@@ -43,9 +43,7 @@ use url::Url;
 use wdl_ast::Ast;
 use wdl_ast::Node;
 use wdl_ast::Severity;
-use wdl_ast::SupportedVersion;
 use wdl_ast::v1::ImportSource;
-use wdl_ast::version::V1;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
 use wdl_modules::module::Module;
@@ -1353,8 +1351,10 @@ where
                 {
                     None | Some(Ast::Unsupported) => {}
                     Some(Ast::V1(ast)) => {
-                        let symbolic_imports_enabled =
-                            symbolic_imports_enabled(&self.config, graph.get(index).parse_state());
+                        let symbolic_imports_enabled = graph
+                            .get(index)
+                            .parse_state()
+                            .symbolic_imports_enabled(&self.config);
                         for import in ast.imports() {
                             match import.source() {
                                 ImportSource::Uri(uri) => {
@@ -1441,16 +1441,27 @@ where
         // many dependencies cannot drive an unbounded number of parallel
         // clones or fetches.
         //
-        // Each future yields the parsed `SymbolicPath` alongside the importer
-        // and raw path text so that Phase C can stitch the results back into
-        // the graph without holding the lock during I/O and without re-parsing
-        // the path.
-        type MaterializeOutcome = (
-            NodeIndex,
-            SymbolicPath,
-            String,
-            Result<wdl_modules::resolver::MaterializedFile, wdl_modules::resolver::ResolverError>,
-        );
+        // Each future carries the importer, parsed `SymbolicPath`, raw path
+        // text, and the consumer module captured in Phase A so that Phase C can
+        // stitch the results back into the graph without holding the lock during
+        // I/O, without re-parsing the path, and without a second module lookup.
+        struct MaterializeOutcome {
+            /// The node that contains the import statement.
+            importer: NodeIndex,
+            /// The consumer module captured in Phase A. Reused to build the
+            /// child module for the materialized dependency.
+            consumer_module: wdl_modules::module::Module,
+            /// The parsed symbolic path from the import statement.
+            symbolic_path: SymbolicPath,
+            /// The raw text of the module-path token, used as the edge label
+            /// and for error messages.
+            path_text: String,
+            /// The result of the `materialize` call.
+            result: Result<
+                wdl_modules::resolver::MaterializedFile,
+                wdl_modules::resolver::ResolverError,
+            >,
+        }
 
         let materialized_results: Vec<MaterializeOutcome> = if symbolic_work.is_empty() {
             Vec::new()
@@ -1467,7 +1478,13 @@ where
                     let result = resolver
                         .materialize(&item.consumer_module, &item.symbolic_path)
                         .await;
-                    (item.importer, item.symbolic_path, item.path_text, result)
+                    MaterializeOutcome {
+                        importer: item.importer,
+                        consumer_module: item.consumer_module,
+                        symbolic_path: item.symbolic_path,
+                        path_text: item.path_text,
+                        result,
+                    }
                 }
             }))
             .buffer_unordered(MAX_CONCURRENT_MATERIALIZATIONS);
@@ -1481,8 +1498,15 @@ where
         {
             let mut graph = self.graph.write();
 
-            for (importer, symbolic_path, path_text, outcome) in materialized_results {
-                match outcome {
+            for MaterializeOutcome {
+                importer,
+                consumer_module,
+                symbolic_path,
+                path_text,
+                result,
+            } in materialized_results
+            {
+                match result {
                     Ok(materialized) => {
                         let import_uri = match Url::from_file_path(&materialized.path) {
                             Ok(u) => u,
@@ -1504,10 +1528,9 @@ where
                         // [`Module`] that extends the consumer's lockfile
                         // scope by the dep name so transitive imports from
                         // this file resolve their own relative paths and
-                        // lockfile entries correctly.
-                        let consumer_module = self
-                            .find_module_for_document(graph.get(importer).uri())
-                            .expect("consumer module must exist; was present in Phase A");
+                        // lockfile entries correctly. The consumer module was
+                        // captured in Phase A and carried through here, so no
+                        // second module lookup is needed.
                         let import_module = consumer_module.child(
                             symbolic_path.dep_name().clone(),
                             materialized.manifest.clone(),
@@ -1657,21 +1680,6 @@ where
 
         None
     }
-}
-
-/// Returns whether symbolic imports may be resolved for a parse state.
-fn symbolic_imports_enabled(config: &Config, state: &ParseState) -> bool {
-    if !config.feature_flags().wdl_1_4() {
-        return false;
-    }
-
-    matches!(
-        state,
-        ParseState::Parsed {
-            wdl_version: Some(version),
-            ..
-        } if *version >= SupportedVersion::V1(V1::Four)
-    )
 }
 
 /// Formats the panic payload for display.

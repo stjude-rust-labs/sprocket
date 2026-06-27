@@ -34,6 +34,7 @@ use wdl_ast::AstToken as _;
 use wdl_ast::Diagnostic;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
+use wdl_ast::version::V1;
 
 use crate::Config;
 use crate::IncrementalChange;
@@ -101,6 +102,26 @@ impl ParseState {
             ParseState::Parsed { lines, .. } => Some(lines),
             _ => None,
         }
+    }
+
+    /// Returns whether symbolic imports may be resolved for this parse state
+    /// under the given configuration.
+    ///
+    /// Symbolic imports require the WDL 1.4 feature flag and a document parsed
+    /// at WDL 1.4 or later. This is the single source of truth shared by the
+    /// analysis queue and document resolution.
+    pub(crate) fn symbolic_imports_enabled(&self, config: &Config) -> bool {
+        if !config.feature_flags().wdl_1_4() {
+            return false;
+        }
+
+        matches!(
+            self,
+            ParseState::Parsed {
+                wdl_version: Some(version),
+                ..
+            } if *version >= SupportedVersion::V1(V1::Four)
+        )
     }
 }
 

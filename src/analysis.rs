@@ -161,24 +161,25 @@ impl Analysis {
             .collect()
     }
 
-    /// Checks the source directory and its ancestors for a `module.json` and
-    /// constructs a resolver if one is found and `modules_config` is set.
+    /// Checks the source directories and their ancestors for a `module.json`
+    /// and builds a [`ResolutionContext`](wdl::analysis::ResolutionContext) if
+    /// one is found and `modules_config` is set.
     ///
-    /// Returns an error if a `module.json` is present but malformed.
-    fn build_resolver_from_sources(
-        &self,
-    ) -> anyhow::Result<(Arc<dyn wdl_modules::Resolver>, Option<PathBuf>)> {
+    /// Returns the default null-resolver context when modules are disabled or
+    /// no manifest governs the sources, and an error if a `module.json` is
+    /// present but malformed or if the sources span more than one manifest.
+    fn resolution_context_from_sources(&self) -> anyhow::Result<wdl::analysis::ResolutionContext> {
         if !self.feature_flags.wdl_1_4() {
-            return Ok((Arc::new(wdl_modules::resolver::NullResolver), None));
+            return Ok(wdl::analysis::ResolutionContext::default());
         }
 
         let Some(ref modules_config) = self.modules_config else {
-            return Ok((Arc::new(wdl_modules::resolver::NullResolver), None));
+            return Ok(wdl::analysis::ResolutionContext::default());
         };
 
         let starts = self.module_search_dirs();
         if starts.is_empty() {
-            return Ok((Arc::new(wdl_modules::resolver::NullResolver), None));
+            return Ok(wdl::analysis::ResolutionContext::default());
         }
 
         let mut manifest_paths = HashSet::new();
@@ -189,7 +190,7 @@ impl Analysis {
         }
 
         if manifest_paths.is_empty() {
-            return Ok((Arc::new(wdl_modules::resolver::NullResolver), None));
+            return Ok(wdl::analysis::ResolutionContext::default());
         }
 
         anyhow::ensure!(
@@ -202,16 +203,7 @@ impl Analysis {
         // above verified that exactly one manifest remains.
         let manifest_path = manifest_paths.into_iter().next().unwrap();
 
-        match build_resolver(modules_config, &manifest_path)? {
-            Some((resolver, path)) => {
-                info!(
-                    manifest = %path.display(),
-                    "found `module.json`; symbolic imports will resolve through the module system"
-                );
-                Ok((resolver, Some(path)))
-            }
-            None => Ok((Arc::new(wdl_modules::resolver::NullResolver), None)),
-        }
+        resolution_context_for_manifest(modules_config, &manifest_path)
     }
 
     /// Runs the analysis and returns all results (if any exist).
@@ -235,8 +227,8 @@ impl Analysis {
             info!("enabled lint rules: {:?}", enabled_rules);
             info!("disabled lint rules: {:?}", disabled_rules);
         }
-        let (resolver, manifest_path) = self
-            .build_resolver_from_sources()
+        let resolution = self
+            .resolution_context_from_sources()
             .map_err(|e| NonEmpty::new(Arc::new(e)))?;
 
         let config = wdl::analysis::Config::default()
@@ -265,7 +257,7 @@ impl Analysis {
 
         let mut analyzer = Analyzer::new_with_validator_and_resolution(
             config,
-            wdl::analysis::ResolutionContext::new(resolver, manifest_path),
+            resolution,
             move |_, kind, count, total| (self.progress)(kind, count, total),
             validator,
         );
@@ -435,6 +427,29 @@ pub fn build_resolver(
         .build();
 
     Ok(Some((Arc::new(resolver), manifest_path.to_path_buf())))
+}
+
+/// Builds a [`ResolutionContext`](wdl::analysis::ResolutionContext) for a
+/// discovered `module.json`, or the default null-resolver context when no
+/// resolver can be built for it.
+///
+/// This is the single place that turns a manifest path plus `[modules]` config
+/// into a resolution context, so the CLI batch analysis and the LSP server stay
+/// consistent in how a resolver and manifest become an analyzer input.
+pub(crate) fn resolution_context_for_manifest(
+    modules_config: &wdl_modules::resolver::ModulesConfig,
+    manifest_path: &Path,
+) -> anyhow::Result<wdl::analysis::ResolutionContext> {
+    match build_resolver(modules_config, manifest_path)? {
+        Some((resolver, path)) => {
+            info!(
+                manifest = %path.display(),
+                "found `module.json`; symbolic imports will resolve through the module system"
+            );
+            Ok(wdl::analysis::ResolutionContext::new(resolver, Some(path)))
+        }
+        None => Ok(wdl::analysis::ResolutionContext::default()),
+    }
 }
 
 /// Warns about any unknown rules.
@@ -656,12 +671,12 @@ mod tests {
             .feature_flags(super::FeatureFlags::default().with_wdl_1_4())
             .modules_config(wdl_modules::resolver::ModulesConfig::default());
 
-        let (_, manifest_path) = analysis
-            .build_resolver_from_sources()
-            .expect("resolver construction should succeed");
+        let resolution = analysis
+            .resolution_context_from_sources()
+            .expect("resolution context construction should succeed");
         assert_eq!(
-            manifest_path,
-            Some(module_dir.join(wdl_modules::MANIFEST_FILENAME))
+            resolution.manifest_path(),
+            Some(module_dir.join(wdl_modules::MANIFEST_FILENAME).as_path())
         );
     }
 }

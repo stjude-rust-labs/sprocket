@@ -66,12 +66,7 @@ pub async fn analyzer(
         let cwd = std::env::current_dir().map_err(anyhow::Error::from)?;
         match crate::analysis::discover_manifest_upward(&cwd)? {
             Some((manifest_path, _)) => {
-                match crate::analysis::build_resolver(&config.modules, &manifest_path)? {
-                    Some((resolver, manifest_path)) => {
-                        wdl::analysis::ResolutionContext::new(resolver, Some(manifest_path))
-                    }
-                    None => wdl::analysis::ResolutionContext::default(),
-                }
+                crate::analysis::resolution_context_for_manifest(&config.modules, &manifest_path)?
             }
             None => wdl::analysis::ResolutionContext::default(),
         }

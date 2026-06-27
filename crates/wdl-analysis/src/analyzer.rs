@@ -368,6 +368,12 @@ impl ResolutionContext {
             manifest_path,
         }
     }
+
+    /// Returns the path to the `module.json` manifest governing analysis, if
+    /// any.
+    pub fn manifest_path(&self) -> Option<&Path> {
+        self.manifest_path.as_deref()
+    }
 }
 
 impl Default for ResolutionContext {
