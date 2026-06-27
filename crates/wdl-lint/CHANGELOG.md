@@ -16,9 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `workflow`, `variable`, and `type`), defaulting to the previous behavior, and
   supports `snake_case`, `screaming_snake_case`, `camelCase`, and `PascalCase`.
   The `SnakeCase` and `PascalCase` IDs remain accepted as deprecated aliases.
+  `NamingConvention` also checks enum names and enum choices (as user-defined
+  types) against the `type` case style.
 * Configurable parameters for `DescriptionLength` (`max_length`), `InputName`
   and `OutputName` (`min_length`, `check_prefixes`), `TodoComment` (`keywords`),
   and `DocMetaStrings` (`reserved_keys`).
+
+#### Fixed
+
+* `ImportPlacement` now flags imports placed after a top-level `enum`.
 
 ## 0.24.1 - 2026-06-26
 
