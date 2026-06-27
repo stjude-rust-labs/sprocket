@@ -1,5 +1,6 @@
 //! Facilities for performing a typical analysis using the `wdl-*` crates.
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::path::Path;
 use std::path::PathBuf;
@@ -409,15 +410,18 @@ pub fn build_resolver(
 }
 
 /// Builds a [`ResolutionContext`](wdl::analysis::ResolutionContext) for a
-/// discovered `module.json`, or the default null-resolver context when no
-/// resolver can be built for it.
+/// discovered `module.json` and its already-parsed manifest, or the default
+/// null-resolver context when no resolver can be built for it.
 ///
-/// This is the single place that turns a manifest path plus `[modules]` config
-/// into a resolution context, so the CLI batch analysis and the LSP server stay
-/// consistent in how a resolver and manifest become an analyzer input.
+/// This is the single place that turns a manifest plus `[modules]` config into
+/// a resolution context, so the CLI batch analysis and the LSP server stay
+/// consistent in how a resolver and manifest become an analyzer input. The
+/// caller passes the manifest it already parsed during discovery so the
+/// consumer module is built without a second read of `module.json`.
 pub(crate) fn resolution_context_for_manifest(
     modules_config: &wdl_modules::resolver::ModulesConfig,
     manifest_path: &Path,
+    manifest: wdl_modules::Manifest,
 ) -> anyhow::Result<wdl::analysis::ResolutionContext> {
     match build_resolver(modules_config, manifest_path)? {
         Some((resolver, path)) => {
@@ -425,7 +429,15 @@ pub(crate) fn resolution_context_for_manifest(
                 manifest = %path.display(),
                 "found `module.json`; symbolic imports will resolve through the module system"
             );
-            Ok(wdl::analysis::ResolutionContext::new(resolver, Some(path)))
+            let root = path
+                .parent()
+                .map(Path::to_path_buf)
+                .unwrap_or_else(|| PathBuf::from("."));
+            let module = wdl_modules::module::Module::new(Arc::new(manifest), root);
+            Ok(wdl::analysis::ResolutionContext::new(
+                resolver,
+                Some(module),
+            ))
         }
         None => Ok(wdl::analysis::ResolutionContext::default()),
     }
@@ -443,28 +455,28 @@ pub(crate) fn resolution_context_from_paths(
     modules_config: &wdl_modules::resolver::ModulesConfig,
     starts: &[PathBuf],
 ) -> anyhow::Result<wdl::analysis::ResolutionContext> {
-    let mut manifest_paths = HashSet::new();
+    let mut manifests = HashMap::new();
     for start in starts {
-        if let Some((path, _)) = discover_manifest_upward(start)? {
-            manifest_paths.insert(path);
+        if let Some((path, manifest)) = discover_manifest_upward(start)? {
+            manifests.entry(path).or_insert(manifest);
         }
     }
 
-    if manifest_paths.is_empty() {
+    if manifests.is_empty() {
         return Ok(wdl::analysis::ResolutionContext::default());
     }
 
     anyhow::ensure!(
-        manifest_paths.len() == 1,
+        manifests.len() == 1,
         "local sources with symbolic import resolution enabled must be governed by a single \
          `module.json`"
     );
 
     // SAFETY: the `is_empty` check above returned early, and the `ensure` above
     // verified that exactly one manifest remains.
-    let manifest_path = manifest_paths.into_iter().next().unwrap();
+    let (manifest_path, manifest) = manifests.into_iter().next().unwrap();
 
-    resolution_context_for_manifest(modules_config, &manifest_path)
+    resolution_context_for_manifest(modules_config, &manifest_path, manifest)
 }
 
 /// Warns about any unknown rules.
@@ -690,10 +702,7 @@ mod tests {
         let resolution = analysis
             .resolution_context_from_sources()
             .expect("resolution context construction should succeed");
-        assert_eq!(
-            resolution.manifest_path(),
-            Some(module_dir.join(wdl_modules::MANIFEST_FILENAME).as_path())
-        );
+        assert_eq!(resolution.module_root(), Some(module_dir.as_path()));
     }
 
     #[test]
@@ -712,7 +721,6 @@ mod tests {
         std::fs::create_dir_all(&nested).unwrap();
 
         let config = wdl_modules::resolver::ModulesConfig::default();
-        let manifest = module_dir.path().join(wdl_modules::MANIFEST_FILENAME);
 
         // The CLI surface starts from a source directory at the module root.
         let from_sources =
@@ -722,10 +730,10 @@ mod tests {
         let from_cwd = resolution_context_from_paths(&config, &[nested])
             .expect("resolution context construction should succeed");
 
-        assert_eq!(from_sources.manifest_path(), Some(manifest.as_path()));
+        assert_eq!(from_sources.module_root(), Some(module_dir.path()));
         assert_eq!(
-            from_sources.manifest_path(),
-            from_cwd.manifest_path(),
+            from_sources.module_root(),
+            from_cwd.module_root(),
             "batch and LSP discovery should resolve to the same `module.json`"
         );
     }

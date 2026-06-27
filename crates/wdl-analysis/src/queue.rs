@@ -413,7 +413,6 @@ where
         let crate::ResolutionContext {
             resolver,
             consumer_module,
-            ..
         } = resolution;
 
         Self {

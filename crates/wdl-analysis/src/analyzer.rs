@@ -6,7 +6,6 @@ use std::future::Future;
 use std::mem::ManuallyDrop;
 use std::ops::Range;
 use std::path::Path;
-use std::path::PathBuf;
 use std::path::absolute;
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -354,37 +353,35 @@ impl<Context> fmt::Debug for Analyzer<Context> {
 pub struct ResolutionContext {
     /// The resolver used to materialize symbolic module imports.
     pub(crate) resolver: Arc<dyn wdl_modules::Resolver>,
-    /// The path to the `module.json` manifest governing the analyzed sources,
-    /// if any.
-    pub(crate) manifest_path: Option<PathBuf>,
     /// The consumer [`Module`](wdl_modules::module::Module) governing the
-    /// analyzed sources, loaded once from the manifest so the analysis queue
-    /// does not re-read it from disk.
+    /// analyzed sources, if any.
+    ///
+    /// The caller builds this from the manifest it already parsed during
+    /// discovery and hands it over here, so constructing a resolution context
+    /// performs no filesystem I/O and the analysis queue never re-reads
+    /// `module.json`.
     pub(crate) consumer_module: Option<wdl_modules::module::Module>,
 }
 
 impl ResolutionContext {
-    /// Creates a new resolution context from a resolver and an optional
-    /// manifest path.
-    ///
-    /// When a manifest path is given, the consumer module is loaded eagerly so
-    /// downstream analysis can reuse it without touching the filesystem again.
-    pub fn new(resolver: Arc<dyn wdl_modules::Resolver>, manifest_path: Option<PathBuf>) -> Self {
-        let consumer_module = manifest_path
-            .as_ref()
-            .and_then(|path| path.parent())
-            .and_then(|dir| wdl_modules::module::Module::load_from_path(dir).ok());
+    /// Creates a new resolution context from a resolver and the consumer module
+    /// it resolves imports for, if any.
+    pub fn new(
+        resolver: Arc<dyn wdl_modules::Resolver>,
+        consumer_module: Option<wdl_modules::module::Module>,
+    ) -> Self {
         Self {
             resolver,
-            manifest_path,
             consumer_module,
         }
     }
 
-    /// Returns the path to the `module.json` manifest governing analysis, if
+    /// Returns the root directory of the consumer module governing analysis, if
     /// any.
-    pub fn manifest_path(&self) -> Option<&Path> {
-        self.manifest_path.as_deref()
+    pub fn module_root(&self) -> Option<&Path> {
+        self.consumer_module
+            .as_ref()
+            .map(|module| module.root.as_path())
     }
 }
 
@@ -392,7 +389,6 @@ impl Default for ResolutionContext {
     fn default() -> Self {
         Self {
             resolver: Arc::new(wdl_modules::resolver::NullResolver),
-            manifest_path: None,
             consumer_module: None,
         }
     }
@@ -401,7 +397,7 @@ impl Default for ResolutionContext {
 impl fmt::Debug for ResolutionContext {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("ResolutionContext")
-            .field("manifest_path", &self.manifest_path)
+            .field("module_root", &self.module_root())
             .finish_non_exhaustive()
     }
 }
@@ -545,11 +541,7 @@ where
     pub async fn add_directory(&self, path: impl AsRef<Path>) -> Result<()> {
         let path = path.as_ref().to_path_buf();
         let config = self.config.clone();
-        let active_module_root = self
-            .resolution
-            .manifest_path
-            .as_ref()
-            .and_then(|path| path.parent().map(Path::to_path_buf));
+        let active_module_root = self.resolution.module_root().map(Path::to_path_buf);
         let stop_at_module_boundaries = active_module_root
             .as_ref()
             .is_some_and(|root| path.starts_with(root));
@@ -1200,6 +1192,7 @@ const _: () = {
 #[cfg(test)]
 mod test {
     use std::fs;
+    use std::path::PathBuf;
 
     use tempfile::TempDir;
     use wdl_ast::Severity;
@@ -1661,8 +1654,9 @@ workflow run {
         let resolver: Arc<dyn wdl_modules::Resolver> = Arc::new(MockResolver {
             dep_path: dep_dir.clone(),
         });
-        let manifest_path = consumer_dir.join("module.json");
-        let resolution = ResolutionContext::new(resolver, Some(manifest_path));
+        let consumer_module = wdl_modules::module::Module::load_from_path(&consumer_dir)
+            .expect("test consumer module should load");
+        let resolution = ResolutionContext::new(resolver, Some(consumer_module));
         let analyzer = Analyzer::new_with_resolution(config, resolution, |(), _, _, _| async {});
         analyzer
             .add_document(path_to_uri(consumer_dir.join("source.wdl")).expect("should convert"))
@@ -1822,8 +1816,9 @@ workflow run {
             max_active: AtomicUsize::new(0),
         });
         let resolver_trait: Arc<dyn wdl_modules::Resolver> = resolver.clone();
-        let manifest_path = consumer_dir.join("module.json");
-        let resolution = ResolutionContext::new(resolver_trait, Some(manifest_path));
+        let consumer_module = wdl_modules::module::Module::load_from_path(&consumer_dir)
+            .expect("test consumer module should load");
+        let resolution = ResolutionContext::new(resolver_trait, Some(consumer_module));
         let analyzer = Analyzer::new_with_resolution(config, resolution, |(), _, _, _| async {});
         analyzer
             .add_document(path_to_uri(consumer_dir.join("source.wdl")).expect("should convert"))
