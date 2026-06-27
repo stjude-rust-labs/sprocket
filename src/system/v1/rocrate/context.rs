@@ -49,6 +49,9 @@ pub struct RunCrateContext<'a> {
     pub outputs: &'a wdl::engine::Outputs,
     /// The run directory (crate root).
     pub run_dir: &'a RunDirectory,
+    /// The run's task rows (one per WDL task name at the current database
+    /// granularity), used for step-level provenance.
+    pub tasks: &'a [crate::system::v1::db::models::Task],
     /// Engine identity.
     pub engine: EngineInfo,
 }

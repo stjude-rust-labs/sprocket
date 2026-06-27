@@ -177,6 +177,11 @@ pub async fn emit(
             .await?
             .with_context(|| format!("run `{run_id}` not found"))?;
         let session = db.get_session(run.session_uuid).await?;
+        // Fetch every task for the run; `list_tasks` otherwise returns only the
+        // first page.
+        let tasks = db
+            .list_tasks(Some(run_id), None, Some(i64::MAX), None)
+            .await?;
         let ctx = RunCrateContext {
             run: &run,
             session: session.as_ref(),
@@ -185,6 +190,7 @@ pub async fn emit(
             inputs,
             outputs,
             run_dir,
+            tasks: &tasks,
             engine: EngineInfo::from_build(),
         };
         write_run_crate(&ctx, opts)
@@ -350,6 +356,7 @@ workflow myworkflow {
             inputs: &inputs,
             outputs: &outputs,
             run_dir: &run_dir,
+            tasks: &[],
             engine: EngineInfo::from_build(),
         };
 
@@ -449,6 +456,7 @@ workflow myworkflow {
             inputs: &inputs,
             outputs: &outputs,
             run_dir: &run_dir,
+            tasks: &[],
             engine: EngineInfo::from_build(),
         };
 
@@ -526,6 +534,7 @@ workflow myworkflow {
             inputs: &inputs,
             outputs: &outputs,
             run_dir: &run_dir,
+            tasks: &[],
             engine: EngineInfo::from_build(),
         };
 
@@ -616,6 +625,7 @@ workflow myworkflow {
             inputs: &inputs,
             outputs: &outputs,
             run_dir: &run_dir,
+            tasks: &[],
             engine: EngineInfo::from_build(),
         };
 
