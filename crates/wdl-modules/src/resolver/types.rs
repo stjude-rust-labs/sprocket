@@ -23,6 +23,22 @@ pub struct MaterializedFile {
     pub manifest: std::sync::Arc<crate::Manifest>,
 }
 
+impl MaterializedFile {
+    /// Builds the [`Module`](crate::module::Module) that owns this file.
+    ///
+    /// The owning module is a child of `consumer` reached through `dep_name`,
+    /// so its transitive imports resolve their own relative paths and
+    /// lockfile entries correctly. Callers consume this instead of
+    /// assembling a module from the file's manifest and root themselves.
+    pub fn child_module(
+        &self,
+        consumer: &crate::module::Module,
+        dep_name: DependencyName,
+    ) -> crate::module::Module {
+        consumer.child(dep_name, self.manifest.clone(), self.module_root.clone())
+    }
+}
+
 /// A fully resolved dependency tree, suitable for `module-lock.json`
 /// generation.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]

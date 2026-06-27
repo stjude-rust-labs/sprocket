@@ -1648,19 +1648,12 @@ where
                             }
                         };
 
-                        // The materialized dependency's manifest sits in the
-                        // parent of the materialized file. Build a child
-                        // [`Module`] that extends the consumer's lockfile
-                        // scope by the dep name so transitive imports from
-                        // this file resolve their own relative paths and
-                        // lockfile entries correctly. The consumer module was
-                        // captured in Phase A and carried through here, so no
-                        // second module lookup is needed.
-                        let import_module = consumer_module.child(
-                            symbolic_path.dep_name().clone(),
-                            materialized.manifest.clone(),
-                            materialized.module_root,
-                        );
+                        // Ask the resolved file for the module that owns it,
+                        // extending the consumer module captured during
+                        // collection. The queue does not reassemble module state
+                        // from the file's raw manifest and root itself.
+                        let import_module = materialized
+                            .child_module(&consumer_module, symbolic_path.dep_name().clone());
 
                         symbolic_import_modules.push((import_uri.clone(), import_module));
 
