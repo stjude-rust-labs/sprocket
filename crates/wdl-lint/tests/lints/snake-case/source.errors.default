@@ -1,4 +1,4 @@
-warning[SnakeCase]: workflow name `BadWorkflow` is not snake_case
+warning[NamingConvention]: workflow name `BadWorkflow` is not snake_case
   ┌─ tests/lints/snake-case/source.wdl:5:10
   │
 5 │ workflow BadWorkflow {
@@ -6,7 +6,7 @@ warning[SnakeCase]: workflow name `BadWorkflow` is not snake_case
   │
   = fix: replace `BadWorkflow` with `bad_workflow`
 
-warning[SnakeCase]: private declaration name `badPrivateDecl` is not snake_case
+warning[NamingConvention]: private declaration name `badPrivateDecl` is not snake_case
   ┌─ tests/lints/snake-case/source.wdl:8:11
   │
 8 │     Float badPrivateDecl = 3.14
@@ -14,7 +14,7 @@ warning[SnakeCase]: private declaration name `badPrivateDecl` is not snake_case
   │
   = fix: replace `badPrivateDecl` with `bad_private_decl`
 
-warning[SnakeCase]: task name `BadTask` is not snake_case
+warning[NamingConvention]: task name `BadTask` is not snake_case
    ┌─ tests/lints/snake-case/source.wdl:19:6
    │
 19 │ task BadTask {
@@ -22,7 +22,7 @@ warning[SnakeCase]: task name `BadTask` is not snake_case
    │
    = fix: replace `BadTask` with `bad_task`
 
-warning[SnakeCase]: input name `BadInput` is not snake_case
+warning[NamingConvention]: input name `BadInput` is not snake_case
    ┌─ tests/lints/snake-case/source.wdl:28:16
    │
 28 │         String BadInput
@@ -30,7 +30,7 @@ warning[SnakeCase]: input name `BadInput` is not snake_case
    │
    = fix: replace `BadInput` with `bad_input`
 
-warning[SnakeCase]: output name `badOut` is not snake_case
+warning[NamingConvention]: output name `badOut` is not snake_case
    ┌─ tests/lints/snake-case/source.wdl:37:14
    │
 37 │         File badOut = "out.txt"
@@ -38,7 +38,7 @@ warning[SnakeCase]: output name `badOut` is not snake_case
    │
    = fix: replace `badOut` with `bad_out`
 
-warning[SnakeCase]: task name `BadButAllowedTask` is not snake_case
+warning[NamingConvention]: task name `BadButAllowedTask` is not snake_case
    ┌─ tests/lints/snake-case/source.wdl:43:6
    │
 43 │ task BadButAllowedTask {
@@ -46,7 +46,7 @@ warning[SnakeCase]: task name `BadButAllowedTask` is not snake_case
    │
    = fix: replace `BadButAllowedTask` with `bad_but_allowed_task`
 
-warning[SnakeCase]: struct member name `bAdFiElD` is not snake_case
+warning[NamingConvention]: struct member name `bAdFiElD` is not snake_case
    ┌─ tests/lints/snake-case/source.wdl:82:12
    │
 82 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case

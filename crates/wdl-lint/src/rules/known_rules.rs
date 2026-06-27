@@ -114,8 +114,9 @@ impl Visitor for KnownRulesRule {
         if let Some(Directive::Except(ids)) = comment.directive() {
             let start: usize = comment.span().start();
             for id in ids {
-                // Check if the rule is known
-                if !ANALYSIS_RULES.contains(&id) && !LINT_RULES.contains(&id) {
+                // Check if the rule is known, accounting for deprecated aliases.
+                let canonical = wdl_analysis::canonical_rule_id(&id);
+                if !ANALYSIS_RULES.contains(canonical) && !LINT_RULES.contains(canonical) {
                     // Since this rule can only be excepted in a document-wide fashion,
                     // if the rule is running we can directly add the diagnostic
                     // without checking for the exceptable nodes

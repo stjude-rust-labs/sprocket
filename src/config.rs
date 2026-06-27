@@ -394,7 +394,8 @@ impl<'de> FromToml<'de> for RuleConfigs {
         let mut failed = false;
 
         for (key, value) in table {
-            let rule_id = key.name;
+            // Map deprecated aliases (e.g. `SnakeCase`) to their current rule.
+            let rule_id = wdl::analysis::canonical_rule_id(key.name);
             let is_lint = LINT_RULE_IDS.contains(rule_id);
             let is_analysis = ANALYSIS_RULE_IDS.contains(rule_id);
 
@@ -1136,7 +1137,7 @@ mod test {
     #[test]
     fn parses_check_rules() {
         let config: Config = toml_spanner::from_str(
-            "[check.rules.SnakeCase]\nseverity = \"error\"\nallowed_names = [\"GATK\"]\n",
+            "[check.rules.NamingConvention]\nseverity = \"error\"\nallowed_names = [\"GATK\"]\n",
         )
         .unwrap();
         assert_eq!(
@@ -1144,8 +1145,23 @@ mod test {
                 .check
                 .rules
                 .lint_config()
-                .severity_override("SnakeCase"),
+                .severity_override("NamingConvention"),
             Some(wdl::lint::RuleSeverity::Error)
+        );
+    }
+
+    #[test]
+    fn deprecated_rule_alias_is_canonicalized() {
+        // `[check.rules.SnakeCase]` maps to the `NamingConvention` rule.
+        let config: Config =
+            toml_spanner::from_str("[check.rules.SnakeCase]\nseverity = \"off\"\n").unwrap();
+        assert_eq!(
+            config
+                .check
+                .rules
+                .lint_config()
+                .severity_override("NamingConvention"),
+            Some(wdl::lint::RuleSeverity::Off)
         );
     }
 

@@ -93,6 +93,98 @@ impl ToToml for RuleSeverity {
     }
 }
 
+/// A naming convention case style.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CaseStyle {
+    /// `snake_case`.
+    Snake,
+    /// `SCREAMING_SNAKE_CASE`.
+    ScreamingSnake,
+    /// `camelCase`.
+    Camel,
+    /// `PascalCase`.
+    Pascal,
+}
+
+impl CaseStyle {
+    /// Converts a name to this case style.
+    ///
+    /// Digit boundaries are preserved (for example `v1` is not split into
+    /// `v_1`).
+    pub fn convert(self, name: &str) -> String {
+        use convert_case::Boundary;
+        use convert_case::Case;
+        use convert_case::Converter;
+
+        let case = match self {
+            CaseStyle::Snake => Case::Snake,
+            CaseStyle::ScreamingSnake => Case::UpperSnake,
+            CaseStyle::Camel => Case::Camel,
+            CaseStyle::Pascal => Case::Pascal,
+        };
+        Converter::new()
+            .remove_boundaries(&[Boundary::DigitLower, Boundary::LowerDigit])
+            .to_case(case)
+            .convert(name)
+    }
+
+    /// Returns whether a name already matches this case style.
+    pub fn matches(self, name: &str) -> bool {
+        self.convert(name) == name
+    }
+}
+
+impl FromStr for CaseStyle {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "snake_case" => Ok(CaseStyle::Snake),
+            "screaming_snake_case" => Ok(CaseStyle::ScreamingSnake),
+            "camelCase" => Ok(CaseStyle::Camel),
+            "PascalCase" => Ok(CaseStyle::Pascal),
+            _ => Err(format!(
+                "expected one of `snake_case`, `screaming_snake_case`, `camelCase`, or \
+                 `PascalCase`, found `{s}`"
+            )),
+        }
+    }
+}
+
+impl fmt::Display for CaseStyle {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            CaseStyle::Snake => "snake_case",
+            CaseStyle::ScreamingSnake => "screaming_snake_case",
+            CaseStyle::Camel => "camelCase",
+            CaseStyle::Pascal => "PascalCase",
+        };
+        f.write_str(s)
+    }
+}
+
+impl serde::Serialize for CaseStyle {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
+impl<'de> FromToml<'de> for CaseStyle {
+    fn from_toml(ctx: &mut Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
+        let Some(s) = item.as_str() else {
+            return Err(ctx.report_expected_but_found(&"a string", item));
+        };
+        s.parse()
+            .map_err(|e: String| ctx.report_custom_error(&e, item))
+    }
+}
+
+impl ToToml for CaseStyle {
+    fn to_toml<'a>(&'a self, arena: &'a Arena) -> Result<Item<'a>, ToTomlError> {
+        Ok(Item::string(arena.alloc_str(&self.to_string())))
+    }
+}
+
 /// Describes a single configurable rule parameter.
 ///
 /// This powers `sprocket explain` and the generated documentation, and is used
@@ -116,7 +208,7 @@ macro_rules! define_rule_params {
         $(
             $(#[doc = $doc:literal])+
             #[rules($($rule:ident),+ $(,)?)]
-            $field:ident: $ty:ty = $default:expr,
+            $field:ident $(@ $rename:tt)?: $ty:ty = $default:expr,
         )+
     ) => {
         /// Per-rule configuration.
@@ -133,7 +225,7 @@ macro_rules! define_rule_params {
             pub severity: Option<RuleSeverity>,
             $(
                 $(#[doc = $doc])+
-                #[toml(default = $default)]
+                #[toml(default = $default $(, rename = $rename)?)]
                 pub $field: $ty,
             )+
         }
@@ -155,7 +247,12 @@ macro_rules! define_rule_params {
                 vec![
                     $(
                         ParamSpec {
-                            name: stringify!($field),
+                            name: {
+                                #[allow(unused_mut, unused_assignments)]
+                                let mut name = stringify!($field);
+                                $(name = $rename;)?
+                                name
+                            },
                             description: concat!($($doc, '\n',)*).trim(),
                             default: {
                                 let default: $ty = $default;
@@ -177,7 +274,7 @@ define_rule_params! {
     /// ```toml
     /// allowed_names = ["GATK", "counter_int"]
     /// ```
-    #[rules(SnakeCase, DeclarationName)]
+    #[rules(NamingConvention, DeclarationName)]
     allowed_names: Vec<String> = Vec::new(),
     /// Runtime keys to allow in addition to the keys defined by the spec.
     ///
@@ -209,6 +306,19 @@ define_rule_params! {
         .into_iter()
         .map(String::from)
         .collect(),
+    /// The case style required for task names.
+    #[rules(NamingConvention)]
+    task: CaseStyle = CaseStyle::Snake,
+    /// The case style required for workflow names.
+    #[rules(NamingConvention)]
+    workflow: CaseStyle = CaseStyle::Snake,
+    /// The case style required for variable names (inputs, outputs, private
+    /// declarations, and struct members).
+    #[rules(NamingConvention)]
+    variable: CaseStyle = CaseStyle::Snake,
+    /// The case style required for user-defined type (struct) names.
+    #[rules(NamingConvention)]
+    r#type @ "type": CaseStyle = CaseStyle::Pascal,
 }
 
 /// The configuration for lint rules.
@@ -273,15 +383,15 @@ mod test {
     #[test]
     fn parses_severity_and_params() {
         let config: Config = toml_spanner::from_str(
-            "[SnakeCase]\nseverity = \"error\"\nallowed_names = [\"GATK\"]\n",
+            "[NamingConvention]\nseverity = \"error\"\nallowed_names = [\"GATK\"]\n",
         )
         .unwrap();
         assert_eq!(
-            config.severity_override("SnakeCase"),
+            config.severity_override("NamingConvention"),
             Some(RuleSeverity::Error)
         );
         assert_eq!(
-            config.resolved("SnakeCase").allowed_names,
+            config.resolved("NamingConvention").allowed_names,
             vec![String::from("GATK")]
         );
     }
@@ -289,11 +399,11 @@ mod test {
     #[test]
     fn parses_multiple_rules() {
         let config: Config = toml_spanner::from_str(
-            "[SnakeCase]\nseverity = \"off\"\n\n[DescriptionLength]\nmax_length = 200\n",
+            "[NamingConvention]\nseverity = \"off\"\n\n[DescriptionLength]\nmax_length = 200\n",
         )
         .unwrap();
         assert_eq!(
-            config.severity_override("SnakeCase"),
+            config.severity_override("NamingConvention"),
             Some(RuleSeverity::Off)
         );
         assert_eq!(config.resolved("DescriptionLength").max_length, 200);
@@ -302,7 +412,7 @@ mod test {
     #[test]
     fn unset_rule_uses_defaults() {
         let config = Config::default();
-        assert_eq!(config.severity_override("SnakeCase"), None);
+        assert_eq!(config.severity_override("NamingConvention"), None);
         assert_eq!(config.resolved("DescriptionLength").max_length, 140);
         assert_eq!(config.resolved("InputName").min_length, 3);
         assert!(config.resolved("InputName").check_prefixes);
@@ -314,14 +424,15 @@ mod test {
 
     #[test]
     fn rejects_unknown_parameter() {
-        let err = toml_spanner::from_str::<Config>("[SnakeCase]\nnot_a_param = 1\n").unwrap_err();
+        let err =
+            toml_spanner::from_str::<Config>("[NamingConvention]\nnot_a_param = 1\n").unwrap_err();
         assert!(err.to_string().contains("not_a_param"), "{err}");
     }
 
     #[test]
     fn rejects_invalid_severity() {
-        let err =
-            toml_spanner::from_str::<Config>("[SnakeCase]\nseverity = \"loud\"\n").unwrap_err();
+        let err = toml_spanner::from_str::<Config>("[NamingConvention]\nseverity = \"loud\"\n")
+            .unwrap_err();
         assert!(err.to_string().contains("off"), "{err}");
     }
 
@@ -344,7 +455,7 @@ mod test {
             .iter()
             .find(|p| p.name == "allowed_names")
             .expect("allowed_names param should exist");
-        assert!(allowed_names.applicable_rules.contains(&"SnakeCase"));
+        assert!(allowed_names.applicable_rules.contains(&"NamingConvention"));
         assert!(allowed_names.applicable_rules.contains(&"DeclarationName"));
     }
 }

@@ -1,4 +1,4 @@
-warning[PascalCase]: struct name `this_is_a_bad_name` is not PascalCase
+warning[NamingConvention]: struct name `this_is_a_bad_name` is not PascalCase
   ┌─ tests/lints/pascal-case/source.wdl:5:8
   │
 5 │ struct this_is_a_bad_name {
@@ -6,7 +6,7 @@ warning[PascalCase]: struct name `this_is_a_bad_name` is not PascalCase
   │
   = fix: replace `this_is_a_bad_name` with `ThisIsABadName`
 
-warning[PascalCase]: struct name `thisIsAlsoABadName` is not PascalCase
+warning[NamingConvention]: struct name `thisIsAlsoABadName` is not PascalCase
   ┌─ tests/lints/pascal-case/source.wdl:9:8
   │
 9 │ struct thisIsAlsoABadName {
@@ -14,7 +14,7 @@ warning[PascalCase]: struct name `thisIsAlsoABadName` is not PascalCase
   │
   = fix: replace `thisIsAlsoABadName` with `ThisIsAlsoABadName`
 
-warning[PascalCase]: struct name `This_Is_Bad_Too` is not PascalCase
+warning[NamingConvention]: struct name `This_Is_Bad_Too` is not PascalCase
    ┌─ tests/lints/pascal-case/source.wdl:13:8
    │
 13 │ struct This_Is_Bad_Too {

@@ -351,9 +351,10 @@ mod test {
 
     use super::*;
 
-    /// Runs an analysis over a single source forcing the `SnakeCase` rule on
-    /// and returns the number of `SnakeCase` diagnostics produced.
-    async fn snake_case_diagnostics(lint_config: LintConfig) -> usize {
+    /// Runs an analysis over a single source forcing the `NamingConvention`
+    /// rule on and returns the number of `NamingConvention` diagnostics
+    /// produced.
+    async fn naming_diagnostics(lint_config: LintConfig) -> usize {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("source.wdl");
         std::fs::write(
@@ -366,7 +367,7 @@ mod test {
         let url = Url::from_file_path(&path).unwrap();
         let results = Analysis::default()
             .add_source(Source::File(url))
-            .force_enabled_rules(["SnakeCase".to_string()])
+            .force_enabled_rules(["NamingConvention".to_string()])
             .lint_config(lint_config)
             .run()
             .await
@@ -376,24 +377,24 @@ mod test {
             .as_slice()
             .iter()
             .flat_map(|result| result.document().diagnostics())
-            .filter(|d| d.rule() == Some("SnakeCase"))
+            .filter(|d| d.rule() == Some("NamingConvention"))
             .count()
     }
 
     #[tokio::test]
     async fn lint_config_is_applied_through_the_analysis_path() {
         // Without configuration, the non-snake-case task name is flagged.
-        assert_eq!(snake_case_diagnostics(LintConfig::default()).await, 1);
+        assert_eq!(naming_diagnostics(LintConfig::default()).await, 1);
 
         // Allowing the name through the per-rule config suppresses it, proving
         // the lint configuration reaches the linter via the check path.
         let config = LintConfig::from_map(BTreeMap::from([(
-            "SnakeCase".to_string(),
+            "NamingConvention".to_string(),
             RuleConfig {
                 allowed_names: vec!["BadName".to_string()],
                 ..Default::default()
             },
         )]));
-        assert_eq!(snake_case_diagnostics(config).await, 0);
+        assert_eq!(naming_diagnostics(config).await, 0);
     }
 }

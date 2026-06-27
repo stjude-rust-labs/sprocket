@@ -31,13 +31,27 @@ const USAGE: &str = "sprocket explain [RULE]
     sprocket explain --tag <TAG>
     sprocket explain --definitions";
 
-/// All rule IDs sorted alphabetically.
+/// All current rule IDs sorted alphabetically.
+///
+/// This is the set used for display and excludes deprecated aliases.
 pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
     let mut ids: Vec<String> = analysis::ALL_RULE_IDS
         .iter()
         .chain(lint::ALL_RULE_IDS.iter())
         .map(ToString::to_string)
         .collect();
+    ids.sort();
+    ids
+});
+
+/// All rule IDs accepted on the command line, including deprecated aliases.
+pub static ACCEPTED_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
+    let mut ids = ALL_RULE_IDS.clone();
+    ids.extend(
+        analysis::RULE_ALIASES
+            .iter()
+            .map(|(alias, _)| alias.to_string()),
+    );
     ids.sort();
     ids
 });
@@ -73,7 +87,7 @@ pub struct Args {
         "list_all_tags"
     ],
         value_name = "RULE",
-        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
         ignore_case = true,
         hide_possible_values = true,
     )]
@@ -469,7 +483,8 @@ pub fn explain(args: Args) -> CommandResult<()> {
     }
 
     if let Some(rule_name) = args.rule_name {
-        let lowercase_name = rule_name.to_lowercase();
+        // Map a deprecated alias (e.g. `SnakeCase`) to its current rule.
+        let lowercase_name = analysis::canonical_rule_id(&rule_name).to_lowercase();
 
         match wdl_lint()
             .chain(wdl_analysis())

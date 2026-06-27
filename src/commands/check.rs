@@ -29,6 +29,7 @@ use wdl::lint::TagSet;
 use wdl::lint::baseline::DEFAULT_BASELINE_FILENAME;
 use wdl::lint::find_nearest_rule;
 
+use super::explain::ACCEPTED_RULE_IDS;
 use super::explain::ALL_RULE_IDS;
 use crate::Config;
 use crate::analysis::Analysis;
@@ -60,7 +61,7 @@ pub struct Common {
     /// Repeat the flag multiple times to except multiple rules. This is
     /// additive with exceptions found in config files.
     #[clap(short, long, value_name = "RULE",
-        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
@@ -73,7 +74,7 @@ pub struct Common {
     /// Repeat the flag to escalate multiple rules. Takes precedence over
     /// severities set in config files.
     #[clap(long, value_name = "RULE",
-        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
@@ -86,7 +87,7 @@ pub struct Common {
     /// Repeat the flag to set multiple rules. Takes precedence over severities
     /// set in config files.
     #[clap(long, value_name = "RULE",
-        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
@@ -99,7 +100,7 @@ pub struct Common {
     /// Repeat the flag to set multiple rules. Takes precedence over severities
     /// set in config files.
     #[clap(long, value_name = "RULE",
-        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
@@ -216,11 +217,12 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
     // wins when a rule appears under more than one. Rule names are canonicalized
     // because the flags accept them case-insensitively.
     let canonicalize = |name: &str| -> String {
-        ALL_RULE_IDS
+        let matched = ALL_RULE_IDS
             .iter()
             .find(|id| id.eq_ignore_ascii_case(name))
-            .cloned()
-            .unwrap_or_else(|| name.to_string())
+            .map(String::as_str)
+            .unwrap_or(name);
+        wdl::analysis::canonical_rule_id(matched).to_string()
     };
     let cli_severities = args
         .common
@@ -587,7 +589,7 @@ fn report_unknown_rules(
     report_mode: Mode,
     colorize: bool,
 ) -> anyhow::Result<()> {
-    let rules = ALL_RULE_IDS.clone();
+    let rules = ACCEPTED_RULE_IDS.clone();
 
     let mut unknown_rules = excepted
         .iter()

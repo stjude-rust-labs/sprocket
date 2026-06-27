@@ -44,6 +44,7 @@ pub(crate) mod util;
 pub use baseline::Baseline;
 pub use baseline::BaselineEntry;
 pub use baseline::BaselineMatcher;
+pub use config::CaseStyle;
 pub use config::Config;
 pub use config::ParamSpec;
 pub use config::RuleConfig;
@@ -141,12 +142,11 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
     let rules: Vec<Box<dyn Rule + Send + Sync>> = vec![
         Box::<rules::DoubleQuotesRule>::default(),
         Box::<rules::HereDocCommandsRule>::default(),
-        Box::new(rules::SnakeCaseRule::new(config)),
+        Box::new(rules::NamingConventionRule::new(config)),
         Box::<rules::RuntimeSectionRule>::default(),
         Box::<rules::ParameterMetaMatchedRule>::default(),
         Box::<rules::CommandSectionIndentationRule>::default(),
         Box::<rules::ImportPlacementRule>::default(),
-        Box::<rules::PascalCaseRule>::default(),
         Box::<rules::MetaSectionsRule>::default(),
         Box::<rules::CallInputKeywordRule>::default(),
         Box::<rules::SectionOrderingRule>::default(),

@@ -64,6 +64,39 @@ pub use rules::*;
 pub use validation::*;
 pub use visitor::*;
 
+/// Historical rule ID aliases, mapping a removed rule ID to its replacement.
+///
+/// Aliases keep existing `#@ except` directives and configuration working after
+/// a rule has been renamed or merged into another rule.
+pub const RULE_ALIASES: &[(&str, &str)] = &[
+    ("SnakeCase", "NamingConvention"),
+    ("PascalCase", "NamingConvention"),
+];
+
+/// Returns the current rule ID for a possibly-aliased ID.
+///
+/// If the ID is not an alias it is returned unchanged.
+pub fn canonical_rule_id(id: &str) -> &str {
+    RULE_ALIASES
+        .iter()
+        .find(|(alias, _)| alias.eq_ignore_ascii_case(id))
+        .map(|(_, canonical)| *canonical)
+        .unwrap_or(id)
+}
+
+/// Expands a set of rule exceptions to include the canonical ID for any alias.
+fn expand_rule_aliases(mut exceptions: HashSet<String>) -> HashSet<String> {
+    let canonical: Vec<String> = exceptions
+        .iter()
+        .filter_map(|id| {
+            let canonical = canonical_rule_id(id);
+            (canonical != id.as_str()).then(|| canonical.to_string())
+        })
+        .collect();
+    exceptions.extend(canonical);
+    exceptions
+}
+
 /// An extension trait for syntax nodes.
 pub trait Exceptable {
     /// Gets the AST node's rule exceptions set.
@@ -82,7 +115,8 @@ pub trait Exceptable {
 
 impl Exceptable for SyntaxNode {
     fn rule_exceptions(&self) -> HashSet<String> {
-        self.siblings_with_tokens(Direction::Prev)
+        let exceptions: HashSet<String> = self
+            .siblings_with_tokens(Direction::Prev)
             .skip(1) // self is included with siblings
             .map_while(|s| {
                 if s.kind() == SyntaxKind::Whitespace || s.kind() == SyntaxKind::Comment {
@@ -96,10 +130,32 @@ impl Exceptable for SyntaxNode {
             .flat_map(|d| match d {
                 Directive::Except(e) => e,
             })
-            .collect()
+            .collect();
+        expand_rule_aliases(exceptions)
     }
 
     fn is_rule_excepted(&self, id: &str) -> bool {
         self.rule_exceptions().contains(id)
+    }
+}
+
+#[cfg(test)]
+mod alias_tests {
+    use super::*;
+
+    #[test]
+    fn canonicalizes_aliases() {
+        assert_eq!(canonical_rule_id("SnakeCase"), "NamingConvention");
+        assert_eq!(canonical_rule_id("PascalCase"), "NamingConvention");
+        assert_eq!(canonical_rule_id("snakecase"), "NamingConvention");
+        assert_eq!(canonical_rule_id("ContainerUri"), "ContainerUri");
+    }
+
+    #[test]
+    fn expands_alias_exceptions() {
+        let set = HashSet::from(["SnakeCase".to_string()]);
+        let expanded = expand_rule_aliases(set);
+        assert!(expanded.contains("SnakeCase"));
+        assert!(expanded.contains("NamingConvention"));
     }
 }
