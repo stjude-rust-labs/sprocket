@@ -422,7 +422,10 @@ pub struct AnalysisQueue<Progress, Context, Return, Validator> {
     /// The HTTP client to use for fetching documents.
     client: Client,
     /// The module resolver used for resolving WDL module imports.
-    resolver: Arc<dyn wdl_modules::Resolver>,
+    ///
+    /// `None` when module resolution is disabled; in that case no symbolic
+    /// import work is ever collected, so the resolver is never needed.
+    resolver: Option<Arc<dyn wdl_modules::Resolver>>,
     /// The consumer's [`Module`], if a `module.json` was found.
     consumer_module: Option<Arc<Module>>,
     /// Maps each document URI to the [`Module`] that governs it.
@@ -1563,7 +1566,10 @@ where
             count = unique_work.len(),
             "resolving symbolic imports concurrently",
         );
-        let resolver = Arc::clone(&self.resolver);
+        // SAFETY: symbolic work is only collected when a consumer module governs
+        // a document, which only happens when resolution is enabled with a
+        // resolver; a disabled context produces no work and returned above.
+        let resolver = Arc::clone(self.resolver.as_ref().unwrap());
         let stream = futures::stream::iter(unique_work.into_values().map(|work| {
             let resolver = Arc::clone(&resolver);
             async move {

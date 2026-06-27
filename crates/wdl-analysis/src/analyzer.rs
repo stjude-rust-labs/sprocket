@@ -396,20 +396,23 @@ impl ResolutionContext {
     }
 
     /// Splits the context into the resolver and consumer module the analysis
-    /// queue runs with, installing a
-    /// [`NullResolver`](wdl_modules::resolver::NullResolver) when disabled.
+    /// queue runs with.
+    ///
+    /// Both are `None` when resolution is disabled and both are `Some` when it
+    /// is enabled, so the queue never holds a resolver without a module nor a
+    /// module without a resolver.
     pub(crate) fn into_parts(
         self,
     ) -> (
-        Arc<dyn wdl_modules::Resolver>,
+        Option<Arc<dyn wdl_modules::Resolver>>,
         Option<wdl_modules::module::Module>,
     ) {
         match self {
-            Self::Disabled => (Arc::new(wdl_modules::resolver::NullResolver), None),
+            Self::Disabled => (None, None),
             Self::Enabled {
                 resolver,
                 consumer_module,
-            } => (resolver, Some(consumer_module)),
+            } => (Some(resolver), Some(consumer_module)),
         }
     }
 }

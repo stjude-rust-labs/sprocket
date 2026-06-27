@@ -113,7 +113,6 @@ pub use crate::resolver::trust::TrustStore;
 #[cfg(feature = "resolver")]
 pub use crate::resolver::trust::TrustStoreError;
 pub use crate::resolver::types::MaterializedFile;
-pub use crate::resolver::types::NullResolver;
 pub use crate::resolver::types::ResolvedDependency;
 pub use crate::resolver::types::ResolvedModule;
 pub use crate::resolver::types::ResolvedTree;

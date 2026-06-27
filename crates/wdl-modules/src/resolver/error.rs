@@ -30,13 +30,6 @@ pub enum ResolverError {
         name: String,
     },
 
-    /// A symbolic import was encountered but no module context is available.
-    #[error(
-        "symbolic import resolution is enabled, but no module context was found; run `sprocket \
-         module init` to create one"
-    )]
-    NoModuleContext,
-
     /// A required file was not found, or was excluded.
     #[error("{}", missing_file_message(.dep, .path, .kind))]
     MissingFile {

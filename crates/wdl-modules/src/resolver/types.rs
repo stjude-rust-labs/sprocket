@@ -78,34 +78,3 @@ pub struct ResolvedModule {
     /// The module's transitive resolved dependencies.
     pub dependencies: BTreeMap<DependencyName, ResolvedDependency>,
 }
-
-/// A resolver that rejects every materialization request. Used when
-/// the analyzer runs without a module context.
-pub struct NullResolver;
-
-#[async_trait::async_trait]
-impl super::Resolver for NullResolver {
-    async fn materialize(
-        &self,
-        _: &crate::module::Module,
-        _: &crate::symbolic_path::SymbolicPath,
-    ) -> Result<MaterializedFile, super::error::ResolverError> {
-        Err(super::error::ResolverError::NoModuleContext)
-    }
-
-    async fn resolve_tree(
-        &self,
-        _: &crate::module::Module,
-    ) -> Result<ResolvedTree, super::error::ResolverError> {
-        Ok(ResolvedTree::default())
-    }
-
-    async fn discover_versions(
-        &self,
-        _: &crate::dependency::DependencyName,
-        _: &crate::dependency::DependencySource,
-        _: super::scope::DependencyScope,
-    ) -> Result<Vec<semver::Version>, super::error::ResolverError> {
-        Ok(Vec::new())
-    }
-}
