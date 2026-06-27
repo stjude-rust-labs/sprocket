@@ -12,7 +12,7 @@ pub enum DependencyScope {
 
 /// Whether to resolve mutable selectors against the remote or replay
 /// a locked commit.
-#[cfg(feature = "resolver")]
+#[cfg(feature = "git-resolver")]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ResolutionMode<'a> {
     /// Resolve mutable selectors against the remote. Used by
