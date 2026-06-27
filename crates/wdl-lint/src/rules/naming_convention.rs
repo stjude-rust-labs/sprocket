@@ -141,10 +141,12 @@ impl NamingConventionRule {
         match context {
             Context::Task => self.task,
             Context::Workflow => self.workflow,
-            Context::Struct | Context::Enum | Context::EnumChoice => self.type_style,
-            Context::StructMember | Context::Input | Context::Output | Context::PrivateDecl => {
-                self.variable
+            // Struct members are part of a user-defined type and follow the
+            // `type` style, alongside struct/enum names and enum choices.
+            Context::Struct | Context::Enum | Context::EnumChoice | Context::StructMember => {
+                self.type_style
             }
+            Context::Input | Context::Output | Context::PrivateDecl => self.variable,
         }
     }
 
@@ -185,9 +187,10 @@ impl Rule for NamingConventionRule {
 
     fn explanation(&self) -> &'static str {
         "Names should follow a consistent case convention. By default, tasks, workflows, and \
-         variables use snake_case and user-defined types (structs) use PascalCase. The convention \
-         for each category can be configured. Maintaining a consistent naming convention makes the \
-         code easier to read and understand."
+         variables use snake_case, while user-defined types and their members (struct and enum \
+         names, struct members, and enum choices) use PascalCase. The convention for each category \
+         can be configured. Maintaining a consistent naming convention makes the code easier to \
+         read and understand."
     }
 
     fn examples(&self) -> &'static [Example] {

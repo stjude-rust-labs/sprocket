@@ -312,12 +312,12 @@ define_rule_params! {
     /// The case style required for workflow names.
     #[rules(NamingConvention)]
     workflow: CaseStyle = CaseStyle::Snake,
-    /// The case style required for variable names (inputs, outputs, private
-    /// declarations, and struct members).
+    /// The case style required for variable names (inputs, outputs, and private
+    /// declarations).
     #[rules(NamingConvention)]
     variable: CaseStyle = CaseStyle::Snake,
-    /// The case style required for user-defined type names and their members
-    /// (struct and enum names, and enum choices).
+    /// The case style required for user-defined types and their members (struct
+    /// and enum names, struct members, and enum choices).
     #[rules(NamingConvention)]
     r#type @ "type": CaseStyle = CaseStyle::Pascal,
 }

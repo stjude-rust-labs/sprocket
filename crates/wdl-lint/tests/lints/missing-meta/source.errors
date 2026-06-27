@@ -6,3 +6,11 @@ note[MetaSections]: task `test` is missing a `meta` section
   │
   = fix: add the missing section
 
+warning[NamingConvention]: struct member name `x` is not PascalCase
+   ┌─ tests/lints/missing-meta/source.wdl:20:12
+   │
+20 │     String x
+   │            ^ this name must be PascalCase
+   │
+   = fix: replace `x` with `X`
+

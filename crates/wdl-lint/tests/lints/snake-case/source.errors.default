@@ -46,11 +46,19 @@ warning[NamingConvention]: task name `BadButAllowedTask` is not snake_case
    │
    = fix: replace `BadButAllowedTask` with `bad_but_allowed_task`
 
-warning[NamingConvention]: struct member name `bAdFiElD` is not snake_case
+warning[NamingConvention]: struct member name `good_field` is not PascalCase
+   ┌─ tests/lints/snake-case/source.wdl:81:12
+   │
+81 │     String good_field
+   │            ^^^^^^^^^^ this name must be PascalCase
+   │
+   = fix: replace `good_field` with `GoodField`
+
+warning[NamingConvention]: struct member name `bAdFiElD` is not PascalCase
    ┌─ tests/lints/snake-case/source.wdl:82:12
    │
 82 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
-   │            ^^^^^^^^ this name must be snake_case
+   │            ^^^^^^^^ this name must be PascalCase
    │
-   = fix: replace `bAdFiElD` with `b_ad_fi_el_d`
+   = fix: replace `bAdFiElD` with `BAdFiElD`
 
