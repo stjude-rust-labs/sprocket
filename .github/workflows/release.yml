@@ -19,7 +19,7 @@ jobs:
     - name: Install Nix
       uses: DeterminateSystems/nix-installer-action@v22
     - name: Cache the Nix store
-      uses: nix-community/cache-nix-action@v7
+      uses: nix-community/cache-nix-action@v7.0.2
       with:
         primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'flake.nix', 'Cargo.lock') }}
         restore-prefixes-first-match: nix-${{ runner.os }}-
