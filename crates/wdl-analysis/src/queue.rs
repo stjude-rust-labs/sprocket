@@ -50,6 +50,7 @@ use wdl_ast::v1::ImportSource;
 use wdl_format::Formatter;
 use wdl_format::element::node::AstNodeFormatExt as _;
 use wdl_modules::module::Module;
+use wdl_modules::module::ModuleId;
 use wdl_modules::symbolic_path::SymbolicPath;
 
 use crate::AnalysisResult;
@@ -1545,7 +1546,7 @@ where
         &self,
         symbolic_work: Vec<SymbolicWorkItem>,
     ) -> Vec<MaterializeOutcome> {
-        let mut unique_work: IndexMap<(PathBuf, SymbolicPath), MaterializeWork> = IndexMap::new();
+        let mut unique_work: IndexMap<(ModuleId, SymbolicPath), MaterializeWork> = IndexMap::new();
         for item in symbolic_work {
             let SymbolicWorkItem {
                 importer,
@@ -1553,7 +1554,10 @@ where
                 symbolic_path,
                 path_text,
             } = item;
-            let key = (consumer_module.root.clone(), symbolic_path.clone());
+            // Key on the full module identity (root plus lockfile scope) so two
+            // modules that share a root but resolve dependencies differently are
+            // not collapsed together.
+            let key = (consumer_module.id(), symbolic_path.clone());
             unique_work
                 .entry(key)
                 .or_insert_with(|| MaterializeWork {

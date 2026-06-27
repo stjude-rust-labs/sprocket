@@ -49,6 +49,20 @@ pub fn is_module_root(dir: &Path) -> bool {
     dir.join(crate::MANIFEST_FILENAME).is_file()
 }
 
+/// A cheap identity for a [`Module`] that combines its root directory with its
+/// lockfile scope.
+///
+/// Two modules with the same root and scope resolve dependencies identically,
+/// so this is a stable key for deduplicating and caching resolution work
+/// without cloning a module's manifest.
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct ModuleId {
+    /// The directory containing the module's `module.json` file.
+    pub root: PathBuf,
+    /// The chain of dependency names from the top-level consumer to the module.
+    pub scope: Vec<DependencyName>,
+}
+
 /// A WDL module — its parsed [`Manifest`], the directory on disk that
 /// holds the `module.json` file, and the lockfile scope that locates
 /// the module's entry within a top-level lockfile.
@@ -73,6 +87,15 @@ impl Module {
             manifest,
             root,
             lockfile_scope: Vec::new(),
+        }
+    }
+
+    /// Returns this module's identity, combining its root directory and
+    /// lockfile scope.
+    pub fn id(&self) -> ModuleId {
+        ModuleId {
+            root: self.root.clone(),
+            scope: self.lockfile_scope.clone(),
         }
     }
 
