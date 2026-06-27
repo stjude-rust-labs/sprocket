@@ -2269,8 +2269,7 @@ fn resolve_import(
                     {
                         format!("failed to resolve symbolic import `{path_text}`: {error}")
                     } else {
-                        "symbolic import resolution is enabled, but no module context was found \
-                         for this document; run `sprocket module init` to create one"
+                        "symbolic import resolution is enabled, but no module governs this document"
                             .to_string()
                     };
                     return Err(Some(Diagnostic::error(message).with_highlight(span)));

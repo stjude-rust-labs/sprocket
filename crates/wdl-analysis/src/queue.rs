@@ -5,6 +5,7 @@ use std::marker::PhantomData;
 use std::ops::Range;
 use std::panic;
 use std::panic::AssertUnwindSafe;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -14,6 +15,7 @@ use anyhow::anyhow;
 use futures::Future;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
+use indexmap::IndexMap;
 use indexmap::IndexSet;
 use lsp_types::CallHierarchyIncomingCall;
 use lsp_types::CallHierarchyItem;
@@ -1401,8 +1403,15 @@ where
                                         Err(_) => continue,
                                     };
 
-                                    if let Some(module) = self
-                                        .module_for_uri_import(graph.get(index).uri(), &import_uri)
+                                    // Only probe module ownership when a
+                                    // consumer module exists; without one no
+                                    // document is governed by a module, so the
+                                    // registry lookup would always miss.
+                                    if self.consumer_module.is_some()
+                                        && let Some(module) = self.module_for_uri_import(
+                                            graph.get(index).uri(),
+                                            &import_uri,
+                                        )
                                     {
                                         uri_import_modules.push((import_uri.clone(), module));
                                     }
@@ -1469,18 +1478,57 @@ where
         // Record URI-import module mappings collected above in one batch.
         self.document_modules.record_all(uri_import_modules);
 
+        // Deduplicate the collected work so each distinct dependency is
+        // materialized once per pass. Several documents in a module commonly
+        // import the same dependency; keying on the consumer module root plus
+        // the parsed symbolic path collapses those into a single `materialize`
+        // call whose result is fanned out to every importer that requested it.
+        struct MaterializeWork {
+            /// The nodes that contain an import of this dependency.
+            importers: Vec<NodeIndex>,
+            /// The consumer module captured in Phase A. Reused to build the
+            /// child module for the materialized dependency.
+            consumer_module: wdl_modules::module::Module,
+            /// The parsed symbolic path from the import statement.
+            symbolic_path: SymbolicPath,
+            /// The raw text of the module-path token, used as the edge label
+            /// and for error messages.
+            path_text: String,
+        }
+
+        let mut unique_work: IndexMap<(PathBuf, SymbolicPath), MaterializeWork> = IndexMap::new();
+        for item in symbolic_work {
+            let SymbolicWorkItem {
+                importer,
+                consumer_module,
+                symbolic_path,
+                path_text,
+            } = item;
+            let key = (consumer_module.root.clone(), symbolic_path.clone());
+            unique_work
+                .entry(key)
+                .or_insert_with(|| MaterializeWork {
+                    importers: Vec::new(),
+                    consumer_module,
+                    symbolic_path,
+                    path_text,
+                })
+                .importers
+                .push(importer);
+        }
+
         // Phase B: drive the `materialize` calls concurrently, capped at
         // `MAX_CONCURRENT_MATERIALIZATIONS` in flight so a manifest declaring
         // many dependencies cannot drive an unbounded number of parallel
         // clones or fetches.
         //
-        // Each future carries the importer, parsed `SymbolicPath`, raw path
+        // Each future carries the importers, parsed `SymbolicPath`, raw path
         // text, and the consumer module captured in Phase A so that Phase C can
         // stitch the results back into the graph without holding the lock during
         // I/O, without re-parsing the path, and without a second module lookup.
         struct MaterializeOutcome {
-            /// The node that contains the import statement.
-            importer: NodeIndex,
+            /// The nodes that contain an import of this dependency.
+            importers: Vec<NodeIndex>,
             /// The consumer module captured in Phase A. Reused to build the
             /// child module for the materialized dependency.
             consumer_module: wdl_modules::module::Module,
@@ -1496,26 +1544,26 @@ where
             >,
         }
 
-        let materialized_results: Vec<MaterializeOutcome> = if symbolic_work.is_empty() {
+        let materialized_results: Vec<MaterializeOutcome> = if unique_work.is_empty() {
             Vec::new()
         } else {
             tracing::debug!(
-                count = symbolic_work.len(),
+                count = unique_work.len(),
                 "resolving symbolic imports concurrently",
             );
             let resolver = Arc::clone(&self.resolver);
-            let stream = futures::stream::iter(symbolic_work.into_iter().map(|item| {
+            let stream = futures::stream::iter(unique_work.into_values().map(|work| {
                 let resolver = Arc::clone(&resolver);
                 async move {
-                    tracing::debug!(path = %item.path_text, "resolving symbolic import");
+                    tracing::debug!(path = %work.path_text, "resolving symbolic import");
                     let result = resolver
-                        .materialize(&item.consumer_module, &item.symbolic_path)
+                        .materialize(&work.consumer_module, &work.symbolic_path)
                         .await;
                     MaterializeOutcome {
-                        importer: item.importer,
-                        consumer_module: item.consumer_module,
-                        symbolic_path: item.symbolic_path,
-                        path_text: item.path_text,
+                        importers: work.importers,
+                        consumer_module: work.consumer_module,
+                        symbolic_path: work.symbolic_path,
+                        path_text: work.path_text,
                         result,
                     }
                 }
@@ -1533,7 +1581,7 @@ where
             let mut graph = self.graph.write();
 
             for MaterializeOutcome {
-                importer,
+                importers,
                 consumer_module,
                 symbolic_path,
                 path_text,
@@ -1545,14 +1593,17 @@ where
                         let import_uri = match Url::from_file_path(&materialized.path) {
                             Ok(u) => u,
                             Err(()) => {
-                                graph.insert_failed_symbolic_import(
-                                    importer,
-                                    path_text,
-                                    format!(
-                                        "materialized path is not absolute: `{}`",
-                                        materialized.path.display()
-                                    ),
+                                let message = format!(
+                                    "materialized path is not absolute: `{}`",
+                                    materialized.path.display()
                                 );
+                                for importer in &importers {
+                                    graph.insert_failed_symbolic_import(
+                                        *importer,
+                                        path_text.clone(),
+                                        message.clone(),
+                                    );
+                                }
                                 continue;
                             }
                         };
@@ -1573,19 +1624,31 @@ where
 
                         symbolic_import_modules.push((import_uri.clone(), import_module));
 
+                        // Materialization happens once per dependency, so add
+                        // the node once and connect every importer that
+                        // requested it.
                         let import_index = graph
                             .get_index(&import_uri)
                             .unwrap_or_else(|| graph.add_node(import_uri.clone(), false));
-                        graph.add_dependency_edge(
-                            importer,
-                            import_index,
-                            EdgeKind::Symbolic(path_text),
-                            space,
-                        );
+                        for importer in &importers {
+                            graph.add_dependency_edge(
+                                *importer,
+                                import_index,
+                                EdgeKind::Symbolic(path_text.clone()),
+                                space,
+                            );
+                        }
                         subgraph.insert(import_index);
                     }
                     Err(e) => {
-                        graph.insert_failed_symbolic_import(importer, path_text, e.to_string());
+                        let message = e.to_string();
+                        for importer in &importers {
+                            graph.insert_failed_symbolic_import(
+                                *importer,
+                                path_text.clone(),
+                                message.clone(),
+                            );
+                        }
                     }
                 }
             }
