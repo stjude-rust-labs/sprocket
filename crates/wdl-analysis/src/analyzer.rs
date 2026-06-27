@@ -357,15 +357,27 @@ pub struct ResolutionContext {
     /// The path to the `module.json` manifest governing the analyzed sources,
     /// if any.
     pub(crate) manifest_path: Option<PathBuf>,
+    /// The consumer [`Module`](wdl_modules::module::Module) governing the
+    /// analyzed sources, loaded once from the manifest so the analysis queue
+    /// does not re-read it from disk.
+    pub(crate) consumer_module: Option<wdl_modules::module::Module>,
 }
 
 impl ResolutionContext {
     /// Creates a new resolution context from a resolver and an optional
     /// manifest path.
+    ///
+    /// When a manifest path is given, the consumer module is loaded eagerly so
+    /// downstream analysis can reuse it without touching the filesystem again.
     pub fn new(resolver: Arc<dyn wdl_modules::Resolver>, manifest_path: Option<PathBuf>) -> Self {
+        let consumer_module = manifest_path
+            .as_ref()
+            .and_then(|path| path.parent())
+            .and_then(|dir| wdl_modules::module::Module::load_from_path(dir).ok());
         Self {
             resolver,
             manifest_path,
+            consumer_module,
         }
     }
 
@@ -381,6 +393,7 @@ impl Default for ResolutionContext {
         Self {
             resolver: Arc::new(wdl_modules::resolver::NullResolver),
             manifest_path: None,
+            consumer_module: None,
         }
     }
 }

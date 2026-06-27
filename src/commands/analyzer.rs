@@ -64,12 +64,7 @@ pub async fn analyzer(
 
     let resolution_context = if config.common.wdl.feature_flags.wdl_1_4() {
         let cwd = std::env::current_dir().map_err(anyhow::Error::from)?;
-        match crate::analysis::discover_manifest_upward(&cwd)? {
-            Some((manifest_path, _)) => {
-                crate::analysis::resolution_context_for_manifest(&config.modules, &manifest_path)?
-            }
-            None => wdl::analysis::ResolutionContext::default(),
-        }
+        crate::analysis::resolution_context_from_paths(&config.modules, &[cwd])?
     } else {
         wdl::analysis::ResolutionContext::default()
     };

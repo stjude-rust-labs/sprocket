@@ -338,6 +338,36 @@ enum Cancelable<T> {
     Canceled,
 }
 
+/// Maps document URIs to the [`Module`] that governs each.
+///
+/// This is the single place the analysis queue records and looks up module
+/// context for a document, so the locking discipline lives behind one API
+/// rather than being spread across the queue's methods.
+#[derive(Default)]
+struct ModuleRegistry {
+    /// The URI-to-module map guarded for concurrent access during analysis.
+    modules: parking_lot::Mutex<HashMap<Url, Module>>,
+}
+
+impl ModuleRegistry {
+    /// Returns the [`Module`] governing the document at `uri`, if recorded.
+    fn module_for(&self, uri: &Url) -> Option<Module> {
+        self.modules.lock().get(uri).cloned()
+    }
+
+    /// Records many document-to-module mappings under a single lock
+    /// acquisition, avoiding per-item lock churn in tight loops.
+    fn record_all(&self, entries: impl IntoIterator<Item = (Url, Module)>) {
+        self.modules.lock().extend(entries);
+    }
+
+    /// Drops mappings whose document is no longer present, keeping the map from
+    /// growing without bound across edit and remove cycles.
+    fn retain(&self, mut keep: impl FnMut(&Url) -> bool) {
+        self.modules.lock().retain(|uri, _| keep(uri));
+    }
+}
+
 /// Represents the analysis queue.
 pub struct AnalysisQueue<Progress, Context, Return, Validator> {
     /// The document graph maintained by the analysis queue.
@@ -354,7 +384,7 @@ pub struct AnalysisQueue<Progress, Context, Return, Validator> {
     consumer_module: Option<Module>,
     /// Maps each document URI to the [`Module`] that governs it.
     /// Populated at resolution time so the lookup is direct.
-    document_modules: parking_lot::Mutex<HashMap<Url, Module>>,
+    document_modules: ModuleRegistry,
     /// The progress callback to use.
     progress: Arc<Progress>,
     /// The validator callback to use.
@@ -378,18 +408,21 @@ where
         progress: Progress,
         validator: Validator,
     ) -> Self {
-        let consumer_module = resolution
-            .manifest_path
-            .as_ref()
-            .and_then(|p| Module::load_from_path(p.parent()?).ok());
+        // The consumer module was loaded once when the resolution context was
+        // built, so reuse it here instead of re-reading `module.json`.
+        let crate::ResolutionContext {
+            resolver,
+            consumer_module,
+            ..
+        } = resolution;
 
         Self {
             graph: Arc::new(RwLock::new(DocumentGraph::new(config.clone()))),
             config,
             tokio,
-            resolver: resolution.resolver,
+            resolver,
             consumer_module,
-            document_modules: parking_lot::Mutex::new(HashMap::new()),
+            document_modules: ModuleRegistry::default(),
             progress: Arc::new(progress),
             marker: PhantomData,
             client: Default::default(),
@@ -991,14 +1024,14 @@ where
     /// Adds a set of documents to the document graph.
     fn add_documents(&self, documents: IndexSet<Url>) {
         let mut graph = self.graph.write();
+        let mut modules = Vec::new();
         for document in documents {
             if let Some(module) = self.module_for_root_document(&document) {
-                self.document_modules
-                    .lock()
-                    .insert(document.clone(), module);
+                modules.push((document.clone(), module));
             }
             graph.add_node(document, true);
         }
+        self.document_modules.record_all(modules);
     }
 
     /// Analyzes the requested documents.
@@ -1201,8 +1234,7 @@ where
         // the graph so the map does not grow unbounded across edit and remove
         // cycles in a long-lived session.
         self.document_modules
-            .lock()
-            .retain(|uri, _| graph.get_index(uri).is_some());
+            .retain(|uri| graph.get_index(uri).is_some());
     }
 
     /// Awaits the given set of futures while providing progress to the given
@@ -1323,6 +1355,7 @@ where
         // imports. Symbolic imports are collected as work items instead of
         // being driven serially here, so the write lock is held for as short a
         // time as possible.
+        let mut uri_import_modules: Vec<(Url, Module)> = Vec::new();
         let (parsed_indices, symbolic_work): (Vec<NodeIndex>, Vec<SymbolicWorkItem>) = {
             let mut graph = self.graph.write();
             let mut indices = Vec::new();
@@ -1372,9 +1405,7 @@ where
                                     if let Some(module) = self
                                         .module_for_uri_import(graph.get(index).uri(), &import_uri)
                                     {
-                                        self.document_modules
-                                            .lock()
-                                            .insert(import_uri.clone(), module);
+                                        uri_import_modules.push((import_uri.clone(), module));
                                     }
 
                                     let import_index = graph
@@ -1436,6 +1467,9 @@ where
         };
         // graph write lock is released here.
 
+        // Record URI-import module mappings collected above in one batch.
+        self.document_modules.record_all(uri_import_modules);
+
         // Phase B: drive the `materialize` calls concurrently, capped at
         // `MAX_CONCURRENT_MATERIALIZATIONS` in flight so a manifest declaring
         // many dependencies cannot drive an unbounded number of parallel
@@ -1495,6 +1529,7 @@ where
 
         // Phase C: under graph.write(), stitch materialization results and run
         // the BFS pass for all parsed nodes.
+        let mut symbolic_import_modules: Vec<(Url, Module)> = Vec::new();
         {
             let mut graph = self.graph.write();
 
@@ -1537,9 +1572,7 @@ where
                             materialized.module_root,
                         );
 
-                        self.document_modules
-                            .lock()
-                            .insert(import_uri.clone(), import_module);
+                        symbolic_import_modules.push((import_uri.clone(), import_module));
 
                         let import_index = graph
                             .get_index(&import_uri)
@@ -1593,6 +1626,10 @@ where
             subgraph.extend(dependencies);
         }
 
+        // Record symbolic-import module mappings collected above in one batch
+        // now that the graph write lock has been released.
+        self.document_modules.record_all(symbolic_import_modules);
+
         Ok(())
     }
 
@@ -1630,7 +1667,7 @@ where
 
     /// Returns the [`Module`] that governs the document at `uri`.
     fn find_module_for_document(&self, uri: &Url) -> Option<Module> {
-        self.document_modules.lock().get(uri).cloned()
+        self.document_modules.module_for(uri)
     }
 
     /// Returns the consumer module for a root document governed by it.
