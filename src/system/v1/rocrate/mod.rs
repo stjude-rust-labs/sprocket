@@ -3,6 +3,7 @@
 mod build;
 mod context;
 mod formal;
+mod redact;
 mod source;
 mod tasks;
 mod value;
@@ -12,6 +13,8 @@ pub use build::build_run_crate;
 pub use context::EngineInfo;
 pub use context::RunCrateContext;
 pub use formal::formal_parameter;
+pub use redact::RedactionPolicy;
+pub use redact::Scrubbed;
 pub use source::materialize_sources;
 pub use tasks::TaskEntityIds;
 pub use tasks::task_action_status;
@@ -53,6 +56,8 @@ pub struct RoCrateOptions {
     pub checksums: bool,
     /// Whether to localize input/output data values into crate-relative paths.
     pub localize: bool,
+    /// Whether to include log contents in crate metadata.
+    pub include_log_contents: bool,
 }
 
 impl RoCrateOptions {
@@ -66,6 +71,7 @@ impl RoCrateOptions {
             strict,
             checksums: !no_checksums,
             localize: !no_localize,
+            include_log_contents: false,
         }
     }
 
@@ -76,6 +82,7 @@ impl RoCrateOptions {
             strict: false,
             checksums: false,
             localize: false,
+            include_log_contents: false,
         }
     }
 }
@@ -220,9 +227,9 @@ mod tests {
     #[test]
     fn options_from_flags_maps_correctly() {
         let o = RoCrateOptions::from_flags(true, false, false, false);
-        assert!(o.enabled && o.checksums && o.localize && !o.strict);
+        assert!(o.enabled && o.checksums && o.localize && !o.strict && !o.include_log_contents);
         let off = RoCrateOptions::disabled();
-        assert!(!off.enabled);
+        assert!(!off.enabled && !off.include_log_contents);
     }
 
     #[test]
