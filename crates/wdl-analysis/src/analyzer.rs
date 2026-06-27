@@ -345,51 +345,71 @@ impl<Context> fmt::Debug for Analyzer<Context> {
 
 /// The context required to resolve symbolic module imports during analysis.
 ///
-/// An analyzer that should not resolve modules uses the
-/// [`Default`](ResolutionContext::default) context, which installs a
-/// [`NullResolver`](wdl_modules::resolver::NullResolver) and carries no
-/// manifest.
-#[derive(Clone)]
-pub struct ResolutionContext {
-    /// The resolver used to materialize symbolic module imports.
-    pub(crate) resolver: Arc<dyn wdl_modules::Resolver>,
-    /// The consumer [`Module`](wdl_modules::module::Module) governing the
-    /// analyzed sources, if any.
-    ///
-    /// The caller builds this from the manifest it already parsed during
-    /// discovery and hands it over here, so constructing a resolution context
-    /// performs no filesystem I/O and the analysis queue never re-reads
-    /// `module.json`.
-    pub(crate) consumer_module: Option<wdl_modules::module::Module>,
+/// This is an either/or by construction. Resolution is either
+/// [`Disabled`](ResolutionContext::Disabled), in which case symbolic imports do
+/// not resolve, or [`Enabled`](ResolutionContext::Enabled), which always pairs
+/// a resolver with the consumer module it resolves imports for. The pairing is
+/// kept in one variant so a resolver can never exist without a module, nor a
+/// module without a resolver.
+#[derive(Clone, Default)]
+pub enum ResolutionContext {
+    /// Module resolution is disabled; symbolic imports do not resolve.
+    #[default]
+    Disabled,
+    /// Module resolution is enabled for a consumer module.
+    Enabled {
+        /// The resolver used to materialize symbolic module imports.
+        resolver: Arc<dyn wdl_modules::Resolver>,
+        /// The consumer [`Module`](wdl_modules::module::Module) governing the
+        /// analyzed sources.
+        ///
+        /// The caller builds this from the manifest it already parsed during
+        /// discovery and hands it over here, so constructing a resolution
+        /// context performs no filesystem I/O and the analysis queue never
+        /// re-reads `module.json`.
+        consumer_module: wdl_modules::module::Module,
+    },
 }
 
 impl ResolutionContext {
-    /// Creates a new resolution context from a resolver and the consumer module
-    /// it resolves imports for, if any.
-    pub fn new(
+    /// Creates a resolution context that resolves symbolic imports for the
+    /// given consumer module through the given resolver.
+    pub fn enabled(
         resolver: Arc<dyn wdl_modules::Resolver>,
-        consumer_module: Option<wdl_modules::module::Module>,
+        consumer_module: wdl_modules::module::Module,
     ) -> Self {
-        Self {
+        Self::Enabled {
             resolver,
             consumer_module,
         }
     }
 
     /// Returns the root directory of the consumer module governing analysis, if
-    /// any.
+    /// resolution is enabled.
     pub fn module_root(&self) -> Option<&Path> {
-        self.consumer_module
-            .as_ref()
-            .map(|module| module.root.as_path())
+        match self {
+            Self::Disabled => None,
+            Self::Enabled {
+                consumer_module, ..
+            } => Some(consumer_module.root.as_path()),
+        }
     }
-}
 
-impl Default for ResolutionContext {
-    fn default() -> Self {
-        Self {
-            resolver: Arc::new(wdl_modules::resolver::NullResolver),
-            consumer_module: None,
+    /// Splits the context into the resolver and consumer module the analysis
+    /// queue runs with, installing a
+    /// [`NullResolver`](wdl_modules::resolver::NullResolver) when disabled.
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        Arc<dyn wdl_modules::Resolver>,
+        Option<wdl_modules::module::Module>,
+    ) {
+        match self {
+            Self::Disabled => (Arc::new(wdl_modules::resolver::NullResolver), None),
+            Self::Enabled {
+                resolver,
+                consumer_module,
+            } => (resolver, Some(consumer_module)),
         }
     }
 }
@@ -1656,7 +1676,7 @@ workflow run {
         });
         let consumer_module = wdl_modules::module::Module::load_from_path(&consumer_dir)
             .expect("test consumer module should load");
-        let resolution = ResolutionContext::new(resolver, Some(consumer_module));
+        let resolution = ResolutionContext::enabled(resolver, consumer_module);
         let analyzer = Analyzer::new_with_resolution(config, resolution, |(), _, _, _| async {});
         analyzer
             .add_document(path_to_uri(consumer_dir.join("source.wdl")).expect("should convert"))
@@ -1818,7 +1838,7 @@ workflow run {
         let resolver_trait: Arc<dyn wdl_modules::Resolver> = resolver.clone();
         let consumer_module = wdl_modules::module::Module::load_from_path(&consumer_dir)
             .expect("test consumer module should load");
-        let resolution = ResolutionContext::new(resolver_trait, Some(consumer_module));
+        let resolution = ResolutionContext::enabled(resolver_trait, consumer_module);
         let analyzer = Analyzer::new_with_resolution(config, resolution, |(), _, _, _| async {});
         analyzer
             .add_document(path_to_uri(consumer_dir.join("source.wdl")).expect("should convert"))

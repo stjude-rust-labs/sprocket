@@ -430,10 +430,7 @@ pub(crate) fn resolution_context_for_manifest(
                 .map(Path::to_path_buf)
                 .unwrap_or_else(|| PathBuf::from("."));
             let module = wdl_modules::module::Module::new(Arc::new(manifest), root);
-            Ok(wdl::analysis::ResolutionContext::new(
-                resolver,
-                Some(module),
-            ))
+            Ok(wdl::analysis::ResolutionContext::enabled(resolver, module))
         }
         None => Ok(wdl::analysis::ResolutionContext::default()),
     }

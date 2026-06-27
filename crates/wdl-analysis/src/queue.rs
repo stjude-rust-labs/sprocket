@@ -461,10 +461,7 @@ where
     ) -> Self {
         // The consumer module was loaded once when the resolution context was
         // built, so reuse it here instead of re-reading `module.json`.
-        let crate::ResolutionContext {
-            resolver,
-            consumer_module,
-        } = resolution;
+        let (resolver, consumer_module) = resolution.into_parts();
 
         Self {
             graph: Arc::new(RwLock::new(DocumentGraph::new(config.clone()))),
