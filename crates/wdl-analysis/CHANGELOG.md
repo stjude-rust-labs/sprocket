@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* `Diagnostics::len` and `Diagnostics::as_mut_slice` for post-processing emitted
+  diagnostics.
+* `DiagnosticsConfig::with_overrides` to apply per-rule severity overrides.
+* `RULE_ALIASES` and `canonical_rule_id` for mapping deprecated rule IDs to their
+  replacements, and alias expansion in `#@ except` directives.
+
 ## 0.22.0 - 2026-06-26
 
 #### Changed
