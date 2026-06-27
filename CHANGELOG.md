@@ -15,7 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (Provenance Run Crate) and direct task targets produce a Process Run Crate.
   The companion `--ro-crate-strict`, `--no-ro-crate-checksums`, and
   `--no-ro-crate-localize` flags control the failure policy, file digests, and
-  input/output localization
+  input/output localization. Setting `run.ro_crate.logs.include_contents`
+  additionally bundles each task's stdout/stderr into the crate as scrubbed
+  log files, with secret-shaped text replaced before writing
   ([#955](https://github.com/stjude-rust-labs/sprocket/pull/955)).
 * Nix flake providing `packages.sprocket`, a development shell with the
   full toolchain, `nix flake check` entries (package build, binary smoke
