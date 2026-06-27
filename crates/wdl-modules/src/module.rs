@@ -63,7 +63,7 @@ pub struct ModuleId {
     pub scope: Vec<DependencyName>,
 }
 
-/// A WDL module — its parsed [`Manifest`], the directory on disk that
+/// A WDL module, pairing its parsed [`Manifest`], the directory on disk that
 /// holds the `module.json` file, and the lockfile scope that locates
 /// the module's entry within a top-level lockfile.
 #[derive(Clone, Debug)]
