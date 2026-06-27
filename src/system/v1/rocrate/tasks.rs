@@ -7,7 +7,10 @@
 //! extending the task monitor and schema and is left to a follow-on.
 
 use std::collections::HashMap;
+use std::path::Path;
 
+use anyhow::Context as _;
+use anyhow::Result;
 use chrono::DateTime;
 use chrono::SecondsFormat;
 use chrono::Utc;
@@ -15,8 +18,13 @@ use rocraters::ro_crate::constraints::DataType;
 use rocraters::ro_crate::constraints::EntityValue;
 use rocraters::ro_crate::constraints::Id;
 use rocraters::ro_crate::contextual_entity::ContextualEntity;
+use rocraters::ro_crate::data_entity::DataEntity;
 use rocraters::ro_crate::graph_vector::GraphVector;
+use sha2::Digest;
+use sha2::Sha256;
 
+use super::RoCrateOptions;
+use super::context::ScrubbedLog;
 use super::value::sanitize_component;
 use crate::system::v1::db::models::Task;
 use crate::system::v1::db::models::TaskStatus;
@@ -49,6 +57,14 @@ fn ev_str(s: &str) -> EntityValue {
     EntityValue::EntityString(s.to_string())
 }
 
+/// Computes the SHA-256 of a file as a lowercase hex string.
+fn sha256_hex(path: &Path) -> std::io::Result<String> {
+    let mut file = std::fs::File::open(path)?;
+    let mut hasher = Sha256::new();
+    std::io::copy(&mut file, &mut hasher)?;
+    Ok(format!("{:x}", hasher.finalize()))
+}
+
 /// Canonical `xsd:dateTime` form (`...Z`, no fractional seconds).
 fn iso(t: DateTime<Utc>) -> String {
     t.to_rfc3339_opts(SecondsFormat::Secs, true)
@@ -64,6 +80,64 @@ pub fn task_action_status(s: &TaskStatus) -> &'static str {
         TaskStatus::Running => "http://schema.org/ActiveActionStatus",
         TaskStatus::Pending => "http://schema.org/PotentialActionStatus",
     }
+}
+
+/// Writes scrubbed task logs into the crate and appends their `File` entities.
+pub fn task_log_entities(
+    slug: &str,
+    action_id: &str,
+    log: &ScrubbedLog,
+    crate_root: &Path,
+    opts: &RoCrateOptions,
+    graph: &mut Vec<GraphVector>,
+) -> Result<Vec<String>> {
+    let mut ids = Vec::new();
+    for (stream, text) in [
+        ("stdout", log.stdout.as_deref()),
+        ("stderr", log.stderr.as_deref()),
+    ] {
+        let Some(text) = text else {
+            continue;
+        };
+        let id = format!("logs/{slug}/{stream}.log");
+        let path = crate_root.join(&id);
+        let log_dir = crate_root.join("logs").join(slug);
+        std::fs::create_dir_all(&log_dir)
+            .with_context(|| format!("creating task log directory `{}`", log_dir.display()))?;
+        std::fs::write(&path, text)
+            .with_context(|| format!("writing scrubbed task log `{}`", path.display()))?;
+
+        let meta = std::fs::metadata(&path)
+            .with_context(|| format!("reading task log metadata `{}`", path.display()))?;
+        let mut props = vec![
+            (
+                "name",
+                ev_str(&format!("{stream} log for {}", log.task_name)),
+            ),
+            (
+                "description",
+                ev_str(&format!(
+                    "Scrubbed {stream} log; secret-shaped text was replaced before materialization."
+                )),
+            ),
+            ("encodingFormat", ev_str("text/plain")),
+            ("contentSize", EntityValue::Entityi64(meta.len() as i64)),
+            ("about", ev_id(action_id)),
+        ];
+        if opts.checksums {
+            let hex = sha256_hex(&path)
+                .with_context(|| format!("checksumming scrubbed task log `{}`", path.display()))?;
+            props.push(("sha256", EntityValue::EntityString(hex)));
+        }
+        graph.push(GraphVector::DataEntity(DataEntity {
+            id: id.clone(),
+            type_: DataType::Term("File".to_string()),
+            dynamic_entity: bag(props),
+        }));
+        ids.push(id);
+    }
+
+    Ok(ids)
 }
 
 /// Appends the provenance entities for one task to `graph` and returns their

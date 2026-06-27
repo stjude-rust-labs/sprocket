@@ -31,6 +31,7 @@ use super::WORKFLOW_ID;
 use super::WORKFLOW_RO_CRATE_PROFILE;
 use super::WORKFLOW_RUN_CRATE_PROFILE;
 use super::formal::formal_parameter;
+use super::value::sanitize_component;
 use super::value::value_to_entities;
 use crate::system::v1::exec::Target;
 
@@ -153,9 +154,22 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
     let mut task_step_ids = Vec::new();
     let mut task_control_ids = Vec::new();
     let mut task_tool_ids = Vec::new();
+    let mut data_parts = Vec::new();
     if is_workflow && !ctx.tasks.is_empty() {
         for (index, task) in ctx.tasks.iter().enumerate() {
             let ids = super::tasks::task_step_entities(task, index + 1, &mut crate_.graph);
+            let slug = sanitize_component(&task.name);
+            if let Some(log) = ctx.task_logs.iter().find(|log| log.task_name == task.name) {
+                let log_ids = super::tasks::task_log_entities(
+                    &slug,
+                    &ids.action,
+                    log,
+                    crate_root,
+                    opts,
+                    &mut crate_.graph,
+                )?;
+                data_parts.extend(log_ids);
+            }
             task_step_ids.push(ids.step);
             task_control_ids.push(ids.control);
             task_tool_ids.push(ids.tool);
@@ -306,7 +320,6 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
     // Realized inputs/outputs. Crate-contained data entities (those whose `@id`
     // is a crate-relative path, not a `#`-prefixed `PropertyValue`) are collected
     // so the root dataset can reference them from `hasPart`.
-    let mut data_parts = Vec::new();
     let mut input_ids = Vec::new();
     for (name, value) in ctx.inputs_iter() {
         let id = value_to_entities("input", name, value, crate_root, opts, &mut crate_.graph)?;

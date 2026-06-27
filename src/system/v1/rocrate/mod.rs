@@ -12,6 +12,7 @@ pub use build::add_import_parts;
 pub use build::build_run_crate;
 pub use context::EngineInfo;
 pub use context::RunCrateContext;
+pub use context::ScrubbedLog;
 pub use formal::formal_parameter;
 pub use redact::RedactionPolicy;
 pub use redact::Scrubbed;
@@ -161,6 +162,28 @@ pub fn write_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> anyh
     Ok(())
 }
 
+/// Reads and scrubs one task log stream.
+async fn scrub_task_log_stream(
+    db: &dyn crate::system::v1::db::Database,
+    task_name: &str,
+    source: crate::system::v1::db::models::LogSource,
+    policy: &RedactionPolicy,
+) -> anyhow::Result<Option<String>> {
+    let logs = db
+        .get_task_logs(task_name, Some(source), Some(i64::MAX), None)
+        .await?;
+    let chunks = logs
+        .iter()
+        .flat_map(|log| log.chunk.iter().copied())
+        .collect::<Vec<_>>();
+    if chunks.is_empty() {
+        return Ok(None);
+    }
+    let text = String::from_utf8_lossy(&chunks);
+    let scrubbed = policy.scrub(&text);
+    Ok(Some(scrubbed.text))
+}
+
 /// Collects provenance and emits the crate for a completed run.
 ///
 /// Honors `opts.strict`: on failure it returns the error when strict, else logs
@@ -178,6 +201,7 @@ pub async fn emit(
     run_dir: &crate::system::v1::fs::RunDirectory,
     opts: &RoCrateOptions,
 ) -> anyhow::Result<()> {
+    use crate::system::v1::db::models::LogSource;
     use anyhow::Context as _;
 
     if !opts.enabled {
@@ -195,6 +219,28 @@ pub async fn emit(
         let tasks = db
             .list_tasks(Some(run_id), None, Some(i64::MAX), None)
             .await?;
+        let scrubbed_logs = if opts.include_log_contents {
+            let policy = RedactionPolicy;
+            let mut logs = Vec::new();
+            for task in &tasks {
+                let stdout = scrub_task_log_stream(db, &task.name, LogSource::Stdout, &policy)
+                    .await
+                    .with_context(|| format!("reading stdout log for task `{}`", task.name))?;
+                let stderr = scrub_task_log_stream(db, &task.name, LogSource::Stderr, &policy)
+                    .await
+                    .with_context(|| format!("reading stderr log for task `{}`", task.name))?;
+                if stdout.is_some() || stderr.is_some() {
+                    logs.push(ScrubbedLog {
+                        task_name: task.name.clone(),
+                        stdout,
+                        stderr,
+                    });
+                }
+            }
+            logs
+        } else {
+            Vec::new()
+        };
         let ctx = RunCrateContext {
             run: &run,
             session: session.as_ref(),
@@ -204,6 +250,7 @@ pub async fn emit(
             outputs,
             run_dir,
             tasks: &tasks,
+            task_logs: &scrubbed_logs,
             engine: EngineInfo::from_build(),
         };
         write_run_crate(&ctx, opts)
@@ -400,6 +447,12 @@ task echo {
         workflow_inputs.set("greeting", Value::from("hi".to_string()));
         let inputs = Inputs::Workflow(workflow_inputs);
         let outputs = Outputs::from_iter([("message".to_string(), Value::from("hi".to_string()))]);
+        let scrubbed = RedactionPolicy.scrub("authorization: Bearer abc.def\n");
+        let task_logs = vec![ScrubbedLog {
+            task_name: "echo".to_string(),
+            stdout: Some(scrubbed.text),
+            stderr: None,
+        }];
 
         let ctx = RunCrateContext {
             run: &run,
@@ -410,11 +463,13 @@ task echo {
             outputs: &outputs,
             run_dir: &run_dir,
             tasks: &tasks,
+            task_logs: &task_logs,
             engine: EngineInfo::from_build(),
         };
 
-        write_run_crate(&ctx, &RoCrateOptions::from_flags(true, false, false, false))
-            .expect("should write the crate");
+        let mut opts = RoCrateOptions::from_flags(true, false, false, false);
+        opts.include_log_contents = true;
+        write_run_crate(&ctx, &opts).expect("should write the crate");
 
         let meta = run_dir.root().join(METADATA_FILE);
         assert!(meta.exists(), "metadata file should exist");
@@ -471,6 +526,21 @@ task echo {
                 .iter()
                 .any(|p| p["@id"] == "workflow/tasks.wdl")
         );
+        assert!(
+            root_has_part
+                .iter()
+                .any(|p| p["@id"] == "logs/echo/stdout.log")
+        );
+        let log_file = graph
+            .iter()
+            .find(|e| e["@id"] == "logs/echo/stdout.log")
+            .expect("stdout log entity");
+        assert_eq!(log_file["@type"], "File");
+        assert_eq!(log_file["about"]["@id"], "#task-echo");
+        let log_text =
+            std::fs::read_to_string(run_dir.root().join("logs/echo/stdout.log")).unwrap();
+        assert!(log_text.contains("[REDACTED]"));
+        assert!(!log_text.contains("abc.def"));
 
         // The WDL source is materialized into the crate.
         assert!(run_dir.root().join(WORKFLOW_ID).exists());
@@ -538,6 +608,7 @@ task echo {
             outputs: &outputs,
             run_dir: &run_dir,
             tasks: &[],
+            task_logs: &[],
             engine: EngineInfo::from_build(),
         };
 
@@ -551,6 +622,10 @@ task echo {
         assert!(!text.contains("unknown"), "must not invent an agent name");
         // The required root `datePublished` is still present (a real timestamp).
         assert!(text.contains("datePublished"));
+        assert!(
+            !run_dir.root().join("logs").exists(),
+            "empty task logs must not materialize a logs directory"
+        );
     }
 
     /// A direct task target emits a Process Run Crate: no `ComputationalWorkflow`
@@ -616,6 +691,7 @@ task echo {
             outputs: &outputs,
             run_dir: &run_dir,
             tasks: &[],
+            task_logs: &[],
             engine: EngineInfo::from_build(),
         };
 
@@ -707,6 +783,7 @@ task echo {
             outputs: &outputs,
             run_dir: &run_dir,
             tasks: &[],
+            task_logs: &[],
             engine: EngineInfo::from_build(),
         };
 

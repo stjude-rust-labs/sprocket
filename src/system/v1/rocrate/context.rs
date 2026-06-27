@@ -31,6 +31,17 @@ impl EngineInfo {
     }
 }
 
+/// Scrubbed task logs that may be materialized into the crate.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ScrubbedLog {
+    /// The task name the streams belong to.
+    pub task_name: String,
+    /// Scrubbed standard output, if present.
+    pub stdout: Option<String>,
+    /// Scrubbed standard error, if present.
+    pub stderr: Option<String>,
+}
+
 /// All typed run state needed to build a Workflow Run RO-Crate. Borrowed so the
 /// builder runs without taking ownership of execution state.
 #[derive(Debug)]
@@ -52,6 +63,8 @@ pub struct RunCrateContext<'a> {
     /// The run's task rows (one per WDL task name at the current database
     /// granularity), used for step-level provenance.
     pub tasks: &'a [crate::system::v1::db::models::Task],
+    /// Scrubbed task logs to materialize as crate files.
+    pub task_logs: &'a [ScrubbedLog],
     /// Engine identity.
     pub engine: EngineInfo,
 }
