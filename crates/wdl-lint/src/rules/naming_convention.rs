@@ -16,6 +16,7 @@ use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::BoundDecl;
+use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::InputSection;
 use wdl_ast::v1::OutputSection;
 use wdl_ast::v1::StructDefinition;
@@ -36,8 +37,12 @@ enum Context {
     Task,
     /// A workflow name.
     Workflow,
-    /// A user-defined type (struct) name.
-    Type,
+    /// A struct (user-defined type) name.
+    Struct,
+    /// An enum (user-defined type) name.
+    Enum,
+    /// An enum choice.
+    EnumChoice,
     /// A struct member.
     StructMember,
     /// An input declaration.
@@ -53,7 +58,9 @@ impl fmt::Display for Context {
         match self {
             Self::Task => write!(f, "task"),
             Self::Workflow => write!(f, "workflow"),
-            Self::Type => write!(f, "struct"),
+            Self::Struct => write!(f, "struct"),
+            Self::Enum => write!(f, "enum"),
+            Self::EnumChoice => write!(f, "enum choice"),
             Self::StructMember => write!(f, "struct member"),
             Self::Input => write!(f, "input"),
             Self::Output => write!(f, "output"),
@@ -134,7 +141,7 @@ impl NamingConventionRule {
         match context {
             Context::Task => self.task,
             Context::Workflow => self.workflow,
-            Context::Type => self.type_style,
+            Context::Struct | Context::Enum | Context::EnumChoice => self.type_style,
             Context::StructMember | Context::Input | Context::Output | Context::PrivateDecl => {
                 self.variable
             }
@@ -218,6 +225,8 @@ task say_hello {
         Some(&[
             SyntaxKind::VersionStatementNode,
             SyntaxKind::StructDefinitionNode,
+            SyntaxKind::EnumDefinitionNode,
+            SyntaxKind::EnumChoiceNode,
             SyntaxKind::TaskDefinitionNode,
             SyntaxKind::WorkflowDefinitionNode,
             SyntaxKind::InputSectionNode,
@@ -257,7 +266,7 @@ impl Visitor for NamingConventionRule {
                 self.within_struct = true;
                 let name = def.name();
                 self.check_name(
-                    Context::Type,
+                    Context::Struct,
                     name.text(),
                     name.span(),
                     diagnostics,
@@ -267,6 +276,37 @@ impl Visitor for NamingConventionRule {
             VisitReason::Exit => {
                 self.within_struct = false;
             }
+        }
+    }
+
+    fn enum_definition(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        def: &EnumDefinition,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        let name = def.name();
+        self.check_name(
+            Context::Enum,
+            name.text(),
+            name.span(),
+            diagnostics,
+            SyntaxElement::from(def.inner().clone()),
+        );
+
+        for choice in def.choices() {
+            let name = choice.name();
+            self.check_name(
+                Context::EnumChoice,
+                name.text(),
+                name.span(),
+                diagnostics,
+                SyntaxElement::from(choice.inner().clone()),
+            );
         }
     }
 

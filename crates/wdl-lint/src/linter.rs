@@ -197,6 +197,17 @@ impl Visitor for Linter {
         });
     }
 
+    fn enum_definition(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        def: &v1::EnumDefinition,
+    ) {
+        self.each_enabled_rule(diagnostics, |diagnostics, rule| {
+            rule.enum_definition(diagnostics, reason, def)
+        });
+    }
+
     fn task_definition(
         &mut self,
         diagnostics: &mut Diagnostics,
