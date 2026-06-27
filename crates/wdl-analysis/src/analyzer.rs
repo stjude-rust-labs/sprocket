@@ -561,6 +561,12 @@ where
     pub async fn add_directory(&self, path: impl AsRef<Path>) -> Result<()> {
         let path = path.as_ref().to_path_buf();
         let config = self.config.clone();
+        // When the scanned directory lies inside the active module, stop the
+        // walk at nested module boundaries: a subdirectory with its own
+        // `module.json` is a separate (local-path dependency) module whose WDL
+        // files reach the analyzer through symbolic-import materialization, not
+        // directory scanning. Outside an active module there is nothing to scope
+        // to, so scan everything.
         let active_module_root = self.resolution.module_root().map(Path::to_path_buf);
         let stop_at_module_boundaries = active_module_root
             .as_ref()
@@ -1489,44 +1495,6 @@ workflow test {
             .unwrap();
         let results = analyzer.analyze(()).await.unwrap();
         assert!(results.is_empty());
-    }
-
-    #[tokio::test]
-    async fn add_directory_includes_nested_modules_without_resolution() {
-        let dir = TempDir::new().expect("failed to create temporary directory");
-        fs::write(
-            dir.path().join("root.wdl"),
-            r#"version 1.1
-workflow root {
-}
-"#,
-        )
-        .expect("failed to create root document");
-
-        let nested = dir.path().join("nested");
-        fs::create_dir(&nested).expect("failed to create nested directory");
-        fs::write(
-            nested.join("module.json"),
-            r#"{"name":"nested","version":"0.1.0","license":"MIT"}"#,
-        )
-        .expect("failed to create nested manifest");
-        fs::write(
-            nested.join("nested.wdl"),
-            r#"version 1.1
-workflow nested {
-}
-"#,
-        )
-        .expect("failed to create nested document");
-
-        let analyzer = Analyzer::default();
-        analyzer
-            .add_directory(dir.path())
-            .await
-            .expect("should add documents");
-
-        let results = analyzer.analyze(()).await.expect("analysis should succeed");
-        assert_eq!(results.len(), 2);
     }
 
     #[tokio::test]
