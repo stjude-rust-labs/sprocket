@@ -170,10 +170,6 @@ impl Analysis {
     /// no manifest governs the sources, and an error if a `module.json` is
     /// present but malformed or if the sources span more than one manifest.
     fn resolution_context_from_sources(&self) -> anyhow::Result<wdl::analysis::ResolutionContext> {
-        if !self.feature_flags.wdl_1_4() {
-            return Ok(wdl::analysis::ResolutionContext::default());
-        }
-
         let Some(ref modules_config) = self.modules_config else {
             return Ok(wdl::analysis::ResolutionContext::default());
         };
@@ -183,7 +179,7 @@ impl Analysis {
             return Ok(wdl::analysis::ResolutionContext::default());
         }
 
-        resolution_context_from_paths(modules_config, &starts)
+        resolution_context_from_paths(modules_config, &self.feature_flags, &starts)
     }
 
     /// Runs the analysis and returns all results (if any exist).
@@ -447,14 +443,21 @@ pub(crate) fn resolution_context_for_manifest(
 /// [`ResolutionContext`](wdl::analysis::ResolutionContext) for it.
 ///
 /// This is the single discovery policy shared by the CLI batch analysis and the
-/// LSP server. Each path in `starts` is walked upward (stopping at a repository
-/// root) for a `module.json`. The default null-resolver context is returned
-/// when no manifest is found; an error is returned when a discovered manifest
-/// is malformed or when `starts` spans more than one manifest.
+/// LSP server, including the gate on the WDL 1.4 feature flag. Each path in
+/// `starts` is walked upward (stopping at a repository root) for a
+/// `module.json`. The default null-resolver context is returned when the
+/// feature is disabled or no manifest is found; an error is returned when a
+/// discovered manifest is malformed or when `starts` spans more than one
+/// manifest.
 pub(crate) fn resolution_context_from_paths(
     modules_config: &wdl_modules::resolver::ModulesConfig,
+    feature_flags: &FeatureFlags,
     starts: &[PathBuf],
 ) -> anyhow::Result<wdl::analysis::ResolutionContext> {
+    if !feature_flags.wdl_1_4() {
+        return Ok(wdl::analysis::ResolutionContext::default());
+    }
+
     let mut manifests = HashMap::new();
     for start in starts {
         if let Some((path, manifest)) = discover_manifest_upward(start)? {
@@ -721,13 +724,17 @@ mod tests {
         std::fs::create_dir_all(&nested).unwrap();
 
         let config = wdl_modules::resolver::ModulesConfig::default();
+        let feature_flags = super::FeatureFlags::default().with_wdl_1_4();
 
         // The CLI surface starts from a source directory at the module root.
-        let from_sources =
-            resolution_context_from_paths(&config, &[module_dir.path().to_path_buf()])
-                .expect("resolution context construction should succeed");
+        let from_sources = resolution_context_from_paths(
+            &config,
+            &feature_flags,
+            &[module_dir.path().to_path_buf()],
+        )
+        .expect("resolution context construction should succeed");
         // The LSP surface starts from a working directory nested in the module.
-        let from_cwd = resolution_context_from_paths(&config, &[nested])
+        let from_cwd = resolution_context_from_paths(&config, &feature_flags, &[nested])
             .expect("resolution context construction should succeed");
 
         assert_eq!(from_sources.module_root(), Some(module_dir.path()));

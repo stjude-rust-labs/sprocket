@@ -5,6 +5,7 @@ use std::marker::PhantomData;
 use std::ops::Range;
 use std::panic;
 use std::panic::AssertUnwindSafe;
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Instant;
@@ -370,6 +371,51 @@ impl ModuleRegistry {
     }
 }
 
+/// A symbolic import collected while scanning a parsed document that requires
+/// an async `materialize` call.
+struct SymbolicWorkItem {
+    /// The node that contains the import statement.
+    importer: NodeIndex,
+    /// The resolved consumer module for the importer.
+    consumer_module: Module,
+    /// The parsed symbolic path from the import statement.
+    symbolic_path: SymbolicPath,
+    /// The raw text of the module-path token, used as the edge label and for
+    /// error messages.
+    path_text: String,
+}
+
+/// A deduplicated unit of materialization work shared by every importer that
+/// requested the same dependency.
+struct MaterializeWork {
+    /// The nodes that contain an import of this dependency.
+    importers: Vec<NodeIndex>,
+    /// The consumer module captured during collection. Reused to build the
+    /// child module for the materialized dependency.
+    consumer_module: Module,
+    /// The parsed symbolic path from the import statement.
+    symbolic_path: SymbolicPath,
+    /// The raw text of the module-path token, used as the edge label and for
+    /// error messages.
+    path_text: String,
+}
+
+/// The result of materializing one deduplicated dependency, carried back to the
+/// graph-stitching step.
+struct MaterializeOutcome {
+    /// The nodes that contain an import of this dependency.
+    importers: Vec<NodeIndex>,
+    /// The consumer module captured during collection.
+    consumer_module: Module,
+    /// The parsed symbolic path from the import statement.
+    symbolic_path: SymbolicPath,
+    /// The raw text of the module-path token, used as the edge label and for
+    /// error messages.
+    path_text: String,
+    /// The result of the `materialize` call.
+    result: Result<wdl_modules::resolver::MaterializedFile, wdl_modules::resolver::ResolverError>,
+}
+
 /// Represents the analysis queue.
 pub struct AnalysisQueue<Progress, Context, Return, Validator> {
     /// The document graph maintained by the analysis queue.
@@ -387,6 +433,9 @@ pub struct AnalysisQueue<Progress, Context, Return, Validator> {
     /// Maps each document URI to the [`Module`] that governs it.
     /// Populated at resolution time so the lookup is direct.
     document_modules: ModuleRegistry,
+    /// Caches whether a directory is a module root so repeated ancestry walks
+    /// during import scanning do not re-stat the filesystem for the same path.
+    module_root_cache: parking_lot::Mutex<HashMap<PathBuf, bool>>,
     /// The progress callback to use.
     progress: Arc<Progress>,
     /// The validator callback to use.
@@ -424,6 +473,7 @@ where
             resolver,
             consumer_module,
             document_modules: ModuleRegistry::default(),
+            module_root_cache: parking_lot::Mutex::new(HashMap::new()),
             progress: Arc::new(progress),
             marker: PhantomData,
             client: Default::default(),
@@ -1327,10 +1377,11 @@ where
         })
     }
 
-    /// Updates the graph and subgraphs.
+    /// Updates the graph and subgraphs for the given parsed nodes.
     ///
-    /// This processes parsed nodes and also adding the direct dependencies of
-    /// nodes added to the subgraph.
+    /// This runs in three steps; collect the import work for the parsed nodes,
+    /// materialize symbolic imports concurrently, then apply the results back
+    /// into the graph and queue dependents for reanalysis.
     fn update_graphs(
         &self,
         parsed: Vec<(NodeIndex, Result<ParseState>)>,
@@ -1338,24 +1389,26 @@ where
         range: Range<usize>,
         space: &mut DfsSpace,
     ) -> Result<()> {
-        // A work item collected during Phase A that requires an async
-        // `materialize` call in Phase B.
-        struct SymbolicWorkItem {
-            /// The node that contains the import statement.
-            importer: NodeIndex,
-            /// The resolved consumer module for the importer.
-            consumer_module: wdl_modules::module::Module,
-            /// The parsed symbolic path from the import statement.
-            symbolic_path: SymbolicPath,
-            /// The raw text of the module-path token, used as the edge label
-            /// and for error messages.
-            path_text: String,
-        }
+        let (parsed_indices, symbolic_work) = self.collect_import_work(parsed, subgraph, space)?;
+        let results = self.materialize_symbolic_imports(symbolic_work);
+        self.apply_materialization_results(results, &parsed_indices, subgraph, range, space);
+        Ok(())
+    }
 
-        // Phase A: under graph.write(), handle parse completion and URI
-        // imports. Symbolic imports are collected as work items instead of
-        // being driven serially here, so the write lock is held for as short a
-        // time as possible.
+    /// Collects import work for the parsed nodes under a single graph write.
+    ///
+    /// URI imports are wired directly into the graph here; symbolic imports are
+    /// returned as work items so their I/O can run outside the lock. Returns
+    /// the parsed node indices and the symbolic work to materialize.
+    fn collect_import_work(
+        &self,
+        parsed: Vec<(NodeIndex, Result<ParseState>)>,
+        subgraph: &mut IndexSet<NodeIndex>,
+        space: &mut DfsSpace,
+    ) -> Result<(Vec<NodeIndex>, Vec<SymbolicWorkItem>)> {
+        // Handle parse completion and URI imports under graph.write(). Symbolic
+        // imports are collected as work items instead of being driven serially
+        // here, so the write lock is held for as short a time as possible.
         let mut uri_import_modules: Vec<(Url, Module)> = Vec::new();
         let (parsed_indices, symbolic_work): (Vec<NodeIndex>, Vec<SymbolicWorkItem>) = {
             let mut graph = self.graph.write();
@@ -1478,24 +1531,23 @@ where
         // Record URI-import module mappings collected above in one batch.
         self.document_modules.record_all(uri_import_modules);
 
-        // Deduplicate the collected work so each distinct dependency is
-        // materialized once per pass. Several documents in a module commonly
-        // import the same dependency; keying on the consumer module root plus
-        // the parsed symbolic path collapses those into a single `materialize`
-        // call whose result is fanned out to every importer that requested it.
-        struct MaterializeWork {
-            /// The nodes that contain an import of this dependency.
-            importers: Vec<NodeIndex>,
-            /// The consumer module captured in Phase A. Reused to build the
-            /// child module for the materialized dependency.
-            consumer_module: wdl_modules::module::Module,
-            /// The parsed symbolic path from the import statement.
-            symbolic_path: SymbolicPath,
-            /// The raw text of the module-path token, used as the edge label
-            /// and for error messages.
-            path_text: String,
-        }
+        Ok((parsed_indices, symbolic_work))
+    }
 
+    /// Materializes the collected symbolic import work concurrently.
+    ///
+    /// The work is deduplicated so each distinct dependency is materialized
+    /// once per pass. Several documents in a module commonly import the
+    /// same dependency; keying on the consumer module root plus the parsed
+    /// symbolic path collapses those into a single `materialize` call whose
+    /// result is fanned out to every importer that requested it. The calls
+    /// run capped at `MAX_CONCURRENT_MATERIALIZATIONS` in flight so a
+    /// manifest declaring many dependencies cannot drive an unbounded
+    /// number of parallel clones or fetches.
+    fn materialize_symbolic_imports(
+        &self,
+        symbolic_work: Vec<SymbolicWorkItem>,
+    ) -> Vec<MaterializeOutcome> {
         let mut unique_work: IndexMap<(PathBuf, SymbolicPath), MaterializeWork> = IndexMap::new();
         for item in symbolic_work {
             let SymbolicWorkItem {
@@ -1517,65 +1569,52 @@ where
                 .push(importer);
         }
 
-        // Phase B: drive the `materialize` calls concurrently, capped at
-        // `MAX_CONCURRENT_MATERIALIZATIONS` in flight so a manifest declaring
-        // many dependencies cannot drive an unbounded number of parallel
-        // clones or fetches.
-        //
-        // Each future carries the importers, parsed `SymbolicPath`, raw path
-        // text, and the consumer module captured in Phase A so that Phase C can
-        // stitch the results back into the graph without holding the lock during
-        // I/O, without re-parsing the path, and without a second module lookup.
-        struct MaterializeOutcome {
-            /// The nodes that contain an import of this dependency.
-            importers: Vec<NodeIndex>,
-            /// The consumer module captured in Phase A. Reused to build the
-            /// child module for the materialized dependency.
-            consumer_module: wdl_modules::module::Module,
-            /// The parsed symbolic path from the import statement.
-            symbolic_path: SymbolicPath,
-            /// The raw text of the module-path token, used as the edge label
-            /// and for error messages.
-            path_text: String,
-            /// The result of the `materialize` call.
-            result: Result<
-                wdl_modules::resolver::MaterializedFile,
-                wdl_modules::resolver::ResolverError,
-            >,
+        if unique_work.is_empty() {
+            return Vec::new();
         }
 
-        let materialized_results: Vec<MaterializeOutcome> = if unique_work.is_empty() {
-            Vec::new()
-        } else {
-            tracing::debug!(
-                count = unique_work.len(),
-                "resolving symbolic imports concurrently",
-            );
-            let resolver = Arc::clone(&self.resolver);
-            let stream = futures::stream::iter(unique_work.into_values().map(|work| {
-                let resolver = Arc::clone(&resolver);
-                async move {
-                    tracing::debug!(path = %work.path_text, "resolving symbolic import");
-                    let result = resolver
-                        .materialize(&work.consumer_module, &work.symbolic_path)
-                        .await;
-                    MaterializeOutcome {
-                        importers: work.importers,
-                        consumer_module: work.consumer_module,
-                        symbolic_path: work.symbolic_path,
-                        path_text: work.path_text,
-                        result,
-                    }
+        tracing::debug!(
+            count = unique_work.len(),
+            "resolving symbolic imports concurrently",
+        );
+        let resolver = Arc::clone(&self.resolver);
+        let stream = futures::stream::iter(unique_work.into_values().map(|work| {
+            let resolver = Arc::clone(&resolver);
+            async move {
+                tracing::debug!(path = %work.path_text, "resolving symbolic import");
+                let result = resolver
+                    .materialize(&work.consumer_module, &work.symbolic_path)
+                    .await;
+                MaterializeOutcome {
+                    importers: work.importers,
+                    consumer_module: work.consumer_module,
+                    symbolic_path: work.symbolic_path,
+                    path_text: work.path_text,
+                    result,
                 }
-            }))
-            .buffer_unordered(MAX_CONCURRENT_MATERIALIZATIONS);
+            }
+        }))
+        .buffer_unordered(MAX_CONCURRENT_MATERIALIZATIONS);
 
-            self.tokio
-                .block_on(stream.collect::<Vec<MaterializeOutcome>>())
-        };
+        self.tokio
+            .block_on(stream.collect::<Vec<MaterializeOutcome>>())
+    }
 
-        // Phase C: under graph.write(), stitch materialization results and run
-        // the BFS pass for all parsed nodes.
+    /// Applies materialization results to the graph and queues dependents for
+    /// reanalysis under a single graph write.
+    ///
+    /// Each materialized dependency is added to the graph once and connected to
+    /// every importer that requested it. Because WDL implicitly introduces
+    /// import names into document scope, every transitive dependent of a
+    /// changed document is also queued for reanalysis.
+    fn apply_materialization_results(
+        &self,
+        results: Vec<MaterializeOutcome>,
+        parsed_indices: &[NodeIndex],
+        subgraph: &mut IndexSet<NodeIndex>,
+        range: Range<usize>,
+        space: &mut DfsSpace,
+    ) {
         let mut symbolic_import_modules: Vec<(Url, Module)> = Vec::new();
         {
             let mut graph = self.graph.write();
@@ -1586,7 +1625,7 @@ where
                 symbolic_path,
                 path_text,
                 result,
-            } in materialized_results
+            } in results
             {
                 match result {
                     Ok(materialized) => {
@@ -1658,7 +1697,7 @@ where
             // transitive dependents to be reanalyzed; therefore, do a BFS
             // from each parsed node and add any discovered nodes to the
             // subgraph.
-            for index in &parsed_indices {
+            for index in parsed_indices {
                 let index = *index;
                 graph.bfs_mut(index, |graph, dependent: NodeIndex| {
                     if index == dependent {
@@ -1691,8 +1730,6 @@ where
         // Record symbolic-import module mappings collected above in one batch
         // now that the graph write lock has been released.
         self.document_modules.record_all(symbolic_import_modules);
-
-        Ok(())
     }
 
     /// Analyzes a node in the document graph.
@@ -1736,6 +1773,20 @@ where
     fn module_for_root_document(&self, uri: &Url) -> Option<Module> {
         let module = self.consumer_module.clone()?;
         let path = uri.to_file_path().ok()?;
+        self.module_if_path_within_root(module, &path)
+    }
+
+    /// Returns the importer module for a URI import inside the same module.
+    fn module_for_uri_import(&self, importer_uri: &Url, import_uri: &Url) -> Option<Module> {
+        let module = self.find_module_for_document(importer_uri)?;
+        let import_path = import_uri.to_file_path().ok()?;
+        self.module_if_path_within_root(module, &import_path)
+    }
+
+    /// Returns `module` when `path` is governed by it, that is, when `path`
+    /// sits at or below `module.root` without crossing into a nested module
+    /// declared by its own `module.json`.
+    fn module_if_path_within_root(&self, module: Module, path: &Path) -> Option<Module> {
         if !path.starts_with(&module.root) {
             return None;
         }
@@ -1746,7 +1797,7 @@ where
                 return Some(module);
             }
 
-            if wdl_modules::module::is_module_root(current) {
+            if self.is_module_root_cached(current) {
                 return None;
             }
 
@@ -1756,28 +1807,18 @@ where
         None
     }
 
-    /// Returns the importer module for a URI import inside the same module.
-    fn module_for_uri_import(&self, importer_uri: &Url, import_uri: &Url) -> Option<Module> {
-        let module = self.find_module_for_document(importer_uri)?;
-        let import_path = import_uri.to_file_path().ok()?;
-        if !import_path.starts_with(&module.root) {
-            return None;
+    /// Returns whether `dir` is a module root, caching the filesystem probe so
+    /// repeated ancestry walks during one session do not re-stat the same path.
+    fn is_module_root_cached(&self, dir: &Path) -> bool {
+        if let Some(&cached) = self.module_root_cache.lock().get(dir) {
+            return cached;
         }
 
-        let mut dir = import_path.parent();
-        while let Some(current) = dir {
-            if current == module.root {
-                return Some(module);
-            }
-
-            if wdl_modules::module::is_module_root(current) {
-                return None;
-            }
-
-            dir = current.parent();
-        }
-
-        None
+        let result = wdl_modules::module::is_module_root(dir);
+        self.module_root_cache
+            .lock()
+            .insert(dir.to_path_buf(), result);
+        result
     }
 }
 
