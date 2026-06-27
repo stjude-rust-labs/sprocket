@@ -350,18 +350,22 @@ enum Cancelable<T> {
 #[derive(Default)]
 struct ModuleRegistry {
     /// The URI-to-module map guarded for concurrent access during analysis.
-    modules: parking_lot::Mutex<HashMap<Url, Module>>,
+    ///
+    /// Modules are stored behind an [`Arc`] so the many documents governed by
+    /// the same module share one instance and lookups hand out cheap clones
+    /// rather than copying a module's path and scope each time.
+    modules: parking_lot::Mutex<HashMap<Url, Arc<Module>>>,
 }
 
 impl ModuleRegistry {
     /// Returns the [`Module`] governing the document at `uri`, if recorded.
-    fn module_for(&self, uri: &Url) -> Option<Module> {
+    fn module_for(&self, uri: &Url) -> Option<Arc<Module>> {
         self.modules.lock().get(uri).cloned()
     }
 
     /// Records many document-to-module mappings under a single lock
     /// acquisition, avoiding per-item lock churn in tight loops.
-    fn record_all(&self, entries: impl IntoIterator<Item = (Url, Module)>) {
+    fn record_all(&self, entries: impl IntoIterator<Item = (Url, Arc<Module>)>) {
         self.modules.lock().extend(entries);
     }
 
@@ -383,7 +387,7 @@ struct MaterializeWork {
     importers: Vec<NodeIndex>,
     /// The consumer module captured during collection. Reused to build the
     /// child module for the materialized dependency.
-    consumer_module: Module,
+    consumer_module: Arc<Module>,
     /// The parsed symbolic path from the import statement.
     symbolic_path: SymbolicPath,
     /// The raw text of the module-path token, used as the edge label and for
@@ -397,7 +401,7 @@ struct MaterializeOutcome {
     /// The nodes that contain an import of this dependency.
     importers: Vec<NodeIndex>,
     /// The consumer module captured during collection.
-    consumer_module: Module,
+    consumer_module: Arc<Module>,
     /// The parsed symbolic path from the import statement.
     symbolic_path: SymbolicPath,
     /// The raw text of the module-path token, used as the edge label and for
@@ -420,7 +424,7 @@ pub struct AnalysisQueue<Progress, Context, Return, Validator> {
     /// The module resolver used for resolving WDL module imports.
     resolver: Arc<dyn wdl_modules::Resolver>,
     /// The consumer's [`Module`], if a `module.json` was found.
-    consumer_module: Option<Module>,
+    consumer_module: Option<Arc<Module>>,
     /// Maps each document URI to the [`Module`] that governs it.
     /// Populated at resolution time so the lookup is direct.
     document_modules: ModuleRegistry,
@@ -451,8 +455,10 @@ where
         validator: Validator,
     ) -> Self {
         // The consumer module was loaded once when the resolution context was
-        // built, so reuse it here instead of re-reading `module.json`.
+        // built, so reuse it here instead of re-reading `module.json`. Wrap it
+        // in an `Arc` so the many documents it governs share one instance.
         let (resolver, consumer_module) = resolution.into_parts();
+        let consumer_module = consumer_module.map(Arc::new);
 
         Self {
             graph: Arc::new(RwLock::new(DocumentGraph::new(config.clone()))),
@@ -1274,6 +1280,11 @@ where
         // cycles in a long-lived session.
         self.document_modules
             .retain(|uri| graph.get_index(uri).is_some());
+
+        // Clear the module-root probe cache on a remove cycle so it cannot grow
+        // without bound across a long-lived session; it refills lazily from the
+        // filesystem on the next ancestry walk.
+        self.module_root_cache.lock().clear();
     }
 
     /// Awaits the given set of futures while providing progress to the given
@@ -1398,7 +1409,7 @@ where
         // imports are collected (and deduplicated by module identity plus
         // symbolic path) for concurrent materialization outside the lock, so the
         // write lock is held for as short a time as possible.
-        let mut uri_import_modules: Vec<(Url, Module)> = Vec::new();
+        let mut uri_import_modules: Vec<(Url, Arc<Module>)> = Vec::new();
         let (parsed_indices, symbolic_work): (Vec<NodeIndex>, SymbolicWorkSet) = {
             let mut graph = self.graph.write();
             let mut indices = Vec::new();
@@ -1590,7 +1601,7 @@ where
         range: Range<usize>,
         space: &mut DfsSpace,
     ) {
-        let mut symbolic_import_modules: Vec<(Url, Module)> = Vec::new();
+        let mut symbolic_import_modules: Vec<(Url, Arc<Module>)> = Vec::new();
         {
             let mut graph = self.graph.write();
 
@@ -1629,7 +1640,7 @@ where
                         let import_module = materialized
                             .child_module(&consumer_module, symbolic_path.dep_name().clone());
 
-                        symbolic_import_modules.push((import_uri.clone(), import_module));
+                        symbolic_import_modules.push((import_uri.clone(), Arc::new(import_module)));
 
                         // Materialization happens once per dependency, so add
                         // the node once and connect every importer that
@@ -1733,19 +1744,19 @@ where
     }
 
     /// Returns the [`Module`] that governs the document at `uri`.
-    fn find_module_for_document(&self, uri: &Url) -> Option<Module> {
+    fn find_module_for_document(&self, uri: &Url) -> Option<Arc<Module>> {
         self.document_modules.module_for(uri)
     }
 
     /// Returns the consumer module for a root document governed by it.
-    fn module_for_root_document(&self, uri: &Url) -> Option<Module> {
+    fn module_for_root_document(&self, uri: &Url) -> Option<Arc<Module>> {
         let module = self.consumer_module.clone()?;
         let path = uri.to_file_path().ok()?;
         self.module_if_path_within_root(module, &path)
     }
 
     /// Returns the importer module for a URI import inside the same module.
-    fn module_for_uri_import(&self, importer_uri: &Url, import_uri: &Url) -> Option<Module> {
+    fn module_for_uri_import(&self, importer_uri: &Url, import_uri: &Url) -> Option<Arc<Module>> {
         let module = self.find_module_for_document(importer_uri)?;
         let import_path = import_uri.to_file_path().ok()?;
         self.module_if_path_within_root(module, &import_path)
@@ -1754,7 +1765,7 @@ where
     /// Returns `module` when `path` is governed by it, that is, when `path`
     /// sits at or below `module.root` without crossing into a nested module
     /// declared by its own `module.json`.
-    fn module_if_path_within_root(&self, module: Module, path: &Path) -> Option<Module> {
+    fn module_if_path_within_root(&self, module: Arc<Module>, path: &Path) -> Option<Arc<Module>> {
         if !path.starts_with(&module.root) {
             return None;
         }
