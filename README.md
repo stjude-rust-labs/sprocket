@@ -105,16 +105,19 @@ docker pull ghcr.io/stjude-rust-labs/sprocket:v0.27.0
 ### Nix Flake
 
 Sprocket ships a [Nix](https://nixos.org/download/) flake. With flakes
-enabled, you can build or run Sprocket directly from the repository:
+enabled, you can build or run Sprocket directly from the repository. Pin a
+release tag for reproducible results:
 
 ```bash
 # Build the binary (output at ./result/bin/sprocket)
-nix build github:stjude-rust-labs/sprocket#sprocket
+nix build github:stjude-rust-labs/sprocket/v0.27.0#sprocket
 ./result/bin/sprocket --help
 
 # Or run it without installing
-nix run github:stjude-rust-labs/sprocket -- --help
+nix run github:stjude-rust-labs/sprocket/v0.27.0 -- --help
 ```
+
+Omit the `/v0.27.0` tag to track the latest commit on `main`.
 
 ## 🖥️ Development
 
