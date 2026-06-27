@@ -22,6 +22,7 @@ use wdl::analysis::types::Optional;
 use super::METADATA_FILE;
 use super::PROCESS_PROFILE;
 use super::PROFILES;
+use super::PROVENANCE_RUN_CRATE_PROFILE;
 use super::ROCRATE_CONTEXT;
 use super::RoCrateOptions;
 use super::RunCrateContext;
@@ -43,6 +44,15 @@ fn ev_ids(v: Vec<String>) -> EntityValue {
     EntityValue::EntityId(Id::IdArray(v))
 }
 
+/// Extracts `@id` references from a single or array id value.
+fn id_value_ids(value: EntityValue) -> Vec<String> {
+    match value {
+        EntityValue::EntityId(Id::Id(id)) => vec![id],
+        EntityValue::EntityId(Id::IdArray(ids)) => ids,
+        _ => Vec::new(),
+    }
+}
+
 /// Wraps a string literal as an `EntityValue`.
 fn ev_str(s: &str) -> EntityValue {
     EntityValue::EntityString(s.to_string())
@@ -59,6 +69,7 @@ fn profile_entity(id: &str) -> GraphVector {
     let (name, version) = match id {
         PROCESS_PROFILE => ("Process Run Crate", "0.1"),
         WORKFLOW_RUN_CRATE_PROFILE => ("Workflow Run Crate", "0.1"),
+        PROVENANCE_RUN_CRATE_PROFILE => ("Provenance Run Crate", "0.1"),
         WORKFLOW_RO_CRATE_PROFILE => ("Workflow RO-Crate", "1.0"),
         _ => ("RO-Crate profile", ""),
     };
@@ -119,7 +130,7 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
     // than fabricating a workflow that does not exist.
     let is_workflow = matches!(ctx.target, Target::Workflow(_));
     let wf_name = ctx.target.name().to_string();
-    let (wf_desc, wf_types, profiles): (String, Vec<String>, Vec<&str>) = if is_workflow {
+    let (wf_desc, mut wf_types, mut profiles): (String, Vec<String>, Vec<&str>) = if is_workflow {
         (
             format!("WDL workflow `{wf_name}`"),
             vec![
@@ -136,6 +147,23 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
             vec![PROCESS_PROFILE],
         )
     };
+    if is_workflow {
+        profiles.push(PROVENANCE_RUN_CRATE_PROFILE);
+    }
+    let mut task_step_ids = Vec::new();
+    let mut task_control_ids = Vec::new();
+    let mut task_tool_ids = Vec::new();
+    if is_workflow && !ctx.tasks.is_empty() {
+        for (index, task) in ctx.tasks.iter().enumerate() {
+            let ids = super::tasks::task_step_entities(task, index + 1, &mut crate_.graph);
+            task_step_ids.push(ids.step);
+            task_control_ids.push(ids.control);
+            task_tool_ids.push(ids.tool);
+        }
+    }
+    if !task_step_ids.is_empty() {
+        wf_types.push("HowTo".to_string());
+    }
     let (inputs_iface, outputs_iface) = callable_interface(ctx);
     let input_param_ids = inputs_iface
         .iter()
@@ -237,6 +265,10 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
         if !output_param_ids.is_empty() {
             workflow_props.push(("output", ev_ids(output_param_ids)));
         }
+        if !task_step_ids.is_empty() {
+            workflow_props.push(("step", ev_ids(task_step_ids)));
+            workflow_props.push(("hasPart", ev_ids(task_tool_ids)));
+        }
     }
     crate_.graph.push(GraphVector::DataEntity(DataEntity {
         id: WORKFLOW_ID.to_string(),
@@ -315,6 +347,9 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
         // The agent is the submitter (when known); the engine is the instrument.
         if agent_name.is_some() {
             organize_props.push(("agent", ev_id("#agent")));
+        }
+        if !task_control_ids.is_empty() {
+            organize_props.push(("object", ev_ids(task_control_ids)));
         }
         if let Some(s) = &started {
             organize_props.push(("startTime", ev_str(s)));
@@ -411,15 +446,32 @@ pub fn build_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> Resu
     Ok(crate_)
 }
 
-/// Links materialized import `@id`s to the workflow entity's `hasPart`. The
-/// workflow does not list itself.
-pub fn add_workflow_parts(crate_: &mut RoCrate, import_ids: &[String]) {
+/// Links materialized import `@id`s to the root dataset's `hasPart`.
+pub fn add_import_parts(crate_: &mut RoCrate, import_ids: &[String]) {
     if import_ids.is_empty() {
         return;
     }
-    let mut property = HashMap::new();
-    property.insert("hasPart".to_string(), ev_ids(import_ids.to_vec()));
-    crate_.add_dynamic_entity_property(WORKFLOW_ID, property);
+    for entity in &mut crate_.graph {
+        let GraphVector::RootDataEntity(root) = entity else {
+            continue;
+        };
+        if root.id != "./" {
+            continue;
+        }
+
+        let dynamic = root.dynamic_entity.get_or_insert_with(HashMap::new);
+        let mut ids = dynamic
+            .remove("hasPart")
+            .map(id_value_ids)
+            .unwrap_or_default();
+        for id in import_ids {
+            if !ids.contains(id) {
+                ids.push(id.clone());
+            }
+        }
+        dynamic.insert("hasPart".to_string(), ev_ids(ids));
+        return;
+    }
 }
 
 #[cfg(test)]
@@ -427,18 +479,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn add_workflow_parts_links_imports() {
+    fn add_import_parts_links_imports_to_root() {
         let mut crate_ = RoCrate {
             context: RoCrateContext::ReferenceContext(ROCRATE_CONTEXT.to_string()),
-            graph: vec![GraphVector::DataEntity(DataEntity {
-                id: WORKFLOW_ID.to_string(),
-                type_: DataType::Term("File".to_string()),
-                dynamic_entity: None,
+            graph: vec![GraphVector::RootDataEntity(RootDataEntity {
+                id: "./".to_string(),
+                type_: DataType::Term("Dataset".to_string()),
+                name: "test run".to_string(),
+                description: "test crate".to_string(),
+                date_published: "2026-01-01T00:00:00Z".to_string(),
+                license: License::Description("license not specified".to_string()),
+                dynamic_entity: bag(vec![("hasPart", ev_ids(vec!["#tool-task".to_string()]))]),
             })],
         };
-        add_workflow_parts(&mut crate_, &["workflow/tasks.wdl".to_string()]);
+        add_import_parts(&mut crate_, &["workflow/tasks.wdl".to_string()]);
         let json = serde_json::to_string(&crate_).unwrap();
         assert!(json.contains("hasPart"));
+        assert!(json.contains("#tool-task"));
         assert!(json.contains("workflow/tasks.wdl"));
     }
 }

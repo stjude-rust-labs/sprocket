@@ -7,7 +7,7 @@ mod source;
 mod tasks;
 mod value;
 
-pub use build::add_workflow_parts;
+pub use build::add_import_parts;
 pub use build::build_run_crate;
 pub use context::EngineInfo;
 pub use context::RunCrateContext;
@@ -26,6 +26,8 @@ pub const WFRUN_CONTEXT: &str = "https://w3id.org/ro/terms/workflow-run/context"
 pub const PROCESS_PROFILE: &str = "https://w3id.org/ro/wfrun/process/0.1";
 /// Workflow Run Crate profile.
 pub const WORKFLOW_RUN_CRATE_PROFILE: &str = "https://w3id.org/ro/wfrun/workflow/0.1";
+/// Provenance Run Crate profile.
+pub const PROVENANCE_RUN_CRATE_PROFILE: &str = "https://w3id.org/ro/wfrun/provenance/0.1";
 /// Workflow RO-Crate profile.
 pub const WORKFLOW_RO_CRATE_PROFILE: &str = "https://w3id.org/workflowhub/workflow-ro-crate/1.0";
 /// Profiles a workflow-target crate conforms to. Task targets conform only to
@@ -144,7 +146,7 @@ fn validate(crate_: &rocraters::ro_crate::rocrate::RoCrate) -> anyhow::Result<()
 pub fn write_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> anyhow::Result<()> {
     let mut crate_ = build_run_crate(ctx, opts)?;
     let import_ids = materialize_sources(ctx.document, ctx.run_dir.root(), &mut crate_.graph)?;
-    add_workflow_parts(&mut crate_, &import_ids);
+    add_import_parts(&mut crate_, &import_ids);
     validate(&crate_)?;
     let path = ctx.run_dir.root().join(METADATA_FILE);
     rocraters::ro_crate::write::write_crate(&crate_, path.to_string_lossy().to_string())
@@ -293,22 +295,52 @@ mod tests {
         use crate::system::v1::db::models::RunStatus;
         use crate::system::v1::db::models::Session;
         use crate::system::v1::db::models::SprocketCommand;
+        use crate::system::v1::db::models::Task;
+        use crate::system::v1::db::models::TaskStatus;
         use crate::system::v1::exec::Target;
         use crate::system::v1::fs::OutputDirectory;
 
         let dir = tempfile::tempdir().unwrap();
         let wdl = dir.path().join("source.wdl");
+        let task_wdl = dir.path().join("tasks.wdl");
         std::fs::write(
             &wdl,
             r#"version 1.3
+
+import "tasks.wdl" as tasks
 
 workflow myworkflow {
     input {
         String greeting = "hi"
     }
 
+    call tasks.echo {
+        input:
+            greeting = greeting
+    }
+
     output {
-        String message = greeting
+        String message = echo.message
+    }
+}
+"#,
+        )
+        .unwrap();
+        std::fs::write(
+            &task_wdl,
+            r#"version 1.3
+
+task echo {
+    input {
+        String greeting
+    }
+
+    command <<<
+        echo "~{greeting}"
+    >>>
+
+    output {
+        String message = read_string(stdout())
     }
 }
 "#,
@@ -347,6 +379,16 @@ workflow myworkflow {
             created_at: now,
         };
         let target = Target::Workflow("myworkflow".to_string());
+        let tasks = vec![Task {
+            name: "echo".to_string(),
+            run_uuid: run.uuid,
+            status: TaskStatus::Completed,
+            exit_status: Some(0),
+            error: None,
+            created_at: now,
+            started_at: Some(now),
+            completed_at: Some(now),
+        }];
         let mut workflow_inputs = WorkflowInputs::default();
         workflow_inputs.set("greeting", Value::from("hi".to_string()));
         let inputs = Inputs::Workflow(workflow_inputs);
@@ -360,7 +402,7 @@ workflow myworkflow {
             inputs: &inputs,
             outputs: &outputs,
             run_dir: &run_dir,
-            tasks: &[],
+            tasks: &tasks,
             engine: EngineInfo::from_build(),
         };
 
@@ -382,6 +424,7 @@ workflow myworkflow {
         for marker in [
             "https://w3id.org/ro/wfrun/process/0.1",
             "https://w3id.org/ro/wfrun/workflow/0.1",
+            "https://w3id.org/ro/wfrun/provenance/0.1",
             "https://w3id.org/workflowhub/workflow-ro-crate/1.0",
             ROCRATE_CONTEXT,
             WFRUN_CONTEXT,
@@ -394,6 +437,33 @@ workflow myworkflow {
         assert!(compact.contains("\"exampleOfWork\":{\"@id\":\"#param-in-greeting\"}"));
         assert!(compact.contains("\"exampleOfWork\":{\"@id\":\"#param-out-message\"}"));
         assert!(compact.contains("\"valueRequired\":false"));
+        assert!(compact.contains(
+            "\"@type\":[\"File\",\"SoftwareSourceCode\",\"ComputationalWorkflow\",\"HowTo\"]"
+        ));
+        assert!(compact.contains("\"step\":[{\"@id\":\"#step-echo\"}]"));
+        assert!(compact.contains("\"object\":[{\"@id\":\"#control-echo\"}]"));
+
+        let workflow = graph
+            .iter()
+            .find(|e| e["@id"] == WORKFLOW_ID)
+            .expect("workflow entity");
+        let workflow_has_part = workflow["hasPart"].as_array().expect("workflow hasPart");
+        assert!(workflow_has_part.iter().any(|p| p["@id"] == "#tool-echo"));
+        assert!(
+            workflow_has_part
+                .iter()
+                .all(|p| p["@id"] != "workflow/tasks.wdl")
+        );
+        let root = graph
+            .iter()
+            .find(|e| e["@id"] == "./")
+            .expect("root entity");
+        let root_has_part = root["hasPart"].as_array().expect("root hasPart");
+        assert!(
+            root_has_part
+                .iter()
+                .any(|p| p["@id"] == "workflow/tasks.wdl")
+        );
 
         // The WDL source is materialized into the crate.
         assert!(run_dir.root().join(WORKFLOW_ID).exists());

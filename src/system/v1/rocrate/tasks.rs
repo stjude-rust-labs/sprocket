@@ -124,9 +124,10 @@ pub fn task_step_entities(
     if let Some(end) = task.completed_at {
         action_props.push(("endTime", ev_str(&iso(end))));
     }
-    if let Some(code) = task.exit_status {
-        action_props.push(("exitStatus", EntityValue::Entityi64(code as i64)));
-    }
+    // Exit code is intentionally not emitted: there is no `exitStatus` term in the
+    // RO-Crate or workflow-run contexts, so it would break compacted JSON-LD
+    // conformance. Success/failure is conveyed by `actionStatus` and, on failure,
+    // the context-defined `error`.
     if let Some(error) = task.error.as_deref().filter(|e| !e.is_empty()) {
         action_props.push(("error", ev_str(error)));
     }
@@ -208,7 +209,6 @@ mod tests {
         assert!(json.contains("ControlAction"));
         assert!(json.contains("workExample"));
         assert!(json.contains("CompletedActionStatus"));
-        assert!(json.contains("exitStatus"));
 
         // The execution references the tool via `instrument`, the step via
         // `workExample`, and the control ties step to action.
