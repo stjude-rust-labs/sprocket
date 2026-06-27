@@ -1,0 +1,36 @@
+name: Nix
+
+# Builds the flake to keep the `nix build`/`nix run` install path working. The
+# heavy build runs on every push to `main` and on pull requests that touch the
+# flake or the Cargo manifests—the only changes that can break it now that
+# dependencies are vendored straight from `Cargo.lock`. Releases are gated
+# separately in `release.yml`.
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - "flake.nix"
+      - "flake.lock"
+      - "Cargo.lock"
+      - "Cargo.toml"
+      - "**/*.nix"
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@v22
+      - name: Cache the Nix store
+        uses: nix-community/cache-nix-action@v7
+        with:
+          primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'flake.nix', 'Cargo.lock') }}
+          restore-prefixes-first-match: nix-${{ runner.os }}-
+      # Builds every `checks` output, including the `sprocket` package and the
+      # `sprocket-smoke` test that runs the produced binary.
+      - name: Build and check the flake
+        run: nix flake check --print-build-logs
