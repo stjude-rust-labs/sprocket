@@ -372,19 +372,9 @@ impl ModuleRegistry {
     }
 }
 
-/// A symbolic import collected while scanning a parsed document that requires
-/// an async `materialize` call.
-struct SymbolicWorkItem {
-    /// The node that contains the import statement.
-    importer: NodeIndex,
-    /// The resolved consumer module for the importer.
-    consumer_module: Module,
-    /// The parsed symbolic path from the import statement.
-    symbolic_path: SymbolicPath,
-    /// The raw text of the module-path token, used as the edge label and for
-    /// error messages.
-    path_text: String,
-}
+/// Symbolic import work collected for a pass, deduplicated by module identity
+/// and symbolic path so each distinct dependency is materialized once.
+type SymbolicWorkSet = IndexMap<(ModuleId, SymbolicPath), MaterializeWork>;
 
 /// A deduplicated unit of materialization work shared by every importer that
 /// requested the same dependency.
@@ -1403,15 +1393,16 @@ where
         parsed: Vec<(NodeIndex, Result<ParseState>)>,
         subgraph: &mut IndexSet<NodeIndex>,
         space: &mut DfsSpace,
-    ) -> Result<(Vec<NodeIndex>, Vec<SymbolicWorkItem>)> {
+    ) -> Result<(Vec<NodeIndex>, SymbolicWorkSet)> {
         // Handle parse completion and URI imports under graph.write(). Symbolic
-        // imports are collected as work items instead of being driven serially
-        // here, so the write lock is held for as short a time as possible.
+        // imports are collected (and deduplicated by module identity plus
+        // symbolic path) for concurrent materialization outside the lock, so the
+        // write lock is held for as short a time as possible.
         let mut uri_import_modules: Vec<(Url, Module)> = Vec::new();
-        let (parsed_indices, symbolic_work): (Vec<NodeIndex>, Vec<SymbolicWorkItem>) = {
+        let (parsed_indices, symbolic_work): (Vec<NodeIndex>, SymbolicWorkSet) = {
             let mut graph = self.graph.write();
             let mut indices = Vec::new();
-            let mut work = Vec::new();
+            let mut work = IndexMap::new();
 
             for (index, state) in parsed {
                 let node = graph.get_mut(index);
@@ -1507,12 +1498,21 @@ where
                                             }
                                         };
 
-                                    work.push(SymbolicWorkItem {
-                                        importer: index,
-                                        consumer_module,
-                                        symbolic_path,
-                                        path_text: module_path.text().to_string(),
-                                    });
+                                    // Collapse imports of the same dependency
+                                    // from the same module into one
+                                    // materialization, keyed on full module
+                                    // identity plus the symbolic path, so each
+                                    // dependency is resolved once and the result
+                                    // fanned out to every importer.
+                                    work.entry((consumer_module.id(), symbolic_path.clone()))
+                                        .or_insert_with(|| MaterializeWork {
+                                            importers: Vec::new(),
+                                            consumer_module,
+                                            symbolic_path,
+                                            path_text: module_path.text().to_string(),
+                                        })
+                                        .importers
+                                        .push(index);
                                 }
                             }
                         }
@@ -1534,42 +1534,16 @@ where
 
     /// Materializes the collected symbolic import work concurrently.
     ///
-    /// The work is deduplicated so each distinct dependency is materialized
-    /// once per pass. Several documents in a module commonly import the
-    /// same dependency; keying on the consumer module root plus the parsed
-    /// symbolic path collapses those into a single `materialize` call whose
-    /// result is fanned out to every importer that requested it. The calls
-    /// run capped at `MAX_CONCURRENT_MATERIALIZATIONS` in flight so a
-    /// manifest declaring many dependencies cannot drive an unbounded
-    /// number of parallel clones or fetches.
+    /// The work arrives already deduplicated by module identity plus symbolic
+    /// path, so each distinct dependency is materialized once and the result is
+    /// fanned out to every importer that requested it. The calls run capped at
+    /// `MAX_CONCURRENT_MATERIALIZATIONS` in flight so a manifest declaring many
+    /// dependencies cannot drive an unbounded number of parallel clones or
+    /// fetches.
     fn materialize_symbolic_imports(
         &self,
-        symbolic_work: Vec<SymbolicWorkItem>,
+        unique_work: SymbolicWorkSet,
     ) -> Vec<MaterializeOutcome> {
-        let mut unique_work: IndexMap<(ModuleId, SymbolicPath), MaterializeWork> = IndexMap::new();
-        for item in symbolic_work {
-            let SymbolicWorkItem {
-                importer,
-                consumer_module,
-                symbolic_path,
-                path_text,
-            } = item;
-            // Key on the full module identity (root plus lockfile scope) so two
-            // modules that share a root but resolve dependencies differently are
-            // not collapsed together.
-            let key = (consumer_module.id(), symbolic_path.clone());
-            unique_work
-                .entry(key)
-                .or_insert_with(|| MaterializeWork {
-                    importers: Vec::new(),
-                    consumer_module,
-                    symbolic_path,
-                    path_text,
-                })
-                .importers
-                .push(importer);
-        }
-
         if unique_work.is_empty() {
             return Vec::new();
         }

@@ -358,18 +358,16 @@ pub(crate) fn discover_manifest_upward(
 }
 
 /// Constructs a [`GitResolver`](wdl_modules::resolver::GitResolver) from the
-/// given `[modules]` config and a `module.json` path. Returns `None` if the
-/// manifest file does not exist; returns an error if the file exists but
-/// cannot be read or parsed.
+/// given `[modules]` config and a discovered `module.json` path.
+///
+/// The manifest is assumed to exist; discovery establishes that before this is
+/// called. Returns an error if the lockfile or trust store exists but cannot be
+/// read or parsed.
 pub fn build_resolver(
     modules_config: &wdl_modules::resolver::ModulesConfig,
     manifest_path: &std::path::Path,
-) -> anyhow::Result<Option<(Arc<dyn wdl_modules::Resolver>, PathBuf)>> {
+) -> anyhow::Result<Arc<dyn wdl_modules::Resolver>> {
     use anyhow::Context as _;
-
-    if !manifest_path.exists() {
-        return Ok(None);
-    }
 
     let lockfile_path = manifest_path.with_file_name(wdl_modules::LOCKFILE_FILENAME);
     let lockfile = if lockfile_path.exists() {
@@ -402,7 +400,7 @@ pub fn build_resolver(
         )
         .build();
 
-    Ok(Some((Arc::new(resolver), manifest_path.to_path_buf())))
+    Ok(Arc::new(resolver))
 }
 
 /// Builds a [`ResolutionContext`](wdl::analysis::ResolutionContext) for a
@@ -419,21 +417,17 @@ pub(crate) fn resolution_context_for_manifest(
     manifest_path: &Path,
     manifest: wdl_modules::Manifest,
 ) -> anyhow::Result<wdl::analysis::ResolutionContext> {
-    match build_resolver(modules_config, manifest_path)? {
-        Some((resolver, path)) => {
-            info!(
-                manifest = %path.display(),
-                "found `module.json`; symbolic imports will resolve through the module system"
-            );
-            let root = path
-                .parent()
-                .map(Path::to_path_buf)
-                .unwrap_or_else(|| PathBuf::from("."));
-            let module = wdl_modules::module::Module::new(Arc::new(manifest), root);
-            Ok(wdl::analysis::ResolutionContext::enabled(resolver, module))
-        }
-        None => Ok(wdl::analysis::ResolutionContext::default()),
-    }
+    info!(
+        manifest = %manifest_path.display(),
+        "found `module.json`; symbolic imports will resolve through the module system"
+    );
+    let resolver = build_resolver(modules_config, manifest_path)?;
+    let root = manifest_path
+        .parent()
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| PathBuf::from("."));
+    let module = wdl_modules::module::Module::new(Arc::new(manifest), root);
+    Ok(wdl::analysis::ResolutionContext::enabled(resolver, module))
 }
 
 /// Discovers the `module.json` governing `starts` and builds a
@@ -456,7 +450,14 @@ pub(crate) fn resolution_context_from_paths(
     }
 
     let mut manifests = HashMap::new();
+    let mut walked = HashSet::new();
     for start in starts {
+        // Skip a start whose directory was already walked; many source paths
+        // commonly share the same parent directory, and the upward walk from a
+        // directory is deterministic, so re-walking it cannot find anything new.
+        if !walked.insert(start.clone()) {
+            continue;
+        }
         if let Some((path, manifest)) = discover_manifest_upward(start)? {
             manifests.entry(path).or_insert(manifest);
         }
