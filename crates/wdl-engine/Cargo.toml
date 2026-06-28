@@ -1,6 +1,6 @@
 [package]
 name = "wdl-engine"
-version = "0.16.0"
+version = "0.16.1"
 description = "Execution engine for Workflow Description Language (WDL) documents."
 rust-version.workspace = true
 license.workspace = true
@@ -50,9 +50,9 @@ toml-spanner = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 walkdir = { workspace = true }
-wdl-analysis = { version = "0.22.0", path = "../wdl-analysis" }
-wdl-ast = { version = "0.25.0", path = "../wdl-ast" }
-wdl-grammar = { version = "0.24.0", path = "../wdl-grammar" }
+wdl-analysis = { version = "0.22.1", path = "../wdl-analysis" }
+wdl-ast = { version = "0.25.1", path = "../wdl-ast" }
+wdl-grammar = { version = "0.24.1", path = "../wdl-grammar" }
 
 [dev-dependencies]
 approx = { workspace = true }

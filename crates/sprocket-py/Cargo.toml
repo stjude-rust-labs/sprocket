@@ -15,8 +15,8 @@ readme = "../../python/README.md"
 
 [dependencies]
 pyo3.workspace = true
-wdl-diagnostics = { path = "../wdl-diagnostics", version = "0.1.4", features = ["unstable-python"] }
-wdl-grammar = { path = "../wdl-grammar", version = "0.24.0", features = ["unstable-python"] }
+wdl-diagnostics = { path = "../wdl-diagnostics", version = "0.1.5", features = ["unstable-python"] }
+wdl-grammar = { path = "../wdl-grammar", version = "0.24.1", features = ["unstable-python"] }
 
 [lints]
 workspace = true
