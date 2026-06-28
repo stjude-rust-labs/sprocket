@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Analysis resolves symbolic module imports (`import owner/module/path`, including the wildcard `import * from owner/module` and selected-member `import { a, b } from owner/module` forms) through a `wdl-modules` `Resolver`, materializing them to concrete files during analysis ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
+
+#### Changed
+
+* `Analyzer::new` and `Analyzer::new_with_validator` now take a `ResolutionContext` (a resolver plus an optional manifest path) in place of separate arguments; pass `ResolutionContext::default()` to preserve the previous non-resolving behavior ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
+
 ## 0.22.0 - 2026-06-26
 
 #### Changed

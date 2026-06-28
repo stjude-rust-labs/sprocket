@@ -74,6 +74,22 @@ impl Lockfile {
     pub fn write(&self, w: impl Write) -> std::io::Result<()> {
         serde_json::to_writer_pretty(w, self).map_err(std::io::Error::other)
     }
+
+    /// Looks up a dependency entry by walking the nested `dependencies`
+    /// tree along `scope` (the chain of consumer dependency names from the
+    /// top-level consumer down to the entry's parent), then resolving
+    /// `name` in that scope. An empty `scope` looks up a top-level entry.
+    pub fn find_scoped(
+        &self,
+        scope: &[DependencyName],
+        name: &DependencyName,
+    ) -> Option<&DependencyEntry> {
+        let mut current = &self.dependencies;
+        for parent in scope {
+            current = &current.get(parent)?.dependencies;
+        }
+        current.get(name)
+    }
 }
 
 /// A `dependencies` map keyed by consumer-chosen dependency names.
