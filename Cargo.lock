@@ -3641,6 +3641,7 @@ version = "0.29.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd274650b21d4bfc26a0a47587962c1edb425f69287324355cd040c3ea66071c"
 dependencies = [
+ "anyhow",
  "libc",
  "once_cell",
  "portable-atomic",
@@ -4800,6 +4801,8 @@ name = "sprocket-py"
 version = "0.1.0"
 dependencies = [
  "pyo3",
+ "wdl-diagnostics",
+ "wdl-grammar",
 ]
 
 [[package]]
@@ -6198,6 +6201,7 @@ dependencies = [
  "anyhow",
  "clap",
  "codespan-reporting",
+ "pyo3",
  "wdl-ast",
  "wdl-engine",
 ]
@@ -6307,6 +6311,7 @@ dependencies = [
  "libtest-mimic",
  "logos",
  "pretty_assertions",
+ "pyo3",
  "rowan",
  "strum",
 ]
