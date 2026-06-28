@@ -120,3 +120,60 @@ where
         Ok(Ok(response)) => Ok(response),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::system::v1::exec::svc::run_manager::commands;
+
+    #[tokio::test]
+    async fn send_command_returns_manager_response() {
+        let (manager_tx, mut manager_rx) = mpsc::channel(1);
+        let manager = tokio::spawn(async move {
+            // SAFETY: the test sends one command before awaiting this task.
+            let command = manager_rx.recv().await.unwrap();
+            let RunManagerCmd::ListSessions { limit, offset, rx } = command else {
+                panic!("expected list sessions command");
+            };
+
+            assert_eq!(limit, Some(10));
+            assert_eq!(offset, Some(20));
+            rx.send(Ok(commands::ListSessionsResponse {
+                sessions: Vec::new(),
+                total: 0,
+            }))
+            // SAFETY: `send_command` is awaiting the response channel.
+            .unwrap();
+        });
+
+        let response = send_command(&manager_tx, |rx| RunManagerCmd::ListSessions {
+            limit: Some(10),
+            offset: Some(20),
+            rx,
+        })
+        .await
+        // SAFETY: the spawned manager sends a successful response.
+        .unwrap();
+
+        assert_eq!(response.total, 0);
+        assert!(response.sessions.is_empty());
+        // SAFETY: the spawned manager task completes after replying.
+        manager.await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn send_command_maps_closed_manager_to_internal_error() {
+        let (manager_tx, manager_rx) = mpsc::channel(1);
+        drop(manager_rx);
+
+        let error = send_command(&manager_tx, |rx| RunManagerCmd::ListSessions {
+            limit: None,
+            offset: None,
+            rx,
+        })
+        .await
+        .unwrap_err();
+
+        assert!(matches!(error, Error::Internal));
+    }
+}

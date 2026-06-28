@@ -1,0 +1,76 @@
+Submit a workflow to a Sprocket HTTP API server
+
+Usage: sprocket dev submit [OPTIONS] <SOURCE> [INPUTS]...
+
+Arguments:
+  <SOURCE>
+          The WDL source file to submit.
+          
+          The source file may be specified by either a local file path or a URL.
+
+  [INPUTS]...
+          The inputs for the task or workflow.
+          
+          An input can be a key-value pair (e.g., `task.name=value`), an input file prefixed with `@` (e.g., `@inputs.json`), or a bare value that is appended to the preceding key's array.
+
+Options:
+      --host <HOST>
+          The hostname of the running Sprocket server to talk to.
+          
+          If not provided, falls back to the value in the Sprocket config.
+
+  -p, --port <PORT>
+          The port of the running Sprocket server to talk to.
+          
+          If not provided, falls back to the value in the Sprocket config.
+
+  -t, --target <NAME>
+          The name of the task or workflow to submit.
+          
+          This argument is required if submitting a task or workflow without any inputs.
+          
+          If `target` is not specified, all inputs (from both files and key-value pairs) are expected to be prefixed with the name of the workflow or task being submitted.
+          
+          If `target` is specified, it will be appended with a `.` delimiter and then prepended to all key-value pair inputs on the command line. Keys specified within files are unchanged by this argument.
+
+      --index-on <OUTPUT_NAME>
+          The output name to index on.
+          
+          If provided, the server will index the run outputs using the specified output name as the key.
+
+  -m, --report-mode <MODE>
+          The report mode
+
+          Possible values:
+          - full:     Prints diagnostics as multiple lines
+          - one-line: Prints diagnostics as one line
+
+  -v, --verbose...
+          Increase logging verbosity
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+      --color <COLOR>
+          Controls output colorization
+
+          Possible values:
+          - auto:   Automatically colorize output depending on output device
+          - always: Always colorize output
+          - never:  Never colorize output
+          
+          [default: auto]
+
+  -c, --config <CONFIG>
+          Path to the configuration file
+
+  -s, --skip-config-search
+          Skip searching for and loading configuration files.
+          
+          Only a configuration file specified as a command line argument will be used.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version
