@@ -1073,7 +1073,10 @@ mod test {
     #[test]
     fn server_database_url_uses_output_dir_for_default() {
         let config = ServerConfig::default();
-        assert_eq!(config.database_url(), "./out/sprocket.db");
+        assert_eq!(
+            PathBuf::from(config.database_url()),
+            PathBuf::from(".").join("out").join("sprocket.db")
+        );
 
         let config = ServerConfig {
             database: ServerDatabaseConfig {
