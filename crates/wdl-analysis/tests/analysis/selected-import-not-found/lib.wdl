@@ -1,8 +1,8 @@
 version 1.4
 
-task add {
+task run {
     command <<<
+        echo 1
     >>>
 }
 
-workflow run {}
