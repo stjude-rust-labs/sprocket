@@ -105,10 +105,22 @@ Options:
   -c, --config <CONFIG>
           Path to the configuration file
 
+      --ro-crate
+          Emit a Workflow Run RO-Crate (`ro-crate-metadata.json`) into the run directory on success
+
+      --ro-crate-strict
+          Fail the command if requested RO-Crate emission fails
+
   -s, --skip-config-search
           Skip searching for and loading configuration files.
           
           Only a configuration file specified as a command line argument will be used.
+
+      --no-ro-crate-checksums
+          Skip SHA-256 digests for files in the RO-Crate (faster on large outputs)
+
+      --no-ro-crate-localize
+          Do not localize input/output data values into stable crate-relative paths
 
   -h, --help
           Print help (see a summary with '-h')

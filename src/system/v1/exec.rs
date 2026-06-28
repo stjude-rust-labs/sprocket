@@ -517,6 +517,9 @@ impl RunnableExecutor {
             &run_dir,
             &base_dir,
             self.index_on.as_deref(),
+            // RO-Crate emission is a CLI-only `sprocket run` feature; the HTTP
+            // execution path does not emit.
+            crate::system::v1::rocrate::RoCrateOptions::disabled(),
         )
         .await
         {
@@ -609,6 +612,7 @@ pub async fn analyze_wdl_document(
 ///
 /// Creates provenance index entries (if `index_on` is provided), serializes
 /// outputs, and marks the run as completed.
+#[allow(clippy::too_many_arguments)]
 async fn set_run_success(
     db: &dyn Database,
     ctx: &RunContext,
@@ -616,6 +620,9 @@ async fn set_run_success(
     outputs: Outputs,
     run_dir: &RunDirectory,
     index_on: Option<&str>,
+    document: &AnalysisDocument,
+    inputs: &Inputs,
+    ro_crate: &crate::system::v1::rocrate::RoCrateOptions,
 ) -> Result<()> {
     // Serialize outputs
     let outputs_with_name = outputs.with_name(target.name());
@@ -667,6 +674,23 @@ async fn set_run_success(
         "run `{}` ({}) completed successfully",
         ctx.run_generated_name, ctx.run_id
     );
+
+    // Emit the RO-Crate after the run is recorded complete. A strict-mode failure
+    // here propagates as a nonzero command exit but leaves the run successful.
+    if ro_crate.enabled {
+        crate::system::v1::rocrate::emit(
+            db,
+            ctx.run_id,
+            target,
+            document,
+            inputs,
+            &outputs_with_name,
+            run_dir,
+            ro_crate,
+        )
+        .await?;
+    }
+
     Ok(())
 }
 
@@ -689,7 +713,7 @@ async fn execute_workflow_target(
     inputs: Inputs,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
-) -> Result<Option<Outputs>, EvaluationError> {
+) -> Result<Option<(Outputs, Inputs)>, EvaluationError> {
     // Write inputs to file
     let inputs_file = run_dir.inputs_file();
     fs::write(
@@ -728,10 +752,10 @@ async fn execute_workflow_target(
         .context("failed to create workflow evaluator")?;
 
     match evaluator
-        .evaluate_workflow(document, inputs, run_dir.root())
+        .evaluate_workflow_with_inputs(document, inputs, run_dir.root())
         .await
     {
-        Ok(outputs) => Ok(Some(outputs)),
+        Ok((outputs, inputs)) => Ok(Some((outputs, Inputs::Workflow(inputs)))),
         Err(EvaluationError::Canceled) => Ok(None),
         Err(e) => Err(e),
     }
@@ -758,7 +782,7 @@ async fn execute_task_target(
     inputs: Inputs,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
-) -> Result<Option<Outputs>, EvaluationError> {
+) -> Result<Option<(Outputs, Inputs)>, EvaluationError> {
     let task = document.task_by_name(target.name()).with_context(|| {
         format!(
             "task `{name}` was not found in the document",
@@ -796,7 +820,10 @@ async fn execute_task_target(
         Err(e) => return Err(e),
     };
 
-    evaluated_task.into_outputs().map(Some)
+    let inputs = Inputs::Task(evaluated_task.inputs().clone());
+    evaluated_task
+        .into_outputs()
+        .map(|outputs| Some((outputs, inputs)))
 }
 
 /// Execute a workflow or task target.
@@ -836,13 +863,14 @@ pub async fn execute_target(
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
     index_on: Option<&str>,
+    ro_crate: crate::system::v1::rocrate::RoCrateOptions,
 ) -> Result<(), EvaluationError> {
     let config = Arc::new(config);
     db.start_run(ctx.run_id, ctx.started_at)
         .await
         .map_err(anyhow::Error::from)?;
 
-    let result: Result<Option<Outputs>, EvaluationError> = async {
+    let result: Result<Option<(Outputs, Inputs)>, EvaluationError> = async {
         match target {
             Target::Task(_) => {
                 execute_task_target(
@@ -878,8 +906,19 @@ pub async fn execute_target(
     .await;
 
     match result {
-        Ok(Some(outputs)) => {
-            set_run_success(db.as_ref(), ctx, target, outputs, run_dir, index_on).await?;
+        Ok(Some((outputs, inputs))) => {
+            set_run_success(
+                db.as_ref(),
+                ctx,
+                target,
+                outputs,
+                run_dir,
+                index_on,
+                &document,
+                &inputs,
+                &ro_crate,
+            )
+            .await?;
             Ok(())
         }
         Ok(None) => {

@@ -32,6 +32,11 @@ suppress_env_specific_output = false
 experimental_features_enabled = false
 fail = "slow"
 
+[run.ro_crate]
+
+[run.ro_crate.logs]
+include_contents = false
+
 [run.http]
 cache_dir = "system"
 retries = 5

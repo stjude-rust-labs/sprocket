@@ -301,6 +301,24 @@ pub struct AnalyzerConfig {
     pub except: Vec<String>,
 }
 
+/// Represents RO-Crate configuration for the Sprocket `run` command.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Toml)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+pub struct RoCrateConfig {
+    /// Log content configuration.
+    #[toml(default, style = Header)]
+    pub logs: RoCrateLogConfig,
+}
+
+/// Represents RO-Crate log configuration for the Sprocket `run` command.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Toml)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+pub struct RoCrateLogConfig {
+    /// Include log contents in emitted RO-Crate metadata.
+    #[toml(default)]
+    pub include_contents: bool,
+}
+
 /// Represents the configuration for the Sprocket `run` command.
 #[derive(Debug, Clone, PartialEq, Eq, Toml)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
@@ -329,6 +347,10 @@ pub struct RunConfig {
     /// The default is `5000`.
     #[toml(default = DEFAULT_EVENTS_CHANNEL_CAPACITY)]
     pub events_capacity: u32,
+
+    /// RO-Crate emission configuration.
+    #[toml(default, style = Header)]
+    pub ro_crate: RoCrateConfig,
 }
 
 impl Default for RunConfig {
@@ -337,6 +359,7 @@ impl Default for RunConfig {
             engine: EngineConfig::default(),
             output_dir: DEFAULT_OUTPUT_DIRECTORY.into(),
             events_capacity: DEFAULT_EVENTS_CHANNEL_CAPACITY,
+            ro_crate: RoCrateConfig::default(),
         }
     }
 }

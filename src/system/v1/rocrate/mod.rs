@@ -1,0 +1,816 @@
+//! Workflow Run RO-Crate emission for completed runs.
+
+mod build;
+mod context;
+mod formal;
+mod redact;
+mod source;
+mod tasks;
+mod value;
+
+pub use build::add_import_parts;
+pub use build::build_run_crate;
+pub use context::EngineInfo;
+pub use context::RunCrateContext;
+pub use context::ScrubbedLog;
+pub use formal::formal_parameter;
+pub use redact::RedactionPolicy;
+pub use redact::Scrubbed;
+pub use source::materialize_sources;
+pub use tasks::TaskEntityIds;
+pub use tasks::task_action_status;
+pub use tasks::task_step_entities;
+pub use value::value_to_entities;
+
+/// RO-Crate 1.1 base context.
+pub const ROCRATE_CONTEXT: &str = "https://w3id.org/ro/crate/1.1/context";
+/// Workflow Run RO-Crate term context.
+pub const WFRUN_CONTEXT: &str = "https://w3id.org/ro/terms/workflow-run/context";
+/// Process Run Crate profile, claimed by both workflow and task targets.
+pub const PROCESS_PROFILE: &str = "https://w3id.org/ro/wfrun/process/0.1";
+/// Workflow Run Crate profile.
+pub const WORKFLOW_RUN_CRATE_PROFILE: &str = "https://w3id.org/ro/wfrun/workflow/0.1";
+/// Provenance Run Crate profile.
+pub const PROVENANCE_RUN_CRATE_PROFILE: &str = "https://w3id.org/ro/wfrun/provenance/0.1";
+/// Workflow RO-Crate profile.
+pub const WORKFLOW_RO_CRATE_PROFILE: &str = "https://w3id.org/workflowhub/workflow-ro-crate/1.0";
+/// Profiles a workflow-target crate conforms to. Task targets conform only to
+/// the Process Run Crate profile, since there is no `ComputationalWorkflow`.
+pub const PROFILES: &[&str] = &[
+    PROCESS_PROFILE,
+    WORKFLOW_RUN_CRATE_PROFILE,
+    WORKFLOW_RO_CRATE_PROFILE,
+];
+/// The metadata descriptor filename.
+pub const METADATA_FILE: &str = "ro-crate-metadata.json";
+/// The main workflow entity id, materialized under `workflow/`.
+pub const WORKFLOW_ID: &str = "workflow/workflow.wdl";
+
+/// Controls whether and how a run emits an RO-Crate.
+#[derive(Debug, Clone, Copy)]
+pub struct RoCrateOptions {
+    /// Whether to emit `ro-crate-metadata.json` at all.
+    pub enabled: bool,
+    /// Whether an emission failure should fail the command.
+    pub strict: bool,
+    /// Whether to compute SHA-256 digests for `File`/`Directory` entities.
+    pub checksums: bool,
+    /// Whether to localize input/output data values into crate-relative paths.
+    pub localize: bool,
+    /// Whether to include log contents in crate metadata.
+    pub include_log_contents: bool,
+}
+
+impl RoCrateOptions {
+    /// Builds options from the `--ro-crate`, `--ro-crate-strict`,
+    /// `--no-ro-crate-checksums`, and `--no-ro-crate-localize` flags. The `no_*`
+    /// values are raw flags, so each behavior is enabled when its flag is
+    /// `false`.
+    pub fn from_flags(enabled: bool, strict: bool, no_checksums: bool, no_localize: bool) -> Self {
+        Self {
+            enabled,
+            strict,
+            checksums: !no_checksums,
+            localize: !no_localize,
+            include_log_contents: false,
+        }
+    }
+
+    /// Options that emit nothing (used by non-CLI run paths).
+    pub fn disabled() -> Self {
+        Self {
+            enabled: false,
+            strict: false,
+            checksums: false,
+            localize: false,
+            include_log_contents: false,
+        }
+    }
+}
+
+/// Recursively collects every `{"@id": "..."}` reference value in a JSON tree.
+fn collect_id_refs(value: &serde_json::Value, out: &mut Vec<String>) {
+    match value {
+        serde_json::Value::Object(map) => {
+            for (k, v) in map {
+                if k == "@id"
+                    && let Some(s) = v.as_str()
+                {
+                    out.push(s.to_string());
+                } else {
+                    collect_id_refs(v, out);
+                }
+            }
+        }
+        serde_json::Value::Array(items) => {
+            for item in items {
+                collect_id_refs(item, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// Structural validation before writing. The graph must contain the required
+/// entities, every `@id` must be unique, and every `@id` reference must resolve
+/// to a defined entity or an absolute URI (no dangling references).
+fn validate(crate_: &rocraters::ro_crate::rocrate::RoCrate) -> anyhow::Result<()> {
+    let ids = crate_.get_all_ids();
+    for required in [METADATA_FILE, "./", WORKFLOW_ID, "#run"] {
+        anyhow::ensure!(
+            ids.iter().any(|i| *i == required),
+            "RO-Crate missing required entity `{required}`"
+        );
+    }
+
+    let mut defined = std::collections::HashSet::new();
+    for id in &ids {
+        anyhow::ensure!(
+            defined.insert((*id).clone()),
+            "RO-Crate has a duplicate `@id` `{id}`"
+        );
+    }
+
+    use anyhow::Context as _;
+    let json = serde_json::to_value(crate_).context("serializing RO-Crate for validation")?;
+    let mut refs = Vec::new();
+    collect_id_refs(&json, &mut refs);
+    for r in refs {
+        // Entity self-ids are in `defined`; references must resolve there, unless
+        // they are absolute URIs (contexts, profiles, schema.org terms).
+        if r.starts_with("http://") || r.starts_with("https://") {
+            continue;
+        }
+        anyhow::ensure!(
+            defined.contains(&r),
+            "RO-Crate has a dangling `@id` reference `{r}`"
+        );
+    }
+    Ok(())
+}
+
+/// Builds, materializes sources for, validates, and writes the crate into the
+/// run directory.
+pub fn write_run_crate(ctx: &RunCrateContext<'_>, opts: &RoCrateOptions) -> anyhow::Result<()> {
+    let mut crate_ = build_run_crate(ctx, opts)?;
+    let import_ids = materialize_sources(ctx.document, ctx.run_dir.root(), &mut crate_.graph)?;
+    add_import_parts(&mut crate_, &import_ids);
+    validate(&crate_)?;
+    let path = ctx.run_dir.root().join(METADATA_FILE);
+    rocraters::ro_crate::write::write_crate(&crate_, path.to_string_lossy().to_string())
+        .map_err(|e| anyhow::anyhow!("writing RO-Crate metadata: {e}"))?;
+    Ok(())
+}
+
+/// Reads and scrubs one task log stream.
+async fn scrub_task_log_stream(
+    db: &dyn crate::system::v1::db::Database,
+    task_name: &str,
+    source: crate::system::v1::db::models::LogSource,
+    policy: &RedactionPolicy,
+) -> anyhow::Result<Option<String>> {
+    let logs = db
+        .get_task_logs(task_name, Some(source), Some(i64::MAX), None)
+        .await?;
+    let chunks = logs
+        .iter()
+        .flat_map(|log| log.chunk.iter().copied())
+        .collect::<Vec<_>>();
+    if chunks.is_empty() {
+        return Ok(None);
+    }
+    let text = String::from_utf8_lossy(&chunks);
+    let scrubbed = policy.scrub(&text);
+    Ok(Some(scrubbed.text))
+}
+
+/// Collects provenance and emits the crate for a completed run.
+///
+/// Honors `opts.strict`: on failure it returns the error when strict, else logs
+/// a warning and returns `Ok`. Called *after* the run is recorded complete, so a
+/// strict failure surfaces as a nonzero command exit without changing the run's
+/// recorded success.
+#[allow(clippy::too_many_arguments)]
+pub async fn emit(
+    db: &dyn crate::system::v1::db::Database,
+    run_id: uuid::Uuid,
+    target: &crate::system::v1::exec::Target,
+    document: &wdl::analysis::Document,
+    inputs: &wdl::engine::Inputs,
+    outputs: &wdl::engine::Outputs,
+    run_dir: &crate::system::v1::fs::RunDirectory,
+    opts: &RoCrateOptions,
+) -> anyhow::Result<()> {
+    use crate::system::v1::db::models::LogSource;
+    use anyhow::Context as _;
+
+    if !opts.enabled {
+        return Ok(());
+    }
+
+    let result = async {
+        let run = db
+            .get_run(run_id)
+            .await?
+            .with_context(|| format!("run `{run_id}` not found"))?;
+        let session = db.get_session(run.session_uuid).await?;
+        // Fetch every task for the run; `list_tasks` otherwise returns only the
+        // first page.
+        let tasks = db
+            .list_tasks(Some(run_id), None, Some(i64::MAX), None)
+            .await?;
+        let scrubbed_logs = if opts.include_log_contents {
+            let policy = RedactionPolicy;
+            let mut logs = Vec::new();
+            for task in &tasks {
+                let stdout = scrub_task_log_stream(db, &task.name, LogSource::Stdout, &policy)
+                    .await
+                    .with_context(|| format!("reading stdout log for task `{}`", task.name))?;
+                let stderr = scrub_task_log_stream(db, &task.name, LogSource::Stderr, &policy)
+                    .await
+                    .with_context(|| format!("reading stderr log for task `{}`", task.name))?;
+                if stdout.is_some() || stderr.is_some() {
+                    logs.push(ScrubbedLog {
+                        task_name: task.name.clone(),
+                        stdout,
+                        stderr,
+                    });
+                }
+            }
+            logs
+        } else {
+            Vec::new()
+        };
+        let ctx = RunCrateContext {
+            run: &run,
+            session: session.as_ref(),
+            document,
+            target,
+            inputs,
+            outputs,
+            run_dir,
+            tasks: &tasks,
+            task_logs: &scrubbed_logs,
+            engine: EngineInfo::from_build(),
+        };
+        write_run_crate(&ctx, opts)
+    }
+    .await;
+
+    match result {
+        Ok(()) => Ok(()),
+        Err(e) if opts.strict => Err(e.context("RO-Crate emission failed (--ro-crate-strict)")),
+        Err(e) => {
+            tracing::warn!("requested RO-Crate artifact was not written: {e:#}");
+            Ok(())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn options_from_flags_maps_correctly() {
+        let o = RoCrateOptions::from_flags(true, false, false, false);
+        assert!(o.enabled && o.checksums && o.localize && !o.strict && !o.include_log_contents);
+        let off = RoCrateOptions::disabled();
+        assert!(!off.enabled && !off.include_log_contents);
+    }
+
+    #[test]
+    fn validation_rejects_crate_without_required_entities() {
+        let crate_ = rocraters::ro_crate::rocrate::RoCrate {
+            context: rocraters::ro_crate::rocrate::RoCrateContext::ReferenceContext(
+                ROCRATE_CONTEXT.to_string(),
+            ),
+            graph: Vec::new(),
+        };
+        assert!(validate(&crate_).is_err());
+    }
+
+    #[test]
+    fn validation_rejects_dangling_reference() {
+        use rocraters::ro_crate::constraints::DataType;
+        use rocraters::ro_crate::constraints::EntityValue;
+        use rocraters::ro_crate::constraints::Id;
+        use rocraters::ro_crate::contextual_entity::ContextualEntity;
+        use rocraters::ro_crate::graph_vector::GraphVector;
+
+        let stub = |id: &str| {
+            GraphVector::ContextualEntity(ContextualEntity {
+                id: id.to_string(),
+                type_: DataType::Term("Thing".to_string()),
+                dynamic_entity: None,
+            })
+        };
+        let mut graph = vec![stub(METADATA_FILE), stub("./"), stub(WORKFLOW_ID)];
+        // `#run` references an entity that is never defined.
+        graph.push(GraphVector::ContextualEntity(ContextualEntity {
+            id: "#run".to_string(),
+            type_: DataType::Term("CreateAction".to_string()),
+            dynamic_entity: Some(
+                [(
+                    "agent".to_string(),
+                    EntityValue::EntityId(Id::Id("#ghost".to_string())),
+                )]
+                .into_iter()
+                .collect(),
+            ),
+        }));
+        let crate_ = rocraters::ro_crate::rocrate::RoCrate {
+            context: rocraters::ro_crate::rocrate::RoCrateContext::ReferenceContext(
+                ROCRATE_CONTEXT.to_string(),
+            ),
+            graph,
+        };
+        let err = validate(&crate_).unwrap_err();
+        assert!(err.to_string().contains("dangling"), "{err}");
+    }
+
+    /// End-to-end: analyze a tiny workflow, build a `RunCrateContext` from
+    /// hand-built provenance, and assert the written crate is well-formed. Uses
+    /// the real analyzer; no execution backend (and thus no Docker) is required.
+    #[tokio::test]
+    async fn writes_workflow_run_crate_end_to_end() {
+        use std::str::FromStr as _;
+
+        use chrono::Utc;
+        use uuid::Uuid;
+        use wdl::engine::Inputs;
+        use wdl::engine::Outputs;
+        use wdl::engine::Value;
+        use wdl::engine::WorkflowInputs;
+
+        use crate::analysis::Source;
+        use crate::commands::validate::analyze_source;
+        use crate::system::v1::db::models::Run;
+        use crate::system::v1::db::models::RunStatus;
+        use crate::system::v1::db::models::Session;
+        use crate::system::v1::db::models::SprocketCommand;
+        use crate::system::v1::db::models::Task;
+        use crate::system::v1::db::models::TaskStatus;
+        use crate::system::v1::exec::Target;
+        use crate::system::v1::fs::OutputDirectory;
+
+        let dir = tempfile::tempdir().unwrap();
+        let wdl = dir.path().join("source.wdl");
+        let task_wdl = dir.path().join("tasks.wdl");
+        std::fs::write(
+            &wdl,
+            r#"version 1.3
+
+import "tasks.wdl" as tasks
+
+workflow myworkflow {
+    input {
+        String greeting = "hi"
+    }
+
+    call tasks.echo {
+        input:
+            greeting = greeting
+    }
+
+    output {
+        String message = echo.message
+    }
+}
+"#,
+        )
+        .unwrap();
+        std::fs::write(
+            &task_wdl,
+            r#"version 1.3
+
+task echo {
+    input {
+        String greeting
+    }
+
+    command <<<
+        echo "~{greeting}"
+    >>>
+
+    output {
+        String message = read_string(stdout())
+    }
+}
+"#,
+        )
+        .unwrap();
+
+        let source = Source::from_str(wdl.to_str().unwrap()).unwrap();
+        let document = analyze_source(&source, None)
+            .await
+            .expect("analysis should succeed");
+
+        let output_dir = OutputDirectory::new(dir.path().join("out"));
+        let run_dir = output_dir.ensure_workflow_run("myworkflow").unwrap();
+
+        let now = Utc::now();
+        let session = Session {
+            uuid: Uuid::new_v4(),
+            subcommand: SprocketCommand::Run,
+            created_by: "tester".to_string(),
+            created_at: now,
+        };
+        let run = Run {
+            uuid: Uuid::new_v4(),
+            session_uuid: session.uuid,
+            name: "tiny-run".to_string(),
+            source: "source.wdl".to_string(),
+            target: Some("myworkflow".to_string()),
+            status: RunStatus::Completed,
+            inputs: "{}".to_string(),
+            outputs: Some("{}".to_string()),
+            error: None,
+            directory: Some(run_dir.root().display().to_string()),
+            index_directory: None,
+            started_at: Some(now),
+            completed_at: Some(now),
+            created_at: now,
+        };
+        let target = Target::Workflow("myworkflow".to_string());
+        let tasks = vec![Task {
+            name: "echo".to_string(),
+            run_uuid: run.uuid,
+            status: TaskStatus::Completed,
+            exit_status: Some(0),
+            error: None,
+            created_at: now,
+            started_at: Some(now),
+            completed_at: Some(now),
+        }];
+        let mut workflow_inputs = WorkflowInputs::default();
+        workflow_inputs.set("greeting", Value::from("hi".to_string()));
+        let inputs = Inputs::Workflow(workflow_inputs);
+        let outputs = Outputs::from_iter([("message".to_string(), Value::from("hi".to_string()))]);
+        let scrubbed = RedactionPolicy.scrub("authorization: Bearer abc.def\n");
+        let task_logs = vec![ScrubbedLog {
+            task_name: "echo".to_string(),
+            stdout: Some(scrubbed.text),
+            stderr: None,
+        }];
+
+        let ctx = RunCrateContext {
+            run: &run,
+            session: Some(&session),
+            document: &document,
+            target: &target,
+            inputs: &inputs,
+            outputs: &outputs,
+            run_dir: &run_dir,
+            tasks: &tasks,
+            task_logs: &task_logs,
+            engine: EngineInfo::from_build(),
+        };
+
+        let mut opts = RoCrateOptions::from_flags(true, false, false, false);
+        opts.include_log_contents = true;
+        write_run_crate(&ctx, &opts).expect("should write the crate");
+
+        let meta = run_dir.root().join(METADATA_FILE);
+        assert!(meta.exists(), "metadata file should exist");
+
+        let text = std::fs::read_to_string(&meta).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+        let graph = json["@graph"].as_array().expect("@graph array");
+        let run_action = graph
+            .iter()
+            .find(|e| e["@id"] == "#run")
+            .expect("#run entity");
+        assert_eq!(run_action["@type"], "CreateAction");
+
+        for marker in [
+            "https://w3id.org/ro/wfrun/process/0.1",
+            "https://w3id.org/ro/wfrun/workflow/0.1",
+            "https://w3id.org/ro/wfrun/provenance/0.1",
+            "https://w3id.org/workflowhub/workflow-ro-crate/1.0",
+            ROCRATE_CONTEXT,
+            WFRUN_CONTEXT,
+        ] {
+            assert!(text.contains(marker), "crate should reference `{marker}`");
+        }
+        let compact = text.split_whitespace().collect::<String>();
+        assert!(compact.contains("\"input\":[{\"@id\":\"#param-in-greeting\"}]"));
+        assert!(compact.contains("\"output\":[{\"@id\":\"#param-out-message\"}]"));
+        assert!(compact.contains("\"exampleOfWork\":{\"@id\":\"#param-in-greeting\"}"));
+        assert!(compact.contains("\"exampleOfWork\":{\"@id\":\"#param-out-message\"}"));
+        assert!(compact.contains("\"valueRequired\":false"));
+        assert!(compact.contains(
+            "\"@type\":[\"File\",\"SoftwareSourceCode\",\"ComputationalWorkflow\",\"HowTo\"]"
+        ));
+        assert!(compact.contains("\"step\":[{\"@id\":\"#step-echo\"}]"));
+        assert!(compact.contains("\"object\":[{\"@id\":\"#control-echo\"}]"));
+
+        let workflow = graph
+            .iter()
+            .find(|e| e["@id"] == WORKFLOW_ID)
+            .expect("workflow entity");
+        let workflow_has_part = workflow["hasPart"].as_array().expect("workflow hasPart");
+        assert!(workflow_has_part.iter().any(|p| p["@id"] == "#tool-echo"));
+        assert!(
+            workflow_has_part
+                .iter()
+                .all(|p| p["@id"] != "workflow/tasks.wdl")
+        );
+        let root = graph
+            .iter()
+            .find(|e| e["@id"] == "./")
+            .expect("root entity");
+        let root_has_part = root["hasPart"].as_array().expect("root hasPart");
+        assert!(
+            root_has_part
+                .iter()
+                .any(|p| p["@id"] == "workflow/tasks.wdl")
+        );
+        assert!(
+            root_has_part
+                .iter()
+                .any(|p| p["@id"] == "logs/echo/stdout.log")
+        );
+        let log_file = graph
+            .iter()
+            .find(|e| e["@id"] == "logs/echo/stdout.log")
+            .expect("stdout log entity");
+        assert_eq!(log_file["@type"], "File");
+        assert_eq!(log_file["about"]["@id"], "#task-echo");
+        let log_text =
+            std::fs::read_to_string(run_dir.root().join("logs/echo/stdout.log")).unwrap();
+        assert!(log_text.contains("[REDACTED]"));
+        assert!(!log_text.contains("abc.def"));
+
+        // The WDL source is materialized into the crate.
+        assert!(run_dir.root().join(WORKFLOW_ID).exists());
+    }
+
+    /// Unknown timing and an unknown submitter are omitted, not fabricated.
+    #[tokio::test]
+    async fn omits_unknown_timing_and_agent() {
+        use std::str::FromStr as _;
+
+        use chrono::Utc;
+        use uuid::Uuid;
+        use wdl::engine::Inputs;
+        use wdl::engine::Outputs;
+        use wdl::engine::WorkflowInputs;
+
+        use crate::analysis::Source;
+        use crate::commands::validate::analyze_source;
+        use crate::system::v1::db::models::Run;
+        use crate::system::v1::db::models::RunStatus;
+        use crate::system::v1::exec::Target;
+        use crate::system::v1::fs::OutputDirectory;
+
+        let dir = tempfile::tempdir().unwrap();
+        let wdl = dir.path().join("source.wdl");
+        std::fs::write(
+            &wdl,
+            "version 1.3\n\nworkflow myworkflow {\n    output {\n    }\n}\n",
+        )
+        .unwrap();
+
+        let source = Source::from_str(wdl.to_str().unwrap()).unwrap();
+        let document = analyze_source(&source, None).await.expect("analysis");
+
+        let output_dir = OutputDirectory::new(dir.path().join("out"));
+        let run_dir = output_dir.ensure_workflow_run("myworkflow").unwrap();
+
+        // No `started_at`/`completed_at`, and no session.
+        let run = Run {
+            uuid: Uuid::new_v4(),
+            session_uuid: Uuid::new_v4(),
+            name: "tiny-run".to_string(),
+            source: "source.wdl".to_string(),
+            target: Some("myworkflow".to_string()),
+            status: RunStatus::Completed,
+            inputs: "{}".to_string(),
+            outputs: Some("{}".to_string()),
+            error: None,
+            directory: Some(run_dir.root().display().to_string()),
+            index_directory: None,
+            started_at: None,
+            completed_at: None,
+            created_at: Utc::now(),
+        };
+        let target = Target::Workflow("myworkflow".to_string());
+        let inputs = Inputs::Workflow(WorkflowInputs::default());
+        let outputs = Outputs::default();
+
+        let ctx = RunCrateContext {
+            run: &run,
+            session: None,
+            document: &document,
+            target: &target,
+            inputs: &inputs,
+            outputs: &outputs,
+            run_dir: &run_dir,
+            tasks: &[],
+            task_logs: &[],
+            engine: EngineInfo::from_build(),
+        };
+
+        write_run_crate(&ctx, &RoCrateOptions::from_flags(true, false, false, false))
+            .expect("should write the crate");
+
+        let text = std::fs::read_to_string(run_dir.root().join(METADATA_FILE)).unwrap();
+        assert!(!text.contains("startTime"), "must not fabricate startTime");
+        assert!(!text.contains("endTime"), "must not fabricate endTime");
+        assert!(!text.contains("#agent"), "must not fabricate an agent");
+        assert!(!text.contains("unknown"), "must not invent an agent name");
+        // The required root `datePublished` is still present (a real timestamp).
+        assert!(text.contains("datePublished"));
+        assert!(
+            !run_dir.root().join("logs").exists(),
+            "empty task logs must not materialize a logs directory"
+        );
+    }
+
+    /// A direct task target emits a Process Run Crate: no `ComputationalWorkflow`
+    /// type, no workflow profile, no `OrganizeAction`.
+    #[tokio::test]
+    async fn task_target_emits_process_crate() {
+        use std::str::FromStr as _;
+
+        use chrono::Utc;
+        use uuid::Uuid;
+        use wdl::engine::Inputs;
+        use wdl::engine::Outputs;
+        use wdl::engine::TaskInputs;
+
+        use crate::analysis::Source;
+        use crate::commands::validate::analyze_source;
+        use crate::system::v1::db::models::Run;
+        use crate::system::v1::db::models::RunStatus;
+        use crate::system::v1::exec::Target;
+        use crate::system::v1::fs::OutputDirectory;
+
+        let dir = tempfile::tempdir().unwrap();
+        let wdl = dir.path().join("source.wdl");
+        std::fs::write(
+            &wdl,
+            "version 1.3\n\ntask mytask {\n    command <<<>>>\n    output {\n        String message = \"hi\"\n    }\n}\n",
+        )
+        .unwrap();
+
+        let source = Source::from_str(wdl.to_str().unwrap()).unwrap();
+        let document = analyze_source(&source, None).await.expect("analysis");
+
+        let output_dir = OutputDirectory::new(dir.path().join("out"));
+        let run_dir = output_dir.ensure_workflow_run("mytask").unwrap();
+
+        let now = Utc::now();
+        let run = Run {
+            uuid: Uuid::new_v4(),
+            session_uuid: Uuid::new_v4(),
+            name: "tiny-run".to_string(),
+            source: "source.wdl".to_string(),
+            target: Some("mytask".to_string()),
+            status: RunStatus::Completed,
+            inputs: "{}".to_string(),
+            outputs: Some("{}".to_string()),
+            error: None,
+            directory: Some(run_dir.root().display().to_string()),
+            index_directory: None,
+            started_at: Some(now),
+            completed_at: Some(now),
+            created_at: now,
+        };
+        let target = Target::Task("mytask".to_string());
+        let inputs = Inputs::Task(TaskInputs::default());
+        let outputs = Outputs::default();
+
+        let ctx = RunCrateContext {
+            run: &run,
+            session: None,
+            document: &document,
+            target: &target,
+            inputs: &inputs,
+            outputs: &outputs,
+            run_dir: &run_dir,
+            tasks: &[],
+            task_logs: &[],
+            engine: EngineInfo::from_build(),
+        };
+
+        write_run_crate(&ctx, &RoCrateOptions::from_flags(true, false, false, false))
+            .expect("should write the crate");
+
+        let text = std::fs::read_to_string(run_dir.root().join(METADATA_FILE)).unwrap();
+        assert!(
+            !text.contains("ComputationalWorkflow"),
+            "a task target must not claim to be a workflow"
+        );
+        assert!(text.contains(PROCESS_PROFILE));
+        assert!(
+            !text.contains(WORKFLOW_RO_CRATE_PROFILE),
+            "a task target must not claim the Workflow RO-Crate profile"
+        );
+        assert!(
+            !text.contains("OrganizeAction"),
+            "a single task has no orchestration action"
+        );
+    }
+
+    /// A `File` input is localized under `inputs/`, listed in the root
+    /// `hasPart`, and linked to its `FormalParameter` via `exampleOfWork`.
+    #[tokio::test]
+    async fn localizes_file_input_end_to_end() {
+        use std::str::FromStr as _;
+
+        use chrono::Utc;
+        use uuid::Uuid;
+        use wdl::engine::Inputs;
+        use wdl::engine::Outputs;
+        use wdl::engine::PrimitiveValue;
+        use wdl::engine::WorkflowInputs;
+
+        use crate::analysis::Source;
+        use crate::commands::validate::analyze_source;
+        use crate::system::v1::db::models::Run;
+        use crate::system::v1::db::models::RunStatus;
+        use crate::system::v1::exec::Target;
+        use crate::system::v1::fs::OutputDirectory;
+
+        let dir = tempfile::tempdir().unwrap();
+        let wdl = dir.path().join("source.wdl");
+        std::fs::write(
+            &wdl,
+            "version 1.3\n\nworkflow myworkflow {\n    input {\n        File reads\n    }\n\n    output {\n    }\n}\n",
+        )
+        .unwrap();
+        // The input file lives outside the run directory, so it is localized.
+        let reads = dir.path().join("reads.bam");
+        std::fs::write(&reads, b"BAM").unwrap();
+
+        let source = Source::from_str(wdl.to_str().unwrap()).unwrap();
+        let document = analyze_source(&source, None).await.expect("analysis");
+
+        let output_dir = OutputDirectory::new(dir.path().join("out"));
+        let run_dir = output_dir.ensure_workflow_run("myworkflow").unwrap();
+
+        let now = Utc::now();
+        let run = Run {
+            uuid: Uuid::new_v4(),
+            session_uuid: Uuid::new_v4(),
+            name: "tiny-run".to_string(),
+            source: "source.wdl".to_string(),
+            target: Some("myworkflow".to_string()),
+            status: RunStatus::Completed,
+            inputs: "{}".to_string(),
+            outputs: Some("{}".to_string()),
+            error: None,
+            directory: Some(run_dir.root().display().to_string()),
+            index_directory: None,
+            started_at: Some(now),
+            completed_at: Some(now),
+            created_at: now,
+        };
+        let target = Target::Workflow("myworkflow".to_string());
+        let mut wi = WorkflowInputs::default();
+        wi.set("reads", PrimitiveValue::new_file(reads.to_str().unwrap()));
+        let inputs = Inputs::Workflow(wi);
+        let outputs = Outputs::default();
+
+        let ctx = RunCrateContext {
+            run: &run,
+            session: None,
+            document: &document,
+            target: &target,
+            inputs: &inputs,
+            outputs: &outputs,
+            run_dir: &run_dir,
+            tasks: &[],
+            task_logs: &[],
+            engine: EngineInfo::from_build(),
+        };
+
+        write_run_crate(&ctx, &RoCrateOptions::from_flags(true, false, false, false))
+            .expect("should write the crate");
+
+        // The file was copied into the crate under `inputs/`.
+        assert!(run_dir.root().join("inputs/reads/reads.bam").exists());
+
+        let text = std::fs::read_to_string(run_dir.root().join(METADATA_FILE)).unwrap();
+        let json: serde_json::Value = serde_json::from_str(&text).unwrap();
+        let graph = json["@graph"].as_array().unwrap();
+
+        let file = graph
+            .iter()
+            .find(|e| e["@id"] == "inputs/reads/reads.bam")
+            .expect("localized file entity");
+        assert_eq!(file["@type"], "File");
+        assert_eq!(file["exampleOfWork"]["@id"], "#param-in-reads");
+
+        let root = graph.iter().find(|e| e["@id"] == "./").unwrap();
+        let has_part = root["hasPart"].as_array().unwrap();
+        assert!(
+            has_part
+                .iter()
+                .any(|p| p["@id"] == "inputs/reads/reads.bam"),
+            "localized input should be in root hasPart"
+        );
+    }
+}
