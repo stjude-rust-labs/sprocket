@@ -1,0 +1,9 @@
+error: import of `Status` conflicts with an existing definition
+  ┌─ tests/analysis/selected-import-enum-conflict/source.wdl:7:10
+  │
+3 │ enum Status {
+  │      ------ previous definition
+  ·
+7 │ import { Status } from "lib.wdl"
+  │          ^^^^^^ imported here
+
