@@ -20,7 +20,7 @@ use crate::IGNORE_FILENAME;
 use crate::Subscriber;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
-use crate::commands::explain::ALL_RULE_IDS;
+use crate::commands::explain::ACCEPTED_RULE_IDS;
 
 /// Arguments for the `analyzer` subcommand.
 #[derive(Parser, Debug)]
@@ -38,7 +38,7 @@ pub struct Args {
     ///
     /// Repeat the flag multiple times to except multiple rules.
     #[clap(short, long, value_name = "RULE",
-        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
@@ -67,7 +67,11 @@ pub async fn analyzer(
         ServerOptions {
             name: "Sprocket".into(),
             version: env!("CARGO_PKG_VERSION").into(),
-            exceptions: args.except,
+            exceptions: args
+                .except
+                .iter()
+                .map(|id| wdl::analysis::canonical_rule_id(id).to_string())
+                .collect(),
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
             feature_flags: FeatureFlags::default(),
             baseline: {
@@ -91,7 +95,10 @@ pub async fn analyzer(
             ),
             lint: LintOptions {
                 enabled: args.lint,
-                config: Arc::new(config.check.lint),
+                config: Arc::new(config.check.rules.lint_config().clone()),
+                analysis_severity_overrides: Arc::new(
+                    config.check.rules.analysis_severity_overrides(),
+                ),
             },
         },
         Some(handle),

@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Per-rule lint and validation configuration under `[check.rules.<RuleId>]`,
+  letting each rule set its severity (`off`, `note`, `warning`, or `error`) and
+  any parameters that apply to it.
+* `--deny`, `--warn`, and `--note` flags on `check` and `lint` to set a rule's
+  severity from the command line, taking precedence over config files.
+* `--sort-imports`, `--sort-inputs`, and `--trailing-commas` flags (with `--no-`
+  counterparts) on `format`.
+* `sprocket explain` now lists each rule's configurable severity and parameters,
+  and `sprocket config init` emits a commented template pointing at the per-rule
+  tables.
+
+### Changed
+
+* Replaced the flat `[check.lint]` configuration table with per-rule
+  `[check.rules.<RuleId>]` tables. A configuration that still uses `[check.lint]`
+  now produces a migration error describing the move.
+
+### Fixed
+
+* Lint rule parameters configured in `sprocket.toml` are now honored by the
+  `check` and `lint` commands; previously they were applied only in the editor.
+
 ## 0.27.0 - 2026-06-26
 
 ### Added

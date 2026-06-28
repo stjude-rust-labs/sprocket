@@ -194,24 +194,20 @@ mod test {
     #[test]
     fn test_find_nearest_rule() {
         // Test exact match
-        let nearest = find_nearest_rule("SnakeCase");
-        assert_eq!(nearest, Some("SnakeCase"));
+        let nearest = find_nearest_rule("NamingConvention");
+        assert_eq!(nearest, Some("NamingConvention"));
 
         // Test close match
-        let nearest = find_nearest_rule("SnackCase");
-        assert_eq!(nearest, Some("SnakeCase"));
+        let nearest = find_nearest_rule("NamingConvension");
+        assert_eq!(nearest, Some("NamingConvention"));
 
         // Test another exact match
-        let nearest = find_nearest_rule("PascalCase");
-        assert_eq!(nearest, Some("PascalCase"));
+        let nearest = find_nearest_rule("ContainerUri");
+        assert_eq!(nearest, Some("ContainerUri"));
 
         // Test a typo
-        let nearest = find_nearest_rule("PaskalCase");
-        assert_eq!(nearest, Some("PascalCase"));
-
-        // Test a more significant typo
-        let nearest = find_nearest_rule("SnakeCas");
-        assert_eq!(nearest, Some("SnakeCase"));
+        let nearest = find_nearest_rule("ContainerUrl");
+        assert_eq!(nearest, Some("ContainerUri"));
 
         // Test a completely different string
         let nearest = find_nearest_rule("CompletelyDifferentRule");

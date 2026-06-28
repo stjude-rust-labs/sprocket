@@ -1,3 +1,11 @@
+warning[NamingConvention]: struct member name `name` is not PascalCase
+   ┌─ tests/lints/unused-doc-comments/source.wdl:27:12
+   │
+27 │     String name
+   │            ^^^^ this name must be PascalCase
+   │
+   = fix: replace `name` with `Name`
+
 note[UnusedDocComments]: unused doc comment
    ┌─ tests/lints/unused-doc-comments/source.wdl:37:5
    │  

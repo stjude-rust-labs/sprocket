@@ -6,6 +6,14 @@ note[EmptyDocComment]: empty doc comment block
   │
   = help: consider adding meaningful documentation text or removing the comment block
 
+warning[NamingConvention]: struct member name `value` is not PascalCase
+  ┌─ tests/lints/empty-doc-comment/source.wdl:7:12
+  │
+7 │     String value
+  │            ^^^^^ this name must be PascalCase
+  │
+  = fix: replace `value` with `Value`
+
 note[EmptyDocComment]: empty doc comment block
    ┌─ tests/lints/empty-doc-comment/source.wdl:10:1
    │  
@@ -16,6 +24,38 @@ note[EmptyDocComment]: empty doc comment block
    │  
    = help: consider adding meaningful documentation text or removing the comment block
 
+warning[NamingConvention]: struct member name `baz` is not PascalCase
+   ┌─ tests/lints/empty-doc-comment/source.wdl:14:12
+   │
+14 │     String baz
+   │            ^^^ this name must be PascalCase
+   │
+   = fix: replace `baz` with `Baz`
+
+warning[NamingConvention]: struct member name `value` is not PascalCase
+   ┌─ tests/lints/empty-doc-comment/source.wdl:21:12
+   │
+21 │     String value
+   │            ^^^^^ this name must be PascalCase
+   │
+   = fix: replace `value` with `Value`
+
+warning[NamingConvention]: struct member name `value` is not PascalCase
+   ┌─ tests/lints/empty-doc-comment/source.wdl:26:12
+   │
+26 │     String value
+   │            ^^^^^ this name must be PascalCase
+   │
+   = fix: replace `value` with `Value`
+
+warning[NamingConvention]: struct member name `value` is not PascalCase
+   ┌─ tests/lints/empty-doc-comment/source.wdl:31:12
+   │
+31 │     String value
+   │            ^^^^^ this name must be PascalCase
+   │
+   = fix: replace `value` with `Value`
+
 note[EmptyDocComment]: empty doc comment block
    ┌─ tests/lints/empty-doc-comment/source.wdl:34:1
    │
@@ -23,6 +63,22 @@ note[EmptyDocComment]: empty doc comment block
    │ ^^^^^
    │
    = help: consider adding meaningful documentation text or removing the comment block
+
+warning[NamingConvention]: struct member name `value` is not PascalCase
+   ┌─ tests/lints/empty-doc-comment/source.wdl:36:12
+   │
+36 │     String value
+   │            ^^^^^ this name must be PascalCase
+   │
+   = fix: replace `value` with `Value`
+
+warning[NamingConvention]: struct member name `value` is not PascalCase
+   ┌─ tests/lints/empty-doc-comment/source.wdl:45:12
+   │
+45 │     String value
+   │            ^^^^^ this name must be PascalCase
+   │
+   = fix: replace `value` with `Value`
 
 note[EmptyDocComment]: empty doc comment block
    ┌─ tests/lints/empty-doc-comment/source.wdl:49:1
@@ -33,4 +89,28 @@ note[EmptyDocComment]: empty doc comment block
    │ ╰──^
    │  
    = help: consider adding meaningful documentation text or removing the comment block
+
+warning[NamingConvention]: struct member name `value` is not PascalCase
+   ┌─ tests/lints/empty-doc-comment/source.wdl:53:12
+   │
+53 │     String value
+   │            ^^^^^ this name must be PascalCase
+   │
+   = fix: replace `value` with `Value`
+
+warning[NamingConvention]: struct member name `value` is not PascalCase
+   ┌─ tests/lints/empty-doc-comment/source.wdl:60:12
+   │
+60 │     String value
+   │            ^^^^^ this name must be PascalCase
+   │
+   = fix: replace `value` with `Value`
+
+warning[NamingConvention]: struct member name `value` is not PascalCase
+   ┌─ tests/lints/empty-doc-comment/source.wdl:67:12
+   │
+67 │     String value
+   │            ^^^^^ this name must be PascalCase
+   │
+   = fix: replace `value` with `Value`
 

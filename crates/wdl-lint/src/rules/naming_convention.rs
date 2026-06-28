@@ -1,12 +1,9 @@
-//! A lint rule for ensuring tasks, workflows, and variables are named using
-//! snake_case.
+//! A lint rule for enforcing configurable naming conventions on tasks,
+//! workflows, variables, and user-defined types.
 
 use std::collections::HashSet;
 use std::fmt;
 
-use convert_case::Boundary;
-use convert_case::Case;
-use convert_case::Converter;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Example;
 use wdl_analysis::LabeledSnippet;
@@ -19,6 +16,7 @@ use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::BoundDecl;
+use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::InputSection;
 use wdl_ast::v1::OutputSection;
 use wdl_ast::v1::StructDefinition;
@@ -26,25 +24,32 @@ use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::UnboundDecl;
 use wdl_ast::v1::WorkflowDefinition;
 
+use crate::CaseStyle;
 use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
 
-/// Represents context of an warning.
+/// The category of identifier being checked.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Context {
-    /// The warning occurred in a task.
+    /// A task name.
     Task,
-    /// The warning occurred in a workflow.
+    /// A workflow name.
     Workflow,
-    /// The warning occurred in a struct.
+    /// A struct (user-defined type) name.
     Struct,
-    /// The warning occurred in an input section.
+    /// An enum (user-defined type) name.
+    Enum,
+    /// An enum choice.
+    EnumChoice,
+    /// A struct member.
+    StructMember,
+    /// An input declaration.
     Input,
-    /// The warning occurred in an output section.
+    /// An output declaration.
     Output,
-    /// The warning occurred in a private declaration.
+    /// A private declaration.
     PrivateDecl,
 }
 
@@ -53,7 +58,10 @@ impl fmt::Display for Context {
         match self {
             Self::Task => write!(f, "task"),
             Self::Workflow => write!(f, "workflow"),
-            Self::Struct => write!(f, "struct member"),
+            Self::Struct => write!(f, "struct"),
+            Self::Enum => write!(f, "enum"),
+            Self::EnumChoice => write!(f, "enum choice"),
+            Self::StructMember => write!(f, "struct member"),
             Self::Input => write!(f, "input"),
             Self::Output => write!(f, "output"),
             Self::PrivateDecl => write!(f, "private declaration"),
@@ -61,72 +69,64 @@ impl fmt::Display for Context {
     }
 }
 
-/// The identifier for the snake_case rule.
-const ID: &str = "SnakeCase";
+/// The identifier for the naming convention rule.
+const ID: &str = "NamingConvention";
 
-/// Creates a "snake case" diagnostic.
-fn snake_case(context: Context, name: &str, properly_cased_name: &str, span: Span) -> Diagnostic {
-    Diagnostic::warning(format!("{context} name `{name}` is not snake_case"))
+/// Creates a "naming convention" diagnostic.
+fn naming_convention(
+    context: Context,
+    name: &str,
+    style: CaseStyle,
+    properly_cased_name: &str,
+    span: Span,
+) -> Diagnostic {
+    Diagnostic::warning(format!("{context} name `{name}` is not {style}"))
         .with_rule(ID)
-        .with_label("this name must be snake_case", span)
+        .with_label(format!("this name must be {style}"), span)
         .with_fix(format!("replace `{name}` with `{properly_cased_name}`"))
 }
 
-/// Checks if the given name is snake case, and if not adds a warning to the
-/// diagnostics.
-fn check_name(
-    allowed_names: &HashSet<String>,
-    context: Context,
-    name: &str,
-    span: Span,
-    diagnostics: &mut Diagnostics,
-    element: SyntaxElement,
-    exceptable_nodes: &Option<&'static [SyntaxKind]>,
-) {
-    if allowed_names.contains(name) {
-        return;
-    }
-
-    let converter = Converter::new()
-        .remove_boundaries(&[Boundary::DigitLower, Boundary::LowerDigit])
-        .to_case(Case::Snake);
-    let properly_cased_name = converter.convert(name);
-    if name != properly_cased_name {
-        let warning = snake_case(context, name, &properly_cased_name, span);
-        diagnostics.exceptable_add(warning, element, exceptable_nodes);
-    }
-}
-
-/// Detects non-snake_cased identifiers.
+/// Enforces configurable naming conventions.
 #[derive(Debug, Clone)]
-pub struct SnakeCaseRule {
+pub struct NamingConventionRule {
     /// Whether the visitor is currently within a struct.
     within_struct: bool,
     /// Whether the visitor is currently within an input section.
     within_input: bool,
     /// Whether the visitor is currently within an output section.
     within_output: bool,
-    /// Allowed names from the config.
+    /// The case style for task names.
+    task: CaseStyle,
+    /// The case style for workflow names.
+    workflow: CaseStyle,
+    /// The case style for variable names.
+    variable: CaseStyle,
+    /// The case style for user-defined type names.
+    type_style: CaseStyle,
+    /// Names exempt from the rule.
     allowed_names: HashSet<String>,
 }
 
-impl SnakeCaseRule {
-    /// Create a new instance of `SnakeCaseRule`.
+impl NamingConventionRule {
+    /// Creates a new instance of the rule from the given configuration.
     pub fn new(config: &Config) -> Self {
+        let resolved = config.resolved(ID);
         Self {
             within_struct: false,
             within_input: false,
             within_output: false,
-            allowed_names: HashSet::from_iter(config.allowed_names.iter().cloned()),
+            task: resolved.task,
+            workflow: resolved.workflow,
+            variable: resolved.variable,
+            type_style: resolved.r#type,
+            allowed_names: HashSet::from_iter(resolved.allowed_names),
         }
     }
-}
 
-impl SnakeCaseRule {
-    /// Determines current declaration context.
+    /// Determines the current declaration context.
     fn determine_decl_context(&self) -> Context {
         if self.within_struct {
-            Context::Struct
+            Context::StructMember
         } else if self.within_input {
             Context::Input
         } else if self.within_output {
@@ -135,20 +135,62 @@ impl SnakeCaseRule {
             Context::PrivateDecl
         }
     }
+
+    /// Returns the case style configured for a context.
+    fn style_for(&self, context: Context) -> CaseStyle {
+        match context {
+            Context::Task => self.task,
+            Context::Workflow => self.workflow,
+            // Struct members are part of a user-defined type and follow the
+            // `type` style, alongside struct/enum names and enum choices.
+            Context::Struct | Context::Enum | Context::EnumChoice | Context::StructMember => {
+                self.type_style
+            }
+            Context::Input | Context::Output | Context::PrivateDecl => self.variable,
+        }
+    }
+
+    /// Checks a name against its configured case style.
+    fn check_name(
+        &self,
+        context: Context,
+        name: &str,
+        span: Span,
+        diagnostics: &mut Diagnostics,
+        element: SyntaxElement,
+    ) {
+        if self.allowed_names.contains(name) {
+            return;
+        }
+
+        let style = self.style_for(context);
+        let properly_cased_name = style.convert(name);
+        if name != properly_cased_name {
+            diagnostics.exceptable_add(
+                naming_convention(context, name, style, &properly_cased_name, span),
+                element,
+                &self.exceptable_nodes(),
+            );
+        }
+    }
 }
 
-impl Rule for SnakeCaseRule {
+impl Rule for NamingConventionRule {
     fn id(&self) -> &'static str {
         ID
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that tasks, workflows, and variables are defined with snake_case names."
+        "Ensures that tasks, workflows, variables, and types follow the configured naming \
+         conventions."
     }
 
     fn explanation(&self) -> &'static str {
-        "Workflow, task, and variable names should be in snake case. Maintaining a consistent \
-         naming convention makes the code easier to read and understand."
+        "Names should follow a consistent case convention. By default, tasks, workflows, and \
+         variables use snake_case, while user-defined types and their members (struct and enum \
+         names, struct members, and enum choices) use PascalCase. The convention for each category \
+         can be configured. Maintaining a consistent naming convention makes the code easier to \
+         read and understand."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -186,6 +228,8 @@ task say_hello {
         Some(&[
             SyntaxKind::VersionStatementNode,
             SyntaxKind::StructDefinitionNode,
+            SyntaxKind::EnumDefinitionNode,
+            SyntaxKind::EnumChoiceNode,
             SyntaxKind::TaskDefinitionNode,
             SyntaxKind::WorkflowDefinitionNode,
             SyntaxKind::InputSectionNode,
@@ -196,33 +240,76 @@ task say_hello {
     }
 
     fn related_rules(&self) -> &'static [&'static str] {
-        &["PascalCase"]
+        &["DeclarationName", "InputName", "OutputName"]
     }
 }
 
-impl Visitor for SnakeCaseRule {
+impl Visitor for NamingConventionRule {
     fn reset(&mut self) {
         *self = Self {
-            allowed_names: std::mem::take(&mut self.allowed_names),
             within_struct: false,
             within_input: false,
             within_output: false,
+            task: self.task,
+            workflow: self.workflow,
+            variable: self.variable,
+            type_style: self.type_style,
+            allowed_names: std::mem::take(&mut self.allowed_names),
         };
     }
 
     fn struct_definition(
         &mut self,
-        _diagnostics: &mut Diagnostics,
+        diagnostics: &mut Diagnostics,
         reason: VisitReason,
-        _def: &StructDefinition,
+        def: &StructDefinition,
     ) {
         match reason {
             VisitReason::Enter => {
                 self.within_struct = true;
+                let name = def.name();
+                self.check_name(
+                    Context::Struct,
+                    name.text(),
+                    name.span(),
+                    diagnostics,
+                    SyntaxElement::from(def.inner().clone()),
+                );
             }
             VisitReason::Exit => {
                 self.within_struct = false;
             }
+        }
+    }
+
+    fn enum_definition(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        def: &EnumDefinition,
+    ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        let name = def.name();
+        self.check_name(
+            Context::Enum,
+            name.text(),
+            name.span(),
+            diagnostics,
+            SyntaxElement::from(def.inner().clone()),
+        );
+
+        for choice in def.choices() {
+            let name = choice.name();
+            self.check_name(
+                Context::EnumChoice,
+                name.text(),
+                name.span(),
+                diagnostics,
+                SyntaxElement::from(choice.inner().clone()),
+            );
         }
     }
 
@@ -232,14 +319,7 @@ impl Visitor for SnakeCaseRule {
         reason: VisitReason,
         _section: &InputSection,
     ) {
-        match reason {
-            VisitReason::Enter => {
-                self.within_input = true;
-            }
-            VisitReason::Exit => {
-                self.within_input = false;
-            }
-        }
+        self.within_input = reason == VisitReason::Enter;
     }
 
     fn output_section(
@@ -248,14 +328,7 @@ impl Visitor for SnakeCaseRule {
         reason: VisitReason,
         _section: &OutputSection,
     ) {
-        match reason {
-            VisitReason::Enter => {
-                self.within_output = true;
-            }
-            VisitReason::Exit => {
-                self.within_output = false;
-            }
-        }
+        self.within_output = reason == VisitReason::Enter;
     }
 
     fn task_definition(
@@ -269,14 +342,12 @@ impl Visitor for SnakeCaseRule {
         }
 
         let name = task.name();
-        check_name(
-            &self.allowed_names,
+        self.check_name(
             Context::Task,
             name.text(),
             name.span(),
             diagnostics,
             SyntaxElement::from(task.inner().clone()),
-            &self.exceptable_nodes(),
         );
     }
 
@@ -291,14 +362,12 @@ impl Visitor for SnakeCaseRule {
         }
 
         let name = workflow.name();
-        check_name(
-            &self.allowed_names,
+        self.check_name(
             Context::Workflow,
             name.text(),
             name.span(),
             diagnostics,
             SyntaxElement::from(workflow.inner().clone()),
-            &self.exceptable_nodes(),
         );
     }
 
@@ -309,14 +378,12 @@ impl Visitor for SnakeCaseRule {
 
         let name = decl.name();
         let context = self.determine_decl_context();
-        check_name(
-            &self.allowed_names,
+        self.check_name(
             context,
             name.text(),
             name.span(),
             diagnostics,
             SyntaxElement::from(decl.inner().clone()),
-            &self.exceptable_nodes(),
         );
     }
 
@@ -332,14 +399,12 @@ impl Visitor for SnakeCaseRule {
 
         let name = decl.name();
         let context = self.determine_decl_context();
-        check_name(
-            &self.allowed_names,
+        self.check_name(
             context,
             name.text(),
             name.span(),
             diagnostics,
             SyntaxElement::from(decl.inner().clone()),
-            &self.exceptable_nodes(),
         );
     }
 }

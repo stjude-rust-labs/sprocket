@@ -23,12 +23,14 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use dyn_clone::DynClone;
 use strum::VariantArray;
 use wdl_analysis::Example;
 use wdl_analysis::Visitor;
+use wdl_ast::Severity;
 use wdl_ast::SyntaxKind;
 
 pub mod baseline;
@@ -42,9 +44,11 @@ pub(crate) mod util;
 pub use baseline::Baseline;
 pub use baseline::BaselineEntry;
 pub use baseline::BaselineMatcher;
+pub use config::CaseStyle;
 pub use config::Config;
-#[doc(hidden)]
-pub use config::ConfigField;
+pub use config::ParamSpec;
+pub use config::RuleConfig;
+pub use config::RuleSeverity;
 pub use linter::*;
 pub use tags::*;
 pub use util::find_nearest_rule;
@@ -53,6 +57,22 @@ pub use wdl_ast as ast;
 
 /// The definitions of WDL concepts and terminology used in the linting rules.
 pub const DEFINITIONS_TEXT: &str = include_str!("../DEFINITIONS.md");
+
+/// Builds the map of rule id to overridden severity from a [`Config`].
+///
+/// Rules disabled via `severity = "off"` are not included; callers disable
+/// those rules by excluding them from the linter's rule set. Rules without a
+/// severity override are also omitted, leaving their built-in severity intact.
+pub fn severity_overrides(config: &Config) -> HashMap<String, Severity> {
+    config
+        .iter()
+        .filter_map(|(id, rule)| {
+            rule.severity
+                .and_then(|s| s.as_severity())
+                .map(|severity| (id.clone(), severity))
+        })
+        .collect()
+}
 
 /// All rule IDs sorted alphabetically.
 pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
@@ -122,12 +142,11 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
     let rules: Vec<Box<dyn Rule + Send + Sync>> = vec![
         Box::<rules::DoubleQuotesRule>::default(),
         Box::<rules::HereDocCommandsRule>::default(),
-        Box::new(rules::SnakeCaseRule::new(config)),
+        Box::new(rules::NamingConventionRule::new(config)),
         Box::<rules::RuntimeSectionRule>::default(),
         Box::<rules::ParameterMetaMatchedRule>::default(),
         Box::<rules::CommandSectionIndentationRule>::default(),
         Box::<rules::ImportPlacementRule>::default(),
-        Box::<rules::PascalCaseRule>::default(),
         Box::<rules::MetaSectionsRule>::default(),
         Box::<rules::CallInputKeywordRule>::default(),
         Box::<rules::SectionOrderingRule>::default(),
@@ -136,11 +155,11 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::<rules::DeprecatedPlaceholderRule>::default(),
         Box::new(rules::ExpectedRuntimeKeysRule::new(config)),
         Box::<rules::EmptyDocCommentRule>::default(),
-        Box::<rules::DocMetaStringsRule>::default(),
-        Box::<rules::TodoCommentRule>::default(),
+        Box::new(rules::DocMetaStringsRule::new(config)),
+        Box::new(rules::TodoCommentRule::new(config)),
         Box::<rules::MatchingOutputMetaRule<'_>>::default(),
-        Box::<rules::InputNameRule>::default(),
-        Box::<rules::OutputNameRule>::default(),
+        Box::new(rules::InputNameRule::new(config)),
+        Box::new(rules::OutputNameRule::new(config)),
         Box::new(rules::DeclarationNameRule::new(config)),
         Box::<rules::RedundantNone>::default(),
         Box::<rules::HostPathLiteralsRule>::default(),
@@ -151,7 +170,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::<rules::ParameterDescriptionRule>::default(),
         Box::<rules::ConciseInputRule>::default(),
         Box::<rules::ShellCheckRule>::default(),
-        Box::<rules::DescriptionLengthRule>::default(),
+        Box::new(rules::DescriptionLengthRule::new(config)),
         Box::<rules::DocCommentTabsRule>::default(),
         Box::<rules::UnusedDocCommentsRule>::default(),
         Box::<rules::DenyGlobStar>::default(),

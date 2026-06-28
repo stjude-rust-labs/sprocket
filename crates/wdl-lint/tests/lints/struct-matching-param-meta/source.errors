@@ -6,6 +6,14 @@ note[ParameterMetaMatched]: struct `Text` has an extraneous parameter metadata k
    │
    = fix: remove the extraneous key from the `parameter_meta` section
 
+warning[NamingConvention]: struct member name `matching` is not PascalCase
+   ┌─ tests/lints/struct-matching-param-meta/source.wdl:26:12
+   │
+26 │     String matching
+   │            ^^^^^^^^ this name must be PascalCase
+   │
+   = fix: replace `matching` with `Matching`
+
 warning[ParameterMetaMatched]: struct `Text` is missing a parameter metadata key for input `does_not_exist`
    ┌─ tests/lints/struct-matching-param-meta/source.wdl:27:12
    │
@@ -13,6 +21,14 @@ warning[ParameterMetaMatched]: struct `Text` is missing a parameter metadata key
    │            ^^^^^^^^^^^^^^ this input does not have an entry in the parameter metadata section
    │
    = fix: add a `does_not_exist` key to the `parameter_meta` section with a detailed description of the input.
+
+warning[NamingConvention]: struct member name `does_not_exist` is not PascalCase
+   ┌─ tests/lints/struct-matching-param-meta/source.wdl:27:12
+   │
+27 │     String does_not_exist
+   │            ^^^^^^^^^^^^^^ this name must be PascalCase
+   │
+   = fix: replace `does_not_exist` with `DoesNotExist`
 
 note[ParameterMetaMatched]: parameter metadata in struct `Bar` is out of order
    ┌─ tests/lints/struct-matching-param-meta/source.wdl:33:5
@@ -23,4 +39,20 @@ note[ParameterMetaMatched]: parameter metadata in struct `Bar` is out of order
    = fix: based on the current `input` order, order the parameter metadata as:
      param_a
      param_b
+
+warning[NamingConvention]: struct member name `param_a` is not PascalCase
+   ┌─ tests/lints/struct-matching-param-meta/source.wdl:38:12
+   │
+38 │     String param_a
+   │            ^^^^^^^ this name must be PascalCase
+   │
+   = fix: replace `param_a` with `ParamA`
+
+warning[NamingConvention]: struct member name `param_b` is not PascalCase
+   ┌─ tests/lints/struct-matching-param-meta/source.wdl:39:12
+   │
+39 │     String param_b
+   │            ^^^^^^^ this name must be PascalCase
+   │
+   = fix: replace `param_b` with `ParamB`
 

@@ -11,5 +11,4 @@ Rules with the tag `Clarity`:
   - ImportPlacement
   - KnownRules
   - MetaSections
-  - PascalCase
-  - SnakeCase
+  - NamingConvention

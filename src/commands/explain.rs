@@ -31,13 +31,27 @@ const USAGE: &str = "sprocket explain [RULE]
     sprocket explain --tag <TAG>
     sprocket explain --definitions";
 
-/// All rule IDs sorted alphabetically.
+/// All current rule IDs sorted alphabetically.
+///
+/// This is the set used for display and excludes deprecated aliases.
 pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
     let mut ids: Vec<String> = analysis::ALL_RULE_IDS
         .iter()
         .chain(lint::ALL_RULE_IDS.iter())
         .map(ToString::to_string)
         .collect();
+    ids.sort();
+    ids
+});
+
+/// All rule IDs accepted on the command line, including deprecated aliases.
+pub static ACCEPTED_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
+    let mut ids = ALL_RULE_IDS.clone();
+    ids.extend(
+        analysis::RULE_ALIASES
+            .iter()
+            .map(|(alias, _)| alias.to_string()),
+    );
     ids.sort();
     ids
 });
@@ -73,7 +87,7 @@ pub struct Args {
         "list_all_tags"
     ],
         value_name = "RULE",
-        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
         ignore_case = true,
         hide_possible_values = true,
     )]
@@ -250,6 +264,24 @@ impl Display for Rule {
             }
         };
 
+        writeln!(f, "\n{}", "Configuration:".bold())?;
+        writeln!(
+            f,
+            "  severity (default, off, note, warning, error) under `[check.rules.{id}]`",
+            id = self.id
+        )?;
+        if let Some(config) = &self.config {
+            for field in config {
+                let summary = field.description.lines().next().unwrap_or_default().trim();
+                writeln!(
+                    f,
+                    "  {name} (default: {default}) {summary}",
+                    name = field.name.cyan(),
+                    default = field.default,
+                )?;
+            }
+        }
+
         if !self.examples.is_empty() {
             writeln!(f, "\n{}", "Examples:".bold())?;
             for example in self.examples {
@@ -275,13 +307,13 @@ fn wdl_lint() -> impl Iterator<Item = Rule> {
     wdl::lint::rules(&wdl::lint::Config::default())
         .into_iter()
         .map(|rule| {
-            let applicable_config_fields = Config::fields()
+            let applicable_config_fields = Config::params()
                 .into_iter()
-                .filter(|field| field.applicable_lints.contains(&rule.id()))
-                .map(|field| ConfigField {
-                    name: field.name,
-                    description: field.description,
-                    default: field.default,
+                .filter(|param| param.applicable_rules.contains(&rule.id()))
+                .map(|param| ConfigField {
+                    name: param.name,
+                    description: param.description,
+                    default: param.default,
                 })
                 .collect::<Vec<_>>();
 
@@ -451,7 +483,8 @@ pub fn explain(args: Args) -> CommandResult<()> {
     }
 
     if let Some(rule_name) = args.rule_name {
-        let lowercase_name = rule_name.to_lowercase();
+        // Map a deprecated alias (e.g. `SnakeCase`) to its current rule.
+        let lowercase_name = analysis::canonical_rule_id(&rule_name).to_lowercase();
 
         match wdl_lint()
             .chain(wdl_analysis())
@@ -470,4 +503,25 @@ pub fn explain(args: Args) -> CommandResult<()> {
     }
 
     unreachable!();
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashSet;
+
+    /// The unified `[check.rules]` configuration namespace relies on rule IDs
+    /// being globally unique across `wdl-analysis` and `wdl-lint`.
+    #[test]
+    fn rule_ids_are_globally_unique() {
+        let analysis: HashSet<&str> = wdl::analysis::ALL_RULE_IDS
+            .iter()
+            .map(String::as_str)
+            .collect();
+        for id in wdl::lint::ALL_RULE_IDS.iter() {
+            assert!(
+                !analysis.contains(id.as_str()),
+                "rule id `{id}` is defined in both `wdl-analysis` and `wdl-lint`"
+            );
+        }
+    }
 }

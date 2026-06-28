@@ -31,6 +31,14 @@ note[SectionOrdering]: sections are not in order for task `qux`
    │
    = fix: order as `meta`, `parameter_meta`, `input`, private declarations, `command`, `output`, `requirements`/`runtime`
 
+warning[NamingConvention]: struct member name `x` is not PascalCase
+   ┌─ tests/lints/section-ordering/source.wdl:41:9
+   │
+41 │     Int x
+   │         ^ this name must be PascalCase
+   │
+   = fix: replace `x` with `X`
+
 note[SectionOrdering]: sections are not in order for struct `Corge`
    ┌─ tests/lints/section-ordering/source.wdl:44:8
    │
@@ -42,6 +50,14 @@ note[SectionOrdering]: sections are not in order for struct `Corge`
    │
    = fix: order as `meta`, `parameter_meta`, members
 
+warning[NamingConvention]: struct member name `x` is not PascalCase
+   ┌─ tests/lints/section-ordering/source.wdl:49:9
+   │
+49 │     Int x
+   │         ^ this name must be PascalCase
+   │
+   = fix: replace `x` with `X`
+
 note[SectionOrdering]: sections are not in order for struct `Grault`
    ┌─ tests/lints/section-ordering/source.wdl:52:8
    │
@@ -52,4 +68,20 @@ note[SectionOrdering]: sections are not in order for struct `Grault`
    │     ---- this section is out of order
    │
    = fix: order as `meta`, `parameter_meta`, members
+
+warning[NamingConvention]: struct member name `x` is not PascalCase
+   ┌─ tests/lints/section-ordering/source.wdl:53:9
+   │
+53 │     Int x
+   │         ^ this name must be PascalCase
+   │
+   = fix: replace `x` with `X`
+
+warning[NamingConvention]: struct member name `y` is not PascalCase
+   ┌─ tests/lints/section-ordering/source.wdl:59:9
+   │
+59 │     Int y
+   │         ^ this name must be PascalCase
+   │
+   = fix: replace `y` with `Y`
 
