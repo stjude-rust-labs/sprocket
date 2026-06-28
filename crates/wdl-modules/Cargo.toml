@@ -1,6 +1,6 @@
 [package]
 name = "wdl-modules"
-version = "0.2.1"
+version = "0.2.2"
 description = "Implementation of the WDL module specification"
 authors.workspace = true
 rust-version.workspace = true
@@ -55,7 +55,7 @@ toml-spanner = { workspace = true, optional = true }
 tracing = { workspace = true, optional = true }
 unicode-normalization = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-wdl-grammar = { path = "../wdl-grammar", version = "0.24.0" }
+wdl-grammar = { path = "../wdl-grammar", version = "0.24.1" }
 
 [dev-dependencies]
 pretty_assertions = { workspace = true }
