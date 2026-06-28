@@ -1036,8 +1036,8 @@ impl Config {
         if self.check.lint.is_some() {
             bail!(
                 "`[check.lint]` has been replaced by per-rule tables\n- move `allowed_names` \
-                 under `[check.rules.SnakeCase]` and/or `[check.rules.DeclarationName]` (it \
-                 previously applied to both)\n- move `allowed_runtime_keys` under \
+                 under `[check.rules.NamingConvention]` and/or `[check.rules.DeclarationName]` \
+                 (it previously applied to both)\n- move `allowed_runtime_keys` under \
                  `[check.rules.ExpectedRuntimeKeys]`"
             )
         }
@@ -1194,8 +1194,12 @@ mod test {
     fn legacy_lint_table_reports_migration_error() {
         let mut config: Config =
             toml_spanner::from_str("[check.lint]\nallowed_names = [\"x\"]\n").unwrap();
-        let err = config.validate().unwrap_err();
-        assert!(err.to_string().contains("has been replaced"), "{err}");
+        let err = config.validate().unwrap_err().to_string();
+        assert!(err.contains("has been replaced"), "{err}");
+        // The message points at the current rule names, not deprecated aliases.
+        assert!(err.contains("[check.rules.NamingConvention]"), "{err}");
+        assert!(err.contains("[check.rules.ExpectedRuntimeKeys]"), "{err}");
+        assert!(!err.contains("SnakeCase"), "{err}");
     }
 
     #[test]
