@@ -50,6 +50,7 @@ use crate::queue::AnalysisQueue;
 use crate::queue::AnalyzeRequest;
 use crate::queue::CallHierarchyRequest;
 use crate::queue::CompletionRequest;
+use crate::queue::DeleteRequest;
 use crate::queue::DocumentSymbolRequest;
 use crate::queue::FindAllReferencesRequest;
 use crate::queue::FoldingRangeRequest;
@@ -66,6 +67,7 @@ use crate::queue::RenameRequest;
 use crate::queue::Request;
 use crate::queue::SemanticTokenRequest;
 use crate::queue::SignatureHelpRequest;
+use crate::queue::SwapValidatorRequest;
 use crate::queue::WorkspaceSymbolRequest;
 use crate::rayon::RayonHandle;
 
@@ -374,7 +376,7 @@ where
         let tokio = Handle::current();
         let inner_config = config.clone();
         let handle = std::thread::spawn(move || {
-            let queue = AnalysisQueue::new(inner_config, tokio, progress, validator);
+            let queue = AnalysisQueue::new(inner_config, tokio, progress, Arc::new(validator));
             queue.run(rx);
         });
 
@@ -383,6 +385,30 @@ where
             handle: Some(handle),
             config,
         }
+    }
+
+    /// Replace the current validator function.
+    ///
+    /// This will mark all documents for re-analysis.
+    pub async fn swap_validator<Validator>(&self, validator: Validator) -> Result<()>
+    where
+        Validator: Fn() -> crate::Validator + Send + Sync + 'static,
+    {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::SwapValidator(SwapValidatorRequest {
+                validator: Arc::new(validator),
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!("failed to send request to analysis queue because the channel has closed")
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!("failed to receive response from analysis queue because the channel has closed")
+        })?;
+
+        Ok(())
     }
 
     /// Adds a document to the analyzer. Document can be a local file or a URL.
@@ -505,6 +531,29 @@ where
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(Request::Remove(RemoveRequest {
+                documents,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!("failed to send request to analysis queue because the channel has closed")
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!("failed to receive response from analysis queue because the channel has closed")
+        })?;
+
+        Ok(())
+    }
+
+    /// Deletes the specified documents from the analyzer.
+    ///
+    /// This differs from [`Self::remove_documents()`], as a deletion will occur
+    /// even if the document(s) are referenced in other documents.
+    pub async fn delete_documents(&self, documents: Vec<Url>) -> Result<()> {
+        // Send the delete request to the queue
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::Delete(DeleteRequest {
                 documents,
                 completed: tx,
             }))
@@ -1323,5 +1372,64 @@ workflow test {
             .unwrap();
         let results = analyzer.analyze(()).await.unwrap();
         assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn it_deletes_documents() {
+        let dir = TempDir::new().expect("failed to create temporary directory");
+        let foo = dir.path().join("foo.wdl");
+        fs::write(
+            &foo,
+            r#"version 1.1
+import "bar.wdl"
+
+workflow test {
+    call bar.test
+}
+"#,
+        )
+        .expect("failed to create test file");
+
+        let bar = dir.path().join("bar.wdl");
+        fs::write(
+            &bar,
+            r#"version 1.1
+workflow test {}
+"#,
+        )
+        .expect("failed to create test file");
+
+        // Add both documents to the analyzer
+        let analyzer = Analyzer::default();
+        analyzer
+            .add_directory(dir.path())
+            .await
+            .expect("should add documents");
+
+        // Analyze the documents
+        let results = analyzer.analyze(()).await.unwrap();
+        assert_eq!(results.len(), 2);
+        assert!(results[0].document.diagnostics().next().is_none());
+        assert!(results[1].document.diagnostics().next().is_none());
+
+        // Now delete bar.wdl, which foo.wdl depends on.
+        //
+        // Unlike removal, this should *force* the deletion of bar.wdl in the graph (and
+        // thus cause errors in foo.wdl)
+        fs::remove_file(&bar).expect("should delete file");
+        analyzer
+            .delete_documents(vec![path_to_uri(&bar).expect("should convert to URI")])
+            .await
+            .unwrap();
+
+        // Now foo.wdl should error
+        let results = analyzer.analyze(()).await.unwrap();
+        assert_eq!(results.len(), 1);
+
+        let has_import_failed_diagnostic = results[0]
+            .document
+            .diagnostics()
+            .any(|d| d.message().contains("failed to import `bar.wdl`"));
+        assert!(has_import_failed_diagnostic);
     }
 }

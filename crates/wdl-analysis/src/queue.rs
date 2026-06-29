@@ -59,6 +59,9 @@ use crate::graph::ParseState;
 use crate::handlers;
 use crate::rayon::RayonHandle;
 
+/// A validator constructor function.
+pub(crate) type ValidatorFn = Arc<dyn Fn() -> crate::Validator + Send + Sync + 'static>;
+
 /// The minimum number of milliseconds between analysis progress reports.
 const MINIMUM_PROGRESS_MILLIS: u128 = 50;
 
@@ -72,6 +75,8 @@ pub enum Request<Context> {
     CallHierarchy(CallHierarchyRequest),
     /// A request to remove documents from the graph.
     Remove(RemoveRequest),
+    /// A request to delete documents from the graph.
+    Delete(DeleteRequest),
     /// A request to process a document's incremental change.
     NotifyIncrementalChange(NotifyIncrementalChangeRequest),
     /// A request to process a document's change.
@@ -104,6 +109,8 @@ pub enum Request<Context> {
     SignatureHelp(SignatureHelpRequest),
     /// A request to get inlay hints for a document.
     InlayHints(InlayHintsRequest),
+    /// Replace the current validator.
+    SwapValidator(SwapValidatorRequest),
 }
 
 /// Represents a request to add documents to the graph.
@@ -141,6 +148,14 @@ pub struct CallHierarchyRequest {
 /// Represents a request to remove documents from the document graph.
 pub struct RemoveRequest {
     /// The documents to remove.
+    pub documents: Vec<Url>,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<()>,
+}
+
+/// Represents a request to delete documents from the document graph.
+pub struct DeleteRequest {
+    /// The documents to delete.
     pub documents: Vec<Url>,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<()>,
@@ -320,7 +335,16 @@ pub struct InlayHintsRequest {
     pub completed: oneshot::Sender<Option<Vec<InlayHint>>>,
 }
 
+/// Represents a request to swap the analyzer's current validator.
+pub struct SwapValidatorRequest {
+    /// The new validator function.
+    pub validator: ValidatorFn,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<()>,
+}
+
 /// A simple enumeration to signal a cancellation to the caller.
+#[derive(Debug)]
 enum Cancelable<T> {
     /// The operation completed and yielded a value.
     Completed(T),
@@ -329,7 +353,7 @@ enum Cancelable<T> {
 }
 
 /// Represents the analysis queue.
-pub struct AnalysisQueue<Progress, Context, Return, Validator> {
+pub struct AnalysisQueue<Progress, Context, Return> {
     /// The document graph maintained by the analysis queue.
     graph: Arc<RwLock<DocumentGraph>>,
     /// The configuration to use.
@@ -341,20 +365,19 @@ pub struct AnalysisQueue<Progress, Context, Return, Validator> {
     /// The progress callback to use.
     progress: Arc<Progress>,
     /// The validator callback to use.
-    validator: Arc<Validator>,
+    validator: Arc<RwLock<ValidatorFn>>,
     /// A marker for the `Context` and `Return` types.
     marker: PhantomData<(Context, Return)>,
 }
 
-impl<Progress, Context, Return, Validator> AnalysisQueue<Progress, Context, Return, Validator>
+impl<Progress, Context, Return> AnalysisQueue<Progress, Context, Return>
 where
     Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
     Context: Send + Clone,
     Return: Future<Output = ()>,
-    Validator: Fn() -> crate::Validator + Send + Sync + 'static,
 {
     /// Constructs a new analysis queue.
-    pub fn new(config: Config, tokio: Handle, progress: Progress, validator: Validator) -> Self {
+    pub fn new(config: Config, tokio: Handle, progress: Progress, validator: ValidatorFn) -> Self {
         Self {
             graph: Arc::new(RwLock::new(DocumentGraph::new(config.clone()))),
             config,
@@ -362,7 +385,7 @@ where
             progress: Arc::new(progress),
             marker: PhantomData,
             client: Default::default(),
-            validator: Arc::new(validator),
+            validator: Arc::new(RwLock::new(validator)),
         }
     }
 
@@ -466,6 +489,25 @@ where
 
                     debug!(
                         "request to remove documents completed in {elapsed:?}",
+                        elapsed = start.elapsed()
+                    );
+
+                    completed.send(()).ok();
+                }
+                Request::Delete(DeleteRequest {
+                    documents,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!(
+                        "received request to delete {count} document(s)",
+                        count = documents.len()
+                    );
+
+                    self.delete_documents(documents);
+
+                    debug!(
+                        "request to delete documents completed in {elapsed:?}",
                         elapsed = start.elapsed()
                     );
 
@@ -951,6 +993,21 @@ where
                         }
                     }
                 }
+                Request::SwapValidator(SwapValidatorRequest {
+                    validator,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!("received request to update validator");
+
+                    self.swap_validator(validator);
+
+                    debug!(
+                        "request to update validator completed in {:?}",
+                        start.elapsed()
+                    );
+                    completed.send(()).ok();
+                }
             }
         }
 
@@ -1082,6 +1139,7 @@ where
 
             let tasks = {
                 let graph = self.graph.read();
+                let validator = self.validator.read().clone();
 
                 let handles = FuturesUnordered::new();
                 for index in set.iter().copied() {
@@ -1095,7 +1153,7 @@ where
 
                     let graph = self.graph.clone();
                     let config = self.config.clone();
-                    let validator = self.validator.clone();
+                    let validator = validator.clone();
                     handles.push(RayonHandle::spawn(move || {
                         let result = panic::catch_unwind(AssertUnwindSafe(|| {
                             Self::analyze_node(&config, graph.clone(), index, &mut (validator)())
@@ -1157,6 +1215,18 @@ where
 
         for uri in uris {
             graph.remove_root(&uri);
+        }
+
+        graph.gc();
+    }
+
+    /// Deletes documents from the graph, even if they are still referenced by
+    /// other documents.
+    fn delete_documents(&self, uris: Vec<Url>) {
+        let mut graph = self.graph.write();
+
+        for uri in uris {
+            graph.delete(&uri);
         }
 
         graph.gc();
@@ -1373,6 +1443,21 @@ where
         );
 
         (index, document)
+    }
+
+    /// Replace the current validator function.
+    fn swap_validator(&self, validator: ValidatorFn) {
+        *self.validator.write() = validator;
+
+        // Invalidate the *entire* graph
+        let mut graph = self.graph.write();
+        let roots = graph.roots().clone();
+        for root in roots {
+            graph.bfs_mut(root, |g, dependent| {
+                g.get_mut(dependent).reanalyze();
+            });
+            graph.get_mut(root).reanalyze();
+        }
     }
 }
 
