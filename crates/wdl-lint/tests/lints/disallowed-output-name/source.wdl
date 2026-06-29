@@ -1,3 +1,5 @@
+#@ except: BashSetSyntax
+
 version 1.3
 
 #@ except: RequirementsSection, SnakeCase

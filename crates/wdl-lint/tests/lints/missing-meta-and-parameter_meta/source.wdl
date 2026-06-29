@@ -1,4 +1,4 @@
-#@ except: InputName, OutputName, RuntimeSection, EmptyOutputs
+#@ except: InputName, OutputName, RuntimeSection, EmptyOutputs, BashSetSyntax
 
 ## This is a test of missing both the meta and parameter_meta
 
