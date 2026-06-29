@@ -14,6 +14,7 @@ use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
 #[cfg(feature = "unstable-python")]
 pub use python::py_emit_diagnostics;
+use schemars::JsonSchema;
 use wdl_ast::Diagnostic;
 
 /// Configuration for full display style.
@@ -91,7 +92,7 @@ impl DiagnosticCounts {
 }
 
 /// The diagnostic mode to use for reporting diagnostics.
-#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq, JsonSchema)]
 #[cfg_attr(
     feature = "unstable-python",
     pyo3::pyclass(
