@@ -316,10 +316,10 @@ async fn resolve_override_paths(
         }
     }
 
-    let json_str = inputs_to_json(&target, &inputs)
-        .context("failed to serialize override inputs")?;
-    let resolved: serde_json::Map<String, JsonValue> = serde_json::from_str(&json_str)
-        .context("failed to deserialize override inputs")?;
+    let json_str =
+        inputs_to_json(&target, &inputs).context("failed to serialize override inputs")?;
+    let resolved: serde_json::Map<String, JsonValue> =
+        serde_json::from_str(&json_str).context("failed to deserialize override inputs")?;
     Ok(resolved)
 }
 
@@ -440,14 +440,9 @@ mod tests {
 
         let mut base = base();
         let arg = format!("@{}", renamed.display());
-        merge_overrides_into(
-            &mut base,
-            &overrides(&[&arg]),
-            Some("wf".to_string()),
-            None,
-        )
-        .await
-        .unwrap();
+        merge_overrides_into(&mut base, &overrides(&[&arg]), Some("wf".to_string()), None)
+            .await
+            .unwrap();
         assert_eq!(base["wf.foo"], json!("bar"));
         assert_eq!(base["wf.count"], json!(42));
 
