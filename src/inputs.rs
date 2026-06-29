@@ -279,47 +279,14 @@ impl Invocation {
         self,
         document: &Document,
     ) -> Result<Option<(String, EngineInputs)>> {
-        let (origins, values) = self.inputs.into_iter().fold(
-            (BTreeMap::new(), serde_json::Map::new()),
-            |(mut origins, mut values), (key, located_values)| {
-                if located_values.len() == 1 {
-                    let lv = located_values.into_iter().next().unwrap();
-                    origins.insert(key.clone(), vec![lv.origin]);
-                    values.insert(key, lv.value);
-                } else {
-                    let mut element_origins = Vec::new();
-                    let mut flat_values = Vec::new();
-
-                    for lv in located_values {
-                        if lv.from_file {
-                            if let JsonValue::Array(arr) = lv.value {
-                                for v in arr {
-                                    element_origins.push(lv.origin.clone());
-                                    flat_values.push(v);
-                                }
-                            } else {
-                                element_origins.push(lv.origin);
-                                flat_values.push(lv.value);
-                            }
-                        } else {
-                            element_origins.push(lv.origin);
-                            flat_values.push(lv.value);
-                        }
-                    }
-
-                    origins.insert(key.clone(), element_origins);
-                    values.insert(key, JsonValue::Array(flat_values));
-                }
-
-                (origins, values)
-            },
-        );
+        let target_override = self.target.clone();
+        let (origins, values) = self.flatten();
 
         let Some((target, mut inputs)) = EngineInputs::parse_json_object(document, values)? else {
             return Ok(None);
         };
 
-        if let Some(t) = &self.target
+        if let Some(t) = &target_override
             && target != *t
         {
             bail!(format!(
@@ -367,6 +334,76 @@ impl Invocation {
         }
 
         Ok(Some((target, inputs)))
+    }
+
+    /// Flattens the collected [`LocatedJsonValue`]s into a JSON map and a
+    /// per-key origins map, applying the file-array-versus-CLI-array
+    /// flattening rules.
+    ///
+    /// Shared internal helper for [`Invocation::into_engine_inputs`] and
+    /// [`Invocation::into_json_with_origins`].
+    pub(crate) fn flatten(
+        self,
+    ) -> (
+        BTreeMap<String, Vec<EvaluationPath>>,
+        serde_json::Map<String, JsonValue>,
+    ) {
+        self.inputs.into_iter().fold(
+            (BTreeMap::new(), serde_json::Map::new()),
+            |(mut origins, mut values), (key, located_values)| {
+                if located_values.len() == 1 {
+                    let lv = located_values.into_iter().next().unwrap();
+                    origins.insert(key.clone(), vec![lv.origin]);
+                    values.insert(key, lv.value);
+                } else {
+                    let mut element_origins = Vec::new();
+                    let mut flat_values = Vec::new();
+
+                    for lv in located_values {
+                        if lv.from_file {
+                            if let JsonValue::Array(arr) = lv.value {
+                                for v in arr {
+                                    element_origins.push(lv.origin.clone());
+                                    flat_values.push(v);
+                                }
+                            } else {
+                                element_origins.push(lv.origin);
+                                flat_values.push(lv.value);
+                            }
+                        } else {
+                            element_origins.push(lv.origin);
+                            flat_values.push(lv.value);
+                        }
+                    }
+
+                    origins.insert(key.clone(), element_origins);
+                    values.insert(key, JsonValue::Array(flat_values));
+                }
+
+                (origins, values)
+            },
+        )
+    }
+
+    /// Converts the collected inputs into a JSON object with target-prefixed
+    /// keys plus an origins map, **without** type-checking the result
+    /// against any WDL document.
+    ///
+    /// Suitable for callers that perform their own document-driven
+    /// validation downstream (for example, `dev server retry`, which merges
+    /// partial overrides into a previously-validated input set).
+    ///
+    /// The returned origins map is keyed by the same target-prefixed keys
+    /// present in the returned JSON map; each entry holds one or more
+    /// origins (one per array element when the value flattens from multiple
+    /// sources).
+    pub fn into_json_with_origins(
+        self,
+    ) -> (
+        BTreeMap<String, Vec<EvaluationPath>>,
+        serde_json::Map<String, JsonValue>,
+    ) {
+        self.flatten()
     }
 }
 

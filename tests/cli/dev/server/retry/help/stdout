@@ -23,7 +23,7 @@ Options:
       --no-validate
           Skip local re-analysis of the WDL source file.
           
-          By default, `retry` re-analyzes the source file to catch errors before submitting. Use this flag if the source file is no longer accessible from the client.
+          By default, `retry` re-analyzes the source file to catch errors before submitting. Use this flag if the source file is no longer accessible from the client. When this flag is set, override `File`/`Directory` values are not path-resolved.
 
   -m, --report-mode <MODE>
           The report mode
