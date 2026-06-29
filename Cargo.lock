@@ -6164,6 +6164,7 @@ dependencies = [
  "regex",
  "reqwest",
  "rowan",
+ "serde_json",
  "smallvec",
  "tempfile",
  "tokio",

@@ -12,6 +12,9 @@ use anyhow::bail;
 use lsp_types::TextEdit;
 use lsp_types::Url;
 use lsp_types::WorkspaceEdit;
+use serde_json::Map;
+use serde_json::Value;
+use serde_json::json;
 use wdl_ast::lexer::v1::is_ident;
 
 use crate::SourcePosition;
@@ -51,9 +54,29 @@ pub fn rename(
         changes.entry(location.uri).or_default().push(text_edit);
     }
 
-    Ok(Some(WorkspaceEdit {
-        changes: Some(changes),
-        document_changes: None,
-        change_annotations: None,
-    }))
+    Ok(Some(workspace_edit_from_changes(&changes)?))
+}
+
+fn workspace_edit_from_changes(changes: &HashMap<Url, Vec<TextEdit>>) -> Result<WorkspaceEdit> {
+    let mut changes_json = Map::new();
+    let mut document_changes = Vec::with_capacity(changes.len());
+
+    for (uri, edits) in changes {
+        let edits = serde_json::to_value(edits)?;
+        changes_json.insert(uri.to_string(), edits.clone());
+        document_changes.push(json!({
+            "textDocument": {
+                "uri": uri,
+                "version": null,
+            },
+            "edits": edits,
+        }));
+    }
+
+    let edit = serde_json::from_value::<WorkspaceEdit>(json!({
+        "changes": Value::Object(changes_json),
+        "documentChanges": document_changes,
+    }))?;
+
+    Ok(edit)
 }
