@@ -68,7 +68,7 @@ libc = "0.2"
 libtest-mimic = "^0.8.1"
 line-index = "0.1.2"
 logos = "0.16.1"
-lsp-types = "0.95.1"
+lsp-types = "0.97.0"
 macropol = "0.1.4"
 maud = "0.27.0"
 nonempty = "0.12.0"
@@ -109,7 +109,7 @@ ssh-key = "0.6.7"
 strsim = "0.11.1"
 struct-patch = "0.12.0"
 strum = { version = "0.28", features = ["derive"] }
-sysinfo = "0.38.0"
+sysinfo = "0.39.0"
 tempfile = "3.24.0"
 thirtyfour = "0.37.1"
 thiserror = "2.0.18"
@@ -118,7 +118,7 @@ tokio-retry2 = "0.9.1"
 tokio-util = "0.7.18"
 toml-spanner = { version = "1.0.2", features = ["derive", "to-toml"] }
 tower = { version = "0.5.3", features = ["util"] }
-tower-http = { version = "0.6.8", features = ["cors", "trace"] }
+tower-http = { version = "0.7.0", features = ["cors", "trace"] }
 tracing = "0.1.44"
 tracing-indicatif = "0.3.14"
 tracing-log = "0.2.0"
