@@ -114,3 +114,21 @@ jobs:
         uses: psf/black@stable
         with:
           use_pyproject: true
+
+  sort-imports:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      # Note that `isort` requires 3rd-party dependencies be installed before running. We skip this
+      # because `sprocket_bio` doesn't have any dependencies.
+      - name: Check import sorting
+        uses: isort/isort-action@v1
+        with:
+          sort-paths: python
