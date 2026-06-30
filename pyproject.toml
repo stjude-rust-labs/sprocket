@@ -23,7 +23,7 @@ repository = "https://github.com/stjude-rust-labs/sprocket"
 # Dependencies for local development, not visible to downstream consumers.
 [dependency-groups]
 # Installed by default with `maturin develop`.
-dev = ["pytest~=9.0", "mypy~=2.1", "black~=26.5"]
+dev = ["pytest~=9.0", "mypy~=2.1", "black~=26.5", "isort~=8.0"]
 
 [tool.maturin]
 module-name = "sprocket_bio._sprocket_bio"
@@ -40,3 +40,13 @@ strict = true
 
 [tool.black]
 target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+py_version="auto"
+# Do not modify files specified in `.gitignore`, such as `.venv` and `.git`.
+skip_gitignore = true
+# Place one blank line between direct and from imports.
+lines_between_types = 1
+# `sprocket_bio` is a 1st-party package, not a 3rd-party one.
+known_first_party = ["sprocket_bio"]
