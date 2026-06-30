@@ -51,7 +51,7 @@
       ]
     },
     {
-      "description": "Group all npm updates into one PR",
+      "description": "Group all npm minor and patch updates into one PR",
       "matchManagers": [
         "npm"
       ],
