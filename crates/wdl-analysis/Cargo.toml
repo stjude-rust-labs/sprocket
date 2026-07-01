@@ -29,6 +29,7 @@ regex = { workspace = true }
 reqwest = { workspace = true }
 rowan = { workspace = true }
 smallvec = { workspace = true }
+strsim = { workspace = true }
 tokio = { workspace = true }
 toml-spanner = { workspace = true }
 tracing = { workspace = true }

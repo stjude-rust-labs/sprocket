@@ -55,11 +55,13 @@ pub struct Args {
 pub async fn analyze_source(
     source: &Source,
     fallback_version: Option<SupportedVersion>,
+    report_mode: Mode,
+    colorize: bool,
 ) -> CommandResult<Document> {
     let results = Analysis::default()
         .add_source(source.clone())
         .fallback_version(fallback_version)
-        .run()
+        .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
 
@@ -150,14 +152,21 @@ async fn resolve_target_and_inputs(
 }
 
 /// The main function for the `validate` subcommand.
-pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
+pub async fn validate(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     if let Source::Directory(_) = args.source {
         return Err(
             anyhow!("directory sources are not supported for the `validate` command").into(),
         );
     }
 
-    let document = analyze_source(&args.source, config.common.wdl.fallback_version.into()).await?;
+    let document = analyze_source(
+        &args.source,
+        config.common.wdl.fallback_version.into(),
+        report_mode,
+        colorize,
+    )
+    .await?;
 
     validate_inputs(&document, &args.inputs, args.target).await?;
 

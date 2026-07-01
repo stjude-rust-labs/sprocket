@@ -8,7 +8,6 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::Type;
 
@@ -122,7 +121,7 @@ impl Visitor for DeprecatedObjectRule {
         if let Type::Object(ty) = decl.ty() {
             diagnostics.exceptable_add(
                 deprecated_object_use(ty.span()),
-                SyntaxElement::from(decl.inner().clone()),
+                decl.inner(),
                 &self.exceptable_nodes(),
             )
         }
@@ -141,7 +140,7 @@ impl Visitor for DeprecatedObjectRule {
         if let Type::Object(ty) = decl.ty() {
             diagnostics.exceptable_add(
                 deprecated_object_use(ty.span()),
-                SyntaxElement::from(decl.inner().clone()),
+                decl.inner(),
                 &self.exceptable_nodes(),
             )
         }

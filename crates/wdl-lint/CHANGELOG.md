@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Removed
+
+* Removed the `KnownRules` rule, and promoted it to `wdl-analysis` ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
+
 ## 0.24.1 - 2026-06-26
 
 #### Changed

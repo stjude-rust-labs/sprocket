@@ -32,7 +32,7 @@
 
 use std::collections::HashSet;
 use std::fmt;
-use std::str::FromStr;
+use std::hash::Hash;
 
 pub use rowan::Direction;
 use rowan::NodeOrToken;
@@ -657,27 +657,28 @@ pub const DIRECTIVE_COMMENT_PREFIX: &str = "#@";
 /// The delimiter between a directive and its contents
 pub const DIRECTIVE_DELIMITER: &str = ":";
 
+/// A single rule in an `#@ except:` comment.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ExceptRule {
+    /// The name of the rule to except.
+    pub name: String,
+    /// The span of the rule in the exception comment.
+    pub span: Span,
+}
+
 /// A comment directive for WDL tools to respect.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Directive {
     /// Ignore any rules contained in the set.
-    Except(HashSet<String>),
+    Except(HashSet<ExceptRule>),
 }
 
-impl FromStr for Directive {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let s = s.strip_prefix(DIRECTIVE_COMMENT_PREFIX).ok_or(())?;
-        let (directive, contents) = s.trim().split_once(DIRECTIVE_DELIMITER).ok_or(())?;
-        match directive.trim_end() {
-            "except" => Ok(Self::Except(HashSet::from_iter(
-                contents
-                    .split(',')
-                    .map(|id| id.trim().to_string())
-                    .filter(|id| !id.is_empty()),
-            ))),
-            _ => Err(()),
+impl Directive {
+    /// Consume this `Directive` and return a set of [`ExceptRule`] if it is
+    /// [`Directive::Except`].
+    pub fn into_except(self) -> Option<HashSet<ExceptRule>> {
+        match self {
+            Self::Except(rules) => Some(rules),
         }
     }
 }
@@ -721,7 +722,32 @@ impl<T: TreeToken> AstToken<T> for Comment<T> {
 impl Comment {
     /// Try to parse the comment as a directive.
     pub fn directive(&self) -> Option<Directive> {
-        self.text().parse::<Directive>().ok()
+        let text = self.text();
+        let mut offset = self.span().start();
+
+        let s = text.strip_prefix(DIRECTIVE_COMMENT_PREFIX)?;
+        let (directive, contents) = s.trim().split_once(DIRECTIVE_DELIMITER)?;
+        offset += text.len() - contents.len();
+
+        match directive.trim_end() {
+            "except" => Some(Directive::Except(HashSet::from_iter(
+                contents.split(',').filter_map(|original_id| {
+                    let trimmed = original_id.trim();
+                    if trimmed.is_empty() {
+                        return None;
+                    }
+
+                    let name = trimmed.to_string();
+                    offset += original_id.len() - name.len();
+
+                    let span = Span::new(offset, name.len());
+                    offset += name.len() + 1; // + 1 for the comma
+
+                    Some(ExceptRule { name, span })
+                }),
+            ))),
+            _ => None,
+        }
     }
 
     /// The type of comment.

@@ -19,6 +19,7 @@ use tracing::debug;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
 use wdl_analysis::Example;
+use wdl_analysis::Exceptable;
 use wdl_analysis::LabeledSnippet;
 use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
@@ -33,8 +34,8 @@ use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
+use wdl_ast::TreeNode;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::CommandSection;
 use wdl_ast::v1::Expr;
@@ -416,6 +417,15 @@ impl EvaluationContext for CommandContext<'_> {
     fn add_diagnostic(&mut self, _diagnostic: Diagnostic) {
         // do nothing
     }
+
+    fn exceptable_add_diagnostic<N: TreeNode + Exceptable>(
+        &mut self,
+        _diagnostic: Diagnostic,
+        _element: &N,
+        _exceptable_nodes: &Option<&'static [SyntaxKind]>,
+    ) {
+        // do nothing
+    }
 }
 
 impl<'a> CommandContext<'a> {
@@ -720,7 +730,7 @@ impl Visitor for ShellCheckRule {
                         .with_fix(
                             "install shellcheck (https://www.shellcheck.net) or disable this lint.",
                         ),
-                    SyntaxElement::from(section.inner().clone()),
+                    section.inner(),
                     &self.exceptable_nodes(),
                 );
                 return false;
@@ -774,7 +784,7 @@ impl Visitor for ShellCheckRule {
                     }
                     diagnostics.exceptable_add(
                         shellcheck_lint(&sc_diagnostic, &sanitized_command, &line_map, &shift_tree),
-                        SyntaxElement::from(section.inner().clone()),
+                        section.inner(),
                         &self.exceptable_nodes(),
                     )
                 }
@@ -787,7 +797,7 @@ impl Visitor for ShellCheckRule {
                         .with_label(e.to_string(), command_keyword.text_range())
                         .with_rule(ID)
                         .with_fix("address reported error."),
-                    SyntaxElement::from(section.inner().clone()),
+                    section.inner(),
                     &self.exceptable_nodes(),
                 );
             }

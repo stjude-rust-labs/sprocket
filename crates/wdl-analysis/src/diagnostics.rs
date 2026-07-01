@@ -11,7 +11,9 @@ use wdl_ast::TreeNode;
 use wdl_ast::TreeToken;
 use wdl_ast::Version;
 use wdl_ast::v1::PlaceholderOption;
+use wdl_grammar::Severity;
 
+use crate::MeaninglessLintDirective;
 use crate::MisleadingDeclarationOrderRule;
 use crate::UnnecessaryFunctionCall;
 use crate::UnusedCallRule;
@@ -891,6 +893,16 @@ pub fn unnecessary_function_call(
         .with_rule(UnnecessaryFunctionCall::ID)
         .with_highlight(span)
         .with_label(label.to_string(), label_span)
+}
+
+/// Creates a "meaningless lint directive" diagnostic.
+pub fn meaningless_lint_directive(rule: &str, span: Span, severity: Severity) -> Diagnostic {
+    Diagnostic::note(format!(
+        "unnecessary `except` directive for lint rule `{rule}`"
+    ))
+    .with_rule(MeaninglessLintDirective::ID)
+    .with_highlight(span)
+    .with_severity(severity)
 }
 
 /// Generates a diagnostic error message when a placeholder option has a type
