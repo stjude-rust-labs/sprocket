@@ -895,7 +895,7 @@ pub fn unnecessary_function_call(
         .with_label(label.to_string(), label_span)
 }
 
-/// Creates an "unnecessary function call" diagnostic.
+/// Creates a "meaningless lint directive" diagnostic.
 pub fn meaningless_lint_directive(rule: &str, span: Span, severity: Severity) -> Diagnostic {
     Diagnostic::note(format!(
         "unnecessary `except` directive for lint rule `{rule}`"

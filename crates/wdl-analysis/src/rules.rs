@@ -558,7 +558,7 @@ workflow example {
     }
 }
 
-/// Represents the using fallback version rule.
+/// Represents the meaningless lint directive rule.
 #[derive(Debug, Clone, Copy)]
 pub struct MeaninglessLintDirective(Severity);
 
@@ -808,7 +808,7 @@ workflow example {
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
-        Some(&[SyntaxKind::VersionStatementNode])
+        Self::EXCEPTABLE_NODES
     }
 
     fn deny(&mut self) {
