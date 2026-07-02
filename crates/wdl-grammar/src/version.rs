@@ -9,6 +9,18 @@ use strum::IntoEnumIterator;
 // NOTE: it is expected that this enumeration is in increasing order of 1.x versions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, strum::EnumIter)]
 #[non_exhaustive]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(
+        module = "sprocket_bio.grammar.version",
+        frozen,
+        from_py_object,
+        rename_all = "SCREAMING_SNAKE_CASE",
+        eq,
+        ord,
+        str
+    )
+)]
 pub enum V1 {
     /// The document version is 1.0.
     Zero,

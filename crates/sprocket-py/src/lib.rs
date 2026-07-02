@@ -41,6 +41,12 @@ mod _sprocket_bio {
             #[pymodule_export]
             use wdl_grammar::parser::PyEvent;
         }
+
+        #[pymodule]
+        mod version {
+            #[pymodule_export]
+            use wdl_grammar::version::V1;
+        }
     }
 
     /// Initializer that runs when the `_sprocket_bio` Python extension is

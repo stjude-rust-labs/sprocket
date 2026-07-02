@@ -2,7 +2,7 @@ import typing
 
 from collections.abc import Sequence
 
-from . import parser
+from . import parser, version
 
 @typing.final
 class Diagnostic:
@@ -259,4 +259,4 @@ class SyntaxKind:
     def __gt__(self, other: typing.Any, /) -> bool: ...
     def __ge__(self, other: typing.Any, /) -> bool: ...
 
-__all__ = ["Diagnostic", "Label", "Severity", "Span", "SyntaxKind", "parser"]
+__all__ = ["Diagnostic", "Label", "Severity", "Span", "SyntaxKind", "parser", "version"]
