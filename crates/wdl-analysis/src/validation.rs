@@ -93,6 +93,9 @@ pub struct Diagnostics {
 
 impl Diagnostics {
     /// Adds a diagnostic to the collection.
+    ///
+    /// NOTE: This is intended for diagnostics that cannot be suppressed.
+    /// Otherwise, [`Diagnostics::exceptable_add()`] should be used.
     pub fn add(&mut self, diagnostic: Diagnostic) {
         self.diagnostics.push(diagnostic);
     }
@@ -223,6 +226,15 @@ impl Validator {
     }
 
     /// Catch any unapplied lint exceptions.
+    ///
+    /// When the [`Validator`] is created, it is made aware of all `#@ except`
+    /// comments in the document. As it runs, exceptable diagnostics are
+    /// passed through [`Diagnostics::exceptable_add()`], which
+    /// tracks whether any `#@ except` comment suppresses it and marks the
+    /// comment as used.
+    ///
+    /// Any unmarked comments, with exception to the special cases below, will
+    /// be reported as `MeaninglessLintDirective`s.
     fn check_meaningless_lint_directives(&self, diagnostics: &mut Diagnostics, severity: Severity) {
         let mut meaningless_lint_directives = Diagnostics::default();
 
