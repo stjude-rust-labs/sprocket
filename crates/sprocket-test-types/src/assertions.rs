@@ -1,188 +1,332 @@
 //! Facilities for making assertions about WDL executions.
 
+use std::collections::BTreeMap;
 use std::collections::HashMap;
 use std::path::Path;
 
-use anyhow::Context;
 use anyhow::Result;
-use anyhow::anyhow;
 use anyhow::bail;
-use indexmap::IndexMap;
 use regex::Regex;
 use schemars::JsonSchema;
-use tracing::warn;
-use wdl::analysis::document::Output;
-use wdl::analysis::types::CompoundType;
-use wdl::analysis::types::PrimitiveType;
-use wdl::analysis::types::Type;
+use serde_json::Value;
+use wdl_analysis::Diagnostics;
+use wdl_analysis::document::Callable;
+use wdl_analysis::types::CompoundType;
+use wdl_analysis::types::PrimitiveType;
+use wdl_analysis::types::Type;
+use wdl_ast::Diagnostic;
 
-/// Deserializes an optional `exit_code` field while rejecting explicit `null`.
-///
-/// Omitted fields become `None`.
-/// Explicit integers become `Some(value)`.
-/// Explicit `null` values produce a deserialization error.
-fn deserialize_optional_exit_code<'de, D>(deserializer: D) -> Result<Option<i32>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::Deserialize as _;
+use crate::convert_yaml_span;
+use crate::expected_mapping;
+use crate::unknown_field;
+use crate::yaml::MaybeMap;
+use crate::yaml::MaybeSequence;
+use crate::yaml::Spanned;
+use crate::yaml::SpannedField;
+use crate::yaml::spanned_fields;
 
-    let value = serde_yaml_ng::Value::deserialize(deserializer)?;
-    match value {
-        serde_yaml_ng::Value::Null => Err(serde::de::Error::custom(
-            "`exit_code` must be an integer, not `null`",
-        )),
-        serde_yaml_ng::Value::Number(n) => n
-            .as_i64()
-            .and_then(|v| i32::try_from(v).ok())
-            .map(Some)
-            .ok_or_else(|| serde::de::Error::custom("`exit_code` must be a valid i32")),
-        other => Err(serde::de::Error::custom(format!(
-            "`exit_code` must be an integer, got `{other:?}`"
-        ))),
-    }
+/// Type mismatch for a field value.
+fn invalid_type(expected: &str, field: &Spanned<String>, value: &Value) -> Diagnostic {
+    let found = match value {
+        Value::Bool(_) => "boolean",
+        Value::Number(_) => "number",
+        Value::String(_) => "string",
+        Value::Array(_) => "array",
+        Value::Object(_) => "object",
+        Value::Null => "null",
+    };
+
+    Diagnostic::error("invalid type")
+        .with_help(format!(
+            "`{}` must be a `{expected}`, found `{found:?}`",
+            field.0.value
+        ))
+        .with_highlight(convert_yaml_span(field.0.defined.span()))
 }
 
-/// Deserializes an optional `should_fail` field while rejecting explicit
-/// `null`.
-///
-/// Omitted fields become `None`.
-/// Explicit booleans become `Some(value)`.
-/// Explicit `null` values produce a deserialization error.
-fn deserialize_optional_should_fail<'de, D>(deserializer: D) -> Result<Option<bool>, D::Error>
-where
-    D: serde::Deserializer<'de>,
-{
-    use serde::Deserialize as _;
-
-    let value = serde_yaml_ng::Value::deserialize(deserializer)?;
-    match value {
-        serde_yaml_ng::Value::Null => Err(serde::de::Error::custom(
-            "`should_fail` must be a boolean, not `null`",
-        )),
-        serde_yaml_ng::Value::Bool(value) => Ok(Some(value)),
-        other => Err(serde::de::Error::custom(format!(
-            "`should_fail` must be a boolean, got `{other:?}`"
-        ))),
-    }
+/// A specified assertion has no effect on workflow targets.
+fn useless_workflow_assertion(field: &Spanned<String>) -> Diagnostic {
+    Diagnostic::warning(format!("useless `{}` assertion", field.0.value))
+        .with_help(format!(
+            "`{}` assertions have no effect for workflows",
+            field.0.value
+        ))
+        .with_highlight(convert_yaml_span(field.0.defined.span()))
 }
 
-/// Default `exit_code` assertion value.
-fn default_exit_code() -> i32 {
-    0
+/// A regex failed to compile.
+fn invalid_regex(re: &str, field: &Spanned<Value>) -> Diagnostic {
+    Diagnostic::error(format!("invalid regex: `{re}`"))
+        .with_help("regexes must follow the syntax defined here: <https://docs.rs/regex/latest/regex/#syntax>")
+        .with_highlight(convert_yaml_span(field.0.defined.span()))
 }
 
-/// Default `should_fail` assertion value.
-fn default_should_fail() -> bool {
-    false
+/// A specified output is missing in the WDL document.
+fn missing_output(name: &str, span: serde_saphyr::Span) -> Diagnostic {
+    Diagnostic::error(format!("no output named `{name}`")).with_highlight(convert_yaml_span(span))
+}
+
+/// The type of an output is invalid.
+fn invalid_output_type(name: &str, span: serde_saphyr::Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "failed to validate type congruence of `{name}` assertions"
+    ))
+    .with_highlight(convert_yaml_span(span))
 }
 
 /// Possible assertions for a test.
-#[derive(serde::Deserialize, JsonSchema, Default, Debug)]
-pub(crate) struct Assertions {
+#[derive(Clone, Default, Debug, JsonSchema)]
+pub struct Assertions {
     /// The expected exit code of the task (ignored when testing workflows).
     ///
     /// Defaults to `0` if not specified. Cannot be combined with
     /// `should_fail`.
-    #[serde(deserialize_with = "deserialize_optional_exit_code", default)]
-    #[schemars(with = "i32", default = "default_exit_code")]
-    pub exit_code: Option<i32>,
+    #[schemars(with = "i32", default = "i32::default")]
+    pub exit_code: Option<SpannedField<i32>>,
     /// Whether the test is expected to fail.
     ///
     /// For workflows, any failure is expected.
     /// For tasks, any nonzero exit code is expected.
+    ///
     /// Cannot be combined with `exit_code` (any value, including `exit_code:
     /// 0`).
-    #[serde(deserialize_with = "deserialize_optional_should_fail", default)]
-    #[schemars(with = "bool", default = "default_should_fail")]
-    pub should_fail: Option<bool>,
+    #[schemars(with = "bool", default = "bool::default")]
+    pub should_fail: Option<SpannedField<bool>>,
     /// Regular expressions that should match within STDOUT of the task (ignored
     /// when testing workflows).
-    #[serde(default)]
-    pub stdout: Vec<String>,
+    #[schemars(default, with = "Vec<String>")]
+    pub stdout: Option<SpannedField<Vec<Regex>>>,
     /// Regular expressions that should match within STDERR of the task (ignored
     /// when testing workflows).
-    #[serde(default)]
-    pub stderr: Vec<String>,
+    #[schemars(default, with = "Vec<String>")]
+    pub stderr: Option<SpannedField<Vec<Regex>>>,
     /// Assertions about WDL outputs.
-    #[serde(default)]
-    pub outputs: HashMap<String, Vec<OutputAssertion>>,
+    #[schemars(default)]
+    pub outputs: HashMap<Spanned<String>, Vec<OutputAssertion>>,
     /// A custom command to execute.
     // TODO(Ari): implement this assertion.
     #[allow(unused)]
     pub custom: Option<String>,
 }
 
+spanned_fields! {
+    #[derive(Debug)]
+    pub(crate) struct RawAssertions {
+        pub exit_code: Option<SpannedField<Value>>,
+        pub should_fail: Option<SpannedField<Value>>,
+        pub stdout: Option<SpannedField<MaybeSequence<Value>>>,
+        pub stderr: Option<SpannedField<MaybeSequence<Value>>>,
+        pub outputs: Option<SpannedField<MaybeMap<Value>>>,
+        pub custom: Option<SpannedField<Value>>,
+    }
+}
+
 impl Assertions {
+    /// Whether the test is expected to fail.
+    pub fn should_fail(&self) -> bool {
+        self.should_fail
+            .as_ref()
+            .is_some_and(|should_fail| should_fail.value)
+    }
+
+    /// The expected exit code of the task.
+    ///
+    /// If undefined, this defaults to `0`.
+    pub fn exit_code(&self) -> i32 {
+        self.exit_code
+            .as_ref()
+            .map_or(0, |exit_code| exit_code.value)
+    }
+
     /// Parse the assertions from the serde definitions.
-    pub fn parse(
-        self,
-        is_workflow: bool,
-        outputs: &IndexMap<String, Output>,
-    ) -> Result<ParsedAssertions> {
-        if self.should_fail.is_some() && self.exit_code.is_some() {
-            bail!("`should_fail` cannot be used with `exit_code`");
+    pub(crate) fn parse(raw: RawAssertions) -> Result<Self, Diagnostics> {
+        let mut diagnostics = Diagnostics::default();
+
+        let mut exit_code = None;
+        if let Some(raw_exit) = raw.exit_code {
+            if let Some(code) = raw_exit.value.as_i64() {
+                exit_code = Some(SpannedField {
+                    key: raw_exit.key,
+                    value: code as i32,
+                });
+            } else {
+                diagnostics.add(invalid_type("integer", &raw_exit.key, &raw_exit.value));
+            }
         }
 
-        let should_fail = self.should_fail.unwrap_or(false);
+        let mut should_fail = None;
+        if let Some(raw_fail) = raw.should_fail {
+            if let Some(fail_val) = raw_fail.value.as_bool() {
+                should_fail = Some(SpannedField {
+                    key: raw_fail.key,
+                    value: fail_val,
+                });
+            } else {
+                diagnostics.add(invalid_type("boolean", &raw_fail.key, &raw_fail.value));
+            }
+        }
 
-        let mut stdout = None;
-        let mut stderr = None;
-        if is_workflow {
-            if self.exit_code.is_some() {
-                warn!("ignoring `exit_code` assertion for workflow");
+        let mut outputs = HashMap::new();
+        if let Some(raw_outputs) = raw.outputs {
+            match raw_outputs.value {
+                MaybeMap::Map(out_map) => {
+                    for (name, assertions) in out_map {
+                        let parsed_assertions = match serde_json::from_value::<Vec<OutputAssertion>>(
+                            assertions.0.value,
+                        ) {
+                            Ok(a) => a,
+                            Err(e) => {
+                                diagnostics.add(
+                                    invalid_output_type(&name.0.value, name.0.defined.span())
+                                        .with_help(e.to_string()),
+                                );
+                                continue;
+                            }
+                        };
+
+                        outputs.insert(name, parsed_assertions);
+                    }
+                }
+                MaybeMap::Other(_) => {
+                    diagnostics.add(expected_mapping(&raw_outputs.key));
+                }
             }
-            if !self.stdout.is_empty() {
-                warn!("ignoring `stdout` assertion for workflow");
+        }
+
+        let stdout = raw
+            .stdout
+            .and_then(|f| Self::parse_stdio(f, &mut diagnostics));
+        let stderr = raw
+            .stderr
+            .and_then(|f| Self::parse_stdio(f, &mut diagnostics));
+
+        let mut custom = None;
+        if let Some(raw_custom) = raw.custom {
+            match raw_custom.value {
+                Value::String(custom_val) => {
+                    custom = Some(custom_val);
+                }
+                other => {
+                    diagnostics.add(invalid_type("string", &raw_custom.key, &other));
+                }
             }
-            if !self.stderr.is_empty() {
-                warn!("ignoring `stderr` assertion for workflow");
-            }
+        }
+
+        for (unknown_key, _) in raw.unknown_fields {
+            diagnostics.add(unknown_field(
+                unknown_key.0.defined.span(),
+                &unknown_key.0.value,
+            ));
+        }
+
+        if let (Some(should_fail), Some(exit_code)) = (&should_fail, &exit_code) {
+            diagnostics.add(
+                Diagnostic::error("cannot use `should_fail` with `exit_code`")
+                    .with_label(
+                        "`should_fail` specified here",
+                        convert_yaml_span(should_fail.key.0.defined.span()),
+                    )
+                    .with_label(
+                        "`exit_code` specified here",
+                        convert_yaml_span(exit_code.key.0.defined.span()),
+                    ),
+            );
+        }
+
+        if diagnostics.is_empty() {
+            Ok(Assertions {
+                exit_code,
+                should_fail,
+                stdout,
+                stderr,
+                outputs,
+                custom,
+            })
         } else {
-            let stdout_regexs = self
-                .stdout
-                .iter()
-                .map(|re| Regex::new(re).with_context(|| format!("compiling user regex: `{re}`")))
-                .collect::<Result<Vec<_>>>()?;
-            let stderr_regexs = self
-                .stderr
-                .iter()
-                .map(|re| Regex::new(re).with_context(|| format!("compiling user regex: `{re}`")))
-                .collect::<Result<Vec<_>>>()?;
-            if !stdout_regexs.is_empty() {
-                stdout = Some(stdout_regexs);
+            Err(diagnostics)
+        }
+    }
+
+    /// Parse an stdio (stdout/stderr) assertion.
+    fn parse_stdio(
+        field: SpannedField<MaybeSequence<Value>>,
+        diagnostics: &mut Diagnostics,
+    ) -> Option<SpannedField<Vec<Regex>>> {
+        let raw_stdio = match field.value {
+            MaybeSequence::Seq(raw_stdio) => raw_stdio,
+            MaybeSequence::Other(other) => {
+                diagnostics.add(invalid_type("array", &field.key, &other));
+                return None;
             }
-            if !stderr_regexs.is_empty() {
-                stderr = Some(stderr_regexs);
-            }
+        };
+
+        let mut regexes = Vec::with_capacity(raw_stdio.len());
+        for raw_re in &raw_stdio {
+            let re = match &raw_re.0.value {
+                Value::String(re) => re,
+                other => {
+                    diagnostics.add(invalid_type("string", &field.key, other));
+                    continue;
+                }
+            };
+
+            let Ok(re) = Regex::new(re) else {
+                diagnostics.add(invalid_regex(re, raw_re));
+                continue;
+            };
+            regexes.push(re);
         }
 
-        for (name, assertions) in &self.outputs {
-            let ty = outputs
-                .get(name)
-                .map(|o| o.ty())
-                .ok_or(anyhow!("no output named `{}`", name))?;
-            for assertion in assertions {
-                assertion.validate_type_congruence(ty).with_context(|| {
-                    format!("validating type congruence of `{name}` assertions")
-                })?;
-            }
-        }
+        Some(SpannedField {
+            key: field.key,
+            value: regexes,
+        })
+    }
 
-        Ok(ParsedAssertions {
-            exit_code: self.exit_code.unwrap_or(0),
-            should_fail,
+    /// Validate the assertions against the target [`Callable`].
+    pub(crate) fn validate(&self, target: Callable<'_>, diagnostics: &mut Diagnostics) {
+        let Assertions {
+            exit_code,
+            should_fail: _,
             stdout,
             stderr,
-            outputs: self.outputs,
-            custom: self.custom,
-        })
+            outputs,
+            custom: _,
+        } = self;
+
+        if target.is_workflow() {
+            if let Some(exit_code) = exit_code {
+                diagnostics.add(useless_workflow_assertion(&exit_code.key));
+            }
+            if let Some(stdout) = stdout {
+                diagnostics.add(useless_workflow_assertion(&stdout.key));
+            }
+            if let Some(stderr) = stderr {
+                diagnostics.add(useless_workflow_assertion(&stderr.key));
+            }
+        }
+
+        for (output, assertions) in outputs {
+            let Some(ty) = target.outputs().get(&output.0.value).map(|o| o.ty()) else {
+                diagnostics.add(missing_output(&output.0.value, output.0.defined.span()));
+                continue;
+            };
+
+            for assertion in assertions {
+                if let Err(e) = assertion.validate_type_congruence(ty) {
+                    diagnostics.add(
+                        invalid_output_type(&output.0.value, output.0.defined.span())
+                            .with_help(e.to_string()),
+                    );
+                }
+            }
+        }
     }
 }
 
 /// Possible assertions on a WDL output.
-#[derive(Debug, serde::Deserialize, JsonSchema)]
-pub(crate) enum OutputAssertion {
+#[derive(Clone, Debug, serde::Deserialize, JsonSchema)]
+pub enum OutputAssertion {
     /// Is the WDL value defined?
     ///
     /// Only supported for optional WDL types.
@@ -325,7 +469,7 @@ impl OutputAssertion {
     ///
     /// Panics if the output's type is not supported by this assertion's
     /// variant. See [`validate_type_congruence`].
-    pub fn evaluate(&self, output: &wdl::engine::Value) -> Result<()> {
+    pub fn evaluate(&self, output: &wdl_engine::Value) -> Result<()> {
         if output.is_none() && !matches!(self, Self::Defined(_)) {
             bail!("output is `None` but `{self}` assertion expects a defined WDL value");
         }
@@ -448,43 +592,18 @@ impl OutputAssertion {
     }
 }
 
-/// Parsed assertions for a test.
-#[derive(Debug)]
-pub(crate) struct ParsedAssertions {
-    /// The expected exit code of the task (ignored when testing workflows).
-    ///
-    /// Defaults to `0`.
-    pub exit_code: i32,
-    /// For workflows: whether the workflow is expected to fail.
-    /// For tasks: whether any nonzero exit code is acceptable (i.e. the task
-    /// is expected to fail). Combining this with any specified `exit_code`
-    /// (including `exit_code: 0`) is rejected in `Assertions::parse`.
-    pub should_fail: bool,
-    /// Regular expressions that should match within STDOUT of the task (ignored
-    /// when testing workflows).
-    pub stdout: Option<Vec<Regex>>,
-    /// Regular expressions that should match within STDERR of the task (ignored
-    /// when testing workflows).
-    pub stderr: Option<Vec<Regex>>,
-    /// Assertions about WDL outputs.
-    pub outputs: HashMap<String, Vec<OutputAssertion>>,
-    /// A custom command to execute.
-    // TODO(Ari): implement this assertion.
-    #[allow(unused)]
-    pub custom: Option<String>,
-}
-
 #[cfg(test)]
 mod tests {
-    use wdl::analysis::types::ArrayType;
-    use wdl::analysis::types::MapType;
-    use wdl::analysis::types::PairType;
-    use wdl::engine::Array;
-    use wdl::engine::HostPath;
-    use wdl::engine::Map;
-    use wdl::engine::Pair;
-    use wdl::engine::PrimitiveValue;
-    use wdl::engine::Value as EngineValue;
+    use wdl_analysis::types::ArrayType;
+    use wdl_analysis::types::MapType;
+    use wdl_analysis::types::PairType;
+    use wdl_engine::Array;
+    use wdl_engine::CompoundValue;
+    use wdl_engine::HostPath;
+    use wdl_engine::Map;
+    use wdl_engine::Pair;
+    use wdl_engine::PrimitiveValue;
+    use wdl_engine::Value as EngineValue;
 
     use super::*;
 
@@ -503,7 +622,7 @@ mod tests {
 
     #[test]
     fn defined_type_congruence() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Defined: true }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ Defined: true }").unwrap();
         let assertion = assertion.inner;
 
         let ty = Type::Primitive(PrimitiveType::Boolean, true);
@@ -530,7 +649,7 @@ mod tests {
 
     #[test]
     fn bool_equals_type_congruence() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ BoolEquals: true }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ BoolEquals: true }").unwrap();
         let assertion = assertion.inner;
 
         let ty = Type::Primitive(PrimitiveType::Boolean, true);
@@ -551,7 +670,7 @@ mod tests {
 
     #[test]
     fn str_equals_type_congruence() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ StrEquals: foo }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ StrEquals: foo }").unwrap();
         let assertion = assertion.inner;
 
         let ty = Type::Primitive(PrimitiveType::String, true);
@@ -574,7 +693,7 @@ mod tests {
 
     #[test]
     fn int_equals_type_congruence() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ IntEquals: 42 }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ IntEquals: 42 }").unwrap();
         let assertion = assertion.inner;
 
         let ty = Type::Primitive(PrimitiveType::Integer, true);
@@ -597,8 +716,7 @@ mod tests {
 
     #[test]
     fn float_equals_type_congruence() {
-        let assertion: FlattenedWrapper =
-            serde_yaml_ng::from_str("{ FloatEquals: 42.42 }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ FloatEquals: 42.42 }").unwrap();
         let assertion = assertion.inner;
 
         let ty = Type::Primitive(PrimitiveType::Float, true);
@@ -618,7 +736,7 @@ mod tests {
 
     #[test]
     fn contains_type_congruence() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Contains: foobar }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ Contains: foobar }").unwrap();
         let assertion = assertion.inner;
 
         let ty = Type::Primitive(PrimitiveType::String, true);
@@ -641,7 +759,7 @@ mod tests {
 
     #[test]
     fn name_type_congruence() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Name: foobar }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ Name: foobar }").unwrap();
         let assertion = assertion.inner;
 
         let ty = Type::Primitive(PrimitiveType::File, true);
@@ -662,10 +780,9 @@ mod tests {
     #[test]
     fn first_last_type_congruence() {
         let first: FlattenedWrapper =
-            serde_yaml_ng::from_str("{ First: { StrEquals: foobar } }").unwrap();
+            serde_saphyr::from_str("{ First: { StrEquals: foobar } }").unwrap();
         let first = first.inner;
-        let last: FlattenedWrapper =
-            serde_yaml_ng::from_str("{ Last: { Contains: bar } }").unwrap();
+        let last: FlattenedWrapper = serde_saphyr::from_str("{ Last: { Contains: bar } }").unwrap();
         let last = last.inner;
 
         let ty = Type::Compound(
@@ -699,7 +816,7 @@ mod tests {
 
     #[test]
     fn length_type_congruence() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Length: 7 }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ Length: 7 }").unwrap();
         let assertion = assertion.inner;
 
         let ty = Type::Compound(
@@ -727,10 +844,10 @@ mod tests {
     #[test]
     fn left_right_type_congruence() {
         let left: FlattenedWrapper =
-            serde_yaml_ng::from_str("{ Left: { StrEquals: foobar } }").unwrap();
+            serde_saphyr::from_str("{ Left: { StrEquals: foobar } }").unwrap();
         let left = left.inner;
         let right: FlattenedWrapper =
-            serde_yaml_ng::from_str("{ Right: { Contains: bar } }").unwrap();
+            serde_saphyr::from_str("{ Right: { Contains: bar } }").unwrap();
         let right = right.inner;
 
         let ty = Type::Compound(
@@ -764,7 +881,7 @@ mod tests {
 
     #[test]
     fn empty_type_congruence() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Empty: true }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ Empty: true }").unwrap();
         let assertion = assertion.inner;
 
         let ty = Type::Compound(
@@ -797,15 +914,15 @@ mod tests {
 
     #[test]
     fn evaluate_defined() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Defined: false }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ Defined: false }").unwrap();
         let is_none = assertion.inner;
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Defined: true }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ Defined: true }").unwrap();
         let is_defined = assertion.inner;
 
         let o = EngineValue::new_none(Type::Primitive(PrimitiveType::Boolean, true));
         assert!(is_none.evaluate(&o).is_ok());
         assert!(is_defined.evaluate(&o).is_err());
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(true));
+        let o = EngineValue::Primitive(PrimitiveValue::Boolean(true));
         assert!(is_none.evaluate(&o).is_err());
         assert!(is_defined.evaluate(&o).is_ok());
         let o = EngineValue::new_none(Type::Compound(
@@ -817,12 +934,10 @@ mod tests {
         ));
         assert!(is_none.evaluate(&o).is_ok());
         assert!(is_defined.evaluate(&o).is_err());
-        let o = EngineValue::Compound(wdl::engine::CompoundValue::Array(
+        let o = EngineValue::Compound(CompoundValue::Array(
             Array::new(
                 ArrayType::new(Type::Primitive(PrimitiveType::Boolean, false)),
-                vec![EngineValue::Primitive(
-                    wdl::engine::PrimitiveValue::Boolean(true),
-                )],
+                vec![EngineValue::Primitive(PrimitiveValue::Boolean(true))],
             )
             .unwrap(),
         ));
@@ -832,15 +947,15 @@ mod tests {
 
     #[test]
     fn evaluate_bool_equals() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ BoolEquals: true }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ BoolEquals: true }").unwrap();
         let is_true = assertion.inner;
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ BoolEquals: false }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ BoolEquals: false }").unwrap();
         let is_false = assertion.inner;
 
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(true));
+        let o = EngineValue::Primitive(PrimitiveValue::Boolean(true));
         assert!(is_true.evaluate(&o).is_ok());
         assert!(is_false.evaluate(&o).is_err());
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(false));
+        let o = EngineValue::Primitive(PrimitiveValue::Boolean(false));
         assert!(is_true.evaluate(&o).is_err());
         assert!(is_false.evaluate(&o).is_ok());
 
@@ -851,105 +966,96 @@ mod tests {
 
     #[test]
     fn evaluate_str_equals() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ StrEquals: foo }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ StrEquals: foo }").unwrap();
         let is_foo = assertion.inner;
 
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string("foo"));
+        let o = EngineValue::Primitive(PrimitiveValue::new_string("foo"));
         assert!(is_foo.evaluate(&o).is_ok());
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string("not foo"));
+        let o = EngineValue::Primitive(PrimitiveValue::new_string("not foo"));
         assert!(is_foo.evaluate(&o).is_err());
     }
 
     #[test]
     fn evaluate_int_equals() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ IntEquals: 42 }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ IntEquals: 42 }").unwrap();
         let assertion = assertion.inner;
 
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Integer(42));
+        let o = EngineValue::Primitive(PrimitiveValue::Integer(42));
         assert!(assertion.evaluate(&o).is_ok());
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Integer(0));
+        let o = EngineValue::Primitive(PrimitiveValue::Integer(0));
         assert!(assertion.evaluate(&o).is_err());
     }
 
     #[test]
     fn evaluate_float_equals() {
-        let assertion: FlattenedWrapper =
-            serde_yaml_ng::from_str("{ FloatEquals: 42.42 }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ FloatEquals: 42.42 }").unwrap();
         let assertion = assertion.inner;
 
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Float(42.42.into()));
+        let o = EngineValue::Primitive(PrimitiveValue::Float(42.42.into()));
         assert!(assertion.evaluate(&o).is_ok());
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Float(0.into()));
+        let o = EngineValue::Primitive(PrimitiveValue::Float(0.into()));
         assert!(assertion.evaluate(&o).is_err());
     }
 
     #[test]
     fn evaluate_contains() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Contains: foo }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ Contains: foo }").unwrap();
         let assertion = assertion.inner;
 
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string("foo"));
+        let o = EngineValue::Primitive(PrimitiveValue::new_string("foo"));
         assert!(assertion.evaluate(&o).is_ok());
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string("has foo"));
+        let o = EngineValue::Primitive(PrimitiveValue::new_string("has foo"));
         assert!(assertion.evaluate(&o).is_ok());
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string("bar"));
+        let o = EngineValue::Primitive(PrimitiveValue::new_string("bar"));
         assert!(assertion.evaluate(&o).is_err());
     }
 
     #[test]
     fn evaluate_name() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Name: foobar }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ Name: foobar }").unwrap();
         let assertion = assertion.inner;
 
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::File(HostPath::new("foobar")));
+        let o = EngineValue::Primitive(PrimitiveValue::File(HostPath::new("foobar")));
         assert!(assertion.evaluate(&o).is_ok());
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Directory(HostPath::new(
-            "foobar",
-        )));
+        let o = EngineValue::Primitive(PrimitiveValue::Directory(HostPath::new("foobar")));
         assert!(assertion.evaluate(&o).is_ok());
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::File(HostPath::new(
-            "not_foobar",
-        )));
+        let o = EngineValue::Primitive(PrimitiveValue::File(HostPath::new("not_foobar")));
         assert!(assertion.evaluate(&o).is_err());
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::Directory(HostPath::new(
-            "not_foobar",
-        )));
+        let o = EngineValue::Primitive(PrimitiveValue::Directory(HostPath::new("not_foobar")));
         assert!(assertion.evaluate(&o).is_err());
     }
 
     #[test]
     fn evaluate_length() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Length: 2 }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ Length: 2 }").unwrap();
         let assertion = assertion.inner;
 
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string("sh"));
+        let o = EngineValue::Primitive(PrimitiveValue::new_string("sh"));
         assert!(assertion.evaluate(&o).is_ok());
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string("too long"));
+        let o = EngineValue::Primitive(PrimitiveValue::new_string("too long"));
         assert!(assertion.evaluate(&o).is_err());
 
-        let o = EngineValue::Compound(wdl::engine::CompoundValue::Array(
+        let o = EngineValue::Compound(CompoundValue::Array(
             Array::new(
                 ArrayType::new(Type::Primitive(PrimitiveType::Boolean, false)),
                 vec![
-                    EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(true)),
-                    EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(true)),
+                    EngineValue::Primitive(PrimitiveValue::Boolean(true)),
+                    EngineValue::Primitive(PrimitiveValue::Boolean(true)),
                 ],
             )
             .unwrap(),
         ));
         assert!(assertion.evaluate(&o).is_ok());
-        let o = EngineValue::Compound(wdl::engine::CompoundValue::Array(
+        let o = EngineValue::Compound(CompoundValue::Array(
             Array::new(
                 ArrayType::new(Type::Primitive(PrimitiveType::Boolean, false)),
-                vec![EngineValue::Primitive(
-                    wdl::engine::PrimitiveValue::Boolean(true),
-                )],
+                vec![EngineValue::Primitive(PrimitiveValue::Boolean(true))],
             )
             .unwrap(),
         ));
         assert!(assertion.evaluate(&o).is_err());
 
-        let o = EngineValue::Compound(wdl::engine::CompoundValue::Map(
+        let o = EngineValue::Compound(CompoundValue::Map(
             Map::new(
                 MapType::new(
                     Type::Primitive(PrimitiveType::Integer, false),
@@ -957,28 +1063,25 @@ mod tests {
                 ),
                 vec![
                     (
-                        wdl::engine::PrimitiveValue::Integer(0),
-                        EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(true)),
+                        PrimitiveValue::Integer(0),
+                        EngineValue::Primitive(PrimitiveValue::Boolean(true)),
                     ),
                     (
-                        wdl::engine::PrimitiveValue::Integer(1),
-                        EngineValue::Primitive(wdl::engine::PrimitiveValue::Boolean(false)),
+                        PrimitiveValue::Integer(1),
+                        EngineValue::Primitive(PrimitiveValue::Boolean(false)),
                     ),
                 ],
             )
             .unwrap(),
         ));
         assert!(assertion.evaluate(&o).is_ok());
-        let o = EngineValue::Compound(wdl::engine::CompoundValue::Map(
+        let o = EngineValue::Compound(CompoundValue::Map(
             Map::new(
                 MapType::new(
                     Type::Primitive(PrimitiveType::Integer, false),
                     Type::Primitive(PrimitiveType::Boolean, false),
                 ),
-                vec![(
-                    wdl::engine::PrimitiveValue::Integer(0),
-                    wdl::engine::PrimitiveValue::Boolean(true),
-                )],
+                vec![(PrimitiveValue::Integer(0), PrimitiveValue::Boolean(true))],
             )
             .unwrap(),
         ));
@@ -988,18 +1091,18 @@ mod tests {
     #[test]
     fn evaluate_first_last() {
         let assertion: FlattenedWrapper =
-            serde_yaml_ng::from_str("{ First: { IntEquals: 42 } }").unwrap();
+            serde_saphyr::from_str("{ First: { IntEquals: 42 } }").unwrap();
         let first = assertion.inner;
         let assertion: FlattenedWrapper =
-            serde_yaml_ng::from_str("{ Last: { IntEquals: 2 } }").unwrap();
+            serde_saphyr::from_str("{ Last: { IntEquals: 2 } }").unwrap();
         let last = assertion.inner;
 
-        let o = EngineValue::Compound(wdl::engine::CompoundValue::Array(
+        let o = EngineValue::Compound(CompoundValue::Array(
             Array::new(
                 ArrayType::new(Type::Primitive(PrimitiveType::Integer, false)),
                 vec![
-                    EngineValue::Primitive(wdl::engine::PrimitiveValue::Integer(42)),
-                    EngineValue::Primitive(wdl::engine::PrimitiveValue::Integer(2)),
+                    EngineValue::Primitive(PrimitiveValue::Integer(42)),
+                    EngineValue::Primitive(PrimitiveValue::Integer(2)),
                 ],
             )
             .unwrap(),
@@ -1007,19 +1110,17 @@ mod tests {
         assert!(first.evaluate(&o).is_ok());
         assert!(last.evaluate(&o).is_ok());
 
-        let o = EngineValue::Compound(wdl::engine::CompoundValue::Array(
+        let o = EngineValue::Compound(CompoundValue::Array(
             Array::new(
                 ArrayType::new(Type::Primitive(PrimitiveType::Integer, false)),
-                vec![EngineValue::Primitive(
-                    wdl::engine::PrimitiveValue::Integer(42),
-                )],
+                vec![EngineValue::Primitive(PrimitiveValue::Integer(42))],
             )
             .unwrap(),
         ));
         assert!(first.evaluate(&o).is_ok());
         assert!(last.evaluate(&o).is_err());
 
-        let o = EngineValue::Compound(wdl::engine::CompoundValue::Array(
+        let o = EngineValue::Compound(CompoundValue::Array(
             Array::new(
                 ArrayType::new(Type::Primitive(PrimitiveType::Integer, false)),
                 None::<EngineValue>,
@@ -1033,13 +1134,13 @@ mod tests {
     #[test]
     fn evaluate_left_right() {
         let assertion: FlattenedWrapper =
-            serde_yaml_ng::from_str("{ Left: { Contains: foo } }").unwrap();
+            serde_saphyr::from_str("{ Left: { Contains: foo } }").unwrap();
         let left = assertion.inner;
         let assertion: FlattenedWrapper =
-            serde_yaml_ng::from_str("{ Right: { Length: 6 } }").unwrap();
+            serde_saphyr::from_str("{ Right: { Length: 6 } }").unwrap();
         let right = assertion.inner;
 
-        let o = EngineValue::Compound(wdl::engine::CompoundValue::Pair(
+        let o = EngineValue::Compound(CompoundValue::Pair(
             Pair::new(
                 PairType::new(
                     Type::Primitive(PrimitiveType::String, true),
@@ -1053,7 +1154,7 @@ mod tests {
         assert!(left.evaluate(&o).is_ok());
         assert!(right.evaluate(&o).is_ok());
 
-        let o = EngineValue::Compound(wdl::engine::CompoundValue::Pair(
+        let o = EngineValue::Compound(CompoundValue::Pair(
             Pair::new(
                 PairType::new(
                     Type::Primitive(PrimitiveType::String, true),
@@ -1070,15 +1171,15 @@ mod tests {
 
     #[test]
     fn evaluate_empty() {
-        let assertion: FlattenedWrapper = serde_yaml_ng::from_str("{ Empty: true }").unwrap();
+        let assertion: FlattenedWrapper = serde_saphyr::from_str("{ Empty: true }").unwrap();
         let assertion = assertion.inner;
 
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string(""));
+        let o = EngineValue::Primitive(PrimitiveValue::new_string(""));
         assert!(assertion.evaluate(&o).is_ok());
-        let o = EngineValue::Primitive(wdl::engine::PrimitiveValue::new_string("not empty"));
+        let o = EngineValue::Primitive(PrimitiveValue::new_string("not empty"));
         assert!(assertion.evaluate(&o).is_err());
 
-        let o = EngineValue::Compound(wdl::engine::CompoundValue::Array(
+        let o = EngineValue::Compound(CompoundValue::Array(
             Array::new(
                 ArrayType::new(Type::Primitive(PrimitiveType::Integer, false)),
                 None::<EngineValue>,
@@ -1087,18 +1188,16 @@ mod tests {
         ));
         assert!(assertion.evaluate(&o).is_ok());
 
-        let o = EngineValue::Compound(wdl::engine::CompoundValue::Array(
+        let o = EngineValue::Compound(CompoundValue::Array(
             Array::new(
                 ArrayType::new(Type::Primitive(PrimitiveType::Integer, false)),
-                vec![EngineValue::Primitive(
-                    wdl::engine::PrimitiveValue::Integer(42),
-                )],
+                vec![EngineValue::Primitive(PrimitiveValue::Integer(42))],
             )
             .unwrap(),
         ));
         assert!(assertion.evaluate(&o).is_err());
 
-        let o = EngineValue::Compound(wdl::engine::CompoundValue::Map(
+        let o = EngineValue::Compound(CompoundValue::Map(
             Map::new(
                 MapType::new(
                     Type::Primitive(PrimitiveType::Integer, false),
@@ -1110,92 +1209,16 @@ mod tests {
         ));
         assert!(assertion.evaluate(&o).is_ok());
 
-        let o = EngineValue::Compound(wdl::engine::CompoundValue::Map(
+        let o = EngineValue::Compound(CompoundValue::Map(
             Map::new(
                 MapType::new(
                     Type::Primitive(PrimitiveType::Integer, false),
                     Type::Primitive(PrimitiveType::Boolean, false),
                 ),
-                vec![(
-                    wdl::engine::PrimitiveValue::Integer(0),
-                    wdl::engine::PrimitiveValue::Boolean(true),
-                )],
+                vec![(PrimitiveValue::Integer(0), PrimitiveValue::Boolean(true))],
             )
             .unwrap(),
         ));
         assert!(assertion.evaluate(&o).is_err());
-    }
-
-    #[test]
-    fn parse_should_fail_ok_for_task() {
-        let assertions = Assertions {
-            should_fail: Some(true),
-            exit_code: None,
-            ..Default::default()
-        };
-        let result = assertions.parse(false, &IndexMap::new());
-        assert!(result.is_ok());
-        assert!(result.unwrap().should_fail);
-    }
-
-    #[test]
-    fn parse_should_fail_with_exit_code_errors_for_task() {
-        let assertions = Assertions {
-            should_fail: Some(true),
-            exit_code: Some(1),
-            ..Default::default()
-        };
-        let result = assertions.parse(false, &IndexMap::new());
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn parse_should_fail_with_exit_code_errors_for_workflow() {
-        let assertions = Assertions {
-            should_fail: Some(true),
-            exit_code: Some(1),
-            ..Default::default()
-        };
-        let result = assertions.parse(true, &IndexMap::new());
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn parse_should_fail_false_with_exit_code_errors_for_task() {
-        // should_fail: false is explicitly specified alongside exit_code — must error
-        let assertions = Assertions {
-            should_fail: Some(false),
-            exit_code: Some(1),
-            ..Default::default()
-        };
-        let result = assertions.parse(false, &IndexMap::new());
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn parse_should_fail_false_without_exit_code_ok_for_task() {
-        // should_fail: false alone is valid — treated as omitted
-        let assertions = Assertions {
-            should_fail: Some(false),
-            exit_code: None,
-            ..Default::default()
-        };
-        let result = assertions.parse(false, &IndexMap::new());
-        assert!(result.is_ok());
-        assert!(!result.unwrap().should_fail);
-    }
-
-    #[test]
-    fn parse_explicit_null_exit_code_errors() {
-        // exit_code: null is malformed — must be rejected at deserialization
-        let result = serde_yaml_ng::from_str::<Assertions>("exit_code: null");
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn parse_explicit_null_should_fail_errors() {
-        // should_fail: null is malformed — must be rejected at deserialization
-        let result = serde_yaml_ng::from_str::<Assertions>("should_fail: null");
-        assert!(result.is_err());
     }
 }

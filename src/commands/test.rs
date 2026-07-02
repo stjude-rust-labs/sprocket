@@ -2,7 +2,6 @@
 
 use std::collections::HashMap;
 use std::collections::HashSet;
-use std::fs::read;
 use std::fs::read_to_string;
 use std::fs::remove_dir;
 use std::path::Path;
@@ -21,6 +20,11 @@ use nonempty::NonEmpty;
 use path_clean::PathClean;
 use regex::Regex;
 use serde_json::Value as JsonValue;
+use sprocket_test_types::Assertions;
+use sprocket_test_types::DocumentTests;
+use sprocket_test_types::OutputAssertion;
+use sprocket_test_types::TestDefinition;
+use sprocket_test_types::yaml::Spanned;
 use tokio::fs::remove_dir_all;
 use tokio::select;
 use tokio::task::JoinSet;
@@ -54,10 +58,6 @@ use crate::commands::CommandResult;
 use crate::config::TestConfig;
 use crate::eval::Evaluator;
 use crate::system::v1::fs::RUNS_DIR;
-use crate::test::DocumentTests;
-use crate::test::OutputAssertion;
-use crate::test::ParsedAssertions;
-use crate::test::TestDefinition;
 
 /// Test definitions may appear either sibling to their source WDL, or nested
 /// under this directory.
@@ -208,16 +208,16 @@ fn file_matches<'a>(path: &str, regexs: &'a [Regex]) -> Result<Option<&'a str>> 
 }
 
 fn evaluate_outputs(
-    assertions: &HashMap<String, Vec<OutputAssertion>>,
+    assertions: &HashMap<Spanned<String>, Vec<OutputAssertion>>,
     outputs: &wdl::engine::Outputs,
 ) -> Result<()> {
     for (name, fns) in assertions {
         let output = outputs
-            .get(name)
+            .get(&name.0.value)
             .expect("output should have been validated");
         for func in fns {
             func.evaluate(output)
-                .with_context(|| format!("evaluating WDL output with name `{name}`"))?
+                .with_context(|| format!("evaluating WDL output with name `{}`", name.0.value))?
         }
     }
     Ok(())
@@ -241,7 +241,7 @@ struct TestIdentifier {
 struct TestIteration {
     id: TestIdentifier,
     result: RunResult,
-    assertions: Arc<ParsedAssertions>,
+    assertions: Arc<Assertions>,
     run_dir: PathBuf,
     cancellation: CancellationContext,
 }
@@ -262,7 +262,7 @@ impl TestIteration {
             match result {
                 RunResult::Workflow(result) => match result {
                     Ok(outputs) => {
-                        if assertions.should_fail {
+                        if assertions.should_fail() {
                             Ok(IterationResult::Fail(anyhow!(
                                 "{id} succeeded but was expected to fail: see `{dir}`",
                                 dir = run_dir.display(),
@@ -281,7 +281,7 @@ impl TestIteration {
                         }
                     }
                     Err(eval_err) => {
-                        if assertions.should_fail {
+                        if assertions.should_fail() {
                             Ok(IterationResult::Success)
                         } else {
                             Ok(IterationResult::Fail(anyhow!(
@@ -296,7 +296,7 @@ impl TestIteration {
                     Ok(evaled_task) => {
                         let actual_exit_code = evaled_task.exit_code();
 
-                        if assertions.should_fail {
+                        if assertions.should_fail() {
                             if actual_exit_code == 0 {
                                 return Ok(IterationResult::Fail(anyhow!(
                                     "{id} exited with code `0` but `should_fail` expected a \
@@ -304,12 +304,12 @@ impl TestIteration {
                                     dir = run_dir.display(),
                                 )));
                             }
-                        } else if actual_exit_code != assertions.exit_code {
+                        } else if actual_exit_code != assertions.exit_code() {
                             return Ok(IterationResult::Fail(anyhow!(
                                 "{id} exited with code `{actual}` but test expected exit code \
                                  `{expected}`: see `{dir}`",
                                 actual = actual_exit_code,
-                                expected = assertions.exit_code,
+                                expected = assertions.exit_code(),
                                 dir = run_dir.display(),
                             )));
                         }
@@ -319,7 +319,7 @@ impl TestIteration {
                                 .stdout()
                                 .as_file()
                                 .expect("stdout should be `File`");
-                            match file_matches(stdout_path.as_str(), regexes.as_slice()) {
+                            match file_matches(stdout_path.as_str(), regexes.value.as_slice()) {
                                 Ok(None) => {}
                                 Ok(Some(re)) => {
                                     return Ok(IterationResult::Fail(anyhow!(
@@ -336,7 +336,7 @@ impl TestIteration {
                                 .stderr()
                                 .as_file()
                                 .expect("stderr should be `File`");
-                            match file_matches(stderr_path.as_str(), regexes.as_slice()) {
+                            match file_matches(stderr_path.as_str(), regexes.value.as_slice()) {
                                 Ok(None) => {}
                                 Ok(Some(re)) => {
                                     return Ok(IterationResult::Fail(anyhow!(
@@ -351,7 +351,7 @@ impl TestIteration {
                         let outputs = match evaled_task.into_outputs() {
                             Ok(outputs) => outputs,
                             Err(eval_err) => {
-                                if assertions.exit_code == 0 && !assertions.should_fail {
+                                if assertions.exit_code() == 0 && !assertions.should_fail() {
                                     return Err(anyhow!(
                                         "unexpected evaluation error: {}",
                                         eval_err.to_string()
@@ -413,7 +413,7 @@ type FullResults = IndexMap<Arc<str>, DocumentResults>;
 struct TestTask {
     id: TestIdentifier,
     run_root: Arc<Path>,
-    assertions: Arc<ParsedAssertions>,
+    assertions: Arc<Assertions>,
     document: wdl::analysis::Document,
     inputs: EngineInputs,
 }
@@ -517,61 +517,30 @@ impl Runner {
         let mut document_results = IndexMap::new();
 
         for (target, definitions) in tests.targets {
-            let target: Arc<str> = target.into();
-            let (is_workflow, outputs) =
-                match (wdl_document.task_by_name(&target), wdl_document.workflow()) {
-                    (Some(task), _) => (false, task.outputs()),
-                    (None, Some(wf)) if wf.name() == &*target => (true, wf.outputs()),
-                    _ => {
-                        errors.push(Arc::new(anyhow!(
-                            "no target named `{target}` in `{path}`",
-                            path = wdl_document.path()
-                        )));
-                        continue;
-                    }
-                };
-
             let mut target_results = IndexMap::new();
 
+            let target: Arc<str> = target.0.value.into();
             for test in definitions {
                 if should_filter(&test) {
                     continue;
                 }
 
-                let matrix = match test.parse_inputs() {
-                    Ok(res) => res,
-                    Err(e) => {
-                        errors.push(Arc::new(e.context(format!(
-                            "parsing input matrix of test `{name}` for WDL document `{path}`",
-                            name = test.name,
-                            path = wdl_document.path()
-                        ))));
-                        continue;
-                    }
-                };
+                let callable = wdl_document
+                    .callable_by_name(&target)
+                    .expect("verified during parse");
+                let is_workflow = callable.is_workflow();
 
-                let run_root: Arc<Path> = self.root.join(target.as_ref()).join(&*test.name).into();
+                let run_root: Arc<Path> = self.root.join(&*target).join(&*test.name).into();
                 if run_root.exists() {
                     remove_dir_all(&run_root).await.with_context(|| {
                         format!("removing prior test dir: `{}`", run_root.display())
                     })?;
                 }
 
-                let assertions = match test.assertions.parse(is_workflow, outputs) {
-                    Ok(res) => Arc::new(res),
-                    Err(e) => {
-                        errors.push(Arc::new(e.context(format!(
-                            "parsing assertions of test `{name}` for WDL document `{path}`",
-                            name = test.name,
-                            path = wdl_document.path()
-                        ))));
-                        continue;
-                    }
-                };
-
                 target_results.insert(test.name.clone(), Vec::new());
 
-                for (test_num, run_inputs) in matrix.cartesian_product().enumerate() {
+                let assertions = Arc::new(test.assertions);
+                for (test_num, run_inputs) in test.inputs.cartesian_product().enumerate() {
                     let test_num = test_num + 1; // start count at 1
                     let inputs = match run_inputs
                         .map(|(key, yaml_val)| match serde_json::to_value(yaml_val) {
@@ -596,6 +565,7 @@ impl Runner {
                     {
                         Ok(res) => res,
                         Err(e) => {
+                            // TODO(serial): Spanned diagnostics would be nice here too
                             errors.push(Arc::new(e.context(format!(
                                 "converting to WDL inputs for test `{}` for WDL document `{}`",
                                 test.name,
@@ -630,7 +600,7 @@ impl Runner {
                     });
                 }
             }
-            document_results.insert(target, target_results);
+            document_results.insert(target.clone(), target_results);
         }
         all_results.insert(doc_name, document_results);
 
@@ -669,7 +639,7 @@ impl Runner {
         futures: &mut JoinSet<TestIteration>,
         root: &Path,
         id: TestIdentifier,
-        assertions: Arc<ParsedAssertions>,
+        assertions: Arc<Assertions>,
         document: wdl::analysis::Document,
         inputs: EngineInputs,
     ) {
@@ -884,17 +854,48 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
                 continue;
             }
         };
-        let document_tests: crate::test::DocumentTests = serde_yaml_ng::from_slice(
-            &read(&yaml_path)
-                .with_context(|| format!("reading file: `{}`", yaml_path.display()))?,
-        )
-        .with_context(|| format!("parsing YAML: `{}`", yaml_path.display()))?;
-        info!(
-            "found tests for WDL `{}` in `{}`",
-            wdl_path.display(),
-            yaml_path.display()
-        );
-        documents.push((analysis, document_tests));
+
+        let yaml_source = read_to_string(&yaml_path)
+            .with_context(|| format!("reading file: `{}`", yaml_path.display()))?;
+
+        let mut diagnostics;
+        match DocumentTests::parse(&yaml_source) {
+            Ok((document_tests, parse_diagnostics)) => {
+                diagnostics = parse_diagnostics;
+
+                match document_tests.validate(document) {
+                    Ok(()) => {
+                        info!(
+                            "found tests for WDL `{}` in `{}`",
+                            wdl_path.display(),
+                            yaml_path.display()
+                        );
+                        documents.push((analysis, document_tests));
+                    }
+                    Err(validation_diagnostics) => {
+                        diagnostics.extend(validation_diagnostics);
+                    }
+                }
+            }
+            Err(parse_diagnostics) => {
+                diagnostics = parse_diagnostics;
+            }
+        }
+
+        if !diagnostics.is_empty() {
+            emit_diagnostics(
+                &yaml_path.to_string_lossy(),
+                &yaml_source,
+                diagnostics.iter().inspect(|diagnostic| {
+                    if diagnostic.severity().is_error() {
+                        counts.errors += 1;
+                    }
+                }),
+                config.common.report_mode,
+                colorize,
+            )
+            .context("failed to emit test document diagnostics")?;
+        }
     }
 
     if let Some(e) = counts.verify_no_errors() {

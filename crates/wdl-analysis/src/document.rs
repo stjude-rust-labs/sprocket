@@ -685,7 +685,7 @@ pub(crate) struct ImportedWorkflow {
 }
 
 /// A callable item.
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum Callable<'a> {
     /// A workflow.
     Workflow(&'a Workflow),
@@ -718,11 +718,29 @@ impl Callable<'_> {
         }
     }
 
+    /// Whether this callable represents a workflow.
+    pub fn is_workflow(&self) -> bool {
+        matches!(self, Callable::Workflow(_))
+    }
+
+    /// Whether this callable represents a task.
+    pub fn is_task(&self) -> bool {
+        matches!(self, Callable::Task(_))
+    }
+
     /// Get the inputs of the callable.
     pub fn inputs(&self) -> &IndexMap<String, Input> {
         match self {
             Callable::Workflow(w) => w.inputs(),
             Callable::Task(t) => t.inputs(),
+        }
+    }
+
+    /// Get the defined outputs of the callable.
+    pub fn outputs(&self) -> &IndexMap<String, Output> {
+        match self {
+            Callable::Workflow(w) => w.outputs(),
+            Callable::Task(t) => t.outputs(),
         }
     }
 }

@@ -8,6 +8,7 @@ use wdl_ast::SyntaxKind;
 use wdl_ast::VersionStatement;
 use wdl_ast::Whitespace;
 use wdl_ast::v1;
+use wdl_grammar::Severity;
 
 use crate::Config;
 use crate::Exceptable;
@@ -74,9 +75,21 @@ impl Diagnostics {
         self.0.is_empty()
     }
 
+    /// Returns whether any diagnostics have a severity of [`Severity::Error`].
+    pub fn has_errors(&self) -> bool {
+        self.0
+            .iter()
+            .any(|diagnostic| diagnostic.severity() == Severity::Error)
+    }
+
     /// Sorts the diagnostics in the collection.
     pub fn sort(&mut self) {
         self.0.sort();
+    }
+
+    /// Iterate the diagnostics emitted so far.
+    pub fn iter(&self) -> std::slice::Iter<'_, Diagnostic> {
+        self.0.iter()
     }
 }
 

@@ -1,0 +1,27 @@
+[package]
+name = "sprocket-test-types"
+version = "0.1.0"
+license.workspace = true
+edition.workspace = true
+authors.workspace = true
+homepage.workspace = true
+rust-version.workspace = true
+repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-analysis"
+description = "Type definitions for Sprocket test YAML files."
+documentation = "https://docs.rs/sprocket-test-types"
+
+[dependencies]
+anyhow.workspace = true
+indexmap.workspace = true
+itertools.workspace = true
+regex.workspace = true
+schemars.workspace = true
+serde.workspace = true
+serde-saphyr.workspace = true
+serde_json.workspace = true
+wdl-analysis = { path = "../wdl-analysis", version = "0.22.0" }
+wdl-ast = { path = "../wdl-ast", version = "0.25.0" }
+wdl-engine = { path = "../wdl-engine", version = "0.16.0" }
+
+[lints]
+workspace = true
