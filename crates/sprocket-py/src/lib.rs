@@ -35,6 +35,9 @@ mod _sprocket_bio {
         use wdl_grammar::Span;
         #[pymodule_export]
         use wdl_grammar::SyntaxKind;
+        // Re-exported.
+        #[pymodule_export]
+        use wdl_grammar::version::SupportedVersion;
 
         #[pymodule]
         mod parser {
@@ -44,6 +47,8 @@ mod _sprocket_bio {
 
         #[pymodule]
         mod version {
+            #[pymodule_export]
+            use wdl_grammar::version::SupportedVersion;
             #[pymodule_export]
             use wdl_grammar::version::V1;
         }
