@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 use std::fs;
-use std::io::Read; 
+use std::io::Read;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -162,19 +162,15 @@ async fn calculate_file_digest(path: &Path, mode: ContentDigestMode) -> Result<D
                 let mut hasher = Hasher::new();
                 hash_file_metadata(&path, &mut hasher)?;
 
-                let mut file = fs::File::open(&path).with_context(|| {
-                    format!("failed to open `{path}`", path = path.display())
-                })?;
+                let mut file = fs::File::open(&path)
+                    .with_context(|| format!("failed to open `{path}`", path = path.display()))?;
 
                 let mut buf = Vec::new();
                 file.by_ref()
                     .take(STRONGISH_DIGEST_PREFIX_LEN)
                     .read_to_end(&mut buf)
                     .with_context(|| {
-                        format!(
-                            "failed to read contents of `{path}`",
-                            path = path.display()
-                        )
+                        format!("failed to read contents of `{path}`", path = path.display())
                     })?;
 
                 hasher.update(&buf);
@@ -197,9 +193,9 @@ async fn calculate_file_digest(path: &Path, mode: ContentDigestMode) -> Result<D
 ///
 /// This is shared between the `weak` and `strongish` content digest modes.
 fn hash_file_metadata(path: &Path, hasher: &mut Hasher) -> Result<()> {
-    let metadata = path.metadata().with_context(|| {
-        format!("failed to read metadata of `{path}`", path = path.display())
-    })?;
+    let metadata = path
+        .metadata()
+        .with_context(|| format!("failed to read metadata of `{path}`", path = path.display()))?;
     let mtime = metadata
         .modified()
         .with_context(|| {
@@ -641,9 +637,10 @@ pub(crate) mod test {
 
     #[tokio::test]
     async fn local_file_digest_strongish_ignores_content_past_prefix() {
-        // Create two files that are identical for the first `STRONGISH_DIGEST_PREFIX_LEN`
-        // bytes, but differ afterward; a `strongish` digest should not be able to tell
-        // them apart so long as their size and mtime also match
+        // Create two files that are identical for the first
+        // `STRONGISH_DIGEST_PREFIX_LEN` bytes, but differ afterward; a
+        // `strongish` digest should not be able to tell them apart so long as
+        // their size and mtime also match
         let mut a = NamedTempFile::new().unwrap();
         let mut b = NamedTempFile::new().unwrap();
 
