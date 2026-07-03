@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* CI now reads the Python version from `pyproject.toml` via `python-version-file` instead of hardcoding it in each job ([#972](https://github.com/stjude-rust-labs/sprocket/pull/972)).
+* CI now reads the Python version from `pyproject.toml` via `python-version-file` instead of hardcoding it in each job ([#972](https://github.com/stjude-rust-labs/sprocket/pull/977)).
 
 ## 0.27.0 - 2026-06-26
 
