@@ -4,6 +4,7 @@
 
 use std::collections::HashMap;
 use std::fs;
+use std::io::Read; 
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -113,6 +114,13 @@ impl UrlDigestExt for Url {
     }
 }
 
+/// The number of bytes from the start of a file that are hashed when
+/// calculating a "strongish" digest.
+///
+/// This mirrors Cromwell's `fingerprint` call caching strategy, which hashes
+/// only the first 10 MiB of a file's contents.
+const STRONGISH_DIGEST_PREFIX_LEN: u64 = 10 * 1024 * 1024;
+
 /// Helper for retrieving the content digest of a URL.
 async fn get_content_digest(transferer: &dyn Transferer, url: &Url) -> Result<Arc<ContentDigest>> {
     match transferer.digest(url).await.with_context(|| {
@@ -146,36 +154,74 @@ async fn calculate_file_digest(path: &Path, mode: ContentDigestMode) -> Result<D
             .await
             .context("file digest task panicked")?
         }
-        ContentDigestMode::Weak => {
-            // Calculate a digest solely off of file metadata
-            let metadata = path.metadata().with_context(|| {
-                format!("failed to read metadata of `{path}`", path = path.display())
-            })?;
-            let mtime = metadata
-                .modified()
-                .with_context(|| {
-                    format!(
-                        "failed to determine last modified time of `{path}`",
-                        path = path.display()
-                    )
-                })?
-                .duration_since(UNIX_EPOCH)
-                .with_context(|| {
-                    format!(
-                        "last modified time of `{path}` occurs is before UNIX epoch",
-                        path = path.display()
-                    )
+        ContentDigestMode::Strongish => {
+            // Calculate a digest off of file metadata and a hash of only the first
+            // `STRONGISH_DIGEST_PREFIX_LEN` bytes of the file's contents
+            let path = path.to_path_buf();
+            spawn_blocking(move || {
+                let mut hasher = Hasher::new();
+                hash_file_metadata(&path, &mut hasher)?;
+
+                let mut file = fs::File::open(&path).with_context(|| {
+                    format!("failed to open `{path}`", path = path.display())
                 })?;
 
+                let mut buf = Vec::new();
+                file.by_ref()
+                    .take(STRONGISH_DIGEST_PREFIX_LEN)
+                    .read_to_end(&mut buf)
+                    .with_context(|| {
+                        format!(
+                            "failed to read contents of `{path}`",
+                            path = path.display()
+                        )
+                    })?;
+
+                hasher.update(&buf);
+                anyhow::Ok(Digest::File(hasher.finalize()))
+            })
+            .await
+            .context("file digest task panicked")?
+        }
+        ContentDigestMode::Weak => {
+            // Calculate a digest solely off of file metadata
             let mut hasher = Hasher::new();
-            hasher.update(&metadata.len().to_le_bytes());
-            hasher.update(&mtime.as_secs().to_le_bytes());
-            hasher.update(&mtime.as_millis().to_le_bytes());
-            hasher.update(&mtime.as_micros().to_le_bytes());
-            hasher.update(&mtime.as_nanos().to_le_bytes());
+            hash_file_metadata(path, &mut hasher)?;
             Ok(Digest::File(hasher.finalize()))
         }
     }
+}
+
+/// Hashes a file's metadata (size and last modified time) into the given
+/// hasher.
+///
+/// This is shared between the `weak` and `strongish` content digest modes.
+fn hash_file_metadata(path: &Path, hasher: &mut Hasher) -> Result<()> {
+    let metadata = path.metadata().with_context(|| {
+        format!("failed to read metadata of `{path}`", path = path.display())
+    })?;
+    let mtime = metadata
+        .modified()
+        .with_context(|| {
+            format!(
+                "failed to determine last modified time of `{path}`",
+                path = path.display()
+            )
+        })?
+        .duration_since(UNIX_EPOCH)
+        .with_context(|| {
+            format!(
+                "last modified time of `{path}` occurs is before UNIX epoch",
+                path = path.display()
+            )
+        })?;
+
+    hasher.update(&metadata.len().to_le_bytes());
+    hasher.update(&mtime.as_secs().to_le_bytes());
+    hasher.update(&mtime.as_millis().to_le_bytes());
+    hasher.update(&mtime.as_micros().to_le_bytes());
+    hasher.update(&mtime.as_nanos().to_le_bytes());
+    Ok(())
 }
 
 /// Calculates the digest of a local directory.
@@ -539,6 +585,102 @@ pub(crate) mod test {
                 .unwrap();
 
         assert!(digest != changed, "expected digest to change");
+    }
+
+    #[tokio::test]
+    async fn local_file_digest_strongish() {
+        let mut file = NamedTempFile::new().unwrap();
+        file.write_all(b"hello world!").unwrap();
+
+        let digest =
+            calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strongish)
+                .await
+                .unwrap();
+
+        // It should match the digest returned by `calculate_file_digest`
+        assert_eq!(
+            digest,
+            calculate_file_digest(file.path(), ContentDigestMode::Strongish)
+                .await
+                .unwrap()
+        );
+
+        // The digest should change if we modify its size
+        file.write_all(b"!").unwrap();
+        file.flush().unwrap();
+
+        clear_digest_cache();
+
+        let changed =
+            calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strongish)
+                .await
+                .unwrap();
+
+        assert!(digest != changed, "expected digest to change");
+
+        let digest = changed;
+
+        // The digest should change if we modify the mtime
+        file.as_file()
+            .set_modified(
+                SystemTime::now()
+                    .checked_sub(Duration::from_hours(1))
+                    .unwrap(),
+            )
+            .unwrap();
+
+        clear_digest_cache();
+
+        let changed =
+            calculate_local_digest(file.path(), ContentKind::File, ContentDigestMode::Strongish)
+                .await
+                .unwrap();
+
+        assert!(digest != changed, "expected digest to change");
+    }
+
+    #[tokio::test]
+    async fn local_file_digest_strongish_ignores_content_past_prefix() {
+        // Create two files that are identical for the first `STRONGISH_DIGEST_PREFIX_LEN`
+        // bytes, but differ afterward; a `strongish` digest should not be able to tell
+        // them apart so long as their size and mtime also match
+        let mut a = NamedTempFile::new().unwrap();
+        let mut b = NamedTempFile::new().unwrap();
+
+        let prefix = vec![0u8; STRONGISH_DIGEST_PREFIX_LEN as usize];
+        a.write_all(&prefix).unwrap();
+        b.write_all(&prefix).unwrap();
+        a.write_all(b"a").unwrap();
+        b.write_all(b"b").unwrap();
+        a.flush().unwrap();
+        b.flush().unwrap();
+
+        // Force both files to have the same size and mtime
+        let mtime = SystemTime::now();
+        a.as_file().set_modified(mtime).unwrap();
+        b.as_file().set_modified(mtime).unwrap();
+
+        let digest_a = calculate_file_digest(a.path(), ContentDigestMode::Strongish)
+            .await
+            .unwrap();
+        let digest_b = calculate_file_digest(b.path(), ContentDigestMode::Strongish)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            digest_a, digest_b,
+            "expected digests to match since they differ only past the strongish prefix length"
+        );
+
+        // A strong digest, on the other hand, should be able to tell the difference
+        let digest_a = calculate_file_digest(a.path(), ContentDigestMode::Strong)
+            .await
+            .unwrap();
+        let digest_b = calculate_file_digest(b.path(), ContentDigestMode::Strong)
+            .await
+            .unwrap();
+
+        assert!(digest_a != digest_b, "expected strong digests to differ");
     }
 
     #[tokio::test]
