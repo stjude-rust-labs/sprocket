@@ -40,6 +40,12 @@ mod _sprocket_bio {
         use wdl_grammar::version::SupportedVersion;
 
         #[pymodule]
+        mod grammar {
+            #[pymodule_export]
+            use wdl_grammar::grammar::py_document;
+        }
+
+        #[pymodule]
         mod parser {
             #[pymodule_export]
             use wdl_grammar::parser::PyEvent;

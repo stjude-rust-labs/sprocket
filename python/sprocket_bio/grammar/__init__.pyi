@@ -2,7 +2,7 @@ import typing
 
 from collections.abc import Sequence
 
-from . import parser, version
+from . import grammar, parser, version
 from .version import SupportedVersion
 
 @typing.final
@@ -267,6 +267,7 @@ __all__ = [
     "Span",
     "SyntaxKind",
     "SupportedVersion",
+    "grammar",
     "parser",
     "version",
 ]

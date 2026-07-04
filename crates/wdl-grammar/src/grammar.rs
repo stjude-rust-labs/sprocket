@@ -2,6 +2,9 @@
 
 use std::str::FromStr;
 
+#[cfg(feature = "unstable-python")]
+pub use python::py_document;
+
 use super::Diagnostic;
 use super::Span;
 use super::SupportedVersion;
@@ -158,4 +161,36 @@ fn version_statement(
 
     marker.complete(&mut parser, SyntaxKind::VersionStatementNode);
     (parser.morph(), None)
+}
+
+/// Python-specific APIs.
+#[cfg(feature = "unstable-python")]
+mod python {
+    use pyo3::prelude::*;
+
+    use super::*;
+    use crate::lexer::Lexer;
+    use crate::parser::PyEvent;
+
+    /// Parses a WDL document.
+    ///
+    /// Returns the parser events that result from parsing the document.
+    #[pyfunction(name = "document")]
+    pub fn py_document(
+        // The original function accepts a `Parser` instead of the source string. `Parser` is
+        // intentionally not implemented in the Python bindings due to its use of generics, which
+        // is why it is substituted out here.
+        source: &str,
+        fallback_version: Option<SupportedVersion>,
+    ) -> (Vec<PyEvent>, Vec<Diagnostic>) {
+        let (events, diagnostics) = document(Parser::new(Lexer::new(source)), fallback_version);
+
+        // Converts `Event`s into `PyEvent`s.
+        let events = events
+            .into_iter()
+            .map(|event| PyEvent::from_event(event))
+            .collect();
+
+        (events, diagnostics)
+    }
 }
