@@ -24,6 +24,7 @@ use line_index::WideLineCol;
 use lsp_types::CallHierarchyIncomingCall;
 use lsp_types::CallHierarchyItem;
 use lsp_types::CallHierarchyOutgoingCall;
+use lsp_types::CodeLens;
 use lsp_types::CompletionResponse;
 use lsp_types::DocumentSymbolResponse;
 use lsp_types::FoldingRange;
@@ -49,6 +50,7 @@ use crate::queue::AddRequest;
 use crate::queue::AnalysisQueue;
 use crate::queue::AnalyzeRequest;
 use crate::queue::CallHierarchyRequest;
+use crate::queue::CodeLensRequest;
 use crate::queue::CompletionRequest;
 use crate::queue::DocumentSymbolRequest;
 use crate::queue::FindAllReferencesRequest;
@@ -739,6 +741,28 @@ where
             anyhow!(
                 "failed to receive find all references response from analysis queue because the \
                  client channel has closed"
+            )
+        })
+    }
+
+    /// Get all code lenses in a document.
+    pub async fn code_lens(&self, document: Url) -> Result<Option<Vec<CodeLens>>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::CodeLens(CodeLensRequest {
+                document,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send codelens request to analysis queue because the channel has \
+                     closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to send codelens request to analysis queue because the channel has closed"
             )
         })
     }
