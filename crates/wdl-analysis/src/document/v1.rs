@@ -2238,8 +2238,7 @@ fn resolve_import(
                     {
                         format!("failed to resolve symbolic import `{path_text}`: {error}")
                     } else {
-                        "symbolic import resolution is enabled, but no module governs this document"
-                            .to_string()
+                        format!("`{path_text}` is not a declared dependency")
                     };
                     return Err(Some(Diagnostic::error(message).with_highlight(span)));
                 }
