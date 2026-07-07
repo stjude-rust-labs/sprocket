@@ -36,6 +36,12 @@ async fn find_all_references(
     .await
 }
 
+fn has_location(locations: &[Location], expected: Location) -> bool {
+    locations
+        .iter()
+        .any(|location| location.uri == expected.uri && location.range == expected.range)
+}
+
 async fn setup() -> TestContext {
     let mut ctx = TestContext::new("find_references");
     ctx.initialize().await;
@@ -152,6 +158,37 @@ async fn should_have_references_to_local_variables() {
 }
 
 #[tokio::test]
+async fn should_have_references_to_local_variable_used_in_output_section() {
+    let mut ctx = setup().await;
+
+    let response = find_all_references(&mut ctx, "local_output.wdl", Position::new(3, 11), true)
+        .await
+        .expect("request should succeed")
+        .unwrap();
+
+    assert_eq!(response.len(), 2);
+    assert!(
+        response
+            .iter()
+            .all(|location| location.uri == ctx.doc_uri("local_output.wdl"))
+    );
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("local_output.wdl"),
+            range: Range::new(Position::new(3, 11), Position::new(3, 12)),
+        }
+    ));
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("local_output.wdl"),
+            range: Range::new(Position::new(6, 21), Position::new(6, 22)),
+        }
+    ));
+}
+
+#[tokio::test]
 async fn should_have_references_to_tasks() {
     let mut ctx = setup().await;
 
@@ -161,17 +198,21 @@ async fn should_have_references_to_tasks() {
         .expect("request should succeed")
         .unwrap();
 
-    let mut locations = response.iter();
-
-    let Some(location) = locations.next() else {
-        panic!("reference should exist");
-    };
-
-    assert_eq!(location.uri, ctx.doc_uri("source.wdl"),);
-    assert_eq!(
-        location.range,
-        Range::new(Position::new(10, 13), Position::new(10, 18))
-    ); // `greet` in `call lib.greet`
+    assert_eq!(response.len(), 2);
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("source.wdl"),
+            range: Range::new(Position::new(10, 13), Position::new(10, 18)),
+        }
+    )); // `greet` in `call lib.greet`
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("aliases.wdl"),
+            range: Range::new(Position::new(10, 15), Position::new(10, 20)),
+        }
+    )); // `greet` in `call tools.greet`
 }
 
 #[tokio::test]
@@ -184,17 +225,21 @@ async fn should_have_references_to_tasks_output() {
         .expect("request should succeed")
         .unwrap();
 
-    let mut locations = response.iter();
-
-    let Some(location) = locations.next() else {
-        panic!("reference should exist");
-    };
-
-    assert_eq!(location.uri, ctx.doc_uri("source.wdl"),);
-    assert_eq!(
-        location.range,
-        Range::new(Position::new(13, 26), Position::new(13, 30))
-    ); // `name` in `String result = t.name`
+    assert_eq!(response.len(), 2);
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("source.wdl"),
+            range: Range::new(Position::new(13, 26), Position::new(13, 30)),
+        }
+    )); // `name` in `String result = t.name`
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("aliases.wdl"),
+            range: Range::new(Position::new(13, 31), Position::new(13, 35)),
+        }
+    )); // `name` in `String result = worker.name`
 }
 
 #[tokio::test]
@@ -221,4 +266,66 @@ async fn should_have_references_to_enum_choice() {
         .unwrap();
 
     assert_eq!(response.len(), 2); // Declaration + one use of `Status.Active`
+}
+
+#[tokio::test]
+async fn should_have_references_to_imported_type_alias() {
+    let mut ctx = setup().await;
+
+    let response = find_all_references(&mut ctx, "aliases.wdl", Position::new(2, 39), true)
+        .await
+        .expect("request should succeed")
+        .unwrap();
+
+    assert_eq!(response.len(), 2);
+    assert!(
+        response
+            .iter()
+            .all(|location| location.uri == ctx.doc_uri("aliases.wdl"))
+    );
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("aliases.wdl"),
+            range: Range::new(Position::new(2, 37), Position::new(2, 42)),
+        }
+    ));
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("aliases.wdl"),
+            range: Range::new(Position::new(7, 8), Position::new(7, 13)),
+        }
+    ));
+}
+
+#[tokio::test]
+async fn should_have_references_to_call_alias() {
+    let mut ctx = setup().await;
+
+    let response = find_all_references(&mut ctx, "aliases.wdl", Position::new(10, 26), true)
+        .await
+        .expect("request should succeed")
+        .unwrap();
+
+    assert_eq!(response.len(), 2);
+    assert!(
+        response
+            .iter()
+            .all(|location| location.uri == ctx.doc_uri("aliases.wdl"))
+    );
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("aliases.wdl"),
+            range: Range::new(Position::new(10, 24), Position::new(10, 30)),
+        }
+    ));
+    assert!(has_location(
+        &response,
+        Location {
+            uri: ctx.doc_uri("aliases.wdl"),
+            range: Range::new(Position::new(13, 24), Position::new(13, 30)),
+        }
+    ));
 }
