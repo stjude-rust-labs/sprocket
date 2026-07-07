@@ -122,7 +122,7 @@ use crate::symbolic_path::SymbolicPath;
 
 /// Resolves WDL module imports to concrete files on disk.
 #[async_trait]
-pub trait Resolver: Send + Sync {
+pub trait Resolver: std::fmt::Debug + Send + Sync {
     /// Materializes a single symbolic import on disk and returns the path
     /// to the resulting file.
     ///

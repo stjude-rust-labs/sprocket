@@ -6,6 +6,7 @@ use std::future::Future;
 use std::mem::ManuallyDrop;
 use std::ops::Range;
 use std::path::Path;
+use std::path::PathBuf;
 use std::path::absolute;
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -351,7 +352,7 @@ impl<Context> fmt::Debug for Analyzer<Context> {
 /// a resolver with the consumer module it resolves imports for. The pairing is
 /// kept in one variant so a resolver can never exist without a module, nor a
 /// module without a resolver.
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub enum ResolutionContext {
     /// Module resolution is disabled; symbolic imports do not resolve.
     #[default]
@@ -414,14 +415,6 @@ impl ResolutionContext {
                 consumer_module,
             } => (Some(resolver), Some(consumer_module)),
         }
-    }
-}
-
-impl fmt::Debug for ResolutionContext {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("ResolutionContext")
-            .field("module_root", &self.module_root())
-            .finish_non_exhaustive()
     }
 }
 
@@ -561,8 +554,8 @@ where
     ///
     /// Returns an error if there was a problem discovering documents for the
     /// specified path.
-    pub async fn add_directory(&self, path: impl AsRef<Path>) -> Result<()> {
-        let path = path.as_ref().to_path_buf();
+    pub async fn add_directory(&self, path: impl Into<PathBuf>) -> Result<()> {
+        let path = path.into();
         let config = self.config.clone();
         // When the scanned directory lies inside the active module, stop the
         // walk at nested module boundaries: a subdirectory with its own
@@ -570,9 +563,9 @@ where
         // files reach the analyzer through symbolic-import materialization, not
         // directory scanning. Outside an active module there is nothing to scope
         // to, so scan everything.
-        let active_module_root = self.resolution.module_root().map(Path::to_path_buf);
-        let stop_at_module_boundaries = active_module_root
-            .as_ref()
+        let stop_at_module_boundaries = self
+            .resolution
+            .module_root()
             .is_some_and(|root| path.starts_with(root));
         // Start by searching for documents
         let documents = RayonHandle::spawn(move || -> Result<IndexSet<Url>> {
@@ -1555,6 +1548,7 @@ workflow run {
         use wdl_modules::resolver::ResolvedTree;
         use wdl_modules::resolver::ResolverError;
 
+        #[derive(Debug)]
         struct MockResolver {
             dep_path: PathBuf,
         }
@@ -1699,6 +1693,7 @@ workflow run {
         use wdl_modules::resolver::ResolverError;
 
         /// A resolver that tracks overlapping `materialize` calls.
+        #[derive(Debug)]
         struct SlowMockResolver {
             dep_path: PathBuf,
             delay: Duration,
