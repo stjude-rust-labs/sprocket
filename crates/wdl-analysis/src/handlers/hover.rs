@@ -224,7 +224,11 @@ fn resolve_hover_by_context(
         SyntaxKind::TypeRefNode | SyntaxKind::LiteralStructNode => {
             if let Some(s) = document.struct_by_name(token.text()) {
                 let root = if let Some(source) = s.source() {
+                    // SAFETY: `source` is the URI the import resolved to,
+                    // which is guaranteed to be present in the graph.
                     let node = graph.get(graph.get_index(source).unwrap());
+                    // SAFETY: we successfully resolved the node above; it is
+                    // in `ParseState::Parsed`, which has a document.
                     node.document().unwrap().root()
                 } else {
                     document.root()
@@ -233,7 +237,11 @@ fn resolve_hover_by_context(
             }
             if let Some(e) = document.enum_by_name(token.text()) {
                 let root = if let Some(source) = e.source() {
+                    // SAFETY: `source` is the URI the import resolved to,
+                    // which is guaranteed to be present in the graph.
                     let node = graph.get(graph.get_index(source).unwrap());
+                    // SAFETY: we successfully resolved the node above; it is
+                    // in `ParseState::Parsed`, which has a document.
                     node.document().unwrap().root()
                 } else {
                     document.root()

@@ -890,8 +890,12 @@ fn resolve_struct_literal_item(
     if let Some(struct_info) = analysis_doc.struct_by_name(struct_name.text()) {
         let (uri, def_lines) = match struct_info.source() {
             Some(source) => {
+                // SAFETY: `source` is the URI the import resolved to, which is
+                // guaranteed to be present in the graph.
                 let imported_node = graph.get(graph.get_index(source).unwrap());
 
+                // SAFETY: we successfully resolved the node above; it is in
+                // `ParseState::Parsed`, which always has a valid lines field.
                 let lines = imported_node.parse_state().lines().unwrap();
                 (source.as_ref(), lines)
             }
@@ -974,11 +978,15 @@ fn resolve_call_input_item(
                     return Ok(None);
                 };
 
+                // SAFETY: `ns.source` comes from a valid namespace entry which
+                // guarantees the document is present in the graph.
                 let node = graph.get(graph.get_index(ns.source()).unwrap());
                 let Some(imported_doc) = node.document() else {
                     return Ok(None);
                 };
 
+                // SAFETY: we successfully resolved the node above; it is in
+                // `ParseState::Parsed`, which always has a valid lines field.
                 let imported_lines = node.parse_state().lines().unwrap();
 
                 return find_target_input_parameter(
