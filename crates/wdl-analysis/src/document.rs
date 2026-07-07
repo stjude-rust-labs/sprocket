@@ -666,6 +666,14 @@ impl Callable<'_> {
             Callable::Task(t) => t.span(),
         }
     }
+
+    /// Get the inputs of the callable.
+    pub fn inputs(&self) -> &IndexMap<String, Input> {
+        match self {
+            Callable::Workflow(w) => w.inputs(),
+            Callable::Task(t) => t.inputs(),
+        }
+    }
 }
 
 /// Represents analysis data about a WDL document.
@@ -959,6 +967,14 @@ impl Document {
         }
 
         None
+    }
+
+    /// Get all callable targets in the document.
+    pub fn callables(&self) -> impl Iterator<Item = Callable<'_>> {
+        self.workflow()
+            .map(Callable::Workflow)
+            .into_iter()
+            .chain(self.tasks().map(Callable::Task))
     }
 
     /// Gets the structs in the document.

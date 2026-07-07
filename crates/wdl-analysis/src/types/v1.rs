@@ -238,21 +238,31 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
         ])
     });
 
+    // WDL 1.0 does not formally define the `cpu`, `gpu`, `disks`, `maxRetries`,
+    // or `return_codes`/`returnCodes` runtime keys; per the 1.0 specification,
+    // only `docker`/`container` and `memory` are given recommended type
+    // conventions. As such, type checking for the remaining keys should only
+    // apply to documents declaring `version 1.1` or later (see
+    // https://github.com/stjude-rust-labs/sprocket/issues/811).
     match name {
         TASK_REQUIREMENT_CONTAINER | TASK_REQUIREMENT_CONTAINER_ALIAS => Some(&CONTAINER_TYPES),
-        TASK_REQUIREMENT_CPU => Some(CPU_TYPES),
-        TASK_REQUIREMENT_DISKS => Some(&DISKS_TYPES),
-        TASK_REQUIREMENT_GPU => Some(GPU_TYPES),
+        TASK_REQUIREMENT_CPU if version >= SupportedVersion::V1(V1::One) => Some(CPU_TYPES),
+        TASK_REQUIREMENT_DISKS if version >= SupportedVersion::V1(V1::One) => Some(&DISKS_TYPES),
+        TASK_REQUIREMENT_GPU if version >= SupportedVersion::V1(V1::One) => Some(GPU_TYPES),
         TASK_REQUIREMENT_FPGA if version >= SupportedVersion::V1(V1::Two) => Some(FPGA_TYPES),
         TASK_REQUIREMENT_MAX_RETRIES if version >= SupportedVersion::V1(V1::Two) => {
             Some(MAX_RETRIES_TYPES)
         }
-        TASK_REQUIREMENT_MAX_RETRIES_ALIAS => Some(MAX_RETRIES_TYPES),
+        TASK_REQUIREMENT_MAX_RETRIES_ALIAS if version >= SupportedVersion::V1(V1::One) => {
+            Some(MAX_RETRIES_TYPES)
+        }
         TASK_REQUIREMENT_MEMORY => Some(MEMORY_TYPES),
         TASK_REQUIREMENT_RETURN_CODES if version >= SupportedVersion::V1(V1::Two) => {
             Some(&RETURN_CODES_TYPES)
         }
-        TASK_REQUIREMENT_RETURN_CODES_ALIAS => Some(&RETURN_CODES_TYPES),
+        TASK_REQUIREMENT_RETURN_CODES_ALIAS if version >= SupportedVersion::V1(V1::One) => {
+            Some(&RETURN_CODES_TYPES)
+        }
         _ => None,
     }
 }
@@ -1006,6 +1016,30 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         expr: &Expr<N>,
     ) {
         let expr_ty = self.evaluate_expr(expr).unwrap_or(Type::Union);
+
+        // The `cpu`, `gpu`, `disks`, `maxRetries`, and `returnCodes` keys are not
+        // formally typed until WDL 1.1 (see the WDL 1.0 specification's runtime
+        // section, which only gives recommended conventions for `docker` and
+        // `memory`). Some of these names are shared with differently-typed
+        // `hints` keys (e.g. `gpu` and `disks`), so simply letting the
+        // `task_requirement_types` lookup fail for WDL 1.0 documents isn't
+        // sufficient; doing so would incorrectly fall through to checking
+        // against the `hints` types below. Instead, skip type checking for
+        // these keys entirely when the document version is older than 1.1.
+        // See https://github.com/stjude-rust-labs/sprocket/issues/811.
+        if self.context.version() < SupportedVersion::V1(V1::One)
+            && matches!(
+                name.text(),
+                TASK_REQUIREMENT_CPU
+                    | TASK_REQUIREMENT_GPU
+                    | TASK_REQUIREMENT_DISKS
+                    | TASK_REQUIREMENT_MAX_RETRIES_ALIAS
+                    | TASK_REQUIREMENT_RETURN_CODES_ALIAS
+            )
+        {
+            return;
+        }
+
         if !self.evaluate_requirement(name, expr, &expr_ty) {
             // Always use object types for `runtime` section `inputs` and `outputs` keys as
             // only `hints` sections can use input/output hidden types
