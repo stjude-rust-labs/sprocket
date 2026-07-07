@@ -96,6 +96,8 @@ use crate::diagnostics::only_one_namespace;
 use crate::diagnostics::recursive_enum;
 use crate::diagnostics::recursive_struct;
 use crate::diagnostics::recursive_workflow_call;
+use crate::diagnostics::selected_import_conflict;
+use crate::diagnostics::selected_member_not_found;
 use crate::diagnostics::struct_conflicts_with_import;
 use crate::diagnostics::struct_not_in_document;
 use crate::diagnostics::type_is_not_array;
@@ -108,6 +110,7 @@ use crate::diagnostics::unknown_type;
 use crate::diagnostics::unused_call;
 use crate::diagnostics::unused_declaration;
 use crate::diagnostics::unused_input;
+use crate::diagnostics::wildcard_import_conflict;
 use crate::document::Name;
 use crate::eval::v1::TaskGraphBuilder;
 use crate::eval::v1::TaskGraphNode;
@@ -937,30 +940,6 @@ fn callable_conflict_span(document: &DocumentData, name: &str) -> Option<Span> {
                 .get(name)
                 .map(|workflow| workflow.span)
         })
-}
-
-/// Creates a diagnostic for a wildcard import conflict.
-fn wildcard_import_conflict(name: &str, import_span: Span, prev_span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "wildcard import introduces `{name}` which conflicts with an existing definition"
-    ))
-    .with_label("imported here", import_span)
-    .with_label("previous definition", prev_span)
-}
-
-/// Creates a diagnostic for a member not found in a selected import.
-fn selected_member_not_found(name: &str, span: Span) -> Diagnostic {
-    Diagnostic::error(format!("`{name}` does not exist in the imported module"))
-        .with_highlight(span)
-}
-
-/// Creates a diagnostic for a selected import conflict.
-fn selected_import_conflict(name: &str, import_span: Span, prev_span: Span) -> Diagnostic {
-    Diagnostic::error(format!(
-        "import of `{name}` conflicts with an existing definition"
-    ))
-    .with_label("imported here", import_span)
-    .with_label("previous definition", prev_span)
 }
 
 /// Adds a struct to the document.
