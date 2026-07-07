@@ -42,7 +42,7 @@ chrono = "0.4.43"
 clap = { version = "4.5.57", features = ["derive", "string"] }
 clap-verbosity-flag = { version = "3.0.4", features = ["tracing"] }
 clap_complete = "4.5.65"
-cloud-copy = { version = "0.8.0", features = ["cli"] }
+cloud-copy = { version = "0.9.0", features = ["cli"] }
 codespan-reporting = "0.13.1"
 colored = "3.1.1"
 convert_case = "0.11.0"
@@ -85,6 +85,7 @@ petgraph = "0.8.3"
 petname = { version = "2.0.2", features = ["default-rng", "default-words"] }
 pretty_assertions = "1.4.1"
 pulldown-cmark = "0.13.0"
+pyo3 = "0.29.0"
 rand = "0.10.0"
 rayon = "1.11.0"
 regex = "1.12.3"
@@ -130,8 +131,8 @@ utoipa = { version = "5.4.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 uuid = { version = "1.20.0", features = ["serde", "v4"] }
 walkdir = "2.5.0"
-wdl = { version = "0.23.1", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
-wdl-modules = { version = "0.2.0", path = "crates/wdl-modules", features = ["resolver"] }
+wdl = { version = "0.23.2", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
+wdl-modules = { version = "0.2.1", path = "crates/wdl-modules", features = ["resolver"] }
 which = "8.0.0"
 whoami = "2.1.0"
 zip = { version = "8.1.0", default-features = false, features = [] }
@@ -159,7 +160,7 @@ new_without_default = "allow"
 
 [package]
 name = "sprocket"
-version = "0.26.0"
+version = "0.27.0"
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true

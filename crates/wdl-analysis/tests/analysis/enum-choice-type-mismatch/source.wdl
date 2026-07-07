@@ -30,7 +30,7 @@ enum Coords {
     LonLat = ("122W", 37),
 }
 
-# Mixed types within variants
+# Mixed types within choices
 enum Mixed {
     First = 1,
     Second = "two",

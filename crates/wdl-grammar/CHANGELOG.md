@@ -7,8 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added the `unstable-python` feature flag, which enables APIs related to Sprocket's Python bindings ([#941](https://github.com/stjude-rust-labs/sprocket/pull/941)).
+
+#### Fixed
+
+* `Diagnostic` now considers its `help` field in its `Ord` implementation ([#941](https://github.com/stjude-rust-labs/sprocket/pull/941)).
+
+## 0.24.0 - 2026-06-26
+
 #### Changed
 
+* Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
 * Removed dependency on `serde` ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 * `Parser` now produces `ParseDiagnostic`s instead of `Diagnostic`s ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
 * `Parser` now handles deduplication of diagnostics, so the `Output` will no longer contain

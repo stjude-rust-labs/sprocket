@@ -157,7 +157,7 @@ pub struct Enum {
     /// Stores the CST node of the enum.
     ///
     /// This is used to calculate type equivalence for imports and can be
-    /// reconstructed into an AST node to access variant expressions.
+    /// reconstructed into an AST node to access choice expressions.
     node: rowan::GreenNode,
     /// The namespace that defines the enum.
     ///
@@ -192,7 +192,7 @@ impl Enum {
 
     /// Reconstructs the AST definition from the stored green node.
     ///
-    /// This provides access to variant expressions and other AST details.
+    /// This provides access to choice expressions and other AST details.
     pub fn definition(&self) -> wdl_ast::v1::EnumDefinition {
         wdl_ast::v1::EnumDefinition::cast(wdl_ast::SyntaxNode::new_root(self.node.clone()))
             .expect("stored node should be a valid enum definition")
@@ -669,6 +669,14 @@ impl Callable<'_> {
             Callable::Task(t) => t.span(),
         }
     }
+
+    /// Get the inputs of the callable.
+    pub fn inputs(&self) -> &IndexMap<String, Input> {
+        match self {
+            Callable::Workflow(w) => w.inputs(),
+            Callable::Task(t) => t.inputs(),
+        }
+    }
 }
 
 /// Represents analysis data about a WDL document.
@@ -980,6 +988,14 @@ impl Document {
         None
     }
 
+    /// Get all callable targets in the document.
+    pub fn callables(&self) -> impl Iterator<Item = Callable<'_>> {
+        self.workflow()
+            .map(Callable::Workflow)
+            .into_iter()
+            .chain(self.tasks().map(Callable::Task))
+    }
+
     /// Gets the structs in the document.
     pub fn structs(&self) -> impl Iterator<Item = (&str, &Struct)> {
         self.data.structs.iter().map(|(n, s)| (n.as_str(), s))
@@ -1013,18 +1029,18 @@ impl Document {
         None
     }
 
-    /// Gets a cache key for an enum variant lookup.
-    pub fn get_variant_cache_key(
+    /// Gets a cache key for an enum choice lookup.
+    pub fn get_choice_cache_key(
         &self,
         name: &str,
-        variant: &str,
-    ) -> Option<crate::types::EnumVariantCacheKey> {
+        choice: &str,
+    ) -> Option<crate::types::EnumChoiceCacheKey> {
         let (enum_index, _, r#enum) = self.data.enums.get_full(name)?;
         let enum_ty = r#enum.ty()?.as_enum()?;
-        let variant_index = enum_ty.variants().iter().position(|v| v == variant)?;
-        Some(crate::types::EnumVariantCacheKey::new(
+        let choice_index = enum_ty.choices().iter().position(|v| v == choice)?;
+        Some(crate::types::EnumChoiceCacheKey::new(
             enum_index,
-            variant_index,
+            choice_index,
         ))
     }
 

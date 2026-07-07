@@ -17,6 +17,7 @@ use indexmap::IndexSet;
 use lsp_types::CallHierarchyIncomingCall;
 use lsp_types::CallHierarchyItem;
 use lsp_types::CallHierarchyOutgoingCall;
+use lsp_types::CodeLens;
 use lsp_types::CompletionResponse;
 use lsp_types::DocumentSymbolResponse;
 use lsp_types::FoldingRange;
@@ -70,6 +71,8 @@ pub enum Request<Context> {
     Analyze(AnalyzeRequest<Context>),
     /// A request to get all callers of a symbol.
     CallHierarchy(CallHierarchyRequest),
+    /// A request to get all code lenses in a document.
+    CodeLens(CodeLensRequest),
     /// A request to remove documents from the graph.
     Remove(RemoveRequest),
     /// A request to process a document's incremental change.
@@ -136,6 +139,14 @@ pub struct CallHierarchyRequest {
     pub encoding: SourcePositionEncoding,
     /// The sender for completing the request.
     pub completed: oneshot::Sender<Option<Vec<CallHierarchyItem>>>,
+}
+
+/// Represents a request to get the code lenses for a document.
+pub struct CodeLensRequest {
+    /// The document to search.
+    pub document: Url,
+    /// The sender for completing the request.
+    pub completed: oneshot::Sender<Option<Vec<CodeLens>>>,
 }
 
 /// Represents a request to remove documents from the document graph.
@@ -447,6 +458,34 @@ where
                             error!(
                                 "error occurred while completing the call hierarchy request: \
                                  {err:?}"
+                            );
+                            completed.send(None).ok();
+                        }
+                    }
+                }
+                Request::CodeLens(CodeLensRequest {
+                    document,
+                    completed,
+                }) => {
+                    let start = Instant::now();
+                    debug!(
+                        "received request for code lenses in {document}",
+                        document = document
+                    );
+
+                    let graph = self.graph.read();
+                    match handlers::code_lens(&graph, &document) {
+                        Ok(result) => {
+                            debug!(
+                                "code lens request completed in {elapsed:?}",
+                                elapsed = start.elapsed()
+                            );
+
+                            completed.send(result).ok();
+                        }
+                        Err(err) => {
+                            error!(
+                                "error occurred while completing the code lens request: {err:?}"
                             );
                             completed.send(None).ok();
                         }
