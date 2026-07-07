@@ -5,6 +5,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::io::Read;
+use std::io::copy;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -162,18 +163,13 @@ async fn calculate_file_digest(path: &Path, mode: ContentDigestMode) -> Result<D
                 let mut hasher = Hasher::new();
                 hash_file_metadata(&path, &mut hasher)?;
 
-                let mut file = fs::File::open(&path)
+                let file = fs::File::open(&path)
                     .with_context(|| format!("failed to open `{path}`", path = path.display()))?;
 
-                let mut buf = Vec::new();
-                file.by_ref()
-                    .take(STRONGISH_DIGEST_PREFIX_LEN)
-                    .read_to_end(&mut buf)
-                    .with_context(|| {
-                        format!("failed to read contents of `{path}`", path = path.display())
-                    })?;
+                copy(&mut file.take(STRONGISH_DIGEST_PREFIX_LEN), &mut hasher).with_context(
+                    || format!("failed to read contents of `{path}`", path = path.display()),
+                )?;
 
-                hasher.update(&buf);
                 anyhow::Ok(Digest::File(hasher.finalize()))
             })
             .await
