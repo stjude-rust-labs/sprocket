@@ -655,28 +655,21 @@ fn add_selected_import(
             .map(|a| a.span())
             .unwrap_or(member_name.span());
 
-        let mut found_any = false;
-        if import_selected_struct(
+        let found_any = import_selected_struct(
             document,
             &imported,
             &uri,
             member_name.text(),
             &local_name,
             member_span,
-        ) {
-            found_any = true;
-        }
-        if import_selected_enum(
+        ) || import_selected_enum(
             document,
             &imported,
             &uri,
             member_name.text(),
             &local_name,
             member_span,
-        ) {
-            found_any = true;
-        }
-        if import_selected_task(
+        ) || import_selected_task(
             document,
             &imported,
             &uri,
@@ -684,10 +677,7 @@ fn add_selected_import(
             &local_name,
             member_span,
             member_span,
-        ) {
-            found_any = true;
-        }
-        if import_selected_workflow(
+        ) || import_selected_workflow(
             document,
             &imported,
             &uri,
@@ -695,19 +685,19 @@ fn add_selected_import(
             &local_name,
             member_span,
             member_span,
-        ) {
-            found_any = true;
+        );
+
+        if found_any {
+            continue;
         }
 
-        if !found_any {
-            document.failed_selected_imports.insert(local_name);
-            document
-                .analysis_diagnostics
-                .push(selected_member_not_found(
-                    member_name.text(),
-                    member_name.span(),
-                ));
-        }
+        document.failed_selected_imports.insert(local_name);
+        document
+            .analysis_diagnostics
+            .push(selected_member_not_found(
+                member_name.text(),
+                member_name.span(),
+            ));
     }
 }
 
