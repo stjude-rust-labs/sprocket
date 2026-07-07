@@ -2310,7 +2310,7 @@ fn resolve_import(
     Ok((imported_node.uri().clone(), imported_document))
 }
 
-/// Sets the struct types in the document.
+/// Populates struct and enum type information in the document.
 fn populate_types(document: &mut DocumentData) {
     /// Used to resolve a type name from a document.
     struct Resolver<'a> {
