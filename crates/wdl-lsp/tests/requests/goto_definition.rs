@@ -120,11 +120,9 @@ async fn should_goto_imported_workflow_definition() {
 async fn should_goto_selected_imported_task_definition() {
     let mut options = wdl_lsp::ServerOptions::default();
     options.feature_flags = options.feature_flags.with_wdl_1_4();
-    let mut ctx = TestContext::with_options(
-        "goto_definition_selected",
-        options,
-        wdl_lsp::UserOptions::default(),
-    );
+    let mut ctx = TestContextBuilder::new("goto_definition_selected")
+        .server_options(options)
+        .build();
     ctx.initialize().await;
 
     // Position of `add` in `call add`
@@ -146,11 +144,9 @@ async fn should_goto_selected_imported_task_definition() {
 async fn should_goto_selected_imported_workflow_definition() {
     let mut options = wdl_lsp::ServerOptions::default();
     options.feature_flags = options.feature_flags.with_wdl_1_4();
-    let mut ctx = TestContext::with_options(
-        "goto_definition_selected",
-        options,
-        wdl_lsp::UserOptions::default(),
-    );
+    let mut ctx = TestContextBuilder::new("goto_definition_selected")
+        .server_options(options)
+        .build();
     ctx.initialize().await;
 
     // Position of `run` in `call run`

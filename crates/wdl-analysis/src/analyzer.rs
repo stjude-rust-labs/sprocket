@@ -516,8 +516,13 @@ where
         let inner_config = config.clone();
         let inner_resolution = resolution.clone();
         let handle = std::thread::spawn(move || {
-            let queue =
-                AnalysisQueue::new(inner_config, tokio, inner_resolution, progress, Arc::new(validator));
+            let queue = AnalysisQueue::new(
+                inner_config,
+                tokio,
+                inner_resolution,
+                progress,
+                Arc::new(validator),
+            );
             queue.run(rx);
         });
 
@@ -1907,7 +1912,7 @@ workflow test {
 }
 "#,
         )
-            .expect("failed to create test file");
+        .expect("failed to create test file");
 
         let bar = dir.path().join("bar.wdl");
         fs::write(
@@ -1916,7 +1921,7 @@ workflow test {
 workflow test {}
 "#,
         )
-            .expect("failed to create test file");
+        .expect("failed to create test file");
 
         // Add both documents to the analyzer
         let analyzer = Analyzer::default();

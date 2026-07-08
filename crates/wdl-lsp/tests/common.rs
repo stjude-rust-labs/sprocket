@@ -143,6 +143,12 @@ where
         self
     }
 
+    /// Set the [`ServerOptions`].
+    pub fn server_options(mut self, options: ServerOptions) -> Self {
+        self.server_options = options;
+        self
+    }
+
     /// Set the [`UserOptions`].
     pub fn user_options(mut self, options: UserOptions) -> Self {
         self.user_options = options;

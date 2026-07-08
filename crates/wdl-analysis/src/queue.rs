@@ -489,7 +489,7 @@ where
         tokio: Handle,
         resolution: crate::ResolutionContext,
         progress: Progress,
-        validator: ValidatorFn
+        validator: ValidatorFn,
     ) -> Self {
         // The consumer module was loaded once when the resolution context was
         // built, so reuse it here instead of re-reading `module.json`. Wrap it
