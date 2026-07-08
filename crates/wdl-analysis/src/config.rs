@@ -60,7 +60,7 @@ impl Default for Config {
             inner: Arc::new(ConfigInner {
                 diagnostics: Default::default(),
                 fallback_version: None,
-                format: wdl_format::Config::default(),
+                format: FormatConfig::default(),
                 ignore_filename: None,
                 all_rules: Default::default(),
                 feature_flags: FeatureFlags::default(),
@@ -81,9 +81,9 @@ impl Config {
         self.inner.fallback_version
     }
 
-    /// Get this configuration's [`wdl_format::Config`]; see
+    /// Get this configuration's [`FormatConfig`]; see
     /// [`Config::with_format_config()`].
-    pub fn format(&self) -> &wdl_format::Config {
+    pub fn format(&self) -> &FormatConfig {
         &self.inner.format
     }
 
@@ -149,7 +149,7 @@ impl Config {
         }
     }
 
-    /// Return a new configuration with the previous [`wdl_format::Config`]
+    /// Return a new configuration with the previous [`FormatConfig`]
     /// replaced by the argument.
     pub fn with_format_config(&self, format: FormatConfig) -> Self {
         let mut inner = (*self.inner).clone();
@@ -212,7 +212,7 @@ struct ConfigInner {
     fallback_version: Option<SupportedVersion>,
     /// See [`Config::with_format_config()`]
     #[toml(default, style = Header)]
-    format: wdl_format::Config,
+    format: FormatConfig,
     /// See [`Config::with_ignore_filename()`]
     ignore_filename: Option<String>,
     /// A list of all known rule identifiers.
