@@ -38,11 +38,14 @@ uuid = { workspace = true, features = ["v4"] }
 wdl-ast = { path = "../wdl-ast", version = "0.25.0" }
 wdl-format = { path = "../wdl-format", version = "0.19.0" }
 wdl-grammar = { path = "../wdl-grammar", version = "0.24.0" }
+wdl-modules = { path = "../wdl-modules", version = "0.2.1" }
 
 [dev-dependencies]
+async-trait = { workspace = true }
 codespan-reporting = { workspace = true }
 libtest-mimic = { workspace = true }
 pretty_assertions = { workspace = true }
+semver = { workspace = true }
 tempfile = { workspace = true }
 tracing-subscriber = { workspace = true }
 

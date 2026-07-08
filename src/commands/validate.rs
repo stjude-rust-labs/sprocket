@@ -55,12 +55,16 @@ pub struct Args {
 pub async fn analyze_source(
     source: &Source,
     fallback_version: Option<SupportedVersion>,
+    modules_config: wdl_modules::resolver::ModulesConfig,
+    feature_flags: wdl::analysis::FeatureFlags,
     report_mode: Mode,
     colorize: bool,
 ) -> CommandResult<Document> {
     let results = Analysis::default()
         .add_source(source.clone())
         .fallback_version(fallback_version)
+        .modules_config(modules_config)
+        .feature_flags(feature_flags)
         .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
@@ -163,6 +167,8 @@ pub async fn validate(args: Args, config: Config, colorize: bool) -> CommandResu
     let document = analyze_source(
         &args.source,
         config.common.wdl.fallback_version.into(),
+        config.modules.clone(),
+        config.common.wdl.feature_flags,
         report_mode,
         colorize,
     )

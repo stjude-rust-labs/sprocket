@@ -47,7 +47,8 @@ impl SprocketClientConnectionArgs {
 pub struct SubmitRunRequestArgs {
     /// The WDL source file to submit.
     ///
-    /// The source file may be specified by either a local file path or a URL.
+    /// The source file may be specified by either a local file path, a URL, or
+    /// a WDL module directory containing a `module.json`.
     #[clap(value_name = "SOURCE")]
     source: Source,
 
@@ -101,9 +102,18 @@ pub struct Args {
 /// Submits a workflow to a Sprocket server based on the Args / Config.
 pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let report_mode = args.run_request_args.report_mode.unwrap_or_default();
+    let source = match args.run_request_args.source {
+        Source::Directory(ref dir) => {
+            crate::analysis::resolve_module_entrypoint(dir, config.common.wdl.feature_flags)?
+        }
+        ref other => other.clone(),
+    };
+
     let document = analyze_source(
-        &args.run_request_args.source,
+        &source,
         config.common.wdl.fallback_version.into(),
+        config.modules.clone(),
+        config.common.wdl.feature_flags,
         report_mode,
         colorize,
     )
@@ -148,7 +158,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         base = args.client_args.base_url(&config)
     );
 
-    let source_str = match &args.run_request_args.source {
+    let source_str = match &source {
         Source::File(url) => url
             .to_file_path()
             .ok()

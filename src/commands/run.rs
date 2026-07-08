@@ -90,7 +90,8 @@ const LOG_FILE_NAME: &str = "output.log";
 pub struct Args {
     /// The WDL source file to run.
     ///
-    /// The source file may be specified by either a local file path or a URL.
+    /// The source file may be specified by either a local file path, a URL, or
+    /// a WDL module directory containing a `module.json`.
     #[clap(value_name = "SOURCE")]
     pub source: Source,
 
@@ -617,9 +618,12 @@ pub async fn run(
     handle: FileReloadHandle,
     filter_handle: FilterReloadHandle,
 ) -> CommandResult<()> {
-    if let Source::Directory(_) = args.source {
-        return Err(anyhow!("directory sources are not supported for the `run` command").into());
-    }
+    let source = match args.source {
+        Source::Directory(ref dir) => {
+            crate::analysis::resolve_module_entrypoint(dir, config.common.wdl.feature_flags)?
+        }
+        ref other => other.clone(),
+    };
 
     if args.show_task_stderr {
         filter_handle
@@ -638,7 +642,7 @@ pub async fn run(
     let start = std::time::Instant::now();
 
     let results = Analysis::default()
-        .add_source(args.source.clone())
+        .add_source(source.clone())
         .fallback_version(config.common.wdl.fallback_version.into())
         .init({
             let progress_bar = progress_bar.clone();
@@ -674,6 +678,8 @@ pub async fn run(
                 .boxed()
             }
         })
+        .modules_config(config.modules.clone())
+        .feature_flags(config.common.wdl.feature_flags)
         .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
@@ -709,11 +715,12 @@ pub async fn run(
         .into());
     }
 
-    let document = results.filter(&[&args.source]).next().unwrap().document();
+    let document = results.filter(&[&source]).next().unwrap().document();
 
     let (target, inputs) = resolve_inputs(&args, document).await?;
 
-    let (ctx, run_dir, db) = setup_run_context(handle, &args, &config, &target, &inputs).await?;
+    let (ctx, run_dir, db) =
+        setup_run_context(handle, &args, &config, &source, &target, &inputs).await?;
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
     let events = Events::new(
@@ -896,6 +903,7 @@ async fn setup_run_context(
     log_handle: FileReloadHandle,
     args: &Args,
     config: &Config,
+    source: &Source,
     target: &Target,
     inputs: &Inputs,
 ) -> Result<(RunContext, RunDirectory, Arc<dyn Database>)> {
@@ -941,7 +949,7 @@ async fn setup_run_context(
     let (run_id, run_name, _run) = create_run_record(
         db.as_ref(),
         session.uuid,
-        &args.source,
+        source,
         Some(target.name()),
         &inputs_to_json(target.name(), inputs).context("failed to serialize inputs")?,
     )

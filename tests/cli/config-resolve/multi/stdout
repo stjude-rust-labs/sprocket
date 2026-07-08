@@ -153,6 +153,10 @@ report_mode = "full"
 [common.wdl]
 fallback_version = "none"
 
+[common.wdl.feature_flags]
+wdl_1_3 = true
+wdl_1_4 = false
+
 [modules]
 large_file_warning = "1.0 MiB"
 require_signed = false

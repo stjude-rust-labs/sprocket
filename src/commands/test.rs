@@ -821,6 +821,8 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
     let analysis_results = Analysis::default()
         .add_source(source.clone())
         .fallback_version(config.common.wdl.fallback_version.into())
+        .modules_config(config.modules.clone())
+        .feature_flags(config.common.wdl.feature_flags)
         .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
