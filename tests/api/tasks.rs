@@ -33,6 +33,7 @@ async fn create_test_server(pool: sqlx::SqlitePool) -> (axum::Router, Arc<dyn Da
         ..Default::default()
     };
     server_config.validate().unwrap();
+    let output_dir = server_config.output_dir.display().to_string();
 
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
     let db: Arc<dyn Database> = Arc::new(db);
@@ -57,6 +58,7 @@ async fn create_test_server(pool: sqlx::SqlitePool) -> (axum::Router, Arc<dyn Da
     let state = AppState::builder()
         .run_manager_tx(run_manager_tx)
         .failure_mode(ServerFailureMode::Slow)
+        .output_dir(output_dir)
         .build();
     let router = create_router()
         .state(state)

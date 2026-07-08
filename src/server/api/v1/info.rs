@@ -43,6 +43,12 @@ impl From<wdl::engine::config::FailureMode> for ServerFailureMode {
 pub struct ServerInfoResponse {
     /// The cancellation failure mode the server is configured to use.
     pub failure_mode: ServerFailureMode,
+    /// The absolute path to the server's output directory, after shell
+    /// expansion.
+    ///
+    /// Clients join run-relative paths (from `Run.directory`) against this to
+    /// produce user-visible absolute paths.
+    pub output_dir: String,
 }
 
 /// Get static metadata about the running server.
@@ -57,6 +63,7 @@ pub struct ServerInfoResponse {
 pub async fn get_server_info(State(state): State<AppState>) -> Json<ServerInfoResponse> {
     Json(ServerInfoResponse {
         failure_mode: state.failure_mode,
+        output_dir: state.output_dir.clone(),
     })
 }
 
@@ -80,14 +87,22 @@ mod tests {
     fn serializes_with_lowercase_tag() {
         let json = serde_json::to_string(&ServerInfoResponse {
             failure_mode: ServerFailureMode::Slow,
+            output_dir: "/var/sprocket/runs".to_string(),
         })
         .unwrap();
-        assert_eq!(json, r#"{"failure_mode":"slow"}"#);
+        assert_eq!(
+            json,
+            r#"{"failure_mode":"slow","output_dir":"/var/sprocket/runs"}"#
+        );
 
         let json = serde_json::to_string(&ServerInfoResponse {
             failure_mode: ServerFailureMode::Fast,
+            output_dir: "/var/sprocket/runs".to_string(),
         })
         .unwrap();
-        assert_eq!(json, r#"{"failure_mode":"fast"}"#);
+        assert_eq!(
+            json,
+            r#"{"failure_mode":"fast","output_dir":"/var/sprocket/runs"}"#
+        );
     }
 }

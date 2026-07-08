@@ -6,11 +6,13 @@ use chrono::Utc;
 use clap::Parser;
 use colored::Color;
 use colored::Colorize as _;
+use tracing::debug;
 
 use crate::commands::CommandResult;
 use crate::commands::client::ServerConnectionArgs;
 use crate::commands::client::check_response;
 use crate::commands::client::fetch_run_tasks;
+use crate::commands::client::fetch_server_info;
 use crate::commands::client::fetch_task_counts;
 use crate::commands::client::resolve_run_id;
 use crate::config::Config;
@@ -204,6 +206,18 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
         None
     };
 
+    // Fetch static server metadata so we can surface the server's output
+    // directory alongside the run's relative directory. The fetch is
+    // best-effort: if `/info` is unavailable (e.g. older server) we skip the
+    // extra line rather than failing the overall command.
+    let server_info = match fetch_server_info(&base_url).await {
+        Ok(info) => Some(info),
+        Err(err) => {
+            debug!("failed to fetch server info while preparing inspect output: {err:#}");
+            None
+        }
+    };
+
     if args.json {
         let mut raw: serde_json::Value = resp
             .json()
@@ -218,6 +232,12 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
                 map.insert(
                     "tasks".to_string(),
                     serde_json::to_value(tasks).context("failed to serialize tasks")?,
+                );
+            }
+            if let Some(info) = &server_info {
+                map.insert(
+                    "output_dir".to_string(),
+                    serde_json::Value::String(info.output_dir.clone()),
                 );
             }
         }
@@ -288,6 +308,12 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
                 format!("available at `{}`", outputs_path.display())
             );
         }
+    }
+
+    // Surface the server's output-directory root so users can resolve the
+    // run-relative paths above to absolute filesystem locations.
+    if let Some(info) = &server_info {
+        field!("Output Dir:", format!("`{}`", info.output_dir));
     }
 
     if let Some(error) = &run.error {

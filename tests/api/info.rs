@@ -24,11 +24,12 @@ use tower_http::cors::CorsLayer;
 /// Create a test server whose `AppState` reports the given failure mode.
 ///
 /// The returned router is exercised by `oneshot` requests; the temp dir is
-/// retained for the duration of the test.
+/// retained for the duration of the test. The returned `output_dir` string
+/// matches what the `AppState` was configured with.
 async fn create_test_server(
     pool: sqlx::SqlitePool,
     failure_mode: ServerFailureMode,
-) -> (axum::Router, TempDir) {
+) -> (axum::Router, TempDir, String) {
     let temp = TempDir::new().unwrap();
 
     let mut server_config = ServerConfig {
@@ -36,6 +37,7 @@ async fn create_test_server(
         ..Default::default()
     };
     server_config.validate().unwrap();
+    let output_dir = server_config.output_dir.display().to_string();
 
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
     let db: Arc<dyn Database> = Arc::new(db);
@@ -60,13 +62,14 @@ async fn create_test_server(
     let state = AppState::builder()
         .run_manager_tx(run_manager_tx)
         .failure_mode(failure_mode)
+        .output_dir(output_dir.clone())
         .build();
     let router = create_router()
         .state(state)
         .cors_layer(CorsLayer::new())
         .call();
 
-    (router, temp)
+    (router, temp, output_dir)
 }
 
 /// Sends a `GET /api/v1/info` request and returns the response status and
@@ -96,18 +99,20 @@ async fn get_info(app: &axum::Router) -> (StatusCode, serde_json::Value) {
 
 #[sqlx::test]
 async fn info_returns_configured_slow_mode(pool: sqlx::SqlitePool) {
-    let (app, _temp) = create_test_server(pool, ServerFailureMode::Slow).await;
+    let (app, _temp, output_dir) = create_test_server(pool, ServerFailureMode::Slow).await;
 
     let (status, body) = get_info(&app).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["failure_mode"], "slow");
+    assert_eq!(body["output_dir"], output_dir);
 }
 
 #[sqlx::test]
 async fn info_returns_configured_fast_mode(pool: sqlx::SqlitePool) {
-    let (app, _temp) = create_test_server(pool, ServerFailureMode::Fast).await;
+    let (app, _temp, output_dir) = create_test_server(pool, ServerFailureMode::Fast).await;
 
     let (status, body) = get_info(&app).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["failure_mode"], "fast");
+    assert_eq!(body["output_dir"], output_dir);
 }

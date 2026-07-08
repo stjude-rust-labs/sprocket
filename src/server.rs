@@ -72,11 +72,13 @@ async fn create_server_app(config: Config) -> anyhow::Result<Router> {
 
     let db = open_database(&db_path).await?;
     let failure_mode = ServerFailureMode::from(config.server.engine.failure_mode);
+    let output_dir = config.server.output_dir.display().to_string();
     let (_, run_manager_tx) = RunManagerSvc::spawn(DEFAULT_CHANNEL_BUFFER_SIZE, config.clone(), db);
 
     let state = AppState::builder()
         .run_manager_tx(run_manager_tx)
         .failure_mode(failure_mode)
+        .output_dir(output_dir)
         .build();
 
     let mut cors_layer = CorsLayer::new();
