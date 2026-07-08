@@ -1,0 +1,9 @@
+error: wildcard import introduces `Status` which conflicts with an existing definition
+  ┌─ tests/analysis/wildcard-import-enum-conflict/source.wdl:7:15
+  │
+3 │ enum Status {
+  │      ------ previous definition
+  ·
+7 │ import * from "lib.wdl"
+  │               ^^^^^^^^^ imported here
+
