@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::Context;
 use clap::Parser;
+use wdl::diagnostics::Mode;
 
 use crate::Config;
 use crate::commands::CommandResult;
@@ -38,6 +39,10 @@ pub struct Args {
     /// Allowed CORS origins.
     #[arg(long)]
     pub allowed_origins: Vec<String>,
+
+    /// The report mode for any emitted diagnostics.
+    #[arg(short = 'm', long, value_name = "MODE", global = true)]
+    pub report_mode: Option<Mode>,
 }
 
 impl Args {
@@ -72,7 +77,8 @@ impl Args {
 }
 
 /// The main function for the `server` subcommand.
-pub async fn server(args: Args, mut config: Config) -> CommandResult<()> {
+pub async fn server(args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
+    let report_mode = args.report_mode.unwrap_or_default();
     args.apply(&mut config);
     config
         .validate()
@@ -86,5 +92,7 @@ pub async fn server(args: Args, mut config: Config) -> CommandResult<()> {
         .into());
     }
 
-    crate::server::run(config).await.map_err(Into::into)
+    crate::server::run(config, report_mode, colorize)
+        .await
+        .map_err(Into::into)
 }

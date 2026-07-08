@@ -38,6 +38,7 @@ use crate::system::v1::fs::OutputDirectory;
 pub(crate) mod commands;
 
 pub use commands::*;
+use wdl::diagnostics::Mode;
 
 /// Channel capacity for events.
 ///
@@ -85,11 +86,21 @@ pub struct RunManagerSvc {
     /// A [`tokio::sync::Mutex`] is used because the [`run()`][Self::run] future
     /// must be `Send`.
     runs: Arc<Mutex<HashMap<Uuid, CancellationContext>>>,
+    /// The diagnostic reporting mode.
+    report_mode: Mode,
+    /// Whether to colorize diagnostics.
+    colorize: bool,
 }
 
 impl RunManagerSvc {
     /// Create a new run manager.
-    pub fn new(config: Config, db: Arc<dyn Database>, rx: Rx) -> Self {
+    pub fn new(
+        config: Config,
+        report_mode: Mode,
+        colorize: bool,
+        db: Arc<dyn Database>,
+        rx: Rx,
+    ) -> Self {
         let fallback_version = config.common.wdl.fallback_version;
         let feature_flags = config.common.wdl.feature_flags;
         let modules_config = config.modules.clone();
@@ -112,6 +123,8 @@ impl RunManagerSvc {
             rx,
             semaphore,
             runs: Default::default(),
+            report_mode,
+            colorize,
         }
     }
 
@@ -257,10 +270,12 @@ impl RunManagerSvc {
     pub fn spawn(
         channel_buffer_size: usize,
         config: Config,
+        report_mode: Mode,
+        colorize: bool,
         db: Arc<dyn Database>,
     ) -> (JoinHandle<()>, mpsc::Sender<RunManagerCmd>) {
         let (tx, rx) = mpsc::channel(channel_buffer_size);
-        let manager = Self::new(config, db, rx);
+        let manager = Self::new(config, report_mode, colorize, db, rx);
         let handle = tokio::spawn(manager.run());
         (handle, tx)
     }
@@ -311,6 +326,8 @@ impl RunManagerSvc {
             .maybe_target(target)
             .inputs(inputs)
             .maybe_index_on(index_on)
+            .report_mode(self.report_mode)
+            .colorize(self.colorize)
             .build();
 
         let semaphore = self.semaphore.clone();

@@ -51,9 +51,6 @@ pub struct Namespace {
     document: Document,
     /// Whether or not the namespace is used (i.e. referenced) in the document.
     pub(crate) used: bool,
-    /// Whether or not the namespace is excepted from the "unused import"
-    /// diagnostic.
-    excepted: bool,
 }
 
 impl Namespace {

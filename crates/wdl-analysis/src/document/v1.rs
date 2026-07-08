@@ -227,7 +227,7 @@ pub(crate) fn populate_document(
                         add_selected_import(document, graph, &import, index);
                     }
                 }
-            },
+            }
             DocumentItem::Struct(s) => {
                 add_struct(document, &s);
             }
@@ -312,7 +312,7 @@ fn add_namespace(
                 .or_else(|| document.failed_imports.get(&ns).copied());
             match existing {
                 Some(prev_span) => {
-                    document.analysis_diagnostics.push(namespace_conflict(
+                    document.analysis_diagnostics.add(namespace_conflict(
                         &ns,
                         span,
                         prev_span,
@@ -534,7 +534,7 @@ fn add_wildcard_import(
     let (uri, imported) = match resolve_import(graph, import, importer_index) {
         Ok(resolved) => resolved,
         Err(Some(diagnostic)) => {
-            document.analysis_diagnostics.push(diagnostic);
+            document.analysis_diagnostics.add(diagnostic);
             return;
         }
         Err(None) => return,
@@ -549,7 +549,7 @@ fn add_wildcard_import(
             let b = StructDefinition::cast(SyntaxNode::new_root(imported_struct.node.clone()))
                 .expect("node should cast");
             if !are_structs_equal(&a, &b) {
-                document.analysis_diagnostics.push(wildcard_import_conflict(
+                document.analysis_diagnostics.add(wildcard_import_conflict(
                     name,
                     span,
                     local_struct.name_span,
@@ -576,7 +576,7 @@ fn add_wildcard_import(
             let a = local_enum.definition();
             let b = imported_enum.definition();
             if !are_enums_equal(&a, &b) {
-                document.analysis_diagnostics.push(wildcard_import_conflict(
+                document.analysis_diagnostics.add(wildcard_import_conflict(
                     name,
                     span,
                     local_enum.name_span,
@@ -673,7 +673,7 @@ fn add_selected_import(
     let (uri, imported) = match resolve_import(graph, import, importer_index) {
         Ok(resolved) => resolved,
         Err(Some(diagnostic)) => {
-            document.analysis_diagnostics.push(diagnostic);
+            document.analysis_diagnostics.add(diagnostic);
             return;
         }
         Err(None) => return,
@@ -731,12 +731,10 @@ fn add_selected_import(
         }
 
         document.failed_selected_imports.insert(local_name);
-        document
-            .analysis_diagnostics
-            .push(selected_member_not_found(
-                member_name.text(),
-                member_name.span(),
-            ));
+        document.analysis_diagnostics.add(selected_member_not_found(
+            member_name.text(),
+            member_name.span(),
+        ));
     }
 }
 
@@ -759,7 +757,7 @@ fn import_selected_struct(
         let b =
             StructDefinition::cast(SyntaxNode::new_root(s.node.clone())).expect("node should cast");
         if !are_structs_equal(&a, &b) {
-            document.analysis_diagnostics.push(selected_import_conflict(
+            document.analysis_diagnostics.add(selected_import_conflict(
                 local_name,
                 member_span,
                 prev.name_span,
@@ -798,7 +796,7 @@ fn import_selected_enum(
         let a = prev.definition();
         let b = e.definition();
         if !are_enums_equal(&a, &b) {
-            document.analysis_diagnostics.push(selected_import_conflict(
+            document.analysis_diagnostics.add(selected_import_conflict(
                 local_name,
                 member_span,
                 prev.name_span,
@@ -923,7 +921,7 @@ fn insert_imported_task(
     if let Some(prev_span) = callable_conflict_span(document, local_name) {
         document
             .analysis_diagnostics
-            .push(conflict(local_name, conflict_span, prev_span));
+            .add(conflict(local_name, conflict_span, prev_span));
         return;
     }
 
@@ -947,7 +945,7 @@ fn insert_imported_workflow(
     if let Some(prev_span) = callable_conflict_span(document, local_name) {
         document
             .analysis_diagnostics
-            .push(conflict(local_name, conflict_span, prev_span));
+            .add(conflict(local_name, conflict_span, prev_span));
         return;
     }
 
@@ -1246,7 +1244,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
         return;
     }
     if let Some(prev_span) = callable_conflict_span(document, name.text()) {
-        document.analysis_diagnostics.push(selected_import_conflict(
+        document.analysis_diagnostics.add(selected_import_conflict(
             name.text(),
             prev_span,
             name.span(),
@@ -1569,7 +1567,7 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
         return false;
     }
     if let Some(prev_span) = callable_conflict_span(document, name.text()) {
-        document.analysis_diagnostics.push(selected_import_conflict(
+        document.analysis_diagnostics.add(selected_import_conflict(
             name.text(),
             prev_span,
             name.span(),
@@ -2183,7 +2181,7 @@ fn resolve_call_type(
                         imported.outputs.clone(),
                     )
                 } else {
-                    document.analysis_diagnostics.push(unknown_task_or_workflow(
+                    document.analysis_diagnostics.add(unknown_task_or_workflow(
                         None,
                         name.text(),
                         name.span(),
