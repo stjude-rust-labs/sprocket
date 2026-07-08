@@ -118,19 +118,23 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
     // resulting `Document` is also used to drive path resolution on
     // override `File`/`Directory` values.
     let document = if !args.no_validate {
-        let document = analyze_source(&source, config.common.wdl.fallback_version.into())
-            .await
-            .map_err(|e| {
-                // Wrap with a hint to use --no-validate if the file is unreachable.
-                match e {
-                    CommandError::Single(inner) => CommandError::Single(inner.context(format!(
-                        "cannot re-analyze source `{source}`; use --no-validate to skip local \
-                         analysis",
-                        source = original.source
-                    ))),
-                    other => other,
-                }
-            })?;
+        let document = analyze_source(
+            &source,
+            config.common.wdl.fallback_version.into(),
+            config.modules.clone(),
+            config.common.wdl.feature_flags,
+        )
+        .await
+        .map_err(|e| {
+            // Wrap with a hint to use --no-validate if the file is unreachable.
+            match e {
+                CommandError::Single(inner) => CommandError::Single(inner.context(format!(
+                    "cannot re-analyze source `{source}`; use --no-validate to skip local analysis",
+                    source = original.source
+                ))),
+                other => other,
+            }
+        })?;
 
         // Collect any error diagnostics; drop the borrow before yielding the
         // document.
@@ -353,7 +357,14 @@ mod tests {
         let path = dir.path().join("source.wdl");
         std::fs::write(&path, wdl).unwrap();
         let source: Source = path.to_str().unwrap().parse().unwrap();
-        let document = analyze_source(&source, None).await.unwrap();
+        let document = analyze_source(
+            &source,
+            None,
+            wdl_modules::resolver::ModulesConfig::default(),
+            wdl::analysis::FeatureFlags::default(),
+        )
+        .await
+        .unwrap();
         (document, dir)
     }
 
