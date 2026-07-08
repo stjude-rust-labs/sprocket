@@ -15,6 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `Analyzer::new` and `Analyzer::new_with_validator` now take a `ResolutionContext` (a resolver plus an optional manifest path) in place of separate arguments; pass `ResolutionContext::default()` to preserve the previous non-resolving behavior ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
 
+#### Fixed
+
+* `runtime` section key type checking (e.g. for `cpu`, `gpu`, `disks`,
+  `maxRetries`, and `returnCodes`) is now version-aware: these keys are no
+  longer type checked in WDL 1.0 documents, since they were not formally
+  typed until WDL 1.1 ([#811](https://github.com/stjude-rust-labs/sprocket/issues/811)).
+
 ## 0.22.0 - 2026-06-26
 
 #### Changed

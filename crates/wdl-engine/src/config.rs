@@ -991,6 +991,18 @@ pub enum ContentDigestMode {
     ///
     /// This setting guarantees that a modified file will be detected.
     Strong,
+    /// Use a "strongish" digest for file content.
+    ///
+    /// A strongish digest is based off of the file's size, last modified
+    /// time, and a hash of only the first 10 MiB of the file's contents;
+    /// this is similar to Cromwell's `fingerprint` call caching strategy.
+    ///
+    /// This setting cannot guarantee the detection of modified files (e.g. a
+    /// modification beyond the first 10 MiB of a file without a change to
+    /// its size or last modified time will not be detected), but it is
+    /// faster than using a strong digest for large files while still taking
+    /// file content into account.
+    Strongish,
     /// Use a weak digest for file content.
     ///
     /// A weak digest is based solely off of file metadata, such as size and

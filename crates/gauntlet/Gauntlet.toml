@@ -3078,11 +3078,6 @@ message = "TrioAnalysis.wdl:80:14: warning[UnusedInput]: unused input `ref_index
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/BenchmarkVCFs/TrioAnalysis.wdl/#L80"
 
 [[diagnostics]]
-document = "broadinstitute/palantir-workflows:/Fingerprints/GetFingerprintMetrics.wdl"
-message = "GetFingerprintMetrics.wdl:45:11: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Fingerprints/GetFingerprintMetrics.wdl/#L45"
-
-[[diagnostics]]
 document = "broadinstitute/palantir-workflows:/FunctionalEquivalence/FunctionalEquivalence.wdl"
 message = "FunctionalEquivalence.wdl:125:64: error: type mismatch: a type common to both type `String` and type `Int` does not exist"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/FunctionalEquivalence/FunctionalEquivalence.wdl/#L125"
@@ -3194,11 +3189,6 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/GlimpseImputationPipeline/Glimpse2MergeBatches.wdl"
-message = "Glimpse2MergeBatches.wdl:164:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/GlimpseImputationPipeline/Glimpse2MergeBatches.wdl/#L164"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/GlimpseImputationPipeline/Glimpse2MergeBatches.wdl"
 message = "Glimpse2MergeBatches.wdl:181:14: warning[UnusedInput]: unused input `vcf_index`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/GlimpseImputationPipeline/Glimpse2MergeBatches.wdl/#L181"
 
@@ -3251,11 +3241,6 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 document = "broadinstitute/palantir-workflows:/HaplotypeMap/BuildHaplotypeMap.wdl"
 message = "BuildHaplotypeMap.wdl:17:1: error: a WDL document must start with a version statement"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/HaplotypeMap/BuildHaplotypeMap.wdl/#L17"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/JointCalling/CreateSampleMap.wdl"
-message = "CreateSampleMap.wdl:57:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/JointCalling/CreateSampleMap.wdl/#L57"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/LongReadRNABenchmark/Bambu.wdl"
@@ -3579,18 +3564,8 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/DownsampleAndCollectCoverage.wdl"
-message = "DownsampleAndCollectCoverage.wdl:196:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Utilities/WDLs/DownsampleAndCollectCoverage.wdl/#L196"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/Utilities/WDLs/DownsampleAndCollectCoverage.wdl"
 message = "DownsampleAndCollectCoverage.wdl:88:14: warning[UnusedInput]: unused input `input_cram_index`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Utilities/WDLs/DownsampleAndCollectCoverage.wdl/#L88"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/Utilities/WDLs/IndexCramOrBam.wdl"
-message = "IndexCramOrBam.wdl:36:8: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Utilities/WDLs/IndexCramOrBam.wdl/#L36"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/MatchFingerprints.wdl"
@@ -3601,11 +3576,6 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/MatchFingerprints.wdl"
 message = "MatchFingerprints.wdl:88:17: warning[UnusedInput]: unused input `fail_on_mismatch`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Utilities/WDLs/MatchFingerprints.wdl/#L88"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/Utilities/WDLs/MergeSingleSampleMinimacVcfs.wdl"
-message = "MergeSingleSampleMinimacVcfs.wdl:183:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Utilities/WDLs/MergeSingleSampleMinimacVcfs.wdl/#L183"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/MergeSingleSampleMinimacVcfs.wdl"
@@ -3849,23 +3819,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/PCA/pca_only_no_labels.wdl"
-message = "pca_only_no_labels.wdl:158:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/PCA/pca_only_no_labels.wdl/#L158"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/PCA/pca_only_no_labels.wdl"
-message = "pca_only_no_labels.wdl:247:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/PCA/pca_only_no_labels.wdl/#L247"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/PCA/pca_only_no_labels.wdl"
 message = "pca_only_no_labels.wdl:51:21: warning[UnusedInput]: unused input `vcf_indices`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/PCA/pca_only_no_labels.wdl/#L51"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/PCA/pca_only_no_labels.wdl"
-message = "pca_only_no_labels.wdl:78:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/PCA/pca_only_no_labels.wdl/#L78"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/PCA/pca_only_no_labels.wdl"
@@ -3894,16 +3849,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
-message = "determine_hq_sites_intersection.wdl:181:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/determine_hq_sites_intersection.wdl/#L181"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
-message = "determine_hq_sites_intersection.wdl:247:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/determine_hq_sites_intersection.wdl/#L247"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
 message = "determine_hq_sites_intersection.wdl:264:14: warning[UnusedInput]: unused input `sites_only_vcf_idx`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/determine_hq_sites_intersection.wdl/#L264"
 
@@ -3919,11 +3864,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
-message = "determine_hq_sites_intersection.wdl:306:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/determine_hq_sites_intersection.wdl/#L306"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
 message = "determine_hq_sites_intersection.wdl:314:14: warning[UnusedInput]: unused input `vcf1_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/determine_hq_sites_intersection.wdl/#L314"
 
@@ -3931,11 +3871,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
 message = "determine_hq_sites_intersection.wdl:316:14: warning[UnusedInput]: unused input `vcf2_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/determine_hq_sites_intersection.wdl/#L316"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
-message = "determine_hq_sites_intersection.wdl:343:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/determine_hq_sites_intersection.wdl/#L343"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
@@ -3964,11 +3899,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/run_ancestry.wdl"
-message = "run_ancestry.wdl:164:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_ancestry.wdl/#L164"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_ancestry.wdl"
 message = "run_ancestry.wdl:172:14: warning[UnusedInput]: unused input `input_vcf_idx`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_ancestry.wdl/#L172"
 
@@ -3976,16 +3906,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/all_of_us/ancestry/run_ancestry.wdl"
 message = "run_ancestry.wdl:174:14: warning[UnusedInput]: unused input `training_vcf_idx`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_ancestry.wdl/#L174"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_ancestry.wdl"
-message = "run_ancestry.wdl:283:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_ancestry.wdl/#L283"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_ancestry.wdl"
-message = "run_ancestry.wdl:380:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_ancestry.wdl/#L380"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/run_ancestry.wdl"
@@ -4009,33 +3929,13 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc.wdl"
-message = "run_sample_outlier_qc.wdl:103:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc.wdl/#L103"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc.wdl"
 message = "run_sample_outlier_qc.wdl:18:12: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc.wdl/#L18"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc.wdl"
-message = "run_sample_outlier_qc.wdl:190:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc.wdl/#L190"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl"
-message = "run_sample_outlier_qc_plotting.wdl:103:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl/#L103"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl"
 message = "run_sample_outlier_qc_plotting.wdl:111:14: warning[UnusedInput]: unused input `aou_demographics_tsv`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl/#L111"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl"
-message = "run_sample_outlier_qc_plotting.wdl:147:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl/#L147"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl"
@@ -4046,11 +3946,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl"
 message = "run_sample_outlier_qc_plotting.wdl:155:14: warning[UnusedInput]: unused input `aou_demographics_tsv`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl/#L155"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl"
-message = "run_sample_outlier_qc_plotting.wdl:249:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl/#L249"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/vds_to_vcf.wdl"
@@ -4239,23 +4134,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
-message = "mt_coverage_merge.wdl:121:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/mitochondria/mt_coverage_merge.wdl/#L121"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
 message = "mt_coverage_merge.wdl:17:12: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/mitochondria/mt_coverage_merge.wdl/#L17"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
-message = "mt_coverage_merge.wdl:220:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/mitochondria/mt_coverage_merge.wdl/#L220"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
-message = "mt_coverage_merge.wdl:270:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/mitochondria/mt_coverage_merge.wdl/#L270"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
@@ -4266,16 +4146,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
 message = "mt_coverage_merge.wdl:282:16: warning[UnusedInput]: unused input `output_bucket`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/mitochondria/mt_coverage_merge.wdl/#L282"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
-message = "mt_coverage_merge.wdl:333:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/mitochondria/mt_coverage_merge.wdl/#L333"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
-message = "mt_coverage_merge.wdl:391:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/mitochondria/mt_coverage_merge.wdl/#L391"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/mitochondria/subworkflows_and_tasks/AlignAndCallR1_v2_5_Single.wdl"
@@ -4624,11 +4494,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/pgx/CyriusStarAlleleCalling.wdl"
-message = "CyriusStarAlleleCalling.wdl:80:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/pgx/CyriusStarAlleleCalling.wdl/#L80"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/pgx/CyriusStarAlleleCalling.wdl"
 message = "CyriusStarAlleleCalling.wdl:92:14: warning[UnusedInput]: unused input `input_cram_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/pgx/CyriusStarAlleleCalling.wdl/#L92"
 
@@ -4641,11 +4506,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/all_of_us/pgx/StargazerFromJointVCF.wdl"
 message = "StargazerFromJointVCF.wdl:106:14: warning[UnusedInput]: unused input `inputVCFindex`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/pgx/StargazerFromJointVCF.wdl/#L106"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/pgx/StargazerFromJointVCF.wdl"
-message = "StargazerFromJointVCF.wdl:124:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/pgx/StargazerFromJointVCF.wdl/#L124"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/pgx/StargazerFromJointVCF.wdl"
@@ -4684,23 +4544,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/AggregateSusieWorkflow.wdl"
-message = "AggregateSusieWorkflow.wdl:32:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/AggregateSusieWorkflow.wdl/#L32"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/AggregateSusieWorkflow.wdl"
 message = "AggregateSusieWorkflow.wdl:56:14: warning[UnusedInput]: unused input `AnnotationVEPIndex`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/AggregateSusieWorkflow.wdl/#L56"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/AggregateSusieWorkflow.wdl"
-message = "AggregateSusieWorkflow.wdl:78:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/AggregateSusieWorkflow.wdl/#L78"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/CalculatePhenotypeGroups.wdl"
-message = "CalculatePhenotypeGroups.wdl:28:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/CalculatePhenotypeGroups.wdl/#L28"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/CalculatePhenotypeGroups.wdl"
@@ -4711,11 +4556,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/all_of_us/rna_seq/CalculatePhenotypeGroups.wdl"
 message = "CalculatePhenotypeGroups.wdl:46:12: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/CalculatePhenotypeGroups.wdl/#L46"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/aggregate_rsem_results.wdl"
-message = "aggregate_rsem_results.wdl:54:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/aggregate_rsem_results.wdl/#L54"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/aggregate_rsem_results.wdl"
@@ -4758,16 +4598,6 @@ message = "aggregate_rsem_results.wdl:65:10: warning[UnusedCall]: unused call `r
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/aggregate_rsem_results.wdl/#L65"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/leafcutter_bam_to_junc.wdl"
-message = "leafcutter_bam_to_junc.wdl:30:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/leafcutter_bam_to_junc.wdl/#L30"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/leafcutter_cluster.wdl"
-message = "leafcutter_cluster.wdl:65:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/leafcutter_cluster.wdl/#L65"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/markduplicates.wdl"
 message = "markduplicates.wdl:1:1: error: a WDL document must start with a version statement"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/markduplicates.wdl/#L1"
@@ -4804,11 +4634,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/susieR_workflow.wdl"
-message = "susieR_workflow.wdl:123:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/susieR_workflow.wdl/#L123"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/susieR_workflow.wdl"
 message = "susieR_workflow.wdl:180:16: warning[UnusedInput]: unused input `OutputPrefix`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/susieR_workflow.wdl/#L180"
 
@@ -4821,11 +4646,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/all_of_us/rna_seq/susieR_workflow.wdl"
 message = "susieR_workflow.wdl:31:14: warning[UnusedInput]: unused input `GenotypeDosageIndex`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/susieR_workflow.wdl/#L31"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/susieR_workflow.wdl"
-message = "susieR_workflow.wdl:76:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/susieR_workflow.wdl/#L76"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/susieR_workflow.wdl"
@@ -5789,28 +5609,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/wdl/build_indices/BuildIndices.wdl"
-message = "BuildIndices.wdl:256:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/pipelines/wdl/build_indices/BuildIndices.wdl/#L256"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/wdl/build_indices/BuildIndices.wdl"
-message = "BuildIndices.wdl:426:9: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/pipelines/wdl/build_indices/BuildIndices.wdl/#L426"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/wdl/build_indices/BuildIndices.wdl"
 message = "BuildIndices.wdl:436:12: warning[UnusedInput]: unused input `gtf_annotation_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/pipelines/wdl/build_indices/BuildIndices.wdl/#L436"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/wdl/build_indices/BuildIndices.wdl"
-message = "BuildIndices.wdl:490:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/pipelines/wdl/build_indices/BuildIndices.wdl/#L490"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/wdl/build_indices/BuildIndices.wdl"
-message = "BuildIndices.wdl:579:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/pipelines/wdl/build_indices/BuildIndices.wdl/#L579"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/wdl/dna_seq/germline/joint_genotyping/JointGenotyping.wdl"
@@ -6198,11 +5998,6 @@ message = "AggregatedBamQC.wdl:60:7: warning[UnnecessaryFunctionCall]: unnecessa
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/AggregatedBamQC.wdl/#L60"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/Alignment.wdl"
-message = "Alignment.wdl:119:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/Alignment.wdl/#L119"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/BamProcessing.wdl"
 message = "BamProcessing.wdl:127:10: warning[UnusedInput]: unused input `input_bam_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/BamProcessing.wdl/#L127"
@@ -6233,11 +6028,6 @@ message = "BamProcessing.wdl:416:10: warning[UnusedInput]: unused input `ref_fas
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/BamProcessing.wdl/#L416"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/BamProcessing.wdl"
-message = "BamProcessing.wdl:53:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/BamProcessing.wdl/#L53"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/CheckContaminationSomatic.wdl"
 message = "CheckContaminationSomatic.wdl:10:14: warning[UnusedInput]: unused input `tumor_crai_or_bai`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/CheckContaminationSomatic.wdl/#L10"
@@ -6261,11 +6051,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/tasks/wdl/CheckContaminationSomatic.wdl"
 message = "CheckContaminationSomatic.wdl:8:14: warning[UnusedInput]: unused input `reference_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/CheckContaminationSomatic.wdl/#L8"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/CopyFilesFromCloudToCloud.wdl"
-message = "CopyFilesFromCloudToCloud.wdl:71:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/CopyFilesFromCloudToCloud.wdl/#L71"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/CreateCountMatrix.wdl"
@@ -6321,11 +6106,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:148:32: error: expected string, but found integer"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/GermlineVariantDiscovery.wdl/#L148"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
-message = "GermlineVariantDiscovery.wdl:165:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/GermlineVariantDiscovery.wdl/#L165"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
@@ -6389,11 +6169,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
-message = "GermlineVariantDiscovery.wdl:381:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/GermlineVariantDiscovery.wdl/#L381"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:391:10: warning[UnusedInput]: unused input `input_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/GermlineVariantDiscovery.wdl/#L391"
 
@@ -6419,18 +6194,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
-message = "GermlineVariantDiscovery.wdl:437:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/GermlineVariantDiscovery.wdl/#L437"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:67:32: error: expected string, but found integer"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/GermlineVariantDiscovery.wdl/#L67"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
-message = "GermlineVariantDiscovery.wdl:74:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/GermlineVariantDiscovery.wdl/#L74"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
@@ -6521,11 +6286,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/tasks/wdl/IlluminaGenotypingArrayTasks.wdl"
 message = "IlluminaGenotypingArrayTasks.wdl:514:10: warning[UnusedInput]: unused input `input_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/IlluminaGenotypingArrayTasks.wdl/#L514"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/IlluminaGenotypingArrayTasks.wdl"
-message = "IlluminaGenotypingArrayTasks.wdl:541:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/IlluminaGenotypingArrayTasks.wdl/#L541"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/IlluminaGenotypingArrayTasks.wdl"
@@ -6739,11 +6499,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
-message = "JointGenotypingTasks.wdl:304:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L304"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
 message = "JointGenotypingTasks.wdl:329:10: warning[UnusedInput]: unused input `sites_only_variant_filtered_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L329"
 
@@ -6761,11 +6516,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
 message = "JointGenotypingTasks.wdl:336:10: warning[UnusedInput]: unused input `dbsnp_resource_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L336"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
-message = "JointGenotypingTasks.wdl:366:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L366"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
@@ -6791,11 +6541,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
 message = "JointGenotypingTasks.wdl:401:10: warning[UnusedInput]: unused input `dbsnp_resource_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L401"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
-message = "JointGenotypingTasks.wdl:434:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L434"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
@@ -6839,11 +6584,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
-message = "JointGenotypingTasks.wdl:581:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L581"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
 message = "JointGenotypingTasks.wdl:598:10: warning[UnusedInput]: unused input `input_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L598"
 
@@ -6859,16 +6599,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
-message = "JointGenotypingTasks.wdl:641:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L641"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
-message = "JointGenotypingTasks.wdl:688:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L688"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
 message = "JointGenotypingTasks.wdl:754:10: warning[UnusedInput]: unused input `input_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L754"
 
@@ -6876,11 +6606,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
 message = "JointGenotypingTasks.wdl:757:10: warning[UnusedInput]: unused input `dbsnp_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L757"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
-message = "JointGenotypingTasks.wdl:859:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L859"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
@@ -7068,16 +6793,6 @@ message = "StarAlign.wdl:550:12: warning[UnusedInput]: unused input `gex_nhash_i
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/StarAlign.wdl/#L550"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/StarAlign.wdl"
-message = "StarAlign.wdl:880:9: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/StarAlign.wdl/#L880"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/TerraCopyFilesFromCloudToCloud.wdl"
-message = "TerraCopyFilesFromCloudToCloud.wdl:44:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/TerraCopyFilesFromCloudToCloud.wdl/#L44"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/UltimaGenomicsGermlineFilteringThreshold.wdl"
 message = "UltimaGenomicsGermlineFilteringThreshold.wdl:121:14: warning[UnusedInput]: unused input `input_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/UltimaGenomicsGermlineFilteringThreshold.wdl/#L121"
@@ -7244,28 +6959,13 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/Utilities.wdl"
-message = "Utilities.wdl:152:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/Utilities.wdl/#L152"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/Utilities.wdl"
 message = "Utilities.wdl:167:10: warning[UnusedInput]: unused input `ref_fasta_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/Utilities.wdl/#L167"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/Utilities.wdl"
-message = "Utilities.wdl:183:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/Utilities.wdl/#L183"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/accessory_workflows/build_bwa_reference/bwa-mk-index.wdl"
 message = "bwa-mk-index.wdl:24:16: warning[UnusedInput]: unused input `ref_name`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/accessory_workflows/build_bwa_reference/bwa-mk-index.wdl/#L24"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/accessory_workflows/build_bwa_reference/bwa-mk-index.wdl"
-message = "bwa-mk-index.wdl:48:8: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/accessory_workflows/build_bwa_reference/bwa-mk-index.wdl/#L48"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/sample_fastq.14.wdl"
@@ -8293,11 +7993,6 @@ message = "picard.wdl:898:21: warning[UnusedInput]: unused input `vcfs_indexes`"
 permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/picard.wdl/#L898"
 
 [[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/alignment/task_bwa.wdl"
-message = "task_bwa.wdl:196:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/alignment/task_bwa.wdl/#L196"
-
-[[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/assembly/task_ivar_consensus.wdl"
 message = "task_ivar_consensus.wdl:12:18: error: type mismatch: expected type `Int`, but found type `String`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/assembly/task_ivar_consensus.wdl/#L12"
@@ -8313,29 +8008,9 @@ message = "task_ivar_consensus.wdl:9:21: error: type mismatch: expected type `In
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/assembly/task_ivar_consensus.wdl/#L9"
 
 [[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/assembly/task_megahit.wdl"
-message = "task_megahit.wdl:69:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/assembly/task_megahit.wdl/#L69"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/assembly/task_metaspades.wdl"
-message = "task_metaspades.wdl:39:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/assembly/task_metaspades.wdl/#L39"
-
-[[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/assembly/task_semibin.wdl"
 message = "task_semibin.wdl:6:10: warning[UnusedInput]: unused input `sorted_bai`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/assembly/task_semibin.wdl/#L6"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/assembly/task_skesa.wdl"
-message = "task_skesa.wdl:51:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/assembly/task_skesa.wdl/#L51"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/assembly/task_spades.wdl"
-message = "task_spades.wdl:81:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/assembly/task_spades.wdl/#L81"
 
 [[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/gene_typing/drug_resistance/task_resfinder.wdl"
@@ -8353,24 +8028,9 @@ message = "task_ivar_variant_call.wdl:88:23: error: type mismatch: expected type
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/gene_typing/variant_detection/task_ivar_variant_call.wdl/#L88"
 
 [[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/gene_typing/variant_detection/task_snippy_gene_query.wdl"
-message = "task_snippy_gene_query.wdl:69:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/gene_typing/variant_detection/task_snippy_gene_query.wdl/#L69"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/gene_typing/variant_detection/task_snippy_variants.wdl"
-message = "task_snippy_variants.wdl:158:12: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/gene_typing/variant_detection/task_snippy_variants.wdl/#L158"
-
-[[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/quality_control/advanced_metrics/task_checkv.wdl"
 message = "task_checkv.wdl:9:12: warning[UnusedInput]: unused input `samplename`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/quality_control/advanced_metrics/task_checkv.wdl/#L9"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/quality_control/advanced_metrics/task_gambittools.wdl"
-message = "task_gambittools.wdl:67:12: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/quality_control/advanced_metrics/task_gambittools.wdl/#L67"
 
 [[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/quality_control/basic_statistics/task_assembly_metrics.wdl"
@@ -8398,11 +8058,6 @@ message = "task_assembly_metrics.wdl:85:37: error: type mismatch: expected type 
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/quality_control/basic_statistics/task_assembly_metrics.wdl/#L85"
 
 [[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/quality_control/basic_statistics/task_cg_pipeline.wdl"
-message = "task_cg_pipeline.wdl:102:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/quality_control/basic_statistics/task_cg_pipeline.wdl/#L102"
-
-[[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/quality_control/basic_statistics/task_consensus_qc.wdl"
 message = "task_consensus_qc.wdl:46:20: error: type mismatch: expected type `Int`, but found type `String`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/quality_control/basic_statistics/task_consensus_qc.wdl/#L46"
@@ -8426,11 +8081,6 @@ permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3
 document = "theiagen/public_health_bioinformatics:/tasks/quality_control/basic_statistics/task_consensus_qc.wdl"
 message = "task_consensus_qc.wdl:50:40: error: type mismatch: expected type `Float`, but found type `String`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/quality_control/basic_statistics/task_consensus_qc.wdl/#L50"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/quality_control/basic_statistics/task_quast.wdl"
-message = "task_quast.wdl:64:12: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/quality_control/basic_statistics/task_quast.wdl/#L64"
 
 [[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/quality_control/basic_statistics/task_readlength.wdl"
@@ -8516,11 +8166,6 @@ permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3
 document = "theiagen/public_health_bioinformatics:/tasks/taxon_id/contamination/task_midas.wdl"
 message = "task_midas.wdl:77:44: error: type mismatch: expected type `Float`, but found type `String`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/taxon_id/contamination/task_midas.wdl/#L77"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/taxon_id/task_gambit.wdl"
-message = "task_gambit.wdl:164:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/taxon_id/task_gambit.wdl/#L164"
 
 [[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/utilities/data_handling/task_arln_stats.wdl"
