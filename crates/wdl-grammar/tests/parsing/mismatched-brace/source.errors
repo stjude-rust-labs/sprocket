@@ -1,10 +1,10 @@
-error: expected `{`, but found end of input
+error: expected `}`, but found end of input
   ┌─ tests/parsing/mismatched-brace/source.wdl:5:11
   │
 5 │ task test {
   │           ^ unclosed delimiter
 6 │     meta {
-  │          - this opening brace...
+  │          - this opening delimiter...
 7 │     }
-  │     - ...matches this closing brace
+  │     - ...matches this closing delimiter
 

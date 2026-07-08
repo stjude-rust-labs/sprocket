@@ -1,4 +1,4 @@
-error: expected `{`, but found end of input
+error: expected `}`, but found end of input
   ┌─ tests/parsing/unterminated-metadata-string/source.wdl:5:11
   │
 5 │ task test {

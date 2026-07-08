@@ -11,10 +11,10 @@ error: expected `}`, but found `output` keyword
    ┌─ tests/parsing/missing-brace/source.wdl:16:5
    │
  5 │ task foo {
-   │          - this opening brace...
+   │          - this opening delimiter...
    ·
 12 │ }
-   │ - ...matches this closing brace
+   │ - ...matches this closing delimiter
    ·
 15 │     input {
    │           - this `{` is not matched
@@ -35,7 +35,7 @@ error: expected `}`, but found `task` keyword
 19 │ task baz {
    │ ^^^^ unexpected `task` keyword
 
-error: expected `{`, but found end of input
+error: expected `}`, but found end of input
    ┌─ tests/parsing/missing-brace/source.wdl:19:10
    │
 19 │ task baz {

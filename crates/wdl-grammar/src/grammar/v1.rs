@@ -2209,6 +2209,7 @@ fn call_statement(
         // Given the optional `input:` that we need to parse after the open brace, we
         // unfortunately can't use `Parser::matching_delimited` here
         let open_span = parser.require(Token::OpenBrace);
+        parser.push_open_delimiter(open_span, Token::OpenBrace);
 
         if parser.next_if(Token::InputKeyword).is_some() {
             expected!(parser, marker, Token::Colon);
@@ -2223,6 +2224,7 @@ fn call_statement(
         );
 
         parser.consume_close_token(Token::OpenBrace, open_span, Token::CloseBrace);
+        parser.pop_open_delimiter();
     }
 
     marker.complete(parser, SyntaxKind::CallStatementNode);

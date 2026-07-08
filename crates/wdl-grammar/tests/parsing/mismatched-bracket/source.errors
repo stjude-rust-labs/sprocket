@@ -4,7 +4,7 @@ error: expected `]`, but found identifier
 7 │     Map[Boolean, Array[String] y
   │        -              -      - ^ unexpected identifier
   │        │              │      │  
-  │        │              │      ...matches this closing brace
-  │        │              this opening brace...
+  │        │              │      ...matches this closing delimiter
+  │        │              this opening delimiter...
   │        this `[` is not matched
 
