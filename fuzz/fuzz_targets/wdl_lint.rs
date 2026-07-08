@@ -14,6 +14,7 @@ use tokio::runtime::Runtime;
 use url::Url;
 use wdl::analysis::Analyzer;
 use wdl::analysis::Config;
+use wdl::analysis::ResolutionContext;
 use wdl::analysis::Validator;
 use wdl::ast::SupportedVersion;
 use wdl::lint::Linter;
