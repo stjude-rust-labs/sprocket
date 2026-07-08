@@ -3,6 +3,7 @@
 use std::path::Path;
 use std::path::PathBuf;
 
+use path_clean::PathClean;
 use thiserror::Error;
 use toml_spanner::Toml;
 use toml_spanner::helper::display;
@@ -132,9 +133,38 @@ impl TrustStore {
     ) -> Option<&VerifyingKey> {
         self.entries
             .iter()
-            .find(|e| e.dep == *dep && e.source == source_url && e.path.as_deref() == path)
+            .find(|e| {
+                e.dep == *dep && sources_match(&e.source, source_url) && e.path.as_deref() == path
+            })
             .map(|e| &e.key)
     }
+}
+
+/// Returns true when two source strings identify the same trust source.
+fn sources_match(expected: &str, observed: &str) -> bool {
+    if expected == observed {
+        return true;
+    }
+
+    matches!(
+        (local_path_source(expected), local_path_source(observed)),
+        (Some(expected), Some(observed)) if expected == observed
+    )
+}
+
+/// Normalizes a local path source for trust lookup.
+fn local_path_source(source: &str) -> Option<String> {
+    if source.contains("://") {
+        return None;
+    }
+
+    Some(
+        Path::new(source)
+            .clean()
+            .display()
+            .to_string()
+            .replace('\\', "/"),
+    )
 }
 
 #[cfg(test)]
@@ -273,6 +303,26 @@ mod tests {
                 .lookup(&dep, "/home/user/projects/other/utils", None)
                 .is_none(),
             "different local path should not match"
+        );
+    }
+
+    #[test]
+    fn lookup_normalizes_local_path_separators() {
+        let dep: DependencyName = "utils".parse().unwrap();
+        let store = TrustStore {
+            entries: vec![TrustEntry {
+                dep: dep.clone(),
+                source: "C:/Users/me/projects/shared/utils".to_string(),
+                path: None,
+                key: test_key(),
+            }],
+        };
+
+        assert!(
+            store
+                .lookup(&dep, r"C:\Users\me\projects\shared\utils", None)
+                .is_some(),
+            "local-path trust entry should match native separators"
         );
     }
 

@@ -34,9 +34,9 @@ pub mod hash;
 pub mod license;
 pub mod lockfile;
 pub mod manifest;
+pub mod module;
 pub mod module_walk;
 pub mod relative_path;
-#[cfg(feature = "resolver")]
 pub mod resolver;
 pub mod signing;
 mod strict_json;
@@ -46,7 +46,6 @@ pub mod version_requirement;
 
 pub use crate::lockfile::Lockfile;
 pub use crate::manifest::Manifest;
-#[cfg(feature = "resolver")]
 pub use crate::resolver::Resolver;
 
 /// The filename of a module manifest.

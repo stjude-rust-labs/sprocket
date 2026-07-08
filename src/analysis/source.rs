@@ -139,6 +139,46 @@ impl std::str::FromStr for Source {
     }
 }
 
+/// Resolves the module entrypoint from a directory's `module.json`.
+///
+/// When a command receives a directory as its source, this function looks for a
+/// `module.json` in that directory and returns a [`Source::File`] pointing to
+/// the declared entrypoint (or `index.wdl` by default).
+pub fn resolve_module_entrypoint(
+    dir: &Path,
+    feature_flags: wdl::analysis::FeatureFlags,
+) -> Result<Source> {
+    let manifest_path = dir.join(wdl_modules::MANIFEST_FILENAME);
+
+    anyhow::ensure!(
+        manifest_path.exists(),
+        "directory sources are not supported for this command; to run a WDL module, pass a \
+         directory containing a `module.json`"
+    );
+
+    if !feature_flags.wdl_1_4() {
+        bail!(
+            "a `module.json` was found in `{}`, but the WDL module system requires version 1.4; \
+             set `common.wdl.feature_flags.wdl_1_4 = true` in `sprocket.toml` to enable it",
+            dir.display()
+        );
+    }
+
+    let (_, manifest) = crate::analysis::discover_manifest(dir)?
+        .expect("manifest existence was already verified above");
+
+    let entrypoint = dir.join(manifest.entrypoint_filename());
+    anyhow::ensure!(
+        entrypoint.exists(),
+        "entrypoint `{}` specified in `module.json` does not exist",
+        manifest.entrypoint_filename().display()
+    );
+
+    let url = Url::from_file_path(&entrypoint)
+        .map_err(|_| anyhow!("failed to convert entrypoint path to a URL"))?;
+    Ok(Source::File(url))
+}
+
 impl Default for Source {
     fn default() -> Self {
         // Default to the current directory.

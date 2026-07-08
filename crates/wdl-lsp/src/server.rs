@@ -265,6 +265,9 @@ pub struct ServerOptions {
     /// Feature flags for enabling experimental features.
     pub feature_flags: FeatureFlags,
 
+    /// Context for resolving symbolic module imports.
+    pub resolution_context: wdl_analysis::ResolutionContext,
+
     /// Analysis or lint rule IDs to except (ignore).
     pub exceptions: Vec<String>,
 
@@ -293,6 +296,7 @@ impl Default for ServerOptions {
             exceptions: Vec::new(),
             ignore_filename: None,
             feature_flags: Default::default(),
+            resolution_context: Default::default(),
             baseline: None,
         }
     }
@@ -471,8 +475,9 @@ impl ServerOptions {
             .with_feature_flags(self.feature_flags);
 
         let wdl_lint_config = lint_options.config.clone();
-        Analyzer::<ProgressToken>::new_with_validator(
+        Analyzer::<ProgressToken>::new_with_validator_and_resolution(
             analyzer_config,
+            self.resolution_context.clone(),
             move |token, kind, current, total| {
                 let client = analyzer_client.clone();
                 async move {
