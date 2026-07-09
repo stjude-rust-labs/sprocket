@@ -88,6 +88,10 @@ pub fn validate(source: &str, config: &ServerConfig) -> ConfigResult<Source> {
             return Err(ConfigError::FilePathForbidden(canonical_path));
         }
 
+        if canonical_path.is_dir() {
+            return Ok(Source::Directory(canonical_path));
+        }
+
         // Convert the canonical path to a `file://` URL and return as Source
         let url = Url::from_file_path(&canonical_path)
             .expect("canonical path should convert to file URL");
@@ -150,6 +154,18 @@ mod tests {
         let result = validate(file_path.to_str().unwrap(), &config);
         assert!(result.is_ok());
         assert!(matches!(result.unwrap(), Source::File(_)));
+    }
+
+    #[test]
+    fn validate_directory_allowed() {
+        use tempfile::TempDir;
+
+        let temp_dir = TempDir::new().unwrap();
+        let config = make_config(vec![temp_dir.path().canonicalize().unwrap()], vec![]);
+
+        let result = validate(temp_dir.path().to_str().unwrap(), &config);
+        assert!(result.is_ok());
+        assert!(matches!(result.unwrap(), Source::Directory(_)));
     }
 
     #[test]

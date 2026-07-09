@@ -66,16 +66,12 @@
               !(base == "target" || base == "result" || lib.hasPrefix "result-" base || base == ".direnv");
           };
 
-          # We use `cargoHash` (→ `fetchCargoVendor`) rather than `cargoLock`
-          # (→ `importCargoLock`) because the latter pulls crates via
-          # `fetchurl`/curl, which crates.io now 403s for missing User-Agent
-          # headers. `fetchCargoVendor` runs Python+`requests` which sends a
-          # proper UA. As a bonus, it handles git-sourced crates (the
-          # thirtyfour fork) without per-crate hash entries.
-          #
-          # Replace fakeHash with the hash Nix prints on the first build.
-          # Any change to Cargo.lock will require updating this hash.
-          cargoHash = "sha256-lCHGTjYX+pSptdZ2fBuRUIbKaKXnCyTgkWrSOlzKRhQ=";
+          # Vendor dependencies straight from Cargo.lock via `importCargoLock`.
+          # Registry crate hashes come from Cargo.lock itself, so routine
+          # dependency bumps need no Nix changes—there is no whole-vendor hash
+          # to go stale. (`outputHashes` would only be needed for git-sourced
+          # crates, of which the workspace currently has none.)
+          cargoLock.lockFile = ./Cargo.lock;
 
           inherit nativeBuildInputs buildInputs;
 

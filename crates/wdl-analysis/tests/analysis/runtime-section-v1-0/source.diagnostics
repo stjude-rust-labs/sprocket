@@ -1,0 +1,16 @@
+error: type mismatch: expected type `String` or type `Array[String]`, but found type `Boolean`
+   ┌─ tests/analysis/runtime-section-v1-0/source.wdl:29:17
+   │
+29 │         docker: false
+   │         ------  ^^^^^ this is type `Boolean`
+   │         │        
+   │         this expects type `String` or type `Array[String]`
+
+error: type mismatch: expected type `Int` or type `String`, but found type `Boolean`
+   ┌─ tests/analysis/runtime-section-v1-0/source.wdl:30:17
+   │
+30 │         memory: false
+   │         ------  ^^^^^ this is type `Boolean`
+   │         │        
+   │         this expects type `Int` or type `String`
+
