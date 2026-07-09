@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* The "missing version statement" parse error no longer claims all WDL documents require a version statement (untrue for draft-2); it now scopes the claim to WDL 1.0+ and adds guidance for draft-2 documents ([#993](https://github.com/stjude-rust-labs/sprocket/pull/993)).
+
 ## 0.27.0 - 2026-06-26
 
 ### Added

@@ -3249,7 +3249,7 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/HaplotypeMap/BuildHaplotypeMap.wdl"
-message = "BuildHaplotypeMap.wdl:17:1: error: a WDL document must start with a version statement"
+message = "BuildHaplotypeMap.wdl:17:1: error: WDL 1.0+ documents must begin with a version statement"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/HaplotypeMap/BuildHaplotypeMap.wdl/#L17"
 
 [[diagnostics]]
@@ -4769,37 +4769,37 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/markduplicates.wdl"
-message = "markduplicates.wdl:1:1: error: a WDL document must start with a version statement"
+message = "markduplicates.wdl:1:1: error: WDL 1.0+ documents must begin with a version statement"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/markduplicates.wdl/#L1"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/remove_IDS_reads.wdl"
-message = "remove_IDS_reads.wdl:1:1: error: a WDL document must start with a version statement"
+message = "remove_IDS_reads.wdl:1:1: error: WDL 1.0+ documents must begin with a version statement"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/remove_IDS_reads.wdl/#L1"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/rnaseq_aou.wdl"
-message = "rnaseq_aou.wdl:9:1: error: a WDL document must start with a version statement"
+message = "rnaseq_aou.wdl:9:1: error: WDL 1.0+ documents must begin with a version statement"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/rnaseq_aou.wdl/#L9"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/rnaseqc2.wdl"
-message = "rnaseqc2.wdl:1:1: error: a WDL document must start with a version statement"
+message = "rnaseqc2.wdl:1:1: error: WDL 1.0+ documents must begin with a version statement"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/rnaseqc2.wdl/#L1"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/rsem.wdl"
-message = "rsem.wdl:1:1: error: a WDL document must start with a version statement"
+message = "rsem.wdl:1:1: error: WDL 1.0+ documents must begin with a version statement"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/rsem.wdl/#L1"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/samtofastq.wdl"
-message = "samtofastq.wdl:1:1: error: a WDL document must start with a version statement"
+message = "samtofastq.wdl:1:1: error: WDL 1.0+ documents must begin with a version statement"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/samtofastq.wdl/#L1"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/star.wdl"
-message = "star.wdl:2:1: error: a WDL document must start with a version statement"
+message = "star.wdl:2:1: error: WDL 1.0+ documents must begin with a version statement"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/star.wdl/#L2"
 
 [[diagnostics]]
