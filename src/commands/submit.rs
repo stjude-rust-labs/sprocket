@@ -3,46 +3,21 @@
 use anyhow::Context;
 use clap::Args as ClapArgs;
 use clap::Parser;
-use wdl::ast::AstNode;
-use wdl::ast::Severity;
 use wdl::diagnostics::Mode;
-use wdl::diagnostics::emit_diagnostics;
 
 use crate::analysis::Source;
-use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::commands::client::ServerConnectionArgs;
+use crate::commands::client::send_json;
 use crate::commands::run::inputs_to_json;
 use crate::commands::validate::analyze_source;
+use crate::commands::validate::ensure_no_analysis_errors;
 use crate::commands::validate::validate_inputs;
 use crate::config::Config;
-use crate::server::ErrorResponse;
 use crate::server::SubmitRunRequest;
+use crate::server::paths;
 
-/// CLI arguments for connecting to a Sprocket server instance.
-#[derive(ClapArgs, Debug)]
-pub struct SprocketClientConnectionArgs {
-    /// The hostname of the running Sprocket server to talk to.
-    ///
-    /// If not provided, falls back to the value in the Sprocket config.
-    #[arg(long)]
-    host: Option<String>,
-
-    /// The port of the running Sprocket server to talk to.
-    ///
-    /// If not provided, falls back to the value in the Sprocket config.
-    #[arg(short, long)]
-    port: Option<u16>,
-}
-
-impl SprocketClientConnectionArgs {
-    fn base_url(&self, config: &Config) -> String {
-        let host = self.host.as_deref().unwrap_or(&config.server.host);
-        let port = self.port.unwrap_or(config.server.port);
-        format!("http://{host}:{port}")
-    }
-}
-
-/// CLI arguments for specifying a submit run request.
+/// CLI arguments for specifying the body of the [`SubmitRunRequest`].
 #[derive(ClapArgs, Debug)]
 pub struct SubmitRunRequestArgs {
     /// The WDL source file to submit.
@@ -91,7 +66,7 @@ pub struct SubmitRunRequestArgs {
 #[command(author, version, about)]
 pub struct Args {
     #[command(flatten)]
-    client_args: SprocketClientConnectionArgs,
+    client_args: ServerConnectionArgs,
 
     #[command(flatten)]
     run_request_args: SubmitRunRequestArgs,
@@ -116,29 +91,11 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
     )
     .await?;
 
-    let mut diagnostics = document
-        .diagnostics()
-        .filter(|t| t.severity() == Severity::Error)
-        .peekable();
-
-    if diagnostics.peek().is_some() {
-        let path = document.path().to_string();
-        let source = document.root().text().to_string();
-
-        emit_diagnostics(
-            &path,
-            &source,
-            diagnostics,
-            args.run_request_args.report_mode.unwrap_or_default(),
-            colorize,
-        )
-        .context("failed to emit diagnostics")?;
-
-        return Err(anyhow::anyhow!(
-            "failed to submit WDL document to server due to analysis errors"
-        )
-        .into());
-    }
+    ensure_no_analysis_errors(
+        &document,
+        args.run_request_args.report_mode.unwrap_or_default(),
+        colorize,
+    )?;
 
     let (target, inputs) = validate_inputs(
         &document,
@@ -151,8 +108,9 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         .context("deserializing previously serialized inputs shouldn't fail")?;
 
     let url = format!(
-        "{base}/api/v1/runs",
-        base = args.client_args.base_url(&config)
+        "{base}{path}",
+        base = args.client_args.base_url(&config),
+        path = paths::SUBMIT_RUN,
     );
 
     let source_str = match &source {
@@ -171,26 +129,11 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         index_on: args.run_request_args.index_on,
     };
 
-    let resp = reqwest::Client::new()
-        .post(url)
-        .json(&request)
-        .send()
-        .await
-        .context("sending request")?;
-
-    if !resp.status().is_success() {
-        let status = resp.status();
-        let body = resp.text().await.unwrap_or_default();
-        let msg = serde_json::from_str::<ErrorResponse>(&body)
-            .map(|e| format!("{}: {}", e.kind, e.message))
-            .unwrap_or_else(|_| format!("HTTP {status}: {body}"));
-        return Err(CommandError::Single(anyhow::anyhow!(msg)));
-    }
-
-    let submit_response: serde_json::Value = resp
-        .json()
-        .await
-        .context("expected a response body for successful `SubmitRunRequest`")?;
+    let submit_response: serde_json::Value = send_json(
+        reqwest::Client::new().post(url).json(&request),
+        "run submission",
+    )
+    .await?;
 
     println!(
         "{}",
@@ -211,10 +154,11 @@ mod tests {
     use crate::Config;
     use crate::analysis::Source;
     use crate::commands::CommandError;
+    use crate::commands::client::ServerConnectionArgs;
     use crate::commands::submit::Args;
-    use crate::commands::submit::SprocketClientConnectionArgs;
     use crate::commands::submit::SubmitRunRequestArgs;
     use crate::commands::submit::submit;
+    use crate::server::paths;
     use crate::server::run_with_listener;
 
     struct ServerTestFixture {
@@ -291,7 +235,7 @@ command <<<>>>
         let config = Config::default();
         submit(
             Args {
-                client_args: SprocketClientConnectionArgs {
+                client_args: ServerConnectionArgs {
                     host: Some("127.0.0.1".to_string()),
                     port: Some(port),
                 },
@@ -314,7 +258,7 @@ command <<<>>>
 
         if !cfg!(docker_tests_disabled) {
             let runs: serde_json::Value = client
-                .get(format!("{base_url}/api/v1/runs"))
+                .get(format!("{base_url}{path}", path = paths::LIST_RUNS))
                 .send()
                 .await?
                 .json()
@@ -324,7 +268,10 @@ command <<<>>>
                 .as_str()
                 .expect("should have at least one run");
 
-            let poll_url = format!("{base_url}/api/v1/runs/{uuid}");
+            let poll_url = format!(
+                "{base_url}{path}",
+                path = paths::get_run(uuid.parse().expect("uuid should parse")),
+            );
             let mut status = String::new();
 
             for _ in 0..600 {
@@ -358,7 +305,7 @@ command <<<>>>
 
         let submit_result = submit(
             Args {
-                client_args: SprocketClientConnectionArgs {
+                client_args: ServerConnectionArgs {
                     host: Some("127.0.0.1".to_string()),
                     port: Some(1234),
                 },
@@ -397,7 +344,7 @@ command <<<>>>
 
         let submit_result = submit(
             Args {
-                client_args: SprocketClientConnectionArgs {
+                client_args: ServerConnectionArgs {
                     host: Some("127.0.0.1".to_string()),
                     port: Some(1234),
                 },
@@ -423,7 +370,7 @@ command <<<>>>
 
         assert_eq!(
             err.to_string(),
-            "failed to submit WDL document to server due to analysis errors".to_string()
+            "source contains analysis errors".to_string()
         );
 
         Ok(())

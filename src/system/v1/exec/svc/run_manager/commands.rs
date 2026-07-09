@@ -84,6 +84,15 @@ pub struct ListTasksResponse {
     pub total: i64,
 }
 
+/// Response for a run's per-status task counts.
+#[derive(Debug)]
+pub struct RunTaskCountsResponse {
+    /// The per-status task counts.
+    ///
+    /// Only statuses with at least one task are present.
+    pub counts: Vec<(TaskStatus, i64)>,
+}
+
 /// Response for task query.
 #[derive(Debug)]
 pub struct GetTaskResponse {
@@ -189,6 +198,14 @@ pub enum RunManagerCmd {
         offset: Option<i64>,
         /// Channel to send the response back.
         rx: oneshot::Sender<Result<ListTasksResponse, DatabaseError>>,
+    },
+
+    /// Count a run's tasks grouped by status.
+    CountRunTasksByStatus {
+        /// Run ID.
+        run_id: Uuid,
+        /// Channel to send the response back.
+        rx: oneshot::Sender<Result<RunTaskCountsResponse, DatabaseError>>,
     },
 
     /// Get task by name.
