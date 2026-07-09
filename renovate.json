@@ -97,7 +97,11 @@
         "minor",
         "patch"
       ],
-      "groupName": "python updates"
+      "groupName": "python updates",
+      "rangeStrategy": "bump",
+      "addLabels": [
+        "python"
+      ]
     }
   ],
   "vulnerabilityAlerts": {
