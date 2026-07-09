@@ -1,0 +1,134 @@
+name: Python CI
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - "python/**"
+      - "pyproject.toml"
+      - "crates/sprocket-py/**"
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - ".github/workflows/python-ci.yml"
+  workflow_dispatch:
+
+env:
+  RUST_BACKTRACE: full
+  CARGO_TERM_COLOR: always
+  FORCE_COLOR: 1
+  IN_CI: 1
+  # Only include the debug info necessary for backtraces (file names and line numbers). Any extra
+  # debug info provided by `debuginfo=1` or `debuginfo=2` require an interactive debugger like
+  # `lldb` or `gdb`.
+  RUSTFLAGS: -C debuginfo=line-tables-only
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: ".python-version"
+
+      - name: Create virtual environment
+        run: python -m venv --upgrade-deps .venv
+
+      - name: Activate virtual environment (Windows)
+        if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          Add-Content -Value "VIRTUAL_ENV=$PWD\.venv" -Path $Env:GITHUB_ENV
+          Add-Content -Value "$PWD\.venv\Scripts" -Path $Env:GITHUB_PATH
+
+      - name: Activate virtual environment (non-Windows)
+        if: ${{ matrix.os != 'windows-latest' }}
+        run: |
+          echo "VIRTUAL_ENV=$(pwd)/.venv" >> "${GITHUB_ENV}"
+          echo "$(pwd)/.venv/bin" >> "${GITHUB_PATH}"
+
+      - name: Build package
+        uses: PyO3/maturin-action@v1
+        with:
+          command: develop
+          args: --locked
+
+      - name: Run tests
+        run: pytest
+
+  type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: ".python-version"
+
+      - name: Create virtual environment
+        run: python -m venv --upgrade-deps .venv
+
+      - name: Activate virtual environment
+        run: |
+          echo "VIRTUAL_ENV=$(pwd)/.venv" >> "${GITHUB_ENV}"
+          echo "$(pwd)/.venv/bin" >> "${GITHUB_PATH}"
+
+      - name: Build package
+        uses: PyO3/maturin-action@v1
+        with:
+          command: develop
+          args: --locked
+
+      - name: Check types
+        run: mypy python
+
+      - name: Check stubs
+        run: python -m mypy.stubtest sprocket_bio
+
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Check formatting
+        uses: psf/black@stable
+        with:
+          use_pyproject: true
+
+  sort-imports:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      # `isort` requires third-party dependencies to be installed before running. We skip this
+      # because `sprocket_bio` doesn't have any dependencies.
+      - name: Check import sorting
+        run: |
+          python -m pip install "isort~=8.0"
+          isort --check-only --diff python/

@@ -30,7 +30,7 @@ use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::CallTarget;
 use wdl_ast::v1::Decl;
-use wdl_ast::v1::EnumVariant;
+use wdl_ast::v1::EnumChoice;
 use wdl_ast::v1::LiteralStruct;
 use wdl_ast::v1::LiteralStructItem;
 use wdl_ast::v1::MetadataObject;
@@ -223,12 +223,12 @@ fn resolve_hover_by_context(
     match parent_node.kind() {
         SyntaxKind::TypeRefNode | SyntaxKind::LiteralStructNode => {
             if let Some(s) = document.struct_by_name(token.text()) {
-                let root = if let Some(ns_name) = s.namespace() {
-                    // SAFETY: we just found a struct with this namespace name and the document
-                    // guarantees that `document.namespaces` contains a corresponding entry for
-                    // `ns_name`.
-                    let ns = document.namespace(ns_name).unwrap();
-                    let node = graph.get(graph.get_index(ns.source()).unwrap());
+                let root = if let Some(source) = s.source() {
+                    // SAFETY: `source` is the URI the import resolved to,
+                    // which is guaranteed to be present in the graph.
+                    let node = graph.get(graph.get_index(source).unwrap());
+                    // SAFETY: we successfully resolved the node above; it is
+                    // in `ParseState::Parsed`, which has a document.
                     node.document().unwrap().root()
                 } else {
                     document.root()
@@ -236,12 +236,12 @@ fn resolve_hover_by_context(
                 return Ok(provide_struct_documentation(s, &root));
             }
             if let Some(e) = document.enum_by_name(token.text()) {
-                let root = if let Some(ns_name) = e.namespace() {
-                    // SAFETY: we just found an enum with this namespace name and the document
-                    // guarantees that `document.namespaces` contains a corresponding entry for
-                    // `ns_name`.
-                    let ns = document.namespace(ns_name).unwrap();
-                    let node = graph.get(graph.get_index(ns.source()).unwrap());
+                let root = if let Some(source) = e.source() {
+                    // SAFETY: `source` is the URI the import resolved to,
+                    // which is guaranteed to be present in the graph.
+                    let node = graph.get(graph.get_index(source).unwrap());
+                    // SAFETY: we successfully resolved the node above; it is
+                    // in `ParseState::Parsed`, which has a document.
                     node.document().unwrap().root()
                 } else {
                     document.root()
@@ -249,22 +249,22 @@ fn resolve_hover_by_context(
                 return Ok(provide_enum_documentation(e, &root));
             }
         }
-        SyntaxKind::EnumVariantNode => {
-            let variant = EnumVariant::cast(parent_node.clone()).unwrap();
-            let variant_name = variant.name().text().to_string();
+        SyntaxKind::EnumChoiceNode => {
+            let choice = EnumChoice::cast(parent_node.clone()).unwrap();
+            let choice_name = choice.name().text().to_string();
 
-            // Show the variant value (explicit or inferred)
-            if let Some(value_expr) = variant.value() {
+            // Show the choice value (explicit or inferred)
+            if let Some(value_expr) = choice.value() {
                 // Has explicit value
                 let content = format!(
                     "```wdl\n{} = {}\n```",
-                    variant_name,
+                    choice_name,
                     value_expr.inner().text()
                 );
                 return Ok(Some(content));
             } else {
-                // Inferred value (defaults to string of variant name)
-                let content = format!("```wdl\n{} = \"{}\"\n```", variant_name, variant_name);
+                // Inferred value (defaults to string of choice name)
+                let content = format!("```wdl\n{} = \"{}\"\n```", choice_name, choice_name);
                 return Ok(Some(content));
             }
         }
@@ -278,7 +278,6 @@ fn resolve_hover_by_context(
                     if token.span() == name.span() {
                         (Some(ns), name)
                     } else if token.span() == ns.span() {
-                        // namespace identifier hovered
                         if let Some(ns) = document.namespace(token.text()) {
                             return Ok(Some(format!(
                                 "```wdl\n(import) {}\n```\nImports from `{}`",
@@ -297,13 +296,8 @@ fn resolve_hover_by_context(
             };
 
             let target_doc = if let Some(ns_name) = ns_name {
-                // SAFETY: we just found a call with this namespace name and the document
-                // guarantees that `document.namespaces` contains a corresponding entry for
-                // `ns_name`.
                 let ns = document.namespace(ns_name.text()).unwrap();
 
-                // SAFETY: `ns.source` comes from a valid namespace entry which guarantees the
-                // document exists in the graph.
                 let node = graph.get(graph.get_index(ns.source()).unwrap());
                 node.document().unwrap()
             } else {
@@ -340,17 +334,17 @@ fn resolve_hover_by_context(
 
             let (member_ty, documentation) = match target_type {
                 Type::TypeNameRef(CustomType::Enum(e)) => {
-                    if e.variants().iter().any(|text| text == member.text()) {
+                    if e.choices().iter().any(|text| text == member.text()) {
                         // Try to find the enum definition to get the actual value
                         if let Some(enum_entry) = document.enum_by_name(e.name()) {
                             let definition = enum_entry.definition();
 
-                            // Find the specific variant
-                            if let Some(variant) = definition
-                                .variants()
-                                .find(|v| v.name().text() == member.text())
+                            // Find the specific choice
+                            if let Some(choice) = definition
+                                .choices()
+                                .find(|c| c.name().text() == member.text())
                             {
-                                let value_str = if let Some(value_expr) = variant.value() {
+                                let value_str = if let Some(value_expr) = choice.value() {
                                     value_expr.inner().text().to_string()
                                 } else {
                                     format!("\"{}\"", member.text())
@@ -384,15 +378,8 @@ fn resolve_hover_by_context(
                 }
                 Type::Compound(CompoundType::Custom(CustomType::Struct(s)), _) => {
                     let target_doc = if let Some(s) = document.struct_by_name(s.name()) {
-                        if let Some(ns_name) = s.namespace() {
-                            // SAFETY: we just found a struct with this namespace name and the
-                            // document guarantees that `document.namespaces` contains a
-                            // corresponding entry for `ns_name`.
-                            let ns = document.namespace(ns_name).unwrap();
-
-                            // SAFETY: `ns.source` comes from a valid namespace entry which
-                            // guarantees the document exists in the graph.
-                            let node = graph.get(graph.get_index(ns.source()).unwrap());
+                        if let Some(source) = s.source() {
+                            let node = graph.get(graph.get_index(source).unwrap());
                             node.document().unwrap()
                         } else {
                             document
@@ -416,17 +403,17 @@ fn resolve_hover_by_context(
                     _ => (None, None),
                 },
                 Type::Compound(CompoundType::Custom(CustomType::Enum(e)), _) => {
-                    if e.variants().iter().any(|text| text == member.text()) {
+                    if e.choices().iter().any(|text| text == member.text()) {
                         // Try to find the enum definition to get the actual value
                         if let Some(enum_entry) = document.enum_by_name(e.name()) {
                             let definition = enum_entry.definition();
 
-                            // Find the specific variant
-                            if let Some(variant) = definition
-                                .variants()
-                                .find(|v| v.name().text() == member.text())
+                            // Find the specific choice
+                            if let Some(choice) = definition
+                                .choices()
+                                .find(|c| c.name().text() == member.text())
                             {
-                                let value_str = if let Some(value_expr) = variant.value() {
+                                let value_str = if let Some(value_expr) = choice.value() {
                                     value_expr.inner().text().to_string()
                                 } else {
                                     format!("\"{}\"", member.text())

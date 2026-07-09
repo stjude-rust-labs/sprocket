@@ -285,11 +285,21 @@ impl TestIteration {
                 },
                 RunResult::Task(result) => match *result {
                     Ok(evaled_task) => {
-                        if evaled_task.exit_code() != assertions.exit_code {
+                        let actual_exit_code = evaled_task.exit_code();
+
+                        if assertions.should_fail {
+                            if actual_exit_code == 0 {
+                                return Ok(IterationResult::Fail(anyhow!(
+                                    "{id} exited with code `0` but `should_fail` expected a \
+                                     nonzero exit code: see `{dir}`",
+                                    dir = run_dir.display(),
+                                )));
+                            }
+                        } else if actual_exit_code != assertions.exit_code {
                             return Ok(IterationResult::Fail(anyhow!(
                                 "{id} exited with code `{actual}` but test expected exit code \
                                  `{expected}`: see `{dir}`",
-                                actual = evaled_task.exit_code(),
+                                actual = actual_exit_code,
                                 expected = assertions.exit_code,
                                 dir = run_dir.display(),
                             )));
@@ -332,7 +342,7 @@ impl TestIteration {
                         let outputs = match evaled_task.into_outputs() {
                             Ok(outputs) => outputs,
                             Err(eval_err) => {
-                                if assertions.exit_code == 0 {
+                                if assertions.exit_code == 0 && !assertions.should_fail {
                                     return Err(anyhow!(
                                         "unexpected evaluation error: {}",
                                         eval_err.to_string()
@@ -806,6 +816,8 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
     let analysis_results = Analysis::default()
         .add_source(source.clone())
         .fallback_version(config.common.wdl.fallback_version.into())
+        .modules_config(config.modules.clone())
+        .feature_flags(config.common.wdl.feature_flags)
         .run()
         .await
         .map_err(CommandError::from)?;

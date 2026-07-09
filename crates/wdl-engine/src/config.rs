@@ -1,7 +1,6 @@
 //! Implementation of engine configuration.
 
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::fmt;
 use std::fs;
 use std::marker::PhantomData;
@@ -16,7 +15,11 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::ensure;
 use bytesize::ByteSize;
+use codespan_reporting::files::SimpleFile;
+use codespan_reporting::term;
+use codespan_reporting::term::termcolor::Buffer;
 use indexmap::IndexMap;
+use rowan::GreenNode;
 use secrecy::ExposeSecret;
 use tokio::process::Command;
 use toml_spanner::Arena;
@@ -34,17 +37,40 @@ use toml_spanner::helper::parse_string;
 use tracing::error;
 use tracing::warn;
 use url::Url;
+use wdl_analysis::DiagnosticsConfig;
+use wdl_analysis::diagnostics::unknown_name;
+use wdl_analysis::diagnostics::unknown_type;
+use wdl_analysis::document::Task;
+use wdl_analysis::types::PrimitiveType;
+use wdl_analysis::types::Type;
+use wdl_analysis::types::v1::ExprTypeEvaluator;
+use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
+use wdl_ast::SupportedVersion;
+use wdl_ast::lexer::Lexer;
+use wdl_ast::v1::Expr;
+use wdl_grammar::construct_tree;
+use wdl_grammar::grammar::v1;
+use wdl_grammar::grammar::v1::Parser;
 
 use crate::CancellationContext;
+use crate::EvaluationContext;
+use crate::EvaluationPath;
 use crate::Events;
+use crate::NoneValue;
+use crate::Object;
 use crate::SYSTEM;
 use crate::Value;
+use crate::backend::ExecuteTaskRequest;
 use crate::backend::TaskExecutionBackend;
 use crate::convert_unit_string;
+use crate::diagnostics::unknown_enum_choice;
+use crate::http::Transferer;
 use crate::path::is_supported_url;
+use crate::tree::SyntaxNode;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_MAX_RETRIES;
+use crate::v1::ExprEvaluator;
 
 /// The inclusive maximum number of task retries the engine supports.
 pub(crate) const MAX_RETRIES: u64 = 100;
@@ -87,6 +113,81 @@ pub(crate) fn cache_dir() -> Result<PathBuf> {
     Ok(dirs::cache_dir()
         .context("failed to determine user cache directory")?
         .join(CACHE_DIR_ROOT))
+}
+
+/// Creates a mapping of byte indexes in an unescaped TOML string to the
+/// corresponding index in the escaped TOML string.
+///
+/// Only indexes that immediately follow an escape sequence are included in the
+/// set.
+///
+/// All other mapping indexes can be synthesized by doing a binary search for
+/// the unescaped index and either using the found entry's escaped index or
+/// offset the unescaped index by the difference between the escaped and
+/// unescaped indexes for the immediately preceding entry in the map at the
+/// binary search insertion index (or zero if the insertion index is 0).
+///
+/// This is used as part of generating diagnostics for WDL expressions stored as
+/// TOML strings.
+///
+/// The returned list is guaranteed sorted in both index spaces.
+///
+/// Note that if the string ends with an escape sequence, an additional mapping
+/// of the exclusive end of the string will be included in the set.
+///
+/// # Panics
+///
+/// Panics if the TOML string contains invalid escape sequences.
+///
+/// Only use this function after the TOML has been validated.
+///
+/// # Examples
+///
+/// `foo\tbar` -> [(4, 5)]
+/// `\"foo\" == \"bar\"` -> [(1, 2), (5, 7), (10, 13), (14, 18)]
+fn escape_mapping(toml: &str) -> Vec<(usize, usize)> {
+    let mut iter = toml.char_indices();
+    let mut mapping = Vec::new();
+    let mut new = 0;
+    while let Some((old, c)) = iter.next() {
+        if c != '\\' {
+            new += c.len_utf8();
+            continue;
+        }
+
+        match iter.next() {
+            Some((_, 'u')) => {
+                let c = u32::from_str_radix(&toml[old + 2 /* \u */..old + 6 /* \uXXXX */], 16)
+                    .map(char::from_u32)
+                    .expect("invalid TOML escape sequence")
+                    .expect("invalid TOML escape character");
+                new += c.len_utf8();
+
+                // Move past the rest of the sequence
+                iter.nth(3);
+                mapping.push((new, old + 6 /* \uXXXX */));
+            }
+            Some((_, 'U')) => {
+                let c = u32::from_str_radix(&toml[old + 2 /* \U */..old + 10 /* \UXXXXXXXX */], 16)
+                    .map(char::from_u32)
+                    .expect("invalid TOML escape sequence")
+                    .expect("invalid TOML escape character");
+                new += c.len_utf8();
+
+                // Move past the rest of the sequence
+                iter.nth(7);
+                mapping.push((new, old + 10 /* \UXXXXXXXX */));
+            }
+            Some(_) => {
+                // All other escape sequences are single byte replacements
+                new += 1;
+                mapping.push((new, old + 2 /* \? */));
+            }
+            None => break,
+        }
+    }
+
+    mapping
 }
 
 /// Represents a secret string that is, by default, redacted for serialization.
@@ -354,7 +455,7 @@ impl Config {
         }
 
         for backend in self.backends.values() {
-            backend.validate(self).await?;
+            backend.validate().await?;
         }
 
         self.storage.validate()?;
@@ -521,6 +622,12 @@ pub struct HttpConfig {
     /// Defaults to the host's available parallelism.
     #[toml(default)]
     pub parallelism: Parallelism,
+    /// The hash algorithm to use for calculating content digests for file
+    /// uploads.
+    ///
+    /// Defaults to `sha256`.
+    #[toml(default, FromToml with = parse_string, ToToml with = display)]
+    pub hash_algorithm: cloud_copy::HashAlgorithm,
 }
 
 impl Default for HttpConfig {
@@ -529,6 +636,7 @@ impl Default for HttpConfig {
             cache_dir: CACHE_DIR_SENTINEL.into(),
             retries: DEFAULT_HTTP_RETRIES,
             parallelism: Default::default(),
+            hash_algorithm: Default::default(),
         }
     }
 }
@@ -883,6 +991,18 @@ pub enum ContentDigestMode {
     ///
     /// This setting guarantees that a modified file will be detected.
     Strong,
+    /// Use a "strongish" digest for file content.
+    ///
+    /// A strongish digest is based off of the file's size, last modified
+    /// time, and a hash of only the first 10 MiB of the file's contents;
+    /// this is similar to Cromwell's `fingerprint` call caching strategy.
+    ///
+    /// This setting cannot guarantee the detection of modified files (e.g. a
+    /// modification beyond the first 10 MiB of a file without a change to
+    /// its size or last modified time will not be detected), but it is
+    /// faster than using a strong digest for large files while still taking
+    /// file content into account.
+    Strongish,
     /// Use a weak digest for file content.
     ///
     /// A weak digest is based solely off of file metadata, such as size and
@@ -1137,13 +1257,13 @@ impl Default for BackendConfig {
 
 impl BackendConfig {
     /// Validates the backend configuration.
-    pub async fn validate(&self, engine_config: &Config) -> Result<()> {
+    pub async fn validate(&self) -> Result<()> {
         match self {
             Self::Local { config } => config.validate(),
             Self::Docker { config } => config.validate(),
             Self::Tes { config } => config.validate(),
-            Self::LsfApptainer { config } => config.validate(engine_config).await,
-            Self::SlurmApptainer { config } => config.validate(engine_config).await,
+            Self::LsfApptainer { config } => config.validate().await,
+            Self::SlurmApptainer { config } => config.validate().await,
         }
     }
 
@@ -1569,7 +1689,7 @@ pub struct ApptainerConfig {
     /// Additional command-line arguments to pass to `apptainer exec` when
     /// executing tasks.
     #[toml(default)]
-    pub extra_apptainer_exec_args: Vec<String>,
+    pub extra_args: Vec<String>,
 }
 
 impl Default for ApptainerConfig {
@@ -1577,7 +1697,7 @@ impl Default for ApptainerConfig {
         Self {
             executable: DEFAULT_APPTAINER_EXECUTABLE.into(),
             image_cache_dir: None,
-            extra_apptainer_exec_args: Vec::new(),
+            extra_args: Default::default(),
         }
     }
 }
@@ -1585,6 +1705,396 @@ impl Default for ApptainerConfig {
 impl ApptainerConfig {
     /// Validate that Apptainer is appropriately configured.
     pub async fn validate(&self) -> Result<(), anyhow::Error> {
+        Ok(())
+    }
+}
+
+/// Represents a condition in a conditional argument.
+///
+/// The expression is evaluated in a context where a task's computed `cpu`,
+/// `memory`, `gpu`, `fpga`, and `disks` values and evaluated `hint` object are
+/// available as variables.
+///
+/// The expression is type checked during configuration deserialization to
+/// ensure it is a valid WDL expression of type `Boolean`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Condition {
+    /// The raw WDL expression string.
+    pub raw: String,
+    /// The parsed and validated conditional expression.
+    expr: GreenNode,
+}
+
+impl Condition {
+    /// Constructs a new `Condition` given a raw WDL expression string.
+    pub fn new(raw: impl Into<String>) -> Result<Self, Vec<Diagnostic>> {
+        /// Type evaluation context used for resolving the type of conditional
+        /// expressions.
+        #[derive(Default)]
+        struct Context(Vec<Diagnostic>);
+
+        impl wdl_analysis::types::v1::EvaluationContext for Context {
+            fn version(&self) -> SupportedVersion {
+                Default::default()
+            }
+
+            fn resolve_name(&mut self, name: &str, span: Span) -> Option<Type> {
+                match name {
+                    "cpu" => Some(PrimitiveType::Float.into()),
+                    "memory" => Some(PrimitiveType::Integer.into()),
+                    "gpu" | "fpga" => Some(PrimitiveType::Boolean.into()),
+                    "disks" => Some(PrimitiveType::Integer.into()),
+                    "hint" => Some(Type::Object),
+                    _ => {
+                        self.add_diagnostic(unknown_name(name, span));
+                        None
+                    }
+                }
+            }
+
+            fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
+                Err(unknown_type(name, span))
+            }
+
+            fn task(&self) -> Option<&Task> {
+                None
+            }
+
+            fn diagnostics_config(&self) -> DiagnosticsConfig {
+                Default::default()
+            }
+
+            fn add_diagnostic(&mut self, diagnostic: Diagnostic) {
+                self.0.push(diagnostic);
+            }
+        }
+
+        let raw = raw.into();
+        let mut parser = Parser::new(Lexer::new(&raw));
+        let marker = parser.start();
+        match v1::expr(&mut parser, marker) {
+            Ok(()) => {
+                if let Some((_, span)) = parser.next() {
+                    return Err(vec![
+                        Diagnostic::error("expected a single WDL expression")
+                            .with_label("extraneous WDL source starts here", span),
+                    ]);
+                }
+
+                let output = parser.finish();
+                if !output.diagnostics.is_empty() {
+                    return Err(output.diagnostics);
+                }
+
+                let expr = Expr::cast(construct_tree(raw.as_ref(), output.events))
+                    .expect("node should cast");
+
+                // Determine the type of the expression
+                let mut context = Context::default();
+                let ty = ExprTypeEvaluator::new(&mut context)
+                    .evaluate_expr(&expr)
+                    .unwrap_or(Type::Union);
+
+                if !context.0.is_empty() {
+                    return Err(context.0);
+                }
+
+                match ty {
+                    Type::Primitive(PrimitiveType::Boolean, false) | Type::Union => {}
+                    _ => {
+                        return Err(vec![
+                            Diagnostic::error(format!(
+                                "conditional expression is expected to be type `Boolean`, but \
+                                 found type `{ty}`",
+                            ))
+                            .with_highlight(expr.span()),
+                        ]);
+                    }
+                }
+
+                Ok(Self {
+                    raw,
+                    expr: expr.inner().green().into_owned(),
+                })
+            }
+            Err((marker, diagnostic)) => {
+                marker.abandon(&mut parser);
+                Err(vec![diagnostic.into()])
+            }
+        }
+    }
+
+    /// Evaluates the condition's expression for the given execution request and
+    /// returns the result.
+    ///
+    /// Returns an error if the evaluation resulted in an error.
+    pub(crate) async fn evaluate(
+        &self,
+        request: &ExecuteTaskRequest<'_>,
+        transferer: &dyn Transferer,
+    ) -> Result<bool> {
+        /// Helper that implements `EvaluationContext`.
+        struct Context<'a> {
+            /// The task execution request.
+            request: &'a ExecuteTaskRequest<'a>,
+            /// The file transferer for evaluation.
+            transferer: &'a dyn Transferer,
+        }
+
+        impl EvaluationContext for Context<'_> {
+            fn version(&self) -> SupportedVersion {
+                Default::default()
+            }
+
+            fn resolve_name(&self, name: &str, span: Span) -> Result<Value, Diagnostic> {
+                match name {
+                    "cpu" => Ok(self.request.constraints.cpu.into()),
+                    "memory" => Ok((self.request.constraints.memory as i64).into()),
+                    "gpu" => Ok((!self.request.constraints.gpu.is_empty()).into()),
+                    "fpga" => Ok((!self.request.constraints.fpga.is_empty()).into()),
+                    "disks" => Ok(self
+                        .request
+                        .constraints
+                        .disks
+                        .iter()
+                        .map(|(_, s)| *s)
+                        .sum::<i64>()
+                        .into()),
+                    "hint" => Ok(self.request.hints.clone().into()),
+                    _ => Err(unknown_name(name, span)),
+                }
+            }
+
+            fn resolve_type_name(&self, name: &str, span: Span) -> Result<Type, Diagnostic> {
+                Err(unknown_type(name, span))
+            }
+
+            fn enum_choice_value(
+                &self,
+                enum_name: &str,
+                choice_name: &str,
+            ) -> Result<Value, Diagnostic> {
+                Err(unknown_enum_choice(enum_name, choice_name))
+            }
+
+            fn base_dir(&self) -> &EvaluationPath {
+                self.request.base_dir
+            }
+
+            fn temp_dir(&self) -> &Path {
+                self.request.temp_dir
+            }
+
+            fn transferer(&self) -> &dyn Transferer {
+                self.transferer
+            }
+
+            fn object_access(&self, object: &Object, name: &str) -> Option<Value> {
+                // If the object being accessed is not the hint object, let the access proceed
+                // normally
+                if !Arc::ptr_eq(&object.members, &self.request.hints.members) {
+                    return None;
+                }
+
+                // Access to the hints object first checks for a hint override in the inputs and
+                // then falls back to the task's hints; if the name is not present in either, a
+                // `None` value is returned instead of an error
+                Some(
+                    self.request
+                        .inputs
+                        .hint(name)
+                        .or_else(|| object.get(name))
+                        .cloned()
+                        .unwrap_or_else(|| NoneValue::untyped().into()),
+                )
+            }
+        }
+
+        /// Helper for evaluating the given expression.
+        ///
+        /// Returns a diagnostic that will be converted to any `anyhow::Error`
+        /// by the caller.
+        async fn eval(context: Context<'_>, expr: &Expr<SyntaxNode>) -> Result<bool, Diagnostic> {
+            let mut evaluator = ExprEvaluator::new(context);
+            let value = evaluator.evaluate_expr(expr).await?;
+            match value.as_boolean() {
+                Some(res) => Ok(res),
+                None => Err(Diagnostic::error(format!(
+                    "conditional expression is expected to be type `Boolean`, but found type \
+                     `{ty}`",
+                    ty = value.ty()
+                ))
+                .with_highlight(expr.span())),
+            }
+        }
+
+        let expr = Expr::cast(self.expr.clone().into()).expect("should be an expression node");
+        match eval(
+            Context {
+                request,
+                transferer,
+            },
+            &expr,
+        )
+        .await
+        {
+            Ok(res) => Ok(res),
+            Err(diagnostic) => {
+                let file: SimpleFile<_, _> = SimpleFile::new("<condition>", &self.raw);
+                let mut buffer = Buffer::no_color();
+                term::emit_to_write_style(
+                    &mut buffer,
+                    &Default::default(),
+                    &file,
+                    &diagnostic.to_codespan(()),
+                )
+                .context("failed to write diagnostic to buffer")?;
+                let diagnostic = String::from_utf8(buffer.into_inner())
+                    .context("diagnostic buffer contents are not UTF-8")?;
+                bail!(
+                    "failed to evaluate backend dynamic arguments condition: {diagnostic}",
+                    diagnostic = diagnostic
+                        .strip_prefix("error: ")
+                        .unwrap_or(&diagnostic)
+                        .trim()
+                );
+            }
+        }
+    }
+}
+
+impl ToToml for Condition {
+    fn to_toml<'a>(&'a self, arena: &'a Arena) -> Result<Item<'a>, ToTomlError> {
+        self.raw.to_toml(arena)
+    }
+}
+
+impl<'de> FromToml<'de> for Condition {
+    fn from_toml(ctx: &mut toml_spanner::Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
+        /// Used to remap an unescaped string index to an index in the
+        /// corresponding escaped TOML string.
+        fn remap(mapping: &[(usize, usize)], unescaped: usize) -> usize {
+            match mapping.binary_search_by_key(&unescaped, |x| x.0) {
+                Ok(i) => {
+                    // Found in the map, use the escaped index
+                    mapping[i].1
+                }
+                Err(i) => {
+                    // Not in the map, need to potentially offset the unescaped position
+                    // based on a preceding map entry
+                    unescaped
+                        + if i == 0 {
+                            // No need to offset as this position comes before any
+                            // escape sequences
+                            0
+                        } else {
+                            // Offset by the last delta
+                            mapping[i - 1].1 - mapping[i - 1].0
+                        }
+                }
+            }
+        }
+
+        /// Helper for pushing diagnostics as `toml_spanner::Error` into the
+        /// TOML parsing context.
+        fn push_errors(
+            ctx: &mut toml_spanner::Context<'_>,
+            item: &Item<'_>,
+            diagnostics: Vec<Diagnostic>,
+        ) -> Failed {
+            for diagnostic in diagnostics {
+                let span = if let Some(label) = diagnostic.labels().next() {
+                    let label_span = label.span();
+                    let span = item.span();
+
+                    let source = &ctx.source()[span.start as usize..span.end as usize];
+                    let offset = if source.starts_with(r#"""""#) | source.starts_with("'''") {
+                        3
+                    } else {
+                        1
+                    };
+
+                    let mapping = escape_mapping(
+                        source
+                            .get(offset..(source.len() - offset))
+                            .expect("invalid TOML string"),
+                    );
+
+                    // Remap the start and end of the label
+                    let label_start = remap(&mapping, label_span.start());
+                    let label_end = remap(&mapping, label_span.end());
+
+                    toml_spanner::Span::new(
+                        span.start + offset as u32 + label_start as u32,
+                        span.start + offset as u32 + label_end as u32,
+                    )
+                } else {
+                    item.span()
+                };
+
+                ctx.errors
+                    .push(toml_spanner::Error::custom(diagnostic.message(), span));
+            }
+
+            Failed
+        }
+
+        Self::new(String::from_toml(ctx, item)?).map_err(|diags| push_errors(ctx, item, diags))
+    }
+}
+
+/// Represents a set of conditional arguments for the LSF and Slurm backends.
+///
+/// Conditional arguments are passed to the program responsible for queuing a
+/// task when the associated conditional expression evaluates to `true`.
+#[derive(Debug, Clone, PartialEq, Eq, Toml)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+pub struct ConditionalArgs {
+    /// The condition for including the arguments.
+    pub condition: Condition,
+    /// The arguments to use when the condition evaluates to `true`.
+    #[toml(default)]
+    pub args: Vec<String>,
+}
+
+impl ConditionalArgs {
+    /// Validates the conditional arguments.
+    ///
+    /// This ensures that the conditional expression is valid WDL and the
+    /// specified arguments are not empty.
+    pub fn validate(&self) -> Result<()> {
+        if self.args.is_empty() {
+            bail!("backend conditional arguments must have at least one argument specified");
+        }
+
+        Ok(())
+    }
+}
+
+/// Represents additional arguments to the Slurm and LSF backends.
+///
+/// These arguments are passed to the executable responsible for queuing a task.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Toml)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+pub struct AdditionalArgs {
+    /// The additional arguments to pass to the backend program.
+    #[toml(default)]
+    pub args: Vec<String>,
+    /// The conditional arguments to pass to the backend program.
+    ///
+    /// The first conditional argument with an associated conditional expression
+    /// that evaluates to `true` will be passed to the backend program.
+    #[toml(default)]
+    pub conditional: Vec<ConditionalArgs>,
+}
+
+impl AdditionalArgs {
+    /// Validates the additional arguments.
+    pub fn validate(&self) -> Result<()> {
+        for arg in &self.conditional {
+            arg.validate()?;
+        }
+
         Ok(())
     }
 }
@@ -1720,13 +2230,12 @@ pub struct LsfApptainerBackendConfig {
     /// to LSF.
     #[toml(style = Header)]
     pub fpga_lsf_queue: Option<LsfQueueConfig>,
-    /// Additional command-line arguments to pass to `bsub` when submitting jobs
-    /// to LSF.
-    #[toml(default)]
-    pub extra_bsub_args: Vec<String>,
     /// Prefix to add to every LSF job name before the task identifier. This is
     /// truncated as needed to satisfy the byte-oriented LSF job name limit.
     pub job_name_prefix: Option<String>,
+    /// The additional arguments to `bsub` used to queue a new task.
+    #[toml(default)]
+    pub bsub: AdditionalArgs,
     /// The configuration of Apptainer, which is used as the container runtime
     /// on the compute nodes where LSF dispatches tasks.
     ///
@@ -1734,22 +2243,14 @@ pub struct LsfApptainerBackendConfig {
     /// container execution runtimes in the future, rather than being
     /// hardcoded to Apptainer.
     #[toml(default)]
-    // TODO ACF 2025-10-16: temporarily flatten this into the overall config so that it doesn't
-    // break existing serialized configs. We'll save breaking the config file format for when we
-    // actually have meaningful composition of in-place runtimes.
-    #[toml(flatten, with = flatten_any)]
-    pub apptainer_config: ApptainerConfig,
+    pub apptainer: ApptainerConfig,
 }
 
 impl LsfApptainerBackendConfig {
     /// Validate that the backend is appropriately configured.
-    pub async fn validate(&self, engine_config: &Config) -> Result<(), anyhow::Error> {
+    pub async fn validate(&self) -> Result<(), anyhow::Error> {
         if cfg!(not(unix)) {
             bail!("LSF + Apptainer backend is not supported on non-unix platforms");
-        }
-
-        if !engine_config.experimental_features_enabled {
-            bail!("LSF + Apptainer backend requires enabling experimental features");
         }
 
         // Do what we can to validate options that are dependent on the dynamic
@@ -1782,7 +2283,11 @@ impl LsfApptainerBackendConfig {
             );
         }
 
-        self.apptainer_config.validate().await?;
+        // Validate the additional arguments
+        self.bsub.validate()?;
+
+        // Validate the apptainer configuration
+        self.apptainer.validate().await?;
 
         Ok(())
     }
@@ -1793,8 +2298,8 @@ impl LsfApptainerBackendConfig {
     /// characteristics, with FPGA taking precedence over GPU.
     pub(crate) fn lsf_queue_for_task(
         &self,
-        requirements: &HashMap<String, Value>,
-        hints: &HashMap<String, Value>,
+        requirements: &Object,
+        hints: &Object,
     ) -> Option<&LsfQueueConfig> {
         // Specialized hardware gets priority.
         if let Some(queue) = self.fpga_lsf_queue.as_ref()
@@ -1951,10 +2456,9 @@ pub struct SlurmApptainerBackendConfig {
     /// to Slurm.
     #[toml(style = Header)]
     pub fpga_slurm_partition: Option<SlurmPartitionConfig>,
-    /// Additional command-line arguments to pass to `sbatch` when submitting
-    /// jobs to Slurm.
+    /// The additional arguments to `sbatch` used to queue a new task.
     #[toml(default)]
-    pub extra_sbatch_args: Vec<String>,
+    pub sbatch: AdditionalArgs,
     /// Prefix to add to every Slurm job name before the task identifier.
     pub job_name_prefix: Option<String>,
     /// The configuration of Apptainer, which is used as the container runtime
@@ -1964,21 +2468,14 @@ pub struct SlurmApptainerBackendConfig {
     /// container execution runtimes in the future, rather than being
     /// hardcoded to Apptainer.
     #[toml(default)]
-    // TODO ACF 2025-10-16: temporarily flatten this into the overall config so that it doesn't
-    // break existing serialized configs. We'll save breaking the config file format for when we
-    // actually have meaningful composition of in-place runtimes.
-    #[toml(flatten, with = flatten_any)]
-    pub apptainer_config: ApptainerConfig,
+    pub apptainer: ApptainerConfig,
 }
 
 impl SlurmApptainerBackendConfig {
     /// Validate that the backend is appropriately configured.
-    pub async fn validate(&self, engine_config: &Config) -> Result<(), anyhow::Error> {
+    pub async fn validate(&self) -> Result<(), anyhow::Error> {
         if cfg!(not(unix)) {
             bail!("Slurm + Apptainer backend is not supported on non-unix platforms");
-        }
-        if !engine_config.experimental_features_enabled {
-            bail!("Slurm + Apptainer backend requires enabling experimental features");
         }
 
         // Do what we can to validate options that are dependent on the dynamic
@@ -1999,7 +2496,11 @@ impl SlurmApptainerBackendConfig {
             partition.validate("fpga").await?;
         }
 
-        self.apptainer_config.validate().await?;
+        // Validate the additional arguments
+        self.sbatch.validate()?;
+
+        // Validate the apptainer configuration
+        self.apptainer.validate().await?;
 
         Ok(())
     }
@@ -2010,8 +2511,8 @@ impl SlurmApptainerBackendConfig {
     /// characteristics, with FPGA taking precedence over GPU.
     pub(crate) fn slurm_partition_for_task(
         &self,
-        requirements: &HashMap<String, Value>,
-        hints: &HashMap<String, Value>,
+        requirements: &Object,
+        hints: &Object,
     ) -> Option<&SlurmPartitionConfig> {
         // TODO ACF 2025-09-26: what's the relationship between this code and
         // `TaskExecutionConstraints`? Should this be there instead, or be pulling
@@ -2404,16 +2905,26 @@ impl<T> ConfigBuilder<T> {
 
 #[cfg(test)]
 mod test {
+    use std::collections::HashMap;
     use std::io::Write;
 
     use codespan_reporting::files::SimpleFile;
     use codespan_reporting::term::DisplayStyle;
     use codespan_reporting::term::emit_into_string;
     use codespan_reporting::term::{self};
+    use futures::future::BoxFuture;
     use pretty_assertions::assert_eq;
     use tempfile::TempPath;
+    use tempfile::tempdir;
 
     use super::*;
+    use crate::ONE_GIBIBYTE;
+    use crate::TaskInputs;
+    use crate::backend::TaskExecutionConstraints;
+    use crate::http::Location;
+    use crate::v1::DEFAULT_TASK_REQUIREMENT_CPU;
+    use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
+    use crate::v1::DEFAULT_TASK_REQUIREMENT_MEMORY;
 
     #[test]
     fn redacted_secret() {
@@ -2960,7 +3471,8 @@ type = 'lsf_apptainer'
         let map: HashMap<String, Parallelism> = toml_spanner::from_str("value = 123").unwrap();
         assert_eq!(map["value"], Parallelism::Use(123));
 
-        let expected_error = "expected a positive integer or `available` for parallelism";
+        let expected_error =
+            "expected a positive integer or `available` for parallelism at `value`";
 
         let error =
             toml_spanner::from_str::<HashMap<String, Parallelism>>("value = 'wrong'").unwrap_err();
@@ -2998,8 +3510,9 @@ type = 'lsf_apptainer'
         let map: HashMap<String, Retries> = toml_spanner::from_str("value = 0").unwrap();
         assert_eq!(map["value"], Retries::Use(0));
 
-        let expected_error =
-            format!("expected an integer less than {MAX_RETRIES} or `default` for retries");
+        let expected_error = format!(
+            "expected an integer less than {MAX_RETRIES} or `default` for retries at `value`"
+        );
 
         let error =
             toml_spanner::from_str::<HashMap<String, Retries>>("value = 'wrong'").unwrap_err();
@@ -3010,5 +3523,267 @@ type = 'lsf_apptainer'
 
         let error = toml_spanner::from_str::<HashMap<String, Retries>>("value = -10").unwrap_err();
         assert_eq!(error.to_string(), expected_error);
+    }
+
+    #[test]
+    fn mapping_escape_indexes() {
+        // Check for empty string
+        assert!(escape_mapping("").is_empty());
+
+        // Check a string with no escape sequences
+        assert!(escape_mapping("hello world!").is_empty());
+
+        // Check for a string containing only an escape sequences (should contain an
+        // exclusive-end mapping)
+        assert_eq!(escape_mapping(r#"\"\""#), &[(1, 2), (2, 4)]);
+        assert_eq!(escape_mapping(r#"\u0022\u0022"#), &[(1, 6), (2, 12)]);
+        assert_eq!(
+            escape_mapping(r#"\U00000022\U00000022"#),
+            &[(1, 10), (2, 20)]
+        );
+
+        // Check a complex string
+        assert_eq!(
+            escape_mapping(r#"\"foo\u0022 == \U00000022bar\" && \"\" == \"\n\""#),
+            &[
+                (1, 2),   // f
+                (5, 11),  // <space>
+                (10, 25), // b
+                (14, 30), // <space>
+                (19, 36), // \"
+                (20, 38), // <space>
+                (25, 44), // \n
+                (26, 46), // \"
+                (27, 48)  // <end of string>
+            ]
+        );
+    }
+
+    #[test]
+    fn conditional_args_serialization() {
+        // Test for invalid type
+        let error = toml_spanner::from_str::<ConditionalArgs>("condition = 1").unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "expected a string, found integer at `condition`"
+        );
+
+        // Test for not a single WDL expression
+        let error =
+            toml_spanner::from_str::<ConditionalArgs>(r#"condition = "foo bar""#).unwrap_err();
+        assert_eq!(error.to_string(), "expected a single WDL expression");
+
+        // Test for parse error
+        let error =
+            toml_spanner::from_str::<ConditionalArgs>(r#"condition = "{ foo: }""#).unwrap_err();
+        assert_eq!(error.to_string(), "expected expression, but found `}`");
+
+        // Test for not a `Boolean` expression
+        let error = toml_spanner::from_str::<ConditionalArgs>(r#"condition = "1""#).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "conditional expression is expected to be type `Boolean`, but found type `Int`"
+        );
+        let error = toml_spanner::from_str::<ConditionalArgs>(r#"condition = "hint""#).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "conditional expression is expected to be type `Boolean`, but found type `Object`"
+        );
+
+        // Test for unknown name
+        let error = toml_spanner::from_str::<ConditionalArgs>(r#"condition = "foo""#).unwrap_err();
+        assert_eq!(error.to_string(), "unknown name `foo`");
+
+        // Test for unknown type name
+        let error =
+            toml_spanner::from_str::<ConditionalArgs>(r#"condition = "Foo {}""#).unwrap_err();
+        assert_eq!(error.to_string(), "unknown type name `Foo`");
+
+        // Test for valid conditions
+        let args: ConditionalArgs = toml_spanner::from_str(r#"condition = "true""#).unwrap();
+        assert_eq!(args.condition.raw, "true");
+        assert_eq!(
+            toml_spanner::to_string(&args).unwrap(),
+            "condition = \"true\"\nargs = []\n"
+        );
+
+        let args: ConditionalArgs =
+            toml_spanner::from_str(r#"condition = "cpu == 1 && hint.bar == \"foo\"""#).unwrap();
+        assert_eq!(args.condition.raw, r#"cpu == 1 && hint.bar == "foo""#);
+        assert_eq!(
+            toml_spanner::to_string(&args).unwrap(),
+            "condition = 'cpu == 1 && hint.bar == \"foo\"'\nargs = []\n"
+        );
+    }
+
+    #[test]
+    fn validate_conditional_args() {
+        // Check for empty args
+        let args: ConditionalArgs = toml_spanner::from_str(r#"condition = "true""#).unwrap();
+        assert_eq!(
+            args.validate().unwrap_err().to_string(),
+            "backend conditional arguments must have at least one argument specified"
+        );
+    }
+
+    #[tokio::test]
+    async fn evaluate_conditions() {
+        /// Helper to represent the context for `Condition` evaluation.
+        struct Context {
+            cpu: f64,
+            memory: u64,
+            gpu: bool,
+            fpga: bool,
+            disks: i64,
+            inputs: TaskInputs,
+            hints: Object,
+        }
+
+        impl Default for Context {
+            fn default() -> Self {
+                Self {
+                    cpu: DEFAULT_TASK_REQUIREMENT_CPU,
+                    memory: DEFAULT_TASK_REQUIREMENT_MEMORY as u64,
+                    gpu: false,
+                    fpga: false,
+                    disks: (DEFAULT_TASK_REQUIREMENT_DISKS * ONE_GIBIBYTE) as i64,
+                    inputs: Default::default(),
+                    hints: Default::default(),
+                }
+            }
+        }
+
+        struct Transferer;
+
+        impl crate::http::Transferer for Transferer {
+            fn download<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<Location>> {
+                unimplemented!()
+            }
+
+            fn upload<'a>(&'a self, _: &'a Path, _: &'a Url) -> BoxFuture<'a, Result<()>> {
+                unimplemented!()
+            }
+
+            fn size<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, anyhow::Result<Option<u64>>> {
+                unimplemented!()
+            }
+
+            fn walk<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<Arc<[String]>>> {
+                unimplemented!()
+            }
+
+            fn exists<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<bool>> {
+                unimplemented!()
+            }
+
+            fn digest<'a>(
+                &'a self,
+                _: &'a Url,
+            ) -> BoxFuture<'a, Result<Option<Arc<cloud_copy::ContentDigest>>>> {
+                unimplemented!()
+            }
+        }
+
+        /// Helper for evaluating `Condition` from a WDL expression string.
+        ///
+        /// The string is expected to be a valid WDL expression.
+        async fn eval(context: Context, expression: &str) -> Result<bool> {
+            let dir = tempdir().context("failed to create temporary directory")?;
+            let condition = Condition::new(expression).expect("invalid expression");
+            condition
+                .evaluate(
+                    &ExecuteTaskRequest {
+                        id: "test",
+                        command: "",
+                        inputs: &context.inputs,
+                        backend_inputs: &[],
+                        requirements: &Object::empty(),
+                        hints: &context.hints,
+                        env: &Default::default(),
+                        constraints: &TaskExecutionConstraints {
+                            container: None,
+                            cpu: context.cpu,
+                            memory: context.memory,
+                            gpu: if context.gpu {
+                                vec![String::new()]
+                            } else {
+                                Default::default()
+                            },
+                            fpga: if context.fpga {
+                                vec![String::new()]
+                            } else {
+                                Default::default()
+                            },
+                            disks: IndexMap::from_iter([("".into(), context.disks)]),
+                        },
+                        base_dir: &EvaluationPath::from_local_path(dir.path().into()),
+                        attempt_dir: &dir.path().join("0"),
+                        temp_dir: &dir.path().join("tmp"),
+                    },
+                    &Transferer,
+                )
+                .await
+        }
+
+        // Check for the simple expressions
+        assert_eq!(eval(Context::default(), "true").await.unwrap(), true);
+        assert_eq!(eval(Context::default(), "false").await.unwrap(), false);
+        assert_eq!(eval(Context::default(), "cpu == 1").await.unwrap(), true);
+        assert_eq!(
+            eval(Context::default(), "memory == 2147483648")
+                .await
+                .unwrap(),
+            true
+        );
+        assert_eq!(eval(Context::default(), "gpu").await.unwrap(), false);
+        assert_eq!(eval(Context::default(), "fpga").await.unwrap(), false);
+        assert_eq!(
+            eval(Context::default(), "disks == 1073741824")
+                .await
+                .unwrap(),
+            true
+        );
+        assert_eq!(
+            eval(Context::default(), "defined(hint.foo)").await.unwrap(),
+            false
+        );
+
+        // Check a comprehensive expression
+        assert_eq!(
+            eval(
+                Context {
+                    cpu: 10.,
+                    memory: 10 * 1024 * 1024,
+                    gpu: true,
+                    fpga: true,
+                    disks: 1024 * 1024,
+                    inputs: Default::default(),
+                    hints: Object::new(IndexMap::from_iter([(
+                        "foo".into(),
+                        "hi".to_string().into()
+                    )]))
+                },
+                r#"cpu == 10 && memory == 10*1024*1024 && gpu && fpga && disks == 1024 * 1024 && hint.foo == "hi""#
+            )
+            .await
+            .unwrap(),
+            true
+        );
+
+        // Check for input hint override
+        let mut context = Context {
+            hints: Object::new(IndexMap::from_iter([(
+                "foo".into(),
+                "hi".to_string().into(),
+            )])),
+            ..Default::default()
+        };
+        context
+            .inputs
+            .override_hint("foo", "overridden!".to_string());
+        assert_eq!(
+            eval(context, r#"hint.foo == "overridden!""#).await.unwrap(),
+            true
+        );
     }
 }

@@ -37,6 +37,7 @@ fail = "slow"
 cache_dir = "system"
 retries = 5
 parallelism = "available"
+hash_algorithm = "sha256"
 
 [run.workflow]
 
@@ -115,6 +116,7 @@ fail = "slow"
 cache_dir = "system"
 retries = 5
 parallelism = "available"
+hash_algorithm = "sha256"
 
 [server.engine.workflow]
 
@@ -168,6 +170,10 @@ report_mode = "full"
 
 [common.wdl]
 fallback_version = "none"
+
+[common.wdl.feature_flags]
+wdl_1_3 = true
+wdl_1_4 = false
 
 [modules]
 large_file_warning = "1.0 MiB"
