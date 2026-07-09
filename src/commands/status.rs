@@ -142,9 +142,9 @@ async fn status_single(
         _ => String::new(),
     };
 
-    let name_display = format!("`{}`", run.name);
+    let name_display = format!("{}", run.name);
     println!(
-        "`{short_uuid}`  {name:<32}  {status}{elapsed}",
+        "{short_uuid}  {name:<32}  {status}{elapsed}",
         short_uuid = &run.uuid.to_string()[..8],
         name = name_display,
         status = status_display,
@@ -152,7 +152,7 @@ async fn status_single(
     );
 
     if let Some(target) = &run.target {
-        println!("{:>14}  `{target}`", "Target:");
+        println!("{:>14}  {target}", "Target:");
     }
 
     if let Some(summary) = task_counts_summary(&counts, colorize) {
@@ -228,9 +228,9 @@ async fn status_list(
         let target = run
             .target
             .as_deref()
-            .map(|target| format!("`{target}`"))
+            .map(|target| format!("{target}"))
             .unwrap_or_else(|| "-".to_string());
-        let name_display = format!("`{}`", run.name);
+        let name_display = format!("{}", run.name);
         let timestamp = run
             .completed_at
             .or(run.started_at)
@@ -238,7 +238,7 @@ async fn status_list(
             .format("%Y-%m-%d %H:%M:%S UTC");
 
         println!(
-            "`{short_uuid}`  {name:<32}  {status:<12}  {target:<22}  {timestamp}",
+            "{short_uuid}  {name:<32}  {status:<12}  {target:<22}  {timestamp}",
             short_uuid = &run.uuid.to_string()[..8],
             name = name_display,
             status = status_display,
