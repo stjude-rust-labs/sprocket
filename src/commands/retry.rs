@@ -3,7 +3,6 @@
 use std::collections::BTreeMap;
 
 use anyhow::Context;
-use anyhow::anyhow;
 use clap::Parser;
 use serde_json::Value as JsonValue;
 use wdl::analysis::Document;
@@ -23,6 +22,7 @@ use crate::commands::validate::analyze_source;
 use crate::commands::validate::ensure_no_analysis_errors;
 use crate::config::Config;
 use crate::inputs::Invocation;
+use crate::inputs::join_paths_for_target;
 use crate::server::RunResponse;
 use crate::server::SubmitRunRequest;
 use crate::server::paths;
@@ -224,12 +224,12 @@ async fn merge_overrides_into(
 }
 
 /// Round-trips an override JSON map through `EngineInputs::parse_json_object`,
-/// `join_paths`, and `inputs_to_json` to resolve relative `File`/`Directory`
-/// paths in override values to absolute paths.
+/// `join_paths_for_target`, and `inputs_to_json` to resolve relative
+/// `File`/`Directory` paths in override values to absolute paths.
 ///
 /// `parse_json_object` accepts a partial input set (it does not error on
-/// missing required inputs — that check lives in `validate()`, which we
-/// intentionally skip for the override case). `join_paths` iterates only
+/// missing required inputs; that check lives in `validate()`, which we
+/// intentionally skip for the override case). Path resolution iterates only
 /// over keys present in the typed inputs, so it works correctly with a
 /// subset.
 async fn resolve_override_paths(
@@ -244,39 +244,7 @@ async fn resolve_override_paths(
         return Ok(overrides);
     };
 
-    match &mut inputs {
-        EngineInputs::Task(task_inputs) => {
-            let task = document
-                .task_by_name(&target)
-                .with_context(|| format!("task `{target}` was not found"))?;
-            task_inputs
-                .join_paths(task, |key| {
-                    let prefixed = format!("{target}.{key}");
-                    origins
-                        .get(&prefixed)
-                        .map(|v| v.as_slice())
-                        .ok_or_else(|| anyhow!("no origin for override `{prefixed}`"))
-                })
-                .await
-                .context("failed to resolve override paths")?;
-        }
-        EngineInputs::Workflow(workflow_inputs) => {
-            let workflow = document.workflow().context("workflow not found")?;
-            if workflow.name() != target {
-                return Err(anyhow!("workflow `{target}` was not found").into());
-            }
-            workflow_inputs
-                .join_paths(workflow, |key| {
-                    let prefixed = format!("{target}.{key}");
-                    origins
-                        .get(&prefixed)
-                        .map(|v| v.as_slice())
-                        .ok_or_else(|| anyhow!("no origin for override `{prefixed}`"))
-                })
-                .await
-                .context("failed to resolve override paths")?;
-        }
-    }
+    join_paths_for_target(document, &target, &mut inputs, &origins).await?;
 
     let json_str =
         inputs_to_json(&target, &inputs).context("failed to serialize override inputs")?;

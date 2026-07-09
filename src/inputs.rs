@@ -295,43 +295,8 @@ impl Invocation {
             ))
         }
 
-        // Resolve relative paths using per-input origins
-        match &mut inputs {
-            EngineInputs::Task(task_inputs) => {
-                let task = document
-                    .task_by_name(&target)
-                    .with_context(|| format!("task `{target}` was not found"))?;
-
-                task_inputs
-                    .join_paths(task, |key| {
-                        let key = format!("{target}.{key}");
-                        origins
-                            .get(&key)
-                            .map(|v| v.as_slice())
-                            .ok_or_else(|| anyhow!("no origin path for input `{key}`"))
-                    })
-                    .await
-                    .context("failed to resolve input paths")?;
-            }
-            EngineInputs::Workflow(workflow_inputs) => {
-                let workflow = document.workflow().context("workflow not found")?;
-
-                if workflow.name() != target {
-                    bail!("workflow `{target}` was not found");
-                }
-
-                workflow_inputs
-                    .join_paths(workflow, |key| {
-                        let key = format!("{target}.{key}");
-                        origins
-                            .get(&key)
-                            .map(|v| v.as_slice())
-                            .ok_or_else(|| anyhow!("no origin path for input `{key}`"))
-                    })
-                    .await
-                    .context("failed to resolve input paths")?;
-            }
-        }
+        // Resolve relative paths using per-input origins.
+        join_paths_for_target(document, &target, &mut inputs, &origins).await?;
 
         Ok(Some((target, inputs)))
     }
@@ -405,6 +370,51 @@ impl Invocation {
     ) {
         self.flatten()
     }
+}
+
+/// Resolves relative `File`/`Directory` paths in `inputs` to absolute paths.
+///
+/// Each input's paths are joined against the origin recorded for its
+/// target-prefixed key in `origins`. `target` names the task or workflow to
+/// resolve against in `document`. `inputs` may hold a partial set; only keys
+/// present in the typed inputs are visited.
+pub async fn join_paths_for_target(
+    document: &Document,
+    target: &str,
+    inputs: &mut EngineInputs,
+    origins: &BTreeMap<String, Vec<EvaluationPath>>,
+) -> Result<()> {
+    let origin = |key: &str| {
+        let key = format!("{target}.{key}");
+        origins
+            .get(&key)
+            .map(|v| v.as_slice())
+            .ok_or_else(|| anyhow!("no origin path for input `{key}`"))
+    };
+
+    match inputs {
+        EngineInputs::Task(task_inputs) => {
+            let task = document
+                .task_by_name(target)
+                .with_context(|| format!("task `{target}` was not found"))?;
+            task_inputs
+                .join_paths(task, origin)
+                .await
+                .context("failed to resolve input paths")?;
+        }
+        EngineInputs::Workflow(workflow_inputs) => {
+            let workflow = document.workflow().context("workflow not found")?;
+            if workflow.name() != target {
+                bail!("workflow `{target}` was not found");
+            }
+            workflow_inputs
+                .join_paths(workflow, origin)
+                .await
+                .context("failed to resolve input paths")?;
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
