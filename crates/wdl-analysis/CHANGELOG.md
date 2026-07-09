@@ -25,6 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `maxRetries`, and `returnCodes`) is now version-aware: these keys are no
   longer type checked in WDL 1.0 documents, since they were not formally
   typed until WDL 1.1 ([#811](https://github.com/stjude-rust-labs/sprocket/issues/811)).
+* LSP hover and completion for standard library functions are now version-aware:
+  functions and polymorphic signatures whose minimum WDL version exceeds the
+  document's declared version are no longer offered in completion or shown on
+  hover ([#<pr-number>](https://github.com/stjude-rust-labs/sprocket/pull/<pr-number>)).
 
 ### Changed
 
