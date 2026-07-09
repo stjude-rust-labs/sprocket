@@ -83,6 +83,11 @@ use zip::ZipArchive;
 mod analysis;
 mod sprocket;
 
+// Match the global allocator used by the `sprocket` binary so benchmarks
+// reflect real execution.
+#[global_allocator]
+static GLOBAL: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 /// Download a copy of the `workflows` repo to a temporary directory under
 /// `/target`.
 ///

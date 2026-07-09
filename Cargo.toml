@@ -71,6 +71,7 @@ logos = "0.16.1"
 lsp-types = "0.95.1"
 macropol = "0.1.4"
 maud = "0.27.0"
+mimalloc = "0.1.52"
 nonempty = "0.12.0"
 notify = "8.2.0"
 num_enum = "0.7.5"
@@ -80,7 +81,6 @@ parking_lot = "0.12.5"
 paste = "1.0.15"
 path-clean = "1.0.1"
 pathdiff = "0.2.3"
-peak_alloc = "0.3.0"
 petgraph = "0.8.3"
 petname = { version = "2.0.2", features = ["default-rng", "default-words"] }
 pretty_assertions = "1.4.1"
@@ -134,6 +134,7 @@ wdl = { version = "0.23.2", path = "crates/wdl", features = ["engine", "lint", "
 wdl-modules = { version = "0.2.1", path = "crates/wdl-modules", features = ["resolver"] }
 which = "8.0.0"
 whoami = "2.1.0"
+windows-sys = "0.61"
 zip = { version = "8.1.0", default-features = false, features = [] }
 
 [workspace.lints.rust]
@@ -169,6 +170,16 @@ repository.workspace = true
 documentation = "https://sprocket.bio/overview.html"
 readme = "README.md"
 
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Threading",
+] }
+
 [dependencies]
 anyhow.workspace = true
 async-trait.workspace = true
@@ -188,11 +199,11 @@ git-testament.workspace = true
 indexmap.workspace = true
 indicatif.workspace = true
 itertools.workspace = true
+mimalloc.workspace = true
 nonempty.workspace = true
 opener.workspace = true
 path-clean.workspace = true
 pathdiff.workspace = true
-peak_alloc.workspace = true
 petname.workspace = true
 pretty_assertions.workspace = true
 rand.workspace = true
@@ -233,7 +244,7 @@ reqwest = { workspace = true, features = ["blocking"] }
 shlex.workspace = true
 tempfile.workspace = true
 walkdir.workspace = true
-zip.workspace = true
+zip = { workspace = true, features = ["deflate"] }
 
 [lints]
 workspace = true
