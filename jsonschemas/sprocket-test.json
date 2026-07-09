@@ -62,20 +62,14 @@
       "properties": {
         "exit_code": {
           "description": "The expected exit code of the task (ignored when testing workflows).\n\nDefaults to `0` if not specified. Cannot be combined with\n`should_fail`.",
-          "type": [
-            "integer",
-            "null"
-          ],
+          "type": "integer",
           "format": "int32",
-          "default": null
+          "default": 0
         },
         "should_fail": {
           "description": "Whether the test is expected to fail.\n\nFor workflows, any failure is expected.\nFor tasks, any nonzero exit code is expected.\nCannot be combined with `exit_code` (any value, including `exit_code:\n0`).",
-          "type": [
-            "boolean",
-            "null"
-          ],
-          "default": null
+          "type": "boolean",
+          "default": false
         },
         "stdout": {
           "description": "Regular expressions that should match within STDOUT of the task (ignored\nwhen testing workflows).",
