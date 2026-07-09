@@ -7,19 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added server-management commands under `sprocket dev server` ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
+  * `status` shows a compact one-line status for a specific run, or lists all runs with pagination and status filtering; supports `--json`.
+  * `inspect` shows detailed information about a run, including per-status task counts, the server's output directory, and (with `--detailed`) a per-task breakdown.
+  * `cancel` cancels a queued or running run.
+  * `retry` resubmits a previous run with optional input overrides using the same syntax as `submit` (`key=value`, `@file`, repeated keys append to arrays).
+* New API endpoints on the `dev server` HTTP API: `GET /api/v1/info` (server metadata), `GET /api/v1/runs/{id}/tasks` (list a run's tasks, paginated and filterable by status), `GET /api/v1/runs/{id}/tasks/counts` (per-status task counts), `GET /api/v1/tasks` (list all tasks), `GET /api/v1/tasks/{name}` (single task), and `GET /api/v1/tasks/{name}/logs` (task logs, filterable by `stdout`/`stderr`) ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
+* Added a `strongish` content digest mode (`run.task.digests = "strongish"`) that hashes file size, last modified time, and the first 10 MiB of a file's contents; this is an intermediate strategy between `weak` and `strong`, similar to Cromwell's `fingerprint` call caching strategy ([#978](https://github.com/stjude-rust-labs/sprocket/pull/978)).
+
+### Changed
+
+* Grouped the server commands under `sprocket dev server` (previously flat under `sprocket dev`): `server` and `submit` are now `sprocket dev server <subcommand>`. The `server` subcommand was renamed `start`. ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
+* `sprocket analyzer` now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
+
 ### Fixed
 
+* `dev server` HTTP endpoints and CLI commands now reject non-positive `--limit` values and negative or unparsable `next_token` values (previously `limit=0` could loop pagination and `limit=-1` triggered SQLite's unbounded-fetch behavior) ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
 * The "missing version statement" parse error no longer claims all WDL documents require a version statement (untrue for draft-2); it now scopes the claim to WDL 1.0+ and adds guidance for draft-2 documents ([#993](https://github.com/stjude-rust-labs/sprocket/pull/993)).
 
 ## 0.27.0 - 2026-06-26
 
 ### Added
 
+* `sprocket` resolves symbolic module imports during analysis when a `module.json` is found at or above the source directory, constructing a `GitResolver` from the `[modules]` configuration ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
 * Nix flake providing `packages.sprocket`, a development shell with the
   full toolchain, `nix flake check` entries (package build, binary smoke
   test, and `nixfmt`/`statix`/`deadnix` lints), and a `nix fmt`
   formatter ([#887](https://github.com/stjude-rust-labs/sprocket/issues/887)).
-* Added printing diagnostics with TOML source context when TOML fails to parse 
+* Added printing diagnostics with TOML source context when TOML fails to parse
   or be deserialized ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 * New `test.throttle` configuration entry for adding a delay between initial test submissions ([#798](https://github.com/stjude-rust-labs/sprocket/pull/798)).
 * Added `--show-task-stderr` option to the `run` subcommand to show task stderr during execution ([#743](https://github.com/stjude-rust-labs/sprocket/pull/743)).

@@ -9,7 +9,24 @@ env:
   REGISTRY: ghcr.io
 
 jobs:
+  # Gate the release: a published tag must build under Nix before any artifact
+  # or image is pushed, so the `nix run github:.../<tag>` install path always
+  # works. The build is normally cache-warm from the `main` runs in `nix.yml`.
+  nix:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v6
+    - name: Install Nix
+      uses: DeterminateSystems/nix-installer-action@v22
+    - name: Cache the Nix store
+      uses: nix-community/cache-nix-action@v7.0.2
+      with:
+        primary-key: nix-${{ runner.os }}-${{ hashFiles('flake.lock', 'flake.nix', 'Cargo.lock') }}
+        restore-prefixes-first-match: nix-${{ runner.os }}-
+    - name: Build and check the flake
+      run: nix flake check --print-build-logs
   docker-x86:
+    needs: nix
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v6
@@ -51,6 +68,7 @@ jobs:
         if-no-files-found: error
         retention-days: 1
   docker-arm:
+    needs: nix
     runs-on: ubuntu-24.04-arm
     steps:
     - uses: actions/checkout@v6
@@ -127,6 +145,7 @@ jobs:
         run: |
           docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ github.repository_owner }}/sprocket:${{ steps.meta.outputs.version }}
   build_artifacts_win:
+    needs: nix
     runs-on: windows-latest
     strategy:
       fail-fast: false
@@ -151,6 +170,7 @@ jobs:
       with:
         files: ./target/${{ matrix.rust-target }}/release/sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.${{ matrix.extension }}
   build_artifacts_mac:
+    needs: nix
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -177,6 +197,7 @@ jobs:
       with:
         files: ./target/${{ matrix.rust-target }}/release/sprocket-${{ github.ref_name }}-${{ matrix.rust-target }}.${{ matrix.extension }}
   build_artifacts_linux:
+    needs: nix
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false

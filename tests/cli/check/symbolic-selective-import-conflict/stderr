@@ -1,0 +1,10 @@
+error: import of `grind_beans` conflicts with an existing definition
+  ┌─ main.wdl:3:10
+  │
+3 │ import { grind_beans } from coffeeshop
+  │          ^^^^^^^^^^^ imported here
+4 │ 
+5 │ task grind_beans {
+  │      ----------- previous definition
+
+error: failing due to 1 error

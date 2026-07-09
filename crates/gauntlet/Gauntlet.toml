@@ -3078,11 +3078,6 @@ message = "TrioAnalysis.wdl:80:14: warning[UnusedInput]: unused input `ref_index
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/BenchmarkVCFs/TrioAnalysis.wdl/#L80"
 
 [[diagnostics]]
-document = "broadinstitute/palantir-workflows:/Fingerprints/GetFingerprintMetrics.wdl"
-message = "GetFingerprintMetrics.wdl:45:11: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Fingerprints/GetFingerprintMetrics.wdl/#L45"
-
-[[diagnostics]]
 document = "broadinstitute/palantir-workflows:/FunctionalEquivalence/FunctionalEquivalence.wdl"
 message = "FunctionalEquivalence.wdl:125:64: error: type mismatch: a type common to both type `String` and type `Int` does not exist"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/FunctionalEquivalence/FunctionalEquivalence.wdl/#L125"
@@ -3194,11 +3189,6 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/GlimpseImputationPipeline/Glimpse2MergeBatches.wdl"
-message = "Glimpse2MergeBatches.wdl:164:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/GlimpseImputationPipeline/Glimpse2MergeBatches.wdl/#L164"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/GlimpseImputationPipeline/Glimpse2MergeBatches.wdl"
 message = "Glimpse2MergeBatches.wdl:181:14: warning[UnusedInput]: unused input `vcf_index`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/GlimpseImputationPipeline/Glimpse2MergeBatches.wdl/#L181"
 
@@ -3251,11 +3241,6 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 document = "broadinstitute/palantir-workflows:/HaplotypeMap/BuildHaplotypeMap.wdl"
 message = "BuildHaplotypeMap.wdl:17:1: error: WDL 1.0+ documents must begin with a version statement"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/HaplotypeMap/BuildHaplotypeMap.wdl/#L17"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/JointCalling/CreateSampleMap.wdl"
-message = "CreateSampleMap.wdl:57:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/JointCalling/CreateSampleMap.wdl/#L57"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/LongReadRNABenchmark/Bambu.wdl"
@@ -3579,18 +3564,8 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/DownsampleAndCollectCoverage.wdl"
-message = "DownsampleAndCollectCoverage.wdl:196:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Utilities/WDLs/DownsampleAndCollectCoverage.wdl/#L196"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/Utilities/WDLs/DownsampleAndCollectCoverage.wdl"
 message = "DownsampleAndCollectCoverage.wdl:88:14: warning[UnusedInput]: unused input `input_cram_index`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Utilities/WDLs/DownsampleAndCollectCoverage.wdl/#L88"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/Utilities/WDLs/IndexCramOrBam.wdl"
-message = "IndexCramOrBam.wdl:36:8: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Utilities/WDLs/IndexCramOrBam.wdl/#L36"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/MatchFingerprints.wdl"
@@ -3601,11 +3576,6 @@ permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/MatchFingerprints.wdl"
 message = "MatchFingerprints.wdl:88:17: warning[UnusedInput]: unused input `fail_on_mismatch`"
 permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Utilities/WDLs/MatchFingerprints.wdl/#L88"
-
-[[diagnostics]]
-document = "broadinstitute/palantir-workflows:/Utilities/WDLs/MergeSingleSampleMinimacVcfs.wdl"
-message = "MergeSingleSampleMinimacVcfs.wdl:183:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/palantir-workflows/blob/0d6cb8e62f889d0c2b79fb65c28b1d2727ae7992/Utilities/WDLs/MergeSingleSampleMinimacVcfs.wdl/#L183"
 
 [[diagnostics]]
 document = "broadinstitute/palantir-workflows:/Utilities/WDLs/MergeSingleSampleMinimacVcfs.wdl"
@@ -3849,23 +3819,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/PCA/pca_only_no_labels.wdl"
-message = "pca_only_no_labels.wdl:158:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/PCA/pca_only_no_labels.wdl/#L158"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/PCA/pca_only_no_labels.wdl"
-message = "pca_only_no_labels.wdl:247:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/PCA/pca_only_no_labels.wdl/#L247"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/PCA/pca_only_no_labels.wdl"
 message = "pca_only_no_labels.wdl:51:21: warning[UnusedInput]: unused input `vcf_indices`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/PCA/pca_only_no_labels.wdl/#L51"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/PCA/pca_only_no_labels.wdl"
-message = "pca_only_no_labels.wdl:78:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/PCA/pca_only_no_labels.wdl/#L78"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/PCA/pca_only_no_labels.wdl"
@@ -3894,16 +3849,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
-message = "determine_hq_sites_intersection.wdl:181:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/determine_hq_sites_intersection.wdl/#L181"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
-message = "determine_hq_sites_intersection.wdl:247:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/determine_hq_sites_intersection.wdl/#L247"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
 message = "determine_hq_sites_intersection.wdl:264:14: warning[UnusedInput]: unused input `sites_only_vcf_idx`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/determine_hq_sites_intersection.wdl/#L264"
 
@@ -3919,11 +3864,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
-message = "determine_hq_sites_intersection.wdl:306:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/determine_hq_sites_intersection.wdl/#L306"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
 message = "determine_hq_sites_intersection.wdl:314:14: warning[UnusedInput]: unused input `vcf1_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/determine_hq_sites_intersection.wdl/#L314"
 
@@ -3931,11 +3871,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
 message = "determine_hq_sites_intersection.wdl:316:14: warning[UnusedInput]: unused input `vcf2_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/determine_hq_sites_intersection.wdl/#L316"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
-message = "determine_hq_sites_intersection.wdl:343:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/determine_hq_sites_intersection.wdl/#L343"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/determine_hq_sites_intersection.wdl"
@@ -3964,11 +3899,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/run_ancestry.wdl"
-message = "run_ancestry.wdl:164:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_ancestry.wdl/#L164"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_ancestry.wdl"
 message = "run_ancestry.wdl:172:14: warning[UnusedInput]: unused input `input_vcf_idx`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_ancestry.wdl/#L172"
 
@@ -3976,16 +3906,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/all_of_us/ancestry/run_ancestry.wdl"
 message = "run_ancestry.wdl:174:14: warning[UnusedInput]: unused input `training_vcf_idx`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_ancestry.wdl/#L174"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_ancestry.wdl"
-message = "run_ancestry.wdl:283:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_ancestry.wdl/#L283"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_ancestry.wdl"
-message = "run_ancestry.wdl:380:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_ancestry.wdl/#L380"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/run_ancestry.wdl"
@@ -4009,33 +3929,13 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc.wdl"
-message = "run_sample_outlier_qc.wdl:103:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc.wdl/#L103"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc.wdl"
 message = "run_sample_outlier_qc.wdl:18:12: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc.wdl/#L18"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc.wdl"
-message = "run_sample_outlier_qc.wdl:190:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc.wdl/#L190"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl"
-message = "run_sample_outlier_qc_plotting.wdl:103:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl/#L103"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl"
 message = "run_sample_outlier_qc_plotting.wdl:111:14: warning[UnusedInput]: unused input `aou_demographics_tsv`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl/#L111"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl"
-message = "run_sample_outlier_qc_plotting.wdl:147:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl/#L147"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl"
@@ -4046,11 +3946,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl"
 message = "run_sample_outlier_qc_plotting.wdl:155:14: warning[UnusedInput]: unused input `aou_demographics_tsv`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl/#L155"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl"
-message = "run_sample_outlier_qc_plotting.wdl:249:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/ancestry/run_sample_outlier_qc_plotting.wdl/#L249"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/ancestry/vds_to_vcf.wdl"
@@ -4239,23 +4134,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
-message = "mt_coverage_merge.wdl:121:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/mitochondria/mt_coverage_merge.wdl/#L121"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
 message = "mt_coverage_merge.wdl:17:12: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/mitochondria/mt_coverage_merge.wdl/#L17"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
-message = "mt_coverage_merge.wdl:220:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/mitochondria/mt_coverage_merge.wdl/#L220"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
-message = "mt_coverage_merge.wdl:270:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/mitochondria/mt_coverage_merge.wdl/#L270"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
@@ -4266,16 +4146,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
 message = "mt_coverage_merge.wdl:282:16: warning[UnusedInput]: unused input `output_bucket`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/mitochondria/mt_coverage_merge.wdl/#L282"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
-message = "mt_coverage_merge.wdl:333:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/mitochondria/mt_coverage_merge.wdl/#L333"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/mitochondria/mt_coverage_merge.wdl"
-message = "mt_coverage_merge.wdl:391:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/mitochondria/mt_coverage_merge.wdl/#L391"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/mitochondria/subworkflows_and_tasks/AlignAndCallR1_v2_5_Single.wdl"
@@ -4624,11 +4494,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/pgx/CyriusStarAlleleCalling.wdl"
-message = "CyriusStarAlleleCalling.wdl:80:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/pgx/CyriusStarAlleleCalling.wdl/#L80"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/pgx/CyriusStarAlleleCalling.wdl"
 message = "CyriusStarAlleleCalling.wdl:92:14: warning[UnusedInput]: unused input `input_cram_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/pgx/CyriusStarAlleleCalling.wdl/#L92"
 
@@ -4641,11 +4506,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/all_of_us/pgx/StargazerFromJointVCF.wdl"
 message = "StargazerFromJointVCF.wdl:106:14: warning[UnusedInput]: unused input `inputVCFindex`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/pgx/StargazerFromJointVCF.wdl/#L106"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/pgx/StargazerFromJointVCF.wdl"
-message = "StargazerFromJointVCF.wdl:124:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/pgx/StargazerFromJointVCF.wdl/#L124"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/pgx/StargazerFromJointVCF.wdl"
@@ -4684,23 +4544,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/AggregateSusieWorkflow.wdl"
-message = "AggregateSusieWorkflow.wdl:32:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/AggregateSusieWorkflow.wdl/#L32"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/AggregateSusieWorkflow.wdl"
 message = "AggregateSusieWorkflow.wdl:56:14: warning[UnusedInput]: unused input `AnnotationVEPIndex`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/AggregateSusieWorkflow.wdl/#L56"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/AggregateSusieWorkflow.wdl"
-message = "AggregateSusieWorkflow.wdl:78:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/AggregateSusieWorkflow.wdl/#L78"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/CalculatePhenotypeGroups.wdl"
-message = "CalculatePhenotypeGroups.wdl:28:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/CalculatePhenotypeGroups.wdl/#L28"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/CalculatePhenotypeGroups.wdl"
@@ -4711,11 +4556,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/all_of_us/rna_seq/CalculatePhenotypeGroups.wdl"
 message = "CalculatePhenotypeGroups.wdl:46:12: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/CalculatePhenotypeGroups.wdl/#L46"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/aggregate_rsem_results.wdl"
-message = "aggregate_rsem_results.wdl:54:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/aggregate_rsem_results.wdl/#L54"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/aggregate_rsem_results.wdl"
@@ -4758,16 +4598,6 @@ message = "aggregate_rsem_results.wdl:65:10: warning[UnusedCall]: unused call `r
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/aggregate_rsem_results.wdl/#L65"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/leafcutter_bam_to_junc.wdl"
-message = "leafcutter_bam_to_junc.wdl:30:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/leafcutter_bam_to_junc.wdl/#L30"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/leafcutter_cluster.wdl"
-message = "leafcutter_cluster.wdl:65:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/leafcutter_cluster.wdl/#L65"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/markduplicates.wdl"
 message = "markduplicates.wdl:1:1: error: WDL 1.0+ documents must begin with a version statement"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/markduplicates.wdl/#L1"
@@ -4804,11 +4634,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/susieR_workflow.wdl"
-message = "susieR_workflow.wdl:123:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/susieR_workflow.wdl/#L123"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/susieR_workflow.wdl"
 message = "susieR_workflow.wdl:180:16: warning[UnusedInput]: unused input `OutputPrefix`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/susieR_workflow.wdl/#L180"
 
@@ -4821,11 +4646,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/all_of_us/rna_seq/susieR_workflow.wdl"
 message = "susieR_workflow.wdl:31:14: warning[UnusedInput]: unused input `GenotypeDosageIndex`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/susieR_workflow.wdl/#L31"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/all_of_us/rna_seq/susieR_workflow.wdl"
-message = "susieR_workflow.wdl:76:14: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/all_of_us/rna_seq/susieR_workflow.wdl/#L76"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/all_of_us/rna_seq/susieR_workflow.wdl"
@@ -4914,11 +4734,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/BroadInternalUltimaGenomics.wdl"
-message = "BroadInternalUltimaGenomics.wdl:59:8: error: unknown namespace `UltimaGenomicsWholeGenomeGermline`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/BroadInternalUltimaGenomics.wdl/#L59"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/BroadInternalUltimaGenomics.wdl"
 message = "BroadInternalUltimaGenomics.wdl:5:8: error: failed to import `../../../../../../../pipelines/wdl/dna_seq/germline/single_sample/ugwgs/UltimaGenomicsWholeGenomeGermline.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/BroadInternalUltimaGenomics.wdl/#L5"
 
@@ -4929,68 +4744,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/BroadInternalUltimaGenomics.wdl"
-message = "BroadInternalUltimaGenomics.wdl:75:8: error: unknown namespace `FP`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/BroadInternalUltimaGenomics.wdl/#L75"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/BroadInternalUltimaGenomics.wdl"
 message = "BroadInternalUltimaGenomics.wdl:7:8: error: failed to import `../../../../../../../pipelines/wdl/qc/CheckFingerprint.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/BroadInternalUltimaGenomics.wdl/#L7"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl"
-message = "TestBroadInternalUltimaGenomics.wdl:113:10: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl/#L113"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl"
-message = "TestBroadInternalUltimaGenomics.wdl:123:12: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl/#L123"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl"
-message = "TestBroadInternalUltimaGenomics.wdl:134:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl/#L134"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl"
-message = "TestBroadInternalUltimaGenomics.wdl:140:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl/#L140"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl"
-message = "TestBroadInternalUltimaGenomics.wdl:146:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl/#L146"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl"
-message = "TestBroadInternalUltimaGenomics.wdl:152:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl/#L152"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl"
-message = "TestBroadInternalUltimaGenomics.wdl:158:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl/#L158"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl"
-message = "TestBroadInternalUltimaGenomics.wdl:164:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl/#L164"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl"
-message = "TestBroadInternalUltimaGenomics.wdl:170:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl/#L170"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl"
-message = "TestBroadInternalUltimaGenomics.wdl:176:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl/#L176"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl"
-message = "TestBroadInternalUltimaGenomics.wdl:183:12: error: unknown namespace `VerifyUltimaGenomicsWholeGenomeGermline`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl/#L183"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl"
@@ -5011,11 +4766,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl"
 message = "TestBroadInternalUltimaGenomics.wdl:21:7: error: unknown type name `VcfPostProcessing`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl/#L21"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl"
-message = "TestBroadInternalUltimaGenomics.wdl:46:10: error: unknown namespace `BroadInternalUltimaGenomics`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl/#L46"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/dna_seq/germline/single_sample/UltimaGenomics/TestBroadInternalUltimaGenomics.wdl"
@@ -5059,38 +4809,13 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/external_exome_reprocessing/ExternalExomeReprocessing.wdl"
-message = "ExternalExomeReprocessing.wdl:43:8: error: unknown namespace `ExomeReprocessing`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_exome_reprocessing/ExternalExomeReprocessing.wdl/#L43"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/external_exome_reprocessing/ExternalExomeReprocessing.wdl"
 message = "ExternalExomeReprocessing.wdl:5:8: error: failed to import `../../../../../pipelines/wdl/reprocessing/exome/ExomeReprocessing.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_exome_reprocessing/ExternalExomeReprocessing.wdl/#L5"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/external_exome_reprocessing/ExternalExomeReprocessing.wdl"
-message = "ExternalExomeReprocessing.wdl:64:8: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_exome_reprocessing/ExternalExomeReprocessing.wdl/#L64"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/external_exome_reprocessing/ExternalExomeReprocessing.wdl"
 message = "ExternalExomeReprocessing.wdl:6:8: error: failed to import `../../../../../tasks/wdl/CopyFilesFromCloudToCloud.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_exome_reprocessing/ExternalExomeReprocessing.wdl/#L6"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/external_exome_reprocessing/TestExternalExomeReprocessing.wdl"
-message = "TestExternalExomeReprocessing.wdl:124:10: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_exome_reprocessing/TestExternalExomeReprocessing.wdl/#L124"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/external_exome_reprocessing/TestExternalExomeReprocessing.wdl"
-message = "TestExternalExomeReprocessing.wdl:134:12: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_exome_reprocessing/TestExternalExomeReprocessing.wdl/#L134"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/external_exome_reprocessing/TestExternalExomeReprocessing.wdl"
-message = "TestExternalExomeReprocessing.wdl:149:12: error: unknown namespace `VerifyExternalReprocessing`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_exome_reprocessing/TestExternalExomeReprocessing.wdl/#L149"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/external_exome_reprocessing/TestExternalExomeReprocessing.wdl"
@@ -5106,11 +4831,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/deprecated/pipelines/external_exome_reprocessing/TestExternalExomeReprocessing.wdl"
 message = "TestExternalExomeReprocessing.wdl:24:7: error: unknown type name `PapiSettings`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_exome_reprocessing/TestExternalExomeReprocessing.wdl/#L24"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/external_exome_reprocessing/TestExternalExomeReprocessing.wdl"
-message = "TestExternalExomeReprocessing.wdl:43:10: error: unknown namespace `ExternalExomeReprocessing`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_exome_reprocessing/TestExternalExomeReprocessing.wdl/#L43"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/external_exome_reprocessing/TestExternalExomeReprocessing.wdl"
@@ -5149,38 +4869,13 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/external_wgs_reprocessing/ExternalWholeGenomeReprocessing.wdl"
-message = "ExternalWholeGenomeReprocessing.wdl:40:8: error: unknown namespace `WholeGenomeReprocessing`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_wgs_reprocessing/ExternalWholeGenomeReprocessing.wdl/#L40"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/external_wgs_reprocessing/ExternalWholeGenomeReprocessing.wdl"
 message = "ExternalWholeGenomeReprocessing.wdl:4:8: error: failed to import `../../../../../tasks/wdl/CopyFilesFromCloudToCloud.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_wgs_reprocessing/ExternalWholeGenomeReprocessing.wdl/#L4"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/external_wgs_reprocessing/ExternalWholeGenomeReprocessing.wdl"
-message = "ExternalWholeGenomeReprocessing.wdl:60:8: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_wgs_reprocessing/ExternalWholeGenomeReprocessing.wdl/#L60"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/external_wgs_reprocessing/ExternalWholeGenomeReprocessing.wdl"
 message = "ExternalWholeGenomeReprocessing.wdl:9:10: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_wgs_reprocessing/ExternalWholeGenomeReprocessing.wdl/#L9"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/external_wgs_reprocessing/TestExternalWholeGenomeReprocessing.wdl"
-message = "TestExternalWholeGenomeReprocessing.wdl:132:10: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_wgs_reprocessing/TestExternalWholeGenomeReprocessing.wdl/#L132"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/external_wgs_reprocessing/TestExternalWholeGenomeReprocessing.wdl"
-message = "TestExternalWholeGenomeReprocessing.wdl:142:12: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_wgs_reprocessing/TestExternalWholeGenomeReprocessing.wdl/#L142"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/external_wgs_reprocessing/TestExternalWholeGenomeReprocessing.wdl"
-message = "TestExternalWholeGenomeReprocessing.wdl:154:12: error: unknown namespace `VerifyExternalReprocessing`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_wgs_reprocessing/TestExternalWholeGenomeReprocessing.wdl/#L154"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/external_wgs_reprocessing/TestExternalWholeGenomeReprocessing.wdl"
@@ -5196,11 +4891,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/deprecated/pipelines/external_wgs_reprocessing/TestExternalWholeGenomeReprocessing.wdl"
 message = "TestExternalWholeGenomeReprocessing.wdl:26:7: error: unknown type name `PapiSettings`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_wgs_reprocessing/TestExternalWholeGenomeReprocessing.wdl/#L26"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/external_wgs_reprocessing/TestExternalWholeGenomeReprocessing.wdl"
-message = "TestExternalWholeGenomeReprocessing.wdl:43:10: error: unknown namespace `ExternalWholeGenomeReprocessing`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/external_wgs_reprocessing/TestExternalWholeGenomeReprocessing.wdl/#L43"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/external_wgs_reprocessing/TestExternalWholeGenomeReprocessing.wdl"
@@ -5239,11 +4929,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/GDCWholeGenomeSomaticSingleSample.wdl"
-message = "GDCWholeGenomeSomaticSingleSample.wdl:660:14: error: unknown namespace `ToUbams`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/GDCWholeGenomeSomaticSingleSample.wdl/#L660"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/GDCWholeGenomeSomaticSingleSample.wdl"
 message = "GDCWholeGenomeSomaticSingleSample.wdl:674:14: error: conflicting scatter variable name `ubam`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/GDCWholeGenomeSomaticSingleSample.wdl/#L674"
 
@@ -5251,41 +4936,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/GDCWholeGenomeSomaticSingleSample.wdl"
 message = "GDCWholeGenomeSomaticSingleSample.wdl:6:8: error: failed to import `../../../../../../../tasks/wdl/CheckContaminationSomatic.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/GDCWholeGenomeSomaticSingleSample.wdl/#L6"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/GDCWholeGenomeSomaticSingleSample.wdl"
-message = "GDCWholeGenomeSomaticSingleSample.wdl:756:10: error: unknown namespace `CheckContamination`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/GDCWholeGenomeSomaticSingleSample.wdl/#L756"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl"
-message = "TestGDCWholeGenomeSomaticSingleSample.wdl:105:12: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl/#L105"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl"
-message = "TestGDCWholeGenomeSomaticSingleSample.wdl:116:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl/#L116"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl"
-message = "TestGDCWholeGenomeSomaticSingleSample.wdl:122:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl/#L122"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl"
-message = "TestGDCWholeGenomeSomaticSingleSample.wdl:128:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl/#L128"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl"
-message = "TestGDCWholeGenomeSomaticSingleSample.wdl:135:12: error: unknown namespace `VerifyGDCSomaticSingleSample`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl/#L135"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl"
-message = "TestGDCWholeGenomeSomaticSingleSample.wdl:45:10: error: unknown namespace `GDCWholeGenomeSomaticSingleSample`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl/#L45"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl"
@@ -5308,11 +4958,6 @@ message = "TestGDCWholeGenomeSomaticSingleSample.wdl:7:8: error: failed to impor
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl/#L7"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl"
-message = "TestGDCWholeGenomeSomaticSingleSample.wdl:95:10: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/TestGDCWholeGenomeSomaticSingleSample.wdl/#L95"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/VerifyGDCSomaticSingleSample.wdl"
 message = "VerifyGDCSomaticSingleSample.wdl:13:10: warning[UnusedInput]: unused input `truth_bai`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/VerifyGDCSomaticSingleSample.wdl/#L13"
@@ -5326,16 +4971,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/VerifyGDCSomaticSingleSample.wdl"
 message = "VerifyGDCSomaticSingleSample.wdl:17:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/VerifyGDCSomaticSingleSample.wdl/#L17"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/VerifyGDCSomaticSingleSample.wdl"
-message = "VerifyGDCSomaticSingleSample.wdl:20:8: error: unknown namespace `MetricsVerification`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/VerifyGDCSomaticSingleSample.wdl/#L20"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/VerifyGDCSomaticSingleSample.wdl"
-message = "VerifyGDCSomaticSingleSample.wdl:26:8: error: unknown namespace `VerifyTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/gdc_genome/VerifyGDCSomaticSingleSample.wdl/#L26"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/gdc_genome/VerifyGDCSomaticSingleSample.wdl"
@@ -5354,28 +4989,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl"
-message = "BroadInternalImputation.wdl:38:10: error: unknown namespace `ImputationPipeline`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl/#L38"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl"
-message = "BroadInternalImputation.wdl:49:10: error: unknown namespace `InternalImputationTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl/#L49"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl"
 message = "BroadInternalImputation.wdl:5:8: error: failed to import `../../../../../pipelines/wdl/arrays/imputation/Imputation.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl/#L5"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl"
-message = "BroadInternalImputation.wdl:62:10: error: unknown namespace `InternalTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl/#L62"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl"
-message = "BroadInternalImputation.wdl:69:10: error: unknown namespace `InternalImputationTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl/#L69"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl"
@@ -5384,18 +4999,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl"
-message = "BroadInternalImputation.wdl:75:10: error: unknown namespace `InternalTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl/#L75"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl"
 message = "BroadInternalImputation.wdl:7:8: error: failed to import `../../../../../tasks/wdl/InternalTasks.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl/#L7"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl"
-message = "BroadInternalImputation.wdl:83:10: error: unknown namespace `InternalImputationTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_imputation/BroadInternalImputation.wdl/#L83"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/internal_imputation/InternalImputationTasks.wdl"
@@ -5404,28 +5009,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl"
-message = "BroadInternalRNAWithUMIs.wdl:104:8: error: unknown namespace `FP`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl/#L104"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl"
-message = "BroadInternalRNAWithUMIs.wdl:121:8: error: unknown namespace `tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl/#L121"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl"
 message = "BroadInternalRNAWithUMIs.wdl:12:10: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl/#L12"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl"
-message = "BroadInternalRNAWithUMIs.wdl:133:10: error: unknown namespace `tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl/#L133"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl"
-message = "BroadInternalRNAWithUMIs.wdl:165:10: error: unknown namespace `tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl/#L165"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl"
@@ -5439,83 +5024,13 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl"
-message = "BroadInternalRNAWithUMIs.wdl:74:10: error: unknown namespace `utils`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl/#L74"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl"
 message = "BroadInternalRNAWithUMIs.wdl:7:8: error: failed to import `../../../../tasks/wdl/RNAWithUMIsTasks.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl/#L7"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl"
-message = "BroadInternalRNAWithUMIs.wdl:80:8: error: unknown namespace `RNAWithUMIs`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl/#L80"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl"
 message = "BroadInternalRNAWithUMIs.wdl:8:8: error: failed to import `../../../../tasks/wdl/Utilities.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/BroadInternalRNAWithUMIs.wdl/#L8"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl"
-message = "TestBroadInternalRNAWithUMIs.wdl:109:10: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl/#L109"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl"
-message = "TestBroadInternalRNAWithUMIs.wdl:119:12: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl/#L119"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl"
-message = "TestBroadInternalRNAWithUMIs.wdl:131:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl/#L131"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl"
-message = "TestBroadInternalRNAWithUMIs.wdl:137:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl/#L137"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl"
-message = "TestBroadInternalRNAWithUMIs.wdl:143:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl/#L143"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl"
-message = "TestBroadInternalRNAWithUMIs.wdl:149:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl/#L149"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl"
-message = "TestBroadInternalRNAWithUMIs.wdl:155:12: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl/#L155"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl"
-message = "TestBroadInternalRNAWithUMIs.wdl:161:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl/#L161"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl"
-message = "TestBroadInternalRNAWithUMIs.wdl:167:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl/#L167"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl"
-message = "TestBroadInternalRNAWithUMIs.wdl:173:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl/#L173"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl"
-message = "TestBroadInternalRNAWithUMIs.wdl:180:12: error: unknown namespace `VerifyRNAWithUMIs`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl/#L180"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl"
-message = "TestBroadInternalRNAWithUMIs.wdl:46:10: error: unknown namespace `BroadInternalRNAWithUMIs`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl/#L46"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/internal_rna_seq/TestBroadInternalRNAWithUMIs.wdl"
@@ -5549,11 +5064,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/internal_single_sample_arrays/BroadInternalArrays.wdl"
-message = "BroadInternalArrays.wdl:40:10: error: unknown namespace `ArraysPipeline`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_single_sample_arrays/BroadInternalArrays.wdl/#L40"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_single_sample_arrays/BroadInternalArrays.wdl"
 message = "BroadInternalArrays.wdl:4:8: error: failed to import `../../../../../tasks/wdl/InternalArraysTasks.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_single_sample_arrays/BroadInternalArrays.wdl/#L4"
 
@@ -5563,54 +5073,9 @@ message = "BroadInternalArrays.wdl:5:8: error: failed to import `../../../../../
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_single_sample_arrays/BroadInternalArrays.wdl/#L5"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_single_sample_arrays/BroadInternalArrays.wdl"
-message = "BroadInternalArrays.wdl:61:10: error: unknown namespace `InternalArraysTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_single_sample_arrays/BroadInternalArrays.wdl/#L61"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/internal_single_sample_arrays/BroadInternalArrays.wdl"
-message = "BroadInternalArrays.wdl:80:10: error: unknown namespace `InternalTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/internal_single_sample_arrays/BroadInternalArrays.wdl/#L80"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
 message = "JointGenotypingByChromosomePartOne.wdl:10:10: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L10"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
-message = "JointGenotypingByChromosomePartOne.wdl:117:12: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L117"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
-message = "JointGenotypingByChromosomePartOne.wdl:140:16: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L140"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
-message = "JointGenotypingByChromosomePartOne.wdl:159:12: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L159"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
-message = "JointGenotypingByChromosomePartOne.wdl:169:12: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L169"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
-message = "JointGenotypingByChromosomePartOne.wdl:185:10: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L185"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
-message = "JointGenotypingByChromosomePartOne.wdl:196:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L196"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
-message = "JointGenotypingByChromosomePartOne.wdl:204:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L204"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
@@ -5621,16 +5086,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
 message = "JointGenotypingByChromosomePartOne.wdl:215:34: error: cannot access type `Array[Union]`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L215"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
-message = "JointGenotypingByChromosomePartOne.wdl:218:10: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L218"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
-message = "JointGenotypingByChromosomePartOne.wdl:225:10: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L225"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
@@ -5658,36 +5113,6 @@ message = "JointGenotypingByChromosomePartOne.wdl:5:8: error: failed to import `
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L5"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
-message = "JointGenotypingByChromosomePartOne.wdl:67:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L67"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
-message = "JointGenotypingByChromosomePartOne.wdl:72:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L72"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl"
-message = "JointGenotypingByChromosomePartOne.wdl:99:12: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartOne.wdl/#L99"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
-message = "JointGenotypingByChromosomePartTwo.wdl:104:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl/#L104"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
-message = "JointGenotypingByChromosomePartTwo.wdl:122:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl/#L122"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
-message = "JointGenotypingByChromosomePartTwo.wdl:144:10: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl/#L144"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
 message = "JointGenotypingByChromosomePartTwo.wdl:14:10: warning[UnusedInput]: unused input `ref_fasta`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl/#L14"
@@ -5699,21 +5124,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
-message = "JointGenotypingByChromosomePartTwo.wdl:164:10: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl/#L164"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
-message = "JointGenotypingByChromosomePartTwo.wdl:177:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl/#L177"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
-message = "JointGenotypingByChromosomePartTwo.wdl:185:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl/#L185"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
 message = "JointGenotypingByChromosomePartTwo.wdl:191:25: error: ambiguous call to function `length` with conflicting signatures `(string: String) -> Int` and `(object: Object) -> Int`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl/#L191"
 
@@ -5721,16 +5131,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
 message = "JointGenotypingByChromosomePartTwo.wdl:193:49: error: indexing is only allowed on `Array` and `Map` types"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl/#L193"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
-message = "JointGenotypingByChromosomePartTwo.wdl:195:10: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl/#L195"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
-message = "JointGenotypingByChromosomePartTwo.wdl:206:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl/#L206"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
@@ -5779,18 +5179,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
-message = "JointGenotypingByChromosomePartTwo.wdl:86:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl/#L86"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
 message = "JointGenotypingByChromosomePartTwo.wdl:8:10: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl/#L8"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl"
-message = "JointGenotypingByChromosomePartTwo.wdl:96:10: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/joint_genotyping_bychromosome/dna_seq/germline/joint_genotyping/by_chromosome/JointGenotypingByChromosomePartTwo.wdl/#L96"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/multi_sample_arrays/MultiSampleArrays.wdl"
@@ -5814,18 +5204,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl"
-message = "TestMultiSampleArrays.wdl:32:10: error: unknown namespace `MultiSampleArrays`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl/#L32"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl"
 message = "TestMultiSampleArrays.wdl:4:8: error: failed to import `../../pipelines/wdl/arrays/multi_sample/MultiSampleArrays.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl/#L4"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl"
-message = "TestMultiSampleArrays.wdl:57:10: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl/#L57"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl"
@@ -5834,18 +5214,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl"
-message = "TestMultiSampleArrays.wdl:67:12: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl/#L67"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl"
 message = "TestMultiSampleArrays.wdl:6:8: error: failed to import `../../tasks/wdl/Utilities.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl/#L6"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl"
-message = "TestMultiSampleArrays.wdl:79:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl/#L79"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl"
@@ -5853,19 +5223,9 @@ message = "TestMultiSampleArrays.wdl:7:8: error: failed to import `../../tasks/w
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl/#L7"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl"
-message = "TestMultiSampleArrays.wdl:86:12: error: unknown namespace `VerifyMultiSampleArrays`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/multi_sample_arrays/TestMultiSampleArrays.wdl/#L86"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/multi_sample_arrays/VerifyMultiSampleArrays.wdl"
 message = "VerifyMultiSampleArrays.wdl:25:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/multi_sample_arrays/VerifyMultiSampleArrays.wdl/#L25"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/multi_sample_arrays/VerifyMultiSampleArrays.wdl"
-message = "VerifyMultiSampleArrays.wdl:28:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/multi_sample_arrays/VerifyMultiSampleArrays.wdl/#L28"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/multi_sample_arrays/VerifyMultiSampleArrays.wdl"
@@ -5879,28 +5239,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl"
-message = "TestCheckFingerprint.wdl:103:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl/#L103"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl"
-message = "TestCheckFingerprint.wdl:109:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl/#L109"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl"
-message = "TestCheckFingerprint.wdl:116:12: error: unknown namespace `VerifyCheckFingerprint`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl/#L116"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl"
 message = "TestCheckFingerprint.wdl:33:15: warning[UnusedInput]: unused input `vault_token_path_arrays`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl/#L33"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl"
-message = "TestCheckFingerprint.wdl:42:10: error: unknown namespace `CheckFingerprint`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl/#L42"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl"
@@ -5923,24 +5263,9 @@ message = "TestCheckFingerprint.wdl:7:8: error: failed to import `../../tasks/wd
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl/#L7"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl"
-message = "TestCheckFingerprint.wdl:82:10: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl/#L82"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl"
-message = "TestCheckFingerprint.wdl:92:12: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/qc-check-fingerprint/TestCheckFingerprint.wdl/#L92"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/qc-check-fingerprint/VerifyCheckFingerprint.wdl"
 message = "VerifyCheckFingerprint.wdl:31:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/qc-check-fingerprint/VerifyCheckFingerprint.wdl/#L31"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/qc-check-fingerprint/VerifyCheckFingerprint.wdl"
-message = "VerifyCheckFingerprint.wdl:35:10: error: unknown namespace `MetricsVerification`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/qc-check-fingerprint/VerifyCheckFingerprint.wdl/#L35"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/qc-check-fingerprint/VerifyCheckFingerprint.wdl"
@@ -5949,23 +5274,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/qc-check-fingerprint/VerifyCheckFingerprint.wdl"
-message = "VerifyCheckFingerprint.wdl:42:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/qc-check-fingerprint/VerifyCheckFingerprint.wdl/#L42"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/qc-check-fingerprint/VerifyCheckFingerprint.wdl"
 message = "VerifyCheckFingerprint.wdl:4:8: error: failed to import `../verification/VerifyTasks.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/qc-check-fingerprint/VerifyCheckFingerprint.wdl/#L4"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/scATAC/TestscATAC.wdl"
-message = "TestscATAC.wdl:106:12: error: unknown namespace `VerifyscATAC`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/scATAC/TestscATAC.wdl/#L106"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/scATAC/TestscATAC.wdl"
-message = "TestscATAC.wdl:32:10: error: unknown namespace `scATAC`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/scATAC/TestscATAC.wdl/#L32"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/scATAC/TestscATAC.wdl"
@@ -5984,43 +5294,13 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/scATAC/TestscATAC.wdl"
-message = "TestscATAC.wdl:72:10: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/scATAC/TestscATAC.wdl/#L72"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/scATAC/TestscATAC.wdl"
 message = "TestscATAC.wdl:7:8: error: failed to import `../../tasks/wdl/CopyFilesFromCloudToCloud.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/scATAC/TestscATAC.wdl/#L7"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/scATAC/TestscATAC.wdl"
-message = "TestscATAC.wdl:82:12: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/scATAC/TestscATAC.wdl/#L82"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/scATAC/TestscATAC.wdl"
-message = "TestscATAC.wdl:93:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/scATAC/TestscATAC.wdl/#L93"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/scATAC/TestscATAC.wdl"
-message = "TestscATAC.wdl:99:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/scATAC/TestscATAC.wdl/#L99"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/scATAC/VerifyscATAC.wdl"
 message = "VerifyscATAC.wdl:12:14: warning[UnusedInput]: unused input `done`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/scATAC/VerifyscATAC.wdl/#L12"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/scATAC/VerifyscATAC.wdl"
-message = "VerifyscATAC.wdl:15:8: error: unknown namespace `VerifyTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/scATAC/VerifyscATAC.wdl/#L15"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/scATAC/VerifyscATAC.wdl"
-message = "VerifyscATAC.wdl:22:7: error: unknown namespace `VerifyTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/scATAC/VerifyscATAC.wdl/#L22"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/scATAC/VerifyscATAC.wdl"
@@ -6034,83 +5314,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:151:10: error: unknown namespace `utils`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L151"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:158:10: error: unknown namespace `utils`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L158"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:165:10: error: unknown namespace `utils`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L165"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:177:10: error: unknown namespace `utils`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L177"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:184:10: error: unknown namespace `utils`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L184"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:194:10: error: unknown namespace `utils`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L194"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:203:10: error: unknown namespace `utils`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L203"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:213:12: error: unknown namespace `utils`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L213"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:221:12: error: unknown namespace `InternalArraysTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L221"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:235:10: error: unknown namespace `InternalArraysTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L235"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:248:14: error: unknown namespace `utils`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L248"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:262:10: error: unknown namespace `InternalArraysTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L262"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:287:10: error: unknown namespace `InternalArraysTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L287"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
 message = "Arrays.wdl:28:10: warning[UnusedDeclaration]: unused declaration `pipeline_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L28"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:300:10: error: unknown namespace `InternalTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L300"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:305:10: error: unknown namespace `InternalTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L305"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
@@ -6119,68 +5324,13 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:324:8: error: unknown namespace `InternalArraysTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L324"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:336:8: error: unknown namespace `IlluminaGenotyping`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L336"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:372:10: error: unknown namespace `InternalArraysTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L372"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:385:10: error: unknown namespace `InternalArraysTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L385"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:395:10: error: unknown namespace `InternalArraysTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L395"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:410:10: error: unknown namespace `InternalArraysTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L410"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:423:12: error: unknown namespace `InternalTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L423"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:434:12: error: unknown namespace `InternalArraysTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L434"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:443:10: error: unknown namespace `InternalArraysTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L443"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
 message = "Arrays.wdl:462:9: warning[UnnecessaryFunctionCall]: unnecessary call to function `select_first`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L462"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:463:12: error: unknown namespace `InternalArraysTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L463"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
 message = "Arrays.wdl:478:9: warning[UnnecessaryFunctionCall]: unnecessary call to function `select_first`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L478"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
-message = "Arrays.wdl:479:12: error: unknown namespace `InternalArraysTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L479"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
@@ -6201,61 +5351,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/Arrays.wdl"
 message = "Arrays.wdl:8:8: error: failed to import `../../../../tasks/wdl/Utilities.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/Arrays.wdl/#L8"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/TestArrays.wdl"
-message = "TestArrays.wdl:105:10: error: unknown namespace `Arrays`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/TestArrays.wdl/#L105"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/TestArrays.wdl"
-message = "TestArrays.wdl:202:10: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/TestArrays.wdl/#L202"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/TestArrays.wdl"
-message = "TestArrays.wdl:212:12: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/TestArrays.wdl/#L212"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/TestArrays.wdl"
-message = "TestArrays.wdl:224:12: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/TestArrays.wdl/#L224"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/TestArrays.wdl"
-message = "TestArrays.wdl:231:12: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/TestArrays.wdl/#L231"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/TestArrays.wdl"
-message = "TestArrays.wdl:238:12: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/TestArrays.wdl/#L238"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/TestArrays.wdl"
-message = "TestArrays.wdl:245:12: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/TestArrays.wdl/#L245"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/TestArrays.wdl"
-message = "TestArrays.wdl:252:12: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/TestArrays.wdl/#L252"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/TestArrays.wdl"
-message = "TestArrays.wdl:259:12: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/TestArrays.wdl/#L259"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/TestArrays.wdl"
-message = "TestArrays.wdl:266:12: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/TestArrays.wdl/#L266"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/TestArrays.wdl"
-message = "TestArrays.wdl:273:12: error: unknown namespace `VerifyArrays`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/TestArrays.wdl/#L273"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/TestArrays.wdl"
@@ -6289,28 +5384,13 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/VerifyArrays.wdl"
-message = "VerifyArrays.wdl:49:8: error: unknown namespace `VerifyIlluminaGenotypingArray`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/VerifyArrays.wdl/#L49"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/VerifyArrays.wdl"
 message = "VerifyArrays.wdl:4:8: error: failed to import `../verification/VerifyTasks.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/VerifyArrays.wdl/#L4"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/single_sample_arrays/VerifyArrays.wdl"
-message = "VerifyArrays.wdl:66:8: error: unknown namespace `VerifyTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/single_sample_arrays/VerifyArrays.wdl/#L66"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/smartseq2_multisample/LoomUtils.wdl"
 message = "LoomUtils.wdl:318:24: warning[UnusedInput]: unused input `input_names`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/smartseq2_multisample/LoomUtils.wdl/#L318"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/smartseq2_multisample/MultiSampleSmartSeq2.wdl"
-message = "MultiSampleSmartSeq2.wdl:108:12: error: unknown namespace `single_cell_run`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/smartseq2_multisample/MultiSampleSmartSeq2.wdl/#L108"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/smartseq2_multisample/MultiSampleSmartSeq2.wdl"
@@ -6329,11 +5409,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/smartseq2_multisample/MultiSampleSmartSeq2.wdl"
-message = "MultiSampleSmartSeq2.wdl:136:8: error: unknown namespace `LoomUtils`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/smartseq2_multisample/MultiSampleSmartSeq2.wdl/#L136"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/smartseq2_multisample/MultiSampleSmartSeq2.wdl"
 message = "MultiSampleSmartSeq2.wdl:4:8: error: failed to import `../../../pipelines/wdl/smartseq2_single_sample/SmartSeq2SingleSample.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/smartseq2_multisample/MultiSampleSmartSeq2.wdl/#L4"
 
@@ -6343,69 +5418,14 @@ message = "MultiSampleSmartSeq2.wdl:5:8: error: failed to import `../../../tasks
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/smartseq2_multisample/MultiSampleSmartSeq2.wdl/#L5"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/smartseq2_multisample/MultiSampleSmartSeq2.wdl"
-message = "MultiSampleSmartSeq2.wdl:84:12: error: unknown namespace `single_cell_run`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/smartseq2_multisample/MultiSampleSmartSeq2.wdl/#L84"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/smartseq2_single_sample/SmartSeq2SingleSample.wdl"
-message = "SmartSeq2SingleSample.wdl:176:8: error: unknown namespace `LoomUtils`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/smartseq2_single_sample/SmartSeq2SingleSample.wdl/#L176"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/smartseq2_single_sample/SmartSeq2SingleSample.wdl"
 message = "SmartSeq2SingleSample.wdl:9:8: error: failed to import `../../../tasks/wdl/LoomUtils.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/smartseq2_single_sample/SmartSeq2SingleSample.wdl/#L9"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/TestValidateChip.wdl"
-message = "TestValidateChip.wdl:120:10: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/TestValidateChip.wdl/#L120"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/TestValidateChip.wdl"
-message = "TestValidateChip.wdl:130:12: error: unknown namespace `Copy`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/TestValidateChip.wdl/#L130"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/TestValidateChip.wdl"
-message = "TestValidateChip.wdl:142:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/TestValidateChip.wdl/#L142"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/TestValidateChip.wdl"
-message = "TestValidateChip.wdl:148:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/TestValidateChip.wdl/#L148"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/TestValidateChip.wdl"
-message = "TestValidateChip.wdl:154:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/TestValidateChip.wdl/#L154"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/TestValidateChip.wdl"
-message = "TestValidateChip.wdl:160:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/TestValidateChip.wdl/#L160"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/TestValidateChip.wdl"
-message = "TestValidateChip.wdl:166:14: error: unknown namespace `Utilities`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/TestValidateChip.wdl/#L166"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/TestValidateChip.wdl"
-message = "TestValidateChip.wdl:173:12: error: unknown namespace `VerifyValidateChip`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/TestValidateChip.wdl/#L173"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/TestValidateChip.wdl"
 message = "TestValidateChip.wdl:4:8: error: failed to import `../../pipelines/wdl/arrays/validate_chip/ValidateChip.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/TestValidateChip.wdl/#L4"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/TestValidateChip.wdl"
-message = "TestValidateChip.wdl:52:10: error: unknown namespace `ValidateChip`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/TestValidateChip.wdl/#L52"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/TestValidateChip.wdl"
@@ -6421,41 +5441,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/TestValidateChip.wdl"
 message = "TestValidateChip.wdl:7:8: error: failed to import `../../tasks/wdl/CopyFilesFromCloudToCloud.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/TestValidateChip.wdl/#L7"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/ValidateChip.wdl"
-message = "ValidateChip.wdl:113:8: error: unknown namespace `GenotypingTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/ValidateChip.wdl/#L113"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/ValidateChip.wdl"
-message = "ValidateChip.wdl:125:8: error: unknown namespace `GenotypingTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/ValidateChip.wdl/#L125"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/ValidateChip.wdl"
-message = "ValidateChip.wdl:137:8: error: unknown namespace `GenotypingTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/ValidateChip.wdl/#L137"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/ValidateChip.wdl"
-message = "ValidateChip.wdl:148:8: error: unknown namespace `GenotypingTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/ValidateChip.wdl/#L148"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/ValidateChip.wdl"
-message = "ValidateChip.wdl:156:8: error: unknown namespace `GenotypingTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/ValidateChip.wdl/#L156"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/ValidateChip.wdl"
-message = "ValidateChip.wdl:164:8: error: unknown namespace `GenotypingTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/ValidateChip.wdl/#L164"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/ValidateChip.wdl"
-message = "ValidateChip.wdl:177:8: error: unknown namespace `GenotypingTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/ValidateChip.wdl/#L177"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/ValidateChip.wdl"
@@ -6478,21 +5463,6 @@ message = "ValidateChip.wdl:4:8: error: failed to import `../../../../tasks/wdl/
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/ValidateChip.wdl/#L4"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/ValidateChip.wdl"
-message = "ValidateChip.wdl:65:8: error: unknown namespace `GenotypingTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/ValidateChip.wdl/#L65"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/ValidateChip.wdl"
-message = "ValidateChip.wdl:84:8: error: unknown namespace `GenotypingTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/ValidateChip.wdl/#L84"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/ValidateChip.wdl"
-message = "ValidateChip.wdl:95:8: error: unknown namespace `GenotypingTasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/ValidateChip.wdl/#L95"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl"
 message = "VerifyValidateChip.wdl:3:8: error: failed to import `../verification/VerifyTasks.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl/#L3"
@@ -6504,38 +5474,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl"
-message = "VerifyValidateChip.wdl:43:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl/#L43"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl"
 message = "VerifyValidateChip.wdl:4:8: error: failed to import `../verification/VerifyMetrics.wdl`: No such file or directory (os error 2)"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl/#L4"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl"
-message = "VerifyValidateChip.wdl:50:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl/#L50"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl"
-message = "VerifyValidateChip.wdl:56:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl/#L56"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl"
-message = "VerifyValidateChip.wdl:62:8: error: unknown namespace `Tasks`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl/#L62"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl"
-message = "VerifyValidateChip.wdl:68:8: error: unknown namespace `MetricsVerification`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl/#L68"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl"
-message = "VerifyValidateChip.wdl:81:10: error: unknown namespace `MetricsVerification`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/deprecated/pipelines/validate_chip/VerifyValidateChip.wdl/#L81"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/wdl/arrays/imputation/Imputation.wdl"
@@ -6669,28 +5609,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/wdl/build_indices/BuildIndices.wdl"
-message = "BuildIndices.wdl:256:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/pipelines/wdl/build_indices/BuildIndices.wdl/#L256"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/wdl/build_indices/BuildIndices.wdl"
-message = "BuildIndices.wdl:426:9: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/pipelines/wdl/build_indices/BuildIndices.wdl/#L426"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/wdl/build_indices/BuildIndices.wdl"
 message = "BuildIndices.wdl:436:12: warning[UnusedInput]: unused input `gtf_annotation_version`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/pipelines/wdl/build_indices/BuildIndices.wdl/#L436"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/wdl/build_indices/BuildIndices.wdl"
-message = "BuildIndices.wdl:490:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/pipelines/wdl/build_indices/BuildIndices.wdl/#L490"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/pipelines/wdl/build_indices/BuildIndices.wdl"
-message = "BuildIndices.wdl:579:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/pipelines/wdl/build_indices/BuildIndices.wdl/#L579"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/pipelines/wdl/dna_seq/germline/joint_genotyping/JointGenotyping.wdl"
@@ -7078,11 +5998,6 @@ message = "AggregatedBamQC.wdl:60:7: warning[UnnecessaryFunctionCall]: unnecessa
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/AggregatedBamQC.wdl/#L60"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/Alignment.wdl"
-message = "Alignment.wdl:119:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/Alignment.wdl/#L119"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/BamProcessing.wdl"
 message = "BamProcessing.wdl:127:10: warning[UnusedInput]: unused input `input_bam_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/BamProcessing.wdl/#L127"
@@ -7113,11 +6028,6 @@ message = "BamProcessing.wdl:416:10: warning[UnusedInput]: unused input `ref_fas
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/BamProcessing.wdl/#L416"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/BamProcessing.wdl"
-message = "BamProcessing.wdl:53:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/BamProcessing.wdl/#L53"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/CheckContaminationSomatic.wdl"
 message = "CheckContaminationSomatic.wdl:10:14: warning[UnusedInput]: unused input `tumor_crai_or_bai`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/CheckContaminationSomatic.wdl/#L10"
@@ -7141,11 +6051,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/tasks/wdl/CheckContaminationSomatic.wdl"
 message = "CheckContaminationSomatic.wdl:8:14: warning[UnusedInput]: unused input `reference_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/CheckContaminationSomatic.wdl/#L8"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/CopyFilesFromCloudToCloud.wdl"
-message = "CopyFilesFromCloudToCloud.wdl:71:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/CopyFilesFromCloudToCloud.wdl/#L71"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/CreateCountMatrix.wdl"
@@ -7201,11 +6106,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:148:32: error: expected string, but found integer"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/GermlineVariantDiscovery.wdl/#L148"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
-message = "GermlineVariantDiscovery.wdl:165:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/GermlineVariantDiscovery.wdl/#L165"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
@@ -7269,11 +6169,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
-message = "GermlineVariantDiscovery.wdl:381:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/GermlineVariantDiscovery.wdl/#L381"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:391:10: warning[UnusedInput]: unused input `input_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/GermlineVariantDiscovery.wdl/#L391"
 
@@ -7299,18 +6194,8 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
-message = "GermlineVariantDiscovery.wdl:437:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/GermlineVariantDiscovery.wdl/#L437"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
 message = "GermlineVariantDiscovery.wdl:67:32: error: expected string, but found integer"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/GermlineVariantDiscovery.wdl/#L67"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
-message = "GermlineVariantDiscovery.wdl:74:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/GermlineVariantDiscovery.wdl/#L74"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/GermlineVariantDiscovery.wdl"
@@ -7401,11 +6286,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/tasks/wdl/IlluminaGenotypingArrayTasks.wdl"
 message = "IlluminaGenotypingArrayTasks.wdl:514:10: warning[UnusedInput]: unused input `input_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/IlluminaGenotypingArrayTasks.wdl/#L514"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/IlluminaGenotypingArrayTasks.wdl"
-message = "IlluminaGenotypingArrayTasks.wdl:541:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/IlluminaGenotypingArrayTasks.wdl/#L541"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/IlluminaGenotypingArrayTasks.wdl"
@@ -7619,11 +6499,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
-message = "JointGenotypingTasks.wdl:304:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L304"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
 message = "JointGenotypingTasks.wdl:329:10: warning[UnusedInput]: unused input `sites_only_variant_filtered_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L329"
 
@@ -7641,11 +6516,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
 message = "JointGenotypingTasks.wdl:336:10: warning[UnusedInput]: unused input `dbsnp_resource_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L336"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
-message = "JointGenotypingTasks.wdl:366:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L366"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
@@ -7671,11 +6541,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
 message = "JointGenotypingTasks.wdl:401:10: warning[UnusedInput]: unused input `dbsnp_resource_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L401"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
-message = "JointGenotypingTasks.wdl:434:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L434"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
@@ -7719,11 +6584,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
-message = "JointGenotypingTasks.wdl:581:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L581"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
 message = "JointGenotypingTasks.wdl:598:10: warning[UnusedInput]: unused input `input_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L598"
 
@@ -7739,16 +6599,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
-message = "JointGenotypingTasks.wdl:641:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L641"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
-message = "JointGenotypingTasks.wdl:688:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L688"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
 message = "JointGenotypingTasks.wdl:754:10: warning[UnusedInput]: unused input `input_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L754"
 
@@ -7756,11 +6606,6 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
 message = "JointGenotypingTasks.wdl:757:10: warning[UnusedInput]: unused input `dbsnp_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L757"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
-message = "JointGenotypingTasks.wdl:859:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/JointGenotypingTasks.wdl/#L859"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/JointGenotypingTasks.wdl"
@@ -7948,16 +6793,6 @@ message = "StarAlign.wdl:550:12: warning[UnusedInput]: unused input `gex_nhash_i
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/StarAlign.wdl/#L550"
 
 [[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/StarAlign.wdl"
-message = "StarAlign.wdl:880:9: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/StarAlign.wdl/#L880"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/TerraCopyFilesFromCloudToCloud.wdl"
-message = "TerraCopyFilesFromCloudToCloud.wdl:44:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/TerraCopyFilesFromCloudToCloud.wdl/#L44"
-
-[[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/UltimaGenomicsGermlineFilteringThreshold.wdl"
 message = "UltimaGenomicsGermlineFilteringThreshold.wdl:121:14: warning[UnusedInput]: unused input `input_vcf_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/UltimaGenomicsGermlineFilteringThreshold.wdl/#L121"
@@ -8124,28 +6959,13 @@ permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb9002903
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/Utilities.wdl"
-message = "Utilities.wdl:152:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/Utilities.wdl/#L152"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/Utilities.wdl"
 message = "Utilities.wdl:167:10: warning[UnusedInput]: unused input `ref_fasta_index`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/Utilities.wdl/#L167"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/Utilities.wdl"
-message = "Utilities.wdl:183:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/Utilities.wdl/#L183"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/accessory_workflows/build_bwa_reference/bwa-mk-index.wdl"
 message = "bwa-mk-index.wdl:24:16: warning[UnusedInput]: unused input `ref_name`"
 permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/accessory_workflows/build_bwa_reference/bwa-mk-index.wdl/#L24"
-
-[[diagnostics]]
-document = "broadinstitute/warp:/tasks/wdl/accessory_workflows/build_bwa_reference/bwa-mk-index.wdl"
-message = "bwa-mk-index.wdl:48:8: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/broadinstitute/warp/blob/54032fd9003183eb90029033fd2f88d98ac9a001/tasks/wdl/accessory_workflows/build_bwa_reference/bwa-mk-index.wdl/#L48"
 
 [[diagnostics]]
 document = "broadinstitute/warp:/tasks/wdl/sample_fastq.14.wdl"
@@ -9173,11 +7993,6 @@ message = "picard.wdl:898:21: warning[UnusedInput]: unused input `vcfs_indexes`"
 permalink = "https://github.com/stjudecloud/workflows/blob/0821aba149dee1f671866673913c7eb7cf1418cd/tools/picard.wdl/#L898"
 
 [[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/alignment/task_bwa.wdl"
-message = "task_bwa.wdl:196:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/alignment/task_bwa.wdl/#L196"
-
-[[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/assembly/task_ivar_consensus.wdl"
 message = "task_ivar_consensus.wdl:12:18: error: type mismatch: expected type `Int`, but found type `String`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/assembly/task_ivar_consensus.wdl/#L12"
@@ -9193,29 +8008,9 @@ message = "task_ivar_consensus.wdl:9:21: error: type mismatch: expected type `In
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/assembly/task_ivar_consensus.wdl/#L9"
 
 [[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/assembly/task_megahit.wdl"
-message = "task_megahit.wdl:69:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/assembly/task_megahit.wdl/#L69"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/assembly/task_metaspades.wdl"
-message = "task_metaspades.wdl:39:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/assembly/task_metaspades.wdl/#L39"
-
-[[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/assembly/task_semibin.wdl"
 message = "task_semibin.wdl:6:10: warning[UnusedInput]: unused input `sorted_bai`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/assembly/task_semibin.wdl/#L6"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/assembly/task_skesa.wdl"
-message = "task_skesa.wdl:51:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/assembly/task_skesa.wdl/#L51"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/assembly/task_spades.wdl"
-message = "task_spades.wdl:81:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/assembly/task_spades.wdl/#L81"
 
 [[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/gene_typing/drug_resistance/task_resfinder.wdl"
@@ -9233,24 +8028,9 @@ message = "task_ivar_variant_call.wdl:88:23: error: type mismatch: expected type
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/gene_typing/variant_detection/task_ivar_variant_call.wdl/#L88"
 
 [[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/gene_typing/variant_detection/task_snippy_gene_query.wdl"
-message = "task_snippy_gene_query.wdl:69:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/gene_typing/variant_detection/task_snippy_gene_query.wdl/#L69"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/gene_typing/variant_detection/task_snippy_variants.wdl"
-message = "task_snippy_variants.wdl:158:12: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/gene_typing/variant_detection/task_snippy_variants.wdl/#L158"
-
-[[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/quality_control/advanced_metrics/task_checkv.wdl"
 message = "task_checkv.wdl:9:12: warning[UnusedInput]: unused input `samplename`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/quality_control/advanced_metrics/task_checkv.wdl/#L9"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/quality_control/advanced_metrics/task_gambittools.wdl"
-message = "task_gambittools.wdl:67:12: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/quality_control/advanced_metrics/task_gambittools.wdl/#L67"
 
 [[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/quality_control/basic_statistics/task_assembly_metrics.wdl"
@@ -9278,11 +8058,6 @@ message = "task_assembly_metrics.wdl:85:37: error: type mismatch: expected type 
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/quality_control/basic_statistics/task_assembly_metrics.wdl/#L85"
 
 [[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/quality_control/basic_statistics/task_cg_pipeline.wdl"
-message = "task_cg_pipeline.wdl:102:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/quality_control/basic_statistics/task_cg_pipeline.wdl/#L102"
-
-[[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/quality_control/basic_statistics/task_consensus_qc.wdl"
 message = "task_consensus_qc.wdl:46:20: error: type mismatch: expected type `Int`, but found type `String`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/quality_control/basic_statistics/task_consensus_qc.wdl/#L46"
@@ -9306,11 +8081,6 @@ permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3
 document = "theiagen/public_health_bioinformatics:/tasks/quality_control/basic_statistics/task_consensus_qc.wdl"
 message = "task_consensus_qc.wdl:50:40: error: type mismatch: expected type `Float`, but found type `String`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/quality_control/basic_statistics/task_consensus_qc.wdl/#L50"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/quality_control/basic_statistics/task_quast.wdl"
-message = "task_quast.wdl:64:12: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/quality_control/basic_statistics/task_quast.wdl/#L64"
 
 [[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/quality_control/basic_statistics/task_readlength.wdl"
@@ -9396,11 +8166,6 @@ permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3
 document = "theiagen/public_health_bioinformatics:/tasks/taxon_id/contamination/task_midas.wdl"
 message = "task_midas.wdl:77:44: error: type mismatch: expected type `Float`, but found type `String`"
 permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/taxon_id/contamination/task_midas.wdl/#L77"
-
-[[diagnostics]]
-document = "theiagen/public_health_bioinformatics:/tasks/taxon_id/task_gambit.wdl"
-message = "task_gambit.wdl:164:10: error: type mismatch: expected type `Int` or type `Float`, but found type `String`"
-permalink = "https://github.com/theiagen/public_health_bioinformatics/blob/3eea3193bc238ef68f0b86e466257a293f1ba514/tasks/taxon_id/task_gambit.wdl/#L164"
 
 [[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/utilities/data_handling/task_arln_stats.wdl"

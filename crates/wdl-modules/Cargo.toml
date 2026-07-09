@@ -13,12 +13,12 @@ documentation = "https://docs.rs/wdl-modules"
 [features]
 default = []
 test-utils = []
-# The resolver layer: `Resolver` trait, Git-backed default implementation,
-# on-disk cache, lockfile generation, TOFU trust handling. Off by default
-# so consumers like `wdl-doc` that only need the manifest/lockfile/hashing
-# types do not pay for `git2` and friends.
-resolver = [
-    "dep:async-trait",
+# The Git-backed resolver implementation: `GitResolver`, its on-disk cache,
+# lockfile generation, and TOFU trust handling. The `Resolver` trait and the
+# manifest/lockfile/hashing value types are always available; this feature only
+# adds the concrete implementation. Off by default so consumers like `wdl-doc`
+# that need only those types do not pay for `git2` and friends.
+git-resolver = [
     "dep:bon",
     "dep:bytesize",
     "dep:dirs",
@@ -31,7 +31,7 @@ resolver = [
 ]
 
 [dependencies]
-async-trait = { workspace = true, optional = true }
+async-trait = { workspace = true }
 base64 = { workspace = true }
 bon = { workspace = true, optional = true }
 bytesize = { workspace = true, optional = true }
