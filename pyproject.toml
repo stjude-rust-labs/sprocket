@@ -48,5 +48,5 @@ py_version="auto"
 skip_gitignore = true
 # Place one blank line between direct and from imports.
 lines_between_types = 1
-# `sprocket_bio` is a 1st-party package, not a 3rd-party one.
+# `sprocket_bio` is a first-party package, not a third-party one.
 known_first_party = ["sprocket_bio"]
