@@ -64,6 +64,7 @@ pub use document::Document;
 pub use rules::*;
 pub use validation::*;
 pub use visitor::*;
+pub use wdl_format::Config as FormatConfig;
 
 /// An extension trait for syntax nodes.
 pub trait Exceptable {

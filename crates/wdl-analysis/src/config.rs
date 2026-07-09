@@ -14,6 +14,7 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
 use crate::Exceptable as _;
+use crate::FormatConfig;
 use crate::KnownRulesRule;
 use crate::MeaninglessLintDirective;
 use crate::MisleadingDeclarationOrderRule;
@@ -61,6 +62,7 @@ impl Default for Config {
             inner: Arc::new(ConfigInner {
                 diagnostics: Default::default(),
                 fallback_version: None,
+                format: FormatConfig::default(),
                 ignore_filename: None,
                 all_rules: Default::default(),
                 feature_flags: FeatureFlags::default(),
@@ -79,6 +81,12 @@ impl Config {
     /// [`Config::with_fallback_version()`].
     pub fn fallback_version(&self) -> Option<SupportedVersion> {
         self.inner.fallback_version
+    }
+
+    /// Get this configuration's [`FormatConfig`]; see
+    /// [`Config::with_format_config()`].
+    pub fn format(&self) -> &FormatConfig {
+        &self.inner.format
     }
 
     /// Get this configuration's ignore filename.
@@ -143,6 +151,16 @@ impl Config {
         }
     }
 
+    /// Return a new configuration with the previous [`FormatConfig`]
+    /// replaced by the argument.
+    pub fn with_format_config(&self, format: FormatConfig) -> Self {
+        let mut inner = (*self.inner).clone();
+        inner.format = format;
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
+
     /// Return a new configuration with the previous ignore filename replaced by
     /// the argument.
     ///
@@ -194,6 +212,9 @@ struct ConfigInner {
     /// See [`Config::with_fallback_version()`]
     #[toml(FromToml with = parse_string)]
     fallback_version: Option<SupportedVersion>,
+    /// See [`Config::with_format_config()`]
+    #[toml(default, style = Header)]
+    format: FormatConfig,
     /// See [`Config::with_ignore_filename()`]
     ignore_filename: Option<String>,
     /// A list of all known rule identifiers.
@@ -405,5 +426,24 @@ impl DiagnosticsConfig {
             meaningless_lint_directive: None,
             known_rules: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn custom_format_config_round_trip() {
+        let custom_format_config = FormatConfig::default().trailing_commas(false);
+        let analysis_config = Config::default().with_format_config(custom_format_config);
+        assert_eq!(analysis_config.format(), &custom_format_config);
+    }
+
+    #[test]
+    fn no_format_config_is_default() {
+        let default_format_config = FormatConfig::default();
+        let analysis_config = Config::default();
+        assert_eq!(analysis_config.format(), &default_format_config);
     }
 }

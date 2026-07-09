@@ -58,7 +58,7 @@ The following are high-level guiding principles of the Sprocket project.
 - Develop a suite of **modern development tools** that brings bioinformatics
   development on par with other modern languages (e.g.,
   [`wdl-lsp`](https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-lsp)).
-- Maintain an **community-focused codebase** that enables a diverse set of
+- Maintain a **community-focused codebase** that enables a diverse set of
   contributors from academic, non-profit, and commercial organizations.
 - Build on an **open, domain-tailored standard** to ensure the toolset remains
   singularly focused on unencumbered innovation within bioinformatics.
