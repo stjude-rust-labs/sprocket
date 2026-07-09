@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* Replaced the `peak_alloc` global allocator with mimalloc and now query peak
+  memory usage from the operating system on exit, removing per-allocation
+  tracking overhead ([#990](https://github.com/stjude-rust-labs/sprocket/pull/990)).
+
 ## 0.27.0 - 2026-06-26
 
 ### Added
