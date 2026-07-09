@@ -2,7 +2,6 @@
 
 use std::borrow::Cow;
 
-use regex::Regex;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
@@ -93,7 +92,7 @@ fn sub(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .coerce_argument(2, PrimitiveType::String)
         .unwrap_string();
 
-    let regex = Regex::new(pattern.as_str())
+    let regex = super::cached_regex(pattern.as_str())
         .map_err(|e| function_call_failed(FUNCTION_NAME, &e, context.arguments[1].span))?;
     let converted = convert_replacement(replacement.as_str());
     match regex.replace_all(input.as_str(), converted.as_ref()) {

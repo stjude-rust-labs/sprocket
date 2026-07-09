@@ -4,11 +4,13 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::LazyLock;
+use std::sync::Mutex;
 
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use futures::future::BoxFuture;
+use regex::Regex;
 use tempfile::TempPath;
 use wdl_analysis::stdlib::Binding;
 use wdl_analysis::types::Type;
@@ -81,6 +83,33 @@ mod write_object;
 mod write_objects;
 mod write_tsv;
 mod zip;
+
+/// A cache of compiled regular expressions keyed by their pattern string.
+///
+/// The `sub`, `find`, `matches`, and `split` standard library functions are
+/// commonly called with the same pattern for every element of an array, for
+/// example inside a scatter. Compiling a regular expression is far more
+/// expensive than matching with an already compiled one, so patterns are
+/// compiled once here and reused on later calls.
+static REGEX_CACHE: LazyLock<Mutex<HashMap<String, Regex>>> = LazyLock::new(Mutex::default);
+
+/// Compiles the given pattern into a regular expression, reusing a previously
+/// compiled one when the same pattern has already been seen.
+///
+/// Invalid patterns are not cached and their compilation error is returned to
+/// the caller, so error behavior matches compiling the pattern directly.
+fn cached_regex(pattern: &str) -> Result<Regex, regex::Error> {
+    let mut cache = REGEX_CACHE
+        .lock()
+        .expect("regex cache mutex should not be poisoned");
+    if let Some(regex) = cache.get(pattern) {
+        return Ok(regex.clone());
+    }
+
+    let regex = Regex::new(pattern)?;
+    cache.insert(pattern.to_string(), regex.clone());
+    Ok(regex)
+}
 
 /// Ensures that the given path, when joined with the given base directory, is a
 /// local path.
@@ -461,5 +490,38 @@ mod test {
                 ),
             }
         }
+    }
+
+    /// Verifies that a valid pattern compiles and that asking for the same
+    /// pattern again returns a working regex from the cache.
+    #[test]
+    fn cached_regex_reuses_valid_patterns() {
+        let first = cached_regex(r"\d+").expect("valid pattern should compile");
+        assert!(first.is_match("abc123"));
+
+        let second = cached_regex(r"\d+").expect("cached pattern should be returned");
+        assert!(second.is_match("456"));
+
+        assert!(
+            REGEX_CACHE
+                .lock()
+                .expect("regex cache mutex should not be poisoned")
+                .contains_key(r"\d+"),
+            "the pattern should be stored in the cache"
+        );
+    }
+
+    /// Verifies that an invalid pattern keeps returning a compilation error and
+    /// is not stored in the cache.
+    #[test]
+    fn cached_regex_rejects_invalid_patterns() {
+        assert!(cached_regex("(").is_err());
+        assert!(
+            !REGEX_CACHE
+                .lock()
+                .expect("regex cache mutex should not be poisoned")
+                .contains_key("("),
+            "an invalid pattern should not be cached"
+        );
     }
 }

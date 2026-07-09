@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* The `sub`, `find`, `matches`, and `split` standard library functions now reuse compiled regular expressions through a shared cache instead of recompiling the pattern on every call ([#988](https://github.com/stjude-rust-labs/sprocket/issues/988)).
+
 ### Added
 
 * Added a `strongish` content digest mode (`run.task.digests = "strongish"`) that hashes file size, last modified time, and the first 10 MiB of a file's contents; this is an intermediate strategy between `weak` and `strong`, similar to Cromwell's `fingerprint` call caching strategy ([#978](https://github.com/stjude-rust-labs/sprocket/pull/978)).
