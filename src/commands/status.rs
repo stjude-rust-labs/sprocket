@@ -131,7 +131,7 @@ async fn status_single(
 
     let name_display = &run.name;
     println!(
-        "{short_uuid}  {name:<32}  {status}{elapsed}",
+        "{short_uuid}  {name:<45}  {status}{elapsed}",
         short_uuid = &run.uuid.to_string()[..8],
         name = name_display,
         status = status_display,
@@ -215,7 +215,7 @@ async fn status_list(
             .format("%Y-%m-%d %H:%M:%S UTC");
 
         println!(
-            "{short_uuid}  {name:<32}  {status:<12}  {target:<22}  {timestamp}",
+            "{short_uuid}  {name:<45}  {status:<12}  {target:<22}  {timestamp}",
             short_uuid = &run.uuid.to_string()[..8],
             name = name_display,
             status = status_display,
