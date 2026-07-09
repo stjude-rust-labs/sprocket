@@ -129,6 +129,6 @@ jobs:
       # `isort` requires third-party dependencies to be installed before running. We skip this
       # because `sprocket_bio` doesn't have any dependencies.
       - name: Check import sorting
-        uses: isort/isort-action@v1
-        with:
-          sort-paths: python
+        run: |
+          python -m pip install "isort~=8.0"
+          isort --check-only --diff python/
