@@ -7,9 +7,10 @@ use colored::Colorize as _;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::commands::client::ServerConnectionArgs;
-use crate::commands::client::check_response;
 use crate::commands::client::fetch_task_counts;
+use crate::commands::client::get_json;
 use crate::commands::client::resolve_run_id;
+use crate::commands::client::send_json;
 use crate::commands::inspect::status_color;
 use crate::commands::inspect::task_counts_summary;
 use crate::config::Config;
@@ -84,21 +85,10 @@ async fn status_single(
     let uuid = resolve_run_id(run_id, base_url).await?;
 
     let url = format!("{base_url}{path}", path = paths::get_run(uuid));
-    let resp = reqwest::Client::new()
-        .get(&url)
-        .send()
-        .await
-        .context("failed to connect to Sprocket server")?;
-
-    let resp = check_response(resp).await?;
-
     let counts = fetch_task_counts(base_url, uuid).await?;
 
     if json {
-        let mut raw: serde_json::Value = resp
-            .json()
-            .await
-            .context("failed to deserialize run response")?;
+        let mut raw: serde_json::Value = get_json(&url, "run").await?;
         if let serde_json::Value::Object(map) = &mut raw {
             map.insert(
                 "task_counts".to_string(),
@@ -112,10 +102,7 @@ async fn status_single(
         return Ok(());
     }
 
-    let body: RunResponse = resp
-        .json()
-        .await
-        .context("failed to deserialize run response")?;
+    let body: RunResponse = get_json(&url, "run").await?;
 
     let run = &body.run;
 
@@ -183,17 +170,7 @@ async fn status_list(
             url.push_str(&format!("&next_token={token}"));
         }
 
-        let resp = client
-            .get(&url)
-            .send()
-            .await
-            .context("failed to connect to Sprocket server")?;
-
-        let resp = check_response(resp).await?;
-        let page: ListRunsResponse = resp
-            .json()
-            .await
-            .context("failed to deserialize run list response")?;
+        let page: ListRunsResponse = send_json(client.get(&url), "run list").await?;
 
         all_runs.extend(page.runs);
         next_token = page.next_token;

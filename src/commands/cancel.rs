@@ -1,14 +1,13 @@
 //! Implementation of the `cancel` subcommand.
 
-use anyhow::Context;
 use clap::Parser;
 use tracing::debug;
 
 use crate::commands::CommandResult;
 use crate::commands::client::ServerConnectionArgs;
-use crate::commands::client::check_response;
 use crate::commands::client::fetch_server_info;
 use crate::commands::client::resolve_run_id;
+use crate::commands::client::send_json;
 use crate::config::Config;
 use crate::server::CancelRunResponse;
 use crate::server::ServerFailureMode;
@@ -37,18 +36,7 @@ pub async fn cancel(args: Args, config: Config) -> CommandResult<()> {
     let uuid = resolve_run_id(&args.run_id, &base_url).await?;
 
     let url = format!("{base_url}{path}", path = paths::cancel_run(uuid));
-    let resp = reqwest::Client::new()
-        .post(&url)
-        .send()
-        .await
-        .context("failed to connect to Sprocket server")?;
-
-    let resp = check_response(resp).await?;
-
-    let body: CancelRunResponse = resp
-        .json()
-        .await
-        .context("failed to deserialize cancel response")?;
+    let body: CancelRunResponse = send_json(reqwest::Client::new().post(&url), "cancel").await?;
 
     println!(
         "Run `{uuid}` has been signaled for cancellation.",

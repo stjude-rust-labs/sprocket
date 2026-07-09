@@ -11,7 +11,7 @@ use wdl::diagnostics::emit_diagnostics;
 use crate::analysis::Source;
 use crate::commands::CommandResult;
 use crate::commands::client::ServerConnectionArgs;
-use crate::commands::client::check_response;
+use crate::commands::client::send_json;
 use crate::commands::run::inputs_to_json;
 use crate::commands::validate::analyze_source;
 use crate::commands::validate::validate_inputs;
@@ -149,19 +149,11 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         index_on: args.run_request_args.index_on,
     };
 
-    let resp = reqwest::Client::new()
-        .post(url)
-        .json(&request)
-        .send()
-        .await
-        .context("sending request")?;
-
-    let resp = check_response(resp).await?;
-
-    let submit_response: serde_json::Value = resp
-        .json()
-        .await
-        .context("expected a response body for successful `SubmitRunRequest`")?;
+    let submit_response: serde_json::Value = send_json(
+        reqwest::Client::new().post(url).json(&request),
+        "run submission",
+    )
+    .await?;
 
     println!(
         "{}",

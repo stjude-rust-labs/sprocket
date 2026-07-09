@@ -18,8 +18,9 @@ use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::commands::client::ServerConnectionArgs;
-use crate::commands::client::check_response;
+use crate::commands::client::get_json;
 use crate::commands::client::resolve_run_id;
+use crate::commands::client::send_json;
 use crate::commands::run::inputs_to_json;
 use crate::commands::validate::analyze_source;
 use crate::config::Config;
@@ -84,17 +85,7 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
 
     // Fetch the original run.
     let url = format!("{base_url}{path}", path = paths::get_run(uuid));
-    let resp = reqwest::Client::new()
-        .get(&url)
-        .send()
-        .await
-        .context("failed to connect to Sprocket server")?;
-
-    let resp = check_response(resp).await?;
-    let body: RunResponse = resp
-        .json()
-        .await
-        .context("failed to deserialize run response")?;
+    let body: RunResponse = get_json(&url, "run").await?;
 
     let original = &body.run;
 
@@ -195,19 +186,11 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
         index_on: args.index_on,
     };
 
-    let resp = reqwest::Client::new()
-        .post(&submit_url)
-        .json(&request)
-        .send()
-        .await
-        .context("failed to connect to Sprocket server")?;
-
-    let resp = check_response(resp).await?;
-
-    let submit_response: JsonValue = resp
-        .json()
-        .await
-        .context("expected a response body for successful retry submission")?;
+    let submit_response: JsonValue = send_json(
+        reqwest::Client::new().post(&submit_url).json(&request),
+        "retry submission",
+    )
+    .await?;
 
     println!(
         "{}",

@@ -10,10 +10,10 @@ use tracing::debug;
 
 use crate::commands::CommandResult;
 use crate::commands::client::ServerConnectionArgs;
-use crate::commands::client::check_response;
 use crate::commands::client::fetch_run_tasks;
 use crate::commands::client::fetch_server_info;
 use crate::commands::client::fetch_task_counts;
+use crate::commands::client::get_json;
 use crate::commands::client::resolve_run_id;
 use crate::config::Config;
 use crate::server::RunResponse;
@@ -189,14 +189,6 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
     let uuid = resolve_run_id(&args.run_id, &base_url).await?;
 
     let url = format!("{base_url}{path}", path = paths::get_run(uuid));
-    let resp = reqwest::Client::new()
-        .get(&url)
-        .send()
-        .await
-        .context("failed to connect to Sprocket server")?;
-
-    let resp = check_response(resp).await?;
-
     let counts = fetch_task_counts(&base_url, uuid).await?;
 
     // Fetch the per-task breakdown only when requested.
@@ -219,10 +211,7 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
     };
 
     if args.json {
-        let mut raw: serde_json::Value = resp
-            .json()
-            .await
-            .context("failed to deserialize run response")?;
+        let mut raw: serde_json::Value = get_json(&url, "run").await?;
         if let serde_json::Value::Object(map) = &mut raw {
             map.insert(
                 "task_counts".to_string(),
@@ -248,10 +237,7 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
         return Ok(());
     }
 
-    let body: RunResponse = resp
-        .json()
-        .await
-        .context("failed to deserialize run response")?;
+    let body: RunResponse = get_json(&url, "run").await?;
 
     let run = &body.run;
 

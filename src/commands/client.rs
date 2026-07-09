@@ -3,6 +3,7 @@
 
 use anyhow::Context;
 use clap::Args as ClapArgs;
+use serde::de::DeserializeOwned;
 use uuid::Uuid;
 
 use crate::commands::CommandError;
@@ -63,6 +64,37 @@ pub async fn check_response(resp: reqwest::Response) -> CommandResult<reqwest::R
     Err(CommandError::Single(anyhow::anyhow!(msg)))
 }
 
+/// Sends the given request and deserializes the JSON response body.
+///
+/// Connection failures, non-2xx responses, and deserialization failures are
+/// all mapped to descriptive command errors; `what` names the expected
+/// payload in the deserialization error message (e.g. `"server info"`).
+pub async fn send_json<T: DeserializeOwned>(
+    request: reqwest::RequestBuilder,
+    what: &str,
+) -> CommandResult<T> {
+    let resp = request
+        .send()
+        .await
+        .context("failed to connect to Sprocket server")?;
+
+    let resp = check_response(resp).await?;
+
+    let body = resp
+        .json()
+        .await
+        .with_context(|| format!("failed to deserialize {what} response"))?;
+
+    Ok(body)
+}
+
+/// Sends a `GET` request to `url` and deserializes the JSON response body.
+///
+/// See [`send_json`] for error handling details.
+pub async fn get_json<T: DeserializeOwned>(url: &str, what: &str) -> CommandResult<T> {
+    send_json(reqwest::Client::new().get(url), what).await
+}
+
 /// Fetches static server metadata.
 ///
 /// Queries `GET /api/v1/info`. The response describes the server's static
@@ -70,20 +102,7 @@ pub async fn check_response(resp: reqwest::Response) -> CommandResult<reqwest::R
 /// adapt their output to the server's setup.
 pub async fn fetch_server_info(base_url: &str) -> CommandResult<ServerInfoResponse> {
     let url = format!("{base_url}{path}", path = paths::SERVER_INFO);
-    let resp = reqwest::Client::new()
-        .get(&url)
-        .send()
-        .await
-        .context("failed to connect to Sprocket server")?;
-
-    let resp = check_response(resp).await?;
-
-    let info = resp
-        .json()
-        .await
-        .context("failed to deserialize server info response")?;
-
-    Ok(info)
+    get_json(&url, "server info").await
 }
 
 /// Fetches the per-status task counts for a run.
@@ -92,20 +111,7 @@ pub async fn fetch_server_info(base_url: &str) -> CommandResult<ServerInfoRespon
 /// all-zero counts (rather than an error) for unknown runs.
 pub async fn fetch_task_counts(base_url: &str, uuid: Uuid) -> CommandResult<RunTaskCountsResponse> {
     let url = format!("{base_url}{path}", path = paths::run_task_counts(uuid));
-    let resp = reqwest::Client::new()
-        .get(&url)
-        .send()
-        .await
-        .context("failed to connect to Sprocket server")?;
-
-    let resp = check_response(resp).await?;
-
-    let counts = resp
-        .json()
-        .await
-        .context("failed to deserialize task counts response")?;
-
-    Ok(counts)
+    get_json(&url, "task counts").await
 }
 
 /// Fetches all tasks for a run, following pagination across every page.
@@ -127,18 +133,7 @@ pub async fn fetch_run_tasks(base_url: &str, uuid: Uuid) -> CommandResult<Vec<Ta
             url.push_str(&format!("&next_token={token}"));
         }
 
-        let resp = client
-            .get(&url)
-            .send()
-            .await
-            .context("failed to connect to Sprocket server")?;
-
-        let resp = check_response(resp).await?;
-
-        let page: ListTasksResponse = resp
-            .json()
-            .await
-            .context("failed to deserialize task list response")?;
+        let page: ListTasksResponse = send_json(client.get(&url), "task list").await?;
 
         tasks.extend(page.tasks);
         next_token = page.next_token;
@@ -183,18 +178,7 @@ pub async fn resolve_run_id(input: &str, base_url: &str) -> CommandResult<Uuid> 
             url.push_str(&format!("&next_token={token}"));
         }
 
-        let resp = client
-            .get(&url)
-            .send()
-            .await
-            .context("failed to connect to Sprocket server")?;
-
-        let resp = check_response(resp).await?;
-
-        let page: ListRunsResponse = resp
-            .json()
-            .await
-            .context("failed to deserialize run list response")?;
+        let page: ListRunsResponse = send_json(client.get(&url), "run list").await?;
 
         for run in &page.runs {
             if run.name == input {
