@@ -1,0 +1,83 @@
+Runs unit tests for a WDL workspace
+
+Usage: sprocket dev test [OPTIONS] [SOURCE]
+
+Arguments:
+  [SOURCE]
+          Local path to a WDL document or workspace to unit test.
+          
+          If not specified, this defaults to the current working directory.
+
+Options:
+  -w, --workspace <WORKSPACE>
+          Root of the workspace where the `test/` directory will be located. Test fixtures will be loaded from `<workspace>/test/fixtures/` if it is present.
+          
+          If a `<workspace>/test/` directory does not exist, one will be created and it will contain a `runs/` directory for test executions, unless otherwise specified.
+          
+          If not specified and the `source` argument is a directory, it's assumed that directory is also the workspace. This can be specified in addition to a source directory if they are different.
+          
+          If not specified and the `source` argument is a file, it's assumed that the current working directory is the workspace. This can be specified in addition to a source file if the CWD is not the right workspace.
+
+  -t, --include-tag <TAG>
+          Specific test tag that should be run.
+          
+          Can be repeated multiple times.
+
+  -f, --filter-tag <TAG>
+          Filter out any tests with a matching tag.
+          
+          Can be repeated multiple times.
+
+      --no-clean
+          Do not clean the file system of successful tests.
+          
+          The default behavior is to remove directories of successful tests, leaving only failed and errored run directories on the file system.
+
+      --clean-all
+          Clean all execution directories, even for tests that failed or errored
+
+  -p, --parallelism <PARALLELISM>
+          The number of test executions to run in parallel
+
+      --fixtures-dir <FIXTURES_DIR>
+          Directory containing fixture files used by tests.
+          
+          If not specified, defaults to `<workspace>/test/fixtures`.
+
+      --run-dir <RUN_DIR>
+          Directory to execute tests in.
+          
+          If not specified, defaults to `<workspace>/test/runs`.
+
+      --no-status
+          Do not print results as tests complete
+
+  -v, --verbose...
+          Increase logging verbosity
+
+  -q, --quiet...
+          Decrease logging verbosity
+
+      --color <COLOR>
+          Controls output colorization
+
+          Possible values:
+          - auto:   Automatically colorize output depending on output device
+          - always: Always colorize output
+          - never:  Never colorize output
+          
+          [default: auto]
+
+  -c, --config <CONFIG>
+          Path to the configuration file
+
+  -s, --skip-config-search
+          Skip searching for and loading configuration files.
+          
+          Only a configuration file specified as a command line argument will be used.
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+  -V, --version
+          Print version

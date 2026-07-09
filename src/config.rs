@@ -977,6 +977,7 @@ impl Config {
 #[cfg(test)]
 mod test {
     use std::collections::HashMap;
+    use std::fs;
 
     use super::*;
 
@@ -1017,5 +1018,292 @@ mod test {
         let error = toml_spanner::from_str::<HashMap<String, MaxConcurrentRuns>>("value = -10")
             .unwrap_err();
         assert_eq!(error.to_string(), expected_error);
+    }
+
+    #[test]
+    fn color_mode_parsing_and_display() -> Result<()> {
+        assert_eq!(<ColorMode as FromStr>::from_str("auto")?, ColorMode::Auto);
+        assert_eq!(
+            <ColorMode as FromStr>::from_str("always")?,
+            ColorMode::Always
+        );
+        assert_eq!(<ColorMode as FromStr>::from_str("never")?, ColorMode::Never);
+        assert_eq!(ColorMode::Always.to_string(), "always");
+        assert_eq!(ColorMode::Never.to_string(), "never");
+
+        let Err(error) = <ColorMode as FromStr>::from_str("sometimes") else {
+            panic!("invalid color mode should error");
+        };
+        assert_eq!(error.to_string(), "invalid color mode `sometimes`");
+
+        Ok(())
+    }
+
+    #[test]
+    fn fallback_version_conversions_and_toml() -> Result<()> {
+        let version = SupportedVersion::V1(wdl::ast::version::V1::Zero);
+
+        assert_eq!(
+            FallbackVersion::from(version),
+            FallbackVersion::Version(version)
+        );
+        assert_eq!(
+            FallbackVersion::from(Some(version)),
+            FallbackVersion::Version(version)
+        );
+        assert_eq!(FallbackVersion::from(None), FallbackVersion::None);
+
+        let converted: Option<SupportedVersion> = FallbackVersion::Version(version).into();
+        assert_eq!(converted, Some(version));
+        let converted: Option<SupportedVersion> = FallbackVersion::None.into();
+        assert_eq!(converted, None);
+
+        let map: HashMap<String, FallbackVersion> = toml_spanner::from_str("value = 'none'")?;
+        assert_eq!(map["value"], FallbackVersion::None);
+        let map: HashMap<String, FallbackVersion> = toml_spanner::from_str("value = '1.0'")?;
+        assert_eq!(map["value"], FallbackVersion::Version(version));
+        assert_eq!(FallbackVersion::Version(version).to_string(), "1.0");
+        assert_eq!(FallbackVersion::None.to_string(), "none");
+
+        let Err(error) =
+            toml_spanner::from_str::<HashMap<String, FallbackVersion>>("value = 'development'")
+        else {
+            panic!("invalid fallback version should error");
+        };
+        assert_eq!(
+            error.to_string(),
+            "expected a supported WDL version or `none` at `value`"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn max_concurrent_runs_conversions() {
+        assert_eq!(MaxConcurrentRuns::from(3), MaxConcurrentRuns::Limited(3));
+        assert_eq!(
+            MaxConcurrentRuns::from(Some(4)),
+            MaxConcurrentRuns::Limited(4)
+        );
+        assert_eq!(MaxConcurrentRuns::from(None), MaxConcurrentRuns::Unlimited);
+
+        let converted: Option<usize> = MaxConcurrentRuns::Limited(5).into();
+        assert_eq!(converted, Some(5));
+        let converted: Option<usize> = MaxConcurrentRuns::Unlimited.into();
+        assert_eq!(converted, None);
+    }
+
+    #[test]
+    fn server_database_url_uses_output_dir_for_default() {
+        let config = ServerConfig::default();
+        assert_eq!(
+            PathBuf::from(config.database_url()),
+            PathBuf::from(".").join("out").join("sprocket.db")
+        );
+
+        let config = ServerConfig {
+            database: ServerDatabaseConfig {
+                url: "sqlite://custom.db".to_string(),
+            },
+            ..Default::default()
+        };
+        assert_eq!(config.database_url(), "sqlite://custom.db");
+    }
+
+    #[test]
+    fn server_validate_normalizes_allowed_locations() -> Result<()> {
+        let tempdir = tempfile::TempDir::new()?;
+        let allowed = tempdir.path().join("allowed");
+        fs::create_dir(&allowed)?;
+        let file_url = Url::from_directory_path(&allowed)
+            .map_err(|_| anyhow!("failed to convert temp directory to URL"))?
+            .to_string();
+
+        let mut config = ServerConfig {
+            allowed_file_paths: vec![allowed.clone(), allowed.clone()],
+            allowed_urls: vec![
+                "https://example.com/workflows/".to_string(),
+                file_url.clone(),
+                "https://example.com/workflows/".to_string(),
+            ],
+            ..Default::default()
+        };
+
+        config.validate()?;
+
+        let canonical = allowed.canonicalize()?;
+        let file_url_path = Url::parse(&file_url)
+            .map_err(|e| anyhow!("failed to parse file URL: {e}"))?
+            .to_file_path()
+            .map_err(|_| anyhow!("failed to convert file URL to path"))?;
+        let mut expected_file_paths = vec![canonical.clone(), file_url_path];
+        expected_file_paths.sort();
+        expected_file_paths.dedup();
+        assert_eq!(config.allowed_file_paths, expected_file_paths);
+        let mut expected_urls = vec![
+            file_url,
+            Url::from_file_path(canonical)
+                .map_err(|_| anyhow!("failed to convert canonical path to URL"))?
+                .to_string(),
+            "https://example.com/workflows/".to_string(),
+        ];
+        expected_urls.sort();
+        expected_urls.dedup();
+        assert_eq!(config.allowed_urls, expected_urls);
+
+        Ok(())
+    }
+
+    #[test]
+    fn server_validate_reports_bad_locations() {
+        let mut config = ServerConfig {
+            allowed_urls: vec!["not a url".to_string()],
+            ..Default::default()
+        };
+        let Err(error) = config.validate() else {
+            panic!("invalid allowed URL should error");
+        };
+        assert_eq!(
+            error.to_string(),
+            "invalid URL in `allowed_urls`: `not a url`"
+        );
+
+        let mut config = ServerConfig {
+            allowed_file_paths: vec![PathBuf::from("does-not-exist")],
+            ..Default::default()
+        };
+        let Err(error) = config.validate() else {
+            panic!("invalid allowed file path should error");
+        };
+        assert_eq!(
+            error.to_string(),
+            "failed to canonicalize path in `allowed_file_paths`: `does-not-exist`"
+        );
+    }
+
+    #[test]
+    fn doc_config_accessors_and_validation() -> Result<()> {
+        let default = DocConfig::default();
+        assert_eq!(default.index_page(), None);
+        assert_eq!(default.logo(), None);
+        assert_eq!(default.alt_light_logo(), None);
+        assert_eq!(default.homepage_url(), None);
+        assert_eq!(default.github_url(), None);
+        default.validate()?;
+
+        let config = DocConfig {
+            index_page: "index.md".to_string(),
+            logo: "logo.svg".to_string(),
+            alt_light_logo: "light.svg".to_string(),
+            homepage_url: "https://sprocket.bio/".to_string(),
+            github_url: "https://github.com/stjude-rust-labs/sprocket".to_string(),
+            ..Default::default()
+        };
+
+        assert_eq!(config.index_page(), Some(PathBuf::from("index.md")));
+        assert_eq!(config.logo(), Some(PathBuf::from("logo.svg")));
+        assert_eq!(config.alt_light_logo(), Some(PathBuf::from("light.svg")));
+        assert_eq!(
+            config.homepage_url(),
+            Some(Url::parse("https://sprocket.bio/")?)
+        );
+        assert_eq!(
+            config.github_url(),
+            Some(Url::parse("https://github.com/stjude-rust-labs/sprocket")?)
+        );
+        config.validate()?;
+
+        let config = DocConfig {
+            homepage_url: "not a url".to_string(),
+            ..Default::default()
+        };
+        let Err(error) = config.validate() else {
+            panic!("invalid homepage URL should error");
+        };
+        assert_eq!(
+            error.to_string(),
+            "error while parsing configured homepage URL: relative URL without a base"
+        );
+
+        let config = DocConfig {
+            github_url: "not a url".to_string(),
+            ..Default::default()
+        };
+        let Err(error) = config.validate() else {
+            panic!("invalid GitHub URL should error");
+        };
+        assert_eq!(
+            error.to_string(),
+            "error while parsing configured GitHub URL: relative URL without a base"
+        );
+
+        Ok(())
+    }
+
+    #[test]
+    fn doc_extra_html_accessors() {
+        let default = DocExtraHtmlConfig::default();
+        assert_eq!(default.head(), None);
+        assert_eq!(default.body_open(), None);
+        assert_eq!(default.body_close(), None);
+
+        let config = DocExtraHtmlConfig {
+            head: "head.html".to_string(),
+            body_open: "open.html".to_string(),
+            body_close: "close.html".to_string(),
+        };
+        assert_eq!(config.head(), Some(PathBuf::from("head.html")));
+        assert_eq!(config.body_open(), Some(PathBuf::from("open.html")));
+        assert_eq!(config.body_close(), Some(PathBuf::from("close.html")));
+    }
+
+    #[test]
+    fn config_read_write_new_and_validate() -> Result<()> {
+        let tempdir = tempfile::TempDir::new()?;
+        let config_path = tempdir.path().join("sprocket.toml");
+
+        let config = Config {
+            server: ServerConfig {
+                host: "0.0.0.0".to_string(),
+                port: 9090,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let config_path_str = config_path
+            .to_str()
+            .ok_or_else(|| anyhow!("temporary config path is not utf-8"))?;
+        config.write_config(config_path_str)?;
+
+        let read = Config::read_config(config_path_str)?;
+        assert_eq!(read.server.host, "0.0.0.0");
+        assert_eq!(read.server.port, 9090);
+
+        let from_builder = Config::new([config_path.as_path()], true)?;
+        assert_eq!(from_builder.server.host, "0.0.0.0");
+        assert_eq!(from_builder.server.port, 9090);
+
+        let mut config = Config::default();
+        config.validate()?;
+
+        let mut config = Config::default();
+        config.check.all_lint_rules = true;
+        config.check.only_lint_tags.push("style".to_string());
+        let Err(error) = config.validate() else {
+            panic!("incompatible lint options should error");
+        };
+        assert_eq!(
+            error.to_string(),
+            "`all_lint_rules` cannot be specified with `only_lint_tags`"
+        );
+
+        let mut config = Config::default();
+        config.run.events_capacity = 0;
+        let Err(error) = config.validate() else {
+            panic!("zero events capacity should error");
+        };
+        assert_eq!(error.to_string(), "`events_capacity` must be at least 1");
+
+        Ok(())
     }
 }

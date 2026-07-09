@@ -159,3 +159,52 @@ pub async fn get_session(
     .await?;
     Ok(Json(response.into()))
 }
+
+#[cfg(test)]
+mod tests {
+    use tokio::sync::mpsc;
+
+    use super::*;
+
+    fn app_state() -> AppState {
+        let (run_manager_tx, _run_manager_rx) = mpsc::channel(1);
+        AppState::builder().run_manager_tx(run_manager_tx).build()
+    }
+
+    fn db_session() -> crate::system::v1::db::Session {
+        crate::system::v1::db::Session {
+            uuid: Uuid::nil(),
+            subcommand: SprocketCommand::Server,
+            created_by: "tester".to_string(),
+            created_at: Utc::now(),
+        }
+    }
+
+    #[tokio::test]
+    async fn list_sessions_rejects_invalid_next_token() {
+        let query = ListSessionsQueryParams {
+            limit: None,
+            next_token: Some("bad-token".to_string()),
+        };
+
+        let error = list_sessions(State(app_state()), Ok(Query(query)))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(error, Error::BadRequest(message) if message == "invalid `next_token`: `bad-token`")
+        );
+    }
+
+    #[test]
+    fn session_response_conversion_preserves_fields() {
+        let db_session = db_session();
+        let response = SessionResponse::from(commands::SessionResponse {
+            session: db_session.clone(),
+        });
+
+        assert_eq!(response.session.uuid, db_session.uuid);
+        assert_eq!(response.session.subcommand, db_session.subcommand);
+        assert_eq!(response.session.created_by, db_session.created_by);
+        assert_eq!(response.session.created_at, db_session.created_at);
+    }
+}

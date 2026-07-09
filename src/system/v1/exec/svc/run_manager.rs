@@ -562,6 +562,7 @@ async fn get_task_logs(
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<ListTaskLogsResponse, DatabaseError> {
+    db.get_task(&name).await?;
     let logs = db.get_task_logs(&name, stream, limit, offset).await?;
     let total = db.count_task_logs(&name, stream).await?;
     Ok(ListTaskLogsResponse { logs, total })
