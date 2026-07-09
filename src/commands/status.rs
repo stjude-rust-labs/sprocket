@@ -19,6 +19,9 @@ use crate::server::RunResponse;
 use crate::server::RunStatus;
 use crate::server::paths;
 
+/// Visible width of the status column in the list view.
+const STATUS_COLUMN_WIDTH: usize = 12;
+
 /// Arguments for the `status` subcommand.
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
@@ -199,10 +202,14 @@ async fn status_list(
                 .bold()
                 .to_string()
         } else {
-            status_str
+            status_str.clone()
         };
 
-        let target = run
+        // Account for the ANSI color codes when padding the status column so
+        // the visible width stays aligned.
+        let status_pad = status_display.len() - status_str.len() + STATUS_COLUMN_WIDTH;
+
+        let target_full = run
             .target
             .as_deref()
             .map(|target| target.to_string())
@@ -214,11 +221,18 @@ async fn status_list(
             .unwrap_or(run.created_at)
             .format("%Y-%m-%d %H:%M:%S UTC");
 
+        let target = if target_full.chars().count() > 22 {
+            format!("{}…", target_full.chars().take(21).collect::<String>())
+        } else {
+            target_full
+        };
+
         println!(
-            "{short_uuid}  {name:<45}  {status:<12}  {target:<22}  {timestamp}",
+            "{short_uuid}  {name:<45}  {status:<status_pad$}  {target:<22}  {timestamp}",
             short_uuid = &run.uuid.to_string()[..8],
             name = name_display,
             status = status_display,
+            status_pad = status_pad,
             target = target,
             timestamp = timestamp,
         );
