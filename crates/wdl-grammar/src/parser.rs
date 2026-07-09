@@ -1289,6 +1289,7 @@ where
     }
 }
 
+/// Python-specific APIs.
 #[cfg(feature = "unstable-python")]
 mod python {
     use pyo3::IntoPyObjectExt;
@@ -1348,10 +1349,10 @@ mod python {
                     // Equivalent to `repr(SyntaxKind)`.
                     kind.into_bound_py_any(py)?.repr()?.to_str()?,
                     // If `forward_parent` is `Some` write the plain integer, else write "None".
-                    std::fmt::from_fn(|f| match forward_parent {
-                        Some(forward_parent) => write!(f, "{forward_parent}"),
-                        None => write!(f, "None"),
-                    }),
+                    match forward_parent {
+                        Some(x) => x.to_string(),
+                        None => "None".to_owned(),
+                    },
                 )),
                 Self::NodeFinished() => Ok("Event.NodeFinished()".to_owned()),
                 Self::Token { kind, span } => Ok(format!(

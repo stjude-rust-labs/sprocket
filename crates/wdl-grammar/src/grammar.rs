@@ -186,10 +186,7 @@ mod python {
         let (events, diagnostics) = document(Parser::new(Lexer::new(source)), fallback_version);
 
         // Converts `Event`s into `PyEvent`s.
-        let events = events
-            .into_iter()
-            .map(|event| PyEvent::from_event(event))
-            .collect();
+        let events = events.into_iter().map(PyEvent::from_event).collect();
 
         (events, diagnostics)
     }
