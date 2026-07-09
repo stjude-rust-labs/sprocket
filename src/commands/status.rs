@@ -129,7 +129,7 @@ async fn status_single(
         _ => String::new(),
     };
 
-    let name_display = format!("{}", run.name);
+    let name_display = &run.name;
     println!(
         "{short_uuid}  {name:<32}  {status}{elapsed}",
         short_uuid = &run.uuid.to_string()[..8],
@@ -205,9 +205,9 @@ async fn status_list(
         let target = run
             .target
             .as_deref()
-            .map(|target| format!("{target}"))
+            .map(|target| target.to_string())
             .unwrap_or_else(|| "-".to_string());
-        let name_display = format!("{}", run.name);
+        let name_display = &run.name;
         let timestamp = run
             .completed_at
             .or(run.started_at)
