@@ -152,7 +152,7 @@
 
           packages = with pkgs; [
             # Rust toolchain (matches the version nixpkgs ships, which on
-            # nixos-unstable should satisfy the workspace MSRV of 1.91.1).
+            # nixos-unstable should satisfy the workspace MSRV of 1.95).
             rustc
             cargo
             clippy
