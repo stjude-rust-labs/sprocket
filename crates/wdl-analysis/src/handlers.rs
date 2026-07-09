@@ -9,6 +9,7 @@ use crate::document::ScopeRef;
 use crate::types::v1::EvaluationContext;
 
 mod call_hierarchy;
+mod code_lens;
 mod common;
 mod completions;
 mod document_symbol;
@@ -24,6 +25,7 @@ pub(crate) mod snippets;
 mod workspace_symbol;
 
 pub use call_hierarchy::*;
+pub use code_lens::*;
 pub use completions::*;
 pub use document_symbol::*;
 pub use find_all_references::*;

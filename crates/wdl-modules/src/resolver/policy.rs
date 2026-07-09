@@ -105,6 +105,8 @@ pub struct ResolverPolicy {
     pub(crate) large_file_warning: LargeFileWarning,
     /// Whether unsigned modules are rejected.
     pub(crate) require_signed: bool,
+    /// Whether Git operations may use credential helpers.
+    credentials_enabled: bool,
 }
 
 impl Default for ResolverPolicy {
@@ -163,11 +165,18 @@ impl TryFrom<&ModulesConfig> for ResolverPolicy {
             max_materialized_bytes: config.max_materialized_bytes,
             large_file_warning: config.large_file_warning,
             require_signed: config.require_signed,
+            credentials_enabled: true,
         })
     }
 }
 
 impl ResolverPolicy {
+    /// Returns this policy with Git credentials disabled for every scope.
+    pub fn without_credentials(mut self) -> Self {
+        self.credentials_enabled = false;
+        self
+    }
+
     /// Returns the Git network policy for the given scope.
     pub(crate) fn git_policy(&self, scope: DependencyScope) -> &GitNetworkPolicy {
         match scope {
@@ -188,6 +197,10 @@ impl ResolverPolicy {
         scope: DependencyScope,
         host: Option<&str>,
     ) -> CredentialMode {
+        if !self.credentials_enabled {
+            return CredentialMode::Disabled;
+        }
+
         match scope {
             DependencyScope::TopLevel => CredentialMode::Enabled,
             DependencyScope::Transitive => match host {
@@ -380,6 +393,19 @@ mod tests {
         .unwrap();
         assert_eq!(
             open.credential_mode(DependencyScope::Transitive, Some("github.com")),
+            CredentialMode::Disabled
+        );
+    }
+
+    #[test]
+    fn credentials_can_be_disabled_for_every_scope() {
+        let policy = ResolverPolicy::default().without_credentials();
+        assert_eq!(
+            policy.credential_mode(DependencyScope::TopLevel, Some("github.com")),
+            CredentialMode::Disabled
+        );
+        assert_eq!(
+            policy.credential_mode(DependencyScope::Transitive, Some("github.com")),
             CredentialMode::Disabled
         );
     }

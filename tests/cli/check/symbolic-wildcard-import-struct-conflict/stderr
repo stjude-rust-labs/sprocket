@@ -1,0 +1,12 @@
+error: conflicting struct name `Point`
+  ┌─ main.wdl:5:8
+  │
+3 │ import * from shapes
+  │               ------ the import that introduced the struct is here
+4 │ 
+5 │ struct Point {
+  │        ^^^^^ this name conflicts with an imported struct
+  │
+  = fix: either rename the struct or use an `alias` clause on the import with a different name
+
+error: failing due to 1 error
