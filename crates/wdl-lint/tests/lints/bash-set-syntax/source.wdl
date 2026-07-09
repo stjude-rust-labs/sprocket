@@ -1,4 +1,4 @@
-#@ except: MetaSections, RequirementsSection, EmptyOutputs
+#@ except: MetaSections, RequirementsSection, EmptyOutputs, HereDocCommands
 
 version 1.3
 
@@ -51,6 +51,43 @@ task good6 {
     command <<<
         set -euo pipefail -- Hello
         echo "$1, World!"
+    >>>
+}
+
+task good7 {
+    # Should also check braced commands
+    command {
+        set -euo pipefail
+        echo "Hello, World!"
+    }
+}
+
+task good8 {
+    # We only check the initial `set` command. Any overrides that happen
+    # elsewhere in the block are up to the user to manage.
+    # <https://github.com/stjude-rust-labs/sprocket/pull/843#discussion_r3249823828>
+    command <<<
+        set -euo pipefail
+        set +e
+    >>>
+}
+
+task good9 {
+    # Should stop parsing on control characters
+    command <<<
+        set -euo pipefail;echo "Hello, world!"
+    >>>
+}
+
+task good10 {
+    command <<<
+        set -euo pipefail&&echo "Hello, world!"
+    >>>
+}
+
+task good11 {
+    command <<<
+        set -o pipefail -eu&&echo "Hello, world!"
     >>>
 }
 
@@ -136,5 +173,12 @@ task bad12 {
     command <<<
         set -o pipefail -- Hello
         echo "$1, World!"
+    >>>
+}
+
+task bad13 {
+    # Make sure we deny unknown flags
+    command <<<
+        set -euo pipefail -o hello_world -q
     >>>
 }

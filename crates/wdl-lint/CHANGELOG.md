@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.24.1 - 2026-06-26
 
+#### Added
+
+* Added `BashSetSyntax` lint rule to enforce consistent [bash set](https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html)
+  commands in every `command` section ([#843](https://github.com/stjude-rust-labs/sprocket/pull/843)).
+
 #### Changed
 
 * Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
@@ -21,8 +26,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added `HostPathLiterals` lint rule to flag absolute path defaults in `File` and `Directory` declarations ([#736](https://github.com/stjude-rust-labs/sprocket/pull/736)).
 * New lint rule `EmptyOutputs` to detect `task`s with no `output`s ([#846](https://github.com/stjude-rust-labs/sprocket/pull/846)).
-* Added `BashSetSyntax` lint rule to enforce consistent [bash set](https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html)
-  commands in every `command` section ([#843](https://github.com/stjude-rust-labs/sprocket/pull/843)).
 
 #### Fixed
 

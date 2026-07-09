@@ -8,6 +8,7 @@ use std::fmt::Formatter;
 
 use serde::Deserialize;
 use serde::Serialize;
+use strum::VariantArray;
 use toml_spanner::Toml;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Example;
@@ -64,6 +65,15 @@ fn interactive_only(span: Span, option: &str) -> Diagnostic {
         .with_help(format!(
             "option `{option}` is only available in interactive mode"
         ))
+        .with_fix("remove the option")
+}
+
+/// Creates an unknown `set` option diagnostic.
+fn unknown_option(span: Span, option: &str) -> Diagnostic {
+    Diagnostic::error("unknown `set` option")
+        .with_rule(ID)
+        .with_highlight(span)
+        .with_help(format!("option `{option}` is non-standard"))
         .with_fix("remove the option")
 }
 
@@ -147,6 +157,15 @@ impl BashSetSyntax {
         line: &str,
         line_start: usize,
     ) -> (bool, usize) {
+        /// To handle the cases of metacharacters being part of a chunk.
+        /// For example, `set -eu;echo "Hello world"`.
+        fn split_at_meta_char(chunk: &str) -> (&str, bool) {
+            match chunk.find([';', '&', '|', '>', '<']) {
+                Some(index) => (&chunk[..index], true),
+                None => (chunk, false),
+            }
+        }
+
         let Some(opts) = line.strip_prefix(SET_COMMAND_NAME) else {
             return (false, 0);
         };
@@ -163,6 +182,11 @@ impl BashSetSyntax {
         let mut chunks = opts_trimmed.split_whitespace();
 
         while let Some(chunk) = chunks.next() {
+            let (chunk, found_meta_char) = split_at_meta_char(chunk);
+            if chunk.is_empty() {
+                break;
+            }
+
             // https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html:
             //
             // `--` and `-` mark the end of the options
@@ -186,7 +210,8 @@ impl BashSetSyntax {
             for opt in chunk[byte_offset..].chars() {
                 let opt_len = opt.len_utf8();
 
-                let matched_opt = if opt == 'o' {
+                let (matched_opt, opt_name_span, should_break, is_interactive_only) = if opt == 'o'
+                {
                     if byte_offset + opt_len < chunk.len() {
                         // Some invalid syntax, 'o' should be at the end of the chunk
                         return (false, last_chunk_end);
@@ -197,6 +222,11 @@ impl BashSetSyntax {
                         return (false, last_chunk_end);
                     };
 
+                    let (long_opt, trailing_meta_char) = split_at_meta_char(long_opt);
+                    if long_opt.is_empty() {
+                        return (false, last_chunk_end);
+                    }
+
                     last_chunk_end =
                         long_opt.as_ptr() as usize - line.as_ptr() as usize + long_opt.len();
 
@@ -205,49 +235,61 @@ impl BashSetSyntax {
                     let span_end = line_start + long_opt_offset + long_opt.len();
                     let long_opt_span = Span::new(span_start, span_end - span_start);
 
-                    if INTERACTIVE_ONLY_LONG.contains(&long_opt) {
-                        diagnostics.exceptable_add(
-                            interactive_only(long_opt_span, &format!("{mode}o {long_opt}")),
-                            SyntaxElement::from(section.inner().clone()),
-                            &self.exceptable_nodes(),
-                        )
-                    }
+                    let mut is_interactive_only = INTERACTIVE_ONLY_LONG.contains(&long_opt);
 
-                    self.expected_options
-                        .iter()
-                        .find(|&&op| op.long() == Some(long_opt))
-                        .copied()
+                    (
+                        BashSetOption::from_long(long_opt),
+                        long_opt_span,
+                        trailing_meta_char,
+                        is_interactive_only,
+                    )
                 } else {
                     let opt_span = Span::new(line_start + chunk_offset + byte_offset, opt_len);
 
-                    if INTERACTIVE_ONLY_SHORT.contains(&opt) {
-                        diagnostics.exceptable_add(
-                            interactive_only(opt_span, &format!("{mode}{opt}")),
-                            SyntaxElement::from(section.inner().clone()),
-                            &self.exceptable_nodes(),
-                        )
-                    }
+                    let mut is_interactive_only = INTERACTIVE_ONLY_SHORT.contains(&opt);
 
-                    self.expected_options
-                        .iter()
-                        .find(|&&op| op.short() == Some(opt))
-                        .copied()
+                    (
+                        BashSetOption::from_short(opt),
+                        opt_span,
+                        false,
+                        is_interactive_only,
+                    )
                 };
 
                 byte_offset += opt_len;
 
-                if let Some(op) = matched_opt {
-                    if is_enable {
-                        remaining_expected.remove(&op);
+                let Some(matched_opt) = matched_opt else {
+                    if is_interactive_only {
+                        diagnostics.exceptable_add(
+                            interactive_only(opt_name_span, &format!("{mode}{opt}")),
+                            SyntaxElement::from(section.inner().clone()),
+                            &self.exceptable_nodes(),
+                        );
                     } else {
-                        // Explicitly disabling a required option
-                        return (false, last_chunk_end);
+                        diagnostics.exceptable_add(
+                            unknown_option(opt_name_span, &format!("{mode}{opt}")),
+                            SyntaxElement::from(section.inner().clone()),
+                            &self.exceptable_nodes(),
+                        );
                     }
+
+                    continue;
+                };
+
+                if is_enable {
+                    remaining_expected.remove(&matched_opt);
+                } else {
+                    // Explicitly disabling a required option
+                    return (false, last_chunk_end);
                 }
 
-                if opt == 'o' {
+                if opt == 'o' || should_break {
                     break;
                 }
+            }
+
+            if found_meta_char {
+                break;
             }
         }
 
@@ -274,7 +316,7 @@ impl Rule for BashSetSyntax {
         &[Example {
             negative: LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.2
+                snippet: r#"version 1.3
 
 task say_hello {
     command <<<
@@ -319,7 +361,7 @@ task say_hello {
 ///
 /// See <https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html> for a description
 /// of each option.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Toml)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Toml, VariantArray)]
 #[serde(rename_all = "lowercase")]
 #[toml(FromToml, ToToml, rename_all = "lowercase")]
 #[allow(missing_docs)]
@@ -347,6 +389,22 @@ pub enum BashSetOption {
 }
 
 impl BashSetOption {
+    /// Attempt to get a [`BashSetOption`] by its short name.
+    fn from_short(opt: char) -> Option<Self> {
+        Self::VARIANTS
+            .iter()
+            .find(|&&variant| variant.short() == Some(opt))
+            .copied()
+    }
+
+    /// Attempt to get a [`BashSetOption`] by its long name.
+    fn from_long(opt: &str) -> Option<Self> {
+        Self::VARIANTS
+            .iter()
+            .find(|&&variant| variant.long() == Some(opt))
+            .copied()
+    }
+
     /// The short option name, if available.
     fn short(self) -> Option<char> {
         match self {
