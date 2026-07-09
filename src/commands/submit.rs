@@ -3,10 +3,7 @@
 use anyhow::Context;
 use clap::Args as ClapArgs;
 use clap::Parser;
-use wdl::ast::AstNode;
-use wdl::ast::Severity;
 use wdl::diagnostics::Mode;
-use wdl::diagnostics::emit_diagnostics;
 
 use crate::analysis::Source;
 use crate::commands::CommandResult;
@@ -14,6 +11,7 @@ use crate::commands::client::ServerConnectionArgs;
 use crate::commands::client::send_json;
 use crate::commands::run::inputs_to_json;
 use crate::commands::validate::analyze_source;
+use crate::commands::validate::ensure_no_analysis_errors;
 use crate::commands::validate::validate_inputs;
 use crate::config::Config;
 use crate::server::SubmitRunRequest;
@@ -93,29 +91,11 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
     )
     .await?;
 
-    let mut diagnostics = document
-        .diagnostics()
-        .filter(|t| t.severity() == Severity::Error)
-        .peekable();
-
-    if diagnostics.peek().is_some() {
-        let path = document.path().to_string();
-        let source = document.root().text().to_string();
-
-        emit_diagnostics(
-            &path,
-            &source,
-            diagnostics,
-            args.run_request_args.report_mode.unwrap_or_default(),
-            colorize,
-        )
-        .context("failed to emit diagnostics")?;
-
-        return Err(anyhow::anyhow!(
-            "failed to submit WDL document to server due to analysis errors"
-        )
-        .into());
-    }
+    ensure_no_analysis_errors(
+        &document,
+        args.run_request_args.report_mode.unwrap_or_default(),
+        colorize,
+    )?;
 
     let (target, inputs) = validate_inputs(
         &document,
@@ -390,7 +370,7 @@ command <<<>>>
 
         assert_eq!(
             err.to_string(),
-            "failed to submit WDL document to server due to analysis errors".to_string()
+            "source contains analysis errors".to_string()
         );
 
         Ok(())

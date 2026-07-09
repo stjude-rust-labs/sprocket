@@ -7,10 +7,7 @@ use anyhow::anyhow;
 use clap::Parser;
 use serde_json::Value as JsonValue;
 use wdl::analysis::Document;
-use wdl::ast::AstNode;
-use wdl::ast::Severity;
 use wdl::diagnostics::Mode;
-use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::EvaluationPath;
 use wdl::engine::Inputs as EngineInputs;
 
@@ -23,6 +20,7 @@ use crate::commands::client::resolve_run_id;
 use crate::commands::client::send_json;
 use crate::commands::run::inputs_to_json;
 use crate::commands::validate::analyze_source;
+use crate::commands::validate::ensure_no_analysis_errors;
 use crate::config::Config;
 use crate::inputs::Invocation;
 use crate::server::RunResponse;
@@ -127,30 +125,7 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
             }
         })?;
 
-        // Collect any error diagnostics; drop the borrow before yielding the
-        // document.
-        let error_diagnostics: Vec<_> = document
-            .diagnostics()
-            .filter(|d| d.severity() == Severity::Error)
-            .cloned()
-            .collect();
-
-        if !error_diagnostics.is_empty() {
-            let path = document.path().to_string();
-            let source_text = document.root().text().to_string();
-            emit_diagnostics(
-                &path,
-                &source_text,
-                error_diagnostics.iter(),
-                args.report_mode.unwrap_or_default(),
-                colorize,
-            )
-            .context("failed to emit diagnostics")?;
-
-            return Err(
-                anyhow::anyhow!("failed to retry run due to analysis errors in source").into(),
-            );
-        }
+        ensure_no_analysis_errors(&document, args.report_mode.unwrap_or_default(), colorize)?;
 
         Some(document)
     } else {
