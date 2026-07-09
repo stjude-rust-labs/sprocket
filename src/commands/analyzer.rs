@@ -87,6 +87,7 @@ pub async fn analyzer(
                 Baseline::load_or_default(&path, baseline_is_configured)
                     .map_err(anyhow::Error::from)?
             },
+            format: config.format,
         },
         UserOptions {
             log_level: LevelFilter::from(

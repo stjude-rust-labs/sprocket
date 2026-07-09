@@ -22,6 +22,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   longer type checked in WDL 1.0 documents, since they were not formally
   typed until WDL 1.1 ([#811](https://github.com/stjude-rust-labs/sprocket/issues/811)).
 
+### Changed
+
+* The analyzer's formatter now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
+
 ## 0.22.0 - 2026-06-26
 
 #### Changed

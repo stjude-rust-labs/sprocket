@@ -705,7 +705,7 @@ where
                                 .ast_with_version_fallback(self.config.fallback_version())
                                 .into_v1()
                                 .and_then(|ast| {
-                                    let formatter = Formatter::default();
+                                    let formatter = Formatter::new(*self.config.format());
                                     let element = Node::Ast(ast).into_format_element();
 
                                     formatter
