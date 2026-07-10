@@ -235,7 +235,7 @@ impl BashSetSyntax {
                     let span_end = line_start + long_opt_offset + long_opt.len();
                     let long_opt_span = Span::new(span_start, span_end - span_start);
 
-                    let mut is_interactive_only = INTERACTIVE_ONLY_LONG.contains(&long_opt);
+                    let is_interactive_only = INTERACTIVE_ONLY_LONG.contains(&long_opt);
 
                     (
                         BashSetOption::from_long(long_opt),
@@ -245,8 +245,7 @@ impl BashSetSyntax {
                     )
                 } else {
                     let opt_span = Span::new(line_start + chunk_offset + byte_offset, opt_len);
-
-                    let mut is_interactive_only = INTERACTIVE_ONLY_SHORT.contains(&opt);
+                    let is_interactive_only = INTERACTIVE_ONLY_SHORT.contains(&opt);
 
                     (
                         BashSetOption::from_short(opt),
