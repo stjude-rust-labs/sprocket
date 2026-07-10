@@ -1,3 +1,4 @@
+import html
 import webbrowser
 import pathlib
 import argparse
@@ -125,9 +126,9 @@ def main() -> None:
             if isinstance(event, Event.Token):
                 # Get the text in the source code represented by this span. `Span`s index by bytes,
                 # not Unicode code points, which is why we slice the byte representation of the
-                # source.
-                token_text = source_bytes[event.span.start : event.span.end].decode(
-                    "utf-8"
+                # source. We also escape the text, so it is safe to include in HTML.
+                token_text = html.escape(
+                    source_bytes[event.span.start : event.span.end].decode("utf-8")
                 )
 
                 # If this token should be colored then write it inside of a styled `<span>`, else
