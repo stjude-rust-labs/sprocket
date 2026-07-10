@@ -45,6 +45,9 @@ def main() -> None:
     if any([d.severity is Severity.ERROR for d in diagnostics]):
         sys.exit(1)
 
+    # Get the byte representation of the source code.
+    source_bytes = source.encode("utf-8")
+
     indent = 0
 
     # Print all events in the stream.
@@ -56,9 +59,11 @@ def main() -> None:
             case Event.NodeFinished():
                 indent -= 1
             case Event.Token(kind, span):
-                print(
-                    "  " * indent + f"{kind}@{span} {source[span.start : span.end]!r}"
-                )
+                # Get the text in the source code represented by this span. We convert the string
+                # to bytes first, as `Span`s index bytes instead of Unicode code points. Not doing
+                # so will result in the wrong text being displayed.
+                token_text = source_bytes[span.start : span.end].decode("utf-8")
+                print("  " * indent + f"{kind}@{span} {token_text!r}")
 
 
 if __name__ == "__main__":

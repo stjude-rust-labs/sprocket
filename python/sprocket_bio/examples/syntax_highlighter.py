@@ -117,17 +117,25 @@ def main() -> None:
             '<!DOCTYPE html><html><body style="background: #070A19; color: white"><pre>'
         )
 
+        # Get the byte representation of the source code.
+        source_bytes = source.encode("utf-8")
+
         for event in events:
             # Filter the parser events for tokens, which represent individual pieces of syntax.
             if isinstance(event, Event.Token):
+                # Get the text in the source code represented by this span. `Span`s index by bytes,
+                # not Unicode code points, which is why we slice the byte representation of the
+                # source.
+                token_text = source_bytes[event.span.start : event.span.end].decode(
+                    "utf-8"
+                )
+
                 # If this token should be colored then write it inside of a styled `<span>`, else
                 # just write the plain text.
                 if color := syntax_kind_color(event.kind):
-                    f.write(
-                        f'<span style="color: {color}">{source[event.span.start : event.span.end]}</span>'
-                    )
+                    f.write(f'<span style="color: {color}">{token_text}</span>')
                 else:
-                    f.write(source[event.span.start : event.span.end])
+                    f.write(token_text)
 
         # Wrap up the HTML document.
         f.write("</pre></body></html>")
