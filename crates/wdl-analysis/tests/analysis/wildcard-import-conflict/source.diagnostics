@@ -1,0 +1,9 @@
+error: wildcard import introduces `Record` which conflicts with an existing definition
+  ┌─ tests/analysis/wildcard-import-conflict/source.wdl:7:15
+  │
+3 │ struct Record {
+  │        ------ previous definition
+  ·
+7 │ import * from "lib.wdl"
+  │               ^^^^^^^^^ imported here
+

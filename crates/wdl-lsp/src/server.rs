@@ -46,6 +46,7 @@ use wdl_analysis::Analyzer;
 use wdl_analysis::Config as AnalysisConfig;
 use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::FeatureFlags;
+use wdl_analysis::FormatConfig;
 use wdl_analysis::IncrementalChange;
 use wdl_analysis::SourceEdit;
 use wdl_analysis::SourcePosition;
@@ -265,6 +266,9 @@ pub struct ServerOptions {
     /// Feature flags for enabling experimental features.
     pub feature_flags: FeatureFlags,
 
+    /// Context for resolving symbolic module imports.
+    pub resolution_context: wdl_analysis::ResolutionContext,
+
     /// Analysis or lint rule IDs to except (ignore).
     pub exceptions: Vec<String>,
 
@@ -273,6 +277,9 @@ pub struct ServerOptions {
 
     /// The diagnostic baseline for suppressing known diagnostics.
     pub baseline: Option<wdl_lint::Baseline>,
+
+    /// The formatting configuration to use.
+    pub format: FormatConfig,
 }
 
 impl ServerOptions {
@@ -293,7 +300,9 @@ impl Default for ServerOptions {
             exceptions: Vec::new(),
             ignore_filename: None,
             feature_flags: Default::default(),
+            resolution_context: Default::default(),
             baseline: None,
+            format: FormatConfig::default(),
         }
     }
 }
@@ -468,11 +477,13 @@ impl ServerOptions {
             ))
             .with_ignore_filename(ignore_name)
             .with_all_rules(all_rules)
-            .with_feature_flags(self.feature_flags);
+            .with_feature_flags(self.feature_flags)
+            .with_format_config(self.format);
 
         let wdl_lint_config = lint_options.config.clone();
-        Analyzer::<ProgressToken>::new_with_validator(
+        Analyzer::<ProgressToken>::new_with_validator_and_resolution(
             analyzer_config,
+            self.resolution_context.clone(),
             move |token, kind, current, total| {
                 let client = analyzer_client.clone();
                 async move {

@@ -39,6 +39,23 @@ pub struct ListTasksQueryParams {
     pub next_token: Option<String>,
 }
 
+/// Query parameters for listing the tasks of a specific run.
+///
+/// The run is identified by the path, so no `run_uuid` filter is accepted here.
+#[derive(Debug, Clone, Serialize, Deserialize, IntoParams, ToSchema)]
+pub struct ListRunTasksQueryParams {
+    /// Filter by status.
+    #[serde(default)]
+    pub status: Option<TaskStatus>,
+    /// Number of results to return (default: `100`).
+    #[serde(default)]
+    pub limit: Option<i64>,
+    /// Token for pagination. It is expected that clients pass the value from a
+    /// previous response to retrieve the next page.
+    #[serde(default)]
+    pub next_token: Option<String>,
+}
+
 /// Query parameters for listing task logs.
 #[derive(Debug, Clone, Serialize, Deserialize, IntoParams, ToSchema)]
 pub struct ListTaskLogsQueryParams {
@@ -103,6 +120,55 @@ pub struct ListTasksResponse {
     pub next_token: Option<String>,
 }
 
+/// The response for a run's per-status task counts.
+///
+/// Every status is always present; statuses with no tasks report `0`.
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
+pub struct RunTaskCountsResponse {
+    /// Number of tasks that have been created but not yet started.
+    pub pending: i64,
+    /// Number of tasks that are currently executing.
+    pub running: i64,
+    /// Number of tasks that completed successfully.
+    pub completed: i64,
+    /// Number of tasks that failed.
+    pub failed: i64,
+    /// Number of tasks that were canceled.
+    pub canceled: i64,
+    /// Number of tasks that were preempted.
+    pub preempted: i64,
+    /// Total number of tasks across all statuses.
+    pub total: i64,
+}
+
+impl From<commands::RunTaskCountsResponse> for RunTaskCountsResponse {
+    fn from(response: commands::RunTaskCountsResponse) -> Self {
+        let mut counts = Self {
+            pending: 0,
+            running: 0,
+            completed: 0,
+            failed: 0,
+            canceled: 0,
+            preempted: 0,
+            total: 0,
+        };
+
+        for (status, count) in response.counts {
+            match status {
+                TaskStatus::Pending => counts.pending = count,
+                TaskStatus::Running => counts.running = count,
+                TaskStatus::Completed => counts.completed = count,
+                TaskStatus::Failed => counts.failed = count,
+                TaskStatus::Canceled => counts.canceled = count,
+                TaskStatus::Preempted => counts.preempted = count,
+            }
+            counts.total += count;
+        }
+
+        counts
+    }
+}
+
 /// The response for a "get task" query.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct GetTaskResponse {
@@ -162,7 +228,7 @@ pub struct ListTaskLogsResponse {
 /// List all tasks with optional filtering.
 #[utoipa::path(
     get,
-    path = "/api/v1/tasks",
+    path = super::paths::LIST_TASKS,
     params(ListTasksQueryParams),
     responses(
         (status = 200, description = "Tasks retrieved", body = ListTasksResponse),
@@ -180,18 +246,12 @@ pub async fn list_tasks(
         _ => Error::BadRequest("invalid query parameters".to_string()),
     })?;
 
-    let offset = match query.next_token.as_deref() {
-        Some(t) => t
-            .parse::<i64>()
-            .map_err(|_| Error::BadRequest(format!("invalid `next_token`: `{}`", t)))?,
-        None => 0,
-    };
-    let limit = query.limit.unwrap_or(100);
+    let (limit, offset) = super::validate_pagination(query.limit, query.next_token.as_deref())?;
 
     let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListTasks {
         run_id: query.run_uuid,
         status: query.status,
-        limit: query.limit,
+        limit: Some(limit),
         offset: Some(offset),
         rx,
     })
@@ -211,10 +271,87 @@ pub async fn list_tasks(
     }))
 }
 
+/// List all tasks for a specific run.
+#[utoipa::path(
+    get,
+    path = super::paths::LIST_RUN_TASKS,
+    params(
+        ("id" = String, Path, description = "Run ID"),
+        ListRunTasksQueryParams
+    ),
+    responses(
+        (status = 200, description = "Tasks retrieved", body = ListTasksResponse),
+    ),
+    tag = "tasks"
+)]
+pub async fn list_run_tasks(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+    query: Result<Query<ListRunTasksQueryParams>, QueryRejection>,
+) -> Result<Json<ListTasksResponse>, Error> {
+    let Query(query) = query.map_err(|rejection| match rejection {
+        QueryRejection::FailedToDeserializeQueryString(err) => {
+            Error::BadRequest(format!("invalid query parameters: {}", err))
+        }
+        _ => Error::BadRequest("invalid query parameters".to_string()),
+    })?;
+
+    let (limit, offset) = super::validate_pagination(query.limit, query.next_token.as_deref())?;
+
+    let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListTasks {
+        run_id: Some(id),
+        status: query.status,
+        limit: Some(limit),
+        offset: Some(offset),
+        rx,
+    })
+    .await?;
+
+    let next_offset = offset + limit;
+    let next_token = if next_offset < response.total {
+        Some(next_offset.to_string())
+    } else {
+        None
+    };
+
+    Ok(Json(ListTasksResponse {
+        tasks: response.tasks.into_iter().map(Into::into).collect(),
+        total: response.total,
+        next_token,
+    }))
+}
+
+/// Get the per-status task counts for a specific run.
+///
+/// Every status is always present in the response; statuses with no tasks
+/// report `0`. Unknown runs report all-zero counts (no error).
+#[utoipa::path(
+    get,
+    path = super::paths::RUN_TASK_COUNTS,
+    params(
+        ("id" = String, Path, description = "Run ID")
+    ),
+    responses(
+        (status = 200, description = "Task counts retrieved", body = RunTaskCountsResponse),
+    ),
+    tag = "tasks"
+)]
+pub async fn get_run_task_counts(
+    State(state): State<AppState>,
+    Path(id): Path<Uuid>,
+) -> Result<Json<RunTaskCountsResponse>, Error> {
+    let response = send_command(&state.run_manager_tx, |rx| {
+        RunManagerCmd::CountRunTasksByStatus { run_id: id, rx }
+    })
+    .await?;
+
+    Ok(Json(response.into()))
+}
+
 /// Get a specific task by name.
 #[utoipa::path(
     get,
-    path = "/api/v1/tasks/{name}",
+    path = super::paths::GET_TASK,
     params(
         ("name" = String, Path, description = "Task name")
     ),
@@ -240,7 +377,7 @@ pub async fn get_task(
 /// Get logs for a specific task.
 #[utoipa::path(
     get,
-    path = "/api/v1/tasks/{name}/logs",
+    path = super::paths::GET_TASK_LOGS,
     params(
         ("name" = String, Path, description = "Task name"),
         ListTaskLogsQueryParams
@@ -263,18 +400,12 @@ pub async fn get_task_logs(
         _ => Error::BadRequest("invalid query parameters".to_string()),
     })?;
 
-    let offset = match query.next_token.as_deref() {
-        Some(t) => t
-            .parse::<i64>()
-            .map_err(|_| Error::BadRequest(format!("invalid `next_token`: `{}`", t)))?,
-        None => 0,
-    };
-    let limit = query.limit.unwrap_or(100);
+    let (limit, offset) = super::validate_pagination(query.limit, query.next_token.as_deref())?;
 
     let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::GetTaskLogs {
         name,
         stream: query.source,
-        limit: query.limit,
+        limit: Some(limit),
         offset: Some(offset),
         rx,
     })
