@@ -143,11 +143,37 @@ pub async fn upgrade(args: Args, config: Config, colorize: bool) -> CommandResul
         }
     }
 
-    if args.dry_run || changed.is_empty() {
+    if changed.is_empty() {
+        tracing::debug!(
+            dry_run = args.dry_run,
+            "no version selectors need upgrading"
+        );
+        print_action(
+            "Finished",
+            "no upgrades available",
+            colorize,
+            ActionColor::Green,
+        );
+        return Ok(());
+    }
+
+    if args.dry_run {
+        for (name, old_req, new_req) in &changed {
+            print_action(
+                "Upgrade",
+                format!(
+                    "{} {} -> {} (dry-run)",
+                    name.manifest(),
+                    version_display(old_req),
+                    version_display(new_req)
+                ),
+                colorize,
+                ActionColor::Yellow,
+            );
+        }
         tracing::debug!(
             changed = changed.len(),
-            dry_run = args.dry_run,
-            "finished upgrade without writing manifest"
+            "dry run completed without writing manifest"
         );
         return Ok(());
     }

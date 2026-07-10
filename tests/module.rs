@@ -3800,6 +3800,56 @@ fn upgrade_raises_constraint_and_relocks() {
 }
 
 #[test]
+fn upgrade_dry_run_prints_changes_without_writing() {
+    let fixture = GitFixture::new();
+    let repo_url = fixture.repo_url();
+    let consumer = fixture.write_consumer(
+        "consumer-upgrade-dry-run",
+        &format!(r#"    "tasks": {{ "git": "{repo_url}", "version": "^1.0", "path": "tasks" }}"#),
+    );
+
+    let lock = sprocket_with_config(fixture.config_path(), &["module", "lock"])
+        .current_dir(&consumer)
+        .output()
+        .expect("failed to run sprocket module lock");
+    assert!(
+        lock.status.success(),
+        "command failed {status}: {stderr}",
+        status = lock.status,
+        stderr = String::from_utf8_lossy(&lock.stderr)
+    );
+    let manifest_before = fs::read(consumer.join("module.json")).unwrap();
+    let lock_before = fs::read(consumer.join("module-lock.json")).unwrap();
+
+    let upgrade = sprocket_with_config(fixture.config_path(), &["module", "upgrade", "--dry-run"])
+        .current_dir(&consumer)
+        .output()
+        .expect("failed to run sprocket module upgrade --dry-run");
+    assert!(
+        upgrade.status.success(),
+        "command failed {status}: {stderr}",
+        status = upgrade.status,
+        stderr = String::from_utf8_lossy(&upgrade.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&upgrade.stdout);
+    assert!(
+        stdout.contains("Upgrade tasks v1.0 -> v2.0.0 (dry-run)"),
+        "dry run should print the planned change, got: {stdout}"
+    );
+
+    assert_eq!(
+        fs::read(consumer.join("module.json")).unwrap(),
+        manifest_before,
+        "dry run must not modify `module.json`"
+    );
+    assert_eq!(
+        fs::read(consumer.join("module-lock.json")).unwrap(),
+        lock_before,
+        "dry run must not modify `module-lock.json`"
+    );
+}
+
+#[test]
 fn upgrade_relocks_non_version_dependencies_too() {
     let fixture = GitFixture::new();
     let repo_url = fixture.repo_url();
