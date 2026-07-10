@@ -146,8 +146,7 @@ impl Visitor for ExceptDirectiveValidRule {
 
             for id in ids {
                 if let Some(elem) = &excepted_element
-                    && let Some(Some(exceptable_nodes)) =
-                        RULE_MAP.get(wdl_analysis::canonical_rule_id(&id))
+                    && let Some(Some(exceptable_nodes)) = RULE_MAP.get(id.as_str())
                     && !exceptable_nodes.contains(&elem.kind())
                 {
                     diagnostics.add(misplaced_except_directive(

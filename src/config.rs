@@ -417,8 +417,20 @@ impl<'de> FromToml<'de> for RuleConfigs {
         let mut failed = false;
 
         for (key, value) in table {
-            // Map deprecated aliases (e.g. `SnakeCase`) to their current rule.
-            let rule_id = wdl::analysis::canonical_rule_id(key.name);
+            if let Some(replacement) = wdl::analysis::replacement_rule_id(key.name) {
+                ctx.push_error(TomlError::custom(
+                    format!(
+                        "rule `{alias}` in `[check.rules]` has been renamed to `{replacement}`; \
+                         update this table to `[check.rules.{replacement}]`",
+                        alias = key.name
+                    ),
+                    key.span,
+                ));
+                failed = true;
+                continue;
+            }
+
+            let rule_id = key.name;
             let is_lint = LINT_RULE_IDS.contains(rule_id);
             let is_analysis = ANALYSIS_RULE_IDS.contains(rule_id);
 
@@ -1065,6 +1077,24 @@ impl Config {
             )
         }
 
+        for rule in &self.check.except {
+            if let Some(replacement) = wdl::analysis::replacement_rule_id(rule) {
+                bail!(
+                    "deprecated rule `{rule}` used in `check.except`; replace it with \
+                     `{replacement}`"
+                );
+            }
+        }
+
+        for rule in &self.analyzer.except {
+            if let Some(replacement) = wdl::analysis::replacement_rule_id(rule) {
+                bail!(
+                    "deprecated rule `{rule}` used in `analyzer.except`; replace it with \
+                     `{replacement}`"
+                );
+            }
+        }
+
         if self.check.all_lint_rules && !self.check.only_lint_tags.is_empty() {
             bail!("`all_lint_rules` cannot be specified with `only_lint_tags`")
         }
@@ -1174,18 +1204,13 @@ mod test {
     }
 
     #[test]
-    fn deprecated_rule_alias_is_canonicalized() {
-        // `[check.rules.SnakeCase]` maps to the `NamingConvention` rule.
-        let config: Config =
-            toml_spanner::from_str("[check.rules.SnakeCase]\nseverity = \"off\"\n").unwrap();
-        assert_eq!(
-            config
-                .check
-                .rules
-                .lint_config()
-                .severity_override("NamingConvention"),
-            Some(wdl::lint::RuleSeverity::Off)
-        );
+    fn deprecated_rule_alias_reports_replacement() {
+        let err =
+            toml_spanner::from_str::<Config>("[check.rules.SnakeCase]\nseverity = \"off\"\n")
+                .unwrap_err();
+        let err = err.to_string();
+        assert!(err.contains("has been renamed to `NamingConvention`"), "{err}");
+        assert!(err.contains("[check.rules.NamingConvention]"), "{err}");
     }
 
     #[test]
@@ -1197,7 +1222,8 @@ mod test {
 
     #[test]
     fn rejects_inapplicable_parameter() {
-        let err = toml_spanner::from_str::<Config>("[check.rules.SnakeCase]\nmax_length = 5\n")
+        let err =
+            toml_spanner::from_str::<Config>("[check.rules.NamingConvention]\nmax_length = 5\n")
             .unwrap_err();
         assert!(
             err.to_string().contains("not a configurable parameter"),
@@ -1223,6 +1249,15 @@ mod test {
         assert!(err.contains("[check.rules.NamingConvention]"), "{err}");
         assert!(err.contains("[check.rules.ExpectedRuntimeKeys]"), "{err}");
         assert!(!err.contains("SnakeCase"), "{err}");
+    }
+
+    #[test]
+    fn check_except_alias_reports_replacement() {
+        let mut config: Config = toml_spanner::from_str("check.except = [\"SnakeCase\"]\n")
+            .unwrap();
+        let err = config.validate().unwrap_err().to_string();
+        assert!(err.contains("deprecated rule `SnakeCase`"), "{err}");
+        assert!(err.contains("replace it with `NamingConvention`"), "{err}");
     }
 
     #[test]

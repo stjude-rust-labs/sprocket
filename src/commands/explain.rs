@@ -44,7 +44,10 @@ pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
     ids
 });
 
-/// All rule IDs accepted on the command line, including deprecated aliases.
+/// All rule IDs accepted on the command line.
+///
+/// Deprecated aliases are included so `explain` can emit a targeted migration
+/// error that points at the replacement rule ID.
 pub static ACCEPTED_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
     let mut ids = ALL_RULE_IDS.clone();
     ids.extend(
@@ -483,8 +486,15 @@ pub fn explain(args: Args) -> CommandResult<()> {
     }
 
     if let Some(rule_name) = args.rule_name {
-        // Map a deprecated alias (e.g. `SnakeCase`) to its current rule.
-        let lowercase_name = analysis::canonical_rule_id(&rule_name).to_lowercase();
+        if let Some(replacement) = analysis::replacement_rule_id(&rule_name) {
+            return Err(
+                anyhow!(
+                    "deprecated rule `{rule_name}`; run `sprocket explain {replacement}` instead"
+                )
+                .into(),
+            );
+        }
+        let lowercase_name = rule_name.to_lowercase();
 
         match wdl_lint()
             .chain(wdl_analysis())

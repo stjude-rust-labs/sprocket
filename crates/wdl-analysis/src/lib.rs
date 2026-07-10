@@ -67,35 +67,21 @@ pub use wdl_format::Config as FormatConfig;
 
 /// Historical rule ID aliases, mapping a removed rule ID to its replacement.
 ///
-/// Aliases keep existing `#@ except` directives and configuration working after
-/// a rule has been renamed or merged into another rule.
+/// Aliases are retained only to produce migration diagnostics that point to
+/// the current rule ID.
 pub const RULE_ALIASES: &[(&str, &str)] = &[
     ("SnakeCase", "NamingConvention"),
     ("PascalCase", "NamingConvention"),
 ];
 
-/// Returns the current rule ID for a possibly-aliased ID.
+/// Returns the replacement rule ID for a deprecated alias.
 ///
-/// If the ID is not an alias it is returned unchanged.
-pub fn canonical_rule_id(id: &str) -> &str {
+/// If `id` is not an alias this returns `None`.
+pub fn replacement_rule_id(id: &str) -> Option<&'static str> {
     RULE_ALIASES
         .iter()
         .find(|(alias, _)| alias.eq_ignore_ascii_case(id))
-        .map(|(_, canonical)| *canonical)
-        .unwrap_or(id)
-}
-
-/// Expands a set of rule exceptions to include the canonical ID for any alias.
-fn expand_rule_aliases(mut exceptions: HashSet<String>) -> HashSet<String> {
-    let canonical: Vec<String> = exceptions
-        .iter()
-        .filter_map(|id| {
-            let canonical = canonical_rule_id(id);
-            (canonical != id.as_str()).then(|| canonical.to_string())
-        })
-        .collect();
-    exceptions.extend(canonical);
-    exceptions
+        .map(|(_, replacement)| *replacement)
 }
 
 /// An extension trait for syntax nodes.
@@ -132,7 +118,7 @@ impl Exceptable for SyntaxNode {
                 Directive::Except(e) => e,
             })
             .collect();
-        expand_rule_aliases(exceptions)
+        exceptions
     }
 
     fn is_rule_excepted(&self, id: &str) -> bool {
@@ -145,18 +131,17 @@ mod alias_tests {
     use super::*;
 
     #[test]
-    fn canonicalizes_aliases() {
-        assert_eq!(canonical_rule_id("SnakeCase"), "NamingConvention");
-        assert_eq!(canonical_rule_id("PascalCase"), "NamingConvention");
-        assert_eq!(canonical_rule_id("snakecase"), "NamingConvention");
-        assert_eq!(canonical_rule_id("ContainerUri"), "ContainerUri");
+    fn returns_replacements_for_aliases() {
+        assert_eq!(replacement_rule_id("SnakeCase"), Some("NamingConvention"));
+        assert_eq!(replacement_rule_id("PascalCase"), Some("NamingConvention"));
+        assert_eq!(replacement_rule_id("snakecase"), Some("NamingConvention"));
+        assert_eq!(replacement_rule_id("ContainerUri"), None);
     }
 
     #[test]
-    fn expands_alias_exceptions() {
+    fn except_directives_do_not_expand_aliases() {
         let set = HashSet::from(["SnakeCase".to_string()]);
-        let expanded = expand_rule_aliases(set);
-        assert!(expanded.contains("SnakeCase"));
-        assert!(expanded.contains("NamingConvention"));
+        assert!(set.contains("SnakeCase"));
+        assert!(!set.contains("NamingConvention"));
     }
 }

@@ -51,6 +51,16 @@ fn unknown_rule(id: &str, span: Span) -> Diagnostic {
     diagnostic
 }
 
+/// Creates a diagnostic for a deprecated rule alias.
+fn deprecated_rule_alias(alias: &str, replacement: &str, span: Span) -> Diagnostic {
+    Diagnostic::note(format!(
+        "deprecated rule `{alias}`; replace it with `{replacement}`"
+    ))
+    .with_rule(ID)
+    .with_label("update this `except` directive", span)
+    .with_fix(format!("replace `{alias}` with `{replacement}`"))
+}
+
 /// Detects unknown rules within lint directives.
 #[derive(Default, Debug, Clone, Copy)]
 pub struct KnownRulesRule;
@@ -114,9 +124,16 @@ impl Visitor for KnownRulesRule {
         if let Some(Directive::Except(ids)) = comment.directive() {
             let start: usize = comment.span().start();
             for id in ids {
-                // Check if the rule is known, accounting for deprecated aliases.
-                let canonical = wdl_analysis::canonical_rule_id(&id);
-                if !ANALYSIS_RULES.contains(canonical) && !LINT_RULES.contains(canonical) {
+                if let Some(replacement) = wdl_analysis::replacement_rule_id(&id) {
+                    diagnostics.add(deprecated_rule_alias(
+                        &id,
+                        replacement,
+                        Span::new(start + comment.text().find(&id).unwrap(), id.len()),
+                    ));
+                    continue;
+                }
+
+                if !ANALYSIS_RULES.contains(&id) && !LINT_RULES.contains(&id) {
                     // Since this rule can only be excepted in a document-wide fashion,
                     // if the rule is running we can directly add the diagnostic
                     // without checking for the exceptable nodes

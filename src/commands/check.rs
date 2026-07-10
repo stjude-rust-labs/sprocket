@@ -210,36 +210,60 @@ pub struct LintArgs {
     pub common: Common,
 }
 
+fn reject_rule_alias(rule: &str, source: &str) -> anyhow::Result<()> {
+    if let Some(replacement) = wdl::analysis::replacement_rule_id(rule) {
+        return Err(anyhow!(
+            "deprecated rule `{rule}` used in {source}; replace it with `{replacement}`"
+        ));
+    }
+
+    Ok(())
+}
+
 /// Performs the `check` subcommand.
 pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandResult<()> {
     // Command line severity flags take precedence over the configuration file.
     // `note`, `warn`, then `deny` are applied in order so the strongest flag
-    // wins when a rule appears under more than one. Rule names are canonicalized
-    // because the flags accept them case-insensitively.
-    let canonicalize = |name: &str| -> String {
-        let matched = ALL_RULE_IDS
+    // wins when a rule appears under more than one.
+    for rule in &args.common.except {
+        reject_rule_alias(rule, "`--except`")?;
+    }
+    for rule in &args.common.note {
+        reject_rule_alias(rule, "`--note`")?;
+    }
+    for rule in &args.common.warn {
+        reject_rule_alias(rule, "`--warn`")?;
+    }
+    for rule in &args.common.deny {
+        reject_rule_alias(rule, "`--deny`")?;
+    }
+    for rule in &config.check.except {
+        reject_rule_alias(rule, "`check.except`")?;
+    }
+
+    let normalize = |name: &str| {
+        ALL_RULE_IDS
             .iter()
             .find(|id| id.eq_ignore_ascii_case(name))
-            .map(String::as_str)
-            .unwrap_or(name);
-        wdl::analysis::canonical_rule_id(matched).to_string()
+            .cloned()
+            .unwrap_or_else(|| name.to_string())
     };
     let cli_severities = args
         .common
         .note
         .iter()
-        .map(|r| (canonicalize(r), wdl::lint::RuleSeverity::Note))
+        .map(|r| (normalize(r), wdl::lint::RuleSeverity::Note))
         .chain(
             args.common
                 .warn
                 .iter()
-                .map(|r| (canonicalize(r), wdl::lint::RuleSeverity::Warning)),
+                .map(|r| (normalize(r), wdl::lint::RuleSeverity::Warning)),
         )
         .chain(
             args.common
                 .deny
                 .iter()
-                .map(|r| (canonicalize(r), wdl::lint::RuleSeverity::Error)),
+                .map(|r| (normalize(r), wdl::lint::RuleSeverity::Error)),
         )
         .collect::<Vec<_>>();
     let cli_flagged: HashSet<String> = cli_severities.iter().map(|(r, _)| r.clone()).collect();
@@ -253,9 +277,6 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         .chain(config.check.except.iter())
         .cloned()
         .chain(config.check.rules.disabled_rules())
-        // Canonicalize so a deprecated alias (e.g. `SnakeCase`) excepts its
-        // current rule.
-        .map(|id| wdl::analysis::canonical_rule_id(&id).to_string())
         .filter(|id| !cli_flagged.iter().any(|f| f.eq_ignore_ascii_case(id)))
         .collect();
 

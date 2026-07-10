@@ -54,6 +54,16 @@ impl Args {
     }
 }
 
+fn reject_rule_alias(rule: &str, source: &str) -> anyhow::Result<()> {
+    if let Some(replacement) = wdl::analysis::replacement_rule_id(rule) {
+        return Err(anyhow::anyhow!(
+            "deprecated rule `{rule}` used in {source}; replace it with `{replacement}`"
+        ));
+    }
+
+    Ok(())
+}
+
 /// Runs the `analyzer` command.
 pub async fn analyzer(
     mut args: Args,
@@ -61,6 +71,10 @@ pub async fn analyzer(
     handle: FilterReloadHandle,
 ) -> CommandResult<()> {
     args.apply(&config);
+
+    for rule in &args.except {
+        reject_rule_alias(rule, "`--except` or `analyzer.except`")?;
+    }
 
     let cwd = std::env::current_dir().map_err(anyhow::Error::from)?;
     let resolution_context = crate::analysis::resolution_context_from_paths(
@@ -76,7 +90,7 @@ pub async fn analyzer(
             exceptions: args
                 .except
                 .iter()
-                .map(|id| wdl::analysis::canonical_rule_id(id).to_string())
+                .cloned()
                 .collect(),
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
             feature_flags: config.common.wdl.feature_flags,

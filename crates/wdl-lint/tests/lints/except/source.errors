@@ -6,6 +6,38 @@ note[KnownRules]: unknown rule `Unknown`
   │
   = fix: remove the unknown rule from the exception list
 
+note[KnownRules]: deprecated rule `PascalCase`; replace it with `NamingConvention`
+  ┌─ tests/lints/except/source.wdl:8:12
+  │
+8 │ #@ except: PascalCase, SnakeCase
+  │            ^^^^^^^^^^ update this `except` directive
+  │
+  = fix: replace `PascalCase` with `NamingConvention`
+
+note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`
+  ┌─ tests/lints/except/source.wdl:8:24
+  │
+8 │ #@ except: PascalCase, SnakeCase
+  │                        ^^^^^^^^^ update this `except` directive
+  │
+  = fix: replace `SnakeCase` with `NamingConvention`
+
+warning[NamingConvention]: struct name `OK` is not PascalCase
+  ┌─ tests/lints/except/source.wdl:9:8
+  │
+9 │ struct OK {         # OK
+  │        ^^ this name must be PascalCase
+  │
+  = fix: replace `OK` with `Ok`
+
+warning[NamingConvention]: struct member name `OKTOO` is not PascalCase
+   ┌─ tests/lints/except/source.wdl:11:9
+   │
+11 │     Int OKTOO       # OK
+   │         ^^^^^ this name must be PascalCase
+   │
+   = fix: replace `OKTOO` with `Oktoo`
+
 note[KnownRules]: unknown rule `AlsoUnknown`
    ┌─ tests/lints/except/source.wdl:16:16
    │
@@ -13,6 +45,14 @@ note[KnownRules]: unknown rule `AlsoUnknown`
    │                ^^^^^^^^^^^ cannot make an exception for this rule
    │
    = fix: remove the unknown rule from the exception list
+
+note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`
+   ┌─ tests/lints/except/source.wdl:16:29
+   │
+16 │     #@ except: AlsoUnknown, SnakeCase
+   │                             ^^^^^^^^^ update this `except` directive
+   │
+   = fix: replace `SnakeCase` with `NamingConvention`
 
 note[DoubleQuotes]: string defined with single quotes
    ┌─ tests/lints/except/source.wdl:23:18
