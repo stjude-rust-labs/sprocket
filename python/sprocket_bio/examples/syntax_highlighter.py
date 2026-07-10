@@ -1,3 +1,4 @@
+import os
 import html
 import webbrowser
 import pathlib
@@ -111,6 +112,12 @@ def main() -> None:
     # If any of the diagnostics are errors, exit.
     if any([d.severity is Severity.ERROR for d in diagnostics]):
         sys.exit(1)
+
+    # Do not overwrite the source file.
+    if os.path.samefile(args.source_file, args.output):
+        sys.exit(
+            f"source and output files are the same, refusing to overwrite it: {args.output}"
+        )
 
     with open(args.output, mode="wt", encoding="utf-8") as f:
         # Write the prelude of the HTML document and configure the base style.
