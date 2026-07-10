@@ -48,6 +48,7 @@ async fn should_change_watched_files() {
     let enum_wdl = Url::from_file_path(find_references_workspace.join("enum.wdl")).unwrap();
     assert_document_symbol_request(&mut ctx, enum_wdl.clone(), false).await;
 
+    std::fs::remove_file(ctx.doc_path("third.wdl")).unwrap();
     ctx.notify::<DidChangeWatchedFiles>(DidChangeWatchedFilesParams {
         changes: vec![
             FileEvent {

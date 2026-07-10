@@ -90,8 +90,8 @@ pub enum Request<Context> {
     CallHierarchy(CallHierarchyRequest),
     /// A request to get all code lenses in a document.
     CodeLens(CodeLensRequest),
-    /// A request to remove documents from the graph.
-    Remove(RemoveRequest),
+    /// A request to unroot documents in the graph.
+    UnrootDocuments(UnrootDocumentsRequest),
     /// A request to delete documents from the graph.
     Delete(DeleteRequest),
     /// A request to process a document's incremental change.
@@ -170,8 +170,8 @@ pub struct CodeLensRequest {
     pub completed: oneshot::Sender<Option<Vec<CodeLens>>>,
 }
 
-/// Represents a request to remove documents from the document graph.
-pub struct RemoveRequest {
+/// Represents a request to unroot documents in the document graph.
+pub struct UnrootDocumentsRequest {
     /// The documents to remove.
     pub documents: Vec<Url>,
     /// The sender for completing the request.
@@ -626,20 +626,20 @@ where
                         }
                     }
                 }
-                Request::Remove(RemoveRequest {
+                Request::UnrootDocuments(UnrootDocumentsRequest {
                     documents,
                     completed,
                 }) => {
                     let start = Instant::now();
                     debug!(
-                        "received request to remove {count} documents(s)",
+                        "received request to unroot {count} documents(s)",
                         count = documents.len()
                     );
 
-                    self.remove_documents(documents);
+                    self.remove_roots(documents);
 
                     debug!(
-                        "request to remove documents completed in {elapsed:?}",
+                        "request to unroot documents completed in {elapsed:?}",
                         elapsed = start.elapsed()
                     );
 
@@ -1362,11 +1362,11 @@ where
         Cancelable::Completed(Ok(results))
     }
 
-    /// Removes documents from the graph.
+    /// Removes document roots from the graph.
     ///
     /// If any of the removed documents are roots that have no outgoing edges,
     /// the nodes will be removed from the graph.
-    fn remove_documents(&self, uris: Vec<Url>) {
+    fn remove_roots(&self, uris: Vec<Url>) {
         let mut graph = self.graph.write();
 
         for uri in uris {
@@ -1920,14 +1920,7 @@ where
         *self.validator.write() = validator;
 
         // Invalidate the *entire* graph
-        let mut graph = self.graph.write();
-        let roots = graph.roots().clone();
-        for root in roots {
-            graph.bfs_mut(root, |g, dependent| {
-                g.get_mut(dependent).reanalyze();
-            });
-            graph.get_mut(root).reanalyze();
-        }
+        self.graph.write().reanalyze_all();
     }
 }
 

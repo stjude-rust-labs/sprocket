@@ -1462,7 +1462,7 @@ impl<S: 'static> Server<S> {
             && let Err(e) = state
                 .config
                 .analyzer
-                .remove_documents(
+                .unroot_documents(
                     params
                         .event
                         .removed
@@ -1540,15 +1540,6 @@ impl<S: 'static> Server<S> {
             None
         }
 
-        /// Determines if a URI points at a WDL file path.
-        fn is_wdl_file_uri(uri: &Url) -> bool {
-            uri.to_file_path()
-                .ok()
-                .and_then(|path| path.extension().and_then(OsStr::to_str).map(str::to_owned))
-                .as_deref()
-                == Some("wdl")
-        }
-
         let mut added = Vec::new();
         let mut deleted = Vec::new();
         for mut event in params.changes {
@@ -1572,11 +1563,7 @@ impl<S: 'static> Server<S> {
                     }
                 }
                 FileChangeType::DELETED => {
-                    if !is_wdl_file_uri(&event.uri) {
-                        continue;
-                    }
-
-                    debug!("document `{uri}` has been deleted", uri = event.uri);
+                    debug!("`{uri}` has been deleted", uri = event.uri);
                     deleted.push(event.uri);
                 }
                 _ => {}

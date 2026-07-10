@@ -65,12 +65,12 @@ use crate::queue::InlayHintsRequest;
 use crate::queue::NotifyChangeRequest;
 use crate::queue::NotifyIncrementalChangeRequest;
 use crate::queue::OutgoingCallsRequest;
-use crate::queue::RemoveRequest;
 use crate::queue::RenameRequest;
 use crate::queue::Request;
 use crate::queue::SemanticTokenRequest;
 use crate::queue::SignatureHelpRequest;
 use crate::queue::SwapValidatorRequest;
+use crate::queue::UnrootDocumentsRequest;
 use crate::queue::WorkspaceSymbolRequest;
 use crate::rayon::RayonHandle;
 
@@ -700,11 +700,13 @@ where
     /// the analyzer, those documents will be removed.
     ///
     /// Documents are only removed when not referenced from importing documents.
-    pub async fn remove_documents(&self, documents: Vec<Url>) -> Result<()> {
-        // Send the remove request to the queue
+    /// To forcefully delete the documents from the graph, use
+    /// [`Self::delete_documents()`].
+    pub async fn unroot_documents(&self, documents: Vec<Url>) -> Result<()> {
+        // Send the unroot request to the queue
         let (tx, rx) = oneshot::channel();
         self.sender
-            .send(Request::Remove(RemoveRequest {
+            .send(Request::UnrootDocuments(UnrootDocumentsRequest {
                 documents,
                 completed: tx,
             }))
@@ -721,7 +723,7 @@ where
 
     /// Deletes the specified documents from the analyzer.
     ///
-    /// This differs from [`Self::remove_documents()`], as a deletion will occur
+    /// This differs from [`Self::unroot_documents()`], as a deletion will occur
     /// even if the document(s) are referenced in other documents.
     pub async fn delete_documents(&self, documents: Vec<Url>) -> Result<()> {
         // Send the delete request to the queue
@@ -1562,7 +1564,7 @@ workflow test {
 
         // Remove the documents by directory
         analyzer
-            .remove_documents(vec![
+            .unroot_documents(vec![
                 path_to_uri(dir.path()).expect("should convert to URI"),
             ])
             .await
