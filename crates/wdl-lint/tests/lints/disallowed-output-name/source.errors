@@ -1,11 +1,3 @@
-note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`
-  ┌─ tests/lints/disallowed-output-name/source.wdl:3:33
-  │
-3 │ #@ except: RequirementsSection, SnakeCase
-  │                                 ^^^^^^^^^ update this `except` directive
-  │
-  = fix: replace `SnakeCase` with `NamingConvention`
-
 note[OutputName]: declaration identifier must be at least 3 characters
    ┌─ tests/lints/disallowed-output-name/source.wdl:24:14
    │
@@ -17,18 +9,10 @@ note[OutputName]: declaration identifier must be at least 3 characters
 note[OutputName]: declaration identifier starts with 'out'
    ┌─ tests/lints/disallowed-output-name/source.wdl:25:16
    │
-25 │         String outString = "string"  # This is not OK
-   │                ^^^^^^^^^
+25 │         String out_string_name = "string"  # This is not OK
+   │                ^^^^^^^^^^^^^^^
    │
    = fix: rename the identifier to not start with 'out'
-
-warning[NamingConvention]: output name `outString` is not snake_case
-   ┌─ tests/lints/disallowed-output-name/source.wdl:25:16
-   │
-25 │         String outString = "string"  # This is not OK
-   │                ^^^^^^^^^ this name must be snake_case
-   │
-   = fix: replace `outString` with `out_string`
 
 note[OutputName]: declaration identifier starts with 'output'
    ┌─ tests/lints/disallowed-output-name/source.wdl:26:16
