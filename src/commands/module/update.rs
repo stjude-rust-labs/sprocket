@@ -77,7 +77,7 @@ pub async fn update(args: Args, config: Config, colorize: bool) -> CommandResult
     );
 
     let module = Module::new(project.manifest.clone(), project.root.clone());
-    let resolver = build_resolver(&config, &project, on_disk)?;
+    let resolver = build_resolver(&config, on_disk)?;
     let tree = resolver
         .resolve_tree(&module)
         .await
@@ -97,7 +97,6 @@ pub async fn update(args: Args, config: Config, colorize: bool) -> CommandResult
     }
 
     enforce_lockfile_signer_policy(
-        &project,
         resolver.lockfile(),
         &outcome.lockfile,
         &identities,

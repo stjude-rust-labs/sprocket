@@ -3,8 +3,6 @@
 use anyhow::Context as _;
 use clap::Parser;
 use clap::Subcommand;
-use wdl_modules::Lockfile;
-use wdl_modules::resolver::TrustStore;
 use wdl_modules::signing::SignerIdentity;
 use wdl_modules::signing::VerifyingKey;
 use wdl_modules::signing::parse_openssh_public_key_identity;
@@ -14,7 +12,10 @@ use crate::commands::module::ActionColor;
 use crate::commands::module::Locator;
 use crate::commands::module::accept_lockfile_signers;
 use crate::commands::module::discover;
+use crate::commands::module::load_trust_store;
 use crate::commands::module::print_action;
+use crate::commands::module::require_lockfile;
+use crate::commands::module::save_trust_store;
 use crate::commands::module::trace_project;
 use crate::config::Config;
 
@@ -87,14 +88,7 @@ pub async fn list(_args: ListArgs, _config: Config, _colorize: bool) -> CommandR
     tracing::trace!("starting `sprocket module trust list`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
-    tracing::trace!(trust_store = %trust_path.display(), "loading module trust store");
-    let store = TrustStore::load_or_default(&trust_path)
-        .with_context(|| format!("loading trust store at `{}`", trust_path.display()))?;
-    tracing::debug!(
-        trust_store = %trust_path.display(),
-        keys = store.keys.len(),
-        "loaded module trust store"
-    );
+    let store = load_trust_store(&trust_path)?;
 
     if store.keys.is_empty() {
         tracing::info!("no trusted module keys configured");
@@ -116,7 +110,7 @@ pub async fn all(args: AllArgs, _config: Config, colorize: bool) -> CommandResul
     let project = discover(&args.locator)?;
     trace_project("module trust all", &project);
 
-    let lockfile = load_lockfile_required(&project.lockfile_path)?;
+    let lockfile = require_lockfile(&project)?;
     let trust_path = crate::analysis::default_trust_path();
     let trusted = accept_lockfile_signers(&trust_path, &lockfile)?;
 
@@ -129,24 +123,12 @@ pub async fn all(args: AllArgs, _config: Config, colorize: bool) -> CommandResul
     Ok(())
 }
 
-fn load_lockfile_required(path: &std::path::Path) -> anyhow::Result<Lockfile> {
-    let bytes = std::fs::read(path).with_context(|| format!("reading `{}`", path.display()))?;
-    Lockfile::parse(&bytes).with_context(|| format!("parsing `{}`", path.display()))
-}
-
 /// Runs `sprocket module trust add`.
 pub async fn add(args: AddArgs, _config: Config, colorize: bool) -> CommandResult<()> {
     tracing::trace!("starting `sprocket module trust add`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
-    tracing::trace!(trust_store = %trust_path.display(), "loading module trust store");
-    let mut store = TrustStore::load_or_default(&trust_path)
-        .with_context(|| format!("loading trust store at `{}`", trust_path.display()))?;
-    tracing::debug!(
-        trust_store = %trust_path.display(),
-        keys = store.keys.len(),
-        "loaded module trust store"
-    );
+    let mut store = load_trust_store(&trust_path)?;
 
     if args.keys.len() > 1 && (args.name.is_some() || args.email.is_some()) {
         return Err(anyhow::anyhow!("`--name` and `--email` require exactly one key").into());
@@ -177,24 +159,21 @@ pub async fn add(args: AddArgs, _config: Config, colorize: bool) -> CommandResul
         print_action("Trusted", key.to_openssh(), colorize, ActionColor::Green);
     }
 
-    tracing::trace!(trust_store = %trust_path.display(), "writing module trust store");
-    store
-        .save(&trust_path)
-        .with_context(|| format!("writing trust store at `{}`", trust_path.display()))?;
-    tracing::debug!(
-        trust_store = %trust_path.display(),
-        keys = store.keys.len(),
-        "wrote module trust store"
-    );
+    save_trust_store(&trust_path, &store)?;
     Ok(())
 }
 
+/// A trust key parsed from the CLI along with any identity metadata.
 struct ParsedTrustKey {
+    /// The parsed verifying key.
     key: VerifyingKey,
+    /// Optional signer display name.
     name: Option<String>,
+    /// Optional signer email.
     email: Option<String>,
 }
 
+/// Parses a trust key argument as an inline OpenSSH key or a key file path.
 fn parse_key_arg(key: &str) -> anyhow::Result<ParsedTrustKey> {
     if let Ok(parsed) = VerifyingKey::from_openssh(key.trim()) {
         tracing::trace!("parsed inline trust key");
@@ -225,14 +204,7 @@ pub async fn remove(args: RemoveArgs, _config: Config, colorize: bool) -> Comman
     tracing::trace!("starting `sprocket module trust remove`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
-    tracing::trace!(trust_store = %trust_path.display(), "loading module trust store");
-    let mut store = TrustStore::load_or_default(&trust_path)
-        .with_context(|| format!("loading trust store at `{}`", trust_path.display()))?;
-    tracing::debug!(
-        trust_store = %trust_path.display(),
-        keys = store.keys.len(),
-        "loaded module trust store"
-    );
+    let mut store = load_trust_store(&trust_path)?;
 
     let mut parsed = Vec::new();
     for key in &args.keys {
@@ -257,15 +229,7 @@ pub async fn remove(args: RemoveArgs, _config: Config, colorize: bool) -> Comman
         return Err(anyhow::anyhow!("no matching trusted keys").into());
     }
 
-    tracing::trace!(trust_store = %trust_path.display(), "writing module trust store");
-    store
-        .save(&trust_path)
-        .with_context(|| format!("writing trust store at `{}`", trust_path.display()))?;
-    tracing::debug!(
-        trust_store = %trust_path.display(),
-        keys = store.keys.len(),
-        "wrote module trust store"
-    );
+    save_trust_store(&trust_path, &store)?;
     Ok(())
 }
 
@@ -274,21 +238,10 @@ pub async fn destroy(_args: DestroyArgs, _config: Config, colorize: bool) -> Com
     tracing::trace!("starting `sprocket module trust destroy`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
-    tracing::trace!(trust_store = %trust_path.display(), "loading module trust store");
-    let mut store = TrustStore::load_or_default(&trust_path)
-        .with_context(|| format!("loading trust store at `{}`", trust_path.display()))?;
-    tracing::debug!(
-        trust_store = %trust_path.display(),
-        keys = store.keys.len(),
-        "loaded module trust store"
-    );
+    let mut store = load_trust_store(&trust_path)?;
 
     store.clear();
-    tracing::trace!(trust_store = %trust_path.display(), "writing module trust store");
-    store
-        .save(&trust_path)
-        .with_context(|| format!("writing trust store at `{}`", trust_path.display()))?;
-    tracing::debug!(trust_store = %trust_path.display(), "wrote module trust store");
+    save_trust_store(&trust_path, &store)?;
     print_action("Removed", "all trusted keys", colorize, ActionColor::Green);
     Ok(())
 }

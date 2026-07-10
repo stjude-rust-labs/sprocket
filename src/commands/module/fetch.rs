@@ -8,8 +8,8 @@ use crate::commands::module::ActionColor;
 use crate::commands::module::Locator;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
-use crate::commands::module::load_lockfile;
 use crate::commands::module::print_action;
+use crate::commands::module::require_lockfile;
 use crate::commands::module::trace_project;
 use crate::config::Config;
 
@@ -26,14 +26,13 @@ pub async fn fetch(args: Args, config: Config, colorize: bool) -> CommandResult<
     tracing::trace!("starting `sprocket module fetch`");
     let project = discover(&args.locator)?;
     trace_project("module fetch", &project);
-    let lock = load_lockfile(&project)?
-        .ok_or_else(|| anyhow::anyhow!("no `module-lock.json`; run `sprocket module lock`"))?;
+    let lock = require_lockfile(&project)?;
     tracing::debug!(
         dependencies = lock.dependencies.len(),
         "loaded module lockfile for fetch"
     );
     let module = Module::new(project.manifest.clone(), project.root.clone());
-    let resolver = build_resolver(&config, &project, lock)?;
+    let resolver = build_resolver(&config, lock)?;
     let fetched = resolver
         .ensure_locked(&module)
         .await

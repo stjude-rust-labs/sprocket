@@ -11,7 +11,7 @@ use wdl_modules::lockfile::ResolvedSource;
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::discover;
-use crate::commands::module::load_lockfile;
+use crate::commands::module::require_lockfile;
 use crate::commands::module::trace_project;
 use crate::config::Config;
 
@@ -44,8 +44,7 @@ pub async fn tree(args: TreeArgs, _config: Config, _colorize: bool) -> CommandRe
     tracing::trace!(depth = ?args.depth, "starting `sprocket module tree`");
     let project = discover(&args.locator)?;
     trace_project("module tree", &project);
-    let lock = load_lockfile(&project)?
-        .ok_or_else(|| anyhow::anyhow!("no `module-lock.json`; run `sprocket module lock`"))?;
+    let lock = require_lockfile(&project)?;
     tracing::debug!(
         dependencies = lock.dependencies.len(),
         "loaded module lockfile for tree"
@@ -66,8 +65,7 @@ pub async fn list(args: ListArgs, _config: Config, _colorize: bool) -> CommandRe
     tracing::trace!(all = args.all, "starting `sprocket module list`");
     let project = discover(&args.locator)?;
     trace_project("module list", &project);
-    let lock = load_lockfile(&project)?
-        .ok_or_else(|| anyhow::anyhow!("no `module-lock.json`; run `sprocket module lock`"))?;
+    let lock = require_lockfile(&project)?;
 
     let rows = if args.all {
         let mut rows = BTreeSet::new();

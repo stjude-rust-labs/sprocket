@@ -20,7 +20,6 @@ use wdl_modules::resolver::RelockStats;
 use wdl_modules::resolver::ResolverPolicy;
 use wdl_modules::resolver::SignerIdentityMap;
 use wdl_modules::resolver::TrustMode;
-use wdl_modules::resolver::TrustStore;
 use wdl_modules::resolver::partial_relock;
 use wdl_modules::resolver::signer_identity_map;
 
@@ -43,6 +42,9 @@ pub mod verify;
 pub(crate) use trust_policy::SignerChangeMode;
 pub(crate) use trust_policy::accept_lockfile_signers;
 pub(crate) use trust_policy::enforce_signer_trust;
+pub(crate) use trust_policy::load_trust_store;
+pub(crate) use trust_policy::render_signer;
+pub(crate) use trust_policy::save_trust_store;
 
 /// Color used for the leading action verb in module command output.
 pub(crate) enum ActionColor {
@@ -167,6 +169,30 @@ pub fn discover(locator: &Locator) -> anyhow::Result<Project> {
     })
 }
 
+/// Dispatches a `sprocket module` subcommand.
+pub async fn run(
+    command: ModuleCommands,
+    config: Config,
+    colorize: bool,
+) -> crate::commands::CommandResult<()> {
+    match command {
+        ModuleCommands::Init(args) => init::init(args, config, colorize).await,
+        ModuleCommands::Add(args) => add::add(args, config, colorize).await,
+        ModuleCommands::Remove(args) => remove::remove(args, config, colorize).await,
+        ModuleCommands::Lock(args) => lock::lock(args, config, colorize).await,
+        ModuleCommands::Update(args) => update::update(args, config, colorize).await,
+        ModuleCommands::Upgrade(args) => upgrade::upgrade(args, config, colorize).await,
+        ModuleCommands::Tree(args) => tree::tree(args, config, colorize).await,
+        ModuleCommands::List(args) => tree::list(args, config, colorize).await,
+        ModuleCommands::Verify(args) => verify::verify(args, config, colorize).await,
+        ModuleCommands::Fetch(args) => fetch::fetch(args, config, colorize).await,
+        ModuleCommands::Cache(args) => clean::cache(args, config, colorize).await,
+        ModuleCommands::Sign(args) => sign::sign(args, config, colorize).await,
+        ModuleCommands::Trust(args) => trust::trust(args, config, colorize).await,
+    }
+}
+
+/// Traces the discovered module project for a command.
 pub(crate) fn trace_project(command: &'static str, project: &Project) {
     tracing::debug!(
         command,
@@ -244,12 +270,14 @@ pub fn load_lockfile(project: &Project) -> anyhow::Result<Option<Lockfile>> {
     Ok(Some(lock))
 }
 
+/// Loads `module-lock.json`, failing when it is absent.
+pub(crate) fn require_lockfile(project: &Project) -> anyhow::Result<Lockfile> {
+    load_lockfile(project)?
+        .ok_or_else(|| anyhow::anyhow!("no `module-lock.json`; run `sprocket module lock`"))
+}
+
 /// Builds a Git resolver configured for module porcelain commands.
-pub fn build_resolver(
-    config: &Config,
-    _project: &Project,
-    lockfile: Lockfile,
-) -> anyhow::Result<GitResolver> {
+pub fn build_resolver(config: &Config, lockfile: Lockfile) -> anyhow::Result<GitResolver> {
     let configured_cache = config.modules.cache_path.is_some();
     let cache_root = config
         .modules
@@ -267,9 +295,7 @@ pub fn build_resolver(
         trust_store = %trust_path.display(),
         "using module trust store"
     );
-    tracing::trace!(trust_store = %trust_path.display(), "loading module trust store");
-    let trust = TrustStore::load_or_default(&trust_path)
-        .with_context(|| format!("loading trust store at `{}`", trust_path.display()))?;
+    let trust = load_trust_store(&trust_path)?;
 
     let policy = ResolverPolicy::try_from(&config.modules)?;
     tracing::debug!(
@@ -477,7 +503,7 @@ pub(crate) async fn resolve_relock_plan(
         declared = module.manifest.dependencies.len(),
         "loaded relock inputs"
     );
-    let resolver = build_resolver(config, project, existing.clone())?;
+    let resolver = build_resolver(config, existing.clone())?;
     let tree = resolver.resolve_tree(&module).await?;
     tracing::debug!(
         resolved = tree.dependencies.len(),
@@ -495,7 +521,6 @@ pub(crate) async fn resolve_relock_plan(
 
 /// Enforces signer-change policy for an existing and refreshed lockfile.
 pub(crate) fn enforce_lockfile_signer_policy(
-    _project: &Project,
     existing: &Lockfile,
     new: &Lockfile,
     identities: &SignerIdentityMap,

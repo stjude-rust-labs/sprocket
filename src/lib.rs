@@ -44,7 +44,6 @@ use tracing_subscriber::reload;
 use wdl::diagnostics::emit_diagnostics;
 
 use crate::commands::CommandResult;
-use crate::commands::module;
 
 // Access to these modules is useful for integration testing and benchmarking,
 // but since this is not intended to be used as a public interface, we hide them
@@ -176,45 +175,7 @@ async fn real_main() -> CommandResult<()> {
             commands::run::run(args, config, colorize, file_handle, writer).await
         }
         Commands::Validate(args) => commands::validate::validate(args, config).await,
-        Commands::Module(module::ModuleCommands::Init(args)) => {
-            commands::module::init::init(args, config, colorize).await
-        }
-        Commands::Module(module::ModuleCommands::Add(args)) => {
-            commands::module::add::add(args, config, colorize).await
-        }
-        Commands::Module(module::ModuleCommands::Remove(args)) => {
-            commands::module::remove::remove(args, config, colorize).await
-        }
-        Commands::Module(module::ModuleCommands::Lock(args)) => {
-            commands::module::lock::lock(args, config, colorize).await
-        }
-        Commands::Module(module::ModuleCommands::Update(args)) => {
-            commands::module::update::update(args, config, colorize).await
-        }
-        Commands::Module(module::ModuleCommands::Upgrade(args)) => {
-            commands::module::upgrade::upgrade(args, config, colorize).await
-        }
-        Commands::Module(module::ModuleCommands::Tree(args)) => {
-            commands::module::tree::tree(args, config, colorize).await
-        }
-        Commands::Module(module::ModuleCommands::List(args)) => {
-            commands::module::tree::list(args, config, colorize).await
-        }
-        Commands::Module(module::ModuleCommands::Verify(args)) => {
-            commands::module::verify::verify(args, config, colorize).await
-        }
-        Commands::Module(module::ModuleCommands::Fetch(args)) => {
-            commands::module::fetch::fetch(args, config, colorize).await
-        }
-        Commands::Module(module::ModuleCommands::Cache(args)) => {
-            commands::module::clean::cache(args, config, colorize).await
-        }
-        Commands::Module(module::ModuleCommands::Sign(args)) => {
-            commands::module::sign::sign(args, config, colorize).await
-        }
-        Commands::Module(module::ModuleCommands::Trust(args)) => {
-            commands::module::trust::trust(args, config, colorize).await
-        }
+        Commands::Module(command) => commands::module::run(command, config, colorize).await,
         Commands::Dev(commands::DevCommands::Doc(args)) => {
             commands::doc::doc(args, config, colorize).await
         }

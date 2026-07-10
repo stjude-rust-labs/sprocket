@@ -95,7 +95,7 @@ pub async fn add(args: Args, config: Config, colorize: bool) -> CommandResult<()
     let (name, source_arg) = dependency_name_and_source(&args)?;
     let project = discover(&args.locator)?;
     trace_project("module add", &project);
-    let source = build_source(&args, &source_arg, &config, &project, &name).await?;
+    let source = build_source(&args, &source_arg, &config, &name).await?;
 
     let mut value = read_manifest_value(&project.manifest_path)?;
     if project.manifest.dependencies.get(&name) == Some(&source) {
@@ -160,7 +160,6 @@ async fn build_source(
     args: &Args,
     source_arg: &str,
     config: &Config,
-    project: &crate::commands::module::Project,
     name: &DependencyName,
 ) -> anyhow::Result<DependencySource> {
     let Some(url) = resolve_git_url(source_arg, args.git_platform, config)? else {
@@ -199,7 +198,7 @@ async fn build_source(
     } else if let Some(version) = args.version.as_deref() {
         GitSelector::Version(version.parse::<VersionRequirement>()?)
     } else {
-        discover_latest_selector(config, project, name, &url, path.as_ref()).await?
+        discover_latest_selector(config, name, &url, path.as_ref()).await?
     };
     tracing::trace!(
         dependency = name.manifest(),
@@ -357,12 +356,11 @@ fn strip_git_suffix(name: &str) -> &str {
 
 async fn discover_latest_selector(
     config: &Config,
-    project: &crate::commands::module::Project,
     name: &DependencyName,
     url: &url::Url,
     path: Option<&GitModulePath>,
 ) -> anyhow::Result<GitSelector> {
-    let resolver = build_resolver(config, project, Lockfile::default())?;
+    let resolver = build_resolver(config, Lockfile::default())?;
     let temp_source = DependencySource::Git {
         url: url.clone(),
         selector: GitSelector::Version("*".parse()?),

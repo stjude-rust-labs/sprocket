@@ -7,16 +7,15 @@ use wdl_modules::module::Module;
 use wdl_modules::resolver::ResolverError;
 use wdl_modules::resolver::VerifyLockedReport;
 use wdl_modules::signing::ModuleSignature;
-use wdl_modules::signing::SignerIdentity;
-use wdl_modules::signing::VerifyingKey;
 
 use crate::commands::CommandResult;
 use crate::commands::module::ActionColor;
 use crate::commands::module::Locator;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
-use crate::commands::module::load_lockfile;
 use crate::commands::module::print_action;
+use crate::commands::module::render_signer;
+use crate::commands::module::require_lockfile;
 use crate::commands::module::trace_project;
 use crate::config::Config;
 
@@ -130,11 +129,10 @@ fn verify_lockfile(
     strict: bool,
 ) -> anyhow::Result<Vec<DependencyName>> {
     tracing::trace!(lockfile = %project.lockfile_path.display(), "reading module lockfile");
-    let lock = load_lockfile(project)?
-        .ok_or_else(|| anyhow::anyhow!("no `module-lock.json`; run `sprocket module lock`"))?;
+    let lock = require_lockfile(project)?;
 
     let module = Module::new(project.manifest.clone(), project.root.clone());
-    let resolver = build_resolver(config, project, lock)?;
+    let resolver = build_resolver(config, lock)?;
     tracing::debug!("verifying locked dependencies from cache");
 
     let VerifyLockedReport {
@@ -251,45 +249,6 @@ fn fail_if_strict_unsigned(
         anyhow::bail!(
             "strict verification requires signatures for every package:\n  {}",
             problems.join("\n  ")
-        );
-    }
-}
-
-fn render_signer(key: &VerifyingKey, identity: Option<&SignerIdentity>) -> String {
-    let key = key.to_openssh();
-    if let Some(identity) = identity {
-        match (identity.name.as_deref(), identity.email.as_deref()) {
-            (Some(name), Some(email)) => format!("{key} {name} <{email}>"),
-            (Some(name), None) => format!("{key} {name}"),
-            (None, Some(email)) => format!("{key} <{email}>"),
-            (None, None) => key,
-        }
-    } else {
-        key
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn render_signer_includes_identity() {
-        let key: VerifyingKey =
-            match "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINiRUmfYzFTjksGItM2fSm9s1eCL8NnMJGQgW724Uph1"
-                .parse()
-            {
-                Ok(key) => key,
-                Err(err) => panic!("failed to parse key: {err}"),
-            };
-        let identity = SignerIdentity {
-            name: Some("Spellbook Maintainer".to_string()),
-            email: Some("spellbook-fixture@example.com".to_string()),
-        };
-        assert_eq!(
-            render_signer(&key, Some(&identity)),
-            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINiRUmfYzFTjksGItM2fSm9s1eCL8NnMJGQgW724Uph1 \
-             Spellbook Maintainer <spellbook-fixture@example.com>"
         );
     }
 }

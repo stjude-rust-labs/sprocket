@@ -18,6 +18,31 @@ use wdl_modules::signing::VerifyingKey;
 use crate::commands::module::ActionColor;
 use crate::commands::module::print_action;
 
+/// Loads the trust store at `path` with a uniform error context.
+pub(crate) fn load_trust_store(path: &Path) -> anyhow::Result<TrustStore> {
+    let store = TrustStore::load_or_default(path)
+        .with_context(|| format!("loading trust store at `{}`", path.display()))?;
+    tracing::debug!(
+        trust_store = %path.display(),
+        keys = store.keys.len(),
+        "loaded module trust store"
+    );
+    Ok(store)
+}
+
+/// Saves the trust store at `path` with a uniform error context.
+pub(crate) fn save_trust_store(path: &Path, store: &TrustStore) -> anyhow::Result<()> {
+    store
+        .save(path)
+        .with_context(|| format!("saving trust store at `{}`", path.display()))?;
+    tracing::debug!(
+        trust_store = %path.display(),
+        keys = store.keys.len(),
+        "wrote module trust store"
+    );
+    Ok(())
+}
+
 /// How signer changes should be handled while writing a refreshed lockfile.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum SignerChangeMode {
@@ -146,8 +171,7 @@ pub(crate) fn enforce_signer_trust(
         return Ok(());
     }
 
-    let mut trust = TrustStore::load_or_default(trust_path)
-        .with_context(|| format!("loading trust store at `{}`", trust_path.display()))?;
+    let mut trust = load_trust_store(trust_path)?;
 
     let changes = diff
         .new_signers
@@ -206,9 +230,7 @@ pub(crate) fn enforce_signer_trust(
         }
     }
     if trust_dirty {
-        trust
-            .save(trust_path)
-            .with_context(|| format!("saving trust store at `{}`", trust_path.display()))?;
+        save_trust_store(trust_path, &trust)?;
     }
     print_trust_change_summary(trusted_keys, colorize);
     Ok(())
@@ -260,10 +282,13 @@ fn confirm_signer_key_upgrade(
 /// Signer key and optional identity queued for a trust-store change hint.
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct SignerTrustHint {
+    /// The signer key to be added to the trust store.
     key: VerifyingKey,
+    /// Identity metadata recorded alongside the key, when known.
     identity: Option<SignerIdentity>,
 }
 
+/// Renders the refusal message for a newly introduced signer.
 fn added_signer_message(signer: &NewSigner, trust: &TrustStore) -> String {
     format!(
         "`{}` signer key added ({})",
@@ -272,6 +297,7 @@ fn added_signer_message(signer: &NewSigner, trust: &TrustStore) -> String {
     )
 }
 
+/// Renders the refusal message for a changed or newly signed signer.
 fn changed_signer_message(changed: &ChangedSigner, trust: &TrustStore) -> String {
     match changed.old_key {
         Some(old_key) => format!(
@@ -288,6 +314,7 @@ fn changed_signer_message(changed: &ChangedSigner, trust: &TrustStore) -> String
     }
 }
 
+/// Renders the refusal message for a removed signer.
 fn removed_signer_message(removed: &RemovedSigner, trust: &TrustStore) -> String {
     format!(
         "`{}` signer key removed '{}'",
@@ -296,6 +323,8 @@ fn removed_signer_message(removed: &RemovedSigner, trust: &TrustStore) -> String
     )
 }
 
+/// Renders a signer key, preferring change-supplied identity metadata and
+/// falling back to any identity recorded in the trust store.
 fn render_signer_with_trust(
     key: &VerifyingKey,
     identity: Option<&SignerIdentity>,
@@ -312,6 +341,7 @@ fn render_signer_with_trust(
     }
 }
 
+/// Renders a signer key with its optional identity metadata.
 pub(crate) fn render_signer(key: &VerifyingKey, identity: Option<&SignerIdentity>) -> String {
     match identity {
         Some(identity) => {
@@ -321,6 +351,7 @@ pub(crate) fn render_signer(key: &VerifyingKey, identity: Option<&SignerIdentity
     }
 }
 
+/// Renders a signer key annotated with any available name and email.
 fn render_identity_fields(key: &VerifyingKey, name: Option<&str>, email: Option<&str>) -> String {
     let key = key.to_openssh();
     match (name, email) {
@@ -331,6 +362,8 @@ fn render_identity_fields(key: &VerifyingKey, name: Option<&str>, email: Option<
     }
 }
 
+/// Appends a signer to `signers`, deduplicating by key and backfilling any
+/// missing identity metadata onto an existing entry.
 fn push_unique_signer(
     signers: &mut Vec<SignerTrustHint>,
     key: VerifyingKey,
@@ -345,6 +378,7 @@ fn push_unique_signer(
     signers.push(SignerTrustHint { key, identity });
 }
 
+/// Prints a summary action line for accepted signer trust changes.
 fn print_trust_change_summary(trusted: usize, colorize: bool) {
     if trusted == 0 {
         print_action(
@@ -369,8 +403,7 @@ pub(crate) fn accept_lockfile_signers(
     trust_path: &Path,
     lockfile: &Lockfile,
 ) -> anyhow::Result<usize> {
-    let mut trust = TrustStore::load_or_default(trust_path)
-        .with_context(|| format!("loading trust store at `{}`", trust_path.display()))?;
+    let mut trust = load_trust_store(trust_path)?;
     let mut accepted = 0usize;
 
     for signer in lockfile_signers(lockfile, &SignerIdentityMap::new()) {
@@ -380,12 +413,11 @@ pub(crate) fn accept_lockfile_signers(
         upsert_signer_identity(&mut trust, signer.key, signer.identity);
     }
 
-    trust
-        .save(trust_path)
-        .with_context(|| format!("saving trust store at `{}`", trust_path.display()))?;
+    save_trust_store(trust_path, &trust)?;
     Ok(accepted)
 }
 
+/// Collects the unique signers recorded across a lockfile's dependency tree.
 fn lockfile_signers(lockfile: &Lockfile, identities: &SignerIdentityMap) -> Vec<SignerTrustHint> {
     let mut signers = Vec::new();
     collect_lockfile_signers(
@@ -397,6 +429,8 @@ fn lockfile_signers(lockfile: &Lockfile, identities: &SignerIdentityMap) -> Vec<
     signers
 }
 
+/// Recursively gathers signers from a dependency map into `signers`,
+/// tracking the dependency `chain` to resolve identity metadata.
 fn collect_lockfile_signers(
     deps: &DependencyMap,
     chain: &mut Vec<wdl_modules::dependency::DependencyName>,
@@ -413,6 +447,7 @@ fn collect_lockfile_signers(
     }
 }
 
+/// Records the identity metadata for `key` in the trust store when present.
 fn upsert_signer_identity(
     trust: &mut TrustStore,
     key: VerifyingKey,
@@ -485,6 +520,26 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("trust.toml");
         (dir, path)
+    }
+
+    #[test]
+    fn render_signer_includes_identity() {
+        let key: VerifyingKey =
+            match "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINiRUmfYzFTjksGItM2fSm9s1eCL8NnMJGQgW724Uph1"
+                .parse()
+            {
+                Ok(key) => key,
+                Err(err) => panic!("failed to parse key: {err}"),
+            };
+        let identity = SignerIdentity {
+            name: Some("Spellbook Maintainer".to_string()),
+            email: Some("spellbook-fixture@example.com".to_string()),
+        };
+        assert_eq!(
+            render_signer(&key, Some(&identity)),
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINiRUmfYzFTjksGItM2fSm9s1eCL8NnMJGQgW724Uph1 \
+             Spellbook Maintainer <spellbook-fixture@example.com>"
+        );
     }
 
     #[test]

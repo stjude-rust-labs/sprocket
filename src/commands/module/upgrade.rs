@@ -115,7 +115,6 @@ pub async fn upgrade(args: Args, config: Config, colorize: bool) -> CommandResul
 
     let resolver = build_resolver(
         &config,
-        &project,
         load_lockfile(&project)?.unwrap_or_else(Lockfile::default),
     )?;
 
@@ -186,7 +185,7 @@ pub async fn upgrade(args: Args, config: Config, colorize: bool) -> CommandResul
     let pending_manifest = parse_manifest_value(&manifest_value)?;
     let existing = load_lockfile(&project)?.unwrap_or_default();
     let module = Module::new(std::sync::Arc::new(pending_manifest), project.root.clone());
-    let resolver = build_resolver(&config, &project, existing)?;
+    let resolver = build_resolver(&config, existing)?;
     let tree = resolver
         .resolve_tree(&module)
         .await
@@ -200,7 +199,6 @@ pub async fn upgrade(args: Args, config: Config, colorize: bool) -> CommandResul
     .map_err(anyhow::Error::from)?;
     let identities = signer_identity_map(&tree);
     enforce_lockfile_signer_policy(
-        &project,
         resolver.lockfile(),
         &outcome.lockfile,
         &identities,
