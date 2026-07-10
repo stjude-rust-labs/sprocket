@@ -4112,3 +4112,64 @@ fn upgrade_skips_non_version_dep() {
     let manifest_after = fs::read(consumer.join("module.json")).unwrap();
     assert_eq!(manifest_after, manifest_before);
 }
+
+#[test]
+fn module_commands_reject_missing_manifest_path() {
+    let dir = tempfile::tempdir().unwrap();
+    // A valid module in the current directory must not be silently used
+    // when `--manifest-path` points somewhere that does not exist.
+    fs::write(
+        dir.path().join("module.json"),
+        r#"{"name":"demo","license":"MIT"}"#,
+    )
+    .unwrap();
+    let missing = dir.path().join("nope").join("module.json");
+    let missing = missing.to_string_lossy().into_owned();
+    let output = sprocket(&["module", "list", "--manifest-path", &missing])
+        .current_dir(dir.path())
+        .output()
+        .expect("failed to run sprocket");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("does not exist"), "stderr: {stderr}");
+}
+
+#[test]
+fn add_rejects_conflicting_selector_flags() {
+    let dir = tempfile::tempdir().unwrap();
+    let output = sprocket(&[
+        "module",
+        "add",
+        "https://example.com/org/repo",
+        "--tag",
+        "v1",
+        "--branch",
+        "main",
+    ])
+    .current_dir(dir.path())
+    .output()
+    .expect("failed to run sprocket");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("cannot be used with"), "stderr: {stderr}");
+}
+
+#[test]
+fn add_rejects_scp_style_git_urls() {
+    let dir = tempfile::tempdir().unwrap();
+    fs::write(
+        dir.path().join("module.json"),
+        r#"{"name":"demo","license":"MIT"}"#,
+    )
+    .unwrap();
+    let output = sprocket(&["module", "add", "git@github.com:org/repo.git", "--no-lock"])
+        .current_dir(dir.path())
+        .output()
+        .expect("failed to run sprocket");
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("ssh://git@github.com/org/repo.git"),
+        "stderr should suggest the ssh:// form: {stderr}"
+    );
+}

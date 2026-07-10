@@ -148,7 +148,8 @@ pub fn discover(locator: &Locator) -> anyhow::Result<Project> {
             .unwrap_or_else(|| Path::new("."))
             .to_path_buf(),
         Some(path) if path.is_dir() => path.to_path_buf(),
-        _ => std::env::current_dir().context("reading current directory")?,
+        Some(path) => anyhow::bail!("manifest path `{}` does not exist", path.display()),
+        None => std::env::current_dir().context("reading current directory")?,
     };
 
     let (manifest_path, manifest) = crate::analysis::discover_manifest_upward(&start)?

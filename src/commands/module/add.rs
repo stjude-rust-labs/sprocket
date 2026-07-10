@@ -48,15 +48,15 @@ pub struct Args {
     pub name: Option<String>,
 
     /// Semver requirement for a Git dependency.
-    #[arg(long)]
+    #[arg(long, conflicts_with_all = ["tag", "branch", "commit"])]
     pub version: Option<String>,
 
     /// Git tag selector.
-    #[arg(long)]
+    #[arg(long, conflicts_with_all = ["branch", "commit"])]
     pub tag: Option<String>,
 
     /// Git branch selector.
-    #[arg(long)]
+    #[arg(long, conflicts_with = "commit")]
     pub branch: Option<String>,
 
     /// Git commit selector.
@@ -327,6 +327,13 @@ fn resolve_git_url(
         return Ok(Some(url));
     }
 
+    if let Some((user_host, path)) = scp_like_parts(source) {
+        anyhow::bail!(
+            "`{source}` looks like an scp-style Git URL, which is not supported; use \
+             `ssh://{user_host}/{path}` instead"
+        );
+    }
+
     let platform = platform.unwrap_or(config.modules.default_git_platform);
     let Some(url) = platform.expand_shorthand(source).transpose()? else {
         tracing::trace!(
@@ -416,5 +423,35 @@ fn git_selector_kind(selector: &GitSelector) -> &'static str {
         GitSelector::Tag(_) => "tag",
         GitSelector::Branch(_) => "branch",
         GitSelector::Commit(_) => "commit",
+    }
+}
+
+/// Splits Git's scp-like `user@host:path` syntax into its parts.
+///
+/// Returns `None` for anything that is not scp-like (plain paths, Windows
+/// drive-letter paths, URLs).
+fn scp_like_parts(source: &str) -> Option<(&str, &str)> {
+    let (user_host, path) = source.split_once(':')?;
+    if user_host.contains('@') && !user_host.contains('/') && !path.starts_with("//") {
+        Some((user_host, path))
+    } else {
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn scp_like_parts_detects_scp_syntax_only() {
+        assert_eq!(
+            scp_like_parts("git@github.com:org/repo.git"),
+            Some(("git@github.com", "org/repo.git"))
+        );
+        assert_eq!(scp_like_parts("./local/path"), None);
+        assert_eq!(scp_like_parts("C:\\repos\\module"), None);
+        assert_eq!(scp_like_parts("https://example.com/repo"), None);
+        assert_eq!(scp_like_parts("org/repo"), None);
     }
 }
