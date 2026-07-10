@@ -141,6 +141,12 @@ impl TrustStore {
         self.keys.len() != before
     }
 
+    /// Removes every trusted key and its identity metadata.
+    pub fn clear(&mut self) {
+        self.keys.clear();
+        self.identities.clear();
+    }
+
     /// Iterates over globally trusted signer keys.
     pub fn trusted_keys(&self) -> impl Iterator<Item = &VerifyingKey> {
         self.keys.iter()
@@ -247,6 +253,20 @@ mod tests {
         assert!(store.contains_key(&key));
         assert!(store.remove_key(&key));
         assert!(!store.remove_key(&key));
+    }
+
+    #[test]
+    fn clear_removes_keys_and_identities() {
+        let key = test_key();
+        let mut store = TrustStore::default();
+        store.insert_key(key);
+        store.upsert_identity(key, Some("Alice".to_string()), None);
+        store.clear();
+        assert!(store.keys.is_empty());
+        assert!(
+            store.identities.is_empty(),
+            "clearing the store must not orphan identity metadata"
+        );
     }
 
     #[test]

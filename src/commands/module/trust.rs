@@ -283,7 +283,7 @@ pub async fn destroy(_args: DestroyArgs, _config: Config, colorize: bool) -> Com
         "loaded module trust store"
     );
 
-    store.keys.clear();
+    store.clear();
     tracing::trace!(trust_store = %trust_path.display(), "writing module trust store");
     store
         .save(&trust_path)

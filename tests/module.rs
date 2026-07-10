@@ -2492,6 +2492,41 @@ fn trust_destroy_clears_all_entries() {
 }
 
 #[test]
+fn trust_destroy_removes_identity_metadata() {
+    const KEY: &str =
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINiRUmfYzFTjksGItM2fSm9s1eCL8NnMJGQgW724Uph1";
+    let dir = tempfile::tempdir().unwrap();
+    let home = isolated_home(dir.path(), "home-trust-destroy");
+
+    let mut add = sprocket(&["module", "trust", "add", KEY, "--name", "Alice"]);
+    add.current_dir(dir.path());
+    use_home(&mut add, &home);
+    assert!(add.output().expect("trust add").status.success());
+
+    let mut destroy = sprocket(&["module", "trust", "destroy"]);
+    destroy.current_dir(dir.path());
+    use_home(&mut destroy, &home);
+    assert!(destroy.output().expect("trust destroy").status.success());
+
+    // Re-adding the bare key must not resurrect the old identity.
+    let mut re_add = sprocket(&["module", "trust", "add", KEY]);
+    re_add.current_dir(dir.path());
+    use_home(&mut re_add, &home);
+    assert!(re_add.output().expect("trust add").status.success());
+
+    let mut list = sprocket(&["module", "trust", "list"]);
+    list.current_dir(dir.path());
+    use_home(&mut list, &home);
+    let list = list.output().expect("trust list");
+    let stdout = String::from_utf8_lossy(&list.stdout);
+    assert!(stdout.contains(KEY), "stdout: {stdout}");
+    assert!(
+        !stdout.contains("Alice"),
+        "destroyed identity metadata must not survive: {stdout}"
+    );
+}
+
+#[test]
 fn cache_clean_default_removes_current_lock_tree_only() {
     let fixture = GitFixture::new();
     let repo_url = fixture.repo_url();
