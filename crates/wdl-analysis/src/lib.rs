@@ -84,6 +84,26 @@ pub fn replacement_rule_id(id: &str) -> Option<&'static str> {
         .map(|(_, replacement)| *replacement)
 }
 
+/// Returns the current rule ID for a possibly-aliased ID.
+///
+/// If the ID is not an alias it is returned unchanged.
+pub fn canonical_rule_id(id: &str) -> &str {
+    replacement_rule_id(id).unwrap_or(id)
+}
+
+/// Expands a set of rule exceptions to include the canonical ID for any alias.
+fn expand_rule_aliases(mut exceptions: HashSet<String>) -> HashSet<String> {
+    let canonical: Vec<String> = exceptions
+        .iter()
+        .filter_map(|id| {
+            let canonical = canonical_rule_id(id);
+            (canonical != id.as_str()).then(|| canonical.to_string())
+        })
+        .collect();
+    exceptions.extend(canonical);
+    exceptions
+}
+
 /// An extension trait for syntax nodes.
 pub trait Exceptable {
     /// Gets the AST node's rule exceptions set.
@@ -118,7 +138,7 @@ impl Exceptable for SyntaxNode {
                 Directive::Except(e) => e,
             })
             .collect();
-        exceptions
+        expand_rule_aliases(exceptions)
     }
 
     fn is_rule_excepted(&self, id: &str) -> bool {
@@ -141,7 +161,8 @@ mod alias_tests {
     #[test]
     fn except_directives_do_not_expand_aliases() {
         let set = HashSet::from(["SnakeCase".to_string()]);
-        assert!(set.contains("SnakeCase"));
-        assert!(!set.contains("NamingConvention"));
+        let expanded = expand_rule_aliases(set);
+        assert!(expanded.contains("SnakeCase"));
+        assert!(expanded.contains("NamingConvention"));
     }
 }

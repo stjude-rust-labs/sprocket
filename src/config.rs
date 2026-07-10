@@ -1205,11 +1205,13 @@ mod test {
 
     #[test]
     fn deprecated_rule_alias_reports_replacement() {
-        let err =
-            toml_spanner::from_str::<Config>("[check.rules.SnakeCase]\nseverity = \"off\"\n")
-                .unwrap_err();
+        let err = toml_spanner::from_str::<Config>("[check.rules.SnakeCase]\nseverity = \"off\"\n")
+            .unwrap_err();
         let err = err.to_string();
-        assert!(err.contains("has been renamed to `NamingConvention`"), "{err}");
+        assert!(
+            err.contains("has been renamed to `NamingConvention`"),
+            "{err}"
+        );
         assert!(err.contains("[check.rules.NamingConvention]"), "{err}");
     }
 
@@ -1224,7 +1226,7 @@ mod test {
     fn rejects_inapplicable_parameter() {
         let err =
             toml_spanner::from_str::<Config>("[check.rules.NamingConvention]\nmax_length = 5\n")
-            .unwrap_err();
+                .unwrap_err();
         assert!(
             err.to_string().contains("not a configurable parameter"),
             "{err}"
@@ -1253,8 +1255,8 @@ mod test {
 
     #[test]
     fn check_except_alias_reports_replacement() {
-        let mut config: Config = toml_spanner::from_str("check.except = [\"SnakeCase\"]\n")
-            .unwrap();
+        let mut config: Config =
+            toml_spanner::from_str("check.except = [\"SnakeCase\"]\n").unwrap();
         let err = config.validate().unwrap_err().to_string();
         assert!(err.contains("deprecated rule `SnakeCase`"), "{err}");
         assert!(err.contains("replace it with `NamingConvention`"), "{err}");
