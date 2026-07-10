@@ -23,6 +23,7 @@ use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use uuid::Uuid;
+use wdl::diagnostics::Mode;
 
 /// Create a test server with a real database and filesystem.
 async fn create_test_server(pool: sqlx::SqlitePool) -> (axum::Router, Arc<dyn Database>, TempDir) {
@@ -44,6 +45,8 @@ async fn create_test_server(pool: sqlx::SqlitePool) -> (axum::Router, Arc<dyn Da
             server: server_config,
             ..Default::default()
         },
+        Mode::default(),
+        true,
         db.clone(),
     );
 

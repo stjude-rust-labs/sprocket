@@ -20,6 +20,7 @@ use tempfile::TempDir;
 use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
+use wdl::diagnostics::Mode;
 
 /// Create a test server whose `AppState` reports the given failure mode.
 ///
@@ -48,6 +49,8 @@ async fn create_test_server(
             server: server_config,
             ..Default::default()
         },
+        Mode::default(),
+        true,
         db,
     );
 

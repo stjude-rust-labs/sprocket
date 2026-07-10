@@ -136,7 +136,7 @@ async fn start(args: StartArgs, mut config: Config, colorize: bool) -> CommandRe
 /// The main function for the `server` subcommand.
 pub async fn server(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     match args.command {
-        ServerSubcommand::Start(args) => start(args, config).await,
+        ServerSubcommand::Start(args) => start(args, config, colorize).await,
         ServerSubcommand::Submit(args) => submit::submit(args, config, colorize).await,
         ServerSubcommand::Status(args) => status::status(args, config, colorize).await,
         ServerSubcommand::Inspect(args) => inspect::inspect(args, config, colorize).await,
