@@ -1,8 +1,8 @@
-warning[NamingConvention]: task name `myTask` is not snake_case
+warning[NamingConvention]: task name `myTask` is not snake case
   ┌─ tests/lints/naming-convention-style/source.wdl:5:6
   │
 5 │ task myTask {
-  │      ^^^^^^ this name must be snake_case
+  │      ^^^^^^ this name must be snake case
   │
   = fix: replace `myTask` with `my_task`
 

@@ -1,24 +1,24 @@
-warning[NamingConvention]: struct name `this_is_a_bad_name` is not PascalCase
+warning[NamingConvention]: struct name `this_is_a_bad_name` is not pascal case
   ┌─ tests/lints/pascal-case/source.wdl:5:8
   │
 5 │ struct this_is_a_bad_name {
-  │        ^^^^^^^^^^^^^^^^^^ this name must be PascalCase
+  │        ^^^^^^^^^^^^^^^^^^ this name must be pascal case
   │
   = fix: replace `this_is_a_bad_name` with `ThisIsABadName`
 
-warning[NamingConvention]: struct name `thisIsAlsoABadName` is not PascalCase
+warning[NamingConvention]: struct name `thisIsAlsoABadName` is not pascal case
   ┌─ tests/lints/pascal-case/source.wdl:9:8
   │
 9 │ struct thisIsAlsoABadName {
-  │        ^^^^^^^^^^^^^^^^^^ this name must be PascalCase
+  │        ^^^^^^^^^^^^^^^^^^ this name must be pascal case
   │
   = fix: replace `thisIsAlsoABadName` with `ThisIsAlsoABadName`
 
-warning[NamingConvention]: struct name `This_Is_Bad_Too` is not PascalCase
+warning[NamingConvention]: struct name `This_Is_Bad_Too` is not pascal case
    ┌─ tests/lints/pascal-case/source.wdl:13:8
    │
 13 │ struct This_Is_Bad_Too {
-   │        ^^^^^^^^^^^^^^^ this name must be PascalCase
+   │        ^^^^^^^^^^^^^^^ this name must be pascal case
    │
    = fix: replace `This_Is_Bad_Too` with `ThisIsBadToo`
 
@@ -30,11 +30,11 @@ note[KnownRules]: deprecated rule `PascalCase`; replace it with `NamingConventio
    │
    = fix: replace `PascalCase` with `NamingConvention`
 
-warning[NamingConvention]: struct name `excepted_name` is not PascalCase
+warning[NamingConvention]: struct name `excepted_name` is not pascal case
    ┌─ tests/lints/pascal-case/source.wdl:22:8
    │
 22 │ struct excepted_name {
-   │        ^^^^^^^^^^^^^ this name must be PascalCase
+   │        ^^^^^^^^^^^^^ this name must be pascal case
    │
    = fix: replace `excepted_name` with `ExceptedName`
 

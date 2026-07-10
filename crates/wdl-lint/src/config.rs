@@ -107,6 +107,16 @@ pub enum CaseStyle {
 }
 
 impl CaseStyle {
+    /// Returns the human-readable name of this style for diagnostics.
+    pub fn diagnostic_name(self) -> &'static str {
+        match self {
+            CaseStyle::Snake => "snake case",
+            CaseStyle::ScreamingSnake => "screaming snake case",
+            CaseStyle::Camel => "camel case",
+            CaseStyle::Pascal => "pascal case",
+        }
+    }
+
     /// Converts a name to this case style.
     ///
     /// Digit boundaries are preserved (for example `v1` is not split into
@@ -437,6 +447,25 @@ mod test {
             config.resolved("NamingConvention").struct_member,
             CaseStyle::Camel
         );
+    }
+
+    #[test]
+    fn case_style_names_separate_config_literals_from_diagnostics() {
+        let cases = [
+            (CaseStyle::Snake, "snake_case", "snake case"),
+            (
+                CaseStyle::ScreamingSnake,
+                "screaming_snake_case",
+                "screaming snake case",
+            ),
+            (CaseStyle::Camel, "camelCase", "camel case"),
+            (CaseStyle::Pascal, "PascalCase", "pascal case"),
+        ];
+
+        for (style, config_literal, diagnostic_name) in cases {
+            assert_eq!(style.to_string(), config_literal);
+            assert_eq!(style.diagnostic_name(), diagnostic_name);
+        }
     }
 
     #[test]

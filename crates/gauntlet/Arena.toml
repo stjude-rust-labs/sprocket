@@ -1743,72 +1743,72 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:48:12: warning[NamingConvention]: struct member name `ID` is not snake_case"
+message = "read_group.wdl:48:12: warning[NamingConvention]: struct member name `ID` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L48"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:49:13: warning[NamingConvention]: struct member name `BC` is not snake_case"
+message = "read_group.wdl:49:13: warning[NamingConvention]: struct member name `BC` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L49"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:50:13: warning[NamingConvention]: struct member name `CN` is not snake_case"
+message = "read_group.wdl:50:13: warning[NamingConvention]: struct member name `CN` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L50"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:51:13: warning[NamingConvention]: struct member name `DS` is not snake_case"
+message = "read_group.wdl:51:13: warning[NamingConvention]: struct member name `DS` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L51"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:52:13: warning[NamingConvention]: struct member name `DT` is not snake_case"
+message = "read_group.wdl:52:13: warning[NamingConvention]: struct member name `DT` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L52"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:53:13: warning[NamingConvention]: struct member name `FO` is not snake_case"
+message = "read_group.wdl:53:13: warning[NamingConvention]: struct member name `FO` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L53"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:54:13: warning[NamingConvention]: struct member name `KS` is not snake_case"
+message = "read_group.wdl:54:13: warning[NamingConvention]: struct member name `KS` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L54"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:55:13: warning[NamingConvention]: struct member name `LB` is not snake_case"
+message = "read_group.wdl:55:13: warning[NamingConvention]: struct member name `LB` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L55"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:56:13: warning[NamingConvention]: struct member name `PG` is not snake_case"
+message = "read_group.wdl:56:13: warning[NamingConvention]: struct member name `PG` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L56"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:57:10: warning[NamingConvention]: struct member name `PI` is not snake_case"
+message = "read_group.wdl:57:10: warning[NamingConvention]: struct member name `PI` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L57"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:58:13: warning[NamingConvention]: struct member name `PL` is not snake_case"
+message = "read_group.wdl:58:13: warning[NamingConvention]: struct member name `PL` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L58"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:59:13: warning[NamingConvention]: struct member name `PM` is not snake_case"
+message = "read_group.wdl:59:13: warning[NamingConvention]: struct member name `PM` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L59"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:60:13: warning[NamingConvention]: struct member name `PU` is not snake_case"
+message = "read_group.wdl:60:13: warning[NamingConvention]: struct member name `PU` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L60"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
-message = "read_group.wdl:61:13: warning[NamingConvention]: struct member name `SM` is not snake_case"
+message = "read_group.wdl:61:13: warning[NamingConvention]: struct member name `SM` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L61"
 
 [[diagnostics]]
@@ -1903,7 +1903,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:107:14: warning[NamingConvention]: input name `dbSNP_vcf` is not snake_case"
+message = "gatk4.wdl:107:14: warning[NamingConvention]: input name `dbSNP_vcf` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L107"
 
 [[diagnostics]]
@@ -1913,7 +1913,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:109:14: warning[NamingConvention]: input name `dbSNP_vcf_index` is not snake_case"
+message = "gatk4.wdl:109:14: warning[NamingConvention]: input name `dbSNP_vcf_index` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L109"
 
 [[diagnostics]]
@@ -1943,7 +1943,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:261:14: warning[NamingConvention]: input name `dbSNP_vcf` is not snake_case"
+message = "gatk4.wdl:261:14: warning[NamingConvention]: input name `dbSNP_vcf` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L261"
 
 [[diagnostics]]
@@ -1953,7 +1953,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:263:14: warning[NamingConvention]: input name `dbSNP_vcf_index` is not snake_case"
+message = "gatk4.wdl:263:14: warning[NamingConvention]: input name `dbSNP_vcf_index` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L263"
 
 [[diagnostics]]
@@ -2263,7 +2263,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:639:13: warning[NamingConvention]: input name `out_QS_conversion_add` is not snake_case"
+message = "star.wdl:639:13: warning[NamingConvention]: input name `out_QS_conversion_add` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L639"
 
 [[diagnostics]]
@@ -2273,7 +2273,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:641:13: warning[NamingConvention]: input name `out_sam_attr_IH_start` is not snake_case"
+message = "star.wdl:641:13: warning[NamingConvention]: input name `out_sam_attr_IH_start` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L641"
 
 [[diagnostics]]
@@ -2283,7 +2283,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:644:13: warning[NamingConvention]: input name `out_sam_flag_OR` is not snake_case"
+message = "star.wdl:644:13: warning[NamingConvention]: input name `out_sam_flag_OR` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L644"
 
 [[diagnostics]]
@@ -2293,7 +2293,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:646:13: warning[NamingConvention]: input name `out_sam_flag_AND` is not snake_case"
+message = "star.wdl:646:13: warning[NamingConvention]: input name `out_sam_flag_AND` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L646"
 
 [[diagnostics]]
@@ -2303,7 +2303,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:655:13: warning[NamingConvention]: input name `score_gap_GCAG` is not snake_case"
+message = "star.wdl:655:13: warning[NamingConvention]: input name `score_gap_GCAG` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L655"
 
 [[diagnostics]]
@@ -2313,7 +2313,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:657:13: warning[NamingConvention]: input name `score_gap_ATAC` is not snake_case"
+message = "star.wdl:657:13: warning[NamingConvention]: input name `score_gap_ATAC` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L657"
 
 [[diagnostics]]
@@ -2323,7 +2323,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:690:13: warning[NamingConvention]: input name `chim_score_junction_nonGTAG` is not snake_case"
+message = "star.wdl:690:13: warning[NamingConvention]: input name `chim_score_junction_nonGTAG` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L690"
 
 [[diagnostics]]
@@ -2333,7 +2333,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:75:13: warning[NamingConvention]: input name `genome_SA_index_n_bases` is not snake_case"
+message = "star.wdl:75:13: warning[NamingConvention]: input name `genome_SA_index_n_bases` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L75"
 
 [[diagnostics]]
@@ -2343,7 +2343,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:77:13: warning[NamingConvention]: input name `genome_SA_sparse_d` is not snake_case"
+message = "star.wdl:77:13: warning[NamingConvention]: input name `genome_SA_sparse_d` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L77"
 
 [[diagnostics]]
@@ -2358,17 +2358,17 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:917:9: warning[NamingConvention]: struct member name `GT_AG_and_CT_AC_motif` is not snake_case"
+message = "star.wdl:917:9: warning[NamingConvention]: struct member name `GT_AG_and_CT_AC_motif` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L917"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:918:9: warning[NamingConvention]: struct member name `GC_AG_and_CT_GC_motif` is not snake_case"
+message = "star.wdl:918:9: warning[NamingConvention]: struct member name `GC_AG_and_CT_GC_motif` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L918"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
-message = "star.wdl:919:9: warning[NamingConvention]: struct member name `AT_AC_and_GT_AT_motif` is not snake_case"
+message = "star.wdl:919:9: warning[NamingConvention]: struct member name `AT_AC_and_GT_AT_motif` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L919"
 
 [[diagnostics]]
@@ -2503,7 +2503,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "gatk-reference.wdl:118:15: warning[NamingConvention]: output name `dbSNP_vcf` is not snake_case"
+message = "gatk-reference.wdl:118:15: warning[NamingConvention]: output name `dbSNP_vcf` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L118"
 
 [[diagnostics]]
@@ -2513,7 +2513,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "gatk-reference.wdl:120:15: warning[NamingConvention]: output name `dbSNP_vcf_index` is not snake_case"
+message = "gatk-reference.wdl:120:15: warning[NamingConvention]: output name `dbSNP_vcf_index` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L120"
 
 [[diagnostics]]
@@ -2523,7 +2523,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "gatk-reference.wdl:50:16: warning[NamingConvention]: input name `dbSNP_vcf_url` is not snake_case"
+message = "gatk-reference.wdl:50:16: warning[NamingConvention]: input name `dbSNP_vcf_url` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L50"
 
 [[diagnostics]]
@@ -2533,7 +2533,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "gatk-reference.wdl:52:16: warning[NamingConvention]: input name `dbSNP_vcf_name` is not snake_case"
+message = "gatk-reference.wdl:52:16: warning[NamingConvention]: input name `dbSNP_vcf_name` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L52"
 
 [[diagnostics]]
@@ -2543,7 +2543,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "gatk-reference.wdl:56:13: warning[NamingConvention]: input name `dbSNP_vcf_disk_size_gb` is not snake_case"
+message = "gatk-reference.wdl:56:13: warning[NamingConvention]: input name `dbSNP_vcf_disk_size_gb` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L56"
 
 [[diagnostics]]
@@ -2553,7 +2553,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "gatk-reference.wdl:58:17: warning[NamingConvention]: input name `dbSNP_vcf_index_url` is not snake_case"
+message = "gatk-reference.wdl:58:17: warning[NamingConvention]: input name `dbSNP_vcf_index_url` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L58"
 
 [[diagnostics]]
@@ -2563,7 +2563,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "gatk-reference.wdl:60:17: warning[NamingConvention]: input name `dbSNP_vcf_index_name` is not snake_case"
+message = "gatk-reference.wdl:60:17: warning[NamingConvention]: input name `dbSNP_vcf_index_name` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L60"
 
 [[diagnostics]]
@@ -2573,7 +2573,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
-message = "gatk-reference.wdl:64:13: warning[NamingConvention]: input name `dbSNP_vcf_index_disk_size_gb` is not snake_case"
+message = "gatk-reference.wdl:64:13: warning[NamingConvention]: input name `dbSNP_vcf_index_disk_size_gb` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L64"
 
 [[diagnostics]]
@@ -2583,7 +2583,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
-message = "rnaseq-core.wdl:158:13: warning[NamingConvention]: input name `chim_score_junction_nonGTAG` is not snake_case"
+message = "rnaseq-core.wdl:158:13: warning[NamingConvention]: input name `chim_score_junction_nonGTAG` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-core.wdl/#L158"
 
 [[diagnostics]]
@@ -2603,7 +2603,7 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
-message = "rnaseq-variant-calling.wdl:47:14: warning[NamingConvention]: input name `dbSNP_vcf` is not snake_case"
+message = "rnaseq-variant-calling.wdl:47:14: warning[NamingConvention]: input name `dbSNP_vcf` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-variant-calling.wdl/#L47"
 
 [[diagnostics]]
@@ -2613,5 +2613,5 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
-message = "rnaseq-variant-calling.wdl:49:14: warning[NamingConvention]: input name `dbSNP_vcf_index` is not snake_case"
+message = "rnaseq-variant-calling.wdl:49:14: warning[NamingConvention]: input name `dbSNP_vcf_index` is not snake case"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-variant-calling.wdl/#L49"

@@ -80,9 +80,10 @@ fn naming_convention(
     properly_cased_name: &str,
     span: Span,
 ) -> Diagnostic {
-    Diagnostic::warning(format!("{context} name `{name}` is not {style}"))
+    let style_name = style.diagnostic_name();
+    Diagnostic::warning(format!("{context} name `{name}` is not {style_name}"))
         .with_rule(ID)
-        .with_label(format!("this name must be {style}"), span)
+        .with_label(format!("this name must be {style_name}"), span)
         .with_fix(format!("replace `{name}` with `{properly_cased_name}`"))
 }
 

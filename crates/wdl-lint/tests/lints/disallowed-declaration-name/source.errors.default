@@ -46,19 +46,19 @@ note[DeclarationName]: declaration identifier 'reference_directory' contains typ
    │
    = fix: rename the identifier to not include the type name
 
-warning[NamingConvention]: input name `Interval` is not snake_case
+warning[NamingConvention]: input name `Interval` is not snake case
    ┌─ tests/lints/disallowed-declaration-name/source.wdl:21:14
    │
 21 │         File Interval
-   │              ^^^^^^^^ this name must be snake_case
+   │              ^^^^^^^^ this name must be snake case
    │
    = fix: replace `Interval` with `interval`
 
-warning[NamingConvention]: input name `nameString` is not snake_case
+warning[NamingConvention]: input name `nameString` is not snake case
    ┌─ tests/lints/disallowed-declaration-name/source.wdl:24:16
    │
 24 │         String nameString
-   │                ^^^^^^^^^^ this name must be snake_case
+   │                ^^^^^^^^^^ this name must be snake case
    │
    = fix: replace `nameString` with `name_string`
 
@@ -78,19 +78,19 @@ note[DeclarationName]: declaration identifier 'result_integer' contains type nam
    │
    = fix: rename the identifier to not include the type name
 
-warning[NamingConvention]: private declaration name `foo_bar_InT` is not snake_case
+warning[NamingConvention]: private declaration name `foo_bar_InT` is not snake case
    ┌─ tests/lints/disallowed-declaration-name/source.wdl:34:9
    │
 34 │     Int foo_bar_InT = 42  # Split by convert-case to [foo, bar, In, T]
-   │         ^^^^^^^^^^^ this name must be snake_case
+   │         ^^^^^^^^^^^ this name must be snake case
    │
    = fix: replace `foo_bar_InT` with `foo_bar_in_t`
 
-warning[NamingConvention]: private declaration name `foo_bar_INT` is not snake_case
+warning[NamingConvention]: private declaration name `foo_bar_INT` is not snake case
    ┌─ tests/lints/disallowed-declaration-name/source.wdl:37:9
    │
 37 │     Int foo_bar_INT = 42
-   │         ^^^^^^^^^^^ this name must be snake_case
+   │         ^^^^^^^^^^^ this name must be snake case
    │
    = fix: replace `foo_bar_INT` with `foo_bar_int`
 

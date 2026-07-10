@@ -1,16 +1,16 @@
-warning[NamingConvention]: enum name `log_level` is not PascalCase
+warning[NamingConvention]: enum name `log_level` is not pascal case
   ┌─ tests/lints/naming-convention-enum/source.wdl:5:6
   │
 5 │ enum log_level {
-  │      ^^^^^^^^^ this name must be PascalCase
+  │      ^^^^^^^^^ this name must be pascal case
   │
   = fix: replace `log_level` with `LogLevel`
 
-warning[NamingConvention]: enum choice name `bad_choice` is not PascalCase
+warning[NamingConvention]: enum choice name `bad_choice` is not pascal case
   ┌─ tests/lints/naming-convention-enum/source.wdl:7:5
   │
 7 │     bad_choice,
-  │     ^^^^^^^^^^ this name must be PascalCase
+  │     ^^^^^^^^^^ this name must be pascal case
   │
   = fix: replace `bad_choice` with `BadChoice`
 
