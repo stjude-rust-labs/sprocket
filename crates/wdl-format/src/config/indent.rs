@@ -37,12 +37,13 @@ pub const MAX_SPACE_INDENT: usize = 16;
 
 /// An indentation level.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, JsonSchema)]
+#[schemars(rename_all = "lowercase")]
 pub enum Indent {
     /// Tabs.
     Tabs,
     /// Spaces.
     #[schemars(untagged)]
-    Spaces(usize),
+    Spaces(#[schemars(range(max = "MAX_SPACE_INDENT"))] usize),
 }
 
 impl Default for Indent {

@@ -82,24 +82,33 @@
         {
           "description": "Tabs.",
           "type": "string",
-          "const": "Tabs"
+          "const": "tabs"
         },
         {
           "description": "Spaces.",
           "type": "integer",
           "format": "uint",
-          "minimum": 0
+          "minimum": 0,
+          "maximum": 16
         }
       ]
     },
     "MaxLineLength": {
       "description": "The maximum line length.",
-      "type": [
-        "integer",
-        "null"
-      ],
-      "format": "uint",
-      "minimum": 0
+      "anyOf": [
+        {
+          "description": "No maximum.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Maximum line length in characters.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 60,
+          "maximum": 240
+        }
+      ]
     },
     "NewlineStyle": {
       "description": "The newline style to use when formatting.",

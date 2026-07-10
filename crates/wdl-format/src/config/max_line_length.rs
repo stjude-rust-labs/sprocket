@@ -31,8 +31,21 @@ pub const MAX_MAX_LINE_LENGTH: usize = 240;
 const SENTINEL: &str = "none";
 
 /// The maximum line length.
+#[derive(JsonSchema)]
+#[schemars(inline)]
+#[expect(dead_code, reason = "Only used for schema generation.")]
+enum MaxLineLengthSchema {
+    /// No maximum.
+    #[schemars(rename = "none")]
+    None,
+    /// Maximum line length in characters.
+    #[schemars(untagged)]
+    Value(#[schemars(range(min = MIN_MAX_LINE_LENGTH, max = MAX_MAX_LINE_LENGTH))] usize),
+}
+
+/// The maximum line length.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, JsonSchema)]
-#[schemars(transparent)]
+#[schemars(with = "MaxLineLengthSchema")]
 pub struct MaxLineLength(Option<usize>);
 
 impl MaxLineLength {
