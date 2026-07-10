@@ -103,6 +103,8 @@ pub struct NamingConventionRule {
     variable: CaseStyle,
     /// The case style for user-defined type names.
     type_style: CaseStyle,
+    /// The case style for struct member names.
+    struct_member: CaseStyle,
     /// Names exempt from the rule.
     allowed_names: HashSet<String>,
 }
@@ -119,6 +121,7 @@ impl NamingConventionRule {
             workflow: resolved.workflow,
             variable: resolved.variable,
             type_style: resolved.r#type,
+            struct_member: resolved.struct_member,
             allowed_names: HashSet::from_iter(resolved.allowed_names),
         }
     }
@@ -141,11 +144,8 @@ impl NamingConventionRule {
         match context {
             Context::Task => self.task,
             Context::Workflow => self.workflow,
-            // Struct members are part of a user-defined type and follow the
-            // `type` style, alongside struct/enum names and enum choices.
-            Context::Struct | Context::Enum | Context::EnumChoice | Context::StructMember => {
-                self.type_style
-            }
+            Context::Struct | Context::Enum | Context::EnumChoice => self.type_style,
+            Context::StructMember => self.struct_member,
             Context::Input | Context::Output | Context::PrivateDecl => self.variable,
         }
     }
@@ -187,10 +187,9 @@ impl Rule for NamingConventionRule {
 
     fn explanation(&self) -> &'static str {
         "Names should follow a consistent case convention. By default, tasks, workflows, and \
-         variables use snake_case, while user-defined types and their members (struct and enum \
-         names, struct members, and enum choices) use PascalCase. The convention for each category \
-         can be configured. Maintaining a consistent naming convention makes the code easier to \
-         read and understand."
+         variables use snake_case. User-defined type names and enum choices use PascalCase, and \
+         struct members use snake_case. The convention for each category can be configured. \
+         Maintaining a consistent naming convention makes the code easier to read and understand."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -254,6 +253,7 @@ impl Visitor for NamingConventionRule {
             workflow: self.workflow,
             variable: self.variable,
             type_style: self.type_style,
+            struct_member: self.struct_member,
             allowed_names: std::mem::take(&mut self.allowed_names),
         };
     }

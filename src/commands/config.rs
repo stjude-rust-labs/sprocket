@@ -53,7 +53,7 @@ const INIT_HEADER: &str = "\
 # rule may set `severity` (one of `off`, `note`, `warning`, or `error`) and any
 # parameters that apply to it. For example:
 #
-#     [check.rules.SnakeCase]
+#     [check.rules.NamingConvention]
 #     severity = \"error\"
 #     allowed_names = [\"GATK\"]
 #

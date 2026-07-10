@@ -38,21 +38,13 @@ warning[NamingConvention]: output name `badOut` is not snake_case
    │
    = fix: replace `badOut` with `bad_out`
 
-warning[NamingConvention]: struct member name `good_field` is not PascalCase
-   ┌─ tests/lints/snake-case/source.wdl:81:12
-   │
-81 │     String good_field
-   │            ^^^^^^^^^^ this name must be PascalCase
-   │
-   = fix: replace `good_field` with `GoodField`
-
-warning[NamingConvention]: struct member name `bAdFiElD` is not PascalCase
+warning[NamingConvention]: struct member name `bAdFiElD` is not snake_case
    ┌─ tests/lints/snake-case/source.wdl:82:12
    │
 82 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
-   │            ^^^^^^^^ this name must be PascalCase
+   │            ^^^^^^^^ this name must be snake_case
    │
-   = fix: replace `bAdFiElD` with `BAdFiElD`
+   = fix: replace `bAdFiElD` with `b_ad_fi_el_d`
 
 note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`
    ┌─ tests/lints/snake-case/source.wdl:83:16
@@ -62,11 +54,11 @@ note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention
    │
    = fix: replace `SnakeCase` with `NamingConvention`
 
-warning[NamingConvention]: struct member name `OK` is not PascalCase
+warning[NamingConvention]: struct member name `OK` is not snake_case
    ┌─ tests/lints/snake-case/source.wdl:84:12
    │
 84 │     String OK
-   │            ^^ this name must be PascalCase
+   │            ^^ this name must be snake_case
    │
-   = fix: replace `OK` with `Ok`
+   = fix: replace `OK` with `ok`
 

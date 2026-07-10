@@ -316,10 +316,12 @@ define_rule_params! {
     /// declarations).
     #[rules(NamingConvention)]
     variable: CaseStyle = CaseStyle::Snake,
-    /// The case style required for user-defined types and their members (struct
-    /// and enum names, struct members, and enum choices).
+    /// The case style required for user-defined type names and enum choices.
     #[rules(NamingConvention)]
     r#type @ "type": CaseStyle = CaseStyle::Pascal,
+    /// The case style required for struct members.
+    #[rules(NamingConvention)]
+    struct_member: CaseStyle = CaseStyle::Snake,
 }
 
 /// The configuration for lint rules.
@@ -417,9 +419,23 @@ mod test {
         assert_eq!(config.resolved("DescriptionLength").max_length, 140);
         assert_eq!(config.resolved("InputName").min_length, 3);
         assert!(config.resolved("InputName").check_prefixes);
+        let naming = config.resolved("NamingConvention");
+        assert_eq!(naming.r#type, CaseStyle::Pascal);
+        assert_eq!(naming.struct_member, CaseStyle::Snake);
         assert_eq!(
             config.resolved("TodoComment").keywords,
             vec![String::from("TODO")]
+        );
+    }
+
+    #[test]
+    fn parses_struct_member_case_style() {
+        // SAFETY: the test input is static and known to use valid rule parameters.
+        let config: Config =
+            toml_spanner::from_str("[NamingConvention]\nstruct_member = \"camelCase\"\n").unwrap();
+        assert_eq!(
+            config.resolved("NamingConvention").struct_member,
+            CaseStyle::Camel
         );
     }
 

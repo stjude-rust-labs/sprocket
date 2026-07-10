@@ -6,14 +6,6 @@ note[MetaSections]: workflow `test` is missing both `meta` and `parameter_meta` 
   │
   = fix: add both the `meta` and `parameter_meta` sections
 
-warning[NamingConvention]: struct member name `x` is not PascalCase
-   ┌─ tests/lints/missing-meta-and-parameter_meta/source.wdl:23:12
-   │
-23 │     String x
-   │            ^ this name must be PascalCase
-   │
-   = fix: replace `x` with `X`
-
 note[MetaSections]: task `test_task` is missing both `meta` and `parameter_meta` sections
    ┌─ tests/lints/missing-meta-and-parameter_meta/source.wdl:26:6
    │

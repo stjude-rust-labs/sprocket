@@ -22,11 +22,3 @@ note[MetaDescription]: struct `Baz` is missing a description key
    │
    = fix: add a `description` key to the meta section
 
-warning[NamingConvention]: struct member name `x` is not PascalCase
-   ┌─ tests/lints/description-missing/source.wdl:29:12
-   │
-29 │     String x
-   │            ^ this name must be PascalCase
-   │
-   = fix: replace `x` with `X`
-

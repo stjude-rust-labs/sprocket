@@ -6,11 +6,3 @@ note[MetaSections]: struct `Test` is missing a `parameter_meta` section
   │
   = fix: add the missing section
 
-warning[NamingConvention]: struct member name `x` is not PascalCase
-   ┌─ tests/lints/missing-struct-param-meta/source.wdl:10:12
-   │
-10 │     String x
-   │            ^ this name must be PascalCase
-   │
-   = fix: replace `x` with `X`
-

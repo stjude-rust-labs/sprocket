@@ -6,14 +6,6 @@ warning[NamingConvention]: struct name `this_is_a_bad_name` is not PascalCase
   │
   = fix: replace `this_is_a_bad_name` with `ThisIsABadName`
 
-warning[NamingConvention]: struct member name `x` is not PascalCase
-  ┌─ tests/lints/pascal-case/source.wdl:6:9
-  │
-6 │     Int x
-  │         ^ this name must be PascalCase
-  │
-  = fix: replace `x` with `X`
-
 warning[NamingConvention]: struct name `thisIsAlsoABadName` is not PascalCase
   ┌─ tests/lints/pascal-case/source.wdl:9:8
   │
@@ -22,14 +14,6 @@ warning[NamingConvention]: struct name `thisIsAlsoABadName` is not PascalCase
   │
   = fix: replace `thisIsAlsoABadName` with `ThisIsAlsoABadName`
 
-warning[NamingConvention]: struct member name `x` is not PascalCase
-   ┌─ tests/lints/pascal-case/source.wdl:10:9
-   │
-10 │     Int x
-   │         ^ this name must be PascalCase
-   │
-   = fix: replace `x` with `X`
-
 warning[NamingConvention]: struct name `This_Is_Bad_Too` is not PascalCase
    ┌─ tests/lints/pascal-case/source.wdl:13:8
    │
@@ -37,22 +21,6 @@ warning[NamingConvention]: struct name `This_Is_Bad_Too` is not PascalCase
    │        ^^^^^^^^^^^^^^^ this name must be PascalCase
    │
    = fix: replace `This_Is_Bad_Too` with `ThisIsBadToo`
-
-warning[NamingConvention]: struct member name `x` is not PascalCase
-   ┌─ tests/lints/pascal-case/source.wdl:14:9
-   │
-14 │     Int x
-   │         ^ this name must be PascalCase
-   │
-   = fix: replace `x` with `X`
-
-warning[NamingConvention]: struct member name `x` is not PascalCase
-   ┌─ tests/lints/pascal-case/source.wdl:18:9
-   │
-18 │     Int x
-   │         ^ this name must be PascalCase
-   │
-   = fix: replace `x` with `X`
 
 note[KnownRules]: deprecated rule `PascalCase`; replace it with `NamingConvention`
    ┌─ tests/lints/pascal-case/source.wdl:21:12
@@ -69,12 +37,4 @@ warning[NamingConvention]: struct name `excepted_name` is not PascalCase
    │        ^^^^^^^^^^^^^ this name must be PascalCase
    │
    = fix: replace `excepted_name` with `ExceptedName`
-
-warning[NamingConvention]: struct member name `x` is not PascalCase
-   ┌─ tests/lints/pascal-case/source.wdl:23:9
-   │
-23 │     Int x
-   │         ^ this name must be PascalCase
-   │
-   = fix: replace `x` with `X`
 

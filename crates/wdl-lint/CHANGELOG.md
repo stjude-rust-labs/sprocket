@@ -13,11 +13,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ID.
 * New configurable `NamingConvention` rule that replaces `SnakeCase` and
   `PascalCase`. It enforces a case style per identifier category (`task`,
-  `workflow`, `variable`, and `type`), defaulting to the previous behavior, and
-  supports `snake_case`, `screaming_snake_case`, `camelCase`, and `PascalCase`.
-  The `SnakeCase` and `PascalCase` IDs remain accepted as deprecated aliases.
-  `NamingConvention` also checks enum names and enum choices (as user-defined
-  types) against the `type` case style.
+  `workflow`, `variable`, `type`, and `struct_member`) and supports
+  `snake_case`, `screaming_snake_case`, `camelCase`, and `PascalCase`.
+  The `SnakeCase` and `PascalCase` IDs now report targeted migration
+  diagnostics. `NamingConvention` also checks enum names and enum choices (as
+  user-defined types) against the `type` case style, while struct members
+  default to `snake_case`.
 * Configurable parameters for `DescriptionLength` (`max_length`), `InputName`
   and `OutputName` (`min_length`, `check_prefixes`), `TodoComment` (`keywords`),
   and `DocMetaStrings` (`reserved_keys`).
@@ -366,4 +367,3 @@ _A patch bump was required because an error was made during the release of `wdl`
 * Ported the `NoCurlyCommands` rule to `wdl-lint` ([#69](https://github.com/stjude-rust-labs/wdl/pull/69)).
 * Added the `wdl-lint` as the crate implementing linting rules for the future
   ([#68](https://github.com/stjude-rust-labs/wdl/pull/68)).
-

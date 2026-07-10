@@ -7,14 +7,14 @@ version 1.1
 # This applies only to the struct and everything in it
 #@ except: PascalCase, SnakeCase
 struct OK {         # OK
-    Int AlsoOk      # OK
-    Int OKTOO       # OK
+    Int AlsoOk      # NOT OK
+    Int OKTOO       # NOT OK
 }
 
 # This applies to the specified members only
 struct Ok {         # OK
     #@ except: AlsoUnknown, SnakeCase
-    Int AlsoOk      # OK
+    Int AlsoOk      # NOT OK
     Int NotOk       # NOT OK
 }
 
