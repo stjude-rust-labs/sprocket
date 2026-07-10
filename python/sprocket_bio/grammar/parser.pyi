@@ -1,6 +1,8 @@
-from typing_extensions import disjoint_base
-from sprocket_bio.grammar import SyntaxKind, Span
 import typing
+
+from typing_extensions import disjoint_base
+
+from sprocket_bio.grammar import Span, SyntaxKind
 
 @disjoint_base
 class Event:

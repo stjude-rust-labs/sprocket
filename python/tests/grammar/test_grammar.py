@@ -1,8 +1,8 @@
-from sprocket_bio.diagnostics import emit_diagnostics, Mode
+from sprocket_bio.diagnostics import Mode, emit_diagnostics
+from sprocket_bio.grammar import Severity, Span, SupportedVersion, SyntaxKind
+from sprocket_bio.grammar.grammar import document
 from sprocket_bio.grammar.parser import Event
 from sprocket_bio.grammar.version import V1
-from sprocket_bio.grammar import SupportedVersion, SyntaxKind, Severity, Span
-from sprocket_bio.grammar.grammar import document
 
 
 def test_document_version_statement() -> None:

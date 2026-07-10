@@ -1,14 +1,15 @@
-import os
-import html
-import webbrowser
-import pathlib
 import argparse
-from sprocket_bio.grammar.parser import Event
+import html
+import os
+import pathlib
 import sys
-from sprocket_bio.diagnostics import emit_diagnostics, Mode
-from sprocket_bio.grammar.version import V1
-from sprocket_bio.grammar import SupportedVersion, SyntaxKind, Severity
+import webbrowser
+
+from sprocket_bio.diagnostics import Mode, emit_diagnostics
+from sprocket_bio.grammar import Severity, SupportedVersion, SyntaxKind
 from sprocket_bio.grammar.grammar import document
+from sprocket_bio.grammar.parser import Event
+from sprocket_bio.grammar.version import V1
 
 
 def parse_args() -> argparse.Namespace:

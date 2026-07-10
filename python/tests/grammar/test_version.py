@@ -1,6 +1,6 @@
-from sprocket_bio.grammar.version import V1, SupportedVersion
-
 import pytest
+
+from sprocket_bio.grammar.version import V1, SupportedVersion
 
 
 def test_v1_ord() -> None:

@@ -1,11 +1,12 @@
-import pathlib
 import argparse
-from sprocket_bio.grammar.parser import Event
+import pathlib
 import sys
+
 from sprocket_bio.diagnostics import Mode, emit_diagnostics
-from sprocket_bio.grammar.version import V1
-from sprocket_bio.grammar import SupportedVersion, Severity
+from sprocket_bio.grammar import Severity, SupportedVersion
 from sprocket_bio.grammar.grammar import document
+from sprocket_bio.grammar.parser import Event
+from sprocket_bio.grammar.version import V1
 
 
 def parse_args() -> argparse.Namespace:

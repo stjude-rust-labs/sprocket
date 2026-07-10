@@ -1,7 +1,7 @@
-from sprocket_bio.grammar import SyntaxKind, Span
-from sprocket_bio.grammar.parser import Event
-
 import pytest
+
+from sprocket_bio.grammar import Span, SyntaxKind
+from sprocket_bio.grammar.parser import Event
 
 
 def test_event_new() -> None:
