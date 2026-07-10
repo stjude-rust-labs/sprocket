@@ -2569,6 +2569,10 @@ fn cache_clean_default_removes_current_lock_tree_only() {
     );
     let stdout = String::from_utf8_lossy(&clean.stdout);
     assert!(stdout.contains("Removed 1 cached module"));
+    assert!(
+        !stdout.contains("GiB"),
+        "small caches must not be rounded up to GiB: {stdout}"
+    );
 
     let verify = sprocket_with_config(fixture.config_path(), &["module", "verify"])
         .current_dir(&consumer)

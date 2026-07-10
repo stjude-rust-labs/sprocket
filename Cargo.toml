@@ -209,6 +209,7 @@ shellexpand = { workspace = true, features = ["full"] }
 similar.workspace = true
 sqlx.workspace = true
 strum.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-retry2.workspace = true
@@ -237,7 +238,6 @@ regex.workspace = true
 reqwest = { workspace = true, features = ["blocking"] }
 shlex.workspace = true
 ssh-key = { workspace = true, features = ["ed25519"] }
-tempfile.workspace = true
 tracing-test.workspace = true
 walkdir.workspace = true
 wdl-modules = { workspace = true, features = ["git-resolver", "test-utils"] }

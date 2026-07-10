@@ -107,14 +107,15 @@ pub async fn clean(args: Args, config: Config, colorize: bool) -> CommandResult<
     Ok(())
 }
 
+/// Prints the cache-clean summary line.
 fn print_removed_summary(modules: usize, bytes: u64, colorize: bool) {
     print_action(
         "Removed",
         format!(
-            "{} cached {} ({:.1} GiB)",
+            "{} cached {} ({})",
             modules,
             if modules == 1 { "module" } else { "modules" },
-            (ByteSize::b(bytes).as_gib() * 10.0).ceil() / 10.0
+            ByteSize::b(bytes).display().iec()
         ),
         colorize,
         ActionColor::Green,

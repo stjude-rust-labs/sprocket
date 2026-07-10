@@ -316,18 +316,16 @@ pub fn build_resolver(config: &Config, lockfile: Lockfile) -> anyhow::Result<Git
 
 /// Writes `module-lock.json` atomically.
 pub fn write_lockfile(project: &Project, lock: &Lockfile) -> anyhow::Result<()> {
-    let temp_path = sibling_temp_path(&project.lockfile_path);
-    let mut temp = std::fs::File::create(&temp_path)
-        .with_context(|| format!("creating `{}`", temp_path.display()))?;
+    let dir = project
+        .lockfile_path
+        .parent()
+        .unwrap_or_else(|| Path::new("."));
+    let mut temp = tempfile::NamedTempFile::new_in(dir)
+        .with_context(|| format!("creating a temporary file in `{}`", dir.display()))?;
     lock.write(&mut temp)
-        .with_context(|| format!("writing `{}`", temp_path.display()))?;
-    std::fs::rename(&temp_path, &project.lockfile_path).with_context(|| {
-        format!(
-            "renaming `{}` to `{}`",
-            temp_path.display(),
-            project.lockfile_path.display()
-        )
-    })?;
+        .with_context(|| format!("writing `{}`", temp.path().display()))?;
+    temp.persist(&project.lockfile_path)
+        .with_context(|| format!("replacing `{}`", project.lockfile_path.display()))?;
     Ok(())
 }
 
@@ -352,11 +350,13 @@ pub fn write_manifest_value(path: &Path, value: &serde_json::Value) -> anyhow::R
     bytes.push(b'\n');
     Manifest::parse(&bytes).with_context(|| format!("parsing `{}`", path.display()))?;
 
-    let temp_path = sibling_temp_path(path);
-    std::fs::write(&temp_path, &bytes)
-        .with_context(|| format!("writing `{}`", temp_path.display()))?;
-    std::fs::rename(&temp_path, path)
-        .with_context(|| format!("renaming `{}` to `{}`", temp_path.display(), path.display()))?;
+    let dir = path.parent().unwrap_or_else(|| Path::new("."));
+    let mut temp = tempfile::NamedTempFile::new_in(dir)
+        .with_context(|| format!("creating a temporary file in `{}`", dir.display()))?;
+    std::io::Write::write_all(&mut temp, &bytes)
+        .with_context(|| format!("writing `{}`", temp.path().display()))?;
+    temp.persist(path)
+        .with_context(|| format!("replacing `{}`", path.display()))?;
     Ok(())
 }
 
@@ -803,15 +803,6 @@ fn selector_detail(selector: &str) -> String {
 
 fn short_commit(commit: &str) -> &str {
     &commit[..7.min(commit.len())]
-}
-
-/// Returns a sibling temporary path used for atomic rewrite + rename.
-fn sibling_temp_path(path: &Path) -> PathBuf {
-    let file_name = path
-        .file_name()
-        .and_then(|n| n.to_str())
-        .unwrap_or("module.json");
-    path.with_file_name(format!("{file_name}.tmp"))
 }
 
 #[cfg(test)]
