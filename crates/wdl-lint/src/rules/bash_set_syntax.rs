@@ -19,7 +19,6 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::CommandSection;
@@ -261,13 +260,13 @@ impl BashSetSyntax {
                     if is_interactive_only {
                         diagnostics.exceptable_add(
                             interactive_only(opt_name_span, &format!("{mode}{opt}")),
-                            SyntaxElement::from(section.inner().clone()),
+                            section.inner(),
                             &self.exceptable_nodes(),
                         );
                     } else {
                         diagnostics.exceptable_add(
                             unknown_option(opt_name_span, &format!("{mode}{opt}")),
-                            SyntaxElement::from(section.inner().clone()),
+                            section.inner(),
                             &self.exceptable_nodes(),
                         );
                     }
@@ -523,7 +522,7 @@ impl Visitor for BashSetSyntax {
         let Some(CommandPart::Text(first_chunk)) = section.parts().next() else {
             diagnostics.exceptable_add(
                 missing_set(section.span()),
-                SyntaxElement::from(section.inner().clone()),
+                section.inner(),
                 &self.exceptable_nodes(),
             );
             return;
@@ -552,7 +551,7 @@ impl Visitor for BashSetSyntax {
                     let set_span = Span::new(line_start, parsed_length);
                     diagnostics.exceptable_add(
                         bad_set_syntax(set_span, &self.expected_options, &self.ideal_command()),
-                        SyntaxElement::from(section.inner().clone()),
+                        section.inner(),
                         &self.exceptable_nodes(),
                     );
                 }
@@ -565,7 +564,7 @@ impl Visitor for BashSetSyntax {
 
         diagnostics.exceptable_add(
             missing_set(section.span()),
-            SyntaxElement::from(section.inner().clone()),
+            section.inner(),
             &self.exceptable_nodes(),
         );
     }
