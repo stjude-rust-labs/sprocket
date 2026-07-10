@@ -211,23 +211,21 @@ pub(crate) fn populate_document(
     let mut import_nodes_by_namespace = HashMap::new();
     for item in ast.items() {
         match item {
-            DocumentItem::Import(import) => {
-                if let Some((ns, _span)) = import.namespace() {
-                    import_nodes_by_namespace.insert(ns, import.inner().clone());
-                }
-
-                match import.form() {
-                    ImportForm::Namespace => {
-                        add_namespace(document, graph, &import, index);
-                    }
-                    ImportForm::Wildcard => {
-                        add_wildcard_import(document, graph, &import, index);
-                    }
-                    ImportForm::Selected => {
-                        add_selected_import(document, graph, &import, index);
+            DocumentItem::Import(import) => match import.form() {
+                ImportForm::Namespace => {
+                    if add_namespace(document, graph, &import, index)
+                        && let Some((ns, _span)) = import.namespace()
+                    {
+                        import_nodes_by_namespace.insert(ns, import.inner().clone());
                     }
                 }
-            }
+                ImportForm::Wildcard => {
+                    add_wildcard_import(document, graph, &import, index);
+                }
+                ImportForm::Selected => {
+                    add_selected_import(document, graph, &import, index);
+                }
+            },
             DocumentItem::Struct(s) => {
                 add_struct(document, &s);
             }
@@ -283,12 +281,15 @@ pub(crate) fn populate_document(
 }
 
 /// Adds a namespace to the document.
+///
+/// Returns `true` if the namespace was added, otherwise a diagnostic was
+/// emitted.
 fn add_namespace(
     document: &mut DocumentData,
     graph: &DocumentGraph,
     import: &ImportStatement,
     importer_index: NodeIndex,
-) {
+) -> bool {
     // Start by resolving the import to its document
     let (uri, imported) = match resolve_import(graph, import, importer_index) {
         Ok(resolved) => resolved,
@@ -297,9 +298,9 @@ fn add_namespace(
             if let Some((ns, _)) = import.namespace() {
                 document.failed_imports.insert(ns, import.source().span());
             }
-            return;
+            return false;
         }
-        Err(None) => return,
+        Err(None) => return false,
     };
 
     let span = import.source().span();
@@ -318,7 +319,7 @@ fn add_namespace(
                         prev_span,
                         import.explicit_namespace().is_none(),
                     ));
-                    return;
+                    return false;
                 }
                 None => {
                     document.namespaces.insert(
@@ -336,11 +337,12 @@ fn add_namespace(
         None => {
             // Invalid import namespaces are caught during validation, so there is already a
             // diagnostic for this issue; ignore the import here
-            return;
+            return false;
         }
     };
 
     // Get the alias map for the namespace (for structs)
+    let mut failed = false;
     let aliases = import
         .aliases()
         .filter_map(|a| {
@@ -349,6 +351,7 @@ fn add_namespace(
                 document
                     .analysis_diagnostics
                     .add(struct_not_in_document(&from));
+                failed = true;
                 return None;
             }
 
@@ -386,6 +389,7 @@ fn add_namespace(
                             !aliased,
                         ));
                     }
+                    failed = true;
                     continue;
                 }
             }
@@ -446,6 +450,7 @@ fn add_namespace(
                             !aliased,
                         ));
                     }
+                    failed = true;
                     continue;
                 }
             }
@@ -464,6 +469,8 @@ fn add_namespace(
             }
         }
     }
+
+    !failed
 }
 
 /// Compares two structs for structural equality.

@@ -564,8 +564,7 @@ pub struct MeaninglessLintDirective(Severity);
 
 impl MeaninglessLintDirective {
     /// See [`Self::exceptable_nodes()`].
-    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> =
-        Some(&[SyntaxKind::VersionStatementNode]);
+    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> = None;
     /// The rule identifier for meaningless lint directive warnings.
     pub const ID: &str = "MeaninglessLintDirective";
 

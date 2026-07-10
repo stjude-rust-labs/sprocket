@@ -33,6 +33,7 @@
 use std::collections::HashSet;
 use std::fmt;
 use std::hash::Hash;
+use std::str::FromStr;
 
 pub use rowan::Direction;
 use rowan::NodeOrToken;
@@ -666,6 +667,35 @@ pub struct ExceptRule {
     pub span: Span,
 }
 
+impl ExceptRule {
+    /// Find the node that this exception comment targets.
+    pub fn target_node(&self, document: &Document) -> Option<SyntaxNode> {
+        let comment = document.inner().descendants_with_tokens().find_map(|d| {
+            let token = d.into_token()?;
+            let comment = Comment::cast(token)?;
+            if comment.kind() == CommentKind::Directive(DirectiveKind::Except)
+                && self.span.within(comment.span())
+            {
+                Some(comment)
+            } else {
+                None
+            }
+        });
+
+        comment.and_then(|c| {
+            c.inner()
+                .siblings_with_tokens(Direction::Next)
+                .find_map(|sibling| {
+                    if let SyntaxElement::Node(node) = sibling {
+                        Some(node)
+                    } else {
+                        None
+                    }
+                })
+        })
+    }
+}
+
 /// A comment directive for WDL tools to respect.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Directive {
@@ -674,6 +704,13 @@ pub enum Directive {
 }
 
 impl Directive {
+    /// The type of this directive.
+    pub fn kind(&self) -> DirectiveKind {
+        match self {
+            Self::Except(_) => DirectiveKind::Except,
+        }
+    }
+
     /// Consume this `Directive` and return a set of [`ExceptRule`] if it is
     /// [`Directive::Except`].
     pub fn into_except(self) -> Option<HashSet<ExceptRule>> {
@@ -690,9 +727,27 @@ pub enum CommentKind {
     Line,
     /// The comment is a [`Directive`] (starts with
     /// [`DIRECTIVE_COMMENT_PREFIX`]).
-    Directive,
+    Directive(DirectiveKind),
     /// The comment is a doc comment (starts with [`DOC_COMMENT_PREFIX`]).
     Documentation,
+}
+
+/// The type of a [`Directive`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum DirectiveKind {
+    /// The comment is an `except` directive.
+    Except,
+}
+
+impl FromStr for DirectiveKind {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "except" => Ok(Self::Except),
+            _ => Err(()),
+        }
+    }
 }
 
 /// The prefix for doc comments.
@@ -719,18 +774,29 @@ impl<T: TreeToken> AstToken<T> for Comment<T> {
     }
 }
 
+/// Split a directive comment into its [`DirectiveKind`] and contents.
+///
+/// This takes the entire comment text.
+fn split_directive(comment: &str) -> Option<(DirectiveKind, &str)> {
+    let s = comment.strip_prefix(DIRECTIVE_COMMENT_PREFIX)?;
+    let (directive, contents) = s.trim().split_once(DIRECTIVE_DELIMITER)?;
+    Some((
+        DirectiveKind::from_str(directive.trim_end()).ok()?,
+        contents,
+    ))
+}
+
 impl Comment {
     /// Try to parse the comment as a directive.
     pub fn directive(&self) -> Option<Directive> {
         let text = self.text();
         let mut offset = self.span().start();
 
-        let s = text.strip_prefix(DIRECTIVE_COMMENT_PREFIX)?;
-        let (directive, contents) = s.trim().split_once(DIRECTIVE_DELIMITER)?;
+        let (kind, contents) = split_directive(text)?;
         offset += text.len() - contents.len();
 
-        match directive.trim_end() {
-            "except" => Some(Directive::Except(HashSet::from_iter(
+        match kind {
+            DirectiveKind::Except => Some(Directive::Except(HashSet::from_iter(
                 contents.split(',').filter_map(|original_id| {
                     let trimmed = original_id.trim();
                     if trimmed.is_empty() {
@@ -746,16 +812,16 @@ impl Comment {
                     Some(ExceptRule { name, span })
                 }),
             ))),
-            _ => None,
         }
     }
 
     /// The type of comment.
     pub fn kind(&self) -> CommentKind {
-        if self.text().starts_with(DOC_COMMENT_PREFIX) {
+        let text = self.text();
+        if text.starts_with(DOC_COMMENT_PREFIX) {
             return CommentKind::Documentation;
-        } else if self.text().starts_with(DIRECTIVE_COMMENT_PREFIX) {
-            return CommentKind::Directive;
+        } else if let Some((kind, _)) = split_directive(text) {
+            return CommentKind::Directive(kind);
         }
 
         CommentKind::Line

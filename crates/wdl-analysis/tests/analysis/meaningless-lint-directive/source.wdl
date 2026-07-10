@@ -37,3 +37,28 @@ workflow calculate {
         Boolean result_exists = exists2
     }
 }
+
+# It can also be suppressed at any level
+#@ except: MeaninglessLintDirective
+task suppressed {
+    input {
+        #@ except: UnusedInput
+        String definitely_used
+    }
+
+    command <<<
+        echo "~{definitely_used}"
+    >>>
+}
+
+task suppressed2 {
+    #@ except: MeaninglessLintDirective
+    input {
+        #@ except: UnusedInput
+        String definitely_used
+    }
+
+    command <<<
+        echo "~{definitely_used}"
+    >>>
+}

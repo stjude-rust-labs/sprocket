@@ -3,13 +3,10 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
-use rowan::Direction;
 use strsim::levenshtein;
 use wdl_ast::AstNode;
-use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
-use wdl_ast::Directive;
 use wdl_ast::ExceptRule;
 use wdl_ast::SupportedVersion;
 use wdl_ast::TreeNode;
@@ -17,14 +14,12 @@ use wdl_ast::VersionStatement;
 use wdl_ast::Whitespace;
 use wdl_ast::v1;
 use wdl_grammar::Severity;
-use wdl_grammar::Span;
-use wdl_grammar::SyntaxElement;
 use wdl_grammar::SyntaxKind;
 
 use crate::ALL_RULE_IDS;
 use crate::Config;
 use crate::Exceptable;
-use crate::KnownRulesRule;
+use crate::MeaninglessLintDirective;
 use crate::VisitReason;
 use crate::Visitor;
 use crate::diagnostics::meaningless_lint_directive;
@@ -35,6 +30,7 @@ mod env;
 mod exprs;
 mod imports;
 mod keys;
+mod known_rules;
 mod numbers;
 mod requirements;
 mod strings;
@@ -60,21 +56,6 @@ pub fn find_nearest_rule<'a>(
         .filter(|(_, distance)| *distance <= threshold)
         .min_by_key(|(_, distance)| *distance)
         .map(|(rule_id, _)| rule_id.to_string())
-}
-
-/// Creates an "unknown rule" diagnostic.
-fn unknown_rule(id: &str, nearest_rule: Option<String>, span: Span) -> Diagnostic {
-    let mut diagnostic = Diagnostic::note(format!("unknown rule `{id}`"))
-        .with_rule(KnownRulesRule::ID)
-        .with_label("cannot make an exception for this rule", span);
-
-    if let Some(nearest_rule) = nearest_rule {
-        diagnostic = diagnostic.with_fix(format!("did you mean `{nearest_rule}`?"));
-    } else {
-        diagnostic = diagnostic.with_fix("remove the unknown rule from the exception list");
-    }
-
-    diagnostic
 }
 
 /// Represents a collection of validation diagnostics.
@@ -193,8 +174,8 @@ impl From<Diagnostics> for Vec<Diagnostic> {
 pub struct Validator {
     /// The set of validation visitors.
     visitors: Vec<Box<dyn Visitor>>,
-    /// All rules known by the visitors.
-    known_rules: HashSet<String>,
+    /// The known rules visitor.
+    known_rules: known_rules::KnownRules,
 }
 
 impl Validator {
@@ -203,7 +184,7 @@ impl Validator {
         Self {
             visitors: Vec::new(),
             // Analysis rules are always known
-            known_rules: ALL_RULE_IDS.iter().cloned().collect(),
+            known_rules: known_rules::KnownRules::new(ALL_RULE_IDS.iter().cloned().collect()),
         }
     }
 
@@ -235,7 +216,12 @@ impl Validator {
     ///
     /// Any unmarked comments, with exception to the special cases below, will
     /// be reported as `MeaninglessLintDirective`s.
-    fn check_meaningless_lint_directives(&self, diagnostics: &mut Diagnostics, severity: Severity) {
+    fn check_meaningless_lint_directives(
+        &self,
+        document: &Document,
+        diagnostics: &mut Diagnostics,
+        severity: Severity,
+    ) {
         let mut meaningless_lint_directives = Diagnostics::default();
 
         let visitor_known_rules = self.known_rules();
@@ -250,27 +236,33 @@ impl Validator {
                 // Unfortunately, somewhat hacky since `ExceptDirectiveValid` comes from
                 // `wdl-lint`
                 if d.rule() == Some("ExceptDirectiveValid") {
-                    d.labels().next()
+                    d.labels().next().map(|l| l.span())
                 } else {
                     None
                 }
             })
             .collect::<Vec<_>>();
+
         for (exception, applied) in &diagnostics.exceptions {
             if *applied
                 // Try not to clash with `ExceptDirectiveValid`
-                || invalid_directives.iter().any(|label| label.span() == exception.span)
+                || invalid_directives.contains(&exception.span)
                 // If none of the visitors know the rule, it can't ever fire
                 || (!ALL_RULE_IDS.iter().any(|r| r == &exception.name) && !visitor_known_rules.contains(&exception.name))
             {
                 continue;
             }
 
-            meaningless_lint_directives.add(meaningless_lint_directive(
-                &exception.name,
-                exception.span,
-                severity,
-            ));
+            let diagnostic = meaningless_lint_directive(&exception.name, exception.span, severity);
+            if let Some(target) = exception.target_node(&document.root()) {
+                meaningless_lint_directives.exceptable_add(
+                    diagnostic,
+                    &target,
+                    &MeaninglessLintDirective::EXCEPTABLE_NODES,
+                );
+            } else {
+                meaningless_lint_directives.add(diagnostic);
+            }
         }
 
         diagnostics.extend(meaningless_lint_directives.diagnostics);
@@ -292,7 +284,7 @@ impl Validator {
             .diagnostics_config()
             .meaningless_lint_directive
         {
-            self.check_meaningless_lint_directives(&mut diagnostics, severity);
+            self.check_meaningless_lint_directives(document, &mut diagnostics, severity);
         }
 
         self.reset();
@@ -308,7 +300,10 @@ impl Validator {
     /// Finds the nearest known rule ID to the given unknown rule ID,
     /// or `None` if no rule ID is close enough.
     pub fn find_nearest_rule(&self, unknown_rule_id: &str) -> Option<String> {
-        find_nearest_rule(self.known_rules.iter().map(String::as_str), unknown_rule_id)
+        find_nearest_rule(
+            self.known_rules.known_rules().iter().map(String::as_str),
+            unknown_rule_id,
+        )
     }
 }
 
@@ -347,6 +342,7 @@ impl Visitor for Validator {
     }
 
     fn reset(&mut self) {
+        self.known_rules.reset();
         for visitor in self.visitors.iter_mut() {
             visitor.reset();
         }
@@ -359,6 +355,7 @@ impl Visitor for Validator {
         doc: &Document,
         version: SupportedVersion,
     ) {
+        self.known_rules.document(diagnostics, reason, doc, version);
         for visitor in self.visitors.iter_mut() {
             visitor.document(diagnostics, reason, doc, version);
         }
@@ -371,37 +368,7 @@ impl Visitor for Validator {
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
-        if let Some(Directive::Except(except)) = comment.directive() {
-            for rule in except {
-                if self.known_rules.contains(&rule.name) {
-                    continue;
-                }
-
-                let diagnostic =
-                    unknown_rule(&rule.name, self.find_nearest_rule(&rule.name), rule.span);
-
-                if let Some(target) = comment
-                    .inner()
-                    .siblings_with_tokens(Direction::Next)
-                    .find_map(|sibling| {
-                        if let SyntaxElement::Node(node) = sibling {
-                            Some(node)
-                        } else {
-                            None
-                        }
-                    })
-                {
-                    diagnostics.exceptable_add(
-                        diagnostic,
-                        &target,
-                        &KnownRulesRule::EXCEPTABLE_NODES,
-                    );
-                } else {
-                    diagnostics.add(diagnostic);
-                }
-            }
-        }
-
+        self.known_rules.comment(diagnostics, comment);
         for visitor in self.visitors.iter_mut() {
             visitor.comment(diagnostics, comment);
         }
