@@ -82,3 +82,14 @@ def test_document_error() -> None:
 
     assert diagnostic.severity is Severity.ERROR
     assert "missing version statement" in diagnostic.message
+
+
+def test_document_uses_fallback_version_for_unsupported_version() -> None:
+    source = """\
+version 999.0
+
+workflow test {}
+"""
+    events, [] = document(source, SupportedVersion.V1(V1.ZERO))
+
+    assert Event.NodeStarted(SyntaxKind.WORKFLOW_DEFINITION_NODE, None) in events
