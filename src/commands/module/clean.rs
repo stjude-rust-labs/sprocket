@@ -50,13 +50,11 @@ pub async fn cache(command: CacheCommands, config: Config, colorize: bool) -> Co
 /// Runs `sprocket module cache clean`.
 pub async fn clean(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     tracing::trace!(all = args.all, "starting `sprocket module cache clean`");
-    let project = discover(&args.locator)?;
-    trace_project("module cache clean", &project);
     let cache_root = config
         .modules
         .cache_path
         .clone()
-        .unwrap_or_else(|| crate::analysis::default_cache_root(project.manifest_path.parent()));
+        .unwrap_or_else(crate::analysis::default_cache_root);
 
     tracing::debug!(
         cache = %cache_root.display(),
@@ -78,6 +76,8 @@ pub async fn clean(args: Args, config: Config, colorize: bool) -> CommandResult<
         return Ok(());
     }
 
+    let project = discover(&args.locator)?;
+    trace_project("module cache clean", &project);
     let lock = load_lockfile(&project)?
         .ok_or_else(|| anyhow::anyhow!("no `module-lock.json`; run `sprocket module lock`"))?;
     let module = Module::new(project.manifest.clone(), project.root.clone());

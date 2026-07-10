@@ -272,18 +272,17 @@ pub fn load_lockfile(project: &Project) -> anyhow::Result<Option<Lockfile>> {
 /// Builds a Git resolver configured for module porcelain commands.
 pub fn build_resolver(
     config: &Config,
-    project: &Project,
+    _project: &Project,
     lockfile: Lockfile,
 ) -> anyhow::Result<GitResolver> {
-    let manifest_dir = project.manifest_path.parent();
     let configured_cache = config.modules.cache_path.is_some();
     let cache_root = config
         .modules
         .cache_path
         .clone()
-        .unwrap_or_else(|| crate::analysis::default_cache_root(manifest_dir));
+        .unwrap_or_else(crate::analysis::default_cache_root);
 
-    let trust_path = crate::analysis::default_trust_path(manifest_dir);
+    let trust_path = crate::analysis::default_trust_path();
     tracing::info!(
         cache = %cache_root.display(),
         configured = configured_cache,
@@ -470,7 +469,7 @@ pub(crate) async fn resolve_relock_for_manifest(
     colorize: bool,
 ) -> anyhow::Result<RelockOutcome> {
     let plan = resolve_relock_plan(config, project, manifest).await?;
-    let trust_path = crate::analysis::default_trust_path(project.manifest_path.parent());
+    let trust_path = crate::analysis::default_trust_path();
     enforce_signer_trust(
         &trust_path,
         &plan.existing,
@@ -514,14 +513,14 @@ pub(crate) async fn resolve_relock_plan(
 
 /// Enforces signer-change policy for an existing and refreshed lockfile.
 pub(crate) fn enforce_lockfile_signer_policy(
-    project: &Project,
+    _project: &Project,
     existing: &Lockfile,
     new: &Lockfile,
     identities: &SignerIdentityMap,
     mode: SignerChangeMode,
     colorize: bool,
 ) -> anyhow::Result<()> {
-    let trust_path = crate::analysis::default_trust_path(project.manifest_path.parent());
+    let trust_path = crate::analysis::default_trust_path();
     enforce_signer_trust(&trust_path, existing, new, identities, mode, colorize)
 }
 

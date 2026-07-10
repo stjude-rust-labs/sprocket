@@ -1818,36 +1818,15 @@ fn verify_reports_all_untrusted_modules_at_once() {
 #[test]
 fn trust_add_accepts_multiple_keys() {
     let dir = tempfile::tempdir().unwrap();
-    let manifest_path = dir.path().join("module.json");
-    fs::write(
-        &manifest_path,
-        r#"{
-  "name": "consumer",
-  "license": "MIT",
-  "entrypoint": "index.wdl"
-}
-"#,
-    )
-    .unwrap();
-    fs::write(dir.path().join("index.wdl"), "version 1.2\n").unwrap();
 
     let key_a = generate_openssh_ed25519_public_key();
     let key_b = generate_openssh_ed25519_public_key();
-    let manifest_path_arg = manifest_path.to_string_lossy().into_owned();
 
-    let add = sprocket(&[
-        "module",
-        "trust",
-        "add",
-        &key_a,
-        &key_b,
-        "--manifest-path",
-        &manifest_path_arg,
-    ])
-    .current_dir(dir.path())
-    .env("HOME", dir.path())
-    .output()
-    .expect("failed to run sprocket module trust add");
+    let add = sprocket(&["module", "trust", "add", &key_a, &key_b])
+        .current_dir(dir.path())
+        .env("HOME", dir.path())
+        .output()
+        .expect("failed to run sprocket module trust add");
     assert!(
         add.status.success(),
         "command failed {status}: {stderr}",
@@ -1855,17 +1834,11 @@ fn trust_add_accepts_multiple_keys() {
         stderr = String::from_utf8_lossy(&add.stderr)
     );
 
-    let list = sprocket(&[
-        "module",
-        "trust",
-        "list",
-        "--manifest-path",
-        &manifest_path_arg,
-    ])
-    .current_dir(dir.path())
-    .env("HOME", dir.path())
-    .output()
-    .expect("failed to run sprocket module trust list");
+    let list = sprocket(&["module", "trust", "list"])
+        .current_dir(dir.path())
+        .env("HOME", dir.path())
+        .output()
+        .expect("failed to run sprocket module trust list");
     assert!(
         list.status.success(),
         "command failed {status}: {stderr}",
@@ -1875,6 +1848,38 @@ fn trust_add_accepts_multiple_keys() {
     let stdout = String::from_utf8_lossy(&list.stdout);
     assert!(stdout.contains(&key_a));
     assert!(stdout.contains(&key_b));
+}
+
+#[test]
+fn trust_commands_work_outside_a_module() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = isolated_home(dir.path(), "home-global-trust");
+    let mut command = sprocket(&["module", "trust", "list"]);
+    command.current_dir(dir.path());
+    use_home(&mut command, &home);
+    let output = command.output().expect("failed to run sprocket");
+    assert!(
+        output.status.success(),
+        "trust list should not require a `module.json`: {stderr}",
+        stderr = String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("no trusted keys"));
+}
+
+#[test]
+fn cache_clean_all_works_outside_a_module() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = isolated_home(dir.path(), "home-global-cache");
+    let mut command = sprocket(&["module", "cache", "clean", "--all"]);
+    command.current_dir(dir.path());
+    use_home(&mut command, &home);
+    let output = command.output().expect("failed to run sprocket");
+    assert!(
+        output.status.success(),
+        "cache clean --all should not require a `module.json`: {stderr}",
+        stderr = String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Removed 0 cached modules"));
 }
 
 #[test]
@@ -2326,34 +2331,14 @@ fn sign_without_default_key_errors_with_guidance() {
 #[test]
 fn trust_add_then_list_shows_entry() {
     let dir = tempfile::tempdir().unwrap();
-    let manifest_path = dir.path().join("module.json");
-    fs::write(
-        &manifest_path,
-        r#"{
-  "name": "consumer",
-  "license": "MIT",
-  "entrypoint": "index.wdl"
-}
-"#,
-    )
-    .unwrap();
-    fs::write(dir.path().join("index.wdl"), "version 1.2\n").unwrap();
 
     let pub_key = generate_openssh_ed25519_public_key();
 
-    let manifest_path_arg = manifest_path.to_string_lossy().into_owned();
-    let add = sprocket(&[
-        "module",
-        "trust",
-        "add",
-        &pub_key,
-        "--manifest-path",
-        &manifest_path_arg,
-    ])
-    .current_dir(dir.path())
-    .env("HOME", dir.path())
-    .output()
-    .expect("failed to run sprocket module trust add");
+    let add = sprocket(&["module", "trust", "add", &pub_key])
+        .current_dir(dir.path())
+        .env("HOME", dir.path())
+        .output()
+        .expect("failed to run sprocket module trust add");
     assert!(
         add.status.success(),
         "command failed {status}: {stderr}",
@@ -2361,17 +2346,11 @@ fn trust_add_then_list_shows_entry() {
         stderr = String::from_utf8_lossy(&add.stderr)
     );
 
-    let list = sprocket(&[
-        "module",
-        "trust",
-        "list",
-        "--manifest-path",
-        &manifest_path_arg,
-    ])
-    .current_dir(dir.path())
-    .env("HOME", dir.path())
-    .output()
-    .expect("failed to run sprocket module trust list");
+    let list = sprocket(&["module", "trust", "list"])
+        .current_dir(dir.path())
+        .env("HOME", dir.path())
+        .output()
+        .expect("failed to run sprocket module trust list");
     assert!(
         list.status.success(),
         "command failed {status}: {stderr}",
@@ -2385,36 +2364,16 @@ fn trust_add_then_list_shows_entry() {
 #[test]
 fn trust_remove_drops_entry() {
     let dir = tempfile::tempdir().unwrap();
-    let manifest_path = dir.path().join("module.json");
-    fs::write(
-        &manifest_path,
-        r#"{
-  "name": "consumer",
-  "license": "MIT",
-  "entrypoint": "index.wdl"
-}
-"#,
-    )
-    .unwrap();
-    fs::write(dir.path().join("index.wdl"), "version 1.2\n").unwrap();
 
     let pub_key_path = dir.path().join("id_ed25519.pub");
     fs::write(&pub_key_path, generate_openssh_ed25519_public_key()).unwrap();
 
-    let manifest_path_arg = manifest_path.to_string_lossy().into_owned();
     let pub_key_arg = pub_key_path.to_string_lossy().into_owned();
-    let add = sprocket(&[
-        "module",
-        "trust",
-        "add",
-        &pub_key_arg,
-        "--manifest-path",
-        &manifest_path_arg,
-    ])
-    .current_dir(dir.path())
-    .env("HOME", dir.path())
-    .output()
-    .expect("failed to run sprocket module trust add");
+    let add = sprocket(&["module", "trust", "add", &pub_key_arg])
+        .current_dir(dir.path())
+        .env("HOME", dir.path())
+        .output()
+        .expect("failed to run sprocket module trust add");
     assert!(
         add.status.success(),
         "command failed {status}: {stderr}",
@@ -2422,18 +2381,11 @@ fn trust_remove_drops_entry() {
         stderr = String::from_utf8_lossy(&add.stderr)
     );
 
-    let remove = sprocket(&[
-        "module",
-        "trust",
-        "remove",
-        &pub_key_arg,
-        "--manifest-path",
-        &manifest_path_arg,
-    ])
-    .current_dir(dir.path())
-    .env("HOME", dir.path())
-    .output()
-    .expect("failed to run sprocket module trust remove");
+    let remove = sprocket(&["module", "trust", "remove", &pub_key_arg])
+        .current_dir(dir.path())
+        .env("HOME", dir.path())
+        .output()
+        .expect("failed to run sprocket module trust remove");
     assert!(
         remove.status.success(),
         "command failed {status}: {stderr}",
@@ -2441,17 +2393,11 @@ fn trust_remove_drops_entry() {
         stderr = String::from_utf8_lossy(&remove.stderr)
     );
 
-    let list = sprocket(&[
-        "module",
-        "trust",
-        "list",
-        "--manifest-path",
-        &manifest_path_arg,
-    ])
-    .current_dir(dir.path())
-    .env("HOME", dir.path())
-    .output()
-    .expect("failed to run sprocket module trust list");
+    let list = sprocket(&["module", "trust", "list"])
+        .current_dir(dir.path())
+        .env("HOME", dir.path())
+        .output()
+        .expect("failed to run sprocket module trust list");
     assert!(
         list.status.success(),
         "command failed {status}: {stderr}",
@@ -2464,35 +2410,15 @@ fn trust_remove_drops_entry() {
 #[test]
 fn trust_destroy_clears_all_entries() {
     let dir = tempfile::tempdir().unwrap();
-    let manifest_path = dir.path().join("module.json");
-    fs::write(
-        &manifest_path,
-        r#"{
-  "name": "consumer",
-  "license": "MIT",
-  "entrypoint": "index.wdl"
-}
-"#,
-    )
-    .unwrap();
-    fs::write(dir.path().join("index.wdl"), "version 1.2\n").unwrap();
 
     let key_a = generate_openssh_ed25519_public_key();
     let key_b = generate_openssh_ed25519_public_key();
-    let manifest_path_arg = manifest_path.to_string_lossy().into_owned();
     for key in [&key_a, &key_b] {
-        let add = sprocket(&[
-            "module",
-            "trust",
-            "add",
-            key,
-            "--manifest-path",
-            &manifest_path_arg,
-        ])
-        .current_dir(dir.path())
-        .env("HOME", dir.path())
-        .output()
-        .expect("failed to run sprocket module trust add");
+        let add = sprocket(&["module", "trust", "add", key])
+            .current_dir(dir.path())
+            .env("HOME", dir.path())
+            .output()
+            .expect("failed to run sprocket module trust add");
         assert!(
             add.status.success(),
             "command failed {status}: {stderr}",
@@ -2501,17 +2427,11 @@ fn trust_destroy_clears_all_entries() {
         );
     }
 
-    let destroy = sprocket(&[
-        "module",
-        "trust",
-        "destroy",
-        "--manifest-path",
-        &manifest_path_arg,
-    ])
-    .current_dir(dir.path())
-    .env("HOME", dir.path())
-    .output()
-    .expect("failed to run sprocket module trust destroy");
+    let destroy = sprocket(&["module", "trust", "destroy"])
+        .current_dir(dir.path())
+        .env("HOME", dir.path())
+        .output()
+        .expect("failed to run sprocket module trust destroy");
     assert!(
         destroy.status.success(),
         "command failed {status}: {stderr}",
@@ -2520,17 +2440,11 @@ fn trust_destroy_clears_all_entries() {
     );
     assert!(String::from_utf8_lossy(&destroy.stdout).contains("Removed all trusted keys"));
 
-    let list = sprocket(&[
-        "module",
-        "trust",
-        "list",
-        "--manifest-path",
-        &manifest_path_arg,
-    ])
-    .current_dir(dir.path())
-    .env("HOME", dir.path())
-    .output()
-    .expect("failed to run sprocket module trust list");
+    let list = sprocket(&["module", "trust", "list"])
+        .current_dir(dir.path())
+        .env("HOME", dir.path())
+        .output()
+        .expect("failed to run sprocket module trust list");
     assert!(
         list.status.success(),
         "command failed {status}: {stderr}",

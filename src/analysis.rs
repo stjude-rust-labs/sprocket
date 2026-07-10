@@ -275,7 +275,7 @@ impl Default for Analysis {
 ///
 /// Precedence is `config_root/cache/modules`, then
 /// `dirs::cache_dir()/sprocket/modules`, then a CWD-relative fallback.
-pub(crate) fn default_cache_root(_manifest_dir: Option<&Path>) -> PathBuf {
+pub(crate) fn default_cache_root() -> PathBuf {
     if let Some(root) = crate::config::config_root() {
         return root.join("cache").join("modules");
     }
@@ -290,7 +290,7 @@ pub(crate) fn default_cache_root(_manifest_dir: Option<&Path>) -> PathBuf {
 /// Precedence is `config_root/modules-trust.toml`, then
 /// `dirs::config_dir()/sprocket/modules-trust.toml`, then a CWD-relative
 /// fallback.
-pub(crate) fn default_trust_path(_manifest_dir: Option<&Path>) -> PathBuf {
+pub(crate) fn default_trust_path() -> PathBuf {
     if let Some(root) = crate::config::config_root() {
         return root.join("modules-trust.toml");
     }
@@ -370,14 +370,12 @@ pub fn build_resolver(
         wdl_modules::Lockfile::default()
     };
 
-    let manifest_dir = manifest_path.parent();
-
     let cache_root = modules_config
         .cache_path
         .clone()
-        .unwrap_or_else(|| default_cache_root(manifest_dir));
+        .unwrap_or_else(default_cache_root);
 
-    let trust_path = default_trust_path(manifest_dir);
+    let trust_path = default_trust_path();
 
     let trust = wdl_modules::resolver::TrustStore::load_or_default(&trust_path)
         .with_context(|| format!("loading trust store at `{}`", trust_path.display()))?;
@@ -551,8 +549,6 @@ fn get_lint_visitor(
 
 #[cfg(test)]
 mod tests {
-    use std::path::Path;
-
     use super::Analysis;
     use super::Source;
     use super::default_cache_root;
@@ -565,55 +561,37 @@ mod tests {
 
     #[test]
     fn cache_root_uses_global_location() {
-        let dir = Path::new("/some/project");
-        let result = default_cache_root(Some(dir));
-        assert!(!result.starts_with(dir));
-        assert!(result.ends_with("cache/modules"));
-    }
-
-    #[test]
-    fn trust_path_uses_global_location() {
-        let dir = Path::new("/some/project");
-        let result = default_trust_path(Some(dir));
-        assert!(!result.starts_with(dir));
-        assert!(result.ends_with("modules-trust.toml"));
-    }
-
-    #[test]
-    fn cache_root_none_falls_back_to_os_or_string() {
-        let result = default_cache_root(None);
-        // The path always ends with `cache/modules` regardless of which
-        // fallback branch was taken.
+        let result = default_cache_root();
         assert!(
             result.ends_with("cache/modules"),
-            "`default_cache_root(None)` should end with `cache/modules`, got `{}`",
+            "`default_cache_root()` should end with `cache/modules`, got `{}`",
             result.display()
         );
         // When any OS/config dir is available the path must be absolute.
         if crate::config::config_root().is_some() || dirs::cache_dir().is_some() {
             assert!(
                 result.is_absolute(),
-                "`default_cache_root(None)` should be absolute, got `{}`",
+                "`default_cache_root()` should be absolute, got `{}`",
                 result.display()
             );
         }
     }
 
     #[test]
-    fn trust_path_none_falls_back_to_os_or_string() {
-        let result = default_trust_path(None);
+    fn trust_path_uses_global_location() {
+        let result = default_trust_path();
         let file_name = result.file_name().map(|n| n.to_string_lossy().into_owned());
         assert_eq!(
             file_name.as_deref(),
             Some("modules-trust.toml"),
-            "`default_trust_path(None)` should always end with `modules-trust.toml`, got `{}`",
+            "`default_trust_path()` should end with `modules-trust.toml`, got `{}`",
             result.display()
         );
         // Must not be CWD-relative when an OS config dir is available.
         if dirs::config_dir().is_some() {
             assert!(
                 result.is_absolute(),
-                "`default_trust_path(None)` should be absolute when `dirs::config_dir()` is \
+                "`default_trust_path()` should be absolute when `dirs::config_dir()` is \
                  available, got `{}`",
                 result.display()
             );
