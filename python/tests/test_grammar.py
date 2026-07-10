@@ -125,16 +125,16 @@ def test_syntax_kind_is_symbolic() -> None:
 def test_syntax_kind_describe() -> None:
     assert SyntaxKind.FLOAT.describe() == "float"
 
-    with pytest.raises(match="entered unreachable code"):
+    with pytest.raises(ValueError, match="cannot describe"):
         SyntaxKind.UNKNOWN.describe()
 
-    with pytest.raises(match="entered unreachable code"):
+    with pytest.raises(ValueError, match="cannot describe"):
         SyntaxKind.UNPARSED.describe()
 
-    with pytest.raises(match="entered unreachable code"):
+    with pytest.raises(ValueError, match="cannot describe"):
         SyntaxKind.ABANDONED.describe()
 
-    with pytest.raises(match="entered unreachable code"):
+    with pytest.raises(ValueError, match="cannot describe"):
         SyntaxKind.MAX.describe()
 
 

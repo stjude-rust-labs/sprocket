@@ -917,6 +917,7 @@ impl SyntaxTokenExt for SyntaxToken {
 /// Python-specific APIs.
 #[cfg(feature = "unstable-python")]
 mod python {
+    use pyo3::exceptions::PyValueError;
     use pyo3::prelude::*;
 
     use super::*;
@@ -934,9 +935,21 @@ mod python {
         }
 
         /// Describes the syntax kind.
+        ///
+        /// # Errors
+        ///
+        /// This method will throw `ValueError` if the `SyntaxKind` is symbolic
+        /// (when `SyntaxKind.is_symbolic()` returns true).
         #[pyo3(name = "describe")]
-        fn py_describe(&self) -> &'static str {
-            self.describe()
+        fn py_describe(&self) -> PyResult<&'static str> {
+            if self.is_symbolic() {
+                return Err(PyValueError::new_err(format!(
+                    "cannot describe symbolic syntax kind: {}",
+                    self.__pyo3__repr__()
+                )));
+            }
+
+            Ok(self.describe())
         }
 
         /// Returns whether the `SyntaxKind` is trivia.
