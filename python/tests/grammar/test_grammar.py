@@ -81,4 +81,4 @@ def test_document_error() -> None:
     ]
 
     assert diagnostic.severity is Severity.ERROR
-    assert "must start with a version statement" in diagnostic.message
+    assert "missing version statement" in diagnostic.message
