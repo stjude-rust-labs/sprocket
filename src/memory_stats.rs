@@ -32,6 +32,7 @@ fn peak_memory_bytes() -> Option<u64> {
     // second argument and does not retain the pointer; a zeroed `rusage` is a
     // valid initial value. The return value is checked before the struct is
     // read.
+    // Ref: https://man7.org/linux/man-pages/man2/getrusage.2.html
     let max_rss = unsafe {
         let mut usage = std::mem::zeroed::<libc::rusage>();
         if libc::getrusage(libc::RUSAGE_SELF, &mut usage) != 0 {
@@ -42,6 +43,8 @@ fn peak_memory_bytes() -> Option<u64> {
 
     // `ru_maxrss` is reported in bytes on macOS but in kibibytes on Linux and
     // the BSDs.
+    // Ref (Linux, KiB): https://man7.org/linux/man-pages/man2/getrusage.2.html
+    // Ref (macOS, bytes): https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/getrusage.2.html
     #[cfg(target_os = "macos")]
     {
         Some(max_rss)
@@ -65,6 +68,8 @@ fn peak_memory_bytes() -> Option<u64> {
     // value pointed to by the second argument; `cb` is the size of the value we
     // allocate here. The current-process pseudo-handle is always valid, and the
     // counters are only read after the call reports success (a nonzero return).
+    // Ref: https://learn.microsoft.com/en-us/windows/win32/api/psapi/nf-psapi-getprocessmemoryinfo
+    // Ref: https://learn.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-getcurrentprocess
     unsafe {
         let mut counters = PROCESS_MEMORY_COUNTERS::default();
         let cb = std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32;
