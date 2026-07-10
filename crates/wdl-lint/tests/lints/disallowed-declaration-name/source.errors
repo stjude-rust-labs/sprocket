@@ -1,3 +1,11 @@
+note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:10:16
+   │
+10 │     #@ except: SnakeCase
+   │                ^^^^^^^^^ update this `except` directive
+   │
+   = fix: replace `SnakeCase` with `NamingConvention`
+
 note[DeclarationName]: declaration identifier 'arrayData' contains type name 'Array'
    ┌─ tests/lints/disallowed-declaration-name/source.wdl:13:20
    │
@@ -5,6 +13,14 @@ note[DeclarationName]: declaration identifier 'arrayData' contains type name 'Ar
    │                    ^^^^^^^^^
    │
    = fix: rename the identifier to not include the type name
+
+warning[NamingConvention]: input name `arrayData` is not snake_case
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:13:20
+   │
+13 │         Array[Int] arrayData
+   │                    ^^^^^^^^^ this name must be snake_case
+   │
+   = fix: replace `arrayData` with `array_data`
 
 note[DeclarationName]: declaration identifier 'bool_flag' contains type name 'Bool'
    ┌─ tests/lints/disallowed-declaration-name/source.wdl:14:17
@@ -21,6 +37,14 @@ note[DeclarationName]: declaration identifier 'floatNumber' contains type name '
    │               ^^^^^^^^^^^
    │
    = fix: rename the identifier to not include the type name
+
+warning[NamingConvention]: input name `floatNumber` is not snake_case
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:15:15
+   │
+15 │         Float floatNumber
+   │               ^^^^^^^^^^^ this name must be snake_case
+   │
+   = fix: replace `floatNumber` with `float_number`
 
 note[DeclarationName]: declaration identifier 'my_int' contains type name 'Int'
    ┌─ tests/lints/disallowed-declaration-name/source.wdl:16:13
@@ -45,6 +69,22 @@ note[DeclarationName]: declaration identifier 'reference_directory' contains typ
    │                   ^^^^^^^^^^^^^^^^^^^
    │
    = fix: rename the identifier to not include the type name
+
+warning[NamingConvention]: input name `Interval` is not snake_case
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:22:14
+   │
+22 │         File Interval
+   │              ^^^^^^^^ this name must be snake_case
+   │
+   = fix: replace `Interval` with `interval`
+
+warning[NamingConvention]: input name `nameString` is not snake_case
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:25:16
+   │
+25 │         String nameString
+   │                ^^^^^^^^^^ this name must be snake_case
+   │
+   = fix: replace `nameString` with `name_string`
 
 note[DeclarationName]: declaration identifier 'count_int' contains type name 'Int'
    ┌─ tests/lints/disallowed-declaration-name/source.wdl:30:9
@@ -78,6 +118,14 @@ warning[NamingConvention]: private declaration name `foo_bar_INT` is not snake_c
    │
    = fix: replace `foo_bar_INT` with `foo_bar_int`
 
+note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:43:16
+   │
+43 │     #@ except: SnakeCase
+   │                ^^^^^^^^^ update this `except` directive
+   │
+   = fix: replace `SnakeCase` with `NamingConvention`
+
 note[DeclarationName]: declaration identifier 'result_int' contains type name 'Int'
    ┌─ tests/lints/disallowed-declaration-name/source.wdl:46:13
    │
@@ -85,4 +133,12 @@ note[DeclarationName]: declaration identifier 'result_int' contains type name 'I
    │             ^^^^^^^^^^
    │
    = fix: rename the identifier to not include the type name
+
+warning[NamingConvention]: output name `resultString` is not snake_case
+   ┌─ tests/lints/disallowed-declaration-name/source.wdl:49:16
+   │
+49 │         String resultString = "result"
+   │                ^^^^^^^^^^^^ this name must be snake_case
+   │
+   = fix: replace `resultString` with `result_string`
 

@@ -54,3 +54,27 @@ warning[NamingConvention]: struct member name `x` is not PascalCase
    │
    = fix: replace `x` with `X`
 
+note[KnownRules]: deprecated rule `PascalCase`; replace it with `NamingConvention`
+   ┌─ tests/lints/pascal-case/source.wdl:21:12
+   │
+21 │ #@ except: PascalCase
+   │            ^^^^^^^^^^ update this `except` directive
+   │
+   = fix: replace `PascalCase` with `NamingConvention`
+
+warning[NamingConvention]: struct name `excepted_name` is not PascalCase
+   ┌─ tests/lints/pascal-case/source.wdl:22:8
+   │
+22 │ struct excepted_name {
+   │        ^^^^^^^^^^^^^ this name must be PascalCase
+   │
+   = fix: replace `excepted_name` with `ExceptedName`
+
+warning[NamingConvention]: struct member name `x` is not PascalCase
+   ┌─ tests/lints/pascal-case/source.wdl:23:9
+   │
+23 │     Int x
+   │         ^ this name must be PascalCase
+   │
+   = fix: replace `x` with `X`
+

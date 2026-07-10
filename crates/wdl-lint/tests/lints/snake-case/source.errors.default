@@ -62,3 +62,19 @@ warning[NamingConvention]: struct member name `bAdFiElD` is not PascalCase
    │
    = fix: replace `bAdFiElD` with `BAdFiElD`
 
+note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`
+   ┌─ tests/lints/snake-case/source.wdl:83:16
+   │
+83 │     #@ except: SnakeCase
+   │                ^^^^^^^^^ update this `except` directive
+   │
+   = fix: replace `SnakeCase` with `NamingConvention`
+
+warning[NamingConvention]: struct member name `OK` is not PascalCase
+   ┌─ tests/lints/snake-case/source.wdl:84:12
+   │
+84 │     String OK
+   │            ^^ this name must be PascalCase
+   │
+   = fix: replace `OK` with `Ok`
+

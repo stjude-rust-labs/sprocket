@@ -1,3 +1,11 @@
+note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`
+  ┌─ tests/lints/disallowed-input-name/source.wdl:3:47
+  │
+3 │ #@ except: EmptyOutputs, RequirementsSection, SnakeCase
+  │                                               ^^^^^^^^^ update this `except` directive
+  │
+  = fix: replace `SnakeCase` with `NamingConvention`
+
 note[InputName]: declaration identifier must be at least 3 characters
    ┌─ tests/lints/disallowed-input-name/source.wdl:18:14
    │
@@ -5,4 +13,12 @@ note[InputName]: declaration identifier must be at least 3 characters
    │              ^
    │
    = fix: rename the identifier to be at least 3 characters long
+
+warning[NamingConvention]: input name `inString` is not snake_case
+   ┌─ tests/lints/disallowed-input-name/source.wdl:19:16
+   │
+19 │         String inString  # This is not OK
+   │                ^^^^^^^^ this name must be snake_case
+   │
+   = fix: replace `inString` with `in_string`
 

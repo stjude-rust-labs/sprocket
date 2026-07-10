@@ -87,7 +87,7 @@ pub async fn analyzer(
         ServerOptions {
             name: "Sprocket".into(),
             version: env!("CARGO_PKG_VERSION").into(),
-            exceptions: args.except.iter().cloned().collect(),
+            exceptions: args.except.to_vec(),
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
             feature_flags: config.common.wdl.feature_flags,
             resolution_context,
