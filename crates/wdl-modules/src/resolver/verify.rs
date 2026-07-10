@@ -17,6 +17,7 @@ use crate::resolver::config::LargeFileWarning;
 use crate::resolver::error::ResolverError;
 use crate::resolver::policy::ResolverPolicy;
 use crate::resolver::trust::TrustStore;
+use crate::signing::SignerIdentity;
 use crate::signing::VerifyingKey;
 
 /// Walks every regular file under `root` using the shared safe
@@ -86,7 +87,16 @@ pub(crate) struct VerifiedModule {
     /// The module's content hash.
     pub checksum: ContentHash,
     /// The signer's public key, if the module was signed.
-    pub signer: Option<VerifyingKey>,
+    pub signer: Option<VerifiedSigner>,
+}
+
+/// Verified signer metadata extracted from `module.sig`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct VerifiedSigner {
+    /// The signer key found in `module.sig`.
+    pub key: VerifyingKey,
+    /// Optional signer identity found in `module.sig`.
+    pub identity: Option<SignerIdentity>,
 }
 
 /// Runs all verification checks on a materialized module root.
@@ -96,26 +106,120 @@ pub(crate) struct VerifiedModule {
 /// short-circuits on failure.
 pub(crate) fn verify(
     policy: &ResolverPolicy,
-    trust: &TrustStore,
+    _trust: &TrustStore,
     name: &DependencyName,
     module_root: &Path,
-    source_id: Option<(&str, Option<&str>)>,
+    _source_id: Option<(&str, Option<&str>)>,
 ) -> Result<VerifiedModule, ResolverError> {
     check_materialized_tree(policy, name, module_root)?;
+    check_quoted_imports(name, module_root)?;
     let checksum = crate::hash::hash_directory(module_root)?;
-    let signer = read_and_verify_signature(policy, trust, name, module_root, &checksum, source_id)?;
+    let signer = read_and_verify_signature(policy, name, module_root, &checksum)?;
     Ok(VerifiedModule { checksum, signer })
+}
+
+/// Validates a local path module's structure and resource limits
+/// without recording a checksum or verifying a signature.
+///
+/// Local path sources are read as-is and are not subject to checksum or
+/// signature verification (see the module specification's lockfile and
+/// signing sections), but they must still be structurally valid modules:
+/// no symbolic links, no reserved filenames outside the root, and within
+/// the configured resource limits. Hashing runs only to exercise those
+/// structural checks; the digest is discarded.
+pub(crate) fn verify_structure(
+    policy: &ResolverPolicy,
+    name: &DependencyName,
+    module_root: &Path,
+) -> Result<(), ResolverError> {
+    check_materialized_tree(policy, name, module_root)?;
+    check_quoted_imports(name, module_root)?;
+    crate::hash::hash_directory(module_root)?;
+    Ok(())
+}
+
+/// Validates that every quoted `import` in the module's `.wdl` files
+/// resolves to a location inside the module root.
+///
+/// A quoted import such as `import "../shared.wdl"` that escapes the
+/// module root makes the module invalid, even if the target exists.
+/// Imports that name an absolute URI (with a scheme) are not
+/// file-relative and are not subject to this check.
+///
+/// Each file is parsed with the WDL grammar and its actual import
+/// statements are inspected, so `import` appearing in a command block or
+/// after a definition cannot bypass the check. Files that fail to parse
+/// are skipped here; analysis reports their syntax errors separately.
+fn check_quoted_imports(name: &DependencyName, module_root: &Path) -> Result<(), ResolverError> {
+    // Symbolic links are already forbidden by the tree walk, so a
+    // lexical comparison of cleaned paths is sufficient; the walk yields
+    // paths under `module_root`, so the root is used as-is.
+    let root = path_clean::clean(module_root);
+
+    walk_module_tree(module_root, &mut |path: &Path, _size| {
+        if path.extension().and_then(|e| e.to_str()) != Some("wdl") {
+            return Ok(());
+        }
+        let contents = std::fs::read_to_string(path).map_err(|source| ResolverError::Io {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        let file_dir = path.parent().unwrap_or(&root);
+        for import in quoted_imports(&contents) {
+            // Absolute URIs (with a scheme) are not file-relative.
+            if url::Url::parse(&import).is_ok() {
+                continue;
+            }
+            let resolved = path_clean::clean(file_dir.join(&import));
+            if !resolved.starts_with(&root) {
+                let rel = path
+                    .strip_prefix(&root)
+                    .unwrap_or(path)
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                return Err(ResolverError::QuotedImportEscapesRoot {
+                    dep: name.manifest().to_string(),
+                    file: rel,
+                    import,
+                });
+            }
+        }
+        Ok(())
+    })?;
+    Ok(())
+}
+
+/// Extracts the target of each quoted (URI) `import` statement from WDL
+/// source by parsing it and walking the real import nodes.
+///
+/// Symbolic module-path imports are not quoted and are resolved through
+/// the module system, so they are ignored here. A file that does not
+/// parse yields no imports (analysis surfaces the syntax error).
+fn quoted_imports(source: &str) -> Vec<String> {
+    use wdl_ast::Ast;
+    use wdl_ast::Document;
+    use wdl_ast::v1::ImportSource;
+
+    let (document, _) = Document::parse(source, None);
+    let Ast::V1(ast) = document.ast() else {
+        return Vec::new();
+    };
+
+    ast.imports()
+        .filter_map(|import| match import.source() {
+            ImportSource::Uri(uri) => uri.text().map(|t| t.text().to_string()),
+            ImportSource::ModulePath(_) => None,
+        })
+        .collect()
 }
 
 /// Reads the signature file from `module_root` and verifies it.
 fn read_and_verify_signature(
     policy: &ResolverPolicy,
-    trust: &TrustStore,
     name: &DependencyName,
     module_root: &Path,
     checksum: &ContentHash,
-    source_id: Option<(&str, Option<&str>)>,
-) -> Result<Option<VerifyingKey>, ResolverError> {
+) -> Result<Option<VerifiedSigner>, ResolverError> {
     let sig_path = module_root.join(crate::SIGNATURE_FILENAME);
     let bytes = match std::fs::read(&sig_path) {
         Ok(b) => b,
@@ -145,17 +249,10 @@ fn read_and_verify_signature(
             dep: name.manifest().to_string(),
             signer: Box::new(sig.public_key),
         })?;
-    if let Some((source_url, source_path)) = source_id
-        && let Some(trusted) = trust.lookup(name, source_url, source_path)
-        && &sig.public_key != trusted
-    {
-        return Err(ResolverError::SignerKeyMismatch {
-            dep: name.manifest().to_string(),
-            expected: Box::new(*trusted),
-            observed: Box::new(sig.public_key),
-        });
-    }
-    Ok(Some(sig.public_key))
+    Ok(Some(VerifiedSigner {
+        key: sig.public_key,
+        identity: sig.identity,
+    }))
 }
 
 /// Checks a dependency's content hash and signer against the lockfile.
@@ -165,10 +262,12 @@ fn read_and_verify_signature(
 /// expectations.
 pub(crate) fn verify_against_lockfile(
     lockfile: &Lockfile,
+    trust: &TrustStore,
     scope: &[DependencyName],
     name: &DependencyName,
     checksum: &ContentHash,
     signer: Option<&VerifyingKey>,
+    signer_identity: Option<&SignerIdentity>,
 ) -> Result<(), ResolverError> {
     let locked_entry =
         lockfile
@@ -176,10 +275,14 @@ pub(crate) fn verify_against_lockfile(
             .ok_or_else(|| ResolverError::NotInLockfile {
                 dep: name.manifest().to_string(),
             })?;
-    if locked_entry.checksum != *checksum {
+    // A Git-sourced entry always records a checksum; a local path entry
+    // records none and is verified only by re-reading its content.
+    if let Some(expected) = locked_entry.checksum
+        && expected != *checksum
+    {
         return Err(ResolverError::ChecksumMismatch {
             dep: name.manifest().to_string(),
-            expected: locked_entry.checksum,
+            expected,
             observed: *checksum,
         });
     }
@@ -193,11 +296,22 @@ pub(crate) fn verify_against_lockfile(
         (Some(expected), Some(observed)) if expected != *observed => {
             return Err(ResolverError::SignerKeyMismatch {
                 dep: name.manifest().to_string(),
+                source_url: Some(locked_entry.source.source_url()),
+                path: locked_entry.source.source_path().map(ToString::to_string),
                 expected: Box::new(expected),
                 observed: Box::new(*observed),
             });
         }
         _ => {}
+    }
+    if let Some(signer) = locked_entry.signer
+        && !trust.contains_key(&signer)
+    {
+        return Err(ResolverError::UntrustedSigner {
+            dep: name.manifest().to_string(),
+            signer: Box::new(signer),
+            identity: signer_identity.cloned(),
+        });
     }
     Ok(())
 }
@@ -207,7 +321,6 @@ mod tests {
     use std::collections::BTreeMap;
     use std::fs;
 
-    use semver::Version;
     use tempfile::tempdir;
 
     use super::*;
@@ -225,10 +338,16 @@ mod tests {
     fn test_source() -> ResolvedSource {
         ResolvedSource::Git {
             git: "https://github.com/example/foo".parse().unwrap(),
-            commit: GitCommit::try_from("a".repeat(40)).unwrap(),
+            sha: GitCommit::try_from("a".repeat(40)).unwrap(),
             selector: GitSelector::Version("^1".parse().unwrap()),
             path: None,
         }
+    }
+
+    fn trust_with(key: VerifyingKey) -> TrustStore {
+        let mut trust = TrustStore::default();
+        trust.insert_key(key);
+        trust
     }
 
     fn write_module(dir: &std::path::Path, content: &str) {
@@ -241,6 +360,7 @@ mod tests {
         let signing_key = signing_key_from_seed(seed);
         let sig = crate::signing::ModuleSignature {
             public_key: signing_key.verifying_key(),
+            identity: None,
             signature: signing_key.sign(&checksum),
         };
         let mut buf = Vec::new();
@@ -260,6 +380,75 @@ mod tests {
     }
 
     #[test]
+    fn quoted_imports_uses_real_import_nodes() {
+        // Parsing (not line scanning) means `import` inside a command
+        // block is ignored, and an import *after* a definition is still
+        // found — both cases the old line scanner mishandled.
+        let src = "version 1.2\nimport \"sort.wdl\"\nimport \"https://example.com/lib.wdl\" as \
+                   lib\ntask t {\ncommand <<< import \"not-an-import.wdl\" >>>\n}\nimport \
+                   \"grep.wdl\"\n";
+        assert_eq!(
+            quoted_imports(src),
+            vec![
+                "sort.wdl".to_string(),
+                "https://example.com/lib.wdl".to_string(),
+                "grep.wdl".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn verify_rejects_escaping_import_after_a_definition() {
+        // An escaping import placed after a task definition (which the
+        // old line scanner stopped at) is still rejected.
+        let dir = tempdir().unwrap();
+        fs::write(
+            dir.path().join("index.wdl"),
+            "version 1.2\ntask t {\n    command <<<>>>\n}\nimport \"../shared.wdl\"\n",
+        )
+        .unwrap();
+        let policy = ResolverPolicy::default();
+        let trust = TrustStore::default();
+        let err = verify(&policy, &trust, &test_dep(), dir.path(), None).unwrap_err();
+        assert!(
+            matches!(err, ResolverError::QuotedImportEscapesRoot { .. }),
+            "expected `QuotedImportEscapesRoot`, got: {err}"
+        );
+    }
+
+    #[test]
+    fn verify_rejects_quoted_import_escaping_module_root() {
+        let dir = tempdir().unwrap();
+        fs::write(
+            dir.path().join("index.wdl"),
+            "version 1.2\nimport \"../shared.wdl\"\n",
+        )
+        .unwrap();
+        let policy = ResolverPolicy::default();
+        let trust = TrustStore::default();
+        let err = verify(&policy, &trust, &test_dep(), dir.path(), None).unwrap_err();
+        assert!(
+            matches!(err, ResolverError::QuotedImportEscapesRoot { .. }),
+            "expected `QuotedImportEscapesRoot`, got: {err}"
+        );
+    }
+
+    #[test]
+    fn verify_allows_in_root_and_absolute_uri_imports() {
+        let dir = tempdir().unwrap();
+        fs::create_dir(dir.path().join("sub")).unwrap();
+        fs::write(dir.path().join("sub/helper.wdl"), "version 1.2\n").unwrap();
+        fs::write(
+            dir.path().join("index.wdl"),
+            "version 1.2\nimport \"sub/helper.wdl\"\nimport \"https://example.com/remote.wdl\"\n",
+        )
+        .unwrap();
+        let policy = ResolverPolicy::default();
+        let trust = TrustStore::default();
+        assert!(verify(&policy, &trust, &test_dep(), dir.path(), None).is_ok());
+    }
+
+    #[test]
     fn verify_signed_module() {
         let dir = tempdir().unwrap();
         write_signed_module(dir.path(), "version 1.2\n", 0xAB);
@@ -270,7 +459,7 @@ mod tests {
         let verified = result.unwrap();
         assert!(verified.signer.is_some());
         assert_eq!(
-            verified.signer.unwrap(),
+            verified.signer.unwrap().key,
             signing_key_from_seed(0xAB).verifying_key()
         );
     }
@@ -306,8 +495,7 @@ mod tests {
             dep.clone(),
             DependencyEntry {
                 source: test_source(),
-                version: Version::new(1, 0, 0),
-                checksum: wrong_checksum,
+                checksum: Some(wrong_checksum),
                 signer: None,
                 dependencies: BTreeMap::new(),
             },
@@ -316,7 +504,16 @@ mod tests {
             version: crate::lockfile::LOCKFILE_VERSION,
             dependencies: deps,
         };
-        let err = verify_against_lockfile(&lockfile, &[], &dep, &checksum, None).unwrap_err();
+        let err = verify_against_lockfile(
+            &lockfile,
+            &TrustStore::default(),
+            &[],
+            &dep,
+            &checksum,
+            None,
+            None,
+        )
+        .unwrap_err();
         assert!(
             matches!(err, ResolverError::ChecksumMismatch { .. }),
             "expected `ChecksumMismatch`, got: {err}"
@@ -335,8 +532,7 @@ mod tests {
             dep.clone(),
             DependencyEntry {
                 source: test_source(),
-                version: Version::new(1, 0, 0),
-                checksum,
+                checksum: Some(checksum),
                 signer: None,
                 dependencies: BTreeMap::new(),
             },
@@ -345,7 +541,15 @@ mod tests {
             version: crate::lockfile::LOCKFILE_VERSION,
             dependencies: deps,
         };
-        let result = verify_against_lockfile(&lockfile, &[], &dep, &checksum, None);
+        let result = verify_against_lockfile(
+            &lockfile,
+            &TrustStore::default(),
+            &[],
+            &dep,
+            &checksum,
+            None,
+            None,
+        );
         assert!(result.is_ok(), "matching checksum should pass: {result:?}");
     }
 
@@ -359,8 +563,7 @@ mod tests {
             dep.clone(),
             DependencyEntry {
                 source: test_source(),
-                version: Version::new(1, 0, 0),
-                checksum,
+                checksum: Some(checksum),
                 signer: Some(key),
                 dependencies: BTreeMap::new(),
             },
@@ -369,7 +572,16 @@ mod tests {
             version: crate::lockfile::LOCKFILE_VERSION,
             dependencies: deps,
         };
-        let err = verify_against_lockfile(&lockfile, &[], &dep, &checksum, None).unwrap_err();
+        let err = verify_against_lockfile(
+            &lockfile,
+            &TrustStore::default(),
+            &[],
+            &dep,
+            &checksum,
+            None,
+            None,
+        )
+        .unwrap_err();
         assert!(
             matches!(err, ResolverError::SignatureDowngrade { .. }),
             "expected `SignatureDowngrade`, got: {err}"
@@ -387,8 +599,7 @@ mod tests {
             dep.clone(),
             DependencyEntry {
                 source: test_source(),
-                version: Version::new(1, 0, 0),
-                checksum,
+                checksum: Some(checksum),
                 signer: Some(key_a),
                 dependencies: BTreeMap::new(),
             },
@@ -397,12 +608,67 @@ mod tests {
             version: crate::lockfile::LOCKFILE_VERSION,
             dependencies: deps,
         };
-        let err =
-            verify_against_lockfile(&lockfile, &[], &dep, &checksum, Some(&key_b)).unwrap_err();
+        let err = verify_against_lockfile(
+            &lockfile,
+            &TrustStore::default(),
+            &[],
+            &dep,
+            &checksum,
+            Some(&key_b),
+            None,
+        )
+        .unwrap_err();
         assert!(
             matches!(err, ResolverError::SignerKeyMismatch { .. }),
             "expected `SignerKeyMismatch`, got: {err}"
         );
+    }
+
+    #[test]
+    fn locked_signer_must_be_trusted() {
+        let key = signing_key_from_seed(0xAB).verifying_key();
+        let checksum = ContentHash::from([0x01u8; 32]);
+        let dep = test_dep();
+        let mut deps = BTreeMap::new();
+        deps.insert(
+            dep.clone(),
+            DependencyEntry {
+                source: test_source(),
+                checksum: Some(checksum),
+                signer: Some(key),
+                dependencies: BTreeMap::new(),
+            },
+        );
+        let lockfile = Lockfile {
+            version: crate::lockfile::LOCKFILE_VERSION,
+            dependencies: deps,
+        };
+
+        let err = verify_against_lockfile(
+            &lockfile,
+            &TrustStore::default(),
+            &[],
+            &dep,
+            &checksum,
+            Some(&key),
+            None,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(err, ResolverError::UntrustedSigner { .. }),
+            "expected `UntrustedSigner`, got: {err}"
+        );
+
+        verify_against_lockfile(
+            &lockfile,
+            &trust_with(key),
+            &[],
+            &dep,
+            &checksum,
+            Some(&key),
+            None,
+        )
+        .expect("trusted locked signer should verify");
     }
 
     #[test]
@@ -446,7 +712,16 @@ mod tests {
         let dep = test_dep();
         let checksum = ContentHash::from([0x01u8; 32]);
         let lockfile = Lockfile::default();
-        let err = verify_against_lockfile(&lockfile, &[], &dep, &checksum, None).unwrap_err();
+        let err = verify_against_lockfile(
+            &lockfile,
+            &TrustStore::default(),
+            &[],
+            &dep,
+            &checksum,
+            None,
+            None,
+        )
+        .unwrap_err();
         assert!(
             matches!(err, ResolverError::NotInLockfile { .. }),
             "expected `NotInLockfile`, got: {err}"
@@ -454,26 +729,13 @@ mod tests {
     }
 
     #[test]
-    fn trust_store_rejects_wrong_signer() {
+    fn trust_store_does_not_pin_sources() {
         let dir = tempdir().unwrap();
         write_signed_module(dir.path(), "version 1.2\n", 0xAB);
 
-        let trusted_key = signing_key_from_seed(0xCD).verifying_key();
-        let dep = test_dep();
-        let source_url = "https://github.com/example/foo";
-        let trust = TrustStore {
-            entries: vec![crate::resolver::trust::TrustEntry {
-                dep: dep.clone(),
-                source: source_url.to_string(),
-                path: None,
-                key: trusted_key,
-            }],
-        };
+        let trust = TrustStore::default();
         let policy = ResolverPolicy::default();
-        let err = verify(&policy, &trust, &dep, dir.path(), Some((source_url, None))).unwrap_err();
-        assert!(
-            matches!(err, ResolverError::SignerKeyMismatch { .. }),
-            "expected `SignerKeyMismatch` from trust store, got: {err}"
-        );
+        let verified = verify(&policy, &trust, &test_dep(), dir.path(), None).unwrap();
+        assert!(verified.signer.is_some());
     }
 }

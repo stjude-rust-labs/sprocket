@@ -3,13 +3,9 @@
 use std::path::Path;
 use std::path::PathBuf;
 
-use path_clean::PathClean;
 use thiserror::Error;
 use toml_spanner::Toml;
-use toml_spanner::helper::display;
-use toml_spanner::helper::parse_string;
 
-use crate::dependency::DependencyName;
 use crate::signing::VerifyingKey;
 
 /// An error reading or writing the trust store.
@@ -54,27 +50,26 @@ pub enum TrustStoreError {
 #[derive(Clone, Debug, Default, Eq, PartialEq, Toml)]
 #[toml(Toml)]
 pub struct TrustStore {
-    /// The list of explicit trust entries.
-    #[toml(default, style = Header, rename = "trust", skip_if = Vec::is_empty)]
-    pub entries: Vec<TrustEntry>,
+    /// The globally trusted signer public keys.
+    #[toml(default, rename = "trust", skip_if = Vec::is_empty)]
+    pub keys: Vec<VerifyingKey>,
+    /// Optional signer identity metadata keyed by public key.
+    #[toml(default, rename = "identity", skip_if = Vec::is_empty)]
+    pub identities: Vec<TrustedIdentity>,
 }
 
-/// One explicit trust entry.
+/// Optional human metadata associated with a trusted key.
 #[derive(Clone, Debug, Eq, PartialEq, Toml)]
 #[toml(Toml)]
-pub struct TrustEntry {
-    /// The dependency this entry covers.
-    #[toml(FromToml with = parse_string, ToToml with = display)]
-    pub dep: DependencyName,
-    /// The Git URL or local path that this trust pin applies to.
-    pub source: String,
-    /// The sub-path within the source repository. `None` when the
-    /// module sits at the repository root.
-    #[toml(skip_if = Option::is_none)]
-    pub path: Option<String>,
-    /// The required signer public key in OpenSSH format.
-    #[toml(FromToml with = parse_string, ToToml with = display)]
+pub struct TrustedIdentity {
+    /// The public key this identity describes.
     pub key: VerifyingKey,
+    /// Optional display name for the key owner.
+    #[toml(default, skip_if = Option::is_none)]
+    pub name: Option<String>,
+    /// Optional email for the key owner.
+    #[toml(default, skip_if = Option::is_none)]
+    pub email: Option<String>,
 }
 
 impl TrustStore {
@@ -123,48 +118,68 @@ impl TrustStore {
         })
     }
 
-    /// Looks up an explicit trust entry for the given dependency,
-    /// source URL, and sub-path within the source.
-    pub fn lookup(
-        &self,
-        dep: &DependencyName,
-        source_url: &str,
-        path: Option<&str>,
-    ) -> Option<&VerifyingKey> {
-        self.entries
-            .iter()
-            .find(|e| {
-                e.dep == *dep && sources_match(&e.source, source_url) && e.path.as_deref() == path
-            })
-            .map(|e| &e.key)
-    }
-}
-
-/// Returns true when two source strings identify the same trust source.
-fn sources_match(expected: &str, observed: &str) -> bool {
-    if expected == observed {
-        return true;
+    /// Returns `true` when `key` is globally trusted.
+    pub fn contains_key(&self, key: &VerifyingKey) -> bool {
+        self.keys.contains(key)
     }
 
-    matches!(
-        (local_path_source(expected), local_path_source(observed)),
-        (Some(expected), Some(observed)) if expected == observed
-    )
-}
-
-/// Normalizes a local path source for trust lookup.
-fn local_path_source(source: &str) -> Option<String> {
-    if source.contains("://") {
-        return None;
+    /// Adds `key` if it is not already trusted.
+    pub fn insert_key(&mut self, key: VerifyingKey) -> bool {
+        if self.contains_key(&key) {
+            return false;
+        }
+        self.keys.push(key);
+        self.keys.sort_by_key(VerifyingKey::to_openssh);
+        true
     }
 
-    Some(
-        Path::new(source)
-            .clean()
-            .display()
-            .to_string()
-            .replace('\\', "/"),
-    )
+    /// Removes `key` from the trust store.
+    pub fn remove_key(&mut self, key: &VerifyingKey) -> bool {
+        let before = self.keys.len();
+        self.keys.retain(|trusted| trusted != key);
+        self.identities.retain(|identity| &identity.key != key);
+        self.keys.len() != before
+    }
+
+    /// Iterates over globally trusted signer keys.
+    pub fn trusted_keys(&self) -> impl Iterator<Item = &VerifyingKey> {
+        self.keys.iter()
+    }
+
+    /// Upserts optional metadata for a trusted key.
+    pub fn upsert_identity(
+        &mut self,
+        key: VerifyingKey,
+        name: Option<String>,
+        email: Option<String>,
+    ) {
+        if name.is_none() && email.is_none() {
+            return;
+        }
+
+        if let Some(existing) = self
+            .identities
+            .iter_mut()
+            .find(|identity| identity.key == key)
+        {
+            if let Some(name) = name {
+                existing.name = Some(name);
+            }
+            if let Some(email) = email {
+                existing.email = Some(email);
+            }
+            return;
+        }
+
+        self.identities.push(TrustedIdentity { key, name, email });
+        self.identities
+            .sort_by_key(|identity| identity.key.to_openssh());
+    }
+
+    /// Returns optional metadata for a trusted key.
+    pub fn identity(&self, key: &VerifyingKey) -> Option<&TrustedIdentity> {
+        self.identities.iter().find(|identity| &identity.key == key)
+    }
 }
 
 #[cfg(test)]
@@ -182,27 +197,20 @@ mod tests {
     #[test]
     fn parses_empty_file() {
         let store: TrustStore = toml_spanner::from_str("").unwrap();
-        assert!(store.entries.is_empty());
+        assert!(store.keys.is_empty());
     }
-
-    const TEST_SOURCE: &str = "https://github.com/openwdl/tasks";
 
     #[test]
     fn round_trips_via_toml() {
-        let dep: DependencyName = "openwdl".parse().unwrap();
         let key = test_key();
-        let store = TrustStore {
-            entries: vec![TrustEntry {
-                dep: dep.clone(),
-                source: TEST_SOURCE.to_string(),
-                path: None,
-                key,
-            }],
-        };
+        let mut store = TrustStore::default();
+        store.insert_key(key);
         let s = toml_spanner::to_string(&store).unwrap();
+        assert!(s.contains("trust = ["));
+        assert!(!s.contains("key ="));
         let parsed: TrustStore = toml_spanner::from_str(&s).unwrap();
-        assert_eq!(parsed.entries.len(), 1);
-        assert!(parsed.lookup(&dep, TEST_SOURCE, None).is_some());
+        assert_eq!(parsed.keys.len(), 1);
+        assert!(parsed.contains_key(&key));
     }
 
     #[test]
@@ -210,23 +218,16 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = dir.path().join("trust.toml");
         let store = TrustStore::load_or_default(&path).unwrap();
-        assert!(store.entries.is_empty());
+        assert!(store.keys.is_empty());
     }
 
     #[test]
     fn save_and_reload_round_trips() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("nested").join("trust.toml");
-        let dep: DependencyName = "openwdl".parse().unwrap();
         let key = test_key();
-        let store = TrustStore {
-            entries: vec![TrustEntry {
-                dep: dep.clone(),
-                source: TEST_SOURCE.to_string(),
-                path: None,
-                key,
-            }],
-        };
+        let mut store = TrustStore::default();
+        store.insert_key(key);
         store.save(&path).unwrap();
         assert!(path.exists());
 
@@ -238,92 +239,14 @@ mod tests {
     }
 
     #[test]
-    fn lookup_requires_matching_source() {
-        let dep: DependencyName = "openwdl".parse().unwrap();
-        let store = TrustStore {
-            entries: vec![TrustEntry {
-                dep: dep.clone(),
-                source: TEST_SOURCE.to_string(),
-                path: None,
-                key: test_key(),
-            }],
-        };
-        assert!(store.lookup(&dep, TEST_SOURCE, None).is_some());
-        assert!(
-            store
-                .lookup(&dep, "https://example.com/other", None)
-                .is_none(),
-            "trust pin for one source should not match a different source"
-        );
-    }
-
-    #[test]
-    fn lookup_distinguishes_paths_within_same_source() {
-        let dep: DependencyName = "dep".parse().unwrap();
-        let store = TrustStore {
-            entries: vec![TrustEntry {
-                dep: dep.clone(),
-                source: TEST_SOURCE.to_string(),
-                path: Some("csvcut".to_string()),
-                key: test_key(),
-            }],
-        };
-        assert!(
-            store.lookup(&dep, TEST_SOURCE, Some("csvcut")).is_some(),
-            "exact path match should succeed"
-        );
-        assert!(
-            store.lookup(&dep, TEST_SOURCE, Some("csvgrep")).is_none(),
-            "trust pin for `csvcut` should not match `csvgrep` in the same repo"
-        );
-        assert!(
-            store.lookup(&dep, TEST_SOURCE, None).is_none(),
-            "trust pin for `csvcut` should not match root-level module in the same repo"
-        );
-    }
-
-    #[test]
-    fn lookup_matches_local_path_source() {
-        let dep: DependencyName = "utils".parse().unwrap();
-        let local_source = "/home/user/projects/shared/utils";
-        let store = TrustStore {
-            entries: vec![TrustEntry {
-                dep: dep.clone(),
-                source: local_source.to_string(),
-                path: None,
-                key: test_key(),
-            }],
-        };
-        assert!(
-            store.lookup(&dep, local_source, None).is_some(),
-            "local-path trust entry should match"
-        );
-        assert!(
-            store
-                .lookup(&dep, "/home/user/projects/other/utils", None)
-                .is_none(),
-            "different local path should not match"
-        );
-    }
-
-    #[test]
-    fn lookup_normalizes_local_path_separators() {
-        let dep: DependencyName = "utils".parse().unwrap();
-        let store = TrustStore {
-            entries: vec![TrustEntry {
-                dep: dep.clone(),
-                source: "C:/Users/me/projects/shared/utils".to_string(),
-                path: None,
-                key: test_key(),
-            }],
-        };
-
-        assert!(
-            store
-                .lookup(&dep, r"C:\Users\me\projects\shared\utils", None)
-                .is_some(),
-            "local-path trust entry should match native separators"
-        );
+    fn insert_and_remove_key() {
+        let key = test_key();
+        let mut store = TrustStore::default();
+        assert!(store.insert_key(key));
+        assert!(!store.insert_key(key));
+        assert!(store.contains_key(&key));
+        assert!(store.remove_key(&key));
+        assert!(!store.remove_key(&key));
     }
 
     #[test]

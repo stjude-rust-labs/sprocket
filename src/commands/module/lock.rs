@@ -1,0 +1,93 @@
+//! `sprocket module lock`.
+
+use clap::Parser;
+use wdl_modules::resolver::RelockStats;
+
+use crate::commands::CommandResult;
+use crate::commands::module::Locator;
+use crate::commands::module::TrustModeArg;
+use crate::commands::module::discover;
+use crate::commands::module::load_lockfile;
+use crate::commands::module::lockfile_satisfies;
+use crate::commands::module::print_relock_summary;
+use crate::commands::module::resolve_relock_with_signer_mode;
+use crate::commands::module::signer_change_mode;
+use crate::commands::module::trace_project;
+use crate::commands::module::write_lockfile;
+use crate::config::Config;
+
+/// Arguments to `sprocket module lock`.
+#[derive(Parser, Debug)]
+pub struct Args {
+    /// Fail if `module-lock.json` is missing or out of date.
+    #[arg(long)]
+    pub locked: bool,
+
+    /// Print relock changes without writing `module-lock.json`.
+    #[arg(long)]
+    pub dry_run: bool,
+
+    /// Override signer trust behavior for this command.
+    #[arg(long, value_enum)]
+    pub trust_mode: Option<TrustModeArg>,
+
+    /// Shared module locator.
+    #[command(flatten)]
+    pub locator: Locator,
+}
+
+/// Runs `sprocket module lock`.
+pub async fn lock(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+    tracing::trace!(
+        locked = args.locked,
+        dry_run = args.dry_run,
+        "starting `sprocket module lock`"
+    );
+    let project = discover(&args.locator)?;
+    trace_project("module lock", &project);
+    let lock = load_lockfile(&project)?;
+    let satisfied = lock
+        .as_ref()
+        .is_some_and(|l| lockfile_satisfies(&project.manifest, l));
+    tracing::debug!(
+        lockfile_present = lock.is_some(),
+        satisfied,
+        "loaded module lockfile"
+    );
+
+    if args.locked {
+        if !satisfied {
+            tracing::debug!("`--locked` failed because lockfile is not current");
+            return Err(
+                anyhow::anyhow!("`module-lock.json` is out of date with `module.json`").into(),
+            );
+        }
+        tracing::debug!("`--locked` succeeded");
+        print_relock_summary(&RelockStats::default(), colorize);
+        return Ok(());
+    }
+
+    if satisfied && !args.dry_run {
+        tracing::debug!("skipped relock because lockfile is current");
+        print_relock_summary(&RelockStats::default(), colorize);
+        return Ok(());
+    }
+
+    let outcome = resolve_relock_with_signer_mode(
+        &config,
+        &project,
+        signer_change_mode(&config, args.trust_mode),
+        colorize,
+    )
+    .await?;
+    if args.dry_run {
+        tracing::debug!("dry run completed without writing lockfile");
+        print_relock_summary(&outcome.stats, colorize);
+        return Ok(());
+    }
+
+    write_lockfile(&project, &outcome.lockfile)?;
+    tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
+    print_relock_summary(&outcome.stats, colorize);
+    Ok(())
+}

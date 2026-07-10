@@ -18,11 +18,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added a `strongish` content digest mode (`run.task.digests = "strongish"`) that hashes file size, last modified time, and the first 10 MiB of a file's contents; this is an intermediate strategy between `weak` and `strong`, similar to Cromwell's `fingerprint` call caching strategy ([#978](https://github.com/stjude-rust-labs/sprocket/pull/978)).
 * Added `sprocket dev test schema` subcommand to generate a [JSON schema](https://json-schema.org) for
   Sprocket test definitions ([#953](https://github.com/stjude-rust-labs/sprocket/pull/953)).
+* Added the `sprocket module` command group, including `sprocket module init` for bootstrapping new module manifests and scaffolding.
+* Added `sprocket module add` and `sprocket module remove` to manage dependencies in `module.json` and refresh `module-lock.json`.
+* Added `sprocket module lock` with `--locked` and `--dry-run` flows for CI gating and lockfile refreshes.
+* Added `sprocket module update` to refresh locked versions within existing manifest constraints, with optional targeted updates.
+* Added `sprocket module upgrade` to raise Git version constraints in `module.json` and relock to the newest matching versions.
+* `sprocket module add` now tracks a Git remote's default branch when no matching version tags are discoverable.
+* `sprocket module add` now accepts `owner/repo` Git shorthand, infers dependency names from the source, and supports `--name` for custom aliases.
+* Added `[modules] default_git_platform` and `sprocket module add --git-platform` for selecting the hosted Git platform used by `owner/repo` shorthand.
+* Resolver errors are now clearer when a dependency path is missing `module.json`, explaining that the target is not a WDL module (or the `path` is wrong).
+* Added `sprocket module tree` and `sprocket module list` for viewing locked dependencies as a tree or flat table.
+* Added `sprocket module verify` to validate locked dependencies from cache without network access.
+* Added `sprocket module verify --strict` to require signatures for the current module and all locked dependencies, reporting each unsigned package by name.
+* Added `sprocket module fetch` to pre-populate the module cache from `module-lock.json` and `sprocket module cache clean` to remove cached modules.
+* Added `sprocket module sign` to create and write verifiable `module.sig` signatures for module contents.
+* Added `sprocket module trust` (`list`/`add`/`all`/`remove`/`destroy`) to manage trusted module signing keys and accept pending signer changes.
+* Analysis now warns when a discovered `module-lock.json` is out of date with its `module.json`, pointing to `sprocket module lock`.
 
 ### Changed
 
 * Grouped the server commands under `sprocket dev server` (previously flat under `sprocket dev`): `server` and `submit` are now `sprocket dev server <subcommand>`. The `server` subcommand was renamed `start`. ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
 * `sprocket analyzer` now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
+* `module.json` no longer declares a module `version`; Git version tags are the source of truth for module versions.
+* `module-lock.json` no longer records dependency versions; it records the requested selector and resolved Git commit.
+* Renamed the `module-lock.json` Git source field from `commit` to `sha` to match the module specification.
+* `module-lock.json` now records `checksum` only for Git sources; local path sources carry no checksum or signer and their content is read as-is, without checksum or signature verification.
+* `module.json` `tools` entries now use `url` and `ids` (an array of CURIEs such as `doi:10.21105/joss.04704`) in place of `homepage`, `doi`, and `biotools`.
+* The `commit` dependency selector now accepts any unique commit-SHA prefix (7–40 hex characters), expanded to the full SHA at lock time.
+* Cycle detection now identifies modules by source coordinates (repository URL and sub-path, or local directory), so a module that transitively depends on itself is detected even at a different version or selector.
+* Symbolic sub-path components now match files and directories with hyphen-to-underscore normalization (`my_task` resolves `my_task.wdl` or `my-task.wdl`), reporting an error when more than one entry matches.
+* The manifest `exclude` field now uses gitignore-style glob semantics: `*` stays within a path segment, `**` crosses separators, and a plain directory name excludes everything beneath it.
+* Symbolic links are now rejected anywhere in a module tree; a module containing one is invalid.
+* A quoted `import` inside a module that resolves outside the module root now makes the module invalid.
+* Removing a previously recorded module signature is now flagged as a downgrade requiring explicit acceptance, and an unsigned module that gains a signature for the first time is recorded without a prompt.
+* `sprocket module trust add` now trusts a global OpenSSH public key argument for all modules signed by that key; signer-change errors include the exact key in the suggested trust command.
+* `sprocket module add`, `sprocket module lock`, `sprocket module update`, and `sprocket module upgrade` now prompt before accepting signer keys by default; `[modules] trust_mode = "tofu"` trusts first-seen keys but prompts on later changes, while `"auto"` trusts signer keys without prompting.
+* `sprocket run` and `sprocket submit` now regenerate a missing or out-of-date `module-lock.json` before executing, rather than only warning.
+* `sprocket module verify` now summarizes unsigned modules in normal output instead of logging warnings when optional signature verification is skipped.
+* `sprocket module fetch` now counts only dependencies that were newly fetched into the module cache.
+* `sprocket module cache clean` now removes only the current module's locked cache tree by default; pass `--all` to remove every cached module.
 
 ### Fixed
 

@@ -20,6 +20,7 @@ use wdl_analysis::document::Input;
 use wdl_analysis::document::Task;
 use wdl_analysis::document::Workflow;
 use wdl_analysis::types::CallKind;
+use wdl_analysis::types::CallType;
 use wdl_analysis::types::Coercible as _;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
@@ -35,6 +36,37 @@ use crate::Value;
 
 /// A type alias to a JSON map (object).
 pub type JsonMap = serde_json::Map<String, JsonValue>;
+
+/// Resolves the document and source name for a workflow call.
+///
+/// For a namespaced call, resolution starts in the namespaced document;
+/// for an unqualified call, it starts in `document`. In either case a
+/// task or workflow re-exported into that document by a scope-merging
+/// import resolves to its defining document and original name, so a
+/// call to a module's curated (re-exported) surface finds its target.
+fn resolve_call_document<'a>(
+    document: &'a Document,
+    call: &'a CallType,
+) -> (&'a Document, &'a str) {
+    let base = match call.namespace() {
+        Some(ns) => document
+            .namespace(ns)
+            .expect("namespace should be present")
+            .document(),
+        None => document,
+    };
+
+    match call.kind() {
+        CallKind::Task => base
+            .imported_task_by_name(call.name())
+            .map(|task| (&task.document, task.name.as_str()))
+            .unwrap_or((base, call.name())),
+        CallKind::Workflow => base
+            .imported_workflow_by_name(call.name())
+            .map(|workflow| (&workflow.document, workflow.name.as_str()))
+            .unwrap_or((base, call.name())),
+    }
+}
 
 /// Checks that an input value matches the type of the input.
 fn check_input_type(_document: &Document, name: &str, input: &Input, value: &Value) -> Result<()> {
@@ -545,23 +577,13 @@ impl WorkflowInputs {
                 )
             })?;
 
-            // Resolve the target document; the namespace is guaranteed to be present in the
-            // document.
-            let document = call
-                .namespace()
-                .map(|ns| {
-                    document
-                        .namespace(ns)
-                        .expect("namespace should be present")
-                        .document()
-                })
-                .unwrap_or(document);
+            let (document, call_target_name) = resolve_call_document(document, call);
 
             // Validate the call's inputs
             let inputs = match call.kind() {
                 CallKind::Task => {
                     let task = document
-                        .task_by_name(call.name())
+                        .task_by_name(call_target_name)
                         .expect("task should be present");
 
                     let task_inputs = inputs.as_task_inputs().with_context(|| {
@@ -575,7 +597,7 @@ impl WorkflowInputs {
                     let workflow = document.workflow().expect("should have a workflow");
                     assert_eq!(
                         workflow.name(),
-                        call.name(),
+                        call_target_name,
                         "call name does not match workflow name"
                     );
                     let workflow_inputs = inputs.as_workflow_inputs().with_context(|| {
@@ -652,17 +674,7 @@ impl WorkflowInputs {
                             CallKind::Workflow => Inputs::Workflow(Default::default()),
                         });
 
-                // Resolve the target document; the namespace is guaranteed to be present in the
-                // document.
-                let document = call
-                    .namespace()
-                    .map(|ns| {
-                        document
-                            .namespace(ns)
-                            .expect("namespace should be present")
-                            .document()
-                    })
-                    .unwrap_or(document);
+                let (document, call_target_name) = resolve_call_document(document, call);
 
                 let next = remainder
                     .split_once('.')
@@ -679,7 +691,7 @@ impl WorkflowInputs {
                 let input = match call.kind() {
                     CallKind::Task => {
                         let task = document
-                            .task_by_name(call.name())
+                            .task_by_name(call_target_name)
                             .expect("task should be present");
                         inputs
                             .as_task_inputs_mut()
@@ -690,7 +702,7 @@ impl WorkflowInputs {
                         let workflow = document.workflow().expect("should have a workflow");
                         assert_eq!(
                             workflow.name(),
-                            call.name(),
+                            call_target_name,
                             "call name does not match workflow name"
                         );
                         inputs

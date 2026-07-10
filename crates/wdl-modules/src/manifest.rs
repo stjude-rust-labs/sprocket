@@ -4,7 +4,6 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
 
-use semver::Version;
 use serde::Deserialize;
 use serde::Deserializer;
 use serde::Serialize;
@@ -68,6 +67,10 @@ pub enum ManifestError {
     #[error("duplicate `dependencies` key: `{0}` and `{1}` resolve to the same dependency")]
     DuplicateDependencyName(String, String),
 
+    /// A `tools[].ids` entry is not a valid CURIE.
+    #[error("tool identifier `{0}` is not a valid CURIE of the form `prefix:reference`")]
+    InvalidToolId(String),
+
     /// A dependency declaration is invalid.
     #[error(transparent)]
     DependencySource(#[from] DependencySourceError),
@@ -108,15 +111,15 @@ pub struct Tool {
     pub version: String,
     /// The tool's SPDX license identifier.
     pub license: LicenseExpression,
-    /// URL for the tool's homepage or repository.
+    /// URL for the tool's homepage, documentation, repository, or
+    /// canonical project page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub homepage: Option<Url>,
-    /// DOI for the tool's publication.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub doi: Option<String>,
-    /// `bio.tools` registry identifier.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub biotools: Option<String>,
+    pub url: Option<Url>,
+    /// External identifiers for the tool, each a [CURIE](https://www.w3.org/TR/curie/)
+    /// of the form `prefix:reference` (e.g. `doi:10.21105/joss.04704`,
+    /// `biotools:csvkit`). Validated at parse time.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub ids: Vec<String>,
     /// Unknown fields, preserved for round-trip and inspection by
     /// downstream linters.
     #[serde(flatten)]
@@ -128,8 +131,6 @@ pub struct Tool {
 pub struct Manifest {
     /// The module's display name. Not used for dependency resolution.
     pub name: String,
-    /// The module version.
-    pub version: Version,
     /// The module's SPDX license expression.
     pub license: LicenseExpression,
     /// The author descriptions.
@@ -186,8 +187,6 @@ impl Manifest {
 struct ManifestFields {
     /// The module's display name.
     name: String,
-    /// The module version.
-    version: Version,
     /// The module's SPDX license.
     license: String,
     /// The author descriptions.
@@ -234,6 +233,24 @@ enum ReadmeFields {
     /// The field was absent.
     #[default]
     Default,
+}
+
+/// Returns true when `s` is a CURIE of the form `prefix:reference`,
+/// where the prefix matches `[A-Za-z_][A-Za-z0-9._-]*` and the reference
+/// is non-empty. Mirrors the pattern in the module manifest JSON schema.
+fn is_curie(s: &str) -> bool {
+    let Some((prefix, reference)) = s.split_once(':') else {
+        return false;
+    };
+    if reference.is_empty() {
+        return false;
+    }
+    let mut chars = prefix.chars();
+    match chars.next() {
+        Some(c) if c.is_ascii_alphabetic() || c == '_' => {}
+        _ => return false,
+    }
+    chars.all(|c| c.is_ascii_alphanumeric() || matches!(c, '.' | '_' | '-'))
 }
 
 /// Deserializes the `readme` field, accepting `false` or a string path.
@@ -302,9 +319,16 @@ impl TryFrom<ManifestFields> for Manifest {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
+        for tool in &fields.tools {
+            for id in &tool.ids {
+                if !is_curie(id) {
+                    return Err(ManifestError::InvalidToolId(id.clone()));
+                }
+            }
+        }
+
         Ok(Self {
             name: fields.name,
-            version: fields.version,
             license,
             authors: fields.authors,
             description: fields.description,
@@ -333,13 +357,11 @@ mod tests {
         let m = parse(
             r#"{
                 "name": "spellbook",
-                "version": "1.2.0",
                 "license": "MIT"
             }"#,
         )
         .unwrap();
         assert_eq!(m.name, "spellbook");
-        assert_eq!(m.version.to_string(), "1.2.0");
         assert_eq!(m.license.as_str(), "MIT");
         assert!(m.authors.is_empty());
         assert!(matches!(m.readme, Readme::Default));
@@ -351,7 +373,6 @@ mod tests {
         let m = parse(
             r#"{
                 "name": "spellbook",
-                "version": "1.2.0",
                 "license": "MIT OR Apache-2.0",
                 "authors": ["Jane Doe <jane.doe@example.com>"],
                 "description": "spellbook wrapper",
@@ -362,7 +383,8 @@ mod tests {
                         "name": "spellcheck",
                         "version": "2.0.1",
                         "license": "MIT",
-                        "homepage": "https://example.com/sc"
+                        "url": "https://example.com/sc",
+                        "ids": ["doi:10.21105/joss.04704", "biotools:csvkit"]
                     }
                 ],
                 "dependencies": {
@@ -376,7 +398,50 @@ mod tests {
         )
         .unwrap();
         assert_eq!(m.tools.len(), 1);
+        assert_eq!(
+            m.tools[0].url.as_ref().unwrap().as_str(),
+            "https://example.com/sc"
+        );
+        assert_eq!(
+            m.tools[0].ids,
+            ["doi:10.21105/joss.04704", "biotools:csvkit"]
+        );
         assert_eq!(m.dependencies.len(), 2);
+    }
+
+    #[test]
+    fn rejects_non_curie_tool_id() {
+        let err = parse(
+            r#"{
+                "name": "spellbook",
+                "license": "MIT",
+                "tools": [
+                    {
+                        "name": "spellcheck",
+                        "version": "2.0.1",
+                        "license": "MIT",
+                        "ids": ["not a curie"]
+                    }
+                ]
+            }"#,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(&err, ManifestError::InvalidToolId(id) if id == "not a curie"),
+            "expected `InvalidToolId`, got: {err}"
+        );
+    }
+
+    #[test]
+    fn accepts_various_curie_prefixes() {
+        assert!(is_curie("doi:10.21105/joss.04704"));
+        assert!(is_curie("biotools:csvkit"));
+        assert!(is_curie("_local:x"));
+        assert!(is_curie("a.b-c_d:ref"));
+        assert!(!is_curie("nocolon"));
+        assert!(!is_curie(":noprefix"));
+        assert!(!is_curie("prefix:"));
+        assert!(!is_curie("1bad:ref"));
     }
 
     #[test]
@@ -384,7 +449,6 @@ mod tests {
         let m = parse(
             r#"{
                 "name": "spellbook",
-                "version": "1.0.0",
                 "license": "MIT",
                 "readme": false
             }"#,
@@ -398,7 +462,6 @@ mod tests {
         let m = parse(
             r#"{
                 "name": "spellbook",
-                "version": "1.0.0",
                 "license": "MIT",
                 "readme": "docs/README.md"
             }"#,
@@ -412,7 +475,6 @@ mod tests {
         let m = parse(
             r#"{
                 "name": "spellbook",
-                "version": "1.0.0",
                 "license": "MIT",
                 "extra_field": 42,
                 "metadata": {"key": "value"}
@@ -425,14 +487,13 @@ mod tests {
 
     #[test]
     fn rejects_empty_name() {
-        let err = parse(r#"{ "name": "", "version": "1.0.0", "license": "MIT" }"#).unwrap_err();
+        let err = parse(r#"{ "name": "", "license": "MIT" }"#).unwrap_err();
         assert!(matches!(err, ManifestError::EmptyName));
     }
 
     #[test]
     fn rejects_invalid_license() {
-        let err = parse(r#"{ "name": "spellbook", "version": "1.0.0", "license": "MIT-2.0" }"#)
-            .unwrap_err();
+        let err = parse(r#"{ "name": "spellbook", "license": "MIT-2.0" }"#).unwrap_err();
         assert!(matches!(err, ManifestError::License(_)));
     }
 
@@ -441,7 +502,6 @@ mod tests {
         let err = parse(
             r#"{
                 "name": "spellbook",
-                "version": "1.0.0",
                 "license": "MIT",
                 "entrypoint": "/abs/path.wdl"
             }"#,
@@ -455,7 +515,6 @@ mod tests {
         let err = parse(
             r#"{
                 "name": "spellbook",
-                "version": "1.0.0",
                 "license": "MIT",
                 "readme": true
             }"#,
@@ -469,7 +528,6 @@ mod tests {
         let err = parse(
             r#"{
                 "name": "spellbook",
-                "version": "1.0.0",
                 "license": "MIT",
                 "readme": null
             }"#,
@@ -483,7 +541,6 @@ mod tests {
         let m = parse(
             r#"{
                 "name": "spellbook",
-                "version": "1.0.0",
                 "license": "MIT",
                 "exclude": ["internal/**", "scratch/*.wdl"]
             }"#,
@@ -503,7 +560,6 @@ mod tests {
         let err = parse(
             r#"{
                 "name": "spellbook",
-                "version": "1.0.0",
                 "license": "MIT",
                 "exclude": ["internal/**", "/abs/path"]
             }"#,
@@ -522,7 +578,6 @@ mod tests {
         let err = parse(
             r#"{
                 "name": "spellbook",
-                "version": "1.0.0",
                 "license": "MIT",
                 "readme": "../escape.md"
             }"#,
@@ -549,7 +604,6 @@ mod tests {
                 r#"{
                     "name": "spellbook",
                     "name": "duplicate",
-                    "version": "1.0.0",
                     "license": "MIT"
                 }"#,
             )
@@ -563,7 +617,6 @@ mod tests {
             parse(
                 r#"{
                     "name": "spellbook",
-                    "version": "1.0.0",
                     "license": "MIT",
                     "tools": [
                         {"name": "x", "name": "y", "version": "1", "license": "MIT"}
@@ -579,7 +632,6 @@ mod tests {
         let m = parse(
             r#"{
                 "name": "spellbook",
-                "version": "1.0.0",
                 "license": "MIT",
                 "dependencies": { "my-dep": {"path": "../local"} }
             }"#,
@@ -596,7 +648,6 @@ mod tests {
         let err = parse(
             r#"{
                 "name": "spellbook",
-                "version": "1.0.0",
                 "license": "MIT",
                 "dependencies": {
                     "dep": {"path": "../a"},
@@ -616,7 +667,6 @@ mod tests {
         let err = parse(
             r#"{
                 "name": "spellbook",
-                "version": "1.0.0",
                 "license": "MIT",
                 "dependencies": {
                     "spell-book": {"path": "../a"},
@@ -636,7 +686,6 @@ mod tests {
         let err = parse(
             r#"{
                 "name": "spellbook",
-                "version": "1.0.0",
                 "license": "MIT",
                 "dependencies": { "1bad": {"path": "../local"} }
             }"#,

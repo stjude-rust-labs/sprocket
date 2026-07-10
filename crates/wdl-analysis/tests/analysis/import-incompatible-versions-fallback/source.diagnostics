@@ -4,3 +4,12 @@ warning[UsingFallbackVersion]: unsupported WDL version `2.0`; interpreting docum
 1 │ version 2.0
   │         ^^^ this version of WDL is not supported
 
+error: imported document has incompatible version
+  ┌─ tests/analysis/import-incompatible-versions-fallback/source.wdl:8:8
+  │
+6 │ version 1.0
+  │         --- the importing document is version `1.0`
+7 │ 
+8 │ import "foo.wdl"
+  │        ^^^^^^^^^ the imported document is version `1.2`
+

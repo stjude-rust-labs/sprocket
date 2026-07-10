@@ -175,9 +175,10 @@ wdl_1_3 = true
 wdl_1_4 = false
 
 [modules]
+default_git_platform = "github"
 large_file_warning = "1.0 MiB"
 require_signed = false
-trust_mode = "auto"
+trust_mode = "confirm"
 allowed_schemes = ["https", "ssh"]
 allowed_transitive_schemes = ["https"]
 max_advertised_refs = 100000

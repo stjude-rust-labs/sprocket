@@ -28,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#836](https://github.com/stjude-rust-labs/sprocket/pull/836)).
 * Add `resolver` feature gate with `Resolver` trait, `GitResolver`
   implementation, on-disk sparse-checkout cache, version selection, lockfile
-  generation (`partial_relock`), TOFU trust handling, and module
+  generation (`partial_relock`), signer trust handling, and module
   materialization for symbolic imports
   ([#838](https://github.com/stjude-rust-labs/sprocket/pull/838)).
 * Add `GitModulePath` newtype validating Git sub-paths at parse time;

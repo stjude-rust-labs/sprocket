@@ -20,7 +20,6 @@
 //! let manifest = Manifest::parse(
 //!     br#"{
 //!         "name": "spellbook",
-//!         "version": "1.0.0",
 //!         "license": "MIT"
 //!     }"#,
 //! )?;

@@ -20,6 +20,7 @@ pub mod format;
 pub mod inputs;
 pub mod inspect;
 pub mod lock;
+pub mod module;
 pub mod retry;
 pub mod run;
 pub mod server;
@@ -127,6 +128,10 @@ pub enum Commands {
     /// It will not catch potential runtime errors that may occur when running
     /// the task or workflow.
     Validate(validate::Args),
+
+    /// Create and manage WDL modules.
+    #[command(subcommand)]
+    Module(module::ModuleCommands),
 
     /// Developmental and experimental commands.
     #[command(subcommand)]

@@ -656,13 +656,15 @@ impl Workflow {
 
 /// A task imported into scope by a wildcard or selected-member import.
 #[derive(Debug)]
-pub(crate) struct ImportedTask {
+pub struct ImportedTask {
     /// The task name in the source document.
     pub name: String,
     /// The span of the import statement that introduced this task.
     pub span: Span,
     /// The source URI the task came from.
     pub source: Arc<Url>,
+    /// The source document that defines the task.
+    pub document: Document,
     /// The inputs of the task.
     pub inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the task.
@@ -671,13 +673,15 @@ pub(crate) struct ImportedTask {
 
 /// A workflow imported into scope by a wildcard or selected-member import.
 #[derive(Debug)]
-pub(crate) struct ImportedWorkflow {
+pub struct ImportedWorkflow {
     /// The workflow name in the source document.
     pub name: String,
     /// The span of the import statement.
     pub span: Span,
     /// The source URI.
     pub source: Arc<Url>,
+    /// The source document that defines the workflow.
+    pub document: Document,
     /// The inputs of the workflow.
     pub inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the workflow.
@@ -764,6 +768,11 @@ pub(crate) struct DocumentData {
     imported_tasks: IndexMap<String, ImportedTask>,
     /// Workflows imported via wildcard or selected-member imports.
     imported_workflows: IndexMap<String, ImportedWorkflow>,
+    /// Whether a wildcard import failed to resolve.
+    ///
+    /// Unknown unqualified calls are suppressed in this case because they may
+    /// have come from the missing import.
+    failed_wildcard_import: bool,
     /// Selected task or workflow imports that failed to resolve.
     failed_selected_imports: IndexSet<String>,
     /// The diagnostics from parsing.
@@ -795,6 +804,7 @@ impl DocumentData {
             enums: Default::default(),
             imported_tasks: Default::default(),
             imported_workflows: Default::default(),
+            failed_wildcard_import: false,
             failed_selected_imports: Default::default(),
             parse_diagnostics: diagnostics,
             analysis_diagnostics: Default::default(),
@@ -1030,7 +1040,7 @@ impl Document {
     }
 
     /// Gets an imported task in the document by local name.
-    pub(crate) fn imported_task_by_name(&self, name: &str) -> Option<&ImportedTask> {
+    pub fn imported_task_by_name(&self, name: &str) -> Option<&ImportedTask> {
         self.data.imported_tasks.get(name)
     }
 
@@ -1042,7 +1052,7 @@ impl Document {
     }
 
     /// Gets an imported workflow in the document by local name.
-    pub(crate) fn imported_workflow_by_name(&self, name: &str) -> Option<&ImportedWorkflow> {
+    pub fn imported_workflow_by_name(&self, name: &str) -> Option<&ImportedWorkflow> {
         self.data.imported_workflows.get(name)
     }
 

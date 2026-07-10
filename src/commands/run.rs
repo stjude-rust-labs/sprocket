@@ -619,9 +619,7 @@ pub async fn run(
     filter_handle: FilterReloadHandle,
 ) -> CommandResult<()> {
     let source = match args.source {
-        Source::Directory(ref dir) => {
-            crate::analysis::resolve_module_entrypoint(dir, config.common.wdl.feature_flags)?
-        }
+        Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
     };
 
@@ -637,6 +635,14 @@ pub async fn run(
 
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     args.apply_engine_config(&mut config.run.engine);
+
+    // Regenerate a stale or missing module lockfile before executing so
+    // the run proceeds against a consistent, reproducible tree.
+    if let Some(dir) = source.local_start_dir() {
+        crate::commands::module::ensure_lockfile_current(&config, &dir)
+            .await
+            .map_err(CommandError::from)?;
+    }
 
     let progress_bar = tracing::span!(Level::WARN, "progress");
     let start = std::time::Instant::now();

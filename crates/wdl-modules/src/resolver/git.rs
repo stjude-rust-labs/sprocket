@@ -145,6 +145,33 @@ pub enum GitError {
         /// The configured byte limit.
         max_bytes: Option<u64>,
     },
+
+    /// The remote did not advertise a default branch.
+    #[error("remote at `{url}` did not advertise a default branch")]
+    NoDefaultBranch {
+        /// The remote URL.
+        url: String,
+    },
+
+    /// The remote default branch name was not valid UTF-8.
+    #[error("remote at `{url}` advertised a non-UTF-8 default branch name")]
+    DefaultBranchUtf8 {
+        /// The remote URL.
+        url: String,
+        /// The underlying UTF-8 error.
+        #[source]
+        source: std::str::Utf8Error,
+    },
+
+    /// A commit-SHA prefix could not be resolved to a single commit in
+    /// the repository (no match, or an ambiguous match).
+    #[error("commit prefix `{prefix}` in `{url}` did not resolve to a unique commit")]
+    CommitPrefix {
+        /// The remote URL.
+        url: String,
+        /// The prefix that failed to resolve.
+        prefix: String,
+    },
 }
 
 /// Default credential resolver. Tries the user's configured Git
@@ -241,6 +268,113 @@ pub(crate) fn list_advertised_refs(
         .collect();
     disconnect_remote(&mut remote);
     Ok(pairs)
+}
+
+/// Connects to the remote and returns its default branch name without the
+/// `refs/heads/` prefix. Rejects remotes advertising more than `max_refs`
+/// entries and remotes with no advertised default branch.
+pub(crate) fn discover_default_branch(
+    url: &Url,
+    mode: CredentialMode,
+    max_refs: usize,
+) -> Result<String, GitError> {
+    let mut remote = connect_remote(url, git2::Direction::Fetch, mode)?;
+    let advertised = remote.list().map_err(GitError::Git)?;
+    if advertised.len() > max_refs {
+        let count = advertised.len();
+        disconnect_remote(&mut remote);
+        return Err(GitError::RefLimitExceeded {
+            url: url.to_string(),
+            count,
+            limit: max_refs,
+        });
+    }
+
+    let branch = match remote.default_branch() {
+        Ok(branch) => {
+            let name = std::str::from_utf8(branch.as_ref()).map_err(|source| {
+                GitError::DefaultBranchUtf8 {
+                    url: url.to_string(),
+                    source,
+                }
+            })?;
+            name.strip_prefix("refs/heads/")
+                .filter(|name| !name.is_empty())
+                .map(str::to_string)
+                .ok_or_else(|| GitError::NoDefaultBranch {
+                    url: url.to_string(),
+                })
+        }
+        Err(_) => Err(GitError::NoDefaultBranch {
+            url: url.to_string(),
+        }),
+    };
+    disconnect_remote(&mut remote);
+    branch
+}
+
+/// Returns the full SHA that a commit prefix uniquely matches among a
+/// set of advertised `(ref, sha)` pairs, or `None` when no ref matches
+/// or when two distinct SHAs share the prefix (an ambiguous match).
+///
+/// The same SHA advertised under several refs is not ambiguous.
+pub(crate) fn unique_ref_prefix_match<'a>(
+    refs: &'a [(String, String)],
+    prefix: &str,
+) -> Option<&'a str> {
+    let mut matched: Option<&str> = None;
+    for (_, sha) in refs {
+        if sha.starts_with(prefix) {
+            if matched.is_some_and(|m| m != sha.as_str()) {
+                return None;
+            }
+            matched = Some(sha);
+        }
+    }
+    matched
+}
+
+/// Expands a commit-SHA prefix to the full 40-character SHA by cloning.
+///
+/// This is the fallback for a prefix that does not name a ref tip (see
+/// [`GitFetcher::resolve_commit_prefix`](super::fetch::GitFetcher::resolve_commit_prefix),
+/// which tries `ls-remote` first). The Git wire protocol has no
+/// prefix-expansion operation, so the objects must be fetched locally
+/// and resolved with `git rev-parse` semantics. `git2`/libgit2 does not
+/// support partial-clone filters, so this is a full bare clone of the
+/// repository into `work_dir`; a prefix matching no commit or more than
+/// one commit is rejected. `work_dir` must not already exist; the caller
+/// removes it afterward.
+pub(crate) fn resolve_commit_prefix(
+    work_dir: &Path,
+    url: &Url,
+    prefix: &str,
+    mode: CredentialMode,
+) -> Result<String, GitError> {
+    let mut fetch_opts = default_fetch_options(mode);
+    fetch_opts.download_tags(git2::AutotagOption::All);
+    let mut builder = git2::build::RepoBuilder::new();
+    builder.bare(true).fetch_options(fetch_opts);
+    let repo = builder
+        .clone(url.as_str(), work_dir)
+        .map_err(GitError::Git)?;
+
+    // `revparse_single` on a hex prefix disambiguates against the object
+    // database; peel to a commit so a prefix that resolves to a tag or
+    // tree is rejected rather than silently accepted.
+    match repo.revparse_single(prefix) {
+        Ok(obj) => {
+            let commit = obj.peel_to_commit().map_err(|_| GitError::CommitPrefix {
+                url: url.to_string(),
+                prefix: prefix.to_string(),
+            })?;
+            Ok(commit.id().to_string())
+        }
+        Err(_) => Err(GitError::CommitPrefix {
+            url: url.to_string(),
+            prefix: prefix.to_string(),
+        }),
+    }
 }
 
 /// Inspects a subtree at `path` within the commit identified by `oid`,
@@ -556,15 +690,37 @@ pub(crate) fn ensure_materialized<I, S>(
     mode: CredentialMode,
     max_files: Option<usize>,
     max_bytes: Option<u64>,
-) -> Result<(), GitError>
+) -> Result<bool, GitError>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
+    let existed = leaf.exists();
+    tracing::debug!(
+        cache_leaf = %leaf.display(),
+        url = %url,
+        commit,
+        exists = existed,
+        "preparing module cache leaf"
+    );
+    tracing::trace!(cache_leaf = %leaf.display(), "acquiring module cache leaf lock");
     let _lock = lock_cache_leaf(leaf)?;
+    tracing::trace!(cache_leaf = %leaf.display(), "acquired module cache leaf lock");
     if leaf.exists() {
-        extend_sparse_checkout(leaf, paths, max_files, max_bytes)
+        tracing::debug!(
+            cache_leaf = %leaf.display(),
+            commit,
+            "using cached module checkout"
+        );
+        extend_sparse_checkout(leaf, paths, max_files, max_bytes)?;
+        Ok(false)
     } else {
+        tracing::info!(
+            cache_leaf = %leaf.display(),
+            url = %url,
+            commit,
+            "fetching module into cache"
+        );
         let result =
             clone_with_sparse_checkout(url, commit, leaf, paths, mode, max_files, max_bytes);
         if result.is_err()
@@ -577,7 +733,7 @@ where
                 "failed to clean up cache leaf after a failed clone",
             );
         }
-        result
+        result.map(|()| true)
     }
 }
 
@@ -620,12 +776,12 @@ mod tests {
         let (upstream, sha) = build_upstream(&[
             (
                 "csvkit/module.json",
-                br#"{"name":"csvkit","version":"1.0.0","license":"MIT"}"#,
+                br#"{"name":"csvkit","license":"MIT"}"#,
             ),
             ("csvkit/index.wdl", b"workflow w {}"),
             (
                 "spellbook/module.json",
-                br#"{"name":"spellbook","version":"1.0.0","license":"MIT"}"#,
+                br#"{"name":"spellbook","license":"MIT"}"#,
             ),
             ("spellbook/index.wdl", b"workflow w {}"),
         ]);
@@ -657,10 +813,8 @@ mod tests {
 
     #[test]
     fn ref_count_limit_is_enforced() {
-        let (upstream, _sha) = build_upstream(&[(
-            "module.json",
-            br#"{"name":"x","version":"1.0.0","license":"MIT"}"#,
-        )]);
+        let (upstream, _sha) =
+            build_upstream(&[("module.json", br#"{"name":"x","license":"MIT"}"#)]);
         let url = Url::from_directory_path(upstream.path()).unwrap();
         let err = list_advertised_refs(&url, 0, CredentialMode::Enabled).unwrap_err();
         assert!(
@@ -670,16 +824,32 @@ mod tests {
     }
 
     #[test]
+    fn discovers_default_branch_for_file_url() {
+        let (upstream, _sha) =
+            build_upstream(&[("module.json", br#"{"name":"x","license":"MIT"}"#)]);
+        let repo = Repository::open(upstream.path()).unwrap();
+        let expected = repo
+            .head()
+            .unwrap()
+            .shorthand()
+            .expect("HEAD should resolve to a branch")
+            .to_string();
+        let url = Url::from_file_path(upstream.path()).unwrap();
+        let observed = discover_default_branch(&url, CredentialMode::Enabled, 1024).unwrap();
+        assert_eq!(observed, expected);
+    }
+
+    #[test]
     fn ensure_materialized_clones_then_extends() {
         let (upstream, sha) = build_upstream(&[
             (
                 "csvkit/module.json",
-                br#"{"name":"csvkit","version":"1.0.0","license":"MIT"}"#,
+                br#"{"name":"csvkit","license":"MIT"}"#,
             ),
             ("csvkit/index.wdl", b"workflow w {}"),
             (
                 "spellbook/module.json",
-                br#"{"name":"spellbook","version":"1.0.0","license":"MIT"}"#,
+                br#"{"name":"spellbook","license":"MIT"}"#,
             ),
             ("spellbook/index.wdl", b"workflow w {}"),
         ]);
@@ -688,7 +858,7 @@ mod tests {
         let leaf = dest.path().join("leaf");
         let url = Url::from_directory_path(upstream.path()).unwrap();
 
-        ensure_materialized(
+        let fetched = ensure_materialized(
             &leaf,
             &url,
             &sha,
@@ -698,10 +868,11 @@ mod tests {
             None,
         )
         .unwrap();
+        assert!(fetched);
         assert!(leaf.join("csvkit").join("module.json").exists());
         assert!(!leaf.join("spellbook").exists());
 
-        ensure_materialized(
+        let fetched = ensure_materialized(
             &leaf,
             &url,
             &sha,
@@ -711,6 +882,7 @@ mod tests {
             None,
         )
         .unwrap();
+        assert!(!fetched);
         assert!(leaf.join("csvkit").join("module.json").exists());
         assert!(leaf.join("spellbook").join("module.json").exists());
     }
@@ -720,12 +892,12 @@ mod tests {
         let (upstream, sha) = build_upstream(&[
             (
                 "csvkit/module.json",
-                br#"{"name":"csvkit","version":"1.0.0","license":"MIT"}"#,
+                br#"{"name":"csvkit","license":"MIT"}"#,
             ),
             ("csvkit/index.wdl", b"workflow w {}"),
             (
                 "spellbook/module.json",
-                br#"{"name":"spellbook","version":"1.0.0","license":"MIT"}"#,
+                br#"{"name":"spellbook","license":"MIT"}"#,
             ),
             ("spellbook/index.wdl", b"workflow w {}"),
         ]);
@@ -942,6 +1114,65 @@ mod tests {
         assert!(
             leaf_path.join("mod_b").join("b.txt").exists(),
             "checkout should contain the file from the non-default branch"
+        );
+    }
+
+    #[test]
+    fn resolve_commit_prefix_expands_unique_prefix() {
+        let (upstream, sha) = build_upstream(&[("index.wdl", b"workflow w {}")]);
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+        let dest = tempdir().unwrap();
+
+        let prefix = &sha[..8];
+        let full = resolve_commit_prefix(
+            &dest.path().join("expand"),
+            &url,
+            prefix,
+            CredentialMode::Enabled,
+        )
+        .unwrap();
+        assert_eq!(full, sha);
+    }
+
+    #[test]
+    fn unique_ref_prefix_match_handles_ambiguity_and_aliases() {
+        let refs = vec![
+            ("refs/heads/main".to_string(), "a".repeat(40)),
+            ("refs/tags/v1".to_string(), "a".repeat(40)), // same SHA, another ref
+            ("refs/heads/dev".to_string(), format!("b{}", "0".repeat(39))),
+        ];
+        // Unique prefix that also happens to be advertised under two refs.
+        assert_eq!(
+            unique_ref_prefix_match(&refs, "aaaa"),
+            Some("a".repeat(40).as_str())
+        );
+        // A prefix shared by two distinct SHAs is ambiguous.
+        let ambiguous = vec![
+            ("refs/heads/x".to_string(), format!("ab{}", "0".repeat(38))),
+            ("refs/heads/y".to_string(), format!("ab{}", "1".repeat(38))),
+        ];
+        assert_eq!(unique_ref_prefix_match(&ambiguous, "ab"), None);
+        // No ref matches.
+        assert_eq!(unique_ref_prefix_match(&refs, "cccc"), None);
+    }
+
+    #[test]
+    fn resolve_commit_prefix_rejects_unknown_prefix() {
+        let (upstream, _sha) = build_upstream(&[("index.wdl", b"workflow w {}")]);
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+        let dest = tempdir().unwrap();
+
+        // A prefix that matches no commit in the repository.
+        let err = resolve_commit_prefix(
+            &dest.path().join("expand"),
+            &url,
+            "0123456",
+            CredentialMode::Enabled,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(err, GitError::CommitPrefix { .. }),
+            "expected `CommitPrefix`, got: {err}"
         );
     }
 }

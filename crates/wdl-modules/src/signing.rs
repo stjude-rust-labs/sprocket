@@ -14,6 +14,22 @@ use serde::Serialize;
 use serde_with::DeserializeFromStr;
 use serde_with::SerializeDisplay;
 use thiserror::Error;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::Arena;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::Context;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::Error as TomlError;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::Failed;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::FromToml;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::Item;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::ToToml;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::ToTomlError;
 
 use crate::hash::ContentHash;
 
@@ -61,7 +77,7 @@ pub enum SignatureFileError {
 
 /// An error verifying an Ed25519 signature against a content hash.
 #[derive(Debug, Error)]
-#[error("Ed25519 signature does not match the supplied content hash")]
+#[error("signature does not match the supplied content hash")]
 pub struct VerifyError;
 
 /// An Ed25519 signing key.
@@ -152,6 +168,67 @@ impl From<VerifyingKey> for String {
     }
 }
 
+/// Optional signer identity metadata.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SignerIdentity {
+    /// Optional display name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// Optional email.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+}
+
+/// Parses a name and email from OpenSSH public key text when present.
+pub fn parse_openssh_public_key_identity(text: &str) -> Option<SignerIdentity> {
+    let mut parts = text.split_whitespace();
+    let kind = parts.next()?;
+    let blob = parts.next()?;
+    if kind.is_empty() || blob.is_empty() {
+        return None;
+    }
+
+    let comment = parts.collect::<Vec<_>>().join(" ").trim().to_string();
+    if comment.is_empty() {
+        return None;
+    }
+
+    if let (Some(start), Some(end)) = (comment.rfind('<'), comment.rfind('>'))
+        && start < end
+    {
+        let name = comment[..start].trim();
+        let email = comment[start + 1..end].trim();
+        let name = (!name.is_empty()).then(|| name.to_string());
+        let email = (!email.is_empty()).then(|| email.to_string());
+        return Some(SignerIdentity { name, email });
+    }
+
+    Some(SignerIdentity {
+        name: Some(comment),
+        email: None,
+    })
+}
+
+#[cfg(feature = "git-resolver")]
+impl<'de> FromToml<'de> for VerifyingKey {
+    fn from_toml(ctx: &mut Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
+        if let Some(s) = item.as_str() {
+            return s
+                .parse()
+                .map_err(|e: KeyError| ctx.push_error(TomlError::custom(e, item.span())));
+        }
+
+        Err(ctx.report_expected_but_found(&"an OpenSSH public key string", item))
+    }
+}
+
+#[cfg(feature = "git-resolver")]
+impl ToToml for VerifyingKey {
+    fn to_toml<'a>(&'a self, arena: &'a Arena) -> Result<Item<'a>, ToTomlError> {
+        Ok(Item::string(arena.alloc_str(&self.to_openssh())))
+    }
+}
+
 /// An Ed25519 signature over a [`ContentHash`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, SerializeDisplay, DeserializeFromStr)]
 pub struct Signature(ed25519_dalek::Signature);
@@ -201,6 +278,9 @@ impl From<Signature> for String {
 pub struct ModuleSignature {
     /// The signer's Ed25519 public key in OpenSSH format.
     pub public_key: VerifyingKey,
+    /// Optional signer identity metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub identity: Option<SignerIdentity>,
     /// The Ed25519 signature over the module's raw 32-byte content hash.
     pub signature: Signature,
 }
@@ -291,6 +371,17 @@ mod tests {
     }
 
     #[test]
+    fn parses_identity_from_openssh_comment() {
+        let signer = signing_key_from_seed(7);
+        let key = signer.verifying_key();
+        let identity =
+            parse_openssh_public_key_identity(&format!("{} Jane Doe <jane@example.com>", key))
+                .unwrap();
+        assert_eq!(identity.name.as_deref(), Some("Jane Doe"));
+        assert_eq!(identity.email.as_deref(), Some("jane@example.com"));
+    }
+
+    #[test]
     fn signature_round_trips_through_base64() {
         let signer = signing_key_from_seed(3);
         let digest = ContentHash::from([0x11; 32]);
@@ -306,6 +397,7 @@ mod tests {
         let digest = ContentHash::from([0x22; 32]);
         let module_sig = ModuleSignature {
             public_key: signer.verifying_key(),
+            identity: None,
             signature: signer.sign(&digest),
         };
 
@@ -317,8 +409,26 @@ mod tests {
     }
 
     #[test]
-    fn module_signature_rejects_unknown_keys() {
+    fn module_signature_error_omits_algorithm_name() {
         let signer = signing_key_from_seed(5);
+        let signed_digest = ContentHash::from([0x22; 32]);
+        let checked_digest = ContentHash::from([0x33; 32]);
+        let module_sig = ModuleSignature {
+            public_key: signer.verifying_key(),
+            identity: None,
+            signature: signer.sign(&signed_digest),
+        };
+
+        let error = module_sig.verify(&checked_digest).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "signature does not match the supplied content hash"
+        );
+    }
+
+    #[test]
+    fn module_signature_rejects_unknown_keys() {
+        let signer = signing_key_from_seed(6);
         let digest = ContentHash::from([0x33; 32]);
         let json = format!(
             r#"{{

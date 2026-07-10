@@ -455,9 +455,7 @@ impl InputProcessor {
 /// Displays the input schema for a WDL document.
 pub async fn inputs(args: Args, config: Config) -> CommandResult<()> {
     let source = match args.source {
-        Source::Directory(ref dir) => {
-            crate::analysis::resolve_module_entrypoint(dir, config.common.wdl.feature_flags)?
-        }
+        Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
     };
     let results = Analysis::default()

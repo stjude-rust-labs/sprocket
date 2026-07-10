@@ -1676,31 +1676,56 @@ impl State {
 
         // Determine the inputs and evaluator to use for the task or workflow call
         let inputs = self.inputs.calls().get(alias.text()).cloned();
-        let document = namespace
+        let mut document = namespace
             .as_ref()
             .map(|(_, ns)| ns.document())
             .unwrap_or(&self.document);
-        let (mut inputs, call_target) = match document.task_by_name(target.text()) {
-            Some(task) => (
+        // Resolve the call target against the namespaced document (or the
+        // local document). A task or workflow re-exported into that
+        // document by a scope-merging import resolves to its defining
+        // document, so a namespaced call can reach a module's curated
+        // surface.
+        let (mut inputs, call_target) = if let Some(task) = document.task_by_name(target.text()) {
+            (
                 inputs.unwrap_or_else(|| Inputs::Task(Default::default())),
                 Target::Task(task),
-            ),
-            _ => match document.workflow() {
-                Some(workflow) if workflow.name() == target.text() => (
-                    inputs.unwrap_or_else(|| Inputs::Workflow(Default::default())),
-                    Target::Workflow,
+            )
+        } else if document
+            .workflow()
+            .is_some_and(|w| w.name() == target.text())
+        {
+            (
+                inputs.unwrap_or_else(|| Inputs::Workflow(Default::default())),
+                Target::Workflow,
+            )
+        } else if let Some(imported) = document.imported_task_by_name(target.text())
+            && let Some(task) = imported.document.task_by_name(&imported.name)
+        {
+            document = &imported.document;
+            (
+                inputs.unwrap_or_else(|| Inputs::Task(Default::default())),
+                Target::Task(task),
+            )
+        } else if let Some(imported) = document.imported_workflow_by_name(target.text())
+            && imported
+                .document
+                .workflow()
+                .is_some_and(|w| w.name() == imported.name)
+        {
+            document = &imported.document;
+            (
+                inputs.unwrap_or_else(|| Inputs::Workflow(Default::default())),
+                Target::Workflow,
+            )
+        } else {
+            return Err(EvaluationError::new(
+                self.document.clone(),
+                unknown_task_or_workflow(
+                    namespace.as_ref().map(|(_, ns)| ns.span()),
+                    target.text(),
+                    target.span(),
                 ),
-                _ => {
-                    return Err(EvaluationError::new(
-                        self.document.clone(),
-                        unknown_task_or_workflow(
-                            namespace.as_ref().map(|(_, ns)| ns.span()),
-                            target.text(),
-                            target.span(),
-                        ),
-                    ));
-                }
-            },
+            ));
         };
 
         // Evaluate the inputs
@@ -1989,6 +2014,196 @@ workflow test {
             read_to_string(outputs_dir.join("calls/bar/outputs.json"))
                 .expect("failed to read bar `outputs.json`"),
             "{\n  \"x\": \"bar\",\n  \"y\": 1,\n  \"z\": []\n}"
+        );
+    }
+
+    #[tokio::test]
+    async fn it_evaluates_selected_import_calls() {
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        fs::write(
+            root_dir.path().join("lib.wdl"),
+            r#"
+version 1.4
+
+task make_message {
+    command <<<>>>
+
+    output {
+        String message = "hello from selected import"
+    }
+}
+"#,
+        )
+        .expect("failed to write imported WDL source file");
+        fs::write(
+            root_dir.path().join("source.wdl"),
+            r#"
+version 1.4
+
+import { make_message } from "lib.wdl"
+
+workflow test {
+    call make_message
+
+    output {
+        String message = make_message.message
+    }
+}
+"#,
+        )
+        .expect("failed to write WDL source file");
+
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default()
+                .with_diagnostics_config(DiagnosticsConfig::except_all())
+                .with_feature_flags(wdl_analysis::FeatureFlags::default().with_wdl_1_4()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        let document = results
+            .iter()
+            .find(|result| result.document().uri().path().ends_with("source.wdl"))
+            .expect("expected `source.wdl` analysis result")
+            .document();
+
+        let config = Config {
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
+            ..Default::default()
+        };
+        let evaluator = Evaluator::new(
+            root_dir.path(),
+            config.into(),
+            Default::default(),
+            Events::disabled(),
+        )
+        .await
+        .unwrap();
+
+        let outputs_dir = root_dir.path().join("outputs");
+        let outputs = evaluator
+            .evaluate_workflow(document, WorkflowInputs::default(), &outputs_dir)
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow");
+
+        assert_eq!(
+            outputs
+                .get("message")
+                .expect("expected workflow output")
+                .as_string()
+                .expect("expected string output")
+                .as_str(),
+            "hello from selected import"
+        );
+    }
+
+    #[tokio::test]
+    async fn it_evaluates_namespaced_call_to_reexported_task() {
+        // `entry.wdl` re-exports `make_message` from `lib.wdl` into its
+        // scope, and `source.wdl` imports `entry.wdl` by namespace. A
+        // call to `entry.make_message` must reach the re-exported task.
+        let root_dir = TempDir::new().expect("failed to create temporary directory");
+        fs::write(
+            root_dir.path().join("lib.wdl"),
+            r#"
+version 1.4
+
+task make_message {
+    command <<<>>>
+
+    output {
+        String message = "hello from re-exported task"
+    }
+}
+"#,
+        )
+        .expect("failed to write imported WDL source file");
+        fs::write(
+            root_dir.path().join("entry.wdl"),
+            r#"
+version 1.4
+
+import * from "lib.wdl"
+
+task entry_local {
+    command <<<>>>
+}
+"#,
+        )
+        .expect("failed to write entry WDL source file");
+        fs::write(
+            root_dir.path().join("source.wdl"),
+            r#"
+version 1.4
+
+import "entry.wdl"
+
+workflow test {
+    call entry.make_message
+
+    output {
+        String message = make_message.message
+    }
+}
+"#,
+        )
+        .expect("failed to write WDL source file");
+
+        let analyzer = Analyzer::new(
+            AnalysisConfig::default()
+                .with_diagnostics_config(DiagnosticsConfig::except_all())
+                .with_feature_flags(wdl_analysis::FeatureFlags::default().with_wdl_1_4()),
+            |(), _, _, _| async {},
+        );
+        analyzer
+            .add_directory(root_dir.path())
+            .await
+            .expect("failed to add directory");
+        let results = analyzer
+            .analyze(())
+            .await
+            .expect("failed to analyze document");
+        let document = results
+            .iter()
+            .find(|result| result.document().uri().path().ends_with("source.wdl"))
+            .expect("expected `source.wdl` analysis result")
+            .document();
+
+        let config = Config {
+            backends: [("default".to_string(), LocalBackendConfig::default().into())].into(),
+            ..Default::default()
+        };
+        let evaluator = Evaluator::new(
+            root_dir.path(),
+            config.into(),
+            Default::default(),
+            Events::disabled(),
+        )
+        .await
+        .unwrap();
+
+        let outputs_dir = root_dir.path().join("outputs");
+        let outputs = evaluator
+            .evaluate_workflow(document, WorkflowInputs::default(), &outputs_dir)
+            .await
+            .map_err(|e| e.to_string())
+            .expect("failed to evaluate workflow");
+
+        assert_eq!(
+            outputs
+                .get("message")
+                .expect("expected workflow output")
+                .as_string()
+                .expect("expected string output")
+                .as_str(),
+            "hello from re-exported task"
         );
     }
 

@@ -271,15 +271,11 @@ impl Default for Analysis {
     }
 }
 
-/// Returns the default cache root, anchored to `manifest_dir` when present.
+/// Returns the default global module cache root.
 ///
-/// Precedence: `manifest_dir/.sprocket/cache/modules` →
-/// `config_root/cache/modules` → `dirs::cache_dir()/sprocket/modules` →
-/// `.sprocket/cache/modules` (CWD-relative last resort).
-pub(crate) fn default_cache_root(manifest_dir: Option<&Path>) -> PathBuf {
-    if let Some(dir) = manifest_dir {
-        return dir.join(".sprocket").join("cache").join("modules");
-    }
+/// Precedence is `config_root/cache/modules`, then
+/// `dirs::cache_dir()/sprocket/modules`, then a CWD-relative fallback.
+pub(crate) fn default_cache_root(_manifest_dir: Option<&Path>) -> PathBuf {
     if let Some(root) = crate::config::config_root() {
         return root.join("cache").join("modules");
     }
@@ -289,17 +285,12 @@ pub(crate) fn default_cache_root(manifest_dir: Option<&Path>) -> PathBuf {
     PathBuf::from(".sprocket/cache/modules")
 }
 
-/// Returns the default trust-store path, anchored to `manifest_dir` when
-/// present.
+/// Returns the default global trust-store path.
 ///
-/// Precedence: `manifest_dir/.sprocket/modules-trust.toml` →
-/// `config_root/modules-trust.toml` →
-/// `dirs::config_dir()/sprocket/modules-trust.toml` →
-/// `modules-trust.toml` (CWD-relative last resort).
-pub(crate) fn default_trust_path(manifest_dir: Option<&Path>) -> PathBuf {
-    if let Some(dir) = manifest_dir {
-        return dir.join(".sprocket").join("modules-trust.toml");
-    }
+/// Precedence is `config_root/modules-trust.toml`, then
+/// `dirs::config_dir()/sprocket/modules-trust.toml`, then a CWD-relative
+/// fallback.
+pub(crate) fn default_trust_path(_manifest_dir: Option<&Path>) -> PathBuf {
     if let Some(root) = crate::config::config_root() {
         return root.join("modules-trust.toml");
     }
@@ -417,6 +408,15 @@ pub(crate) fn resolution_context_for_manifest(
     manifest_path: &Path,
     manifest: wdl_modules::Manifest,
 ) -> anyhow::Result<wdl::analysis::ResolutionContext> {
+    let lockfile_path = manifest_path.with_file_name(wdl_modules::LOCKFILE_FILENAME);
+    if lockfile_path.exists()
+        && let Ok(lock_bytes) = std::fs::read(&lockfile_path)
+        && let Ok(lock) = wdl_modules::Lockfile::parse(&lock_bytes)
+        && !lock.satisfies_manifest(&manifest)
+    {
+        warn!("`module-lock.json` is out of date with `module.json`; run `sprocket module lock`");
+    }
+
     info!(
         manifest = %manifest_path.display(),
         "found `module.json`; symbolic imports will resolve through the module system"
@@ -434,21 +434,15 @@ pub(crate) fn resolution_context_for_manifest(
 /// [`ResolutionContext`](wdl::analysis::ResolutionContext) for it.
 ///
 /// This is the single discovery policy shared by the CLI batch analysis and the
-/// LSP server, including the gate on the WDL 1.4 feature flag. Each path in
-/// `starts` is walked upward (stopping at a repository root) for a
-/// `module.json`. The default null-resolver context is returned when the
-/// feature is disabled or no manifest is found; an error is returned when a
-/// discovered manifest is malformed or when `starts` spans more than one
-/// manifest.
+/// LSP server. Each path in `starts` is walked upward (stopping at a repository
+/// root) for a `module.json`. The default null-resolver context is returned
+/// when no manifest is found; an error is returned when a discovered manifest
+/// is malformed or when `starts` spans more than one manifest.
 pub(crate) fn resolution_context_from_paths(
     modules_config: &wdl_modules::resolver::ModulesConfig,
-    feature_flags: &FeatureFlags,
+    _feature_flags: &FeatureFlags,
     starts: &[PathBuf],
 ) -> anyhow::Result<wdl::analysis::ResolutionContext> {
-    if !feature_flags.wdl_1_4() {
-        return Ok(wdl::analysis::ResolutionContext::default());
-    }
-
     let mut manifests = HashMap::new();
     let mut walked = HashSet::new();
     for start in starts {
@@ -570,25 +564,19 @@ mod tests {
     const MANIFEST: &[u8] = br#"{"name":"example","version":"0.1.0","license":"MIT"}"#;
 
     #[test]
-    fn cache_root_uses_manifest_dir() {
+    fn cache_root_uses_global_location() {
         let dir = Path::new("/some/project");
         let result = default_cache_root(Some(dir));
-        assert_eq!(
-            result,
-            Path::new("/some/project/.sprocket/cache/modules"),
-            "`default_cache_root` with `Some(manifest_dir)` should be manifest-anchored"
-        );
+        assert!(!result.starts_with(dir));
+        assert!(result.ends_with("cache/modules"));
     }
 
     #[test]
-    fn trust_path_uses_manifest_dir() {
+    fn trust_path_uses_global_location() {
         let dir = Path::new("/some/project");
         let result = default_trust_path(Some(dir));
-        assert_eq!(
-            result,
-            Path::new("/some/project/.sprocket/modules-trust.toml"),
-            "`default_trust_path` with `Some(manifest_dir)` should be manifest-anchored"
-        );
+        assert!(!result.starts_with(dir));
+        assert!(result.ends_with("modules-trust.toml"));
     }
 
     #[test]
@@ -704,6 +692,27 @@ mod tests {
             .resolution_context_from_sources()
             .expect("resolution context construction should succeed");
         assert_eq!(resolution.module_root(), Some(module_dir.as_path()));
+    }
+
+    #[test]
+    fn resolver_discovers_module_without_wdl_1_4_feature_flag() {
+        let module_dir = tempfile::TempDir::new().unwrap();
+        std::fs::write(
+            module_dir.path().join(wdl_modules::MANIFEST_FILENAME),
+            MANIFEST,
+        )
+        .unwrap();
+        std::fs::write(module_dir.path().join("main.wdl"), "version 1.2\n").unwrap();
+
+        let module_url = url::Url::from_file_path(module_dir.path().join("main.wdl")).unwrap();
+        let analysis = Analysis::default()
+            .add_source(Source::File(module_url))
+            .modules_config(wdl_modules::resolver::ModulesConfig::default());
+
+        let resolution = analysis
+            .resolution_context_from_sources()
+            .expect("resolution context construction should succeed");
+        assert_eq!(resolution.module_root(), Some(module_dir.path()));
     }
 
     #[test]

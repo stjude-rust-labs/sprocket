@@ -67,6 +67,20 @@ impl Source {
         }
     }
 
+    /// Returns the local directory to begin an upward `module.json`
+    /// search from, or `None` for a remote source that no local module
+    /// governs.
+    pub fn local_start_dir(&self) -> Option<std::path::PathBuf> {
+        match self {
+            Source::Directory(path) => Some(path.clone()),
+            Source::File(url) => url
+                .to_file_path()
+                .ok()
+                .and_then(|p| p.parent().map(std::path::Path::to_path_buf)),
+            Source::Url(_) => None,
+        }
+    }
+
     /// Converts the source to a URL.
     ///
     /// For [`Source::File`] and [`Source::Url`], this clones the URL. For
@@ -144,10 +158,7 @@ impl std::str::FromStr for Source {
 /// When a command receives a directory as its source, this function looks for a
 /// `module.json` in that directory and returns a [`Source::File`] pointing to
 /// the declared entrypoint (or `index.wdl` by default).
-pub fn resolve_module_entrypoint(
-    dir: &Path,
-    feature_flags: wdl::analysis::FeatureFlags,
-) -> Result<Source> {
+pub fn resolve_module_entrypoint(dir: &Path) -> Result<Source> {
     let manifest_path = dir.join(wdl_modules::MANIFEST_FILENAME);
 
     anyhow::ensure!(
@@ -155,14 +166,6 @@ pub fn resolve_module_entrypoint(
         "directory sources are not supported for this command; to run a WDL module, pass a \
          directory containing a `module.json`"
     );
-
-    if !feature_flags.wdl_1_4() {
-        bail!(
-            "a `module.json` was found in `{}`, but the WDL module system requires version 1.4; \
-             set `common.wdl.feature_flags.wdl_1_4 = true` in `sprocket.toml` to enable it",
-            dir.display()
-        );
-    }
 
     let (_, manifest) = crate::analysis::discover_manifest(dir)?
         .expect("manifest existence was already verified above");

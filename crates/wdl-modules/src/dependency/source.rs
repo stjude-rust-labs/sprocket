@@ -11,8 +11,8 @@ use serde_with::SerializeDisplay;
 use thiserror::Error;
 use url::Url;
 
-use crate::lockfile::GitCommit;
-use crate::lockfile::GitCommitError;
+use crate::lockfile::GitCommitish;
+use crate::lockfile::GitCommitishError;
 use crate::relative_path::RelativePath;
 use crate::relative_path::RelativePathError;
 use crate::version_requirement::VersionRequirement;
@@ -138,7 +138,7 @@ pub enum DependencySourceError {
 
     /// A Git commit selector was invalid.
     #[error(transparent)]
-    GitCommit(#[from] GitCommitError),
+    GitCommit(#[from] GitCommitishError),
 
     /// The Git URL did not parse.
     #[error("invalid Git URL: {0}")]
@@ -216,7 +216,7 @@ impl TryFrom<DependencySourceFields> for DependencySource {
                 } else if let Some(b) = branch {
                     GitSelector::Branch(b)
                 } else if let Some(c) = commit {
-                    GitSelector::Commit(GitCommit::try_from(c)?)
+                    GitSelector::Commit(GitCommitish::try_from(c)?)
                 } else {
                     // SAFETY: `selector_count` is 1 in this branch, and the
                     // four `if let Some(...)` arms above cover every selector
@@ -259,8 +259,9 @@ pub enum GitSelector {
     Tag(String),
     /// A Git branch name.
     Branch(String),
-    /// A full Git commit SHA.
-    Commit(GitCommit),
+    /// A Git commit SHA, or any unique prefix of one (7–40 hex chars).
+    /// The resolver expands a prefix to the full SHA at lock time.
+    Commit(GitCommitish),
 }
 
 /// Flat field set of a dependency declaration as it appears in
@@ -416,11 +417,27 @@ mod tests {
     }
 
     #[test]
-    fn rejects_short_commit_selector() {
-        let err = parse(r#"{"git": "https://x/y", "commit": "abc123"}"#).unwrap_err();
+    fn accepts_commit_prefix_selector() {
+        let dep = parse(r#"{"git": "https://github.com/x/y", "commit": "a1b2c3d"}"#).unwrap();
+        match dep {
+            DependencySource::Git {
+                selector: GitSelector::Commit(commit),
+                ..
+            } => {
+                assert_eq!(commit.as_str(), "a1b2c3d");
+                assert!(!commit.is_full());
+            }
+            _ => panic!("expected `Commit` selector"),
+        }
+    }
+
+    #[test]
+    fn rejects_too_short_commit_selector() {
+        // Fewer than 4 hex characters is rejected.
+        let err = parse(r#"{"git": "https://x/y", "commit": "ab"}"#).unwrap_err();
         assert!(
             err.to_string()
-                .contains("must be exactly 40 lowercase hex characters"),
+                .contains("must be 4 to 40 lowercase hex characters"),
             "wrong error: {err}"
         );
     }

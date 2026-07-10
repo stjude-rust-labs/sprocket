@@ -6,12 +6,13 @@ use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use semver::Version;
 use serde::Deserialize;
 use serde::Serialize;
 use thiserror::Error;
 use url::Url;
 
+#[cfg(feature = "git-resolver")]
+use crate::Manifest;
 use crate::dependency::DependencyName;
 use crate::dependency::DependencyNameError;
 use crate::dependency::GitModulePath;
@@ -39,6 +40,17 @@ pub enum LockfileError {
     /// A `dependencies` key is not a valid WDL identifier.
     #[error(transparent)]
     DependencyName(#[from] DependencyNameError),
+
+    /// A Git-sourced entry is missing its required `checksum`.
+    #[error("lockfile entry for `{0}` has a Git source but no `checksum`")]
+    MissingChecksum(String),
+
+    /// A local path entry carries a `checksum` or `signer`, which are only
+    /// valid for Git sources.
+    #[error(
+        "lockfile entry for `{0}` has a local path source but carries a `checksum` or `signer`"
+    )]
+    PathSourceIntegrity(String),
 }
 
 /// A parsed `module-lock.json`.
@@ -67,6 +79,7 @@ impl Lockfile {
         if lockfile.version != LOCKFILE_VERSION {
             return Err(LockfileError::UnsupportedVersion(lockfile.version));
         }
+        validate_integrity_fields(&lockfile.dependencies)?;
         Ok(lockfile)
     }
 
@@ -90,6 +103,43 @@ impl Lockfile {
         }
         current.get(name)
     }
+
+    /// Returns true when this lockfile's top-level dependencies exactly
+    /// match `manifest.dependencies` and each locked source still
+    /// satisfies the manifest declaration.
+    #[cfg(feature = "git-resolver")]
+    pub fn satisfies_manifest(&self, manifest: &Manifest) -> bool {
+        manifest.dependencies.iter().all(|(name, source)| {
+            self.find_scoped(&[], name)
+                .is_some_and(|entry| crate::resolver::lock::satisfies(entry, source))
+        }) && self
+            .dependencies
+            .keys()
+            .all(|name| manifest.dependencies.contains_key(name))
+    }
+}
+
+/// Recursively enforces that Git-sourced entries carry a `checksum` and
+/// that local path entries carry neither `checksum` nor `signer`.
+fn validate_integrity_fields(deps: &DependencyMap) -> Result<(), LockfileError> {
+    for (name, entry) in deps {
+        match &entry.source {
+            ResolvedSource::Git { .. } => {
+                if entry.checksum.is_none() {
+                    return Err(LockfileError::MissingChecksum(name.manifest().to_string()));
+                }
+            }
+            ResolvedSource::Path { .. } => {
+                if entry.checksum.is_some() || entry.signer.is_some() {
+                    return Err(LockfileError::PathSourceIntegrity(
+                        name.manifest().to_string(),
+                    ));
+                }
+            }
+        }
+        validate_integrity_fields(&entry.dependencies)?;
+    }
+    Ok(())
 }
 
 /// A `dependencies` map keyed by consumer-chosen dependency names.
@@ -101,11 +151,16 @@ pub type DependencyMap = BTreeMap<DependencyName, DependencyEntry>;
 pub struct DependencyEntry {
     /// The resolved source for the dependency.
     pub source: ResolvedSource,
-    /// The module's version at lock time.
-    pub version: Version,
     /// The module's content hash.
-    pub checksum: ContentHash,
+    ///
+    /// Required for Git sources and absent for local path sources, whose
+    /// content is read as-is at execution time and carries no checksum.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub checksum: Option<ContentHash>,
     /// The signer's public key, if the module was signed at lock time.
+    ///
+    /// Absent for unsigned modules and for local path sources, which are
+    /// not subject to signature verification.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub signer: Option<VerifyingKey>,
     /// The module's transitive dependencies.
@@ -120,8 +175,9 @@ pub enum ResolvedSource {
     Git {
         /// The Git repository URL.
         git: Url,
-        /// The 40-character lowercase hex commit SHA.
-        commit: GitCommit,
+        /// The full 40-character lowercase hex commit SHA the selector
+        /// resolved to at lock time.
+        sha: GitCommit,
         /// The selector from `module.json` that produced this entry.
         ///
         /// Tag and branch selectors carry mutable refs that cannot be
@@ -159,6 +215,38 @@ impl ResolvedSource {
             _ => None,
         }
     }
+
+    /// Returns the source's identity coordinates for cycle detection.
+    ///
+    /// For Git sources this is the repository URL and sub-path; for
+    /// local path sources it is the resolved directory. The resolved
+    /// commit and the selector are deliberately excluded so that a
+    /// module cannot transitively depend on itself even at a different
+    /// version or via a different selector.
+    pub fn coordinates(&self) -> SourceCoordinates<'_> {
+        match self {
+            Self::Git { git, path, .. } => SourceCoordinates::Git {
+                git: git.as_str(),
+                path: path.as_ref().map(GitModulePath::as_str),
+            },
+            Self::Path { path } => SourceCoordinates::Path(path.as_path()),
+        }
+    }
+}
+
+/// The identity coordinates of a [`ResolvedSource`], used for cycle
+/// detection. Excludes version and selector information.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SourceCoordinates<'a> {
+    /// A Git source, identified by repository URL and optional sub-path.
+    Git {
+        /// The Git repository URL.
+        git: &'a str,
+        /// The sub-path within the repository, if any.
+        path: Option<&'a str>,
+    },
+    /// A local path source, identified by its resolved directory.
+    Path(&'a std::path::Path),
 }
 
 /// A 40-character lowercase hex Git commit SHA.
@@ -207,12 +295,70 @@ impl FromStr for GitCommit {
 #[error("git commit `{0}` must be exactly 40 lowercase hex characters")]
 pub struct GitCommitError(String);
 
+/// A Git commit selector: any unique prefix of a commit SHA, from 4 to
+/// 40 lowercase hex characters (Git's own minimum abbreviation length).
+/// The resolver expands the prefix to a full [`GitCommit`] at lock time.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Ord, PartialOrd, Serialize, Deserialize)]
+#[serde(try_from = "String")]
+pub struct GitCommitish(String);
+
+impl GitCommitish {
+    /// Returns the commit-ish as a string slice.
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+
+    /// Returns true when the selector is a full 40-character SHA.
+    pub fn is_full(&self) -> bool {
+        self.0.len() == 40
+    }
+}
+
+impl fmt::Display for GitCommitish {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
+impl TryFrom<String> for GitCommitish {
+    type Error = GitCommitishError;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        if (4..=40).contains(&s.len())
+            && s.bytes()
+                .all(|b| b.is_ascii_hexdigit() && !b.is_ascii_uppercase())
+        {
+            Ok(Self(s))
+        } else {
+            Err(GitCommitishError(s))
+        }
+    }
+}
+
+impl FromStr for GitCommitish {
+    type Err = GitCommitishError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_from(s.to_string())
+    }
+}
+
+/// An error parsing a [`GitCommitish`].
+#[derive(Debug, Error)]
+#[error("git commit `{0}` must be 4 to 40 lowercase hex characters")]
+pub struct GitCommitishError(String);
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn parse(s: &str) -> Result<Lockfile, LockfileError> {
         Lockfile::parse(s.as_bytes())
+    }
+
+    #[cfg(feature = "git-resolver")]
+    fn parse_manifest(s: &str) -> Manifest {
+        Manifest::parse(s.as_bytes()).unwrap()
     }
 
     #[test]
@@ -231,19 +377,17 @@ mod tests {
                     "spellbook": {
                         "source": {
                             "git": "https://github.com/openwdl/spellbook",
-                            "commit": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+                            "sha": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
                             "selector": {"version": "^1"}
                         },
-                        "version": "1.2.0",
                         "checksum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                         "dependencies": {
                             "common": {
                                 "source": {
                                     "git": "https://github.com/openwdl/common",
-                                    "commit": "d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5",
+                                    "sha": "d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5",
                                     "selector": {"version": "^0.3"}
                                 },
-                                "version": "0.3.0",
                                 "checksum": "sha256:4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865",
                                 "dependencies": {}
                             }
@@ -251,8 +395,6 @@ mod tests {
                     },
                     "local_utils": {
                         "source": { "path": "../utils" },
-                        "version": "0.5.0",
-                        "checksum": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
                         "dependencies": {}
                     }
                 }
@@ -263,7 +405,6 @@ mod tests {
         assert_eq!(l.dependencies.len(), 2);
         let spellbook = l.dependencies.get(&"spellbook".parse().unwrap()).unwrap();
         assert!(matches!(spellbook.source, ResolvedSource::Git { .. }));
-        assert_eq!(spellbook.version.to_string(), "1.2.0");
         assert_eq!(spellbook.dependencies.len(), 1);
     }
 
@@ -275,8 +416,6 @@ mod tests {
                 "dependencies": {
                     "local_utils": {
                         "source": { "path": "../utils" },
-                        "version": "0.5.0",
-                        "checksum": "sha256:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
                         "dependencies": {}
                     }
                 }
@@ -326,10 +465,9 @@ mod tests {
                     "spellbook": {
                         "source": {
                             "git": "https://x/y",
-                            "commit": "not-a-sha",
+                            "sha": "not-a-sha",
                             "selector": {"tag": "v1"}
                         },
-                        "version": "1.0.0",
                         "checksum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                         "dependencies": {}
                     }
@@ -348,7 +486,6 @@ mod tests {
                 "dependencies": {
                     "local": {
                         "source": { "path": "../utils" },
-                        "version": "0.1.0",
                         "checksum": "md5:abc",
                         "dependencies": {}
                     }
@@ -368,11 +505,10 @@ mod tests {
                     "csvcut": {
                         "source": {
                             "git": "https://github.com/openwdl/tasks",
-                            "commit": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+                            "sha": "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
                             "selector": {"tag": "v1.2.0"},
                             "path": "csvcut"
                         },
-                        "version": "1.2.0",
                         "checksum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
                         "dependencies": {}
                     }
@@ -387,5 +523,188 @@ mod tests {
             }
             _ => panic!("expected `Git` source"),
         }
+    }
+
+    #[cfg(feature = "git-resolver")]
+    #[test]
+    fn satisfies_manifest_present_and_satisfied() {
+        let manifest = parse_manifest(
+            r#"{
+                "name":"consumer",
+                "license":"MIT",
+                "dependencies":{
+                    "foo":{"git":"https://github.com/openwdl/foo","version":"^1"}
+                }
+            }"#,
+        );
+        let lock = parse(
+            r#"{
+                "version":1,
+                "dependencies":{
+                    "foo":{
+                        "source":{
+                            "git":"https://github.com/openwdl/foo",
+                            "sha":"0000000000000000000000000000000000000001",
+                            "selector":{"version":"^1"}
+                        },
+                        "checksum":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                        "dependencies":{}
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+        assert!(lock.satisfies_manifest(&manifest));
+    }
+
+    #[cfg(feature = "git-resolver")]
+    #[test]
+    fn satisfies_manifest_true_for_same_branch_selector() {
+        let manifest = parse_manifest(
+            r#"{
+                "name":"consumer",
+                "license":"MIT",
+                "dependencies":{
+                    "foo":{
+                        "git":"https://github.com/openwdl/foo",
+                        "branch":"main",
+                        "path":"modules/foo"
+                    }
+                }
+            }"#,
+        );
+        let lock = parse(
+            r#"{
+                "version":1,
+                "dependencies":{
+                    "foo":{
+                        "source":{
+                            "git":"https://github.com/openwdl/foo",
+                            "sha":"0000000000000000000000000000000000000001",
+                            "selector":{"branch":"main"},
+                            "path":"modules/foo"
+                        },
+                        "checksum":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                        "dependencies":{}
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+        assert!(lock.satisfies_manifest(&manifest));
+    }
+
+    #[cfg(feature = "git-resolver")]
+    #[test]
+    fn satisfies_manifest_false_when_branch_path_changes() {
+        let manifest = parse_manifest(
+            r#"{
+                "name":"consumer",
+                "license":"MIT",
+                "dependencies":{
+                    "foo":{
+                        "git":"https://github.com/openwdl/foo",
+                        "branch":"main",
+                        "path":"modules/new"
+                    }
+                }
+            }"#,
+        );
+        let lock = parse(
+            r#"{
+                "version":1,
+                "dependencies":{
+                    "foo":{
+                        "source":{
+                            "git":"https://github.com/openwdl/foo",
+                            "sha":"0000000000000000000000000000000000000001",
+                            "selector":{"branch":"main"},
+                            "path":"modules/old"
+                        },
+                        "checksum":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                        "dependencies":{}
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+        assert!(!lock.satisfies_manifest(&manifest));
+    }
+
+    #[cfg(feature = "git-resolver")]
+    #[test]
+    fn satisfies_manifest_false_when_dep_missing_from_lock() {
+        let manifest = parse_manifest(
+            r#"{
+                "name":"consumer",
+                "license":"MIT",
+                "dependencies":{
+                    "foo":{"git":"https://github.com/openwdl/foo","version":"^1"}
+                }
+            }"#,
+        );
+        let lock = parse(r#"{"version":1,"dependencies":{}}"#).unwrap();
+        assert!(!lock.satisfies_manifest(&manifest));
+    }
+
+    #[cfg(feature = "git-resolver")]
+    #[test]
+    fn satisfies_manifest_false_with_orphan_top_level_entry() {
+        let manifest = parse_manifest(
+            r#"{
+                "name":"consumer",
+                "license":"MIT"
+            }"#,
+        );
+        let lock = parse(
+            r#"{
+                "version":1,
+                "dependencies":{
+                    "orphan":{
+                        "source":{"path":"../orphan"},
+                        "dependencies":{}
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+        assert!(!lock.satisfies_manifest(&manifest));
+    }
+
+    #[cfg(feature = "git-resolver")]
+    #[test]
+    fn satisfies_manifest_true_with_nested_transitives_under_satisfied_top_level() {
+        let manifest = parse_manifest(
+            r#"{
+                "name":"consumer",
+                "license":"MIT",
+                "dependencies":{
+                    "foo":{"git":"https://github.com/openwdl/foo","version":"^1"}
+                }
+            }"#,
+        );
+        let lock = parse(
+            r#"{
+                "version":1,
+                "dependencies":{
+                    "foo":{
+                        "source":{
+                            "git":"https://github.com/openwdl/foo",
+                            "sha":"0000000000000000000000000000000000000001",
+                            "selector":{"version":"^1"}
+                        },
+                        "checksum":"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                        "dependencies":{
+                            "bar":{
+                                "source":{"path":"../bar"},
+                                "dependencies":{}
+                            }
+                        }
+                    }
+                }
+            }"#,
+        )
+        .unwrap();
+        assert!(lock.satisfies_manifest(&manifest));
     }
 }
