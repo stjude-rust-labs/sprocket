@@ -63,6 +63,7 @@ pub use document::Document;
 pub use rules::*;
 pub use validation::*;
 pub use visitor::*;
+pub use wdl_format::Config as FormatConfig;
 
 /// Historical rule ID aliases, mapping a removed rule ID to its replacement.
 ///

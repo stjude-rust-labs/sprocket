@@ -46,6 +46,7 @@ use wdl_analysis::Analyzer;
 use wdl_analysis::Config as AnalysisConfig;
 use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::FeatureFlags;
+use wdl_analysis::FormatConfig;
 use wdl_analysis::IncrementalChange;
 use wdl_analysis::SourceEdit;
 use wdl_analysis::SourcePosition;
@@ -265,6 +266,9 @@ pub struct ServerOptions {
     /// Feature flags for enabling experimental features.
     pub feature_flags: FeatureFlags,
 
+    /// Context for resolving symbolic module imports.
+    pub resolution_context: wdl_analysis::ResolutionContext,
+
     /// Analysis or lint rule IDs to except (ignore).
     pub exceptions: Vec<String>,
 
@@ -273,6 +277,9 @@ pub struct ServerOptions {
 
     /// The diagnostic baseline for suppressing known diagnostics.
     pub baseline: Option<wdl_lint::Baseline>,
+
+    /// The formatting configuration to use.
+    pub format: FormatConfig,
 }
 
 impl ServerOptions {
@@ -293,7 +300,9 @@ impl Default for ServerOptions {
             exceptions: Vec::new(),
             ignore_filename: None,
             feature_flags: Default::default(),
+            resolution_context: Default::default(),
             baseline: None,
+            format: FormatConfig::default(),
         }
     }
 }
@@ -485,12 +494,14 @@ impl ServerOptions {
             )
             .with_ignore_filename(ignore_name)
             .with_all_rules(all_rules)
-            .with_feature_flags(self.feature_flags);
+            .with_feature_flags(self.feature_flags)
+            .with_format_config(self.format);
 
         let wdl_lint_config = lint_options.config.clone();
         let severity_overrides = wdl_lint::severity_overrides(&wdl_lint_config);
-        Analyzer::<ProgressToken>::new_with_validator(
+        Analyzer::<ProgressToken>::new_with_validator_and_resolution(
             analyzer_config,
+            self.resolution_context.clone(),
             move |token, kind, current, total| {
                 let client = analyzer_client.clone();
                 async move {
@@ -545,6 +556,11 @@ enum Notification {
 #[derive(Debug)]
 #[allow(clippy::enum_variant_names, clippy::missing_docs_in_private_items)]
 enum Request {
+    /// `textDocument/codeLens`
+    CodeLens {
+        params: CodeLensParams,
+        tx: RequestResponseSender<Option<Vec<CodeLens>>>,
+    },
     /// `textDocument/completion`
     Completion {
         params: CompletionParams,
@@ -839,6 +855,10 @@ impl<S: 'static> Server<S> {
                     }
                 },
                 Message::Request(request) => match request {
+                    Request::CodeLens { params, tx } => {
+                        let state = state.read().await;
+                        Self::code_lens(params, tx, &state).await
+                    }
                     Request::Completion { params, tx } => {
                         let state = state.read().await;
                         Self::completion(params, tx, &state).await
@@ -919,6 +939,22 @@ impl<S: 'static> Server<S> {
                 },
             }
         }
+    }
+
+    /// `textDocument/codeLens` request handler.
+    async fn code_lens(
+        params: CodeLensParams,
+        tx: RequestResponseSender<Option<Vec<CodeLens>>>,
+        state: &ServerState<S>,
+    ) {
+        let result = state
+            .config
+            .analyzer
+            .code_lens(params.text_document.uri)
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
     }
 
     /// `textDocument/completion` request handler.
@@ -1691,6 +1727,10 @@ impl<S: 'static> LanguageServer for Server<S> {
                     inlay_hint_provider: Some(OneOf::Left(true)),
                     call_hierarchy_provider: Some(CallHierarchyServerCapability::Simple(true)),
                     folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
+                    // TODO(serial): Actually advertise code lens support when extensions are
+                    // updated code_lens_provider: Some(CodeLensOptions {
+                    //     resolve_provider: Some(false),
+                    // }),
                     ..Default::default()
                 },
                 server_info: Some(info),
@@ -1714,6 +1754,13 @@ impl<S: 'static> LanguageServer for Server<S> {
 
             Ok(())
         })
+    }
+
+    fn code_lens(
+        &mut self,
+        params: CodeLensParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<CodeLens>>, Self::Error>> {
+        self.request(move |tx| Message::Request(Request::CodeLens { params, tx }))
     }
 
     fn semantic_tokens_full(

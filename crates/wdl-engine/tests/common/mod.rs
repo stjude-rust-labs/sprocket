@@ -9,12 +9,14 @@ use std::env;
 use std::ffi::OsStr;
 use std::fs;
 use std::path::Path;
+use std::sync::LazyLock;
 
 use anyhow::Context as _;
 use anyhow::bail;
 use futures::future::BoxFuture;
 use libtest_mimic::Trial;
 use pretty_assertions::StrComparison;
+use regex::Regex;
 use toml_spanner::Toml;
 use wdl_analysis::Config as AnalysisConfig;
 use wdl_engine::config::Config as EngineConfig;
@@ -28,6 +30,12 @@ const DOCKER_ONLY_TESTS: &[&str] = &[
     // Error message contains a guest path
     "subdir-output-escape",
 ];
+
+/// Matches volatile guest input mount prefixes in container diagnostics.
+static GUEST_INPUT_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    // SAFETY: this regex is a fixed literal pattern and is valid.
+    Regex::new(r"/mnt/task/inputs/\d+/").unwrap()
+});
 
 /// The set of configs that determine how a test is run.
 #[derive(Debug, Clone, Default, Toml)]
@@ -190,9 +198,24 @@ pub fn normalize(s: &str) -> String {
         .replace("\r\n", "\n")
 }
 
+/// Normalizes dynamic error output for comparison.
+fn normalize_error_result(s: &str) -> String {
+    let mut s = GUEST_INPUT_PATTERN
+        .replace_all(s, "/mnt/task/inputs/_INPUT_/")
+        .to_string();
+    s.truncate(s.trim_end_matches('\n').len());
+    s.push('\n');
+    s
+}
+
 /// Compares a single result.
 pub fn compare_result(path: &Path, result: &str) -> Result<(), anyhow::Error> {
     let result = normalize(result);
+    let result = if path.file_name() == Some(OsStr::new("error.txt")) {
+        normalize_error_result(&result)
+    } else {
+        result
+    };
     if env::var_os("BLESS").is_some() {
         fs::write(path, &result).with_context(|| {
             format!(
@@ -211,6 +234,11 @@ pub fn compare_result(path: &Path, result: &str) -> Result<(), anyhow::Error> {
             )
         })?
         .replace("\r\n", "\n");
+    let expected = if path.file_name() == Some(OsStr::new("error.txt")) {
+        normalize_error_result(&expected)
+    } else {
+        expected
+    };
 
     if expected != result {
         bail!(

@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use clap::Parser;
 use clap::builder::PossibleValuesParser;
-use wdl::analysis::FeatureFlags;
 use wdl::lint::Baseline;
 use wdl::lint::baseline::DEFAULT_BASELINE_FILENAME;
 use wdl::lsp::LevelFilter;
@@ -63,6 +62,13 @@ pub async fn analyzer(
 ) -> CommandResult<()> {
     args.apply(&config);
 
+    let cwd = std::env::current_dir().map_err(anyhow::Error::from)?;
+    let resolution_context = crate::analysis::resolution_context_from_paths(
+        &config.modules,
+        &config.common.wdl.feature_flags,
+        &[cwd],
+    )?;
+
     Server::<Subscriber>::run(
         ServerOptions {
             name: "Sprocket".into(),
@@ -73,7 +79,8 @@ pub async fn analyzer(
                 .map(|id| wdl::analysis::canonical_rule_id(id).to_string())
                 .collect(),
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
-            feature_flags: FeatureFlags::default(),
+            feature_flags: config.common.wdl.feature_flags,
+            resolution_context,
             baseline: {
                 let baseline_is_configured = config.check.baseline.is_some();
                 let path = config
@@ -84,6 +91,7 @@ pub async fn analyzer(
                 Baseline::load_or_default(&path, baseline_is_configured)
                     .map_err(anyhow::Error::from)?
             },
+            format: config.format,
         },
         UserOptions {
             log_level: LevelFilter::from(

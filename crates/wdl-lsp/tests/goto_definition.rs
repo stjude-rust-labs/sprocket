@@ -97,6 +97,77 @@ async fn should_goto_imported_task_definition() {
 }
 
 #[tokio::test]
+async fn should_goto_imported_workflow_definition() {
+    let mut ctx = setup().await;
+
+    // Position of `process` in `call lib.process`
+    let response = goto_definition_request(&mut ctx, "source.wdl", Position::new(34, 13))
+        .await
+        .expect("request should succeed");
+    let Some(GotoDefinitionResponse::Scalar(location)) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("lib.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(28, 9), Position::new(28, 16)) // `workflow process` in lib.wdl
+    );
+}
+
+#[tokio::test]
+async fn should_goto_selected_imported_task_definition() {
+    let mut options = wdl_lsp::ServerOptions::default();
+    options.feature_flags = options.feature_flags.with_wdl_1_4();
+    let mut ctx = TestContext::with_options(
+        "goto_definition_selected",
+        options,
+        wdl_lsp::UserOptions::default(),
+    );
+    ctx.initialize().await;
+
+    // Position of `add` in `call add`
+    let response = goto_definition_request(&mut ctx, "source.wdl", Position::new(5, 9))
+        .await
+        .expect("request should succeed");
+    let Some(GotoDefinitionResponse::Scalar(location)) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("lib.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(2, 5), Position::new(2, 8))
+    );
+}
+
+#[tokio::test]
+async fn should_goto_selected_imported_workflow_definition() {
+    let mut options = wdl_lsp::ServerOptions::default();
+    options.feature_flags = options.feature_flags.with_wdl_1_4();
+    let mut ctx = TestContext::with_options(
+        "goto_definition_selected",
+        options,
+        wdl_lsp::UserOptions::default(),
+    );
+    ctx.initialize().await;
+
+    // Position of `run` in `call run`
+    let response = goto_definition_request(&mut ctx, "source.wdl", Position::new(6, 9))
+        .await
+        .expect("request should succeed");
+    let Some(GotoDefinitionResponse::Scalar(location)) = response else {
+        panic!("expected a single location response, got {:?}", response);
+    };
+
+    assert_eq!(location.uri, ctx.doc_uri("lib.wdl"));
+    assert_eq!(
+        location.range,
+        Range::new(Position::new(7, 9), Position::new(7, 12))
+    );
+}
+
+#[tokio::test]
 async fn should_goto_imported_struct_definition() {
     let mut ctx = setup().await;
 

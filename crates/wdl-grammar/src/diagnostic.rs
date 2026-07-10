@@ -9,6 +9,19 @@ use rowan::TextSize;
 
 /// Represents a span of source.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(
+        module = "sprocket_bio.grammar",
+        frozen,
+        skip_from_py_object,
+        get_all,
+        str,
+        eq,
+        ord,
+        hash,
+    )
+)]
 pub struct Span {
     /// The start of the span.
     start: usize,
@@ -108,6 +121,17 @@ impl TryFrom<Span> for TextRange {
 
 /// Represents the severity of a diagnostic.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(
+        module = "sprocket_bio.grammar",
+        frozen,
+        rename_all = "SCREAMING_SNAKE_CASE",
+        skip_from_py_object,
+        eq,
+        ord
+    )
+)]
 pub enum Severity {
     /// The diagnostic is displayed as an error.
     Error,
@@ -168,6 +192,18 @@ impl FromStr for Severity {
 
 /// Represents a diagnostic to display to the user.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(
+        module = "sprocket_bio.grammar",
+        frozen,
+        skip_from_py_object,
+        get_all,
+        eq,
+        ord,
+        hash
+    )
+)]
 pub struct Diagnostic {
     /// The optional rule associated with the diagnostic.
     rule: Option<String>,
@@ -207,7 +243,12 @@ impl Ord for Diagnostic {
             ord => return ord,
         }
 
-        self.fix.cmp(&other.fix)
+        match self.fix.cmp(&other.fix) {
+            Ordering::Equal => {}
+            ord => return ord,
+        }
+
+        self.help.cmp(&other.help)
     }
 }
 
@@ -403,6 +444,18 @@ impl Diagnostic {
 
 /// Represents a label that annotates the source code.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(
+        module = "sprocket_bio.grammar",
+        frozen,
+        skip_from_py_object,
+        get_all,
+        eq,
+        ord,
+        hash
+    )
+)]
 pub struct Label {
     /// The optional message of the label (may be empty).
     message: String,
@@ -449,5 +502,164 @@ impl Label {
     /// Sets the span of the label.
     pub fn set_span(&mut self, span: impl Into<Span>) {
         self.span = span.into();
+    }
+}
+
+/// Python-specific APIs.
+#[cfg(feature = "unstable-python")]
+mod python {
+    use pyo3::exceptions::PyOverflowError;
+    use pyo3::prelude::*;
+
+    use super::*;
+
+    #[pymethods]
+    impl Span {
+        /// Creates a new span from the given start and length.
+        ///
+        /// # Errors
+        ///
+        /// This method will throw an `OverflowError` if the sum of `start` and
+        /// `len` is greater than or equal to 2^64 on 64-bit platforms and 2^32
+        /// on 32-bit platforms.
+        #[new]
+        fn __new__(start: usize, len: usize) -> PyResult<Self> {
+            Ok(Self {
+                start,
+                end: start.checked_add(len).ok_or_else(|| {
+                    PyOverflowError::new_err(format!(
+                        "the sum of `start` and `len` is greater than or equal to 2^{}",
+                        usize::BITS
+                    ))
+                })?,
+            })
+        }
+
+        /// Gets the length of the span.
+        #[pyo3(name = "len")]
+        fn py_len(&self) -> usize {
+            self.len()
+        }
+
+        /// Determines if the span is empty.
+        #[pyo3(name = "is_empty")]
+        fn py_is_empty(&self) -> bool {
+            self.is_empty()
+        }
+
+        /// Determines if the span contains the given offset.
+        #[pyo3(name = "contains")]
+        fn py_contains(&self, offset: usize) -> bool {
+            self.contains(offset)
+        }
+
+        /// Calculates an intersection of two spans, if one exists.
+        ///
+        /// If spans are adjacent, a zero-length span is returned.
+        ///
+        /// Returns `None` if the two spans are disjoint.
+        ///
+        /// # Examples
+        ///
+        /// ```python
+        /// >>> Span(0, 10).intersect(Span(5, 10))
+        /// Span(5..10)
+        /// ```
+        #[pyo3(name = "intersect")]
+        fn py_intersect(&self, other: Bound<'_, Self>) -> Option<Self> {
+            self.intersect(*other.get())
+        }
+
+        /// Gets the length of the span.
+        fn __len__(&self) -> usize {
+            self.len()
+        }
+
+        /// Returns a printable representation of this object.
+        fn __repr__(&self) -> String {
+            format!("Span({}, {})", self.start, self.len())
+        }
+    }
+
+    #[pymethods]
+    impl Diagnostic {
+        /// Creates a new diagnostic error with the given message.
+        #[staticmethod]
+        #[pyo3(name = "error")]
+        fn py_error(message: &str) -> Self {
+            Self::error(message)
+        }
+
+        /// Creates a new diagnostic warning with the given message.
+        #[staticmethod]
+        #[pyo3(name = "warning")]
+        fn py_warning(message: &str) -> Self {
+            Self::warning(message)
+        }
+
+        /// Creates a new diagnostic node with the given message.
+        #[staticmethod]
+        #[pyo3(name = "note")]
+        fn py_note(message: &str) -> Self {
+            Self::note(message)
+        }
+
+        /// Sets the rule for the diagnostic.
+        #[pyo3(name = "with_rule")]
+        fn py_with_rule(&self, rule: &str) -> Self {
+            self.clone().with_rule(rule)
+        }
+
+        /// Sets the help message for the diagnostic.
+        ///
+        /// This is different from the `fix` message, as it only serves to
+        /// provide more context to the issue, rather than a solution.
+        #[pyo3(name = "with_help")]
+        fn py_with_help(&self, help: &str) -> Self {
+            self.clone().with_help(help)
+        }
+
+        /// Sets the fix message for the diagnostic.
+        #[pyo3(name = "with_fix")]
+        fn py_with_fix(&self, fix: &str) -> Self {
+            self.clone().with_fix(fix)
+        }
+
+        /// Adds a highlight to the diagnostic.
+        ///
+        /// This is equivalent to adding a label with an empty message.
+        ///
+        /// The span for the highlight is expected to be for the same file as
+        /// the diagnostic.
+        #[pyo3(name = "with_highlight")]
+        fn py_with_highlight(&self, span: Bound<'_, Span>) -> Self {
+            self.clone().with_highlight(*span.get())
+        }
+
+        /// Adds a label to the diagnostic.
+        ///
+        /// The first label added is considered the primary label.
+        ///
+        /// The span for the label is expected to be for the same file as the
+        /// diagnostic.
+        #[pyo3(name = "with_label")]
+        fn py_with_label(&self, message: &str, span: Bound<'_, Span>) -> Self {
+            self.clone().with_label(message, *span.get())
+        }
+
+        /// Sets the severity of the diagnostic.
+        #[pyo3(name = "with_severity")]
+        fn py_with_severity(&self, severity: Bound<'_, Severity>) -> Self {
+            self.clone().with_severity(*severity.get())
+        }
+    }
+
+    #[pymethods]
+    impl Label {
+        /// Creates a new label with the given message and span.
+        #[new]
+        fn __new__(message: &str, span: Bound<'_, Span>) -> Self {
+            Self::new(message, *span.get())
+        }
     }
 }

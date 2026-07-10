@@ -20,6 +20,9 @@ use toml_spanner::Error as TomlError;
 use toml_spanner::Failed;
 use toml_spanner::FromToml;
 use toml_spanner::Item;
+use toml_spanner::Key;
+use toml_spanner::Table;
+use toml_spanner::TableStyle;
 use toml_spanner::ToToml;
 use toml_spanner::ToTomlError;
 use toml_spanner::Toml;
@@ -255,6 +258,26 @@ pub struct WdlConfig {
     /// unrecognized version (e.g., `version development`).
     #[toml(default, ToToml with = display)]
     pub fallback_version: FallbackVersion,
+    /// Feature flags for experimental WDL versions.
+    #[toml(default, ToToml with = feature_flags)]
+    pub feature_flags: wdl::analysis::FeatureFlags,
+}
+
+/// TOML serialization adapter for WDL analysis feature flags.
+mod feature_flags {
+    use super::*;
+
+    /// Serializes feature flags as a TOML table.
+    pub fn to_toml<'a>(
+        value: &wdl::analysis::FeatureFlags,
+        arena: &'a Arena,
+    ) -> Result<Item<'a>, ToTomlError> {
+        let mut table = Table::new();
+        table.set_style(TableStyle::Header);
+        table.insert(Key::new("wdl_1_3"), value.wdl_1_3().into(), arena);
+        table.insert(Key::new("wdl_1_4"), value.wdl_1_4().into(), arena);
+        Ok(table.into_item())
+    }
 }
 
 /// Represents the configuration for the Sprocket `check` and `lint` commands.

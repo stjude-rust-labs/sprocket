@@ -56,6 +56,8 @@ pub async fn lock(args: Args, config: Config) -> CommandResult<()> {
     let results = Analysis::default()
         .add_source(s)
         .fallback_version(config.common.wdl.fallback_version.into())
+        .modules_config(config.modules.clone())
+        .feature_flags(config.common.wdl.feature_flags)
         .run()
         .await
         .map_err(CommandError::from)?;

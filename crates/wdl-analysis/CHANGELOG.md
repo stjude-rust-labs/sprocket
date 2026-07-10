@@ -14,6 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `DiagnosticsConfig::with_overrides` to apply per-rule severity overrides.
 * `RULE_ALIASES` and `canonical_rule_id` for mapping deprecated rule IDs to their
   replacements, and alias expansion in `#@ except` directives.
+* Analysis resolves symbolic module imports (`import owner/module/path`, including the wildcard `import * from owner/module` and selected-member `import { a, b } from owner/module` forms) through a `wdl-modules` `Resolver`, materializing them to concrete files during analysis ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
+
+#### Changed
+
+* `Analyzer::new` and `Analyzer::new_with_validator` now take a `ResolutionContext` (a resolver plus an optional manifest path) in place of separate arguments; pass `ResolutionContext::default()` to preserve the previous non-resolving behavior ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
+* The analyzer's formatter now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
+
+#### Fixed
+
+* `runtime` section key type checking (e.g. for `cpu`, `gpu`, `disks`,
+  `maxRetries`, and `returnCodes`) is now version-aware: these keys are no
+  longer type checked in WDL 1.0 documents, since they were not formally
+  typed until WDL 1.1 ([#811](https://github.com/stjude-rust-labs/sprocket/issues/811)).
 
 ## 0.22.0 - 2026-06-26
 

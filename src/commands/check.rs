@@ -382,6 +382,8 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         .analysis_severity_overrides(analysis_overrides)
         .force_enabled_rules(force_enabled)
         .fallback_version(config.common.wdl.fallback_version.into())
+        .modules_config(config.modules.clone())
+        .feature_flags(config.common.wdl.feature_flags)
         .run()
         .await
         .map_err(CommandError::from)?;

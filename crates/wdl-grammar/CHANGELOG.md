@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added the `unstable-python` feature flag, which enables APIs related to Sprocket's Python bindings ([#941](https://github.com/stjude-rust-labs/sprocket/pull/941)).
+
+#### Fixed
+
+* `Diagnostic` now considers its `help` field in its `Ord` implementation ([#941](https://github.com/stjude-rust-labs/sprocket/pull/941)).
+
+* The preamble parser's "missing version statement" diagnostic no longer overclaims that all WDL documents require a version statement; it is now scoped to WDL v1.0+ and includes migration guidance for draft-2 documents ([#993](https://github.com/stjude-rust-labs/sprocket/pull/993)).
+
 ## 0.24.0 - 2026-06-26
 
 #### Changed
