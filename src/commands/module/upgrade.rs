@@ -23,6 +23,7 @@ use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::enforce_lockfile_signer_policy;
 use crate::commands::module::load_lockfile;
+use crate::commands::module::parse_manifest_value;
 use crate::commands::module::print_action;
 use crate::commands::module::print_locking_summary;
 use crate::commands::module::read_manifest_value;
@@ -247,12 +248,6 @@ pub async fn upgrade(args: Args, config: Config, colorize: bool) -> CommandResul
         ActionColor::Green,
     );
     Ok(())
-}
-
-fn parse_manifest_value(value: &serde_json::Value) -> anyhow::Result<wdl_modules::Manifest> {
-    let mut bytes = serde_json::to_vec_pretty(value)?;
-    bytes.push(b'\n');
-    wdl_modules::Manifest::parse(&bytes).context("parsing upgraded `module.json`")
 }
 
 fn wildcard_version_source(source: &DependencySource) -> anyhow::Result<DependencySource> {

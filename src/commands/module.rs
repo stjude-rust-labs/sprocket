@@ -359,6 +359,13 @@ pub fn write_manifest_value(path: &Path, value: &serde_json::Value) -> anyhow::R
     Ok(())
 }
 
+/// Parses an edited manifest JSON value with strict manifest validation.
+pub(crate) fn parse_manifest_value(value: &serde_json::Value) -> anyhow::Result<Manifest> {
+    let mut bytes = serde_json::to_vec_pretty(value)?;
+    bytes.push(b'\n');
+    Manifest::parse(&bytes).context("parsing edited `module.json`")
+}
+
 /// Inserts or replaces a dependency source in the manifest JSON.
 pub fn set_dependency(
     value: &mut serde_json::Value,

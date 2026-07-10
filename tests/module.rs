@@ -1343,6 +1343,43 @@ fn remove_drops_dep_and_relocks() {
 }
 
 #[test]
+fn remove_leaves_manifest_untouched_when_relock_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path().join("consumer");
+    fs::create_dir_all(&root).unwrap();
+    // `broken` points at a missing local module, so any relock fails.
+    fs::write(
+        root.join("module.json"),
+        r#"{
+  "name": "consumer",
+  "license": "MIT",
+  "dependencies": {
+    "broken": { "path": "../missing" },
+    "drop": { "path": "../also-missing" }
+  }
+}
+"#,
+    )
+    .unwrap();
+    let manifest_before = fs::read(root.join("module.json")).unwrap();
+
+    let output = sprocket(&["module", "remove", "drop"])
+        .current_dir(&root)
+        .output()
+        .expect("failed to run sprocket module remove");
+    assert!(
+        !output.status.success(),
+        "command unexpectedly succeeded: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert_eq!(
+        fs::read(root.join("module.json")).unwrap(),
+        manifest_before,
+        "a failed relock must not modify `module.json`"
+    );
+}
+
+#[test]
 fn lock_writes_lockfile() {
     let fixture = ModuleFixture::with_local_dep();
     let add = sprocket(&["module", "add", "utils", "../dep", "--no-lock"])

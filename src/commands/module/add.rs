@@ -21,6 +21,7 @@ use crate::commands::module::Locator;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
+use crate::commands::module::parse_manifest_value;
 use crate::commands::module::print_action;
 use crate::commands::module::print_relock_summary;
 use crate::commands::module::read_manifest_value;
@@ -153,12 +154,6 @@ pub async fn add(args: Args, config: Config, colorize: bool) -> CommandResult<()
     }
 
     Ok(())
-}
-
-fn parse_manifest_value(value: &serde_json::Value) -> anyhow::Result<wdl_modules::Manifest> {
-    let mut bytes = serde_json::to_vec_pretty(value)?;
-    bytes.push(b'\n');
-    wdl_modules::Manifest::parse(&bytes).context("parsing updated `module.json`")
 }
 
 async fn build_source(
