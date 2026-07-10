@@ -1,6 +1,9 @@
-error: a WDL document must start with a version statement
+error: missing version statement
   ┌─ tests/parsing/empty-document/source.wdl:1:1
   │
 1 │ 
   │  
+  │
+  = help: omitting the version statement declares the document as WDL draft-2, which is not supported
+  = fix: upgrade WDL draft-2 documents to v1.0 or later
 
