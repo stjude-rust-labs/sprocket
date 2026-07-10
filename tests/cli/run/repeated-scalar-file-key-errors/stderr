@@ -1,0 +1,6 @@
+error: invalid input key `greet.file`
+
+Caused by:
+    expected type `File` for input `file`, but found type `Array[String]`
+    
+    note: this can happen when a key is repeated on the command line (e.g., `file=a file=b`) or when an unquoted shell glob (e.g., `file=*.txt`) expands to more than one file; provide a single value, quote the glob, or change the input's declared type to an array if it should accept multiple values

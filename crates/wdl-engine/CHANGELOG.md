@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Changed
+
+* Input type-mismatch errors now include a hint when a scalar input (e.g., `File`) was given an array value, explaining that this commonly happens when a key is repeated on the command line or when an unquoted shell glob expands to more than one file ([#997](https://github.com/stjude-rust-labs/sprocket/pull/997)).
+
 ## 0.16.0 - 2026-06-26
 
 #### Added
