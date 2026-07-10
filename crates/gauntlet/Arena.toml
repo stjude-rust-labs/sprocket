@@ -318,6 +318,16 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
+message = "testrun.wdl:7:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
+message = "testrun.wdl:8:10: warning[NamingConvention]: struct member name `reads` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
 message = "testrun.wdl:91:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L91"
 
@@ -325,6 +335,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
 message = "testrun.wdl:92:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L92"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
+message = "testrun.wdl:9:11: warning[NamingConvention]: struct member name `mates` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L9"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/ww-bwa.wdl"
@@ -553,6 +568,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:10:10: warning[NamingConvention]: struct member name `bai` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L10"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:13:10: note[MetaSections]: workflow `gatk_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L13"
 
@@ -685,6 +705,16 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:529:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L529"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:8:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:9:10: warning[NamingConvention]: struct member name `bam` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L9"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -887,6 +917,21 @@ message = "testrun.wdl:78:5: note[TodoComment]: remaining `TODO` item found"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/testrun.wdl/#L78"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
+message = "testrun.wdl:7:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
+message = "testrun.wdl:8:10: warning[NamingConvention]: struct member name `bam` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/testrun.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
+message = "testrun.wdl:9:10: warning[NamingConvention]: struct member name `bam_index` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/testrun.wdl/#L9"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
 message = "ww-ichorcna.wdl:134:20: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L134"
@@ -983,6 +1028,16 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
+message = "testrun.wdl:10:10: warning[NamingConvention]: struct member name `r1_fastq` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L10"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
+message = "testrun.wdl:11:10: warning[NamingConvention]: struct member name `r2_fastq` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L11"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
 message = "testrun.wdl:121:7: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L121"
 
@@ -1000,6 +1055,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
 message = "testrun.wdl:17:10: note[MetaSections]: workflow `salmon_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L17"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
+message = "testrun.wdl:9:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L9"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
@@ -1108,6 +1168,21 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/testrun.wdl"
+message = "testrun.wdl:10:10: warning[NamingConvention]: struct member name `modified_r2` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/testrun.wdl/#L10"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/testrun.wdl"
+message = "testrun.wdl:11:10: warning[NamingConvention]: struct member name `untreated_r1` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/testrun.wdl/#L11"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/testrun.wdl"
+message = "testrun.wdl:12:10: warning[NamingConvention]: struct member name `untreated_r2` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/testrun.wdl/#L12"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/testrun.wdl"
 message = "testrun.wdl:15:10: note[MetaSections]: workflow `shapemapper_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/testrun.wdl/#L15"
 
@@ -1115,6 +1190,21 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/testrun.wdl"
 message = "testrun.wdl:33:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/testrun.wdl/#L33"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/testrun.wdl"
+message = "testrun.wdl:7:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/testrun.wdl"
+message = "testrun.wdl:8:10: warning[NamingConvention]: struct member name `target_fa` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/testrun.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/testrun.wdl"
+message = "testrun.wdl:9:10: warning[NamingConvention]: struct member name `modified_r1` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/testrun.wdl/#L9"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
@@ -1173,6 +1263,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
+message = "testrun.wdl:7:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
 message = "testrun.wdl:82:43: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L82"
 
@@ -1180,6 +1275,16 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
 message = "testrun.wdl:89:39: note[ShellCheck]: Consider using 'grep -c' instead of 'grep|wc -l'."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L89"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
+message = "testrun.wdl:8:10: warning[NamingConvention]: struct member name `bam` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-smoove/testrun.wdl"
+message = "testrun.wdl:9:10: warning[NamingConvention]: struct member name `bai` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-smoove/testrun.wdl/#L9"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
@@ -1302,6 +1407,21 @@ message = "testrun.wdl:169:13: note[ContainerUri]: container URI uses a mutable 
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/testrun.wdl/#L169"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
+message = "testrun.wdl:7:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
+message = "testrun.wdl:8:10: warning[NamingConvention]: struct member name `r1` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/testrun.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
+message = "testrun.wdl:9:10: warning[NamingConvention]: struct member name `r2` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/testrun.wdl/#L9"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
 message = "ww-star.wdl:157:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/ww-star.wdl/#L157"
@@ -1365,6 +1485,21 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
 message = "testrun.wdl:363:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L363"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:7:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:8:10: warning[NamingConvention]: struct member name `bam` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-strelka/testrun.wdl"
+message = "testrun.wdl:9:10: warning[NamingConvention]: struct member name `bai` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-strelka/testrun.wdl/#L9"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
@@ -1458,6 +1593,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-template/testrun.wdl"
+message = "testrun.wdl:10:10: warning[NamingConvention]: struct member name `input_file` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/testrun.wdl/#L10"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-template/testrun.wdl"
 message = "testrun.wdl:16:10: note[MetaSections]: workflow `template_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/testrun.wdl/#L16"
 
@@ -1465,6 +1605,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-template/testrun.wdl"
 message = "testrun.wdl:43:17: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/testrun.wdl/#L43"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-template/testrun.wdl"
+message = "testrun.wdl:9:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/testrun.wdl/#L9"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-template/ww-template.wdl"
@@ -1613,8 +1758,28 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
+message = "testrun.wdl:10:10: warning[NamingConvention]: struct member name `bias` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/testrun.wdl/#L10"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
 message = "testrun.wdl:13:10: note[MetaSections]: workflow `tritonnp_example` is missing a `parameter_meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/testrun.wdl/#L13"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
+message = "testrun.wdl:7:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
+message = "testrun.wdl:8:10: warning[NamingConvention]: struct member name `bam` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/testrun.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/testrun.wdl"
+message = "testrun.wdl:9:10: warning[NamingConvention]: struct member name `bam_index` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/testrun.wdl/#L9"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
@@ -1652,9 +1817,139 @@ message = "testrun.wdl:12:10: note[MetaSections]: workflow `bwa_gatk_example` is
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/testrun.wdl/#L12"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/testrun.wdl"
+message = "testrun.wdl:7:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/testrun.wdl"
+message = "testrun.wdl:8:10: warning[NamingConvention]: struct member name `reads` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/testrun.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/testrun.wdl"
+message = "testrun.wdl:9:11: warning[NamingConvention]: struct member name `mates` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/testrun.wdl/#L9"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl"
+message = "ww-bwa-gatk.wdl:7:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl"
+message = "ww-bwa-gatk.wdl:8:10: warning[NamingConvention]: struct member name `reads` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl"
+message = "ww-bwa-gatk.wdl:9:11: warning[NamingConvention]: struct member name `mates` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-bwa-gatk/ww-bwa-gatk.wdl/#L9"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/testrun.wdl"
+message = "testrun.wdl:10:15: warning[NamingConvention]: struct member name `fastq_r2_locations` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/testrun.wdl/#L10"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/testrun.wdl"
+message = "testrun.wdl:14:10: warning[NamingConvention]: struct member name `sample_name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/testrun.wdl/#L14"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/testrun.wdl"
+message = "testrun.wdl:15:11: warning[NamingConvention]: struct member name `library_name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/testrun.wdl/#L15"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/testrun.wdl"
+message = "testrun.wdl:16:11: warning[NamingConvention]: struct member name `sequencing_center` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/testrun.wdl/#L16"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/testrun.wdl"
+message = "testrun.wdl:17:21: warning[NamingConvention]: struct member name `fastq_groups` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/testrun.wdl/#L17"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/testrun.wdl"
 message = "testrun.wdl:20:10: note[MetaSections]: workflow `fastq_to_cram_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/testrun.wdl/#L20"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/testrun.wdl"
+message = "testrun.wdl:8:10: warning[NamingConvention]: struct member name `group_name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/testrun.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/testrun.wdl"
+message = "testrun.wdl:9:15: warning[NamingConvention]: struct member name `fastq_r1_locations` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/testrun.wdl/#L9"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:12:10: warning[NamingConvention]: struct member name `group_name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L12"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:13:15: warning[NamingConvention]: struct member name `fastq_r1_locations` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L13"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:14:15: warning[NamingConvention]: struct member name `fastq_r2_locations` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L14"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:18:10: warning[NamingConvention]: struct member name `sample_name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L18"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:19:11: warning[NamingConvention]: struct member name `library_name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L19"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:20:11: warning[NamingConvention]: struct member name `sequencing_center` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L20"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl"
+message = "ww-fastq-to-cram.wdl:21:21: warning[NamingConvention]: struct member name `fastq_groups` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-fastq-to-cram/ww-fastq-to-cram.wdl/#L21"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/testrun.wdl"
+message = "testrun.wdl:7:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/testrun.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/testrun.wdl"
+message = "testrun.wdl:8:10: warning[NamingConvention]: struct member name `reads` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/testrun.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/testrun.wdl"
+message = "testrun.wdl:9:11: warning[NamingConvention]: struct member name `mates` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/testrun.wdl/#L9"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/ww-saturation.wdl"
+message = "ww-saturation.wdl:7:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/ww-saturation.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/ww-saturation.wdl"
+message = "ww-saturation.wdl:8:10: warning[NamingConvention]: struct member name `reads` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/ww-saturation.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-saturation/ww-saturation.wdl"
+message = "ww-saturation.wdl:9:11: warning[NamingConvention]: struct member name `mates` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-saturation/ww-saturation.wdl/#L9"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/testrun.wdl"
@@ -1662,14 +1957,114 @@ message = "testrun.wdl:6:10: note[MetaSections]: workflow `sra_salmon_example` i
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/testrun.wdl/#L6"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/ww-sra-salmon.wdl"
+message = "ww-sra-salmon.wdl:7:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/ww-sra-salmon.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/ww-sra-salmon.wdl"
+message = "ww-sra-salmon.wdl:8:10: warning[NamingConvention]: struct member name `r1_fastq` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/ww-sra-salmon.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-salmon/ww-sra-salmon.wdl"
+message = "ww-sra-salmon.wdl:9:10: warning[NamingConvention]: struct member name `r2_fastq` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-salmon/ww-sra-salmon.wdl/#L9"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `sra_star_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/testrun.wdl/#L6"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/ww-sra-star.wdl"
+message = "ww-sra-star.wdl:7:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/ww-sra-star.wdl/#L7"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/ww-sra-star.wdl"
+message = "ww-sra-star.wdl:8:10: warning[NamingConvention]: struct member name `fasta` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/ww-sra-star.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-sra-star/ww-sra-star.wdl"
+message = "ww-sra-star.wdl:9:10: warning[NamingConvention]: struct member name `gtf` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-sra-star/ww-sra-star.wdl/#L9"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
+message = "testrun.wdl:10:10: warning[NamingConvention]: struct member name `r2` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L10"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
+message = "testrun.wdl:11:12: warning[NamingConvention]: struct member name `condition` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L11"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
+message = "testrun.wdl:15:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L15"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
+message = "testrun.wdl:16:10: warning[NamingConvention]: struct member name `fasta` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L16"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
+message = "testrun.wdl:17:10: warning[NamingConvention]: struct member name `gtf` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L17"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
 message = "testrun.wdl:20:10: note[MetaSections]: workflow `star_deseq2_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L20"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
+message = "testrun.wdl:8:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L8"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/testrun.wdl"
+message = "testrun.wdl:9:10: warning[NamingConvention]: struct member name `r1` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/testrun.wdl/#L9"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:10:10: warning[NamingConvention]: struct member name `r1` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L10"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:11:10: warning[NamingConvention]: struct member name `r2` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L11"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:12:12: warning[NamingConvention]: struct member name `condition` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L12"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:16:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L16"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:17:10: warning[NamingConvention]: struct member name `fasta` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L17"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:18:10: warning[NamingConvention]: struct member name `gtf` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L18"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/vignettes/ww-star-deseq2/ww-star-deseq2.wdl"
+message = "ww-star-deseq2.wdl:9:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/vignettes/ww-star-deseq2/ww-star-deseq2.wdl/#L9"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/testrun.wdl"
@@ -1698,6 +2093,16 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
+message = "ww-leukemia.wdl:55:12: warning[NamingConvention]: struct member name `name` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L55"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
+message = "ww-leukemia.wdl:56:17: warning[NamingConvention]: struct member name `cramfiles` is not PascalCase"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L56"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
 message = "ww-leukemia.wdl:63:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L63"
 
@@ -1710,6 +2115,26 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
 message = "flag_filter.wdl:110:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/flag_filter.wdl/#L110"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
+message = "flag_filter.wdl:65:12: warning[NamingConvention]: struct member name `include_if_all` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/flag_filter.wdl/#L65"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
+message = "flag_filter.wdl:66:12: warning[NamingConvention]: struct member name `exclude_if_any` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/flag_filter.wdl/#L66"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
+message = "flag_filter.wdl:67:12: warning[NamingConvention]: struct member name `include_if_any` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/flag_filter.wdl/#L67"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
+message = "flag_filter.wdl:68:12: warning[NamingConvention]: struct member name `exclude_if_all` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/flag_filter.wdl/#L68"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
@@ -1735,6 +2160,81 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "read_group.wdl:415:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L415"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:46:12: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L46"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:48:12: warning[NamingConvention]: struct member name `ID` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L48"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:49:13: warning[NamingConvention]: struct member name `BC` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L49"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:50:13: warning[NamingConvention]: struct member name `CN` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L50"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:51:13: warning[NamingConvention]: struct member name `DS` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L51"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:52:13: warning[NamingConvention]: struct member name `DT` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L52"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:53:13: warning[NamingConvention]: struct member name `FO` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L53"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:54:13: warning[NamingConvention]: struct member name `KS` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L54"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:55:13: warning[NamingConvention]: struct member name `LB` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L55"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:56:13: warning[NamingConvention]: struct member name `PG` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L56"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:57:10: warning[NamingConvention]: struct member name `PI` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L57"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:58:13: warning[NamingConvention]: struct member name `PL` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L58"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:59:13: warning[NamingConvention]: struct member name `PM` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L59"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:60:13: warning[NamingConvention]: struct member name `PU` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L60"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:61:13: warning[NamingConvention]: struct member name `SM` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L61"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
@@ -1823,6 +2323,26 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:106:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L106"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:107:14: warning[NamingConvention]: input name `dbSNP_vcf` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L107"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:108:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L108"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:109:14: warning[NamingConvention]: input name `dbSNP_vcf_index` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L109"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:124:16: note[KnownRules]: unknown rule `LineWidth`"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L124"
 
@@ -1840,6 +2360,26 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:215:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L215"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:260:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L260"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:261:14: warning[NamingConvention]: input name `dbSNP_vcf` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L261"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:262:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L262"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:263:14: warning[NamingConvention]: input name `dbSNP_vcf_index` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L263"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
@@ -2143,8 +2683,123 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:638:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L638"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:639:13: warning[NamingConvention]: input name `out_QS_conversion_add` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L639"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:640:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L640"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:641:13: warning[NamingConvention]: input name `out_sam_attr_IH_start` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L641"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:643:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L643"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:644:13: warning[NamingConvention]: input name `out_sam_flag_OR` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L644"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:645:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L645"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:646:13: warning[NamingConvention]: input name `out_sam_flag_AND` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L646"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:654:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L654"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:655:13: warning[NamingConvention]: input name `score_gap_GCAG` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L655"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:656:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L656"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:657:13: warning[NamingConvention]: input name `score_gap_ATAC` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L657"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:689:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L689"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:690:13: warning[NamingConvention]: input name `chim_score_junction_nonGTAG` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L690"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:74:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L74"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:75:13: warning[NamingConvention]: input name `genome_SA_index_n_bases` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L75"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:76:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L76"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:77:13: warning[NamingConvention]: input name `genome_SA_sparse_d` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L77"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
 message = "star.wdl:907:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L907"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:914:12: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L914"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:916:9: warning[NamingConvention]: struct member name `noncanonical_motifs` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L916"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:917:9: warning[NamingConvention]: struct member name `GT_AG_and_CT_AC_motif` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L917"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:918:9: warning[NamingConvention]: struct member name `GC_AG_and_CT_GC_motif` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L918"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:919:9: warning[NamingConvention]: struct member name `AT_AC_and_GT_AT_motif` is not PascalCase"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/star.wdl/#L919"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -2272,6 +2927,96 @@ message = "quality-check-standard.wdl:550:20: note[ContainerUri]: container URI 
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/qc/quality-check-standard.wdl/#L550"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:117:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L117"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:118:15: warning[NamingConvention]: output name `dbSNP_vcf` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L118"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:119:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L119"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:120:15: warning[NamingConvention]: output name `dbSNP_vcf_index` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L120"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:49:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L49"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:50:16: warning[NamingConvention]: input name `dbSNP_vcf_url` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L50"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:51:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L51"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:52:16: warning[NamingConvention]: input name `dbSNP_vcf_name` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L52"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:55:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L55"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:56:13: warning[NamingConvention]: input name `dbSNP_vcf_disk_size_gb` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L56"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:57:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L57"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:58:17: warning[NamingConvention]: input name `dbSNP_vcf_index_url` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L58"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:59:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L59"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:60:17: warning[NamingConvention]: input name `dbSNP_vcf_index_name` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L60"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:63:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L63"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:64:13: warning[NamingConvention]: input name `dbSNP_vcf_index_disk_size_gb` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/reference/gatk-reference.wdl/#L64"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
+message = "rnaseq-core.wdl:157:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-core.wdl/#L157"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
+message = "rnaseq-core.wdl:158:13: warning[NamingConvention]: input name `chim_score_junction_nonGTAG` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-core.wdl/#L158"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
 message = "rnaseq-standard.wdl:141:6: note[EmptyOutputs]: task 'parse_input' defines no outputs"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-standard.wdl/#L141"
@@ -2280,3 +3025,23 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
 message = "rnaseq-standard.wdl:184:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-standard.wdl/#L184"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:46:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-variant-calling.wdl/#L46"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:47:14: warning[NamingConvention]: input name `dbSNP_vcf` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-variant-calling.wdl/#L47"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:48:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-variant-calling.wdl/#L48"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:49:14: warning[NamingConvention]: input name `dbSNP_vcf_index` is not snake_case"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-variant-calling.wdl/#L49"

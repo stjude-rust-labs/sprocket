@@ -487,12 +487,10 @@ pub fn explain(args: Args) -> CommandResult<()> {
 
     if let Some(rule_name) = args.rule_name {
         if let Some(replacement) = analysis::replacement_rule_id(&rule_name) {
-            return Err(
-                anyhow!(
-                    "deprecated rule `{rule_name}`; run `sprocket explain {replacement}` instead"
-                )
-                .into(),
-            );
+            return Err(anyhow!(
+                "deprecated rule `{rule_name}`; run `sprocket explain {replacement}` instead"
+            )
+            .into());
         }
         let lowercase_name = rule_name.to_lowercase();
 
