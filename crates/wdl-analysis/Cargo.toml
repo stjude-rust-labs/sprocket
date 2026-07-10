@@ -28,6 +28,7 @@ rayon = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
 rowan = { workspace = true }
+schemars = { workspace = true }
 smallvec = { workspace = true }
 tokio = { workspace = true }
 toml-spanner = { workspace = true }

@@ -2,6 +2,7 @@
 
 use std::fmt;
 
+use schemars::JsonSchema;
 use toml_spanner::Arena;
 use toml_spanner::Context;
 use toml_spanner::Failed;
@@ -35,11 +36,12 @@ pub const DEFAULT_INDENT: Indent = Indent::Spaces(DEFAULT_SPACE_INDENT);
 pub const MAX_SPACE_INDENT: usize = 16;
 
 /// An indentation level.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, JsonSchema)]
 pub enum Indent {
     /// Tabs.
     Tabs,
     /// Spaces.
+    #[schemars(untagged)]
     Spaces(usize),
 }
 
