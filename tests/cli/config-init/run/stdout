@@ -21,6 +21,7 @@ filter_lint_tags = []
 [check.lint]
 allowed_runtime_keys = []
 allowed_names = []
+bash_set_options = ["errexit", "nounset", "pipefail"]
 
 [analyzer]
 lint = false
