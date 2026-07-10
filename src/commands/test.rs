@@ -140,6 +140,15 @@ pub struct Args {
     /// The report mode for any emitted diagnostics.
     #[arg(short = 'm', long, value_name = "MODE", global = true)]
     pub report_mode: Option<Mode>,
+    #[command(subcommand)]
+    pub command: Option<Subcommand>,
+}
+
+/// Subcommands for `sprocket dev test`
+#[derive(clap::Subcommand, Debug)]
+pub enum Subcommand {
+    /// Print the JSON schema for Sprocket test definition YAMLs to stdout.
+    Schema,
 }
 
 fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
@@ -788,6 +797,14 @@ fn resolve_test_paths(
 
 /// Performs the `test` command.
 pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
+    if matches!(args.command, Some(Subcommand::Schema)) {
+        let schema = schemars::schema_for!(DocumentTests);
+        let schema_pretty =
+            serde_json::to_string_pretty(&schema).context("serializing test schema")?;
+        println!("{schema_pretty}");
+        return Ok(());
+    }
+
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     let source = args.source.unwrap_or_default();
     let parallelism = args.parallelism.unwrap_or(
@@ -985,6 +1002,7 @@ mod tests {
             run_dir,
             no_status: false,
             report_mode: None,
+            command: None,
         }
     }
 

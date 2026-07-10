@@ -10,7 +10,9 @@ use serde_json::json;
 use sprocket::Config;
 use sprocket::ServerConfig;
 use sprocket::server::AppState;
+use sprocket::server::ServerFailureMode;
 use sprocket::server::create_router;
+use sprocket::server::paths;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::SqliteDatabase;
 use sprocket::system::v1::exec::svc::RunManagerCmd;
@@ -40,6 +42,7 @@ async fn create_test_server(
         ..Default::default()
     };
     server_config.validate().unwrap();
+    let output_dir = server_config.output_dir.display().to_string();
 
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
     let db: Arc<dyn Database> = Arc::new(db);
@@ -63,7 +66,11 @@ async fn create_test_server(
         .unwrap();
     rx.await.unwrap().unwrap();
 
-    let state = AppState::builder().run_manager_tx(run_manager_tx).build();
+    let state = AppState::builder()
+        .run_manager_tx(run_manager_tx)
+        .failure_mode(ServerFailureMode::Slow)
+        .output_dir(output_dir)
+        .build();
     let router = create_router()
         .state(state)
         .cors_layer(CorsLayer::new())
@@ -91,7 +98,7 @@ async fn list_sessions_returns_empty_initially(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/sessions")
+                .uri(paths::LIST_SESSIONS)
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -131,7 +138,7 @@ async fn get_session_after_workflow_submission(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -147,7 +154,7 @@ async fn get_session_after_workflow_submission(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/sessions")
+                .uri(paths::LIST_SESSIONS)
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -172,7 +179,7 @@ async fn get_session_after_workflow_submission(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/sessions/{}", session_id))
+                .uri(paths::get_session(session_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -200,7 +207,7 @@ async fn get_nonexistent_session_returns_404(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/sessions/{}", fake_id))
+                .uri(paths::get_session(fake_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -229,7 +236,7 @@ async fn list_sessions_with_pagination(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -243,7 +250,7 @@ async fn list_sessions_with_pagination(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/sessions?limit=1")
+                .uri(format!("{}?limit=1", paths::LIST_SESSIONS))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -266,7 +273,7 @@ async fn list_sessions_with_pagination(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/sessions?next_token=1")
+                .uri(format!("{}?next_token=1", paths::LIST_SESSIONS))
                 .body(Body::empty())
                 .unwrap(),
         )
