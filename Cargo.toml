@@ -23,7 +23,7 @@ edition = "2024"
 authors = ["The Sprocket project contributors"]
 homepage = "https://sprocket.bio"
 repository = "https://github.com/stjude-rust-labs/sprocket"
-rust-version = "1.91.1"
+rust-version = "1.95"
 
 [workspace.dependencies]
 ammonia = "4.1.2"
@@ -63,12 +63,12 @@ hex = "0.4.3"
 ignore = "0.4.25"
 indexmap = "2.13.0"
 indicatif = "0.18.3"
-itertools = "0.14.0"
+itertools = "0.15.0"
 libc = "0.2"
 libtest-mimic = "^0.8.1"
 line-index = "0.1.2"
 logos = "0.16.1"
-lsp-types = "0.95.1"
+lsp-types = "=0.95.1"
 macropol = "0.1.4"
 maud = "0.27.0"
 nonempty = "0.12.0"
@@ -92,6 +92,7 @@ regex = "1.12.3"
 reqwest = { version = "0.13.1", default-features = false, features = ["rustls", "http2", "charset"] }
 rev_buf_reader = "0.3.0"
 rowan = "0.16.1"
+schemars = "1.2.1"
 secrecy = "0.10.3"
 semver = "1.0.28"
 serde = { version = "1", features = ["derive"] }
@@ -109,7 +110,7 @@ ssh-key = "0.6.7"
 strsim = "0.11.1"
 struct-patch = "0.12.0"
 strum = { version = "0.28", features = ["derive"] }
-sysinfo = "0.38.0"
+sysinfo = "0.39.0"
 tempfile = "3.24.0"
 thirtyfour = "0.37.1"
 thiserror = "2.0.18"
@@ -118,7 +119,7 @@ tokio-retry2 = "0.9.1"
 tokio-util = "0.7.18"
 toml-spanner = { version = "1.0.2", features = ["derive", "to-toml"] }
 tower = { version = "0.5.3", features = ["util"] }
-tower-http = { version = "0.6.8", features = ["cors", "trace"] }
+tower-http = { version = "0.7.0", features = ["cors", "trace"] }
 tracing = "0.1.44"
 tracing-indicatif = "0.3.14"
 tracing-log = "0.2.0"
@@ -132,7 +133,7 @@ utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 uuid = { version = "1.20.0", features = ["serde", "v4"] }
 walkdir = "2.5.0"
 wdl = { version = "0.23.2", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
-wdl-modules = { version = "0.2.1", path = "crates/wdl-modules", features = ["resolver"] }
+wdl-modules = { version = "0.2.1", path = "crates/wdl-modules", features = ["git-resolver"] }
 which = "8.0.0"
 whoami = "2.1.0"
 zip = { version = "8.1.0", default-features = false, features = [] }
@@ -199,6 +200,7 @@ pretty_assertions.workspace = true
 rand.workspace = true
 regex.workspace = true
 reqwest.workspace = true
+schemars = { workspace = true, features = ["indexmap2"] }
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml_ng.workspace = true

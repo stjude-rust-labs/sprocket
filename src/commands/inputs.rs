@@ -29,7 +29,8 @@ use crate::commands::CommandResult;
 /// Arguments for the `inputs` subcommand.
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// A source WDL document or URL.
+    /// A source WDL document, URL, or a WDL module directory containing a
+    /// `module.json`.
     #[arg(value_name = "SOURCE")]
     pub source: Source,
 
@@ -453,20 +454,26 @@ impl InputProcessor {
 
 /// Displays the input schema for a WDL document.
 pub async fn inputs(args: Args, config: Config) -> CommandResult<()> {
-    if let Source::Directory(_) = args.source {
-        return Err(anyhow!("directory sources are not supported for the `inputs` command").into());
-    }
+    let source = match args.source {
+        Source::Directory(ref dir) => {
+            crate::analysis::resolve_module_entrypoint(dir, config.common.wdl.feature_flags)?
+        }
+        ref other => other.clone(),
+    };
     let results = Analysis::default()
-        .add_source(args.source.clone())
+        .add_source(source.clone())
         .fallback_version(config.common.wdl.fallback_version.into())
+        .modules_config(config.modules.clone())
+        .feature_flags(config.common.wdl.feature_flags)
         .run()
         .await
         .map_err(CommandError::from)?;
 
     let document = results
-        .filter(&[&args.source])
+        .filter(&[&source])
         .next()
-        .expect("the root source should always be included in the results")
+        // SAFETY: the root source was added to the analysis above.
+        .unwrap()
         .document();
 
     let mut processor = InputProcessor::new(

@@ -136,6 +136,15 @@ pub struct Args {
     /// Do not print results as tests complete.
     #[clap(long)]
     pub no_status: bool,
+    #[command(subcommand)]
+    pub command: Option<Subcommand>,
+}
+
+/// Subcommands for `sprocket dev test`
+#[derive(clap::Subcommand, Debug)]
+pub enum Subcommand {
+    /// Print the JSON schema for Sprocket test definition YAMLs to stdout.
+    Schema,
 }
 
 fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
@@ -784,6 +793,14 @@ fn resolve_test_paths(
 
 /// Performs the `test` command.
 pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
+    if matches!(args.command, Some(Subcommand::Schema)) {
+        let schema = schemars::schema_for!(DocumentTests);
+        let schema_pretty =
+            serde_json::to_string_pretty(&schema).context("serializing test schema")?;
+        println!("{schema_pretty}");
+        return Ok(());
+    }
+
     let source = args.source.unwrap_or_default();
     let parallelism = args.parallelism.unwrap_or(
         config
@@ -816,6 +833,8 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
     let analysis_results = Analysis::default()
         .add_source(source.clone())
         .fallback_version(config.common.wdl.fallback_version.into())
+        .modules_config(config.modules.clone())
+        .feature_flags(config.common.wdl.feature_flags)
         .run()
         .await
         .map_err(CommandError::from)?;
@@ -977,6 +996,7 @@ mod tests {
             fixtures_dir,
             run_dir,
             no_status: false,
+            command: None,
         }
     }
 
