@@ -248,7 +248,7 @@ impl GitResolver {
         let url = url.clone();
         tokio::task::spawn_blocking(move || fetcher.default_branch(&dep, &url, scope))
             .await
-            // SAFETY: the closure performs pure libgit2 work and does
+            // The closure performs pure libgit2 work and does
             // not panic; `JoinError` only occurs on runtime shutdown.
             .unwrap()
     }
@@ -517,7 +517,7 @@ impl GitResolver {
             )
         })
         .await
-        // SAFETY: the closure performs only libgit2 work and
+        // The closure performs only libgit2 work and
         // does not panic; a `JoinError` would only fire on
         // runtime shutdown.
         .unwrap();
@@ -734,7 +734,7 @@ impl GitResolver {
                 let refs =
                     tokio::task::spawn_blocking(move || fetcher.list_tags(&dep, &url, scope))
                         .await
-                        // SAFETY: the closure performs only Git work; a
+                        // The closure performs only Git work; a
                         // `JoinError` would only fire on runtime shutdown.
                         .unwrap()?;
                 let (version, commit) = crate::resolver::versions::resolve_version_to_commit(
@@ -762,7 +762,7 @@ impl GitResolver {
                 let refs =
                     tokio::task::spawn_blocking(move || fetcher.list_tags(&dep, &url, scope))
                         .await
-                        // SAFETY: the closure does not panic.
+                        // The closure does not panic.
                         .unwrap()?;
                 let commit =
                     refs.get(tag)
@@ -781,7 +781,7 @@ impl GitResolver {
                 let refs =
                     tokio::task::spawn_blocking(move || fetcher.list_branches(&dep, &url, scope))
                         .await
-                        // SAFETY: the closure does not panic.
+                        // The closure does not panic.
                         .unwrap()?;
                 let commit =
                     refs.get(branch)
@@ -799,7 +799,7 @@ impl GitResolver {
                 // directory under the cache root and running rev-parse.
                 if commit.is_full() {
                     let full = GitCommit::try_from(commit.as_str().to_string())
-                        // SAFETY: `is_full` guarantees exactly 40 lowercase
+                        // `is_full` guarantees exactly 40 lowercase
                         // hex characters, which `GitCommit` accepts.
                         .expect("a full commit-ish is a valid commit SHA");
                     return Ok((None, full));
@@ -815,7 +815,7 @@ impl GitResolver {
                     fetcher.resolve_commit_prefix(&dep, &url, &prefix, scope, &expand_dir)
                 })
                 .await
-                // SAFETY: the closure performs only Git work and does not panic.
+                // The closure performs only Git work and does not panic.
                 .unwrap();
                 let _ = std::fs::remove_dir_all(&work_dir);
                 let full = full?;
@@ -1131,7 +1131,7 @@ impl Resolver for GitResolver {
                     ))
                 })
                 .await
-                // SAFETY: the spawned closure performs pure libgit2 work
+                // The spawned closure performs pure libgit2 work
                 // and does not panic; a `JoinError` would only fire on
                 // runtime shutdown, in which case re-panicking is fine.
                 .unwrap()
@@ -1378,7 +1378,7 @@ fn exclude_set(
         builder.add(compile(s)?);
         builder.add(compile(&format!("{}/**", s.trim_end_matches('/')))?);
     }
-    // SAFETY: `GlobSetBuilder::build` only consolidates already-compiled
+    // `GlobSetBuilder::build` only consolidates already-compiled
     // globs; `GlobBuilder::build` above is the validating step, so by the
     // time we reach this call there is nothing left for `build` to reject.
     Ok(builder.build().unwrap())

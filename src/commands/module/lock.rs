@@ -8,7 +8,6 @@ use crate::commands::module::Locator;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::discover;
 use crate::commands::module::load_lockfile;
-use crate::commands::module::lockfile_satisfies;
 use crate::commands::module::print_relock_summary;
 use crate::commands::module::resolve_relock_with_signer_mode;
 use crate::commands::module::signer_change_mode;
@@ -48,7 +47,7 @@ pub async fn lock(args: Args, config: Config, colorize: bool) -> CommandResult<(
     let lock = load_lockfile(&project)?;
     let satisfied = lock
         .as_ref()
-        .is_some_and(|l| lockfile_satisfies(&project.manifest, l));
+        .is_some_and(|l| l.satisfies_manifest(&project.manifest));
     tracing::debug!(
         lockfile_present = lock.is_some(),
         satisfied,

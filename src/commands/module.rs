@@ -329,11 +329,6 @@ pub fn write_lockfile(project: &Project, lock: &Lockfile) -> anyhow::Result<()> 
     Ok(())
 }
 
-/// Returns true when the lockfile fully satisfies the manifest.
-pub fn lockfile_satisfies(manifest: &Manifest, lock: &Lockfile) -> bool {
-    lock.satisfies_manifest(manifest)
-}
-
 /// Reads `module.json` as JSON while validating it with strict manifest
 /// parsing.
 pub fn read_manifest_value(path: &Path) -> anyhow::Result<serde_json::Value> {
@@ -390,13 +385,7 @@ pub fn set_dependency(
         .with_context(|| "`dependencies` in `module.json` must be an object")?;
 
     dependencies.insert(name.to_string(), serde_json::to_value(source)?);
-
-    let mut entries = dependencies
-        .iter()
-        .map(|(k, v)| (k.clone(), v.clone()))
-        .collect::<Vec<_>>();
-    entries.sort_by(|left, right| left.0.cmp(&right.0));
-    *dependencies = entries.into_iter().collect();
+    dependencies.sort_keys();
 
     Ok(())
 }
@@ -563,7 +552,7 @@ pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> an
     let existing = load_lockfile(&project)?;
     if existing
         .as_ref()
-        .is_some_and(|lock| lockfile_satisfies(&project.manifest, lock))
+        .is_some_and(|lock| lock.satisfies_manifest(&project.manifest))
     {
         return Ok(());
     }
@@ -687,18 +676,27 @@ pub fn print_locking_summary(stats: &RelockStats, colorize: bool) {
 
 /// Renders skipped source metadata for update output.
 fn skipped_details(path: Option<&str>, selector: Option<&str>, commit: Option<&str>) -> String {
-    let details = change_details(path, selector, commit);
-    if details.is_empty() {
-        return " (latest)".to_string();
-    }
-
-    format!(" (latest, {}", &details[2..])
+    let mut parts = vec!["latest".to_string()];
+    parts.extend(change_detail_parts(path, selector, commit));
+    format!(" ({})", parts.join(", "))
 }
 
 /// Renders added or removed source metadata for summary output.
 fn change_details(path: Option<&str>, selector: Option<&str>, commit: Option<&str>) -> String {
-    let mut details = Vec::new();
+    let parts = change_detail_parts(path, selector, commit);
+    if parts.is_empty() {
+        return String::new();
+    }
+    format!(" ({})", parts.join(", "))
+}
 
+/// Collects the source metadata fragments shared by the summary renderers.
+fn change_detail_parts(
+    path: Option<&str>,
+    selector: Option<&str>,
+    commit: Option<&str>,
+) -> Vec<String> {
+    let mut details = Vec::new();
     if let Some(selector) = selector {
         details.push(format!("selector: {}", selector_detail(selector)));
     }
@@ -708,12 +706,7 @@ fn change_details(path: Option<&str>, selector: Option<&str>, commit: Option<&st
     if let Some(commit) = commit {
         details.push(format!("commit: `{}`", short_commit(commit)));
     }
-
-    if details.is_empty() {
-        return String::new();
-    }
-
-    format!(" ({})", details.join(", "))
+    details
 }
 
 #[cfg(test)]
@@ -900,7 +893,7 @@ mod tests {
         let lock = Lockfile::parse(&bytes).unwrap();
         let consumer_manifest =
             Manifest::parse(&std::fs::read(consumer_dir.join("module.json")).unwrap()).unwrap();
-        assert!(lockfile_satisfies(&consumer_manifest, &lock));
+        assert!(lock.satisfies_manifest(&consumer_manifest));
     }
 
     #[tokio::test]

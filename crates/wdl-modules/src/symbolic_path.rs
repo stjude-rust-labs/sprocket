@@ -49,7 +49,7 @@ impl SymbolicPath {
 /// component (the dep name and each sub-path segment) is a WDL identifier.
 fn validate(s: &str) -> Result<SymbolicPath, SymbolicPathError> {
     let mut iter = s.split('/');
-    // SAFETY: `str::split` always yields at least one item, even on the
+    // `str::split` always yields at least one item, even on the
     // empty string.
     let head = iter.next().unwrap();
 

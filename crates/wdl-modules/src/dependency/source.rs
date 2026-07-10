@@ -218,7 +218,7 @@ impl TryFrom<DependencySourceFields> for DependencySource {
                 } else if let Some(c) = commit {
                     GitSelector::Commit(GitCommitish::try_from(c)?)
                 } else {
-                    // SAFETY: `selector_count` is 1 in this branch, and the
+                    // `selector_count` is 1 in this branch, and the
                     // four `if let Some(...)` arms above cover every selector
                     // field, so one of them must match.
                     unreachable!()

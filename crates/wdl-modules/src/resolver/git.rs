@@ -635,7 +635,7 @@ where
 /// dropped; the lock file remains on disk to avoid delete-after-unlock
 /// races.
 fn lock_cache_leaf(leaf: &Path) -> Result<File, GitError> {
-    // SAFETY: cache leaves are always `<parent>/<commit_sha>`, so
+    // Cache leaves are always `<parent>/<commit_sha>`, so
     // both `parent()` and `file_name()` are always `Some`.
     let parent = leaf.parent().unwrap();
     std::fs::create_dir_all(parent).map_err(|source| GitError::Io {

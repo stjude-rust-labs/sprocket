@@ -61,7 +61,7 @@ pub struct NewSigner {
 impl NewSigner {
     /// The leaf dependency name (last element of `dep_chain`).
     pub fn dep(&self) -> &DependencyName {
-        // SAFETY: `dep_chain` is non-empty for every `NewSigner` produced
+        // `dep_chain` is non-empty for every `NewSigner` produced
         // by `LockfileDiff::compute`.
         self.dep_chain.last().unwrap()
     }
@@ -85,7 +85,7 @@ pub struct ChangedSigner {
 impl ChangedSigner {
     /// The leaf dependency name (last element of `dep_chain`).
     pub fn dep(&self) -> &DependencyName {
-        // SAFETY: `dep_chain` is non-empty for every `ChangedSigner`
+        // `dep_chain` is non-empty for every `ChangedSigner`
         // produced by `LockfileDiff::compute`.
         self.dep_chain.last().unwrap()
     }
@@ -103,7 +103,7 @@ pub struct RemovedSigner {
 impl RemovedSigner {
     /// The leaf dependency name (last element of `dep_chain`).
     pub fn dep(&self) -> &DependencyName {
-        // SAFETY: `dep_chain` is non-empty for every `RemovedSigner`
+        // `dep_chain` is non-empty for every `RemovedSigner`
         // produced by `LockfileDiff::compute`.
         self.dep_chain.last().unwrap()
     }

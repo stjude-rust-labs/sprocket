@@ -129,7 +129,7 @@ impl VerifyingKey {
     pub fn to_openssh(&self) -> String {
         let ed = ssh_key::public::Ed25519PublicKey(*self.0.as_bytes());
         let key = ssh_key::PublicKey::from(ssh_key::public::KeyData::Ed25519(ed));
-        // SAFETY: encoding a freshly-constructed in-memory Ed25519
+        // Encoding a freshly-constructed in-memory Ed25519
         // `PublicKey` into OpenSSH form cannot fail.
         key.to_openssh().unwrap()
     }

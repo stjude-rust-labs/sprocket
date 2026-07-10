@@ -249,7 +249,7 @@ pub fn resolve_version_to_commit(
 ) -> Result<(Version, GitCommit), VersionError> {
     let version = select_version(refs, path_prefix, requirement)?;
     let tag = VersionTag::new(path_prefix.map(String::from), version.clone()).to_string();
-    // SAFETY: `select_version` only returns versions parsed from keys
+    // `select_version` only returns versions parsed from keys
     // already present in `refs`, so the round-tripped tag is guaranteed
     // to exist in the map.
     let commit = refs.get(&tag).cloned().unwrap();

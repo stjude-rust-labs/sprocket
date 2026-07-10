@@ -513,7 +513,7 @@ mod tests {
     }
 
     fn key(s: &str) -> Box<VerifyingKey> {
-        // SAFETY: the test passes complete OpenSSH Ed25519 public keys.
+        // The test passes complete OpenSSH Ed25519 public keys.
         Box::new(s.parse().unwrap())
     }
 

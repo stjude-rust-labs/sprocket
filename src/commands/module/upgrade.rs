@@ -230,12 +230,6 @@ pub async fn upgrade(args: Args, config: Config, colorize: bool) -> CommandResul
             ActionColor::Green,
         );
     }
-    print_action(
-        "Finished",
-        format!("upgrading {} packages", changed.len()),
-        colorize,
-        ActionColor::Green,
-    );
     write_lockfile(&project, &outcome.lockfile)?;
     tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
     print_locking_summary(&outcome.stats, colorize);
