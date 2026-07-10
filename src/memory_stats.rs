@@ -42,9 +42,11 @@ fn peak_memory_bytes() -> Option<u64> {
     };
 
     // `ru_maxrss` is reported in bytes on macOS but in kibibytes on Linux and
-    // the BSDs.
+    // the BSDs. The macOS man page still says kibibytes, but the Darwin kernel
+    // assigns `ru_maxrss` from `resident_size_max` in bytes without dividing, so
+    // the man page is inaccurate here (verified against `/usr/bin/time -l`).
     // Ref (Linux, KiB): https://man7.org/linux/man-pages/man2/getrusage.2.html
-    // Ref (macOS, bytes): https://developer.apple.com/library/archive/documentation/System/Conceptual/ManPages_iPhoneOS/man2/getrusage.2.html
+    // Ref (macOS, bytes): https://github.com/apple-oss-distributions/xnu/blob/main/bsd/kern/kern_resource.c
     #[cfg(target_os = "macos")]
     {
         Some(max_rss)
