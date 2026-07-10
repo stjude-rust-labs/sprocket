@@ -42,7 +42,7 @@ def test_event_node_started_eq() -> None:
     assert Event.NodeStarted(SyntaxKind.ROOT_NODE, 1) != Event.NodeStarted(
         SyntaxKind.ROOT_NODE, None
     )
-    assert Event.NodeStarted(SyntaxKind.ROOT_NODE, 1) != Event.NodeFinished()
+    assert Event.NodeStarted(SyntaxKind.ROOT_NODE, 1) != Event.NodeFinished()  # type: ignore[comparison-overlap]
 
 
 def test_event_node_started_repr() -> None:
@@ -59,7 +59,7 @@ def test_event_node_started_repr() -> None:
 
 def test_event_node_finished_eq() -> None:
     assert Event.NodeFinished() == Event.NodeFinished()
-    assert Event.NodeFinished() != Event.NodeStarted(SyntaxKind.ROOT_NODE, None)
+    assert Event.NodeFinished() != Event.NodeStarted(SyntaxKind.ROOT_NODE, None)  # type: ignore[comparison-overlap]
 
 
 def test_event_node_finished_repr() -> None:
@@ -83,7 +83,7 @@ def test_event_token_eq() -> None:
     assert Event.Token(SyntaxKind.AS_KEYWORD, Span(0, 10)) != Event.Token(
         SyntaxKind.AS_KEYWORD, Span(0, 3)
     )
-    assert Event.Token(SyntaxKind.AS_KEYWORD, Span(0, 10)) != Event.NodeFinished()
+    assert Event.Token(SyntaxKind.AS_KEYWORD, Span(0, 10)) != Event.NodeFinished()  # type: ignore[comparison-overlap]
 
 
 def test_event_token_repr() -> None:
