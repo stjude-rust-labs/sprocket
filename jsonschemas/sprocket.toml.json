@@ -216,8 +216,42 @@
             "type": "string"
           },
           "default": []
+        },
+        "bash_set_options": {
+          "description": "List of options to enforce in the bash `set` builtin for every\n`command` section.\n\n##### Example\n\n```toml\nbash_set_options = [\"errexit\", \"nounset\", \"pipefail\"]\n```",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BashSetOption"
+          },
+          "default": []
         }
       }
+    },
+    "BashSetOption": {
+      "description": "Supported options for `set`.\n\nSee <https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html> for a description\nof each option.",
+      "type": "string",
+      "enum": [
+        "allexport",
+        "braceexpand",
+        "errexit",
+        "errtrace",
+        "functrace",
+        "hashall",
+        "keyword",
+        "noclobber",
+        "noexec",
+        "noglob",
+        "nolog",
+        "nounset",
+        "onecmd",
+        "physical",
+        "pipefail",
+        "posix",
+        "privileged",
+        "restricted",
+        "verbose",
+        "xtrace"
+      ]
     },
     "AnalyzerConfig": {
       "description": "Represents the configuration for the Sprocket `analyzer` command.",
