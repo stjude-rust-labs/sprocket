@@ -182,13 +182,10 @@ async fn real_main() -> CommandResult<()> {
             commands::lock::lock(args, config).await
         }
         Commands::Dev(commands::DevCommands::Server(args)) => {
-            commands::server::server(args, config).await
+            commands::server::server(args, config, colorize).await
         }
         Commands::Dev(commands::DevCommands::Test(args)) => {
             commands::test::test(args, config, colorize).await
-        }
-        Commands::Dev(commands::DevCommands::Submit(args)) => {
-            commands::submit::submit(args, config, colorize).await
         }
     }
 }

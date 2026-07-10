@@ -101,12 +101,18 @@ pub fn document(
             }
         }
         found => {
-            let mut diagnostic =
-                Diagnostic::error("a WDL document must start with a version statement");
+            let mut diagnostic = Diagnostic::error("missing version statement")
+                .with_help(
+                    "omitting the version statement declares the document as WDL draft-2, which \
+                     is not supported",
+                )
+                .with_fix("upgrade WDL draft-2 documents to v1.0 or later");
 
             if let Some((_, span)) = found {
-                diagnostic =
-                    diagnostic.with_label("a version statement must come before this", span);
+                diagnostic = diagnostic.with_label(
+                    "WDL v1.0+ documents must begin with a version statement",
+                    span,
+                );
             }
 
             (parser, diagnostic.into())

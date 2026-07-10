@@ -279,7 +279,41 @@ impl Invocation {
         self,
         document: &Document,
     ) -> Result<Option<(String, EngineInputs)>> {
-        let (origins, values) = self.inputs.into_iter().fold(
+        let target_override = self.target.clone();
+        let (origins, values) = self.flatten();
+
+        let Some((target, mut inputs)) = EngineInputs::parse_json_object(document, values)? else {
+            return Ok(None);
+        };
+
+        if let Some(t) = &target_override
+            && target != *t
+        {
+            bail!(format!(
+                "supplied target `{t}` does not match the target `{target}` derived from the \
+                 inputs"
+            ))
+        }
+
+        // Resolve relative paths using per-input origins.
+        join_paths_for_target(document, &target, &mut inputs, &origins).await?;
+
+        Ok(Some((target, inputs)))
+    }
+
+    /// Flattens the collected [`LocatedJsonValue`]s into a JSON map and a
+    /// per-key origins map, applying the file-array-versus-CLI-array
+    /// flattening rules.
+    ///
+    /// Shared internal helper for [`Invocation::into_engine_inputs`] and
+    /// [`Invocation::into_json_with_origins`].
+    pub(crate) fn flatten(
+        self,
+    ) -> (
+        BTreeMap<String, Vec<EvaluationPath>>,
+        serde_json::Map<String, JsonValue>,
+    ) {
+        self.inputs.into_iter().fold(
             (BTreeMap::new(), serde_json::Map::new()),
             |(mut origins, mut values), (key, located_values)| {
                 if located_values.len() == 1 {
@@ -313,61 +347,74 @@ impl Invocation {
 
                 (origins, values)
             },
-        );
-
-        let Some((target, mut inputs)) = EngineInputs::parse_json_object(document, values)? else {
-            return Ok(None);
-        };
-
-        if let Some(t) = &self.target
-            && target != *t
-        {
-            bail!(format!(
-                "supplied target `{t}` does not match the target `{target}` derived from the \
-                 inputs"
-            ))
-        }
-
-        // Resolve relative paths using per-input origins
-        match &mut inputs {
-            EngineInputs::Task(task_inputs) => {
-                let task = document
-                    .task_by_name(&target)
-                    .with_context(|| format!("task `{target}` was not found"))?;
-
-                task_inputs
-                    .join_paths(task, |key| {
-                        let key = format!("{target}.{key}");
-                        origins
-                            .get(&key)
-                            .map(|v| v.as_slice())
-                            .ok_or_else(|| anyhow!("no origin path for input `{key}`"))
-                    })
-                    .await
-                    .context("failed to resolve input paths")?;
-            }
-            EngineInputs::Workflow(workflow_inputs) => {
-                let workflow = document.workflow().context("workflow not found")?;
-
-                if workflow.name() != target {
-                    bail!("workflow `{target}` was not found");
-                }
-
-                workflow_inputs
-                    .join_paths(workflow, |key| {
-                        let key = format!("{target}.{key}");
-                        origins
-                            .get(&key)
-                            .map(|v| v.as_slice())
-                            .ok_or_else(|| anyhow!("no origin path for input `{key}`"))
-                    })
-                    .await
-                    .context("failed to resolve input paths")?;
-            }
-        }
-
-        Ok(Some((target, inputs)))
+        )
     }
+
+    /// Converts the collected inputs into a JSON object with target-prefixed
+    /// keys plus an origins map, **without** type-checking the result
+    /// against any WDL document.
+    ///
+    /// Suitable for callers that perform their own document-driven
+    /// validation downstream (for example, `dev server retry`, which merges
+    /// partial overrides into a previously-validated input set).
+    ///
+    /// The returned origins map is keyed by the same target-prefixed keys
+    /// present in the returned JSON map; each entry holds one or more
+    /// origins (one per array element when the value flattens from multiple
+    /// sources).
+    pub fn into_json_with_origins(
+        self,
+    ) -> (
+        BTreeMap<String, Vec<EvaluationPath>>,
+        serde_json::Map<String, JsonValue>,
+    ) {
+        self.flatten()
+    }
+}
+
+/// Resolves relative `File`/`Directory` paths in `inputs` to absolute paths.
+///
+/// Each input's paths are joined against the origin recorded for its
+/// target-prefixed key in `origins`. `target` names the task or workflow to
+/// resolve against in `document`. `inputs` may hold a partial set; only keys
+/// present in the typed inputs are visited.
+pub async fn join_paths_for_target(
+    document: &Document,
+    target: &str,
+    inputs: &mut EngineInputs,
+    origins: &BTreeMap<String, Vec<EvaluationPath>>,
+) -> Result<()> {
+    let origin = |key: &str| {
+        let key = format!("{target}.{key}");
+        origins
+            .get(&key)
+            .map(|v| v.as_slice())
+            .ok_or_else(|| anyhow!("no origin path for input `{key}`"))
+    };
+
+    match inputs {
+        EngineInputs::Task(task_inputs) => {
+            let task = document
+                .task_by_name(target)
+                .with_context(|| format!("task `{target}` was not found"))?;
+            task_inputs
+                .join_paths(task, origin)
+                .await
+                .context("failed to resolve input paths")?;
+        }
+        EngineInputs::Workflow(workflow_inputs) => {
+            let workflow = document.workflow().context("workflow not found")?;
+            if workflow.name() != target {
+                bail!("workflow `{target}` was not found");
+            }
+            workflow_inputs
+                .join_paths(workflow, origin)
+                .await
+                .context("failed to resolve input paths")?;
+        }
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
