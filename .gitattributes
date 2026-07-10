@@ -3,6 +3,8 @@
 
 # Ensure that WDL files always use LF line endings.
 *.wdl text eol=lf
+# Ensure consistent line endings for JSON schemas.
+jsonschemas/*.json text eol=lf
 
 # A module's `module.json` is part of its hashed content, so it must use LF line
 # endings to keep the content hash stable across platforms.
