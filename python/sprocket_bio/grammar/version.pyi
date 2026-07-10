@@ -19,7 +19,7 @@ class V1:
 class SupportedVersion:
     @typing.final
     class V1(SupportedVersion):
-        _0: V1
+        _0: typing.Final[V1]
         __match_args__ = ("_0",)
 
         def __new__(cls, _0: V1) -> SupportedVersion.V1: ...
