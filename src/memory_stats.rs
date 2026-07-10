@@ -2,8 +2,7 @@
 //!
 //! Peak resident set size is queried from the operating system when
 //! [`MemoryStatsGuard`] is dropped. On Unix this uses `getrusage` and on
-//! Windows it uses `GetProcessMemoryInfo`. Neither imposes any per-allocation
-//! overhead, unlike a tracking global allocator.
+//! Windows it uses `GetProcessMemoryInfo`.
 
 /// A guard value which, when dropped, reports the peak memory usage of the
 /// process.
