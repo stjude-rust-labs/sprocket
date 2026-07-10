@@ -1,4 +1,4 @@
-#@ except: MetaDescription, ContainerUri, EmptyOutputs
+#@ except: MetaDescription, ContainerUri, EmptyOutputs, BashSetSyntax
 
 version 1.1
 
