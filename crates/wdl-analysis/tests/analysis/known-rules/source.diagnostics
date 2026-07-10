@@ -14,3 +14,11 @@ note[KnownRules]: unknown rule `ThisIsNotARealRule`
   │
   = fix: remove the unknown rule from the exception list
 
+note[KnownRules]: unknown rule `MetaSections`
+  ┌─ tests/analysis/known-rules/source.wdl:6:12
+  │
+6 │ #@ except: MetaSections,
+  │            ^^^^^^^^^^^^ cannot make an exception for this rule
+  │
+  = fix: remove the unknown rule from the exception list
+
