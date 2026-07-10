@@ -1,7 +1,7 @@
 ## This is a test of having shellcheck warnings
 
-#@ except: EmptyOutputs, ExpectedRuntimeKeys, HereDocCommands, MetaDescription
-#@ except: ParameterMetaMatched
+#@ except: BashSetSyntax, EmptyOutputs, ExpectedRuntimeKeys, HereDocCommands
+#@ except: MetaDescription, ParameterMetaMatched
 
 version 1.1
 
@@ -109,16 +109,16 @@ task test5 {
         }
         $occurs_after_multiline
 
-        $(echo This is a 
+        $(echo This is a
           very long string that should be quoted)
 
         $(echo This is an
-          even longer very long string that should really 
+          even longer very long string that should really
           be quoted)
 
         $(echo This is an
           even longer very long string that should really
-          really really really 
+          really really really
           ought to be quoted)
 
         $(echo this is a $lint146 that occurs in a \

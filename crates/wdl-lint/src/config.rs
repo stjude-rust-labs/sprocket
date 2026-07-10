@@ -2,6 +2,8 @@
 
 use toml_spanner::Toml;
 
+use crate::rules::BashSetOption;
+
 /// Define the lint rule config and doc generation utilities.
 macro_rules! define_lint_rule_config {
     (
@@ -98,5 +100,15 @@ define_lint_rule_config! {
         /// [`DeclarationName`]: crate::rules::DeclarationNameRule
         #[lints(SnakeCase, DeclarationName)]
         allowed_names: Vec<String> = Vec::default(),
+        /// List of options to enforce in the bash `set` builtin for every
+        /// `command` section.
+        ///
+        /// ##### Example
+        ///
+        /// ```toml
+        /// bash_set_options = ["errexit", "nounset", "pipefail"]
+        /// ```
+        #[lints(BashSetSyntax)]
+        bash_set_options: Vec<BashSetOption> = vec![BashSetOption::ErrExit, BashSetOption::NoUnset, BashSetOption::Pipefail],
     }
 }

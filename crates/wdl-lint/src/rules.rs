@@ -1,5 +1,6 @@
 //! Module for the lint rules.
 
+mod bash_set_syntax;
 mod call_input_keyword;
 mod command_section_indentation;
 mod concise_input;
@@ -36,6 +37,7 @@ mod snake_case;
 mod todo_comment;
 mod unused_doc_comments;
 
+pub use bash_set_syntax::*;
 pub use call_input_keyword::*;
 pub use command_section_indentation::*;
 pub use concise_input::*;
