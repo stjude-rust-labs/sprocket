@@ -37,6 +37,9 @@ fn check_standalone_documents(c: &mut Criterion, workflows_repo: &Path) {
                     let common = sprocket::commands::check::Common {
                         sources: vec![sprocket::analysis::Source::File(file_url)],
                         except: vec![],
+                        deny: vec![],
+                        warn: vec![],
+                        note: vec![],
                         all_lint_rules: true,
                         filter_lint_tag: vec![],
                         only_lint_tag: vec![],

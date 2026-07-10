@@ -198,7 +198,7 @@ mod test {
         assert_eq!(nearest, Some("NamingConvention"));
 
         // Test close match
-        let nearest = find_nearest_rule("NamingConvension");
+        let nearest = find_nearest_rule("NamingConventionX");
         assert_eq!(nearest, Some("NamingConvention"));
 
         // Test another exact match
