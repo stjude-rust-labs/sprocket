@@ -21,6 +21,7 @@ pub mod inputs;
 pub mod inspect;
 pub mod lock;
 pub mod module;
+pub mod printer;
 pub mod retry;
 pub mod run;
 pub mod server;

@@ -11,9 +11,8 @@ use serde_json::Value;
 use wdl::ast::SupportedVersion;
 
 use crate::commands::CommandResult;
-use crate::commands::module::ActionColor;
-use crate::commands::module::print_action;
 use crate::commands::module::write_manifest_value;
+use crate::commands::printer::Printer;
 use crate::config::Config;
 
 /// Arguments to `sprocket module init`.
@@ -37,7 +36,7 @@ pub struct Args {
 }
 
 /// Runs `sprocket module init`.
-pub async fn init(args: Args, _config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn init(args: Args, _config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         has_path = args.path.is_some(),
         has_name = args.name.is_some(),
@@ -45,10 +44,10 @@ pub async fn init(args: Args, _config: Config, colorize: bool) -> CommandResult<
         no_scaffold = args.no_scaffold,
         "starting `sprocket module init`"
     );
-    run_init(args, colorize).map_err(Into::into)
+    run_init(args, printer).map_err(Into::into)
 }
 
-fn run_init(args: Args, colorize: bool) -> anyhow::Result<()> {
+fn run_init(args: Args, printer: Printer) -> anyhow::Result<()> {
     let target_dir = args
         .path
         .unwrap_or(std::env::current_dir().context("reading current directory")?);
@@ -109,12 +108,7 @@ fn run_init(args: Args, colorize: bool) -> anyhow::Result<()> {
         tracing::debug!("skipped module scaffold files");
     }
 
-    print_action(
-        "Created",
-        format!("module `{name}`"),
-        colorize,
-        ActionColor::Green,
-    );
+    printer.status("Created", format!("module `{name}`"));
 
     Ok(())
 }

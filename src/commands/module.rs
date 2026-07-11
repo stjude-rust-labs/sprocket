@@ -8,7 +8,6 @@ use anyhow::Context as _;
 use clap::Args as ClapArgs;
 use clap::Subcommand;
 use clap::ValueEnum;
-use colored::Colorize as _;
 use wdl_modules::Lockfile;
 use wdl_modules::Manifest;
 use wdl_modules::Resolver as _;
@@ -23,6 +22,7 @@ use wdl_modules::resolver::TrustMode;
 use wdl_modules::resolver::partial_relock;
 use wdl_modules::resolver::signer_identity_map;
 
+use crate::commands::printer::Printer;
 use crate::config::Config;
 
 pub mod add;
@@ -45,44 +45,6 @@ pub(crate) use trust_policy::enforce_signer_trust;
 pub(crate) use trust_policy::load_trust_store;
 pub(crate) use trust_policy::render_signer;
 pub(crate) use trust_policy::save_trust_store;
-
-/// Color used for the leading action verb in module command output.
-pub(crate) enum ActionColor {
-    /// Successful or constructive action.
-    Green,
-    /// Update or dry-run change action.
-    Yellow,
-    /// Informational action.
-    Cyan,
-    /// Failed action.
-    Red,
-}
-
-impl ActionColor {
-    /// Applies this color to an action verb.
-    fn apply(self, verb: &str) -> String {
-        match self {
-            Self::Green => verb.green().bold().to_string(),
-            Self::Yellow => verb.yellow().bold().to_string(),
-            Self::Cyan => verb.cyan().bold().to_string(),
-            Self::Red => verb.red().bold().to_string(),
-        }
-    }
-}
-
-/// Prints a module command action line with only the verb colored.
-pub(crate) fn print_action(
-    verb: &str,
-    rest: impl std::fmt::Display,
-    colorize: bool,
-    color: ActionColor,
-) {
-    if colorize {
-        println!("{} {rest}", color.apply(verb));
-    } else {
-        println!("{verb} {rest}");
-    }
-}
 
 /// Parsed module project context shared by porcelain subcommands.
 #[derive(Debug, Clone)]
@@ -173,22 +135,22 @@ pub fn discover(locator: &Locator) -> anyhow::Result<Project> {
 pub async fn run(
     command: ModuleCommands,
     config: Config,
-    colorize: bool,
+    printer: Printer,
 ) -> crate::commands::CommandResult<()> {
     match command {
-        ModuleCommands::Init(args) => init::init(args, config, colorize).await,
-        ModuleCommands::Add(args) => add::add(args, config, colorize).await,
-        ModuleCommands::Remove(args) => remove::remove(args, config, colorize).await,
-        ModuleCommands::Lock(args) => lock::lock(args, config, colorize).await,
-        ModuleCommands::Update(args) => update::update(args, config, colorize).await,
-        ModuleCommands::Upgrade(args) => upgrade::upgrade(args, config, colorize).await,
-        ModuleCommands::Tree(args) => tree::tree(args, config, colorize).await,
-        ModuleCommands::List(args) => tree::list(args, config, colorize).await,
-        ModuleCommands::Verify(args) => verify::verify(args, config, colorize).await,
-        ModuleCommands::Fetch(args) => fetch::fetch(args, config, colorize).await,
-        ModuleCommands::Cache(args) => clean::cache(args, config, colorize).await,
-        ModuleCommands::Sign(args) => sign::sign(args, config, colorize).await,
-        ModuleCommands::Trust(args) => trust::trust(args, config, colorize).await,
+        ModuleCommands::Init(args) => init::init(args, config, printer).await,
+        ModuleCommands::Add(args) => add::add(args, config, printer).await,
+        ModuleCommands::Remove(args) => remove::remove(args, config, printer).await,
+        ModuleCommands::Lock(args) => lock::lock(args, config, printer).await,
+        ModuleCommands::Update(args) => update::update(args, config, printer).await,
+        ModuleCommands::Upgrade(args) => upgrade::upgrade(args, config, printer).await,
+        ModuleCommands::Tree(args) => tree::tree(args, config).await,
+        ModuleCommands::List(args) => tree::list(args, config).await,
+        ModuleCommands::Verify(args) => verify::verify(args, config, printer).await,
+        ModuleCommands::Fetch(args) => fetch::fetch(args, config, printer).await,
+        ModuleCommands::Cache(args) => clean::cache(args, config, printer).await,
+        ModuleCommands::Sign(args) => sign::sign(args, config, printer).await,
+        ModuleCommands::Trust(args) => trust::trust(args, config, printer).await,
     }
 }
 
@@ -439,7 +401,13 @@ pub(crate) async fn resolve_relock(
     config: &Config,
     project: &Project,
 ) -> anyhow::Result<RelockOutcome> {
-    resolve_relock_with_signer_mode(config, project, SignerChangeMode::Strict, false).await
+    resolve_relock_with_signer_mode(
+        config,
+        project,
+        SignerChangeMode::Strict,
+        Printer::new(false),
+    )
+    .await
 }
 
 /// Re-resolves dependencies and merges with the previous lockfile.
@@ -447,7 +415,7 @@ pub(crate) async fn resolve_relock_with_signer_mode(
     config: &Config,
     project: &Project,
     signer_mode: SignerChangeMode,
-    colorize: bool,
+    printer: Printer,
 ) -> anyhow::Result<RelockOutcome> {
     tracing::trace!(
         manifest = %project.manifest_path.display(),
@@ -458,7 +426,7 @@ pub(crate) async fn resolve_relock_with_signer_mode(
         project,
         project.manifest.clone(),
         signer_mode,
-        colorize,
+        printer,
     )
     .await
 }
@@ -470,7 +438,7 @@ pub(crate) async fn resolve_relock_for_manifest(
     project: &Project,
     manifest: Arc<Manifest>,
     signer_mode: SignerChangeMode,
-    colorize: bool,
+    printer: Printer,
 ) -> anyhow::Result<RelockOutcome> {
     let plan = resolve_relock_plan(config, project, manifest).await?;
     let trust_path = crate::analysis::default_trust_path();
@@ -480,7 +448,7 @@ pub(crate) async fn resolve_relock_for_manifest(
         &plan.outcome.lockfile,
         &plan.identities,
         signer_mode,
-        colorize,
+        printer,
     )?;
     Ok(plan.outcome)
 }
@@ -521,10 +489,10 @@ pub(crate) fn enforce_lockfile_signer_policy(
     new: &Lockfile,
     identities: &SignerIdentityMap,
     mode: SignerChangeMode,
-    colorize: bool,
+    printer: Printer,
 ) -> anyhow::Result<()> {
     let trust_path = crate::analysis::default_trust_path();
-    enforce_signer_trust(&trust_path, existing, new, identities, mode, colorize)
+    enforce_signer_trust(&trust_path, existing, new, identities, mode, printer)
 }
 
 /// Regenerates `module-lock.json` before execution when it is missing or
@@ -575,7 +543,7 @@ pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> an
 }
 
 /// Prints a relock change summary in cargo-style action lines.
-pub fn print_relock_summary(stats: &RelockStats, colorize: bool) {
+pub fn print_relock_summary(stats: &RelockStats, printer: Printer) {
     tracing::debug!(
         kept = stats.kept,
         added = stats.added.len(),
@@ -589,7 +557,7 @@ pub fn print_relock_summary(stats: &RelockStats, colorize: bool) {
         && stats.skipped.is_empty()
         && stats.updated.is_empty()
     {
-        print_action("Locked", "(up to date)", colorize, ActionColor::Green);
+        printer.status("Locked", "(up to date)");
         return;
     }
 
@@ -599,12 +567,7 @@ pub fn print_relock_summary(stats: &RelockStats, colorize: bool) {
             change.selector.as_deref(),
             change.commit.as_deref(),
         );
-        print_action(
-            "Locked",
-            format!("`{}`{details}", change.name),
-            colorize,
-            ActionColor::Green,
-        );
+        printer.status("Locked", format!("`{}`{details}", change.name));
     }
 
     for change in &stats.removed {
@@ -613,12 +576,7 @@ pub fn print_relock_summary(stats: &RelockStats, colorize: bool) {
             change.selector.as_deref(),
             change.commit.as_deref(),
         );
-        print_action(
-            "Removed",
-            format!("`{}`{details}", change.name),
-            colorize,
-            ActionColor::Green,
-        );
+        printer.status("Removed", format!("`{}`{details}", change.name));
     }
 
     for change in &stats.skipped {
@@ -627,12 +585,7 @@ pub fn print_relock_summary(stats: &RelockStats, colorize: bool) {
             change.selector.as_deref(),
             change.commit.as_deref(),
         );
-        print_action(
-            "Skipped",
-            format!("`{}`{details}", change.name),
-            colorize,
-            ActionColor::Yellow,
-        );
+        printer.change("Skipped", format!("`{}`{details}", change.name));
     }
 
     for change in &stats.updated {
@@ -645,22 +598,15 @@ pub fn print_relock_summary(stats: &RelockStats, colorize: bool) {
             change.to_commit.as_deref(),
         );
 
-        print_action(
-            "Updated",
-            format!("`{}`{details}", change.name),
-            colorize,
-            ActionColor::Yellow,
-        );
+        printer.change("Updated", format!("`{}`{details}", change.name));
     }
 }
 
 /// Prints update and upgrade lockfile output as lock-centric status lines.
-pub fn print_locking_summary(stats: &RelockStats, colorize: bool) {
-    print_action(
+pub fn print_locking_summary(stats: &RelockStats, printer: Printer) {
+    printer.status(
         "Locking",
         format!("{} packages based on `module.json`", stats.updated.len()),
-        colorize,
-        ActionColor::Green,
     );
 
     for change in &stats.updated {
@@ -672,12 +618,7 @@ pub fn print_locking_summary(stats: &RelockStats, colorize: bool) {
             change.from_commit.as_deref(),
             change.to_commit.as_deref(),
         );
-        print_action(
-            "Updated",
-            format!("{}{}", change.name.manifest(), details),
-            colorize,
-            ActionColor::Green,
-        );
+        printer.status("Updated", format!("{}{}", change.name.manifest(), details));
     }
 }
 

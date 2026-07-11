@@ -9,14 +9,13 @@ use wdl_modules::resolver::VerifyLockedReport;
 use wdl_modules::signing::ModuleSignature;
 
 use crate::commands::CommandResult;
-use crate::commands::module::ActionColor;
 use crate::commands::module::Locator;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
-use crate::commands::module::print_action;
 use crate::commands::module::render_signer;
 use crate::commands::module::require_lockfile;
 use crate::commands::module::trace_project;
+use crate::commands::printer::Printer;
 use crate::config::Config;
 
 /// Arguments to `sprocket module verify`.
@@ -44,7 +43,7 @@ pub enum VerifyTarget {
 }
 
 /// Runs `sprocket module verify`.
-pub async fn verify(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn verify(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         target = ?args.target,
         strict = args.strict,
@@ -53,12 +52,12 @@ pub async fn verify(args: Args, config: Config, colorize: bool) -> CommandResult
     let project = discover(&args.locator)?;
     trace_project("module verify", &project);
     match args.target {
-        Some(VerifyTarget::Signature) => verify_signature(&project, colorize)?,
+        Some(VerifyTarget::Signature) => verify_signature(&project, printer)?,
         Some(VerifyTarget::Lockfile) => {
-            let unsigned = verify_lockfile(&project, &config, colorize, args.strict)?;
+            let unsigned = verify_lockfile(&project, &config, printer, args.strict)?;
             fail_if_strict_unsigned(None, &unsigned, args.strict)?;
         }
-        None => verify_all(&project, &config, colorize, args.strict)?,
+        None => verify_all(&project, &config, printer, args.strict)?,
     }
 
     Ok(())
@@ -67,7 +66,7 @@ pub async fn verify(args: Args, config: Config, colorize: bool) -> CommandResult
 fn verify_all(
     project: &crate::commands::module::Project,
     config: &Config,
-    colorize: bool,
+    printer: Printer,
     strict: bool,
 ) -> anyhow::Result<()> {
     let mut checked = 0usize;
@@ -75,15 +74,15 @@ fn verify_all(
     let mut unsigned_dependencies = Vec::new();
     if project.root.join(wdl_modules::SIGNATURE_FILENAME).exists() {
         tracing::debug!("verifying module signature as part of full verification");
-        verify_signature(project, colorize)?;
+        verify_signature(project, printer)?;
         checked += 1;
     } else {
         unsigned_current = Some(project.manifest.name.as_str().to_string());
-        print_unsigned_current_summary(colorize, strict);
+        print_unsigned_current_summary(printer, strict);
     }
     if project.lockfile_path.exists() {
         tracing::debug!("verifying lockfile as part of full verification");
-        unsigned_dependencies = verify_lockfile(project, config, colorize, strict)?;
+        unsigned_dependencies = verify_lockfile(project, config, printer, strict)?;
         checked += 1;
     }
     fail_if_strict_unsigned(unsigned_current.as_deref(), &unsigned_dependencies, strict)?;
@@ -98,7 +97,7 @@ fn verify_all(
 
 fn verify_signature(
     project: &crate::commands::module::Project,
-    colorize: bool,
+    printer: Printer,
 ) -> anyhow::Result<()> {
     let signature_path = project.root.join(wdl_modules::SIGNATURE_FILENAME);
     tracing::trace!(signature = %signature_path.display(), "reading module signature");
@@ -113,19 +112,14 @@ fn verify_signature(
     tracing::debug!(digest = %digest, "hashed module content for signature verification");
     signature.verify(&digest).map_err(anyhow::Error::from)?;
 
-    print_action(
-        "Verified",
-        format!("signature ({digest})"),
-        colorize,
-        ActionColor::Green,
-    );
+    printer.status("Verified", format!("signature ({digest})"));
     Ok(())
 }
 
 fn verify_lockfile(
     project: &crate::commands::module::Project,
     config: &Config,
-    colorize: bool,
+    printer: Printer,
     strict: bool,
 ) -> anyhow::Result<Vec<DependencyName>> {
     tracing::trace!(lockfile = %project.lockfile_path.display(), "reading module lockfile");
@@ -144,7 +138,7 @@ fn verify_lockfile(
         .map_err(anyhow::Error::from)?;
 
     if !unsigned.is_empty() {
-        print_unsigned_dependency_summary(unsigned.len(), colorize, strict);
+        print_unsigned_dependency_summary(unsigned.len(), printer, strict);
     }
 
     if !errors.is_empty() {
@@ -185,35 +179,29 @@ fn verify_lockfile(
         ));
     }
 
-    print_action(
-        "Verified",
-        format!("{verified} dependencies"),
-        colorize,
-        ActionColor::Green,
-    );
+    printer.status("Verified", format!("{verified} dependencies"));
     Ok(unsigned)
 }
 
-fn print_unsigned_current_summary(colorize: bool, strict: bool) {
-    let (verb, color) = unsigned_action(strict);
-    print_action(
-        verb,
+fn print_unsigned_current_summary(printer: Printer, strict: bool) {
+    print_unsigned_summary(
+        printer,
+        strict,
         "signature verification for current module (no `module.sig`)",
-        colorize,
-        color,
     );
 }
 
-fn print_unsigned_dependency_summary(unsigned: usize, colorize: bool, strict: bool) {
-    let (verb, color) = unsigned_action(strict);
-    print_action(verb, unsigned_dependency_summary(unsigned), colorize, color);
+fn print_unsigned_dependency_summary(unsigned: usize, printer: Printer, strict: bool) {
+    print_unsigned_summary(printer, strict, unsigned_dependency_summary(unsigned));
 }
 
-fn unsigned_action(strict: bool) -> (&'static str, ActionColor) {
+/// Prints an unsigned-package summary line: a red `Failed` under strict
+/// verification, a cyan `Skipped` otherwise.
+fn print_unsigned_summary(printer: Printer, strict: bool, rest: impl std::fmt::Display) {
     if strict {
-        ("Failed", ActionColor::Red)
+        printer.failure("Failed", rest);
     } else {
-        ("Skipped", ActionColor::Cyan)
+        printer.info("Skipped", rest);
     }
 }
 

@@ -8,15 +8,14 @@ use wdl_modules::signing::VerifyingKey;
 use wdl_modules::signing::parse_openssh_public_key_identity;
 
 use crate::commands::CommandResult;
-use crate::commands::module::ActionColor;
 use crate::commands::module::Locator;
 use crate::commands::module::accept_lockfile_signers;
 use crate::commands::module::discover;
 use crate::commands::module::load_trust_store;
-use crate::commands::module::print_action;
 use crate::commands::module::require_lockfile;
 use crate::commands::module::save_trust_store;
 use crate::commands::module::trace_project;
+use crate::commands::printer::Printer;
 use crate::config::Config;
 
 /// Subcommands of `sprocket module trust`.
@@ -73,18 +72,18 @@ pub struct RemoveArgs {
 pub struct DestroyArgs {}
 
 /// Runs `sprocket module trust`.
-pub async fn trust(cmd: TrustCommands, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn trust(cmd: TrustCommands, config: Config, printer: Printer) -> CommandResult<()> {
     match cmd {
-        TrustCommands::List(args) => list(args, config, colorize).await,
-        TrustCommands::Add(args) => add(args, config, colorize).await,
-        TrustCommands::All(args) => all(args, config, colorize).await,
-        TrustCommands::Remove(args) => remove(args, config, colorize).await,
-        TrustCommands::Destroy(args) => destroy(args, config, colorize).await,
+        TrustCommands::List(args) => list(args, config).await,
+        TrustCommands::Add(args) => add(args, config, printer).await,
+        TrustCommands::All(args) => all(args, config, printer).await,
+        TrustCommands::Remove(args) => remove(args, config, printer).await,
+        TrustCommands::Destroy(args) => destroy(args, config, printer).await,
     }
 }
 
 /// Runs `sprocket module trust list`.
-pub async fn list(_args: ListArgs, _config: Config, _colorize: bool) -> CommandResult<()> {
+pub async fn list(_args: ListArgs, _config: Config) -> CommandResult<()> {
     tracing::trace!("starting `sprocket module trust list`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
@@ -105,7 +104,7 @@ pub async fn list(_args: ListArgs, _config: Config, _colorize: bool) -> CommandR
 }
 
 /// Runs `sprocket module trust all`.
-pub async fn all(args: AllArgs, _config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn all(args: AllArgs, _config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!("starting `sprocket module trust all`");
     let project = discover(&args.locator)?;
     trace_project("module trust all", &project);
@@ -114,17 +113,12 @@ pub async fn all(args: AllArgs, _config: Config, colorize: bool) -> CommandResul
     let trust_path = crate::analysis::default_trust_path();
     let trusted = accept_lockfile_signers(&trust_path, &lockfile)?;
 
-    print_action(
-        "Trusted",
-        format!("{trusted} signer keys"),
-        colorize,
-        ActionColor::Green,
-    );
+    printer.status("Trusted", format!("{trusted} signer keys"));
     Ok(())
 }
 
 /// Runs `sprocket module trust add`.
-pub async fn add(args: AddArgs, _config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn add(args: AddArgs, _config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!("starting `sprocket module trust add`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
@@ -156,7 +150,7 @@ pub async fn add(args: AddArgs, _config: Config, colorize: bool) -> CommandResul
             tracing::debug!("trusted module key already exists");
         }
         store.upsert_identity(key, parsed_key.name, parsed_key.email);
-        print_action("Trusted", key.to_openssh(), colorize, ActionColor::Green);
+        printer.status("Trusted", key.to_openssh());
     }
 
     save_trust_store(&trust_path, &store)?;
@@ -200,7 +194,7 @@ fn parse_key_arg(key: &str) -> anyhow::Result<ParsedTrustKey> {
 }
 
 /// Runs `sprocket module trust remove`.
-pub async fn remove(args: RemoveArgs, _config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn remove(args: RemoveArgs, _config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!("starting `sprocket module trust remove`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
@@ -215,12 +209,7 @@ pub async fn remove(args: RemoveArgs, _config: Config, colorize: bool) -> Comman
     for key in parsed {
         if store.remove_key(&key) {
             removed_any = true;
-            print_action(
-                "Removed",
-                format!("trust for {}", key.to_openssh()),
-                colorize,
-                ActionColor::Green,
-            );
+            printer.status("Removed", format!("trust for {}", key.to_openssh()));
         }
     }
 
@@ -234,7 +223,7 @@ pub async fn remove(args: RemoveArgs, _config: Config, colorize: bool) -> Comman
 }
 
 /// Runs `sprocket module trust destroy`.
-pub async fn destroy(_args: DestroyArgs, _config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn destroy(_args: DestroyArgs, _config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!("starting `sprocket module trust destroy`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
@@ -242,7 +231,7 @@ pub async fn destroy(_args: DestroyArgs, _config: Config, colorize: bool) -> Com
 
     store.clear();
     save_trust_store(&trust_path, &store)?;
-    print_action("Removed", "all trusted keys", colorize, ActionColor::Green);
+    printer.status("Removed", "all trusted keys");
     Ok(())
 }
 

@@ -15,8 +15,7 @@ use wdl_modules::resolver::TrustStore;
 use wdl_modules::signing::SignerIdentity;
 use wdl_modules::signing::VerifyingKey;
 
-use crate::commands::module::ActionColor;
-use crate::commands::module::print_action;
+use crate::commands::printer::Printer;
 
 /// Loads the trust store at `path` with a uniform error context.
 pub(crate) fn load_trust_store(path: &Path) -> anyhow::Result<TrustStore> {
@@ -164,7 +163,7 @@ pub(crate) fn enforce_signer_trust(
     new: &Lockfile,
     identities: &SignerIdentityMap,
     mode: SignerChangeMode,
-    colorize: bool,
+    printer: Printer,
 ) -> anyhow::Result<()> {
     let diff = LockfileDiff::compute_with_identities(existing, new, identities);
     if !diff.has_new_signers() && !diff.has_signer_changes() {
@@ -195,7 +194,7 @@ pub(crate) fn enforce_signer_trust(
     // Prompted changes are accepted or refused as a batch; any hard
     // refusal skips the prompt entirely.
     if !prompted.is_empty() {
-        if refused.is_empty() && confirm_signer_key_upgrade(&prompted, &trust)? {
+        if refused.is_empty() && confirm_signer_key_upgrade(&prompted, &trust, printer)? {
             accepted.append(&mut prompted);
         } else {
             refused.append(&mut prompted);
@@ -232,7 +231,7 @@ pub(crate) fn enforce_signer_trust(
     if trust_dirty {
         save_trust_store(trust_path, &trust)?;
     }
-    print_trust_change_summary(trusted_keys, colorize);
+    print_trust_change_summary(trusted_keys, printer);
     Ok(())
 }
 
@@ -240,6 +239,7 @@ pub(crate) fn enforce_signer_trust(
 fn confirm_signer_key_upgrade(
     changes: &[SignerChange<'_>],
     trust: &TrustStore,
+    printer: Printer,
 ) -> anyhow::Result<bool> {
     eprintln!("module signer key requires trust changes:");
     for change in changes {
@@ -269,14 +269,7 @@ fn confirm_signer_key_upgrade(
             ),
         }
     }
-    eprint!("Accept these signer trust changes and update the lockfile? [y/N] ");
-    std::io::Write::flush(&mut std::io::stderr()).context("flushing prompt")?;
-
-    let mut answer = String::new();
-    std::io::stdin()
-        .read_line(&mut answer)
-        .context("reading prompt response")?;
-    Ok(matches!(answer.trim(), "y" | "Y" | "yes" | "YES" | "Yes"))
+    printer.confirm("Accept these signer trust changes and update the lockfile?")
 }
 
 /// Signer key and optional identity queued for a trust-store change hint.
@@ -379,23 +372,13 @@ fn push_unique_signer(
 }
 
 /// Prints a summary action line for accepted signer trust changes.
-fn print_trust_change_summary(trusted: usize, colorize: bool) {
+fn print_trust_change_summary(trusted: usize, printer: Printer) {
     if trusted == 0 {
-        print_action(
-            "Accepted",
-            "signer trust changes",
-            colorize,
-            ActionColor::Green,
-        );
+        printer.status("Accepted", "signer trust changes");
         return;
     }
 
-    print_action(
-        "Trusted",
-        format!("{trusted} signer keys"),
-        colorize,
-        ActionColor::Green,
-    );
+    printer.status("Trusted", format!("{trusted} signer keys"));
 }
 
 /// Adds every signer key recorded in a lockfile to the trust store.
@@ -556,7 +539,7 @@ mod tests {
             &new,
             &SignerIdentityMap::new(),
             SignerChangeMode::Strict,
-            false,
+            Printer::new(false),
         )
         .unwrap_err();
         assert!(
@@ -572,7 +555,7 @@ mod tests {
             &new,
             &SignerIdentityMap::new(),
             SignerChangeMode::Strict,
-            false,
+            Printer::new(false),
         )
         .expect("a trusted new key should be accepted");
     }
@@ -590,7 +573,7 @@ mod tests {
             &new,
             &SignerIdentityMap::new(),
             SignerChangeMode::Confirm,
-            false,
+            Printer::new(false),
         )
         .expect("a globally trusted replacement key should not prompt or fail");
     }
@@ -609,7 +592,7 @@ mod tests {
             &new,
             &SignerIdentityMap::new(),
             SignerChangeMode::Strict,
-            false,
+            Printer::new(false),
         )
         .unwrap_err();
         assert!(
@@ -625,7 +608,7 @@ mod tests {
             &new,
             &SignerIdentityMap::new(),
             SignerChangeMode::Strict,
-            false,
+            Printer::new(false),
         )
         .expect("an unpinned downgrade should be accepted");
     }
@@ -668,7 +651,7 @@ mod tests {
             &new,
             &SignerIdentityMap::new(),
             SignerChangeMode::Auto,
-            false,
+            Printer::new(false),
         )
         .expect("auto mode should accept the batch");
         let trust = TrustStore::load_or_default(&path).unwrap();
@@ -692,7 +675,7 @@ mod tests {
             &new,
             &SignerIdentityMap::new(),
             SignerChangeMode::Auto,
-            false,
+            Printer::new(false),
         )
         .expect("auto mode should accept the removed signature");
         let trust = TrustStore::load_or_default(&path).unwrap();
@@ -715,7 +698,7 @@ mod tests {
             &signed,
             &SignerIdentityMap::new(),
             SignerChangeMode::Strict,
-            false,
+            Printer::new(false),
         )
         .unwrap();
 
@@ -727,7 +710,7 @@ mod tests {
             &signed,
             &SignerIdentityMap::new(),
             SignerChangeMode::Strict,
-            false,
+            Printer::new(false),
         )
         .expect_err("a newly introduced signer should require trust");
         assert!(

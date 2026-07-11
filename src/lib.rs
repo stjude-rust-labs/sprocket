@@ -175,7 +175,9 @@ async fn real_main() -> CommandResult<()> {
             commands::run::run(args, config, colorize, file_handle, writer).await
         }
         Commands::Validate(args) => commands::validate::validate(args, config).await,
-        Commands::Module(command) => commands::module::run(command, config, colorize).await,
+        Commands::Module(command) => {
+            commands::module::run(command, config, commands::printer::Printer::new(colorize)).await
+        }
         Commands::Dev(commands::DevCommands::Doc(args)) => {
             commands::doc::doc(args, config, colorize).await
         }

@@ -12,13 +12,12 @@ use walkdir::WalkDir;
 use wdl_modules::module::Module;
 
 use crate::commands::CommandResult;
-use crate::commands::module::ActionColor;
 use crate::commands::module::Locator;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
-use crate::commands::module::print_action;
 use crate::commands::module::require_lockfile;
 use crate::commands::module::trace_project;
+use crate::commands::printer::Printer;
 use crate::config::Config;
 
 /// Subcommands of `sprocket module cache`.
@@ -41,14 +40,14 @@ pub struct Args {
 }
 
 /// Runs `sprocket module cache`.
-pub async fn cache(command: CacheCommands, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn cache(command: CacheCommands, config: Config, printer: Printer) -> CommandResult<()> {
     match command {
-        CacheCommands::Clean(args) => clean(args, config, colorize).await,
+        CacheCommands::Clean(args) => clean(args, config, printer).await,
     }
 }
 
 /// Runs `sprocket module cache clean`.
-pub async fn clean(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn clean(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!(all = args.all, "starting `sprocket module cache clean`");
     let cache_root = config
         .modules
@@ -72,7 +71,7 @@ pub async fn clean(args: Args, config: Config, colorize: bool) -> CommandResult<
             bytes,
             "removed entire module cache"
         );
-        print_removed_summary(modules, bytes, colorize);
+        print_removed_summary(modules, bytes, printer);
         return Ok(());
     }
 
@@ -103,13 +102,13 @@ pub async fn clean(args: Args, config: Config, colorize: bool) -> CommandResult<
         bytes,
         "removed locked module cache leaves"
     );
-    print_removed_summary(modules, bytes, colorize);
+    print_removed_summary(modules, bytes, printer);
     Ok(())
 }
 
 /// Prints the cache-clean summary line.
-fn print_removed_summary(modules: usize, bytes: u64, colorize: bool) {
-    print_action(
+fn print_removed_summary(modules: usize, bytes: u64, printer: Printer) {
+    printer.status(
         "Removed",
         format!(
             "{} cached {} ({})",
@@ -117,8 +116,6 @@ fn print_removed_summary(modules: usize, bytes: u64, colorize: bool) {
             if modules == 1 { "module" } else { "modules" },
             ByteSize::b(bytes).display().iec()
         ),
-        colorize,
-        ActionColor::Green,
     );
 }
 

@@ -4,13 +4,12 @@ use clap::Parser;
 use wdl_modules::module::Module;
 
 use crate::commands::CommandResult;
-use crate::commands::module::ActionColor;
 use crate::commands::module::Locator;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
-use crate::commands::module::print_action;
 use crate::commands::module::require_lockfile;
 use crate::commands::module::trace_project;
+use crate::commands::printer::Printer;
 use crate::config::Config;
 
 /// Arguments to `sprocket module fetch`.
@@ -22,7 +21,7 @@ pub struct Args {
 }
 
 /// Runs `sprocket module fetch`.
-pub async fn fetch(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn fetch(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!("starting `sprocket module fetch`");
     let project = discover(&args.locator)?;
     trace_project("module fetch", &project);
@@ -39,7 +38,7 @@ pub async fn fetch(args: Args, config: Config, colorize: bool) -> CommandResult<
         .map_err(anyhow::Error::from)?;
     tracing::debug!(fetched, "ensured locked dependencies are fetched");
 
-    print_action(
+    printer.status(
         "Fetched",
         format!(
             "{fetched} {}",
@@ -49,8 +48,6 @@ pub async fn fetch(args: Args, config: Config, colorize: bool) -> CommandResult<
                 "dependencies"
             }
         ),
-        colorize,
-        ActionColor::Green,
     );
     Ok(())
 }

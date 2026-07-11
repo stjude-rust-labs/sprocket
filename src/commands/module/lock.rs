@@ -13,6 +13,7 @@ use crate::commands::module::resolve_relock_with_signer_mode;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
 use crate::commands::module::write_lockfile;
+use crate::commands::printer::Printer;
 use crate::config::Config;
 
 /// Arguments to `sprocket module lock`.
@@ -36,7 +37,7 @@ pub struct Args {
 }
 
 /// Runs `sprocket module lock`.
-pub async fn lock(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn lock(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         locked = args.locked,
         dry_run = args.dry_run,
@@ -62,13 +63,13 @@ pub async fn lock(args: Args, config: Config, colorize: bool) -> CommandResult<(
             );
         }
         tracing::debug!("`--locked` succeeded");
-        print_relock_summary(&RelockStats::default(), colorize);
+        print_relock_summary(&RelockStats::default(), printer);
         return Ok(());
     }
 
     if satisfied && !args.dry_run {
         tracing::debug!("skipped relock because lockfile is current");
-        print_relock_summary(&RelockStats::default(), colorize);
+        print_relock_summary(&RelockStats::default(), printer);
         return Ok(());
     }
 
@@ -76,17 +77,17 @@ pub async fn lock(args: Args, config: Config, colorize: bool) -> CommandResult<(
         &config,
         &project,
         signer_change_mode(&config, args.trust_mode),
-        colorize,
+        printer,
     )
     .await?;
     if args.dry_run {
         tracing::debug!("dry run completed without writing lockfile");
-        print_relock_summary(&outcome.stats, colorize);
+        print_relock_summary(&outcome.stats, printer);
         return Ok(());
     }
 
     write_lockfile(&project, &outcome.lockfile)?;
     tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
-    print_relock_summary(&outcome.stats, colorize);
+    print_relock_summary(&outcome.stats, printer);
     Ok(())
 }

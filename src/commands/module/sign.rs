@@ -13,11 +13,10 @@ use wdl_modules::signing::VerifyingKey;
 use wdl_modules::signing::parse_openssh_public_key_identity;
 
 use crate::commands::CommandResult;
-use crate::commands::module::ActionColor;
 use crate::commands::module::Locator;
 use crate::commands::module::discover;
-use crate::commands::module::print_action;
 use crate::commands::module::trace_project;
+use crate::commands::printer::Printer;
 use crate::config::Config;
 
 /// Arguments to `sprocket module sign`.
@@ -37,7 +36,7 @@ pub struct Args {
 }
 
 /// Runs `sprocket module sign`.
-pub async fn sign(args: Args, _config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn sign(args: Args, _config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         explicit_key = args.key.is_some(),
         explicit_output = args.output.is_some(),
@@ -66,12 +65,7 @@ pub async fn sign(args: Args, _config: Config, colorize: bool) -> CommandResult<
     write_signature_atomically(&output, &module_signature)?;
     tracing::debug!(signature = %output.display(), "wrote module signature");
 
-    print_action(
-        "Signed",
-        format!("{} ({digest})", project.manifest.name),
-        colorize,
-        ActionColor::Green,
-    );
+    printer.status("Signed", format!("{} ({digest})", project.manifest.name));
     Ok(())
 }
 

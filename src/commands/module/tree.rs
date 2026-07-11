@@ -40,7 +40,7 @@ pub struct ListArgs {
 }
 
 /// Runs `sprocket module tree`.
-pub async fn tree(args: TreeArgs, _config: Config, _colorize: bool) -> CommandResult<()> {
+pub async fn tree(args: TreeArgs, _config: Config) -> CommandResult<()> {
     tracing::trace!(depth = ?args.depth, "starting `sprocket module tree`");
     let project = discover(&args.locator)?;
     trace_project("module tree", &project);
@@ -61,7 +61,7 @@ pub async fn tree(args: TreeArgs, _config: Config, _colorize: bool) -> CommandRe
 }
 
 /// Runs `sprocket module list`.
-pub async fn list(args: ListArgs, _config: Config, _colorize: bool) -> CommandResult<()> {
+pub async fn list(args: ListArgs, _config: Config) -> CommandResult<()> {
     tracing::trace!(all = args.all, "starting `sprocket module list`");
     let project = discover(&args.locator)?;
     trace_project("module list", &project);

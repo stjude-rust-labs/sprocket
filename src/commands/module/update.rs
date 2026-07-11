@@ -11,19 +11,18 @@ use wdl_modules::resolver::signer_identity_map;
 use wdl_modules::resolver::update_relock;
 
 use crate::commands::CommandResult;
-use crate::commands::module::ActionColor;
 use crate::commands::module::Locator;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::enforce_lockfile_signer_policy;
 use crate::commands::module::load_lockfile;
-use crate::commands::module::print_action;
 use crate::commands::module::print_locking_summary;
 use crate::commands::module::print_relock_summary;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
 use crate::commands::module::write_lockfile;
+use crate::commands::printer::Printer;
 use crate::config::Config;
 
 /// Arguments to `sprocket module update`.
@@ -46,7 +45,7 @@ pub struct Args {
 }
 
 /// Runs `sprocket module update`.
-pub async fn update(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn update(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         dry_run = args.dry_run,
         requested = args.names.len(),
@@ -92,7 +91,7 @@ pub async fn update(args: Args, config: Config, colorize: bool) -> CommandResult
 
     if args.dry_run {
         tracing::debug!("dry run completed without writing lockfile");
-        print_relock_summary(&outcome.stats, colorize);
+        print_relock_summary(&outcome.stats, printer);
         return Ok(());
     }
 
@@ -101,16 +100,14 @@ pub async fn update(args: Args, config: Config, colorize: bool) -> CommandResult
         &outcome.lockfile,
         &identities,
         signer_change_mode(&config, args.trust_mode),
-        colorize,
+        printer,
     )?;
     write_lockfile(&project, &outcome.lockfile)?;
     tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
-    print_locking_summary(&outcome.stats, colorize);
-    print_action(
+    print_locking_summary(&outcome.stats, printer);
+    printer.status(
         "Finished",
         format!("updating {} packages", outcome.stats.updated.len()),
-        colorize,
-        ActionColor::Green,
     );
     Ok(())
 }

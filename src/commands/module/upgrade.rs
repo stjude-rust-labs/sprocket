@@ -16,7 +16,6 @@ use wdl_modules::resolver::signer_identity_map;
 use wdl_modules::resolver::update_relock;
 
 use crate::commands::CommandResult;
-use crate::commands::module::ActionColor;
 use crate::commands::module::Locator;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
@@ -24,13 +23,13 @@ use crate::commands::module::discover;
 use crate::commands::module::enforce_lockfile_signer_policy;
 use crate::commands::module::load_lockfile;
 use crate::commands::module::parse_manifest_value;
-use crate::commands::module::print_action;
 use crate::commands::module::print_locking_summary;
 use crate::commands::module::read_manifest_value;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
 use crate::commands::module::write_lockfile;
 use crate::commands::module::write_manifest_value;
+use crate::commands::printer::Printer;
 use crate::config::Config;
 
 /// Arguments to `sprocket module upgrade`.
@@ -53,7 +52,7 @@ pub struct Args {
 }
 
 /// Runs `sprocket module upgrade`.
-pub async fn upgrade(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         dry_run = args.dry_run,
         requested = args.names.len(),
@@ -148,18 +147,13 @@ pub async fn upgrade(args: Args, config: Config, colorize: bool) -> CommandResul
             dry_run = args.dry_run,
             "no version selectors need upgrading"
         );
-        print_action(
-            "Finished",
-            "no upgrades available",
-            colorize,
-            ActionColor::Green,
-        );
+        printer.status("Finished", "no upgrades available");
         return Ok(());
     }
 
     if args.dry_run {
         for (name, old_req, new_req) in &changed {
-            print_action(
+            printer.change(
                 "Upgrade",
                 format!(
                     "{} {} -> {} (dry-run)",
@@ -167,8 +161,6 @@ pub async fn upgrade(args: Args, config: Config, colorize: bool) -> CommandResul
                     version_display(old_req),
                     version_display(new_req)
                 ),
-                colorize,
-                ActionColor::Yellow,
             );
         }
         tracing::debug!(
@@ -203,7 +195,7 @@ pub async fn upgrade(args: Args, config: Config, colorize: bool) -> CommandResul
         &outcome.lockfile,
         &identities,
         signer_change_mode(&config, args.trust_mode),
-        colorize,
+        printer,
     )?;
     write_manifest_value(&project.manifest_path, &manifest_value)?;
     tracing::debug!(
@@ -211,14 +203,12 @@ pub async fn upgrade(args: Args, config: Config, colorize: bool) -> CommandResul
         changed = changed.len(),
         "wrote upgraded version selectors"
     );
-    print_action(
+    printer.status(
         "Upgrading",
         format!("{} packages to latest version", changed.len()),
-        colorize,
-        ActionColor::Green,
     );
     for (name, old_req, new_req) in &changed {
-        print_action(
+        printer.status(
             "Upgraded",
             format!(
                 "{} {} -> {}",
@@ -226,18 +216,14 @@ pub async fn upgrade(args: Args, config: Config, colorize: bool) -> CommandResul
                 version_display(old_req),
                 version_display(new_req)
             ),
-            colorize,
-            ActionColor::Green,
         );
     }
     write_lockfile(&project, &outcome.lockfile)?;
     tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
-    print_locking_summary(&outcome.stats, colorize);
-    print_action(
+    print_locking_summary(&outcome.stats, printer);
+    printer.status(
         "Finished",
         format!("updating {} packages", outcome.stats.updated.len()),
-        colorize,
-        ActionColor::Green,
     );
     Ok(())
 }

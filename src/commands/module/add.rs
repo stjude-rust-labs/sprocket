@@ -16,13 +16,11 @@ use wdl_modules::resolver::GitPlatform;
 use wdl_modules::version_requirement::VersionRequirement;
 
 use crate::commands::CommandResult;
-use crate::commands::module::ActionColor;
 use crate::commands::module::Locator;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::parse_manifest_value;
-use crate::commands::module::print_action;
 use crate::commands::module::print_relock_summary;
 use crate::commands::module::read_manifest_value;
 use crate::commands::module::resolve_relock_for_manifest;
@@ -31,6 +29,7 @@ use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
 use crate::commands::module::write_lockfile;
 use crate::commands::module::write_manifest_value;
+use crate::commands::printer::Printer;
 use crate::config::Config;
 
 /// Arguments to `sprocket module add`.
@@ -85,7 +84,7 @@ pub struct Args {
 }
 
 /// Runs `sprocket module add`.
-pub async fn add(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         no_lock = args.no_lock,
         has_path = args.path.is_some(),
@@ -103,14 +102,12 @@ pub async fn add(args: Args, config: Config, colorize: bool) -> CommandResult<()
             dependency = name.manifest(),
             "dependency already exists with the same source"
         );
-        print_action(
+        printer.change(
             "Skipped",
             format!(
                 "`{}` already exists in the module's dependencies",
                 name.manifest()
             ),
-            colorize,
-            ActionColor::Yellow,
         );
         return Ok(());
     }
@@ -126,7 +123,7 @@ pub async fn add(args: Args, config: Config, colorize: bool) -> CommandResult<()
                 &project,
                 std::sync::Arc::new(pending_manifest),
                 signer_change_mode(&config, args.trust_mode),
-                colorize,
+                printer,
             )
             .await?,
         )
@@ -142,15 +139,10 @@ pub async fn add(args: Args, config: Config, colorize: bool) -> CommandResult<()
     if let Some(outcome) = relock {
         write_lockfile(&project, &outcome.lockfile)?;
         tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
-        print_relock_summary(&outcome.stats, colorize);
+        print_relock_summary(&outcome.stats, printer);
     } else {
         tracing::debug!("skipped relock after adding dependency");
-        print_action(
-            "Added",
-            format!("`{}`", name.manifest()),
-            colorize,
-            ActionColor::Green,
-        );
+        printer.status("Added", format!("`{}`", name.manifest()));
     }
 
     Ok(())
