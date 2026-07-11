@@ -314,6 +314,32 @@ pub fn build_resolver(config: &Config, lockfile: Lockfile) -> anyhow::Result<Git
         .build())
 }
 
+/// Aligns a temporary file's permissions with its destination before an
+/// atomic rename.
+///
+/// `NamedTempFile` creates files with owner-only permissions on Unix;
+/// without this, atomic rewrites would silently narrow the destination's
+/// mode. Existing destination permissions are preserved; new files get
+/// the conventional read-for-all mode.
+fn align_temp_permissions(temp: &tempfile::NamedTempFile, path: &Path) -> anyhow::Result<()> {
+    if let Ok(metadata) = std::fs::metadata(path) {
+        temp.as_file()
+            .set_permissions(metadata.permissions())
+            .with_context(|| format!("setting permissions on `{}`", temp.path().display()))?;
+        return Ok(());
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        temp.as_file()
+            .set_permissions(std::fs::Permissions::from_mode(0o644))
+            .with_context(|| format!("setting permissions on `{}`", temp.path().display()))?;
+    }
+
+    Ok(())
+}
+
 /// Writes `module-lock.json` atomically.
 pub fn write_lockfile(project: &Project, lock: &Lockfile) -> anyhow::Result<()> {
     let dir = project
@@ -324,6 +350,7 @@ pub fn write_lockfile(project: &Project, lock: &Lockfile) -> anyhow::Result<()> 
         .with_context(|| format!("creating a temporary file in `{}`", dir.display()))?;
     lock.write(&mut temp)
         .with_context(|| format!("writing `{}`", temp.path().display()))?;
+    align_temp_permissions(&temp, &project.lockfile_path)?;
     temp.persist(&project.lockfile_path)
         .with_context(|| format!("replacing `{}`", project.lockfile_path.display()))?;
     Ok(())
@@ -350,6 +377,7 @@ pub fn write_manifest_value(path: &Path, value: &serde_json::Value) -> anyhow::R
         .with_context(|| format!("creating a temporary file in `{}`", dir.display()))?;
     std::io::Write::write_all(&mut temp, &bytes)
         .with_context(|| format!("writing `{}`", temp.path().display()))?;
+    align_temp_permissions(&temp, path)?;
     temp.persist(path)
         .with_context(|| format!("replacing `{}`", path.display()))?;
     Ok(())
@@ -404,27 +432,6 @@ pub fn remove_dependency(value: &mut serde_json::Value, name: &str) -> anyhow::R
         .as_object_mut()
         .with_context(|| "`dependencies` in `module.json` must be an object")?;
     Ok(dependencies.remove(name).is_some())
-}
-
-/// Re-resolves dependencies, merges with previous lock, and writes lockfile.
-pub async fn relock(
-    config: &Config,
-    project: &Project,
-    colorize: bool,
-) -> anyhow::Result<RelockStats> {
-    tracing::debug!("starting module relock");
-    let outcome = resolve_relock_with_signer_mode(
-        config,
-        project,
-        SignerChangeMode::from_trust_mode(config.modules.trust_mode),
-        colorize,
-    )
-    .await?;
-    write_lockfile(project, &outcome.lockfile)?;
-    tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
-    print_relock_summary(&outcome.stats, colorize);
-
-    Ok(outcome.stats)
 }
 
 /// Re-resolves dependencies and merges with the previous lockfile.
@@ -929,6 +936,41 @@ mod tests {
         let written: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(written["x-extra"]["enabled"], true);
         assert_eq!(written["dependencies"]["alpha"]["x-source-extra"], 7);
+    }
+
+    /// Reads the permission bits of `path`.
+    #[cfg(unix)]
+    fn mode_of(path: &std::path::Path) -> u32 {
+        use std::os::unix::fs::PermissionsExt as _;
+        std::fs::metadata(path).unwrap().permissions().mode() & 0o777
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn write_manifest_value_gives_new_files_conventional_permissions() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("module.json");
+        let value: serde_json::Value = serde_json::from_str(VALID_MANIFEST_JSON).unwrap();
+
+        write_manifest_value(&path, &value).unwrap();
+
+        assert_eq!(mode_of(&path), 0o644);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn write_manifest_value_preserves_existing_permissions() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("module.json");
+        let value: serde_json::Value = serde_json::from_str(VALID_MANIFEST_JSON).unwrap();
+        write_manifest_value(&path, &value).unwrap();
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).unwrap();
+
+        write_manifest_value(&path, &value).unwrap();
+
+        assert_eq!(mode_of(&path), 0o600);
     }
 
     #[test]
