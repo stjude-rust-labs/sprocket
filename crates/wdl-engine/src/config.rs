@@ -20,6 +20,7 @@ use codespan_reporting::term;
 use codespan_reporting::term::termcolor::Buffer;
 use indexmap::IndexMap;
 use rowan::GreenNode;
+use schemars::JsonSchema;
 use secrecy::ExposeSecret;
 use tokio::process::Command;
 use toml_spanner::Arena;
@@ -78,11 +79,23 @@ pub(crate) const MAX_RETRIES: u64 = 100;
 /// The default task shell.
 pub(crate) const DEFAULT_TASK_SHELL: &str = "bash";
 
+/// The default task shell.
+pub(crate) const fn default_task_shell() -> &'static str {
+    DEFAULT_TASK_SHELL
+}
+
 /// The default task container.
 pub(crate) const DEFAULT_TASK_CONTAINER: &str = "ubuntu:latest";
 
+/// The default task container.
+pub(crate) const fn default_task_container() -> &'static str {
+    DEFAULT_TASK_CONTAINER
+}
+
 /// The default backend name.
-const DEFAULT_BACKEND_NAME: &str = "default";
+const fn default_backend_name() -> &'static str {
+    "default"
+}
 
 /// The maximum size, in bytes, for an LSF job name prefix.
 const MAX_LSF_JOB_NAME_PREFIX: usize = 100;
@@ -91,19 +104,27 @@ const MAX_LSF_JOB_NAME_PREFIX: usize = 100;
 const REDACTED: &str = "<REDACTED>";
 
 /// Configuration sentinel value indicating use a system cache directory.
-const CACHE_DIR_SENTINEL: &str = "system";
+const fn cache_dir_sentinel() -> &'static str {
+    "system"
+}
 
 /// The default for HTTP retries.
 ///
 /// Same default as defined in `cloud_copy`
-const DEFAULT_HTTP_RETRIES: u32 = 5;
+const fn default_http_retries() -> u32 {
+    5
+}
 
 /// The default Apptainer executable name.
-const DEFAULT_APPTAINER_EXECUTABLE: &str = "apptainer";
+const fn default_apptainer_executable() -> &'static str {
+    "apptainer"
+}
 
 /// The default number of elements to concurrently process for a scatter
 /// statement.
-const DEFAULT_SCATTER_CONCURRENCY: u64 = 1000;
+const fn default_scatter_concurrency() -> u64 {
+    1000
+}
 
 /// Gets the default root cache directory for the user.
 pub(crate) fn cache_dir() -> Result<PathBuf> {
@@ -193,7 +214,8 @@ fn escape_mapping(toml: &str) -> Vec<(usize, usize)> {
 /// Represents a secret string that is, by default, redacted for serialization.
 ///
 /// This type is a wrapper around [`secrecy::SecretString`].
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug, Clone, JsonSchema)]
+#[schemars(with = "String")]
 pub struct SecretString {
     /// The inner secret string.
     ///
@@ -275,8 +297,9 @@ impl Eq for SecretString {}
 
 /// Represents how an evaluation error or cancellation should be handled by the
 /// engine.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, Toml)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case")]
+#[schemars(rename_all = "snake_case")]
 pub enum FailureMode {
     /// When an error is encountered or evaluation is canceled, evaluation waits
     /// for any outstanding tasks to complete.
@@ -359,29 +382,40 @@ mod index_map {
 /// Use the [`Config::redact`] method prior to serialization to redact secrets.
 ///
 /// </div>
-#[derive(Debug, Clone, Toml, PartialEq, Eq)]
+#[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(
+    rename = "WdlEngineConfig",
+    rename_all = "snake_case",
+    deny_unknown_fields
+)]
 pub struct Config {
     /// HTTP configuration.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub http: HttpConfig,
     /// Workflow evaluation configuration.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub workflow: WorkflowConfig,
     /// Task evaluation configuration.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub task: TaskConfig,
     /// The name of the backend to use.
-    #[toml(default = DEFAULT_BACKEND_NAME.into())]
+    #[toml(default = String::from(default_backend_name()))]
+    #[schemars(default = "default_backend_name")]
     pub backend: String,
     /// Task execution backends configuration.
     ///
     /// If the collection is empty and `backend` has the default value, the
     /// engine default backend is used.
     #[toml(default, with = index_map)]
+    #[schemars(default)]
     pub backends: IndexMap<String, BackendConfig>,
     /// Storage configuration.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub storage: StorageConfig,
     /// (Experimental) Avoid environment-specific output; default is `false`.
     ///
@@ -397,6 +431,7 @@ pub struct Config {
     /// reduce the impact of these differences in order to allow a wider
     /// range of golden tests to be written.
     #[toml(default)]
+    #[schemars(default)]
     pub suppress_env_specific_output: bool,
     /// (Experimental) Whether experimental features are enabled; default is
     /// `false`.
@@ -405,6 +440,7 @@ pub struct Config {
     /// their stability and rough edges. Use at your own risk, but feedback
     /// is quite welcome.
     #[toml(default)]
+    #[schemars(default)]
     pub experimental_features_enabled: bool,
     /// The failure mode for workflow or task evaluation.
     ///
@@ -414,6 +450,7 @@ pub struct Config {
     /// A value of [`FailureMode::Fast`] will immediately attempt to cancel
     /// executing tasks upon error or interruption.
     #[toml(default, rename = "fail")]
+    #[schemars(default, rename = "fail")]
     pub failure_mode: FailureMode,
 }
 
@@ -423,7 +460,7 @@ impl Default for Config {
             http: Default::default(),
             workflow: Default::default(),
             task: Default::default(),
-            backend: DEFAULT_BACKEND_NAME.into(),
+            backend: default_backend_name().into(),
             backends: Default::default(),
             storage: Default::default(),
             suppress_env_specific_output: Default::default(),
@@ -445,7 +482,7 @@ impl Config {
         self.workflow.validate()?;
         self.task.validate()?;
 
-        if self.backends.is_empty() && self.backend == DEFAULT_BACKEND_NAME {
+        if self.backends.is_empty() && self.backend == default_backend_name() {
             // we'll use the default
         } else {
             let backend = &self.backend;
@@ -549,12 +586,14 @@ impl Config {
 }
 
 /// Represents the parallelism for HTTP downloads.
-#[derive(Copy, Clone, Default, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Default, Debug, PartialEq, Eq, JsonSchema)]
+#[schemars(rename_all = "lowercase")]
 pub enum Parallelism {
     /// Use the available parallelism for the host system.
     #[default]
     Available,
     /// Use the specified parallelism.
+    #[schemars(untagged)]
     Use(usize),
 }
 
@@ -606,35 +645,40 @@ impl ToToml for Parallelism {
 }
 
 /// Represents HTTP configuration.
-#[derive(Debug, Clone, Toml, PartialEq, Eq)]
+#[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct HttpConfig {
     /// The HTTP download cache location.
     ///
     /// Defaults to an operating system specific cache directory for the user.
-    #[toml(default = CACHE_DIR_SENTINEL.into())]
+    #[toml(default = String::from(cache_dir_sentinel()))]
+    #[schemars(default = "cache_dir_sentinel")]
     pub cache_dir: String,
     /// The number of retries for transferring files.
-    #[toml(default = DEFAULT_HTTP_RETRIES)]
+    #[toml(default = default_http_retries())]
+    #[schemars(default = "default_http_retries")]
     pub retries: u32,
     /// The maximum parallelism for file transfers.
     ///
     /// Defaults to the host's available parallelism.
     #[toml(default)]
+    #[schemars(default)]
     pub parallelism: Parallelism,
     /// The hash algorithm to use for calculating content digests for file
     /// uploads.
     ///
     /// Defaults to `sha256`.
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
+    #[schemars(default, with = "String")]
     pub hash_algorithm: cloud_copy::HashAlgorithm,
 }
 
 impl Default for HttpConfig {
     fn default() -> Self {
         Self {
-            cache_dir: CACHE_DIR_SENTINEL.into(),
-            retries: DEFAULT_HTTP_RETRIES,
+            cache_dir: cache_dir_sentinel().into(),
+            retries: default_http_retries(),
             parallelism: Default::default(),
             hash_algorithm: Default::default(),
         }
@@ -665,22 +709,26 @@ impl HttpConfig {
 
     /// Is this configuration using a system cache dir?
     pub fn using_system_cache_dir(&self) -> bool {
-        self.cache_dir == CACHE_DIR_SENTINEL
+        self.cache_dir == cache_dir_sentinel()
     }
 }
 
 /// Represents storage configuration.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct StorageConfig {
     /// Azure Blob Storage configuration.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub azure: AzureStorageConfig,
     /// AWS S3 configuration.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub s3: S3StorageConfig,
     /// Google Cloud Storage configuration.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub google: GoogleStorageConfig,
 }
 
@@ -695,8 +743,9 @@ impl StorageConfig {
 }
 
 /// Represents authentication information for Azure Blob Storage.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AzureStorageAuthConfig {
     /// The Azure Storage account name to use.
     pub account_name: String,
@@ -727,8 +776,9 @@ impl AzureStorageAuthConfig {
 }
 
 /// Represents configuration for Azure Blob Storage.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AzureStorageConfig {
     /// The Azure Blob Storage authentication configuration.
     #[toml(style = Header)]
@@ -747,8 +797,9 @@ impl AzureStorageConfig {
 }
 
 /// Represents authentication information for AWS S3 storage.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct S3StorageAuthConfig {
     /// The AWS Access Key ID to use.
     pub access_key_id: String,
@@ -779,8 +830,9 @@ impl S3StorageAuthConfig {
 }
 
 /// Represents configuration for AWS S3 storage.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct S3StorageConfig {
     /// The default region to use for S3-schemed URLs (e.g.
     /// `s3://<bucket>/<blob>`).
@@ -805,8 +857,9 @@ impl S3StorageConfig {
 }
 
 /// Represents authentication information for Google Cloud Storage.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct GoogleStorageAuthConfig {
     /// The HMAC Access Key to use.
     pub access_key: String,
@@ -837,8 +890,9 @@ impl GoogleStorageAuthConfig {
 }
 
 /// Represents configuration for Google Cloud Storage.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct GoogleStorageConfig {
     /// The Google Cloud Storage authentication configuration.
     #[toml(style = Header)]
@@ -857,11 +911,13 @@ impl GoogleStorageConfig {
 }
 
 /// Represents workflow evaluation configuration.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct WorkflowConfig {
     /// Scatter statement evaluation configuration.
     #[toml(default, style = Header)]
+    #[schemars(default)]
     pub scatter: ScatterConfig,
 }
 
@@ -874,8 +930,9 @@ impl WorkflowConfig {
 }
 
 /// Represents scatter statement evaluation configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ScatterConfig {
     /// The number of scatter array elements to process concurrently.
     ///
@@ -929,14 +986,15 @@ pub struct ScatterConfig {
     /// Warning: nested scatter statements cause exponential memory usage based
     /// on this value, as each scatter statement evaluation requires allocating
     /// new scopes for scatter array elements being processed. </div>
-    #[toml(default = DEFAULT_SCATTER_CONCURRENCY)]
+    #[toml(default = default_scatter_concurrency())]
+    #[schemars(default = "default_scatter_concurrency")]
     pub concurrency: u64,
 }
 
 impl Default for ScatterConfig {
     fn default() -> Self {
         Self {
-            concurrency: DEFAULT_SCATTER_CONCURRENCY,
+            concurrency: default_scatter_concurrency(),
         }
     }
 }
@@ -953,8 +1011,9 @@ impl ScatterConfig {
 }
 
 /// Represents the supported call caching modes.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, Toml)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case")]
+#[schemars(rename_all = "snake_case")]
 pub enum CallCachingMode {
     /// Call caching is disabled.
     ///
@@ -981,8 +1040,9 @@ pub enum CallCachingMode {
 }
 
 /// Represents the supported modes for calculating content digests.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, Toml)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Hash, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case")]
+#[schemars(rename_all = "snake_case")]
 pub enum ContentDigestMode {
     /// Use a strong digest for file content.
     ///
@@ -1018,12 +1078,14 @@ pub enum ContentDigestMode {
 }
 
 /// Represents the maximum number of retries for tasks.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, JsonSchema)]
+#[schemars(rename_all = "lowercase")]
 pub enum Retries {
     /// Use the default number of retries for task execution.
     #[default]
     Default,
     /// Use the specified number of retries for task execution.
+    #[schemars(untagged)]
     Use(u64),
 }
 
@@ -1075,17 +1137,20 @@ impl ToToml for Retries {
 }
 
 /// Represents task evaluation configuration.
-#[derive(Debug, Clone, Toml, PartialEq, Eq)]
+#[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TaskConfig {
     /// The default maximum number of retries to attempt if a task fails.
     ///
     /// A task's `max_retries` requirement will override this value.
     #[toml(default)]
+    #[schemars(default)]
     pub retries: Retries,
     /// The default container to use if a container is not specified in a task's
     /// requirements.
-    #[toml(default = DEFAULT_TASK_CONTAINER.into())]
+    #[toml(default = String::from(default_task_container()))]
+    #[schemars(default = "default_task_container")]
     pub container: String,
     /// The default shell to use for tasks.
     ///
@@ -1101,26 +1166,32 @@ pub struct TaskConfig {
     ///
     /// If using this setting causes your tasks to fail, please do not file an
     /// issue. </div>
-    #[toml(default = DEFAULT_TASK_SHELL.into())]
+    #[toml(default = String::from(default_task_shell()))]
+    #[schemars(default = "default_task_shell")]
     pub shell: String,
     /// The behavior when a task's `cpu` requirement cannot be met.
     #[toml(default)]
+    #[schemars(default)]
     pub cpu_limit_behavior: TaskResourceLimitBehavior,
     /// The behavior when a task's `memory` requirement cannot be met.
     #[toml(default)]
+    #[schemars(default)]
     pub memory_limit_behavior: TaskResourceLimitBehavior,
     /// The call cache directory to use for caching task execution results.
     ///
     /// Defaults to an operating system specific cache directory for the user.
-    #[toml(default = CACHE_DIR_SENTINEL.into())]
+    #[toml(default = String::from(cache_dir_sentinel()))]
+    #[schemars(default = "cache_dir_sentinel")]
     pub cache_dir: String,
     /// The call caching mode to use for tasks.
     #[toml(default)]
+    #[schemars(default)]
     pub cache: CallCachingMode,
     /// The content digest mode to use.
     ///
     /// Used as part of call caching.
     #[toml(default)]
+    #[schemars(default)]
     pub digests: ContentDigestMode,
     /// Keys of task requirements to exclude from call cache checking.
     ///
@@ -1131,6 +1202,7 @@ pub struct TaskConfig {
     /// but should not invalidate the cache (e.g., dynamic resource
     /// allocation).
     #[toml(default)]
+    #[schemars(default)]
     pub excluded_cache_requirements: Vec<String>,
     /// Keys of task hints to exclude from call cache checking.
     ///
@@ -1140,6 +1212,7 @@ pub struct TaskConfig {
     /// This can be useful for hints that may vary between runs
     /// but should not invalidate the cache.
     #[toml(default)]
+    #[schemars(default)]
     pub excluded_cache_hints: Vec<String>,
     /// Keys of task inputs to exclude from call cache checking.
     ///
@@ -1149,6 +1222,7 @@ pub struct TaskConfig {
     /// This can be useful for inputs that may vary between runs
     /// but should not affect the task's output.
     #[toml(default)]
+    #[schemars(default)]
     pub excluded_cache_inputs: Vec<String>,
 }
 
@@ -1156,11 +1230,11 @@ impl Default for TaskConfig {
     fn default() -> Self {
         Self {
             retries: Default::default(),
-            container: DEFAULT_TASK_CONTAINER.into(),
-            shell: DEFAULT_TASK_SHELL.into(),
+            container: default_task_container().into(),
+            shell: default_task_shell().into(),
             cpu_limit_behavior: Default::default(),
             memory_limit_behavior: Default::default(),
-            cache_dir: CACHE_DIR_SENTINEL.into(),
+            cache_dir: cache_dir_sentinel().into(),
             cache: Default::default(),
             digests: Default::default(),
             excluded_cache_requirements: Default::default(),
@@ -1184,7 +1258,7 @@ impl TaskConfig {
 
     /// Get the configured cache dir if it is set.
     pub fn cache_dir(&self) -> Option<PathBuf> {
-        if self.cache_dir == CACHE_DIR_SENTINEL {
+        if self.cache_dir == cache_dir_sentinel() {
             None
         } else {
             Some(PathBuf::from(&self.cache_dir))
@@ -1194,8 +1268,9 @@ impl TaskConfig {
 
 /// The behavior when a task resource requirement, such as `cpu` or `memory`,
 /// cannot be met.
-#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub enum TaskResourceLimitBehavior {
     /// Try executing a task with the maximum amount of the resource available
     /// when the task's corresponding requirement cannot be met.
@@ -1208,25 +1283,29 @@ pub enum TaskResourceLimitBehavior {
 }
 
 /// Represents supported task execution backends.
-#[derive(Debug, Clone, Toml, PartialEq, Eq)]
+#[derive(Debug, Clone, Toml, PartialEq, Eq, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", tag = "type")]
+#[schemars(rename_all = "snake_case", tag = "type")]
 pub enum BackendConfig {
     /// Use the local task execution backend.
     Local {
         /// The inner local backend configuration.
         #[toml(default, style = Header, flatten, with = flatten_any)]
+        #[schemars(default, flatten)]
         config: LocalBackendConfig,
     },
     /// Use the Docker task execution backend.
     Docker {
         /// The inner Docker backend configuration.
         #[toml(default, style = Header, flatten, with = flatten_any)]
+        #[schemars(default, flatten)]
         config: DockerBackendConfig,
     },
     /// Use the TES task execution backend.
     Tes {
         /// The inner TES backend configuration.
         #[toml(default, style = Header, flatten, with = flatten_any)]
+        #[schemars(default, flatten)]
         config: TesBackendConfig,
     },
     /// Use the experimental LSF + Apptainer task execution backend.
@@ -1235,6 +1314,7 @@ pub enum BackendConfig {
     LsfApptainer {
         /// The inner LSF Apptainer backend configuration.
         #[toml(default, style = Header, flatten, with = flatten_any)]
+        #[schemars(default, flatten)]
         config: LsfApptainerBackendConfig,
     },
     /// Use the experimental Slurm + Apptainer task execution backend.
@@ -1243,6 +1323,7 @@ pub enum BackendConfig {
     SlurmApptainer {
         /// The inner Slurm Apptainer backend configuration.
         #[toml(default, style = Header, flatten, with = flatten_any)]
+        #[schemars(default, flatten)]
         config: SlurmApptainerBackendConfig,
     },
 }
@@ -1369,8 +1450,9 @@ impl From<SlurmApptainerBackendConfig> for BackendConfig {
 /// Warning: the local task execution backend spawns processes on the host
 /// directly without the use of a container; only use this backend on trusted
 /// WDL. </div>
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LocalBackendConfig {
     /// Set the number of CPUs available for task execution.
     ///
@@ -1427,14 +1509,21 @@ impl LocalBackendConfig {
     }
 }
 
+/// The default value for the `cleanup` field in [`DockerBackendConfig`].
+fn default_docker_cleanup() -> bool {
+    true
+}
+
 /// Represents configuration for the Docker backend.
-#[derive(Debug, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct DockerBackendConfig {
     /// Whether or not to remove a task's container after the task completes.
     ///
     /// Defaults to `true`.
-    #[toml(default = true)]
+    #[toml(default = default_docker_cleanup())]
+    #[schemars(default = "default_docker_cleanup")]
     pub cleanup: bool,
 }
 
@@ -1447,13 +1536,16 @@ impl DockerBackendConfig {
 
 impl Default for DockerBackendConfig {
     fn default() -> Self {
-        Self { cleanup: true }
+        Self {
+            cleanup: default_docker_cleanup(),
+        }
     }
 }
 
 /// Represents HTTP basic authentication configuration.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct BasicAuthConfig {
     /// The HTTP basic authentication username.
     pub username: String,
@@ -1475,8 +1567,9 @@ impl BasicAuthConfig {
 }
 
 /// Represents HTTP bearer token authentication configuration.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct BearerAuthConfig {
     /// The HTTP bearer authentication token.
     pub token: SecretString,
@@ -1496,19 +1589,22 @@ impl BearerAuthConfig {
 }
 
 /// Represents the kind of authentication for a TES backend.
-#[derive(Debug, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", tag = "type")]
+#[schemars(rename_all = "snake_case", tag = "type")]
 pub enum TesBackendAuthConfig {
     /// Use basic authentication for the TES backend.
     Basic {
         /// The inner basic auth configuration.
         #[toml(default, style = Header, flatten, with = flatten_any)]
+        #[schemars(default, flatten)]
         config: BasicAuthConfig,
     },
     /// Use bearer token authentication for the TES backend.
     Bearer {
         /// The inner bearer auth configuration.
         #[toml(default, style = Header, flatten, with = flatten_any)]
+        #[schemars(default, flatten)]
         config: BearerAuthConfig,
     },
 }
@@ -1549,8 +1645,9 @@ impl From<BearerAuthConfig> for TesBackendAuthConfig {
 }
 
 /// Represents configuration for the Task Execution Service (TES) backend.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct TesBackendConfig {
     /// The URL of the Task Execution Service.
     #[toml(FromToml with = parse_string, ToToml with = display)]
@@ -1588,6 +1685,7 @@ pub struct TesBackendConfig {
     /// Whether or not the TES server URL may use an insecure protocol like
     /// HTTP.
     #[toml(default)]
+    #[schemars(default)]
     pub insecure: bool,
 }
 
@@ -1668,15 +1766,17 @@ impl TesBackendConfig {
 }
 
 /// Configuration for the Apptainer container runtime.
-#[derive(Debug, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ApptainerConfig {
     /// Path to the Apptainer (or Singularity) executable.
     ///
     /// Defaults to `"apptainer"`. Set to `"singularity"` or a full path
     /// (e.g., `/usr/local/bin/apptainer`) if the executable is not on `PATH`
     /// or if using Singularity instead.
-    #[toml(default = DEFAULT_APPTAINER_EXECUTABLE.into())]
+    #[toml(default = String::from(default_apptainer_executable()))]
+    #[schemars(default = "default_apptainer_executable")]
     pub executable: String,
 
     /// Path to a shared directory for caching pulled `.sif` images.
@@ -1689,13 +1789,14 @@ pub struct ApptainerConfig {
     /// Additional command-line arguments to pass to `apptainer exec` when
     /// executing tasks.
     #[toml(default)]
+    #[schemars(default)]
     pub extra_args: Vec<String>,
 }
 
 impl Default for ApptainerConfig {
     fn default() -> Self {
         Self {
-            executable: DEFAULT_APPTAINER_EXECUTABLE.into(),
+            executable: default_apptainer_executable().into(),
             image_cache_dir: None,
             extra_args: Default::default(),
         }
@@ -1717,7 +1818,8 @@ impl ApptainerConfig {
 ///
 /// The expression is type checked during configuration deserialization to
 /// ensure it is a valid WDL expression of type `Boolean`.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, JsonSchema)]
+#[schemars(with = "String")]
 pub struct Condition {
     /// The raw WDL expression string.
     pub raw: String,
@@ -2047,13 +2149,15 @@ impl<'de> FromToml<'de> for Condition {
 ///
 /// Conditional arguments are passed to the program responsible for queuing a
 /// task when the associated conditional expression evaluates to `true`.
-#[derive(Debug, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct ConditionalArgs {
     /// The condition for including the arguments.
     pub condition: Condition,
     /// The arguments to use when the condition evaluates to `true`.
     #[toml(default)]
+    #[schemars(default)]
     pub args: Vec<String>,
 }
 
@@ -2074,17 +2178,20 @@ impl ConditionalArgs {
 /// Represents additional arguments to the Slurm and LSF backends.
 ///
 /// These arguments are passed to the executable responsible for queuing a task.
-#[derive(Debug, Clone, Default, PartialEq, Eq, Toml)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct AdditionalArgs {
     /// The additional arguments to pass to the backend program.
     #[toml(default)]
+    #[schemars(default)]
     pub args: Vec<String>,
     /// The conditional arguments to pass to the backend program.
     ///
     /// The first conditional argument with an associated conditional expression
     /// that evaluates to `true` will be passed to the backend program.
     #[toml(default)]
+    #[schemars(default)]
     pub conditional: Vec<ConditionalArgs>,
 }
 
@@ -2130,8 +2237,9 @@ mod byte_size {
 /// be populated or validated by live information from the cluster, but
 /// for now they must be manually based on the user's understanding of the
 /// cluster configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LsfQueueConfig {
     /// The name of the queue; this is the string passed to `bsub -q
     /// <queue_name>`.
@@ -2140,6 +2248,7 @@ pub struct LsfQueueConfig {
     pub max_cpu_per_task: Option<u64>,
     /// The maximum memory this queue can provision for a single task.
     #[toml(FromToml with = byte_size, ToToml with = display)]
+    #[schemars(with = "Option<u64>")]
     pub max_memory_per_task: Option<ByteSize>,
 }
 
@@ -2189,8 +2298,9 @@ impl LsfQueueConfig {
 /// Configuration for the LSF + Apptainer backend.
 // TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
 // name, env var names, etc.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct LsfApptainerBackendConfig {
     /// The task monitor polling interval, in seconds.
     ///
@@ -2235,6 +2345,7 @@ pub struct LsfApptainerBackendConfig {
     pub job_name_prefix: Option<String>,
     /// The additional arguments to `bsub` used to queue a new task.
     #[toml(default)]
+    #[schemars(default)]
     pub bsub: AdditionalArgs,
     /// The configuration of Apptainer, which is used as the container runtime
     /// on the compute nodes where LSF dispatches tasks.
@@ -2243,6 +2354,7 @@ pub struct LsfApptainerBackendConfig {
     /// container execution runtimes in the future, rather than being
     /// hardcoded to Apptainer.
     #[toml(default)]
+    #[schemars(default)]
     pub apptainer: ApptainerConfig,
 }
 
@@ -2341,8 +2453,9 @@ impl LsfApptainerBackendConfig {
 /// be populated or validated by live information from the cluster, but
 /// for now they must be manually based on the user's understanding of the
 /// cluster configuration.
-#[derive(Debug, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct SlurmPartitionConfig {
     /// The name of the partition; this is the string passed to `sbatch
     /// --partition=<partition_name>`.
@@ -2352,6 +2465,7 @@ pub struct SlurmPartitionConfig {
     pub max_cpu_per_task: Option<u64>,
     /// The maximum memory this partition can provision for a single task.
     #[toml(FromToml with = byte_size, ToToml with = display)]
+    #[schemars(with = "Option<u64>")]
     pub max_memory_per_task: Option<ByteSize>,
 }
 
@@ -2412,8 +2526,9 @@ impl SlurmPartitionConfig {
 /// Configuration for the Slurm + Apptainer backend.
 // TODO ACF 2025-09-23: add a Apptainer/Singularity mode config that switches around executable
 // name, env var names, etc.
-#[derive(Debug, Default, Clone, PartialEq, Eq, Toml)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct SlurmApptainerBackendConfig {
     /// The task monitor polling interval, in seconds.
     ///
@@ -2458,6 +2573,7 @@ pub struct SlurmApptainerBackendConfig {
     pub fpga_slurm_partition: Option<SlurmPartitionConfig>,
     /// The additional arguments to `sbatch` used to queue a new task.
     #[toml(default)]
+    #[schemars(default)]
     pub sbatch: AdditionalArgs,
     /// Prefix to add to every Slurm job name before the task identifier.
     pub job_name_prefix: Option<String>,
@@ -2468,6 +2584,7 @@ pub struct SlurmApptainerBackendConfig {
     /// container execution runtimes in the future, rather than being
     /// hardcoded to Apptainer.
     #[toml(default)]
+    #[schemars(default)]
     pub apptainer: ApptainerConfig,
 }
 

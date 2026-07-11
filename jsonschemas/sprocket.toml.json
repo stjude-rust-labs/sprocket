@@ -1,0 +1,1671 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Config",
+  "description": "Represents the configuration for the Sprocket CLI tool.",
+  "type": "object",
+  "properties": {
+    "format": {
+      "description": "Configuration for the `format` command.",
+      "$ref": "#/$defs/Config"
+    },
+    "check": {
+      "description": "Configuration for the `check` and `lint` commands.",
+      "$ref": "#/$defs/CheckConfig"
+    },
+    "analyzer": {
+      "description": "Configuration for the `analyzer` command.",
+      "$ref": "#/$defs/AnalyzerConfig"
+    },
+    "run": {
+      "description": "Configuration for the `run` command.",
+      "$ref": "#/$defs/RunConfig"
+    },
+    "server": {
+      "description": "Configuration for the `server` command.",
+      "$ref": "#/$defs/ServerConfig"
+    },
+    "test": {
+      "description": "Configuration for the `test` command.",
+      "$ref": "#/$defs/TestConfig"
+    },
+    "doc": {
+      "description": "Configuration for the `doc` command.",
+      "$ref": "#/$defs/DocConfig"
+    },
+    "common": {
+      "description": "Common configuration options for all commands.",
+      "$ref": "#/$defs/CommonConfig"
+    },
+    "modules": {
+      "description": "Configuration for the module system (`[modules]` section).",
+      "$ref": "#/$defs/ModulesConfig"
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "Config": {
+      "description": "Configuration for formatting.",
+      "type": "object",
+      "properties": {
+        "indent": {
+          "description": "The indentation configuration.",
+          "$ref": "#/$defs/Indent"
+        },
+        "max_line_length": {
+          "description": "The maximum line length.",
+          "$ref": "#/$defs/MaxLineLength"
+        },
+        "sort_imports": {
+          "description": "Whether to sort import statements alphabetically.",
+          "type": "boolean",
+          "default": true
+        },
+        "sort_inputs": {
+          "description": "Whether to sort input sections.",
+          "type": "boolean",
+          "default": false
+        },
+        "trailing_commas": {
+          "description": "Whether to add trailing commas to multiline lists.",
+          "type": "boolean",
+          "default": true
+        },
+        "newline_style": {
+          "description": "The newline style.",
+          "$ref": "#/$defs/NewlineStyle"
+        }
+      }
+    },
+    "Indent": {
+      "description": "An indentation level.",
+      "anyOf": [
+        {
+          "description": "Tabs.",
+          "type": "string",
+          "const": "tabs"
+        },
+        {
+          "description": "Spaces.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0,
+          "maximum": 16
+        }
+      ]
+    },
+    "MaxLineLength": {
+      "description": "The maximum line length.",
+      "anyOf": [
+        {
+          "description": "No maximum.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Maximum line length in characters.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 60,
+          "maximum": 240
+        }
+      ]
+    },
+    "NewlineStyle": {
+      "description": "The newline style to use when formatting.",
+      "oneOf": [
+        {
+          "description": "Use the native newline style of the platform.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Use Unix-style newlines (`\\n`).",
+          "type": "string",
+          "const": "unix"
+        },
+        {
+          "description": "Use Windows-style newlines (`\\r\\n`).",
+          "type": "string",
+          "const": "windows"
+        }
+      ]
+    },
+    "CheckConfig": {
+      "description": "Represents the configuration for the Sprocket `check` and `lint` commands.",
+      "type": "object",
+      "properties": {
+        "except": {
+          "description": "Rule IDs to except from running.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "deny_warnings": {
+          "description": "Causes the command to fail if any warnings are reported.",
+          "type": "boolean",
+          "default": false
+        },
+        "deny_notes": {
+          "description": "Causes the command to fail if any notes or warnings are reported.",
+          "type": "boolean",
+          "default": false
+        },
+        "hide_notes": {
+          "description": "Hide diagnostics with `note` severity.",
+          "type": "boolean",
+          "default": false
+        },
+        "hide_warnings": {
+          "description": "Hide diagnostics with `warning` and `note` severity.",
+          "type": "boolean",
+          "default": false
+        },
+        "all_lint_rules": {
+          "description": "Enable all lint rules, even those outside the default set.\n\nThis cannot be `true` while `only_lint_tags` is populated.",
+          "type": "boolean",
+          "default": false
+        },
+        "only_lint_tags": {
+          "description": "Set of lint tags to opt into. Leave this empty to use the default set of\ntags.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "filter_lint_tags": {
+          "description": "Set of lint tags to filter out of the enabled lint rules.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "baseline": {
+          "description": "Path to the diagnostic baseline file.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "lint": {
+          "description": "Lint rule configuration.",
+          "$ref": "#/$defs/WdlLintConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "WdlLintConfig": {
+      "description": "The configuration for lint rules.",
+      "type": "object",
+      "properties": {
+        "allowed_runtime_keys": {
+          "description": "List of keys to ignore in the [`ExpectedRuntimeKeys`] lint.\n\n##### Example\n\n```toml\nallowed_runtime_keys = [\"foo\"]\n```\n\n[`ExpectedRuntimeKeys`]: crate::rules::ExpectedRuntimeKeysRule",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "allowed_names": {
+          "description": "List of names to ignore in the [`SnakeCase`] and [`DeclarationName`]\nlints.\n\n##### Example\n\n```toml\nallowed_names = [\"Foo\", \"counter_int\"]\n```\n\n[`SnakeCase`]: crate::rules::SnakeCaseRule\n[`DeclarationName`]: crate::rules::DeclarationNameRule",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "bash_set_options": {
+          "description": "List of options to enforce in the bash `set` builtin for every\n`command` section.\n\n##### Example\n\n```toml\nbash_set_options = [\"errexit\", \"nounset\", \"pipefail\"]\n```",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/BashSetOption"
+          },
+          "default": []
+        }
+      }
+    },
+    "BashSetOption": {
+      "description": "Supported options for `set`.\n\nSee <https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html> for a description\nof each option.",
+      "type": "string",
+      "enum": [
+        "allexport",
+        "braceexpand",
+        "errexit",
+        "errtrace",
+        "functrace",
+        "hashall",
+        "keyword",
+        "noclobber",
+        "noexec",
+        "noglob",
+        "nolog",
+        "nounset",
+        "onecmd",
+        "physical",
+        "pipefail",
+        "posix",
+        "privileged",
+        "restricted",
+        "verbose",
+        "xtrace"
+      ]
+    },
+    "AnalyzerConfig": {
+      "description": "Represents the configuration for the Sprocket `analyzer` command.",
+      "type": "object",
+      "properties": {
+        "lint": {
+          "description": "Whether to enable lint rules.",
+          "type": "boolean",
+          "default": false
+        },
+        "except": {
+          "description": "Rule IDs to except from running.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "RunConfig": {
+      "description": "Represents the configuration for the Sprocket `run` command.",
+      "type": "object",
+      "properties": {
+        "http": {
+          "description": "HTTP configuration.",
+          "$ref": "#/$defs/HttpConfig"
+        },
+        "workflow": {
+          "description": "Workflow evaluation configuration.",
+          "$ref": "#/$defs/WorkflowConfig"
+        },
+        "task": {
+          "description": "Task evaluation configuration.",
+          "$ref": "#/$defs/TaskConfig"
+        },
+        "backend": {
+          "description": "The name of the backend to use.",
+          "type": "string",
+          "default": "default"
+        },
+        "backends": {
+          "description": "Task execution backends configuration.\n\nIf the collection is empty and `backend` has the default value, the\nengine default backend is used.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/BackendConfig"
+          }
+        },
+        "storage": {
+          "description": "Storage configuration.",
+          "$ref": "#/$defs/StorageConfig"
+        },
+        "suppress_env_specific_output": {
+          "description": "(Experimental) Avoid environment-specific output; default is `false`.\n\nIf this option is `true`, selected error messages and log output will\navoid emitting environment-specific output such as absolute paths\nand system resource counts.\n\nThis is largely meant to support \"golden testing\" where a test's success\ndepends on matching an expected set of outputs exactly. Cues that\nhelp users overcome errors, such as the path to a temporary\ndirectory or the number of CPUs available to the system, confound this\nstyle of testing. This flag is a best-effort experimental attempt to\nreduce the impact of these differences in order to allow a wider\nrange of golden tests to be written.",
+          "type": "boolean",
+          "default": false
+        },
+        "experimental_features_enabled": {
+          "description": "(Experimental) Whether experimental features are enabled; default is\n`false`.\n\nExperimental features are provided to users with heavy caveats about\ntheir stability and rough edges. Use at your own risk, but feedback\nis quite welcome.",
+          "type": "boolean",
+          "default": false
+        },
+        "fail": {
+          "description": "The failure mode for workflow or task evaluation.\n\nA value of [`FailureMode::Slow`] will result in evaluation waiting for\nexecuting tasks to complete upon error or interruption.\n\nA value of [`FailureMode::Fast`] will immediately attempt to cancel\nexecuting tasks upon error or interruption.",
+          "$ref": "#/$defs/FailureMode"
+        },
+        "output_dir": {
+          "description": "The output directory (default: `./out`).\n\nIndividual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`.",
+          "type": "string",
+          "default": "./out"
+        },
+        "events_capacity": {
+          "description": "The capacity of the events channel used to display progress statistics.\n\nIf the number of progress events being generated outpaces Sprocket's\nability to read the events for displaying the progress statistics and\nthe channel reaches its capacity, Sprocket will stop displaying progress\nstatistics. This is most likely to occur when Sprocket has concurrently\nqueued up a large number of tasks.\n\nIncreasing the capacity will increase the size of the memory allocation\nmade by the events channel.\n\nThe default is `5000`.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0,
+          "default": 5000
+        }
+      },
+      "additionalProperties": false
+    },
+    "HttpConfig": {
+      "description": "Represents HTTP configuration.",
+      "type": "object",
+      "properties": {
+        "cache_dir": {
+          "description": "The HTTP download cache location.\n\nDefaults to an operating system specific cache directory for the user.",
+          "type": "string",
+          "default": "system"
+        },
+        "retries": {
+          "description": "The number of retries for transferring files.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0,
+          "default": 5
+        },
+        "parallelism": {
+          "description": "The maximum parallelism for file transfers.\n\nDefaults to the host's available parallelism.",
+          "$ref": "#/$defs/Parallelism"
+        },
+        "hash_algorithm": {
+          "description": "The hash algorithm to use for calculating content digests for file\nuploads.\n\nDefaults to `sha256`.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Parallelism": {
+      "description": "Represents the parallelism for HTTP downloads.",
+      "anyOf": [
+        {
+          "description": "Use the available parallelism for the host system.",
+          "type": "string",
+          "const": "available"
+        },
+        {
+          "description": "Use the specified parallelism.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      ]
+    },
+    "WorkflowConfig": {
+      "description": "Represents workflow evaluation configuration.",
+      "type": "object",
+      "properties": {
+        "scatter": {
+          "description": "Scatter statement evaluation configuration.",
+          "$ref": "#/$defs/ScatterConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ScatterConfig": {
+      "description": "Represents scatter statement evaluation configuration.",
+      "type": "object",
+      "properties": {
+        "concurrency": {
+          "description": "The number of scatter array elements to process concurrently.\n\nDefaults to `1000`.\n\nA value of `0` is invalid.\n\nLower values use less memory for evaluation and higher values may better\nsaturate the task execution backend with tasks to execute for large\nscatters.\n\nThis setting does not change how many tasks an execution backend can run\nconcurrently, but may affect how many tasks are sent to the backend to\nrun at a time.\n\nFor example, if `concurrency` was set to 10 and we evaluate the\nfollowing scatters:\n\n```wdl\nscatter (i in range(100)) {\n    call my_task\n}\n\nscatter (j in range(100)) {\n    call my_task as my_task2\n}\n```\n\nHere each scatter is independent and therefore there will be 20 calls\n(10 for each scatter) made concurrently. If the task execution\nbackend can only execute 5 tasks concurrently, 5 tasks will execute\nand 15 will be \"ready\" to execute and waiting for an executing task\nto complete.\n\nIf instead we evaluate the following scatters:\n\n```wdl\nscatter (i in range(100)) {\n    scatter (j in range(100)) {\n        call my_task\n    }\n}\n```\n\nThen there will be 100 calls (10*10 as 10 are made for each outer\nelement) made concurrently. If the task execution backend can only\nexecute 5 tasks concurrently, 5 tasks will execute and 95 will be\n\"ready\" to execute and waiting for an executing task to complete.\n\n<div class=\"warning\">\nWarning: nested scatter statements cause exponential memory usage based\non this value, as each scatter statement evaluation requires allocating\nnew scopes for scatter array elements being processed. </div>",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 1000
+        }
+      },
+      "additionalProperties": false
+    },
+    "TaskConfig": {
+      "description": "Represents task evaluation configuration.",
+      "type": "object",
+      "properties": {
+        "retries": {
+          "description": "The default maximum number of retries to attempt if a task fails.\n\nA task's `max_retries` requirement will override this value.",
+          "$ref": "#/$defs/Retries"
+        },
+        "container": {
+          "description": "The default container to use if a container is not specified in a task's\nrequirements.",
+          "type": "string",
+          "default": "ubuntu:latest"
+        },
+        "shell": {
+          "description": "The default shell to use for tasks.\n\n<div class=\"warning\">\nWarning: the use of a shell other than `bash` may lead to tasks that may\nnot be portable to other execution engines.\n\nThe shell must support a `-c` option to run a specific script file (i.e.\nan evaluated task command).\n\nNote that this option affects all task commands, so every container that\nis used must contain the specified shell.\n\nIf using this setting causes your tasks to fail, please do not file an\nissue. </div>",
+          "type": "string",
+          "default": "bash"
+        },
+        "cpu_limit_behavior": {
+          "description": "The behavior when a task's `cpu` requirement cannot be met.",
+          "$ref": "#/$defs/TaskResourceLimitBehavior"
+        },
+        "memory_limit_behavior": {
+          "description": "The behavior when a task's `memory` requirement cannot be met.",
+          "$ref": "#/$defs/TaskResourceLimitBehavior"
+        },
+        "cache_dir": {
+          "description": "The call cache directory to use for caching task execution results.\n\nDefaults to an operating system specific cache directory for the user.",
+          "type": "string",
+          "default": "system"
+        },
+        "cache": {
+          "description": "The call caching mode to use for tasks.",
+          "$ref": "#/$defs/CallCachingMode"
+        },
+        "digests": {
+          "description": "The content digest mode to use.\n\nUsed as part of call caching.",
+          "$ref": "#/$defs/ContentDigestMode"
+        },
+        "excluded_cache_requirements": {
+          "description": "Keys of task requirements to exclude from call cache checking.\n\nWhen specified, these requirement keys will be ignored when\ncalculating cache keys and validating cache entries.\n\nThis can be useful for requirements that may vary between runs\nbut should not invalidate the cache (e.g., dynamic resource\nallocation).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "excluded_cache_hints": {
+          "description": "Keys of task hints to exclude from call cache checking.\n\nWhen specified, these hint keys will be ignored when\ncalculating cache keys and validating cache entries.\n\nThis can be useful for hints that may vary between runs\nbut should not invalidate the cache.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "excluded_cache_inputs": {
+          "description": "Keys of task inputs to exclude from call cache checking.\n\nWhen specified, these input keys will be ignored when\ncalculating cache keys and validating cache entries.\n\nThis can be useful for inputs that may vary between runs\nbut should not affect the task's output.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "Retries": {
+      "description": "Represents the maximum number of retries for tasks.",
+      "anyOf": [
+        {
+          "description": "Use the default number of retries for task execution.",
+          "type": "string",
+          "const": "default"
+        },
+        {
+          "description": "Use the specified number of retries for task execution.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        }
+      ]
+    },
+    "TaskResourceLimitBehavior": {
+      "description": "The behavior when a task resource requirement, such as `cpu` or `memory`,\ncannot be met.",
+      "oneOf": [
+        {
+          "description": "Try executing a task with the maximum amount of the resource available\nwhen the task's corresponding requirement cannot be met.",
+          "type": "string",
+          "const": "try_with_max"
+        },
+        {
+          "description": "Do not execute a task if its corresponding requirement cannot be met.\n\nThis is the default behavior.",
+          "type": "string",
+          "const": "deny"
+        }
+      ]
+    },
+    "CallCachingMode": {
+      "description": "Represents the supported call caching modes.",
+      "oneOf": [
+        {
+          "description": "Call caching is disabled.\n\nThe call cache is not checked and new entries are not added to the\ncache.\n\nThis is the default value.",
+          "type": "string",
+          "const": "off"
+        },
+        {
+          "description": "Call caching is enabled.\n\nThe call cache is checked and new entries are added to the cache.\n\nDefaults the `cacheable` task hint to `true`.",
+          "type": "string",
+          "const": "on"
+        },
+        {
+          "description": "Call caching is enabled only for tasks that explicitly have a\n`cacheable` hint set to `true`.\n\nThe call cache is checked and new entries are added to the cache *only*\nfor tasks that have the `cacheable` hint set to `true`.\n\nDefaults the `cacheable` task hint to `false`.",
+          "type": "string",
+          "const": "explicit"
+        }
+      ]
+    },
+    "ContentDigestMode": {
+      "description": "Represents the supported modes for calculating content digests.",
+      "oneOf": [
+        {
+          "description": "Use a strong digest for file content.\n\nStrong digests require hashing all of the contents of a file; this may\nnoticeably impact performance for very large files.\n\nThis setting guarantees that a modified file will be detected.",
+          "type": "string",
+          "const": "strong"
+        },
+        {
+          "description": "Use a \"strongish\" digest for file content.\n\nA strongish digest is based off of the file's size, last modified\ntime, and a hash of only the first 10 MiB of the file's contents;\nthis is similar to Cromwell's `fingerprint` call caching strategy.\n\nThis setting cannot guarantee the detection of modified files (e.g. a\nmodification beyond the first 10 MiB of a file without a change to\nits size or last modified time will not be detected), but it is\nfaster than using a strong digest for large files while still taking\nfile content into account.",
+          "type": "string",
+          "const": "strongish"
+        },
+        {
+          "description": "Use a weak digest for file content.\n\nA weak digest is based solely off of file metadata, such as size and\nlast modified time.\n\nThis setting cannot guarantee the detection of modified files and may\nresult in a modified file not causing a call cache entry to be\ninvalidated.\n\nHowever, it is substantially faster than using a strong digest.",
+          "type": "string",
+          "const": "weak"
+        }
+      ]
+    },
+    "BackendConfig": {
+      "description": "Represents supported task execution backends.",
+      "oneOf": [
+        {
+          "description": "Use the local task execution backend.",
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "description": "Set the number of CPUs available for task execution.\n\nDefaults to the number of logical CPUs for the host.\n\nThe value cannot be zero or exceed the host's number of CPUs.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "memory": {
+              "description": "Set the total amount of memory for task execution as a unit string (e.g.\n`2 GiB`).\n\nDefaults to the total amount of memory for the host.\n\nThe value cannot be zero or exceed the host's total amount of memory.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "type": {
+              "type": "string",
+              "const": "local"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "description": "Use the Docker task execution backend.",
+          "type": "object",
+          "properties": {
+            "cleanup": {
+              "description": "Whether or not to remove a task's container after the task completes.\n\nDefaults to `true`.",
+              "type": "boolean",
+              "default": true
+            },
+            "type": {
+              "type": "string",
+              "const": "docker"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "description": "Use the TES task execution backend.",
+          "type": "object",
+          "properties": {
+            "url": {
+              "description": "The URL of the Task Execution Service.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri"
+            },
+            "auth": {
+              "description": "The authentication configuration for the TES backend.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/TesBackendAuthConfig"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "inputs": {
+              "description": "The root cloud storage URL for storing inputs.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri"
+            },
+            "outputs": {
+              "description": "The root cloud storage URL for storing outputs.",
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri"
+            },
+            "interval": {
+              "description": "The polling interval, in seconds, for checking task status.\n\nDefaults to 1 second.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "retries": {
+              "description": "The number of retries after encountering an error communicating with the\nTES server.\n\nDefaults to no retries.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "max_concurrency": {
+              "description": "The maximum number of concurrent requests the backend will send to the\nTES server.\n\nDefaults to 10 concurrent requests.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "insecure": {
+              "description": "Whether or not the TES server URL may use an insecure protocol like\nHTTP.",
+              "type": "boolean",
+              "default": false
+            },
+            "type": {
+              "type": "string",
+              "const": "tes"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "description": "Use the experimental LSF + Apptainer task execution backend.\n\nRequires enabling experimental features.",
+          "type": "object",
+          "properties": {
+            "interval": {
+              "description": "The task monitor polling interval, in seconds.\n\nDefaults to 30 seconds.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "max_concurrency": {
+              "description": "The maximum number of concurrent LSF operations the backend will\nperform.\n\nThis controls the maximum concurrent number of `bsub` processes the\nbackend will spawn to queue tasks.\n\nDefaults to 10 concurrent operations.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "default_lsf_queue": {
+              "description": "Which queue, if any, to specify when submitting normal jobs to LSF.\n\nThis may be superseded by\n[`short_task_lsf_queue`][Self::short_task_lsf_queue],\n[`gpu_lsf_queue`][Self::gpu_lsf_queue], or\n[`fpga_lsf_queue`][Self::fpga_lsf_queue] for corresponding tasks.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/LsfQueueConfig"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "short_task_lsf_queue": {
+              "description": "Which queue, if any, to specify when submitting [short\ntasks](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#short_task) to LSF.\n\nThis may be superseded by [`gpu_lsf_queue`][Self::gpu_lsf_queue] or\n[`fpga_lsf_queue`][Self::fpga_lsf_queue] for tasks which require\nspecialized hardware.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/LsfQueueConfig"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "gpu_lsf_queue": {
+              "description": "Which queue, if any, to specify when submitting [tasks which require a\nGPU](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)\nto LSF.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/LsfQueueConfig"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fpga_lsf_queue": {
+              "description": "Which queue, if any, to specify when submitting [tasks which require an\nFPGA](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)\nto LSF.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/LsfQueueConfig"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "job_name_prefix": {
+              "description": "Prefix to add to every LSF job name before the task identifier. This is\ntruncated as needed to satisfy the byte-oriented LSF job name limit.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "bsub": {
+              "description": "The additional arguments to `bsub` used to queue a new task.",
+              "$ref": "#/$defs/AdditionalArgs"
+            },
+            "apptainer": {
+              "description": "The configuration of Apptainer, which is used as the container runtime\non the compute nodes where LSF dispatches tasks.\n\nNote that this will likely be replaced by an abstraction over multiple\ncontainer execution runtimes in the future, rather than being\nhardcoded to Apptainer.",
+              "$ref": "#/$defs/ApptainerConfig"
+            },
+            "type": {
+              "type": "string",
+              "const": "lsf_apptainer"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        },
+        {
+          "description": "Use the experimental Slurm + Apptainer task execution backend.\n\nRequires enabling experimental features.",
+          "type": "object",
+          "properties": {
+            "interval": {
+              "description": "The task monitor polling interval, in seconds.\n\nDefaults to 30 seconds.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint64",
+              "minimum": 0
+            },
+            "max_concurrency": {
+              "description": "The maximum number of concurrent Slurm operations the backend will\nperform.\n\nThis controls the maximum concurrent number of `sbatch` processes the\nbackend will spawn to queue tasks.\n\nDefaults to 10 concurrent operations.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0
+            },
+            "default_slurm_partition": {
+              "description": "Which partition, if any, to specify when submitting normal jobs to\nSlurm.\n\nThis may be superseded by\n[`short_task_slurm_partition`][Self::short_task_slurm_partition],\n[`gpu_slurm_partition`][Self::gpu_slurm_partition], or\n[`fpga_slurm_partition`][Self::fpga_slurm_partition] for corresponding\ntasks.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SlurmPartitionConfig"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "short_task_slurm_partition": {
+              "description": "Which partition, if any, to specify when submitting [short\ntasks](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#short_task) to Slurm.\n\nThis may be superseded by\n[`gpu_slurm_partition`][Self::gpu_slurm_partition] or\n[`fpga_slurm_partition`][Self::fpga_slurm_partition] for tasks which\nrequire specialized hardware.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SlurmPartitionConfig"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "gpu_slurm_partition": {
+              "description": "Which partition, if any, to specify when submitting [tasks which require\na GPU](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)\nto Slurm.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SlurmPartitionConfig"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "fpga_slurm_partition": {
+              "description": "Which partition, if any, to specify when submitting [tasks which require\nan FPGA](https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#hardware-accelerators-gpu-and--fpga)\nto Slurm.",
+              "anyOf": [
+                {
+                  "$ref": "#/$defs/SlurmPartitionConfig"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "sbatch": {
+              "description": "The additional arguments to `sbatch` used to queue a new task.",
+              "$ref": "#/$defs/AdditionalArgs"
+            },
+            "job_name_prefix": {
+              "description": "Prefix to add to every Slurm job name before the task identifier.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "apptainer": {
+              "description": "The configuration of Apptainer, which is used as the container runtime\non the compute nodes where Slurm dispatches tasks.\n\nNote that this will likely be replaced by an abstraction over multiple\ncontainer execution runtimes in the future, rather than being\nhardcoded to Apptainer.",
+              "$ref": "#/$defs/ApptainerConfig"
+            },
+            "type": {
+              "type": "string",
+              "const": "slurm_apptainer"
+            }
+          },
+          "required": [
+            "type"
+          ]
+        }
+      ]
+    },
+    "TesBackendAuthConfig": {
+      "description": "Represents the kind of authentication for a TES backend.",
+      "oneOf": [
+        {
+          "description": "Use basic authentication for the TES backend.",
+          "type": "object",
+          "properties": {
+            "username": {
+              "description": "The HTTP basic authentication username.",
+              "type": "string"
+            },
+            "password": {
+              "description": "The HTTP basic authentication password.",
+              "$ref": "#/$defs/SecretString"
+            },
+            "type": {
+              "type": "string",
+              "const": "basic"
+            }
+          },
+          "required": [
+            "type",
+            "username",
+            "password"
+          ]
+        },
+        {
+          "description": "Use bearer token authentication for the TES backend.",
+          "type": "object",
+          "properties": {
+            "token": {
+              "description": "The HTTP bearer authentication token.",
+              "$ref": "#/$defs/SecretString"
+            },
+            "type": {
+              "type": "string",
+              "const": "bearer"
+            }
+          },
+          "required": [
+            "type",
+            "token"
+          ]
+        }
+      ]
+    },
+    "SecretString": {
+      "description": "Represents a secret string that is, by default, redacted for serialization.\n\nThis type is a wrapper around [`secrecy::SecretString`].",
+      "type": "string"
+    },
+    "LsfQueueConfig": {
+      "description": "Configuration for an LSF queue.\n\nEach queue can optionally have per-task CPU and memory limits set so that\ntasks which are too large to be scheduled on that queue will fail\nimmediately instead of pending indefinitely. In the future, these limits may\nbe populated or validated by live information from the cluster, but\nfor now they must be manually based on the user's understanding of the\ncluster configuration.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The name of the queue; this is the string passed to `bsub -q\n<queue_name>`.",
+          "type": "string"
+        },
+        "max_cpu_per_task": {
+          "description": "The maximum number of CPUs this queue can provision for a single task.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "max_memory_per_task": {
+          "description": "The maximum memory this queue can provision for a single task.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ]
+    },
+    "AdditionalArgs": {
+      "description": "Represents additional arguments to the Slurm and LSF backends.\n\nThese arguments are passed to the executable responsible for queuing a task.",
+      "type": "object",
+      "properties": {
+        "args": {
+          "description": "The additional arguments to pass to the backend program.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "conditional": {
+          "description": "The conditional arguments to pass to the backend program.\n\nThe first conditional argument with an associated conditional expression\nthat evaluates to `true` will be passed to the backend program.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ConditionalArgs"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "ConditionalArgs": {
+      "description": "Represents a set of conditional arguments for the LSF and Slurm backends.\n\nConditional arguments are passed to the program responsible for queuing a\ntask when the associated conditional expression evaluates to `true`.",
+      "type": "object",
+      "properties": {
+        "condition": {
+          "description": "The condition for including the arguments.",
+          "$ref": "#/$defs/Condition"
+        },
+        "args": {
+          "description": "The arguments to use when the condition evaluates to `true`.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "condition"
+      ]
+    },
+    "Condition": {
+      "description": "Represents a condition in a conditional argument.\n\nThe expression is evaluated in a context where a task's computed `cpu`,\n`memory`, `gpu`, `fpga`, and `disks` values and evaluated `hint` object are\navailable as variables.\n\nThe expression is type checked during configuration deserialization to\nensure it is a valid WDL expression of type `Boolean`.",
+      "type": "string"
+    },
+    "ApptainerConfig": {
+      "description": "Configuration for the Apptainer container runtime.",
+      "type": "object",
+      "properties": {
+        "executable": {
+          "description": "Path to the Apptainer (or Singularity) executable.\n\nDefaults to `\"apptainer\"`. Set to `\"singularity\"` or a full path\n(e.g., `/usr/local/bin/apptainer`) if the executable is not on `PATH`\nor if using Singularity instead.",
+          "type": "string",
+          "default": "apptainer"
+        },
+        "image_cache_dir": {
+          "description": "Path to a shared directory for caching pulled `.sif` images.\n\nWhen set, pulled images are stored in this directory and shared\nacross runs. When unset, images are stored in a per-run directory\nthat is not shared.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "extra_args": {
+          "description": "Additional command-line arguments to pass to `apptainer exec` when\nexecuting tasks.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        }
+      },
+      "additionalProperties": false
+    },
+    "SlurmPartitionConfig": {
+      "description": "Configuration for a Slurm partition.\n\nEach partition can optionally have per-task CPU and memory limits set so\nthat tasks which are too large to be scheduled on that partition will fail\nimmediately instead of pending indefinitely. In the future, these limits may\nbe populated or validated by live information from the cluster, but\nfor now they must be manually based on the user's understanding of the\ncluster configuration.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "description": "The name of the partition; this is the string passed to `sbatch\n--partition=<partition_name>`.",
+          "type": "string"
+        },
+        "max_cpu_per_task": {
+          "description": "The maximum number of CPUs this partition can provision for a single\ntask.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "max_memory_per_task": {
+          "description": "The maximum memory this partition can provision for a single task.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name"
+      ]
+    },
+    "StorageConfig": {
+      "description": "Represents storage configuration.",
+      "type": "object",
+      "properties": {
+        "azure": {
+          "description": "Azure Blob Storage configuration.",
+          "$ref": "#/$defs/AzureStorageConfig"
+        },
+        "s3": {
+          "description": "AWS S3 configuration.",
+          "$ref": "#/$defs/S3StorageConfig"
+        },
+        "google": {
+          "description": "Google Cloud Storage configuration.",
+          "$ref": "#/$defs/GoogleStorageConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "AzureStorageConfig": {
+      "description": "Represents configuration for Azure Blob Storage.",
+      "type": "object",
+      "properties": {
+        "auth": {
+          "description": "The Azure Blob Storage authentication configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AzureStorageAuthConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "AzureStorageAuthConfig": {
+      "description": "Represents authentication information for Azure Blob Storage.",
+      "type": "object",
+      "properties": {
+        "account_name": {
+          "description": "The Azure Storage account name to use.",
+          "type": "string"
+        },
+        "access_key": {
+          "description": "The Azure Storage access key to use.",
+          "$ref": "#/$defs/SecretString"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "account_name",
+        "access_key"
+      ]
+    },
+    "S3StorageConfig": {
+      "description": "Represents configuration for AWS S3 storage.",
+      "type": "object",
+      "properties": {
+        "region": {
+          "description": "The default region to use for S3-schemed URLs (e.g.\n`s3://<bucket>/<blob>`).\n\nDefaults to `us-east-1`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "auth": {
+          "description": "The AWS S3 storage authentication configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/S3StorageAuthConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "S3StorageAuthConfig": {
+      "description": "Represents authentication information for AWS S3 storage.",
+      "type": "object",
+      "properties": {
+        "access_key_id": {
+          "description": "The AWS Access Key ID to use.",
+          "type": "string"
+        },
+        "secret_access_key": {
+          "description": "The AWS Secret Access Key to use.",
+          "$ref": "#/$defs/SecretString"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "access_key_id",
+        "secret_access_key"
+      ]
+    },
+    "GoogleStorageConfig": {
+      "description": "Represents configuration for Google Cloud Storage.",
+      "type": "object",
+      "properties": {
+        "auth": {
+          "description": "The Google Cloud Storage authentication configuration.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GoogleStorageAuthConfig"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "GoogleStorageAuthConfig": {
+      "description": "Represents authentication information for Google Cloud Storage.",
+      "type": "object",
+      "properties": {
+        "access_key": {
+          "description": "The HMAC Access Key to use.",
+          "type": "string"
+        },
+        "secret": {
+          "description": "The HMAC Secret to use.",
+          "$ref": "#/$defs/SecretString"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "access_key",
+        "secret"
+      ]
+    },
+    "FailureMode": {
+      "description": "Represents how an evaluation error or cancellation should be handled by the\nengine.",
+      "oneOf": [
+        {
+          "description": "When an error is encountered or evaluation is canceled, evaluation waits\nfor any outstanding tasks to complete.",
+          "type": "string",
+          "const": "slow"
+        },
+        {
+          "description": "When an error is encountered or evaluation is canceled, any outstanding\ntasks that are executing are immediately canceled and evaluation waits\nfor cancellation to complete.",
+          "type": "string",
+          "const": "fast"
+        }
+      ]
+    },
+    "ServerConfig": {
+      "description": "Server configuration.",
+      "type": "object",
+      "properties": {
+        "host": {
+          "description": "Host to bind to.",
+          "type": "string",
+          "default": "127.0.0.1"
+        },
+        "port": {
+          "description": "Port to bind to.",
+          "type": "integer",
+          "format": "uint16",
+          "minimum": 0,
+          "maximum": 65535,
+          "default": 8080
+        },
+        "allowed_origins": {
+          "description": "Allowed CORS origins.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "database": {
+          "description": "Database configuration.",
+          "$ref": "#/$defs/ServerDatabaseConfig"
+        },
+        "output_dir": {
+          "description": "Directory for workflow outputs.",
+          "type": "string",
+          "default": "./out"
+        },
+        "allowed_file_paths": {
+          "description": "Allowed file paths for file-based workflows.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "allowed_urls": {
+          "description": "Allowed URL prefixes for URL-based workflows.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "max_concurrent_runs": {
+          "description": "Maximum concurrent workflows.",
+          "$ref": "#/$defs/MaxConcurrentRuns"
+        },
+        "engine": {
+          "description": "The engine configuration to use during execution.",
+          "$ref": "#/$defs/WdlEngineConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ServerDatabaseConfig": {
+      "description": "Server database configuration.",
+      "type": "object",
+      "properties": {
+        "url": {
+          "description": "Database URL (e.g., `sqlite://sprocket.db`). Defaults to `sprocket.db`\nin the output directory. in the output directory.",
+          "type": "string",
+          "default": "default"
+        }
+      },
+      "additionalProperties": false
+    },
+    "MaxConcurrentRuns": {
+      "description": "Represents the maximum concurrent runs for the server.",
+      "anyOf": [
+        {
+          "description": "Do not limit the number of concurrent runs.",
+          "type": "string",
+          "const": "unlimited"
+        },
+        {
+          "description": "Use the specified maximum number of concurrent runs.",
+          "type": "integer",
+          "format": "uint",
+          "minimum": 0
+        }
+      ]
+    },
+    "WdlEngineConfig": {
+      "description": "Represents WDL evaluation configuration.\n\n<div class=\"warning\">\n\nBy default, serialization of [`Config`] will not redact the values of\nsecrets.\n\nUse the [`Config::redact`] method prior to serialization to redact secrets.\n\n</div>",
+      "type": "object",
+      "properties": {
+        "http": {
+          "description": "HTTP configuration.",
+          "$ref": "#/$defs/HttpConfig"
+        },
+        "workflow": {
+          "description": "Workflow evaluation configuration.",
+          "$ref": "#/$defs/WorkflowConfig"
+        },
+        "task": {
+          "description": "Task evaluation configuration.",
+          "$ref": "#/$defs/TaskConfig"
+        },
+        "backend": {
+          "description": "The name of the backend to use.",
+          "type": "string",
+          "default": "default"
+        },
+        "backends": {
+          "description": "Task execution backends configuration.\n\nIf the collection is empty and `backend` has the default value, the\nengine default backend is used.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/BackendConfig"
+          }
+        },
+        "storage": {
+          "description": "Storage configuration.",
+          "$ref": "#/$defs/StorageConfig"
+        },
+        "suppress_env_specific_output": {
+          "description": "(Experimental) Avoid environment-specific output; default is `false`.\n\nIf this option is `true`, selected error messages and log output will\navoid emitting environment-specific output such as absolute paths\nand system resource counts.\n\nThis is largely meant to support \"golden testing\" where a test's success\ndepends on matching an expected set of outputs exactly. Cues that\nhelp users overcome errors, such as the path to a temporary\ndirectory or the number of CPUs available to the system, confound this\nstyle of testing. This flag is a best-effort experimental attempt to\nreduce the impact of these differences in order to allow a wider\nrange of golden tests to be written.",
+          "type": "boolean",
+          "default": false
+        },
+        "experimental_features_enabled": {
+          "description": "(Experimental) Whether experimental features are enabled; default is\n`false`.\n\nExperimental features are provided to users with heavy caveats about\ntheir stability and rough edges. Use at your own risk, but feedback\nis quite welcome.",
+          "type": "boolean",
+          "default": false
+        },
+        "fail": {
+          "description": "The failure mode for workflow or task evaluation.\n\nA value of [`FailureMode::Slow`] will result in evaluation waiting for\nexecuting tasks to complete upon error or interruption.\n\nA value of [`FailureMode::Fast`] will immediately attempt to cancel\nexecuting tasks upon error or interruption.",
+          "$ref": "#/$defs/FailureMode"
+        }
+      },
+      "additionalProperties": false
+    },
+    "TestConfig": {
+      "description": "`test` command configuration.",
+      "type": "object",
+      "properties": {
+        "parallelism": {
+          "description": "Number of test executions to run in parallel.\n\nThe default is `50`.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "throttle": {
+          "description": "Delay between submitting initial test executions, in milliseconds.\n\nOnce the `parallelism`` permits are exhausted, this throttle delay is\nignored and new tests are submitted eagerly as prior tests complete and\nfree permits.\n\nThe default is `100` milliseconds.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "fixtures_dir": {
+          "description": "Directory containing test fixture files.\n\nIf not set, fixtures are resolved from `<workspace>/test/fixtures`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "run_dir": {
+          "description": "Directory to use for executing tests.\n\nIf not set, runs are written to `<workspace>/test/runs`.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "parallelism",
+        "throttle"
+      ]
+    },
+    "DocConfig": {
+      "description": "`doc` command configuration.",
+      "type": "object",
+      "properties": {
+        "index_page": {
+          "description": "Path to a Markdown file to embed in the `<output>/index.html` file.",
+          "type": "string",
+          "default": "none"
+        },
+        "logo": {
+          "description": "Path to an SVG logo to embed on each page.\n\nIf not supplied, the default Sprocket logo will be used.",
+          "type": "string",
+          "default": "none"
+        },
+        "alt_light_logo": {
+          "description": "Path to an alternate light mode SVG logo to embed on each page.\n\nIf not supplied, the `logo` SVG will be used; or if that is also not\nsupplied, the default Sprocket logo will be used.",
+          "type": "string",
+          "default": "none"
+        },
+        "homepage_url": {
+          "description": "An optional link to the project's homepage.",
+          "type": "string",
+          "default": "none"
+        },
+        "github_url": {
+          "description": "An optional link to the project's GitHub repository.",
+          "type": "string",
+          "default": "none"
+        },
+        "light_mode": {
+          "description": "Initialize pages in light mode instead of the default dark mode.",
+          "type": "boolean",
+          "default": false
+        },
+        "with_doc_comments": {
+          "description": "Enables support for documentation comments\n\nThis option is *experimental*. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.",
+          "type": "boolean",
+          "default": false
+        },
+        "extra_html": {
+          "description": "Configuration for custom HTML to embed in generated pages.",
+          "$ref": "#/$defs/DocExtraHtmlConfig"
+        }
+      }
+    },
+    "DocExtraHtmlConfig": {
+      "description": "`doc.extra_html` command configuration.",
+      "type": "object",
+      "properties": {
+        "head": {
+          "description": "Path to an HTML file that should have its contents embedded in each HTML\npage, immediately before the closing `<head>` tag.",
+          "type": "string",
+          "default": "none"
+        },
+        "body_open": {
+          "description": "Path to an HTML file that should have its contents embedded in each HTML\npage, immediately after the opening `<body>` tag.",
+          "type": "string",
+          "default": "none"
+        },
+        "body_close": {
+          "description": "Path to an HTML file that should have its contents embedded in each HTML\npage, immediately before the closing `<body>` tag.",
+          "type": "string",
+          "default": "none"
+        }
+      }
+    },
+    "CommonConfig": {
+      "description": "Represents shared configuration options for Sprocket commands.",
+      "type": "object",
+      "properties": {
+        "color": {
+          "description": "Display color output.",
+          "$ref": "#/$defs/ColorMode"
+        },
+        "report_mode": {
+          "description": "The report mode.",
+          "$ref": "#/$defs/Mode"
+        },
+        "wdl": {
+          "description": "WDL-specific configuration.",
+          "$ref": "#/$defs/WdlConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ColorMode": {
+      "description": "Represents the supported output color modes.",
+      "oneOf": [
+        {
+          "description": "Automatically colorize output depending on output device.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "Always colorize output.",
+          "type": "string",
+          "const": "always"
+        },
+        {
+          "description": "Never colorize output.",
+          "type": "string",
+          "const": "never"
+        }
+      ]
+    },
+    "Mode": {
+      "description": "The diagnostic mode to use for reporting diagnostics.",
+      "oneOf": [
+        {
+          "description": "Prints diagnostics as multiple lines.",
+          "type": "string",
+          "const": "full"
+        },
+        {
+          "description": "Prints diagnostics as one line.",
+          "type": "string",
+          "const": "one-line"
+        }
+      ]
+    },
+    "WdlConfig": {
+      "description": "WDL-specific configuration options shared across all commands.",
+      "type": "object",
+      "properties": {
+        "fallback_version": {
+          "description": "The fallback version to use when a WDL document declares an\nunrecognized version (e.g., `version development`).",
+          "$ref": "#/$defs/FallbackVersion"
+        },
+        "feature_flags": {
+          "description": "Feature flags for experimental WDL versions.",
+          "$ref": "#/$defs/FeatureFlags"
+        }
+      },
+      "additionalProperties": false
+    },
+    "FallbackVersion": {
+      "description": "Represents a fallback WDL version to use.",
+      "type": "string"
+    },
+    "FeatureFlags": {
+      "description": "A set of feature flags that can be enabled.",
+      "type": "object",
+      "properties": {
+        "wdl_1_3": {
+          "description": "Formerly enabled experimental WDL 1.3 features.\n\nThis flag is now a no-op as WDL 1.3 is fully supported. Setting this to\n`false` will emit a warning.",
+          "type": "boolean",
+          "default": true
+        },
+        "wdl_1_4": {
+          "description": "Enables experimental WDL 1.4 features.\n\nDefaults to `false`. While `false`, `wdl-analysis` reports an error for\nany document declaring `version 1.4`.",
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "ModulesConfig": {
+      "description": "The `[modules]` configuration section.",
+      "type": "object",
+      "properties": {
+        "cache_path": {
+          "description": "Override the global cache location for this project.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "large_file_warning": {
+          "description": "Threshold for the large-file warning, or [`LargeFileWarning::Disabled`]\nwhen the user opts out. Defaults to 1 MiB.",
+          "$ref": "#/$defs/LargeFileWarning"
+        },
+        "require_signed": {
+          "description": "Reject any unsigned module in the dependency tree.",
+          "type": "boolean",
+          "default": false
+        },
+        "trust_mode": {
+          "description": "TOFU policy for new signer keys.",
+          "$ref": "#/$defs/TrustMode"
+        },
+        "allowed_schemes": {
+          "description": "URL schemes permitted for top-level Git dependencies. Defaults\nto `[\"https\", \"ssh\"]`.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "https",
+            "ssh"
+          ]
+        },
+        "allowed_transitive_schemes": {
+          "description": "URL schemes permitted for transitive Git dependencies. Defaults\nto `[\"https\"]` so remote manifests cannot silently trigger SSH\nauthentication against an attacker-controlled host.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "https"
+          ]
+        },
+        "max_advertised_refs": {
+          "description": "Maximum number of advertised refs accepted from a remote.\nDefaults to 100,000.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 100000
+        },
+        "denied_hosts": {
+          "description": "Hosts denied for all Git dependencies. Defaults to localhost\naddresses.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "localhost",
+            "127.0.0.1",
+            "::1",
+            "0.0.0.0"
+          ]
+        },
+        "allowed_hosts": {
+          "description": "Hosts permitted for top-level Git dependencies. Empty means any\nnon-denied host is allowed.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "allowed_transitive_hosts": {
+          "description": "Hosts permitted for transitive Git dependencies. Defaults to\n`[\"github.com\", \"gitlab.com\"]`. When non-empty, a transitive\ndependency may only be fetched from a host on this list, and Git\ncredentials are presented only to those hosts, so a transitive\nmanifest cannot direct the user's credentials at a host the user\nhas not vouched for. An empty list permits any non-denied host but\npresents no credentials to transitive dependencies.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "github.com",
+            "gitlab.com"
+          ]
+        },
+        "max_materialized_files": {
+          "description": "Maximum number of files allowed in a single materialized module\ntree. `None` (the default) disables the limit. Checked against\nthe Git tree object after fetch but before sparse checkout; this\nbounds materialized content, not network transfer.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
+        "max_materialized_bytes": {
+          "description": "Maximum total bytes of regular files allowed in a single\nmaterialized module tree. `None` (the default) disables the\nlimit. Same enforcement point as `max_materialized_files`.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "LargeFileWarning": {
+      "description": "Threshold for the large-file warning emitted at sign- and fetch-time.",
+      "anyOf": [
+        {
+          "description": "The warning is disabled.",
+          "type": "string",
+          "const": "none"
+        },
+        {
+          "description": "Files at or above this byte count trigger a warning.",
+          "anyOf": [
+            {
+              "description": "Absolute byte count.",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0
+            },
+            {
+              "description": "Byte count as a formatted string (e.g., '1KiB').",
+              "type": "string",
+              "pattern": "^\\d+(?:\\.\\d+)?\\s*(?:[KMGTPEkmgtpe][Ii]?[Bb]?|[Bb])$"
+            }
+          ]
+        }
+      ]
+    },
+    "TrustMode": {
+      "description": "Trust-on-first-use (TOFU) policy for new signer keys.\n\nWhen the resolver encounters a signed module whose signer key is not\nyet recorded in the lockfile, this setting controls whether the key\nis accepted silently or requires explicit user confirmation. The\nlibrary computes a [`LockfileDiff`](super::lock::LockfileDiff) that\nflags new signers; the CLI is responsible for acting on the policy\n(e.g., prompting the user when `Confirm` is set).",
+      "oneOf": [
+        {
+          "description": "New signer keys are recorded in the lockfile without prompting.\nThis is the default and is suitable for non-interactive or\nCI environments where manual confirmation is impractical.",
+          "type": "string",
+          "const": "auto"
+        },
+        {
+          "description": "The CLI must prompt the user to confirm any newly-trusted signer\nkey before writing the lockfile. Intended for interactive use\nwhere the user wants to review each new signer.",
+          "type": "string",
+          "const": "confirm"
+        }
+      ]
+    }
+  }
+}

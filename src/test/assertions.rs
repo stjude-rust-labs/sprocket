@@ -9,6 +9,7 @@ use anyhow::anyhow;
 use anyhow::bail;
 use indexmap::IndexMap;
 use regex::Regex;
+use schemars::JsonSchema;
 use tracing::warn;
 use wdl::analysis::document::Output;
 use wdl::analysis::types::CompoundType;
@@ -66,14 +67,25 @@ where
     }
 }
 
+/// Default `exit_code` assertion value.
+fn default_exit_code() -> i32 {
+    0
+}
+
+/// Default `should_fail` assertion value.
+fn default_should_fail() -> bool {
+    false
+}
+
 /// Possible assertions for a test.
-#[derive(Default, serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, JsonSchema, Default, Debug)]
 pub(crate) struct Assertions {
     /// The expected exit code of the task (ignored when testing workflows).
     ///
     /// Defaults to `0` if not specified. Cannot be combined with
     /// `should_fail`.
     #[serde(deserialize_with = "deserialize_optional_exit_code", default)]
+    #[schemars(with = "i32", default = "default_exit_code")]
     pub exit_code: Option<i32>,
     /// Whether the test is expected to fail.
     ///
@@ -82,6 +94,7 @@ pub(crate) struct Assertions {
     /// Cannot be combined with `exit_code` (any value, including `exit_code:
     /// 0`).
     #[serde(deserialize_with = "deserialize_optional_should_fail", default)]
+    #[schemars(with = "bool", default = "default_should_fail")]
     pub should_fail: Option<bool>,
     /// Regular expressions that should match within STDOUT of the task (ignored
     /// when testing workflows).
@@ -168,7 +181,7 @@ impl Assertions {
 }
 
 /// Possible assertions on a WDL output.
-#[derive(Debug, serde::Deserialize)]
+#[derive(Debug, serde::Deserialize, JsonSchema)]
 pub(crate) enum OutputAssertion {
     /// Is the WDL value defined?
     ///

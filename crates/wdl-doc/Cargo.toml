@@ -17,6 +17,7 @@ maud.workspace = true
 path-clean.workspace = true
 pathdiff.workspace = true
 pulldown-cmark.workspace = true
+schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true

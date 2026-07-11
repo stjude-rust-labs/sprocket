@@ -23,6 +23,7 @@ indexmap = { workspace = true }
 path-clean = { workspace = true }
 rand = { workspace = true }
 rowan = { workspace = true }
+schemars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 strsim = { workspace = true }
@@ -41,6 +42,7 @@ pretty_assertions = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true }
 tracing-subscriber = { workspace = true }
+wdl-modules = { path = "../wdl-modules", version = "0.2.0" }
 
 [lints]
 workspace = true

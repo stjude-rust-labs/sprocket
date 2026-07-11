@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use schemars::JsonSchema;
 use toml_spanner::Context;
 use toml_spanner::Failed;
 use toml_spanner::FromToml;
@@ -14,6 +15,7 @@ use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
 use crate::Exceptable as _;
+use crate::FormatConfig;
 use crate::MisleadingDeclarationOrderRule;
 use crate::Rule;
 use crate::UnnecessaryFunctionCall;
@@ -59,6 +61,7 @@ impl Default for Config {
             inner: Arc::new(ConfigInner {
                 diagnostics: Default::default(),
                 fallback_version: None,
+                format: FormatConfig::default(),
                 ignore_filename: None,
                 all_rules: Default::default(),
                 feature_flags: FeatureFlags::default(),
@@ -77,6 +80,12 @@ impl Config {
     /// [`Config::with_fallback_version()`].
     pub fn fallback_version(&self) -> Option<SupportedVersion> {
         self.inner.fallback_version
+    }
+
+    /// Get this configuration's [`FormatConfig`]; see
+    /// [`Config::with_format_config()`].
+    pub fn format(&self) -> &FormatConfig {
+        &self.inner.format
     }
 
     /// Get this configuration's ignore filename.
@@ -141,6 +150,16 @@ impl Config {
         }
     }
 
+    /// Return a new configuration with the previous [`FormatConfig`]
+    /// replaced by the argument.
+    pub fn with_format_config(&self, format: FormatConfig) -> Self {
+        let mut inner = (*self.inner).clone();
+        inner.format = format;
+        Self {
+            inner: Arc::new(inner),
+        }
+    }
+
     /// Return a new configuration with the previous ignore filename replaced by
     /// the argument.
     ///
@@ -192,6 +211,9 @@ struct ConfigInner {
     /// See [`Config::with_fallback_version()`]
     #[toml(FromToml with = parse_string)]
     fallback_version: Option<SupportedVersion>,
+    /// See [`Config::with_format_config()`]
+    #[toml(default, style = Header)]
+    format: FormatConfig,
     /// See [`Config::with_ignore_filename()`]
     ignore_filename: Option<String>,
     /// A list of all known rule identifiers.
@@ -202,20 +224,27 @@ struct ConfigInner {
     feature_flags: FeatureFlags,
 }
 
+/// Default value for the WDL v1.3 feature flag.
+fn default_wdl_1_3() -> bool {
+    true
+}
+
 /// A set of feature flags that can be enabled.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Toml)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Toml, JsonSchema)]
 pub struct FeatureFlags {
     /// Formerly enabled experimental WDL 1.3 features.
     ///
     /// This flag is now a no-op as WDL 1.3 is fully supported. Setting this to
     /// `false` will emit a warning.
     #[toml(default = true)]
+    #[schemars(default = "default_wdl_1_3")]
     wdl_1_3: bool,
     /// Enables experimental WDL 1.4 features.
     ///
     /// Defaults to `false`. While `false`, `wdl-analysis` reports an error for
     /// any document declaring `version 1.4`.
     #[toml(default)]
+    #[schemars(default)]
     wdl_1_4: bool,
 }
 
@@ -394,5 +423,24 @@ impl DiagnosticsConfig {
             using_fallback_version: None,
             misleading_declaration_order: None,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn custom_format_config_round_trip() {
+        let custom_format_config = FormatConfig::default().trailing_commas(false);
+        let analysis_config = Config::default().with_format_config(custom_format_config);
+        assert_eq!(analysis_config.format(), &custom_format_config);
+    }
+
+    #[test]
+    fn no_format_config_is_default() {
+        let default_format_config = FormatConfig::default();
+        let analysis_config = Config::default();
+        assert_eq!(analysis_config.format(), &default_format_config);
     }
 }
