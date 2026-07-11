@@ -6,6 +6,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 use std::process::Stdio;
+use std::sync::OnceLock;
 
 use git2::Repository;
 use wdl_modules::Lockfile;
@@ -21,12 +22,29 @@ fn sprocket(args: &[&str]) -> Command {
     sprocket_with_global_args(&[], args)
 }
 
+/// A per-process temporary configuration root shared by every spawned
+/// `sprocket` command.
+///
+/// The `sprocket` binary resolves its trust store and module cache under
+/// `SPROCKET_CONFIG_ROOT` (see `sprocket::config::config_root`). Pointing that
+/// at a fresh temporary directory keeps tests from touching (or racing on) the
+/// developer's or CI runner's real Sprocket config directory. Under nextest
+/// each test runs in its own process, so this yields full per-test isolation;
+/// under plain `cargo test` it is a single fresh directory per run, which is
+/// still strictly better than the real config directory. The `TempDir` is kept
+/// alive for the lifetime of the test process so the directory is not deleted
+/// out from under running commands.
+static SHARED_CONFIG_ROOT: OnceLock<tempfile::TempDir> = OnceLock::new();
+
 fn sprocket_with_global_args(global_args: &[&str], args: &[&str]) -> Command {
+    let config_root = SHARED_CONFIG_ROOT
+        .get_or_init(|| tempfile::tempdir().expect("failed to create shared config root"));
     let mut command = Command::new(env!("CARGO_BIN_EXE_sprocket"));
     command
         .arg("--skip-config-search")
         .args(global_args)
         .args(args)
+        .env("SPROCKET_CONFIG_ROOT", config_root.path())
         .env("RUST_LOG", "none")
         .env_remove("RUST_BACKTRACE");
     command
@@ -62,7 +80,14 @@ fn isolated_home(base: &Path, name: &str) -> PathBuf {
 }
 
 fn use_home(command: &mut Command, home: &Path) {
-    command.env("HOME", home).env("USERPROFILE", home);
+    // Also override the config root so home-isolated tests keep their own trust
+    // store and cache under `$HOME/.config/sprocket`. This re-sets the
+    // `SPROCKET_CONFIG_ROOT` set in `sprocket_with_global_args`; a later `.env`
+    // for the same key overrides the earlier one for `std::process::Command`.
+    command.env("HOME", home).env("USERPROFILE", home).env(
+        "SPROCKET_CONFIG_ROOT",
+        home.join(".config").join("sprocket"),
+    );
 }
 
 #[test]
@@ -347,7 +372,9 @@ impl GitFixture {
     }
 
     fn repo_url(&self) -> String {
-        format!("file://{}", self.repo_dir.display())
+        url::Url::from_file_path(&self.repo_dir)
+            .expect("repository directory should convert to a `file://` URL")
+            .to_string()
     }
 
     fn write_consumer(&self, name: &str, dependencies: &str) -> PathBuf {
@@ -1859,9 +1886,10 @@ fn trust_add_accepts_multiple_keys() {
     let key_a = generate_openssh_ed25519_public_key();
     let key_b = generate_openssh_ed25519_public_key();
 
-    let add = sprocket(&["module", "trust", "add", &key_a, &key_b])
-        .current_dir(dir.path())
-        .env("HOME", dir.path())
+    let mut add_command = sprocket(&["module", "trust", "add", &key_a, &key_b]);
+    add_command.current_dir(dir.path());
+    use_home(&mut add_command, dir.path());
+    let add = add_command
         .output()
         .expect("failed to run sprocket module trust add");
     assert!(
@@ -1871,9 +1899,10 @@ fn trust_add_accepts_multiple_keys() {
         stderr = String::from_utf8_lossy(&add.stderr)
     );
 
-    let list = sprocket(&["module", "trust", "list"])
-        .current_dir(dir.path())
-        .env("HOME", dir.path())
+    let mut list_command = sprocket(&["module", "trust", "list"]);
+    list_command.current_dir(dir.path());
+    use_home(&mut list_command, dir.path());
+    let list = list_command
         .output()
         .expect("failed to run sprocket module trust list");
     assert!(
@@ -1920,6 +1949,7 @@ fn cache_clean_all_works_outside_a_module() {
 }
 
 #[test]
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 fn run_fails_when_locked_signer_key_is_removed_from_trust_store() {
     let (fixture, _public_key) = GitFixture::signed_without_version_tags();
     let home = isolated_home(fixture.dir.path(), "home-run-revoked");
@@ -2371,9 +2401,10 @@ fn trust_add_then_list_shows_entry() {
 
     let pub_key = generate_openssh_ed25519_public_key();
 
-    let add = sprocket(&["module", "trust", "add", &pub_key])
-        .current_dir(dir.path())
-        .env("HOME", dir.path())
+    let mut add_command = sprocket(&["module", "trust", "add", &pub_key]);
+    add_command.current_dir(dir.path());
+    use_home(&mut add_command, dir.path());
+    let add = add_command
         .output()
         .expect("failed to run sprocket module trust add");
     assert!(
@@ -2383,9 +2414,10 @@ fn trust_add_then_list_shows_entry() {
         stderr = String::from_utf8_lossy(&add.stderr)
     );
 
-    let list = sprocket(&["module", "trust", "list"])
-        .current_dir(dir.path())
-        .env("HOME", dir.path())
+    let mut list_command = sprocket(&["module", "trust", "list"]);
+    list_command.current_dir(dir.path());
+    use_home(&mut list_command, dir.path());
+    let list = list_command
         .output()
         .expect("failed to run sprocket module trust list");
     assert!(
@@ -2406,9 +2438,10 @@ fn trust_remove_drops_entry() {
     fs::write(&pub_key_path, generate_openssh_ed25519_public_key()).unwrap();
 
     let pub_key_arg = pub_key_path.to_string_lossy().into_owned();
-    let add = sprocket(&["module", "trust", "add", &pub_key_arg])
-        .current_dir(dir.path())
-        .env("HOME", dir.path())
+    let mut add_command = sprocket(&["module", "trust", "add", &pub_key_arg]);
+    add_command.current_dir(dir.path());
+    use_home(&mut add_command, dir.path());
+    let add = add_command
         .output()
         .expect("failed to run sprocket module trust add");
     assert!(
@@ -2418,9 +2451,10 @@ fn trust_remove_drops_entry() {
         stderr = String::from_utf8_lossy(&add.stderr)
     );
 
-    let remove = sprocket(&["module", "trust", "remove", &pub_key_arg])
-        .current_dir(dir.path())
-        .env("HOME", dir.path())
+    let mut remove_command = sprocket(&["module", "trust", "remove", &pub_key_arg]);
+    remove_command.current_dir(dir.path());
+    use_home(&mut remove_command, dir.path());
+    let remove = remove_command
         .output()
         .expect("failed to run sprocket module trust remove");
     assert!(
@@ -2430,9 +2464,10 @@ fn trust_remove_drops_entry() {
         stderr = String::from_utf8_lossy(&remove.stderr)
     );
 
-    let list = sprocket(&["module", "trust", "list"])
-        .current_dir(dir.path())
-        .env("HOME", dir.path())
+    let mut list_command = sprocket(&["module", "trust", "list"]);
+    list_command.current_dir(dir.path());
+    use_home(&mut list_command, dir.path());
+    let list = list_command
         .output()
         .expect("failed to run sprocket module trust list");
     assert!(
@@ -2451,9 +2486,10 @@ fn trust_destroy_clears_all_entries() {
     let key_a = generate_openssh_ed25519_public_key();
     let key_b = generate_openssh_ed25519_public_key();
     for key in [&key_a, &key_b] {
-        let add = sprocket(&["module", "trust", "add", key])
-            .current_dir(dir.path())
-            .env("HOME", dir.path())
+        let mut add_command = sprocket(&["module", "trust", "add", key]);
+        add_command.current_dir(dir.path());
+        use_home(&mut add_command, dir.path());
+        let add = add_command
             .output()
             .expect("failed to run sprocket module trust add");
         assert!(
@@ -2464,9 +2500,10 @@ fn trust_destroy_clears_all_entries() {
         );
     }
 
-    let destroy = sprocket(&["module", "trust", "destroy"])
-        .current_dir(dir.path())
-        .env("HOME", dir.path())
+    let mut destroy_command = sprocket(&["module", "trust", "destroy"]);
+    destroy_command.current_dir(dir.path());
+    use_home(&mut destroy_command, dir.path());
+    let destroy = destroy_command
         .output()
         .expect("failed to run sprocket module trust destroy");
     assert!(
@@ -2477,9 +2514,10 @@ fn trust_destroy_clears_all_entries() {
     );
     assert!(String::from_utf8_lossy(&destroy.stdout).contains("Removed all trusted keys"));
 
-    let list = sprocket(&["module", "trust", "list"])
-        .current_dir(dir.path())
-        .env("HOME", dir.path())
+    let mut list_command = sprocket(&["module", "trust", "list"]);
+    list_command.current_dir(dir.path());
+    use_home(&mut list_command, dir.path());
+    let list = list_command
         .output()
         .expect("failed to run sprocket module trust list");
     assert!(

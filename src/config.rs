@@ -55,11 +55,18 @@ const CONFIG_FILENAME: &str = "sprocket.toml";
 /// `sprocket.toml` is read from. Use this anywhere a path needs to live
 /// alongside the user's Sprocket config.
 ///
-/// On macOS this is `$HOME/.config/sprocket/`, on Linux it follows
+/// The `SPROCKET_CONFIG_ROOT` environment variable, when set, overrides the
+/// platform-specific default (this is primarily used to isolate configuration
+/// during testing).
+///
+/// Otherwise, on macOS this is `$HOME/.config/sprocket/`, on Linux it follows
 /// `$XDG_CONFIG_HOME` (typically `~/.config/sprocket/`), on Windows it lands
 /// in `%APPDATA%/sprocket/`. Returns `None` when the underlying base
 /// directory cannot be determined (no `$HOME`, etc.).
 pub fn config_root() -> Option<PathBuf> {
+    if let Some(root) = std::env::var_os("SPROCKET_CONFIG_ROOT") {
+        return Some(PathBuf::from(root));
+    }
     #[cfg(target_os = "macos")]
     let base = dirs::home_dir().map(|p| p.join(".config"));
     #[cfg(not(target_os = "macos"))]
