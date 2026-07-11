@@ -16,11 +16,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `retry` resubmits a previous run with optional input overrides using the same syntax as `submit` (`key=value`, `@file`, repeated keys append to arrays).
 * New API endpoints on the `dev server` HTTP API: `GET /api/v1/info` (server metadata), `GET /api/v1/runs/{id}/tasks` (list a run's tasks, paginated and filterable by status), `GET /api/v1/runs/{id}/tasks/counts` (per-status task counts), `GET /api/v1/tasks` (list all tasks), `GET /api/v1/tasks/{name}` (single task), and `GET /api/v1/tasks/{name}/logs` (task logs, filterable by `stdout`/`stderr`) ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
 * Added a `strongish` content digest mode (`run.task.digests = "strongish"`) that hashes file size, last modified time, and the first 10 MiB of a file's contents; this is an intermediate strategy between `weak` and `strong`, similar to Cromwell's `fingerprint` call caching strategy ([#978](https://github.com/stjude-rust-labs/sprocket/pull/978)).
+* Added `-t` (`--target`), `-f` (`--filter`), and `--exact` options to `sprocket dev test` ([#952](https://github.com/stjude-rust-labs/sprocket/pull/952)).
+* Added `sprocket dev test schema` subcommand to generate a [JSON schema](https://json-schema.org) for
+  Sprocket test definitions ([#953](https://github.com/stjude-rust-labs/sprocket/pull/953)).
+* Added `sprocket config schema` subcommand to generate a [JSON schema](https://json-schema.org) for
+  `sprocket.toml` files ([#958](https://github.com/stjude-rust-labs/sprocket/pull/958)).
 
 ### Changed
 
 * Grouped the server commands under `sprocket dev server` (previously flat under `sprocket dev`): `server` and `submit` are now `sprocket dev server <subcommand>`. The `server` subcommand was renamed `start`. ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
 * `sprocket analyzer` now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
+* Errors reported for a scalar input (e.g., `File`) that received multiple values now include a hint pointing to the likely cause—a repeated `key=value` on the command line or an unquoted shell glob (e.g., `key=*.txt`) that expanded to more than one value ([#998](https://github.com/stjude-rust-labs/sprocket/pull/998)).
+* The `-t` (`--include-tag`) and `-f` (`--filter-tag`) options for `sprocket dev test` have been renamed to
+  `-i` and `-e` (`--exclude-tag`), respectively ([#952](https://github.com/stjude-rust-labs/sprocket/pull/952)).
 
 ### Fixed
 

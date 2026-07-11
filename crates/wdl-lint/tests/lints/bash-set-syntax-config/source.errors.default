@@ -1,0 +1,27 @@
+warning[BashSetSyntax]: bad `set` command
+   ┌─ tests/lints/bash-set-syntax-config/source.wdl:14:9
+   │
+14 │         set -eo pipefail
+   │         ^^^^^^^^^^^^^^^^
+   │
+   = help: the config expects the following options to be present: errexit, nounset, pipefail
+   = fix: update the `set` command to: `set -euo pipefail`
+
+warning[BashSetSyntax]: bad `set` command
+   ┌─ tests/lints/bash-set-syntax-config/source.wdl:21:9
+   │
+21 │         set +u -eo pipefail
+   │         ^^^^^^
+   │
+   = help: the config expects the following options to be present: errexit, nounset, pipefail
+   = fix: update the `set` command to: `set -euo pipefail`
+
+warning[BashSetSyntax]: bad `set` command
+   ┌─ tests/lints/bash-set-syntax-config/source.wdl:27:9
+   │
+27 │         set -uo pipefail
+   │         ^^^^^^^^^^^^^^^^
+   │
+   = help: the config expects the following options to be present: errexit, nounset, pipefail
+   = fix: update the `set` command to: `set -euo pipefail`
+
