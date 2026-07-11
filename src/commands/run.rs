@@ -195,11 +195,20 @@ pub struct Args {
     /// Show task stderr during execution.
     ///
     /// Note that not all execution backends support this option.
-    #[clap(long)]
+    // An explicit `display_order` is set on this and the following argument so
+    // that they sort deterministically in `--help`. Without it, these two
+    // trailing arguments are auto-assigned the same clap display order as the
+    // globally propagated `--verbose`/`--quiet` flags, and the resulting tie is
+    // broken by argument insertion order, which is sensitive to build details
+    // and therefore not stable across configurations. Placing them past the
+    // propagated global arguments removes the tie. The rationale lives in a
+    // non-doc comment so it does not leak into the user-facing help text.
+    #[clap(long, display_order = 100)]
     pub show_task_stderr: bool,
 
     /// Optional suffix to append to the run directory name.
-    #[clap(long, value_name = "SUFFIX")]
+    // See `show_task_stderr` for why an explicit `display_order` is set.
+    #[clap(long, value_name = "SUFFIX", display_order = 101)]
     pub suffix: Option<String>,
 }
 
