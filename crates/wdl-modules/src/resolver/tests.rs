@@ -251,7 +251,7 @@ fn exclude_set_honors_gitignore_semantics() {
 fn resolve_normalized_subpath_matches_hyphen_variant() {
     let dir = tempdir().unwrap();
     fs::create_dir_all(dir.path().join("my-tasks")).unwrap();
-    fs::write(dir.path().join("my-tasks/do-thing.wdl"), b"version 1.2\n").unwrap();
+    fs::write(dir.path().join("my-tasks/do-thing.wdl"), b"version 1.3\n").unwrap();
     let dep: DependencyName = "dep".parse().unwrap();
 
     // The symbolic components use underscores; the files use hyphens.
@@ -263,8 +263,8 @@ fn resolve_normalized_subpath_matches_hyphen_variant() {
 fn resolve_normalized_subpath_reports_ambiguity() {
     let dir = tempdir().unwrap();
     // Two files normalize to the same component `my_task`.
-    fs::write(dir.path().join("my_task.wdl"), b"version 1.2\n").unwrap();
-    fs::write(dir.path().join("my-task.wdl"), b"version 1.2\n").unwrap();
+    fs::write(dir.path().join("my_task.wdl"), b"version 1.3\n").unwrap();
+    fs::write(dir.path().join("my-task.wdl"), b"version 1.3\n").unwrap();
     let dep: DependencyName = "dep".parse().unwrap();
 
     let err = resolve_normalized_subpath(dir.path(), "my_task", &dep).unwrap_err();

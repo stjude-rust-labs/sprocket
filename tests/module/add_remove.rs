@@ -55,7 +55,7 @@ fn add_local_path_dep_uses_subpath_for_module_root_and_name() {
 "#,
     )
     .unwrap();
-    fs::write(module.join("index.wdl"), "version 1.2\n").unwrap();
+    fs::write(module.join("index.wdl"), "version 1.3\n").unwrap();
 
     let collection_arg = collection.to_string_lossy().into_owned();
     let output = sprocket(&[

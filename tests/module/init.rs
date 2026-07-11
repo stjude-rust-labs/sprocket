@@ -42,7 +42,7 @@ fn directory_module_entrypoint_does_not_require_wdl_1_4() {
     .unwrap();
     fs::write(
         dir.path().join("main.wdl"),
-        "version 1.2\nworkflow wf {\n  input {\n    String name\n  }\n}\n",
+        "version 1.3\nworkflow wf {\n  input {\n    String name\n  }\n}\n",
     )
     .unwrap();
 

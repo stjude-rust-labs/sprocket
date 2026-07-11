@@ -636,7 +636,7 @@ mod tests {
     fn module_search_dirs_use_file_parent() {
         let dir = tempfile::TempDir::new().unwrap();
         let file = dir.path().join("main.wdl");
-        std::fs::write(&file, "version 1.2\n").unwrap();
+        std::fs::write(&file, "version 1.3\n").unwrap();
         let url = url::Url::from_file_path(&file).unwrap();
 
         let analysis = Analysis::default().add_source(Source::File(url));
@@ -655,8 +655,8 @@ mod tests {
         std::fs::create_dir_all(&module_dir).unwrap();
         std::fs::create_dir_all(&plain_dir).unwrap();
         std::fs::write(module_dir.join(wdl_modules::MANIFEST_FILENAME), MANIFEST).unwrap();
-        std::fs::write(module_dir.join("main.wdl"), "version 1.4\n").unwrap();
-        std::fs::write(plain_dir.join("main.wdl"), "version 1.4\n").unwrap();
+        std::fs::write(module_dir.join("main.wdl"), "version 1.3\n").unwrap();
+        std::fs::write(plain_dir.join("main.wdl"), "version 1.3\n").unwrap();
 
         let module_url = url::Url::from_file_path(module_dir.join("main.wdl")).unwrap();
         let plain_url = url::Url::from_file_path(plain_dir.join("main.wdl")).unwrap();
@@ -680,7 +680,7 @@ mod tests {
             MANIFEST,
         )
         .unwrap();
-        std::fs::write(module_dir.path().join("main.wdl"), "version 1.2\n").unwrap();
+        std::fs::write(module_dir.path().join("main.wdl"), "version 1.3\n").unwrap();
 
         let module_url = url::Url::from_file_path(module_dir.path().join("main.wdl")).unwrap();
         let analysis = Analysis::default()

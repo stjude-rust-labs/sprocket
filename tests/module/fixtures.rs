@@ -111,7 +111,7 @@ impl ModuleFixture {
 "#,
         )
         .unwrap();
-        fs::write(fixture.consumer().join("index.wdl"), "version 1.2\n").unwrap();
+        fs::write(fixture.consumer().join("index.wdl"), "version 1.3\n").unwrap();
 
         fs::write(
             fixture.dep().join("module.json"),
@@ -123,7 +123,7 @@ impl ModuleFixture {
 "#,
         )
         .unwrap();
-        fs::write(fixture.dep().join("index.wdl"), "version 1.2\n").unwrap();
+        fs::write(fixture.dep().join("index.wdl"), "version 1.3\n").unwrap();
 
         fixture
     }
@@ -381,7 +381,7 @@ impl GitFixture {
             ),
         )
         .unwrap();
-        fs::write(consumer.join("index.wdl"), "version 1.2\n").unwrap();
+        fs::write(consumer.join("index.wdl"), "version 1.3\n").unwrap();
         consumer
     }
 
@@ -435,7 +435,7 @@ pub(crate) fn write_git_module(path: &Path, version: &str) {
     fs::write(path.join("module.json"), module).unwrap();
     fs::write(
         path.join("index.wdl"),
-        format!("version 1.2\n# fixture version {version}\ntask t {{ command <<< echo hi >>> }}\n"),
+        format!("version 1.3\n# fixture version {version}\ntask t {{ command <<< echo hi >>> }}\n"),
     )
     .unwrap();
 
@@ -443,7 +443,7 @@ pub(crate) fn write_git_module(path: &Path, version: &str) {
     fs::write(path.join("tasks").join("module.json"), module).unwrap();
     fs::write(
         path.join("tasks").join("index.wdl"),
-        format!("version 1.2\n# fixture version {version}\ntask t {{ command <<< echo hi >>> }}\n"),
+        format!("version 1.3\n# fixture version {version}\ntask t {{ command <<< echo hi >>> }}\n"),
     )
     .unwrap();
 }

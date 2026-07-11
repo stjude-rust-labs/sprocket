@@ -877,7 +877,7 @@ mod tests {
             br#"{"name":"dep","license":"MIT"}"#,
         )
         .unwrap();
-        std::fs::write(dep_dir.join("index.wdl"), b"version 1.2\n").unwrap();
+        std::fs::write(dep_dir.join("index.wdl"), b"version 1.3\n").unwrap();
 
         // A consumer that depends on it, with no lockfile yet.
         let consumer_dir = work.path().join("consumer");

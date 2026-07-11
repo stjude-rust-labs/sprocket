@@ -106,7 +106,7 @@ fn check_warns_on_lock_drift() {
     let entrypoint = fixture.consumer().join("index.wdl");
     fs::write(
         &entrypoint,
-        "version 1.2\ntask t { command <<< echo hi >>> }\n",
+        "version 1.3\ntask t { command <<< echo hi >>> }\n",
     )
     .unwrap();
     let entrypoint_arg = entrypoint.to_string_lossy().into_owned();
@@ -152,7 +152,7 @@ fn check_does_not_warn_on_current_branch_dependency_lock() {
     let entrypoint = consumer.join("index.wdl");
     fs::write(
         &entrypoint,
-        "version 1.2\ntask t { command <<< echo hi >>> }\n",
+        "version 1.3\ntask t { command <<< echo hi >>> }\n",
     )
     .unwrap();
     let entrypoint_arg = entrypoint.to_string_lossy().into_owned();
