@@ -455,7 +455,18 @@ fn apply_sparse_checkout(repo: &Repository, paths: &[String]) -> Result<(), GitE
     let tree = head_commit.tree().map_err(GitError::Git)?;
 
     let mut checkout = git2::build::CheckoutBuilder::new();
-    checkout.force().recreate_missing(true);
+    // Disable all libgit2 filters (CRLF/LF conversion, `ident`, clean/smudge)
+    // so the checked-out bytes are identical to the stored blob bytes on every
+    // platform. Module content addressing hashes the on-disk files, so a
+    // filter that rewrote line endings (e.g. a Windows `core.autocrlf=true`, or
+    // a repo `.gitattributes` demanding `eol=crlf`) would produce a different
+    // digest per platform and break signature/lock verification. This is the
+    // sole checkout site that materializes module content, so it is the only
+    // place the guarantee must be enforced.
+    checkout
+        .disable_filters(true)
+        .force()
+        .recreate_missing(true);
     for p in paths {
         // Match every entry under the given module folder.
         checkout.path(format!("{p}/**"));

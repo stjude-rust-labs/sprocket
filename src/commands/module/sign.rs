@@ -86,7 +86,7 @@ fn signing_key_path(explicit: Option<PathBuf>, working_dir: &Path) -> anyhow::Re
         return Ok(path);
     }
 
-    let home = dirs::home_dir()
+    let home = home_dir()
         .ok_or_else(|| anyhow::anyhow!("could not determine home directory; specify `--key`"))?;
     let path = default_ed25519_key_path(&home);
     if !path.exists() {
@@ -140,6 +140,25 @@ fn git_signing_key_path(working_dir: &Path) -> Option<PathBuf> {
 
 fn default_ed25519_key_path(home: &Path) -> PathBuf {
     home.join(".ssh").join("id_ed25519")
+}
+
+/// Resolves the user's home directory, preferring environment variables over
+/// the platform home-directory API.
+///
+/// Checks `HOME`, then `USERPROFILE`, before falling back to
+/// [`dirs::home_dir`]. On Windows `dirs::home_dir` consults the known-folder
+/// API and ignores these environment variables, which breaks any caller (such
+/// as a test) that isolates itself by overriding `HOME`/`USERPROFILE`.
+/// Resolving env-first also matches how Git itself expands `~`.
+fn home_dir() -> Option<PathBuf> {
+    for var in ["HOME", "USERPROFILE"] {
+        if let Some(value) = std::env::var_os(var)
+            && !value.is_empty()
+        {
+            return Some(PathBuf::from(value));
+        }
+    }
+    dirs::home_dir()
 }
 
 fn signer_identity_for_key_path(path: &Path, expected: VerifyingKey) -> Option<SignerIdentity> {

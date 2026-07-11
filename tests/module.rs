@@ -371,6 +371,76 @@ impl GitFixture {
         )
     }
 
+    /// Builds a signed single-version fixture whose repository carries a
+    /// `.gitattributes` demanding CRLF line endings for its text files.
+    ///
+    /// The module is signed over the on-disk (LF) content, exactly as the
+    /// other signed fixtures are. The `.gitattributes` file lives inside the
+    /// `tasks/` module root so that it is materialized as part of the
+    /// resolver's path-filtered (sparse) checkout and thus governs its
+    /// sibling files; a repository-root `.gitattributes` would never be
+    /// written to disk (only `tasks/**` is checked out) and so would not
+    /// take effect. Because the `.wdl`/`.json` patterns do not match
+    /// `.gitattributes` itself, the file is byte-stable and safe to include
+    /// in the signed content hash.
+    ///
+    /// Attribute-driven end-of-line conversion is active on every platform, not
+    /// just Windows, so resolving this fixture exercises the resolver's
+    /// `disable_filters(true)` guarantee everywhere. Without that guarantee the
+    /// checked-out `.wdl`/`.json` files would gain CRLF line endings, changing
+    /// the content hash and failing signature verification.
+    fn signed_with_crlf_attributes() -> (Self, String) {
+        let dir = tempfile::tempdir().unwrap();
+        let repo_dir = dir.path().join("tasks-repo");
+        fs::create_dir_all(&repo_dir).unwrap();
+
+        let repo = Repository::init(&repo_dir).unwrap();
+        write_git_module(&repo_dir, "1.0.0");
+        // Force CRLF in the working tree for the module's text files. Git
+        // normalizes these blobs to LF in the object database on commit, so
+        // the fixture signs over LF content but any filtered checkout would
+        // materialize CRLF.
+        fs::write(
+            repo_dir.join("tasks").join(".gitattributes"),
+            "*.wdl text eol=crlf\n*.json text eol=crlf\n",
+        )
+        .unwrap();
+
+        let private_key = generate_openssh_ed25519_private_key();
+        let signing_key = SigningKey::from_openssh(&private_key).unwrap();
+        let module_root = repo_dir.join("tasks");
+        let checksum = hash_directory(&module_root).unwrap();
+        let signature = ModuleSignature {
+            public_key: signing_key.verifying_key(),
+            identity: None,
+            signature: signing_key.sign(&checksum),
+        };
+        let mut sig_bytes = Vec::new();
+        signature.write(&mut sig_bytes).unwrap();
+        fs::write(module_root.join("module.sig"), sig_bytes).unwrap();
+        let public_key = signing_key.verifying_key().to_openssh();
+
+        commit_without_tags(&repo, "add signed tasks with crlf attributes");
+
+        let cache_path = dir.path().join("module-cache");
+        let cache_path = serde_json::to_string(&cache_path.to_string_lossy()).unwrap();
+        let config_path = dir.path().join("sprocket.toml");
+        let config = format!(
+            "[common.wdl.feature_flags]\nwdl_1_4 = true\n\n[modules]\ncache_path = \
+             {cache_path}\nallowed_schemes = [\"file\", \"https\", \"ssh\"]\ndenied_hosts = []\n"
+        );
+        fs::write(&config_path, config).unwrap();
+
+        (
+            Self {
+                dir,
+                repo_dir,
+                config_path,
+            },
+            public_key,
+        )
+    }
+
     fn repo_url(&self) -> String {
         url::Url::from_file_path(&self.repo_dir)
             .expect("repository directory should convert to a `file://` URL")
@@ -817,10 +887,15 @@ fn add_local_path_dep_uses_subpath_for_module_root_and_name() {
     );
     let manifest = fs::read(fixture.consumer().join("module.json")).unwrap();
     let value: serde_json::Value = serde_json::from_slice(&manifest).unwrap();
-    assert_eq!(
-        value["dependencies"]["alchemy"]["path"].as_str(),
-        Some(module.to_string_lossy().as_ref())
-    );
+    // Compare as `PathBuf`s rather than strings: `local_dependency_path`
+    // appends the module subpath with forward slashes, so on Windows the
+    // recorded path mixes the native drive prefix with `/` separators (a valid
+    // path). `PathBuf` equality normalizes those separators; string equality
+    // would spuriously fail on the separator difference alone.
+    let recorded = value["dependencies"]["alchemy"]["path"]
+        .as_str()
+        .expect("dependency path should be a string");
+    assert_eq!(PathBuf::from(recorded), module);
 
     let lockfile = fs::read(fixture.consumer().join("module-lock.json")).unwrap();
     Lockfile::parse(&lockfile).unwrap();
@@ -1705,6 +1780,57 @@ fn check_does_not_warn_on_current_branch_dependency_lock() {
         stderr = String::from_utf8_lossy(&output.stderr)
     );
     assert!(!String::from_utf8_lossy(&output.stderr).contains("out of date"));
+}
+
+/// Regression test for content-address stability across line-ending filters.
+///
+/// The dependency repository carries a `.gitattributes` demanding CRLF line
+/// endings, so a filtered checkout would rewrite the module's text files and
+/// change their content hash, failing signature verification during `lock`.
+/// The resolver disables filters at checkout, so the bytes match the signed
+/// LF content and both `lock` and `verify` succeed. This exercises the same
+/// code path that Windows `core.autocrlf=true` would trigger, but is
+/// deterministic on every platform because attribute-driven conversion is not
+/// OS-dependent.
+#[test]
+fn lock_and_verify_succeed_despite_crlf_gitattributes() {
+    let (fixture, _public_key) = GitFixture::signed_with_crlf_attributes();
+    let home = isolated_home(fixture.dir.path(), "home-crlf-attributes");
+    set_fixture_trust_mode(&fixture, "auto");
+    let repo_url = fixture.repo_url();
+    let default_branch = fixture.default_branch();
+    let consumer = fixture.write_consumer(
+        "consumer-crlf-attributes",
+        &format!(
+            r#"    "tasks": {{ "git": "{repo_url}", "branch": "{default_branch}", "path": "tasks" }}"#
+        ),
+    );
+
+    let mut lock_command = sprocket_with_config(fixture.config_path(), &["module", "lock"]);
+    lock_command.current_dir(&consumer);
+    use_home(&mut lock_command, &home);
+    let lock = lock_command
+        .output()
+        .expect("failed to run sprocket module lock");
+    assert!(
+        lock.status.success(),
+        "lock failed {status}: {stderr}",
+        status = lock.status,
+        stderr = String::from_utf8_lossy(&lock.stderr)
+    );
+
+    let mut verify_command = sprocket_with_config(fixture.config_path(), &["module", "verify"]);
+    verify_command.current_dir(&consumer);
+    use_home(&mut verify_command, &home);
+    let verify = verify_command
+        .output()
+        .expect("failed to run sprocket module verify");
+    assert!(
+        verify.status.success(),
+        "verify failed {status}: {stderr}",
+        status = verify.status,
+        stderr = String::from_utf8_lossy(&verify.stderr)
+    );
 }
 
 #[test]
