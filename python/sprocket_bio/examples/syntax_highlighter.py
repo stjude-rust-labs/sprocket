@@ -115,7 +115,7 @@ def main() -> None:
         sys.exit(1)
 
     # Do not overwrite the source file.
-    if os.path.samefile(args.source_file, args.output):
+    if os.path.exists(args.output) and os.path.samefile(args.source_file, args.output):
         sys.exit(
             f"source and output files are the same, refusing to overwrite it: {args.output}"
         )
