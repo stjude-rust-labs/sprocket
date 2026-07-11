@@ -54,8 +54,8 @@ fn check_input_type(_document: &Document, name: &str, input: &Input, value: &Val
                 "expected {expected_ty:#} for input `{name}`, but found {ty:#}\n\nnote: this can \
                  happen when a key is repeated on the command line (e.g., `{name}=a {name}=b`) or \
                  when an unquoted shell glob (e.g., `{name}=*.txt`) expands to more than one \
-                 file; provide a single value, quote the glob, or change the input's declared \
-                 type to an array if it should accept multiple values"
+                 value; provide exactly one value for this scalar input, or change the input's \
+                 declared type to an array if it should accept multiple values"
             );
         }
         bail!("expected {expected_ty:#} for input `{name}`, but found {ty:#}");

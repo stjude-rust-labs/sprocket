@@ -3,4 +3,4 @@ error: invalid input key `greet.name`
 Caused by:
     expected type `String` for input `name`, but found type `Array[String]`
     
-    note: this can happen when a key is repeated on the command line (e.g., `name=a name=b`) or when an unquoted shell glob (e.g., `name=*.txt`) expands to more than one file; provide a single value, quote the glob, or change the input's declared type to an array if it should accept multiple values
+    note: this can happen when a key is repeated on the command line (e.g., `name=a name=b`) or when an unquoted shell glob (e.g., `name=*.txt`) expands to more than one value; provide exactly one value for this scalar input, or change the input's declared type to an array if it should accept multiple values
