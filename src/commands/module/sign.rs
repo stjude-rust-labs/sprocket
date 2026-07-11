@@ -17,7 +17,6 @@ use crate::commands::module::Locator;
 use crate::commands::module::discover;
 use crate::commands::module::trace_project;
 use crate::commands::printer::Printer;
-use crate::config::Config;
 
 /// Arguments to `sprocket dev module sign`.
 #[derive(Parser, Debug)]
@@ -36,7 +35,7 @@ pub struct Args {
 }
 
 /// Runs `sprocket dev module sign`.
-pub async fn sign(args: Args, _config: Config, printer: Printer) -> CommandResult<()> {
+pub async fn sign(args: Args, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         explicit_key = args.key.is_some(),
         explicit_output = args.output.is_some(),

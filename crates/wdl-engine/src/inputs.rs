@@ -69,7 +69,7 @@ fn resolve_call_document<'a>(
 }
 
 /// Checks that an input value matches the type of the input.
-fn check_input_type(_document: &Document, name: &str, input: &Input, value: &Value) -> Result<()> {
+fn check_input_type(name: &str, input: &Input, value: &Value) -> Result<()> {
     // We accept optional values for the input even if the input's type is
     // non-optional; if the runtime value is `None` for a non-optional input,
     // the default expression will be evaluated instead.
@@ -239,7 +239,7 @@ impl TaskInputs {
                 .get(name)
                 .with_context(|| format!("unknown input `{name}`"))?;
 
-            check_input_type(document, name, input, value)?;
+            check_input_type(name, input, value)?;
         }
 
         // Next check for missing required inputs
@@ -394,7 +394,7 @@ impl TaskInputs {
                     value
                 };
 
-                check_input_type(document, path, input, &value)?;
+                check_input_type(path, input, &value)?;
                 self.inputs.insert(path.to_string(), value);
                 Ok(true)
             }
@@ -552,7 +552,7 @@ impl WorkflowInputs {
                 .inputs()
                 .get(name)
                 .with_context(|| format!("unknown input `{name}`"))?;
-            check_input_type(document, name, input, value)?;
+            check_input_type(name, input, value)?;
         }
 
         // Next check for missing required inputs
@@ -766,7 +766,7 @@ impl WorkflowInputs {
                     value
                 };
 
-                check_input_type(document, path, input, &value)?;
+                check_input_type(path, input, &value)?;
                 self.inputs.insert(path.to_string(), value);
                 Ok(true)
             }

@@ -13,7 +13,6 @@ use wdl::ast::SupportedVersion;
 use crate::commands::CommandResult;
 use crate::commands::module::write_manifest_value;
 use crate::commands::printer::Printer;
-use crate::config::Config;
 
 /// Arguments to `sprocket dev module init`.
 #[derive(Parser, Debug)]
@@ -36,7 +35,7 @@ pub struct Args {
 }
 
 /// Runs `sprocket dev module init`.
-pub async fn init(args: Args, _config: Config, printer: Printer) -> CommandResult<()> {
+pub async fn init(args: Args, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         has_path = args.path.is_some(),
         has_name = args.name.is_some(),

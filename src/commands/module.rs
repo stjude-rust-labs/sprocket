@@ -138,19 +138,19 @@ pub async fn run(
     printer: Printer,
 ) -> crate::commands::CommandResult<()> {
     match command {
-        ModuleCommands::Init(args) => init::init(args, config, printer).await,
+        ModuleCommands::Init(args) => init::init(args, printer).await,
         ModuleCommands::Add(args) => add::add(args, config, printer).await,
         ModuleCommands::Remove(args) => remove::remove(args, config, printer).await,
         ModuleCommands::Lock(args) => lock::lock(args, config, printer).await,
         ModuleCommands::Update(args) => update::update(args, config, printer).await,
         ModuleCommands::Upgrade(args) => upgrade::upgrade(args, config, printer).await,
-        ModuleCommands::Tree(args) => tree::tree(args, config).await,
-        ModuleCommands::List(args) => tree::list(args, config).await,
+        ModuleCommands::Tree(args) => tree::tree(args).await,
+        ModuleCommands::List(args) => tree::list(args).await,
         ModuleCommands::Verify(args) => verify::verify(args, config, printer).await,
         ModuleCommands::Fetch(args) => fetch::fetch(args, config, printer).await,
         ModuleCommands::Cache(args) => clean::cache(args, config, printer).await,
-        ModuleCommands::Sign(args) => sign::sign(args, config, printer).await,
-        ModuleCommands::Trust(args) => trust::trust(args, config, printer).await,
+        ModuleCommands::Sign(args) => sign::sign(args, printer).await,
+        ModuleCommands::Trust(args) => trust::trust(args, printer).await,
     }
 }
 
