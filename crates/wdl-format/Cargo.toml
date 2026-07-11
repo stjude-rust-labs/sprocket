@@ -11,6 +11,7 @@ documentation = "https://docs.rs/wdl-format"
 
 [dependencies]
 nonempty.workspace = true
+schemars.workspace = true
 thiserror.workspace = true
 toml-spanner.workspace = true
 wdl-ast = { path = "../wdl-ast", version = "0.25.0" }

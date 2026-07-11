@@ -35,6 +35,7 @@ rand = { workspace = true }
 regex = { workspace = true }
 rev_buf_reader = { workspace = true }
 rowan = { workspace = true }
+schemars = { workspace = true, features = ["url2", "indexmap2"] }
 secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
