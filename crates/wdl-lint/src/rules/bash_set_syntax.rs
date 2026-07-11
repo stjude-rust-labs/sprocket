@@ -6,6 +6,7 @@ use std::collections::HashSet;
 use std::fmt::Display;
 use std::fmt::Formatter;
 
+use schemars::JsonSchema;
 use serde::Deserialize;
 use serde::Serialize;
 use strum::VariantArray;
@@ -360,7 +361,9 @@ task say_hello {
 ///
 /// See <https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html> for a description
 /// of each option.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Toml, VariantArray)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Toml, VariantArray, JsonSchema,
+)]
 #[serde(rename_all = "lowercase")]
 #[toml(FromToml, ToToml, rename_all = "lowercase")]
 #[allow(missing_docs)]

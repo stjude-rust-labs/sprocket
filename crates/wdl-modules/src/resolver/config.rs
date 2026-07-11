@@ -3,14 +3,16 @@
 use std::path::PathBuf;
 use std::str::FromStr;
 
+use schemars::JsonSchema;
 use thiserror::Error;
 use toml_spanner::Toml;
 use toml_spanner::helper::display;
 use toml_spanner::helper::parse_string;
 
 /// The `[modules]` configuration section.
-#[derive(Clone, Debug, PartialEq, Eq, Toml)]
+#[derive(Clone, Debug, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, deny_unknown_fields)]
+#[schemars(deny_unknown_fields)]
 pub struct ModulesConfig {
     /// Override the global cache location for this project.
     pub cache_path: Option<PathBuf>,
@@ -18,40 +20,48 @@ pub struct ModulesConfig {
     /// Threshold for the large-file warning, or [`LargeFileWarning::Disabled`]
     /// when the user opts out. Defaults to 1 MiB.
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
+    #[schemars(default)]
     pub large_file_warning: LargeFileWarning,
 
     /// Reject any unsigned module in the dependency tree.
     #[toml(default)]
+    #[schemars(default)]
     pub require_signed: bool,
 
     /// TOFU policy for new signer keys.
     #[toml(default)]
+    #[schemars(default)]
     pub trust_mode: TrustMode,
 
     /// URL schemes permitted for top-level Git dependencies. Defaults
     /// to `["https", "ssh"]`.
     #[toml(default = default_top_level_schemes())]
+    #[schemars(default = "default_top_level_schemes")]
     pub allowed_schemes: Vec<String>,
 
     /// URL schemes permitted for transitive Git dependencies. Defaults
     /// to `["https"]` so remote manifests cannot silently trigger SSH
     /// authentication against an attacker-controlled host.
     #[toml(default = default_transitive_schemes())]
+    #[schemars(default = "default_transitive_schemes")]
     pub allowed_transitive_schemes: Vec<String>,
 
     /// Maximum number of advertised refs accepted from a remote.
     /// Defaults to 100,000.
-    #[toml(default = DEFAULT_MAX_REFS)]
+    #[toml(default = default_max_refs())]
+    #[schemars(default = "default_max_refs")]
     pub max_advertised_refs: u64,
 
     /// Hosts denied for all Git dependencies. Defaults to localhost
     /// addresses.
     #[toml(default = default_denied_hosts())]
+    #[schemars(default = "default_denied_hosts")]
     pub denied_hosts: Vec<String>,
 
     /// Hosts permitted for top-level Git dependencies. Empty means any
     /// non-denied host is allowed.
     #[toml(default)]
+    #[schemars(default)]
     pub allowed_hosts: Vec<String>,
 
     /// Hosts permitted for transitive Git dependencies. Defaults to
@@ -62,6 +72,7 @@ pub struct ModulesConfig {
     /// has not vouched for. An empty list permits any non-denied host but
     /// presents no credentials to transitive dependencies.
     #[toml(default = default_allowed_transitive_hosts())]
+    #[schemars(default = "default_allowed_transitive_hosts")]
     pub allowed_transitive_hosts: Vec<String>,
 
     /// Maximum number of files allowed in a single materialized module
@@ -77,7 +88,9 @@ pub struct ModulesConfig {
 }
 
 /// The default maximum advertised-ref count.
-const DEFAULT_MAX_REFS: u64 = 100_000;
+const fn default_max_refs() -> u64 {
+    100_000
+}
 
 /// Returns the default set of allowed URL schemes for top-level Git
 /// dependencies.
@@ -126,7 +139,7 @@ impl Default for ModulesConfig {
             trust_mode: TrustMode::default(),
             allowed_schemes: default_top_level_schemes(),
             allowed_transitive_schemes: default_transitive_schemes(),
-            max_advertised_refs: DEFAULT_MAX_REFS,
+            max_advertised_refs: default_max_refs(),
             denied_hosts: default_denied_hosts(),
             allowed_hosts: Vec::new(),
             allowed_transitive_hosts: default_allowed_transitive_hosts(),
@@ -208,12 +221,25 @@ pub(crate) fn is_non_public_ip(host: &str) -> bool {
     }
 }
 
+/// Dummy type used to generate the JSON schema for [`bytesize::ByteSize`]s.
+#[derive(Debug, JsonSchema)]
+#[schemars(untagged, inline)]
+#[expect(dead_code, reason = "Only used for schema generation.")]
+enum ByteSizeSchema {
+    /// Absolute byte count.
+    Bytes(u64),
+    /// Byte count as a formatted string (e.g., '1KiB').
+    String(#[schemars(pattern(r"^\d+(?:\.\d+)?\s*(?:[KMGTPEkmgtpe][Ii]?[Bb]?|[Bb])$"))] String),
+}
+
 /// Threshold for the large-file warning emitted at sign- and fetch-time.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, JsonSchema)]
 pub enum LargeFileWarning {
     /// The warning is disabled.
+    #[schemars(rename = "none")]
     Disabled,
     /// Files at or above this byte count trigger a warning.
+    #[schemars(with = "ByteSizeSchema", untagged)]
     Threshold(u64),
 }
 
@@ -261,8 +287,9 @@ pub struct LargeFileWarningError(String);
 /// library computes a [`LockfileDiff`](super::lock::LockfileDiff) that
 /// flags new signers; the CLI is responsible for acting on the policy
 /// (e.g., prompting the user when `Confirm` is set).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Toml)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "lowercase")]
+#[schemars(rename_all = "lowercase")]
 pub enum TrustMode {
     /// New signer keys are recorded in the lockfile without prompting.
     /// This is the default and is suitable for non-interactive or
