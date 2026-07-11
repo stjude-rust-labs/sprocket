@@ -1,4 +1,4 @@
-//! `sprocket module upgrade`.
+//! `sprocket dev module upgrade`.
 
 use std::collections::BTreeSet;
 
@@ -32,7 +32,7 @@ use crate::commands::module::write_manifest_value;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
-/// Arguments to `sprocket module upgrade`.
+/// Arguments to `sprocket dev module upgrade`.
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Dependency aliases to upgrade. Empty upgrades all eligible dependencies.
@@ -51,12 +51,12 @@ pub struct Args {
     pub locator: Locator,
 }
 
-/// Runs `sprocket module upgrade`.
+/// Runs `sprocket dev module upgrade`.
 pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         dry_run = args.dry_run,
         requested = args.names.len(),
-        "starting `sprocket module upgrade`"
+        "starting `sprocket dev module upgrade`"
     );
     let project = discover(&args.locator)?;
     trace_project("module upgrade", &project);

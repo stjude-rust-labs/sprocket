@@ -1,4 +1,5 @@
-//! Integration tests for `sprocket module sign` and `sprocket module verify`.
+//! Integration tests for `sprocket dev module sign` and `sprocket dev module
+//! verify`.
 
 use std::fs;
 
@@ -17,10 +18,10 @@ fn verify_succeeds_after_lock() {
         &format!(r#"    "tasks": {{ "git": "{repo_url}", "version": "^1.0", "path": "tasks" }}"#),
     );
 
-    let lock = sprocket_with_config(fixture.config_path(), &["module", "lock"])
+    let lock = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         lock.status.success(),
         "command failed {status}: {stderr}",
@@ -28,10 +29,10 @@ fn verify_succeeds_after_lock() {
         stderr = String::from_utf8_lossy(&lock.stderr)
     );
 
-    let verify = sprocket_with_config(fixture.config_path(), &["module", "verify"])
+    let verify = sprocket_with_config(fixture.config_path(), &["dev", "module", "verify"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module verify");
+        .expect("failed to run sprocket dev module verify");
     assert!(
         verify.status.success(),
         "command failed {status}: {stderr}",
@@ -48,11 +49,11 @@ fn verify_succeeds_after_lock() {
     let config_path = fixture.config_path().to_string_lossy().into_owned();
     let colored = sprocket_with_global_args(
         &["--config", &config_path, "--color", "always"],
-        &["module", "verify"],
+        &["dev", "module", "verify"],
     )
     .current_dir(&consumer)
     .output()
-    .expect("failed to run colored sprocket module verify");
+    .expect("failed to run colored sprocket dev module verify");
     assert!(
         colored.status.success(),
         "command failed {status}: {stderr}",
@@ -71,10 +72,10 @@ fn verify_strict_requires_all_packages_to_be_signed() {
         &format!(r#"    "tasks": {{ "git": "{repo_url}", "version": "^1.0", "path": "tasks" }}"#),
     );
 
-    let lock = sprocket_with_config(fixture.config_path(), &["module", "lock"])
+    let lock = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         lock.status.success(),
         "command failed {status}: {stderr}",
@@ -82,10 +83,13 @@ fn verify_strict_requires_all_packages_to_be_signed() {
         stderr = String::from_utf8_lossy(&lock.stderr)
     );
 
-    let verify = sprocket_with_config(fixture.config_path(), &["module", "verify", "--strict"])
-        .current_dir(&consumer)
-        .output()
-        .expect("failed to run sprocket module verify");
+    let verify = sprocket_with_config(
+        fixture.config_path(),
+        &["dev", "module", "verify", "--strict"],
+    )
+    .current_dir(&consumer)
+    .output()
+    .expect("failed to run sprocket dev module verify");
     assert!(
         !verify.status.success(),
         "command unexpectedly succeeded: {}",
@@ -103,11 +107,11 @@ fn verify_strict_requires_all_packages_to_be_signed() {
     let config_path = fixture.config_path().to_string_lossy().into_owned();
     let colored = sprocket_with_global_args(
         &["--config", &config_path, "--color", "always"],
-        &["module", "verify", "--strict"],
+        &["dev", "module", "verify", "--strict"],
     )
     .current_dir(&consumer)
     .output()
-    .expect("failed to run colored sprocket module verify");
+    .expect("failed to run colored sprocket dev module verify");
     assert!(
         !colored.status.success(),
         "command unexpectedly succeeded: {}",
@@ -132,13 +136,13 @@ fn verify_reports_all_untrusted_modules_at_once() {
 
     let mut lock_command = sprocket_with_config(
         fixture.config_path(),
-        &["module", "lock", "--trust-mode", "auto"],
+        &["dev", "module", "lock", "--trust-mode", "auto"],
     );
     lock_command.current_dir(&consumer);
     use_home(&mut lock_command, &home);
     let lock = lock_command
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(lock.status.success());
 
     let lockfile = read_lockfile(&consumer);
@@ -152,22 +156,24 @@ fn verify_reports_all_untrusted_modules_at_once() {
 
     let mut trust_remove = sprocket_with_config(
         fixture.config_path(),
-        &["module", "trust", "remove", &public_key],
+        &["dev", "module", "trust", "remove", &public_key],
     );
     trust_remove.current_dir(&consumer);
     use_home(&mut trust_remove, &home);
     let remove = trust_remove
         .output()
-        .expect("failed to run sprocket module trust remove");
+        .expect("failed to run sprocket dev module trust remove");
     assert!(remove.status.success());
 
-    let mut verify_command =
-        sprocket_with_config(fixture.config_path(), &["module", "verify", "lockfile"]);
+    let mut verify_command = sprocket_with_config(
+        fixture.config_path(),
+        &["dev", "module", "verify", "lockfile"],
+    );
     verify_command.current_dir(&consumer);
     use_home(&mut verify_command, &home);
     let verify = verify_command
         .output()
-        .expect("failed to run sprocket module verify");
+        .expect("failed to run sprocket dev module verify");
     assert!(
         !verify.status.success(),
         "command unexpectedly succeeded: {}",
@@ -177,7 +183,7 @@ fn verify_reports_all_untrusted_modules_at_once() {
     assert!(stderr.contains("2 modules are untrusted"));
     assert!(stderr.contains("`task_a` signer is untrusted"));
     assert!(stderr.contains("`task_b` signer is untrusted"));
-    assert!(stderr.contains("sprocket module trust all"));
+    assert!(stderr.contains("sprocket dev module trust all"));
 }
 
 #[test]
@@ -189,10 +195,10 @@ fn verify_fails_on_tampered_cache() {
         &format!(r#"    "tasks": {{ "git": "{repo_url}", "version": "^1.0", "path": "tasks" }}"#),
     );
 
-    let lock = sprocket_with_config(fixture.config_path(), &["module", "lock"])
+    let lock = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         lock.status.success(),
         "command failed {status}: {stderr}",
@@ -205,10 +211,13 @@ fn verify_fails_on_tampered_cache() {
         "expected to find cached index.wdl to tamper with"
     );
 
-    let verify = sprocket_with_config(fixture.config_path(), &["module", "verify", "lockfile"])
-        .current_dir(&consumer)
-        .output()
-        .expect("failed to run sprocket module verify");
+    let verify = sprocket_with_config(
+        fixture.config_path(),
+        &["dev", "module", "verify", "lockfile"],
+    )
+    .current_dir(&consumer)
+    .output()
+    .expect("failed to run sprocket dev module verify");
     assert!(
         !verify.status.success(),
         "command unexpectedly succeeded: {}",
@@ -225,16 +234,19 @@ fn verify_without_lockfile_errors() {
         &format!(r#"    "tasks": {{ "git": "{repo_url}", "version": "^1.0", "path": "tasks" }}"#),
     );
 
-    let verify = sprocket_with_config(fixture.config_path(), &["module", "verify", "lockfile"])
-        .current_dir(&consumer)
-        .output()
-        .expect("failed to run sprocket module verify");
+    let verify = sprocket_with_config(
+        fixture.config_path(),
+        &["dev", "module", "verify", "lockfile"],
+    )
+    .current_dir(&consumer)
+    .output()
+    .expect("failed to run sprocket dev module verify");
     assert!(
         !verify.status.success(),
         "command unexpectedly succeeded: {}",
         String::from_utf8_lossy(&verify.stdout)
     );
-    assert!(String::from_utf8_lossy(&verify.stderr).contains("sprocket module lock"));
+    assert!(String::from_utf8_lossy(&verify.stderr).contains("sprocket dev module lock"));
 }
 
 #[test]
@@ -246,10 +258,10 @@ fn verify_reports_fetch_when_cache_missing() {
         &format!(r#"    "tasks": {{ "git": "{repo_url}", "version": "^1.0", "path": "tasks" }}"#),
     );
 
-    let lock = sprocket_with_config(fixture.config_path(), &["module", "lock"])
+    let lock = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         lock.status.success(),
         "command failed {status}: {stderr}",
@@ -259,16 +271,16 @@ fn verify_reports_fetch_when_cache_missing() {
 
     fs::remove_dir_all(fixture.cache_path()).unwrap();
 
-    let verify = sprocket_with_config(fixture.config_path(), &["module", "verify"])
+    let verify = sprocket_with_config(fixture.config_path(), &["dev", "module", "verify"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module verify");
+        .expect("failed to run sprocket dev module verify");
     assert!(
         !verify.status.success(),
         "command unexpectedly succeeded: {}",
         String::from_utf8_lossy(&verify.stdout)
     );
-    assert!(String::from_utf8_lossy(&verify.stderr).contains("sprocket module fetch"));
+    assert!(String::from_utf8_lossy(&verify.stderr).contains("sprocket dev module fetch"));
 }
 
 #[test]
@@ -278,10 +290,10 @@ fn sign_writes_verifiable_signature() {
     fs::write(&key_path, generate_openssh_ed25519_private_key()).unwrap();
 
     let key_path_arg = key_path.to_string_lossy().into_owned();
-    let sign = sprocket(&["module", "sign", "--key", &key_path_arg])
+    let sign = sprocket(&["dev", "module", "sign", "--key", &key_path_arg])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module sign");
+        .expect("failed to run sprocket dev module sign");
     assert!(
         sign.status.success(),
         "command failed {status}: {stderr}",
@@ -294,10 +306,10 @@ fn sign_writes_verifiable_signature() {
     let digest = hash_directory(fixture.consumer()).unwrap();
     assert!(signature.verify(&digest).is_ok());
 
-    let verify = sprocket(&["module", "verify", "signature"])
+    let verify = sprocket(&["dev", "module", "verify", "signature"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module verify signature");
+        .expect("failed to run sprocket dev module verify signature");
     assert!(
         verify.status.success(),
         "command failed {status}: {stderr}",
@@ -306,10 +318,10 @@ fn sign_writes_verifiable_signature() {
     );
     assert!(String::from_utf8_lossy(&verify.stdout).contains("Verified signature"));
 
-    let verify_all = sprocket(&["module", "verify"])
+    let verify_all = sprocket(&["dev", "module", "verify"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module verify");
+        .expect("failed to run sprocket dev module verify");
     assert!(
         verify_all.status.success(),
         "command failed {status}: {stderr}",
@@ -323,10 +335,10 @@ fn sign_writes_verifiable_signature() {
 fn verify_signature_without_signature_errors_with_guidance() {
     let fixture = ModuleFixture::with_local_dep();
 
-    let verify = sprocket(&["module", "verify", "signature"])
+    let verify = sprocket(&["dev", "module", "verify", "signature"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module verify signature");
+        .expect("failed to run sprocket dev module verify signature");
     assert!(
         !verify.status.success(),
         "command unexpectedly succeeded: {}",
@@ -334,7 +346,7 @@ fn verify_signature_without_signature_errors_with_guidance() {
     );
     let stderr = String::from_utf8_lossy(&verify.stderr);
     assert!(stderr.contains("no `module.sig`"));
-    assert!(stderr.contains("sprocket module sign"));
+    assert!(stderr.contains("sprocket dev module sign"));
 }
 
 #[test]
@@ -350,13 +362,13 @@ fn sign_uses_default_ed25519_key_when_key_is_omitted() {
     .unwrap();
     fs::write(home.join(".gitconfig"), "").unwrap();
 
-    let sign = sprocket(&["module", "sign"])
+    let sign = sprocket(&["dev", "module", "sign"])
         .current_dir(fixture.consumer())
         .env("HOME", &home)
         .env("USERPROFILE", &home)
         .env("GIT_CONFIG_GLOBAL", home.join(".gitconfig"))
         .output()
-        .expect("failed to run sprocket module sign");
+        .expect("failed to run sprocket dev module sign");
     assert!(
         sign.status.success(),
         "command failed {status}: {stderr}",
@@ -375,13 +387,13 @@ fn sign_without_default_key_errors_with_guidance() {
     fs::create_dir_all(&home).unwrap();
     fs::write(home.join(".gitconfig"), "").unwrap();
 
-    let sign = sprocket(&["module", "sign"])
+    let sign = sprocket(&["dev", "module", "sign"])
         .current_dir(fixture.consumer())
         .env("HOME", &home)
         .env("USERPROFILE", &home)
         .env("GIT_CONFIG_GLOBAL", home.join(".gitconfig"))
         .output()
-        .expect("failed to run sprocket module sign");
+        .expect("failed to run sprocket dev module sign");
     assert!(
         !sign.status.success(),
         "command unexpectedly succeeded: {}",

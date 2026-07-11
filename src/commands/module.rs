@@ -1,4 +1,4 @@
-//! The `sprocket module` command group.
+//! The `sprocket dev module` command group.
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -68,7 +68,7 @@ pub struct Locator {
     pub manifest_path: Option<PathBuf>,
 }
 
-/// Subcommands of `sprocket module`.
+/// Subcommands of `sprocket dev module`.
 #[derive(Subcommand, Debug)]
 #[allow(clippy::large_enum_variant)]
 pub enum ModuleCommands {
@@ -115,7 +115,7 @@ pub fn discover(locator: &Locator) -> anyhow::Result<Project> {
     };
 
     let (manifest_path, manifest) = crate::analysis::discover_manifest_upward(&start)?
-        .with_context(|| "no `module.json` found; run `sprocket module init` first")?;
+        .with_context(|| "no `module.json` found; run `sprocket dev module init` first")?;
 
     let root = manifest_path
         .parent()
@@ -131,7 +131,7 @@ pub fn discover(locator: &Locator) -> anyhow::Result<Project> {
     })
 }
 
-/// Dispatches a `sprocket module` subcommand.
+/// Dispatches a `sprocket dev module` subcommand.
 pub async fn run(
     command: ModuleCommands,
     config: Config,
@@ -235,7 +235,7 @@ pub fn load_lockfile(project: &Project) -> anyhow::Result<Option<Lockfile>> {
 /// Loads `module-lock.json`, failing when it is absent.
 pub(crate) fn require_lockfile(project: &Project) -> anyhow::Result<Lockfile> {
     load_lockfile(project)?
-        .ok_or_else(|| anyhow::anyhow!("no `module-lock.json`; run `sprocket module lock`"))
+        .ok_or_else(|| anyhow::anyhow!("no `module-lock.json`; run `sprocket dev module lock`"))
 }
 
 /// Builds a Git resolver configured for module porcelain commands.

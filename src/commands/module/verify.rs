@@ -1,4 +1,4 @@
-//! `sprocket module verify`.
+//! `sprocket dev module verify`.
 
 use clap::Parser;
 use clap::ValueEnum;
@@ -18,7 +18,7 @@ use crate::commands::module::trace_project;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
-/// Arguments to `sprocket module verify`.
+/// Arguments to `sprocket dev module verify`.
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Limit verification to one subsystem. Defaults to every available check.
@@ -33,7 +33,7 @@ pub struct Args {
     pub locator: Locator,
 }
 
-/// A subsystem verified by `sprocket module verify`.
+/// A subsystem verified by `sprocket dev module verify`.
 #[derive(Clone, Copy, Debug, ValueEnum)]
 pub enum VerifyTarget {
     /// Verify `module.sig` against the current module contents.
@@ -42,12 +42,12 @@ pub enum VerifyTarget {
     Lockfile,
 }
 
-/// Runs `sprocket module verify`.
+/// Runs `sprocket dev module verify`.
 pub async fn verify(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         target = ?args.target,
         strict = args.strict,
-        "starting `sprocket module verify`"
+        "starting `sprocket dev module verify`"
     );
     let project = discover(&args.locator)?;
     trace_project("module verify", &project);
@@ -89,7 +89,7 @@ fn verify_all(
     if checked == 0 {
         tracing::debug!("full verification found no signature or lockfile");
         anyhow::bail!(
-            "nothing to verify; run `sprocket module sign` or `sprocket module lock` first"
+            "nothing to verify; run `sprocket dev module sign` or `sprocket dev module lock` first"
         );
     }
     Ok(())
@@ -103,7 +103,7 @@ fn verify_signature(
     tracing::trace!(signature = %signature_path.display(), "reading module signature");
     let bytes = std::fs::read(&signature_path).map_err(|source| match source.kind() {
         std::io::ErrorKind::NotFound => {
-            anyhow::anyhow!("no `module.sig`; run `sprocket module sign` or verify `lockfile`")
+            anyhow::anyhow!("no `module.sig`; run `sprocket dev module sign` or verify `lockfile`")
         }
         _ => anyhow::Error::new(source).context(format!("reading `{}`", signature_path.display())),
     })?;
@@ -157,7 +157,8 @@ fn verify_lockfile(
                 }
                 ResolverError::NotFetched { dep } => {
                     problems.push(format!(
-                        "`{dep}` is not fetched in the module cache; run `sprocket module fetch`"
+                        "`{dep}` is not fetched in the module cache; run `sprocket dev module \
+                         fetch`"
                     ));
                 }
                 other => problems.push(other.to_string()),
@@ -167,7 +168,7 @@ fn verify_lockfile(
         if untrusted > 0 && untrusted == problems.len() {
             return Err(anyhow::anyhow!(
                 "{untrusted} modules are untrusted:\n  {}\n  accept signer trust changes with \
-                 `sprocket module trust all`",
+                 `sprocket dev module trust all`",
                 problems.join("\n  "),
             ));
         }

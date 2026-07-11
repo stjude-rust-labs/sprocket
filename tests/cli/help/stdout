@@ -13,7 +13,6 @@ Commands:
   lint         Lints a document or a directory containing documents
   run          Runs a task or workflow
   validate     Validate a set of inputs against a task or workflow
-  module       Create and manage WDL modules
   dev          Developmental and experimental commands
   help         Print this message or the help of the given subcommand(s)
 

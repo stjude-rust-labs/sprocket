@@ -1,4 +1,4 @@
-//! `sprocket module trust`.
+//! `sprocket dev module trust`.
 
 use anyhow::Context as _;
 use clap::Parser;
@@ -18,7 +18,7 @@ use crate::commands::module::trace_project;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
-/// Subcommands of `sprocket module trust`.
+/// Subcommands of `sprocket dev module trust`.
 #[derive(Subcommand, Debug)]
 pub enum TrustCommands {
     /// List trusted keys.
@@ -33,11 +33,11 @@ pub enum TrustCommands {
     Destroy(DestroyArgs),
 }
 
-/// Arguments to `sprocket module trust list`.
+/// Arguments to `sprocket dev module trust list`.
 #[derive(Parser, Debug)]
 pub struct ListArgs {}
 
-/// Arguments to `sprocket module trust add`.
+/// Arguments to `sprocket dev module trust add`.
 #[derive(Parser, Debug)]
 pub struct AddArgs {
     /// OpenSSH-format public keys, or public-key file paths.
@@ -51,7 +51,7 @@ pub struct AddArgs {
     pub email: Option<String>,
 }
 
-/// Arguments to `sprocket module trust all`.
+/// Arguments to `sprocket dev module trust all`.
 #[derive(Parser, Debug)]
 pub struct AllArgs {
     /// Shared module locator.
@@ -59,7 +59,7 @@ pub struct AllArgs {
     pub locator: Locator,
 }
 
-/// Arguments to `sprocket module trust remove`.
+/// Arguments to `sprocket dev module trust remove`.
 #[derive(Parser, Debug)]
 pub struct RemoveArgs {
     /// OpenSSH-format public keys, or public-key file paths.
@@ -67,11 +67,11 @@ pub struct RemoveArgs {
     pub keys: Vec<String>,
 }
 
-/// Arguments to `sprocket module trust destroy`.
+/// Arguments to `sprocket dev module trust destroy`.
 #[derive(Parser, Debug)]
 pub struct DestroyArgs {}
 
-/// Runs `sprocket module trust`.
+/// Runs `sprocket dev module trust`.
 pub async fn trust(cmd: TrustCommands, config: Config, printer: Printer) -> CommandResult<()> {
     match cmd {
         TrustCommands::List(args) => list(args, config).await,
@@ -82,9 +82,9 @@ pub async fn trust(cmd: TrustCommands, config: Config, printer: Printer) -> Comm
     }
 }
 
-/// Runs `sprocket module trust list`.
+/// Runs `sprocket dev module trust list`.
 pub async fn list(_args: ListArgs, _config: Config) -> CommandResult<()> {
-    tracing::trace!("starting `sprocket module trust list`");
+    tracing::trace!("starting `sprocket dev module trust list`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
     let store = load_trust_store(&trust_path)?;
@@ -103,9 +103,9 @@ pub async fn list(_args: ListArgs, _config: Config) -> CommandResult<()> {
     Ok(())
 }
 
-/// Runs `sprocket module trust all`.
+/// Runs `sprocket dev module trust all`.
 pub async fn all(args: AllArgs, _config: Config, printer: Printer) -> CommandResult<()> {
-    tracing::trace!("starting `sprocket module trust all`");
+    tracing::trace!("starting `sprocket dev module trust all`");
     let project = discover(&args.locator)?;
     trace_project("module trust all", &project);
 
@@ -117,9 +117,9 @@ pub async fn all(args: AllArgs, _config: Config, printer: Printer) -> CommandRes
     Ok(())
 }
 
-/// Runs `sprocket module trust add`.
+/// Runs `sprocket dev module trust add`.
 pub async fn add(args: AddArgs, _config: Config, printer: Printer) -> CommandResult<()> {
-    tracing::trace!("starting `sprocket module trust add`");
+    tracing::trace!("starting `sprocket dev module trust add`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
     let mut store = load_trust_store(&trust_path)?;
@@ -193,9 +193,9 @@ fn parse_key_arg(key: &str) -> anyhow::Result<ParsedTrustKey> {
     })
 }
 
-/// Runs `sprocket module trust remove`.
+/// Runs `sprocket dev module trust remove`.
 pub async fn remove(args: RemoveArgs, _config: Config, printer: Printer) -> CommandResult<()> {
-    tracing::trace!("starting `sprocket module trust remove`");
+    tracing::trace!("starting `sprocket dev module trust remove`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
     let mut store = load_trust_store(&trust_path)?;
@@ -222,9 +222,9 @@ pub async fn remove(args: RemoveArgs, _config: Config, printer: Printer) -> Comm
     Ok(())
 }
 
-/// Runs `sprocket module trust destroy`.
+/// Runs `sprocket dev module trust destroy`.
 pub async fn destroy(_args: DestroyArgs, _config: Config, printer: Printer) -> CommandResult<()> {
-    tracing::trace!("starting `sprocket module trust destroy`");
+    tracing::trace!("starting `sprocket dev module trust destroy`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
     let mut store = load_trust_store(&trust_path)?;

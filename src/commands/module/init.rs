@@ -1,4 +1,4 @@
-//! `sprocket module init`.
+//! `sprocket dev module init`.
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -15,7 +15,7 @@ use crate::commands::module::write_manifest_value;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
-/// Arguments to `sprocket module init`.
+/// Arguments to `sprocket dev module init`.
 #[derive(Parser, Debug)]
 #[command(disable_version_flag = true)]
 pub struct Args {
@@ -35,14 +35,14 @@ pub struct Args {
     pub no_scaffold: bool,
 }
 
-/// Runs `sprocket module init`.
+/// Runs `sprocket dev module init`.
 pub async fn init(args: Args, _config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         has_path = args.path.is_some(),
         has_name = args.name.is_some(),
         has_license = args.license.is_some(),
         no_scaffold = args.no_scaffold,
-        "starting `sprocket module init`"
+        "starting `sprocket dev module init`"
     );
     run_init(args, printer).map_err(Into::into)
 }

@@ -412,7 +412,9 @@ pub(crate) fn resolution_context_for_manifest(
         && let Ok(lock) = wdl_modules::Lockfile::parse(&lock_bytes)
         && !lock.satisfies_manifest(&manifest)
     {
-        warn!("`module-lock.json` is out of date with `module.json`; run `sprocket module lock`");
+        warn!(
+            "`module-lock.json` is out of date with `module.json`; run `sprocket dev module lock`"
+        );
     }
 
     info!(

@@ -1,4 +1,4 @@
-//! `sprocket module sign`.
+//! `sprocket dev module sign`.
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -19,7 +19,7 @@ use crate::commands::module::trace_project;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
-/// Arguments to `sprocket module sign`.
+/// Arguments to `sprocket dev module sign`.
 #[derive(Parser, Debug)]
 pub struct Args {
     /// OpenSSH-format Ed25519 private key path.
@@ -35,12 +35,12 @@ pub struct Args {
     pub locator: Locator,
 }
 
-/// Runs `sprocket module sign`.
+/// Runs `sprocket dev module sign`.
 pub async fn sign(args: Args, _config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         explicit_key = args.key.is_some(),
         explicit_output = args.output.is_some(),
-        "starting `sprocket module sign`"
+        "starting `sprocket dev module sign`"
     );
     let project = discover(&args.locator)?;
     trace_project("module sign", &project);

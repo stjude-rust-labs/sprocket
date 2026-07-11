@@ -26,7 +26,7 @@ fn run_fails_when_locked_signer_key_is_removed_from_trust_store() {
     )
     .unwrap();
 
-    let mut lock_command = sprocket_with_config(fixture.config_path(), &["module", "lock"]);
+    let mut lock_command = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"]);
     lock_command.current_dir(&consumer);
     use_home(&mut lock_command, &home);
     let lock = output_with_stdin(lock_command, "y\n");
@@ -47,13 +47,13 @@ fn run_fails_when_locked_signer_key_is_removed_from_trust_store() {
 
     let mut trust_command = sprocket_with_config(
         fixture.config_path(),
-        &["module", "trust", "add", &public_key],
+        &["dev", "module", "trust", "add", &public_key],
     );
     trust_command.current_dir(&consumer);
     use_home(&mut trust_command, &home);
     let trust = trust_command
         .output()
-        .expect("failed to run sprocket module trust add");
+        .expect("failed to run sprocket dev module trust add");
     assert!(
         trust.status.success(),
         "command failed {status}: {stderr}",
@@ -74,13 +74,13 @@ fn run_fails_when_locked_signer_key_is_removed_from_trust_store() {
 
     let mut remove_command = sprocket_with_config(
         fixture.config_path(),
-        &["module", "trust", "remove", &public_key],
+        &["dev", "module", "trust", "remove", &public_key],
     );
     remove_command.current_dir(&consumer);
     use_home(&mut remove_command, &home);
     let remove = remove_command
         .output()
-        .expect("failed to run sprocket module trust remove");
+        .expect("failed to run sprocket dev module trust remove");
     assert!(
         remove.status.success(),
         "command failed {status}: {stderr}",
@@ -99,7 +99,7 @@ fn run_fails_when_locked_signer_key_is_removed_from_trust_store() {
     );
     let stderr = String::from_utf8_lossy(&run.stderr);
     assert!(stderr.contains("signed by an untrusted key"));
-    assert!(stderr.contains("sprocket module trust all"));
+    assert!(stderr.contains("sprocket dev module trust all"));
     assert!(!stderr.contains("unknown task or workflow `t`"));
 }
 
@@ -129,6 +129,7 @@ fn run_fails_when_required_signature_dependency_is_unsigned() {
     let add = sprocket_with_config(
         fixture.config_path(),
         &[
+            "dev",
             "module",
             "add",
             &repo_url,
@@ -141,7 +142,7 @@ fn run_fails_when_required_signature_dependency_is_unsigned() {
     )
     .current_dir(&consumer)
     .output()
-    .expect("failed to run sprocket module add");
+    .expect("failed to run sprocket dev module add");
     assert!(
         add.status.success(),
         "command failed {status}: {stderr}",

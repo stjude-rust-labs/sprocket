@@ -1,4 +1,4 @@
-//! `sprocket module remove`.
+//! `sprocket dev module remove`.
 
 use clap::Parser;
 
@@ -18,7 +18,7 @@ use crate::commands::module::write_manifest_value;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
-/// Arguments to `sprocket module remove`.
+/// Arguments to `sprocket dev module remove`.
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Dependency alias to remove from `module.json`.
@@ -37,9 +37,12 @@ pub struct Args {
     pub locator: Locator,
 }
 
-/// Runs `sprocket module remove`.
+/// Runs `sprocket dev module remove`.
 pub async fn remove(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
-    tracing::trace!(no_lock = args.no_lock, "starting `sprocket module remove`");
+    tracing::trace!(
+        no_lock = args.no_lock,
+        "starting `sprocket dev module remove`"
+    );
     let project = discover(&args.locator)?;
     trace_project("module remove", &project);
     let mut value = read_manifest_value(&project.manifest_path)?;

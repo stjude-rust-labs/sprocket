@@ -1,4 +1,4 @@
-//! `sprocket module fetch`.
+//! `sprocket dev module fetch`.
 
 use clap::Parser;
 use wdl_modules::module::Module;
@@ -12,7 +12,7 @@ use crate::commands::module::trace_project;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
-/// Arguments to `sprocket module fetch`.
+/// Arguments to `sprocket dev module fetch`.
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Shared module locator.
@@ -20,9 +20,9 @@ pub struct Args {
     pub locator: Locator,
 }
 
-/// Runs `sprocket module fetch`.
+/// Runs `sprocket dev module fetch`.
 pub async fn fetch(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
-    tracing::trace!("starting `sprocket module fetch`");
+    tracing::trace!("starting `sprocket dev module fetch`");
     let project = discover(&args.locator)?;
     trace_project("module fetch", &project);
     let lock = require_lockfile(&project)?;

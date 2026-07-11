@@ -1,4 +1,5 @@
-//! Integration tests for `sprocket module add` and `sprocket module remove`.
+//! Integration tests for `sprocket dev module add` and `sprocket dev module
+//! remove`.
 
 use std::fs;
 use std::path::PathBuf;
@@ -11,10 +12,10 @@ use crate::fixtures::*;
 #[test]
 fn add_local_path_dep_edits_manifest_and_locks() {
     let fixture = ModuleFixture::with_local_dep();
-    let output = sprocket(&["module", "add", "utils", "../dep"])
+    let output = sprocket(&["dev", "module", "add", "utils", "../dep"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module add");
+        .expect("failed to run sprocket dev module add");
 
     assert!(
         output.status.success(),
@@ -59,6 +60,7 @@ fn add_local_path_dep_uses_subpath_for_module_root_and_name() {
 
     let collection_arg = collection.to_string_lossy().into_owned();
     let output = sprocket(&[
+        "dev",
         "module",
         "add",
         &collection_arg,
@@ -67,7 +69,7 @@ fn add_local_path_dep_uses_subpath_for_module_root_and_name() {
     ])
     .current_dir(fixture.consumer())
     .output()
-    .expect("failed to run sprocket module add");
+    .expect("failed to run sprocket dev module add");
 
     assert!(
         output.status.success(),
@@ -100,12 +102,12 @@ fn add_git_dep_without_tags_tracks_default_branch_and_locks() {
 
     let output = sprocket_with_config(
         fixture.config_path(),
-        &["module", "add", "dep", &repo_url, "--path", "tasks"],
+        &["dev", "module", "add", "dep", &repo_url, "--path", "tasks"],
     )
     .current_dir(&consumer)
     .env("RUST_LOG", "info")
     .output()
-    .expect("failed to run sprocket module add");
+    .expect("failed to run sprocket dev module add");
 
     assert!(
         output.status.success(),
@@ -141,7 +143,7 @@ fn add_prompts_before_trusting_new_signer_key() {
 
     let mut add_command = sprocket_with_config(
         fixture.config_path(),
-        &["module", "add", &repo_url, "--path", "tasks"],
+        &["dev", "module", "add", &repo_url, "--path", "tasks"],
     );
     add_command.current_dir(&consumer);
     let add = output_with_stdin(add_command, "\n");
@@ -171,6 +173,7 @@ fn add_trust_mode_flag_auto_trusts_without_prompting() {
     let mut add_command = sprocket_with_config(
         fixture.config_path(),
         &[
+            "dev",
             "module",
             "add",
             &repo_url,
@@ -184,7 +187,7 @@ fn add_trust_mode_flag_auto_trusts_without_prompting() {
     use_home(&mut add_command, &home);
     let add = add_command
         .output()
-        .expect("failed to run sprocket module add");
+        .expect("failed to run sprocket dev module add");
     assert!(
         add.status.success(),
         "command failed {status}: {stderr}",
@@ -199,6 +202,7 @@ fn add_trust_mode_flag_auto_trusts_without_prompting() {
 fn add_hosted_git_shorthand_infers_repo_name() {
     let fixture = ModuleFixture::with_local_dep();
     let output = sprocket(&[
+        "dev",
         "module",
         "add",
         "stjudecloud/workflows",
@@ -208,7 +212,7 @@ fn add_hosted_git_shorthand_infers_repo_name() {
     ])
     .current_dir(fixture.consumer())
     .output()
-    .expect("failed to run sprocket module add");
+    .expect("failed to run sprocket dev module add");
 
     assert!(
         output.status.success(),
@@ -230,6 +234,7 @@ fn add_hosted_git_shorthand_infers_repo_name() {
 fn add_git_path_infers_dependency_name() {
     let fixture = ModuleFixture::with_local_dep();
     let output = sprocket(&[
+        "dev",
         "module",
         "add",
         "stjudecloud/workflows",
@@ -241,7 +246,7 @@ fn add_git_path_infers_dependency_name() {
     ])
     .current_dir(fixture.consumer())
     .output()
-    .expect("failed to run sprocket module add");
+    .expect("failed to run sprocket dev module add");
 
     assert!(
         output.status.success(),
@@ -272,6 +277,7 @@ fn add_hosted_git_shorthand_respects_configured_platform_and_name() {
     let output = sprocket_with_config(
         &config_path,
         &[
+            "dev",
             "module",
             "add",
             "stjudecloud/workflows",
@@ -284,7 +290,7 @@ fn add_hosted_git_shorthand_respects_configured_platform_and_name() {
     )
     .current_dir(fixture.consumer())
     .output()
-    .expect("failed to run sprocket module add");
+    .expect("failed to run sprocket dev module add");
 
     assert!(
         output.status.success(),
@@ -306,6 +312,7 @@ fn add_hosted_git_shorthand_respects_configured_platform_and_name() {
 fn add_hosted_git_shorthand_respects_platform_flag() {
     let fixture = ModuleFixture::with_local_dep();
     let output = sprocket(&[
+        "dev",
         "module",
         "add",
         "stjudecloud/workflows",
@@ -317,7 +324,7 @@ fn add_hosted_git_shorthand_respects_platform_flag() {
     ])
     .current_dir(fixture.consumer())
     .output()
-    .expect("failed to run sprocket module add");
+    .expect("failed to run sprocket dev module add");
 
     assert!(
         output.status.success(),
@@ -345,6 +352,7 @@ fn add_direct_git_url_infers_repo_name() {
     let output = sprocket_with_config(
         fixture.config_path(),
         &[
+            "dev",
             "module",
             "add",
             &repo_url,
@@ -355,7 +363,7 @@ fn add_direct_git_url_infers_repo_name() {
     )
     .current_dir(&consumer)
     .output()
-    .expect("failed to run sprocket module add");
+    .expect("failed to run sprocket dev module add");
 
     assert!(
         output.status.success(),
@@ -373,10 +381,10 @@ fn add_direct_git_url_infers_repo_name() {
 #[test]
 fn add_rejects_invalid_dependency_name() {
     let fixture = ModuleFixture::with_local_dep();
-    let output = sprocket(&["module", "add", "1bad", "../dep"])
+    let output = sprocket(&["dev", "module", "add", "1bad", "../dep"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module add");
+        .expect("failed to run sprocket dev module add");
 
     assert!(
         !output.status.success(),
@@ -389,11 +397,11 @@ fn add_rejects_invalid_dependency_name() {
 fn add_existing_identical_dep_reports_skipped_and_logs_noop() {
     let fixture = ModuleFixture::with_local_dep_added();
     let before = fs::read(fixture.consumer().join("module.json")).unwrap();
-    let output = sprocket(&["module", "add", "utils", "../dep"])
+    let output = sprocket(&["dev", "module", "add", "utils", "../dep"])
         .current_dir(fixture.consumer())
         .env("RUST_LOG", "info")
         .output()
-        .expect("failed to run sprocket module add");
+        .expect("failed to run sprocket dev module add");
 
     assert!(
         output.status.success(),
@@ -418,10 +426,10 @@ fn add_existing_identical_dep_reports_skipped_and_logs_noop() {
 #[test]
 fn remove_drops_dep_and_relocks() {
     let fixture = ModuleFixture::with_local_dep_added();
-    let output = sprocket(&["module", "remove", "utils"])
+    let output = sprocket(&["dev", "module", "remove", "utils"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module remove");
+        .expect("failed to run sprocket dev module remove");
 
     assert!(
         output.status.success(),
@@ -456,10 +464,10 @@ fn remove_leaves_manifest_untouched_when_relock_fails() {
     .unwrap();
     let manifest_before = fs::read(root.join("module.json")).unwrap();
 
-    let output = sprocket(&["module", "remove", "drop"])
+    let output = sprocket(&["dev", "module", "remove", "drop"])
         .current_dir(&root)
         .output()
-        .expect("failed to run sprocket module remove");
+        .expect("failed to run sprocket dev module remove");
     assert!(
         !output.status.success(),
         "command unexpectedly succeeded: {}",
@@ -487,6 +495,7 @@ fn add_new_signer_matrix_respects_trust_mode() {
         let mut command = sprocket_with_config(
             fixture.config_path(),
             &[
+                "dev",
                 "module",
                 "add",
                 "tasks",
@@ -525,6 +534,7 @@ fn add_new_signer_matrix_respects_trust_mode() {
 fn add_rejects_conflicting_selector_flags() {
     let dir = tempfile::tempdir().unwrap();
     let output = sprocket(&[
+        "dev",
         "module",
         "add",
         "https://example.com/org/repo",
@@ -549,10 +559,16 @@ fn add_rejects_scp_style_git_urls() {
         r#"{"name":"demo","license":"MIT"}"#,
     )
     .unwrap();
-    let output = sprocket(&["module", "add", "git@github.com:org/repo.git", "--no-lock"])
-        .current_dir(dir.path())
-        .output()
-        .expect("failed to run sprocket");
+    let output = sprocket(&[
+        "dev",
+        "module",
+        "add",
+        "git@github.com:org/repo.git",
+        "--no-lock",
+    ])
+    .current_dir(dir.path())
+    .output()
+    .expect("failed to run sprocket");
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(

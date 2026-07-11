@@ -1,4 +1,4 @@
-//! `sprocket module add`.
+//! `sprocket dev module add`.
 
 use std::path::PathBuf;
 
@@ -32,7 +32,7 @@ use crate::commands::module::write_manifest_value;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
-/// Arguments to `sprocket module add`.
+/// Arguments to `sprocket dev module add`.
 #[derive(Parser, Debug)]
 #[command(disable_version_flag = true)]
 pub struct Args {
@@ -83,13 +83,13 @@ pub struct Args {
     pub locator: Locator,
 }
 
-/// Runs `sprocket module add`.
+/// Runs `sprocket dev module add`.
 pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         no_lock = args.no_lock,
         has_path = args.path.is_some(),
         selector = selector_arg_kind(&args),
-        "starting `sprocket module add`"
+        "starting `sprocket dev module add`"
     );
     let (name, source_arg) = dependency_name_and_source(&args)?;
     let project = discover(&args.locator)?;

@@ -1,4 +1,5 @@
-//! Integration tests for `sprocket module init` and related scaffolding checks.
+//! Integration tests for `sprocket dev module init` and related scaffolding
+//! checks.
 
 use std::fs;
 
@@ -9,7 +10,7 @@ use crate::fixtures::*;
 #[test]
 fn init_scaffolds_a_parseable_module() {
     let dir = tempfile::tempdir().unwrap();
-    let output = sprocket(&["module", "init", "--name", "demo"])
+    let output = sprocket(&["dev", "module", "init", "--name", "demo"])
         .current_dir(dir.path())
         .output()
         .expect("failed to run sprocket");
@@ -70,7 +71,7 @@ fn init_preserves_existing_scaffold_files() {
     fs::write(&readme, "# custom\n").unwrap();
     fs::write(&gitignore, "target/\n").unwrap();
 
-    let output = sprocket(&["module", "init", "--name", "demo"])
+    let output = sprocket(&["dev", "module", "init", "--name", "demo"])
         .current_dir(dir.path())
         .output()
         .expect("failed to run sprocket");
@@ -101,7 +102,7 @@ fn module_commands_reject_missing_manifest_path() {
     .unwrap();
     let missing = dir.path().join("nope").join("module.json");
     let missing = missing.to_string_lossy().into_owned();
-    let output = sprocket(&["module", "list", "--manifest-path", &missing])
+    let output = sprocket(&["dev", "module", "list", "--manifest-path", &missing])
         .current_dir(dir.path())
         .output()
         .expect("failed to run sprocket");

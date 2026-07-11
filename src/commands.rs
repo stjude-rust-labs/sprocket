@@ -130,10 +130,6 @@ pub enum Commands {
     /// the task or workflow.
     Validate(validate::Args),
 
-    /// Create and manage WDL modules.
-    #[command(subcommand)]
-    Module(module::ModuleCommands),
-
     /// Developmental and experimental commands.
     #[command(subcommand)]
     Dev(DevCommands),
@@ -147,6 +143,9 @@ pub enum DevCommands {
     Doc(doc::Args),
     /// Locks Docker images to a sha256 digest.
     Lock(lock::Args),
+    /// Create and manage WDL modules.
+    #[command(subcommand)]
+    Module(module::ModuleCommands),
     /// Run-management server commands (start, submit, status, inspect, cancel,
     /// retry).
     Server(server::Args),

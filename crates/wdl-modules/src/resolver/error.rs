@@ -94,8 +94,8 @@ pub enum ResolverError {
     },
 
     /// A dependency is not present in the lockfile. Run
-    /// `sprocket module lock` to update it.
-    #[error("`{dep}` is not in `module-lock.json`; run `sprocket module lock` to update")]
+    /// `sprocket dev module lock` to update it.
+    #[error("`{dep}` is not in `module-lock.json`; run `sprocket dev module lock` to update")]
     NotInLockfile {
         /// The missing dependency.
         dep: String,
@@ -103,16 +103,17 @@ pub enum ResolverError {
 
     /// A locked Git dependency has not been fetched into the cache yet.
     #[cfg(feature = "git-resolver")]
-    #[error("`{dep}` is not fetched in the module cache; run `sprocket module fetch`")]
+    #[error("`{dep}` is not fetched in the module cache; run `sprocket dev module fetch`")]
     NotFetched {
         /// The dependency that is missing from cache.
         dep: String,
     },
 
     /// The manifest source for a dependency does not match the
-    /// lockfile source. Run `sprocket module lock` to update.
+    /// lockfile source. Run `sprocket dev module lock` to update.
     #[error(
-        "`{dep}` manifest source differs from the lockfile; run `sprocket module lock` to update"
+        "`{dep}` manifest source differs from the lockfile; run `sprocket dev module lock` to \
+         update"
     )]
     LockfileSourceMismatch {
         /// The dependency whose source changed.
@@ -466,7 +467,7 @@ fn format_versions(versions: &[Version]) -> String {
 /// Renders the `module trust all` command hint for a changed signer.
 fn trust_all_hint(observed: &VerifyingKey, identity: Option<&SignerIdentity>) -> String {
     let key = render_signer(observed, identity);
-    format!("{key}; run `sprocket module trust all` to accept signer trust changes")
+    format!("{key}; run `sprocket dev module trust all` to accept signer trust changes")
 }
 
 /// Renders a signer key with optional identity metadata.
@@ -570,6 +571,6 @@ mod tests {
         assert!(message.contains(
             "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIX5S41sfLWGBzdeYMeIAT8E96dtk+ymT4WqiY7oq+21"
         ));
-        assert!(message.contains("sprocket module trust all"));
+        assert!(message.contains("sprocket dev module trust all"));
     }
 }

@@ -1,4 +1,4 @@
-//! `sprocket module cache`.
+//! `sprocket dev module cache`.
 
 use std::io::ErrorKind;
 use std::path::Path;
@@ -20,14 +20,14 @@ use crate::commands::module::trace_project;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
-/// Subcommands of `sprocket module cache`.
+/// Subcommands of `sprocket dev module cache`.
 #[derive(Subcommand, Debug)]
 pub enum CacheCommands {
     /// Remove cached modules.
     Clean(Args),
 }
 
-/// Arguments to `sprocket module cache clean`.
+/// Arguments to `sprocket dev module cache clean`.
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Remove every module from the cache instead of this module's lock tree.
@@ -39,16 +39,16 @@ pub struct Args {
     pub locator: Locator,
 }
 
-/// Runs `sprocket module cache`.
+/// Runs `sprocket dev module cache`.
 pub async fn cache(command: CacheCommands, config: Config, printer: Printer) -> CommandResult<()> {
     match command {
         CacheCommands::Clean(args) => clean(args, config, printer).await,
     }
 }
 
-/// Runs `sprocket module cache clean`.
+/// Runs `sprocket dev module cache clean`.
 pub async fn clean(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
-    tracing::trace!(all = args.all, "starting `sprocket module cache clean`");
+    tracing::trace!(all = args.all, "starting `sprocket dev module cache clean`");
     let cache_root = config
         .modules
         .cache_path

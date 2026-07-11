@@ -1,4 +1,4 @@
-//! Integration tests for `sprocket module` commands.
+//! Integration tests for `sprocket dev module` commands.
 
 #[path = "module/fixtures.rs"]
 mod fixtures;

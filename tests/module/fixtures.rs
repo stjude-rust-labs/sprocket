@@ -1,4 +1,4 @@
-//! Shared fixtures and helpers for the `sprocket module` integration tests.
+//! Shared fixtures and helpers for the `sprocket dev module` integration tests.
 
 use std::fs;
 use std::io::Write as _;
@@ -130,10 +130,10 @@ impl ModuleFixture {
 
     pub(crate) fn with_local_dep_added() -> Self {
         let fixture = Self::with_local_dep();
-        let output = sprocket(&["module", "add", "utils", "../dep"])
+        let output = sprocket(&["dev", "module", "add", "utils", "../dep"])
             .current_dir(fixture.consumer())
             .output()
-            .expect("failed to run sprocket module add");
+            .expect("failed to run sprocket dev module add");
         assert!(
             output.status.success(),
             "command failed {status}: {stderr}",
@@ -522,7 +522,7 @@ pub(crate) fn stage_update_transition(transition: SignerTransition) -> (GitFixtu
 
     let lock = sprocket_with_config(
         fixture.config_path(),
-        &["module", "lock", "--trust-mode", "auto"],
+        &["dev", "module", "lock", "--trust-mode", "auto"],
     )
     .current_dir(&consumer)
     .output()
@@ -571,7 +571,7 @@ pub(crate) fn stage_upgrade_transition(transition: SignerTransition) -> (GitFixt
 
     let lock = sprocket_with_config(
         fixture.config_path(),
-        &["module", "lock", "--trust-mode", "auto"],
+        &["dev", "module", "lock", "--trust-mode", "auto"],
     )
     .current_dir(&consumer)
     .output()

@@ -1,5 +1,5 @@
-//! Integration tests for `sprocket module tree`, `list`, `fetch`, `cache`, and
-//! `check`.
+//! Integration tests for `sprocket dev module tree`, `list`, `fetch`, `cache`,
+//! and `check`.
 
 use std::fs;
 
@@ -8,10 +8,10 @@ use crate::fixtures::*;
 #[test]
 fn tree_prints_dependency() {
     let fixture = ModuleFixture::with_local_dep_added();
-    let output = sprocket(&["module", "tree"])
+    let output = sprocket(&["dev", "module", "tree"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module tree");
+        .expect("failed to run sprocket dev module tree");
     assert!(
         output.status.success(),
         "command failed {status}: {stderr}",
@@ -26,26 +26,26 @@ fn tree_prints_dependency() {
 #[test]
 fn tree_without_lockfile_errors() {
     let fixture = ModuleFixture::with_local_dep();
-    let output = sprocket(&["module", "tree"])
+    let output = sprocket(&["dev", "module", "tree"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module tree");
+        .expect("failed to run sprocket dev module tree");
     assert!(
         !output.status.success(),
         "command unexpectedly succeeded: {}",
         String::from_utf8_lossy(&output.stdout)
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("sprocket module lock"));
+    assert!(stderr.contains("sprocket dev module lock"));
 }
 
 #[test]
 fn list_prints_dependency() {
     let fixture = ModuleFixture::with_local_dep_added();
-    let output = sprocket(&["module", "list"])
+    let output = sprocket(&["dev", "module", "list"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module list");
+        .expect("failed to run sprocket dev module list");
     assert!(
         output.status.success(),
         "command failed {status}: {stderr}",
@@ -61,17 +61,17 @@ fn list_prints_dependency() {
 #[test]
 fn list_without_lockfile_errors() {
     let fixture = ModuleFixture::with_local_dep();
-    let output = sprocket(&["module", "list"])
+    let output = sprocket(&["dev", "module", "list"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module list");
+        .expect("failed to run sprocket dev module list");
     assert!(
         !output.status.success(),
         "command unexpectedly succeeded: {}",
         String::from_utf8_lossy(&output.stdout)
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("sprocket module lock"));
+    assert!(stderr.contains("sprocket dev module lock"));
 }
 
 #[test]
@@ -123,7 +123,7 @@ fn check_warns_on_lock_drift() {
     );
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("out of date"));
-    assert!(stderr.contains("sprocket module lock"));
+    assert!(stderr.contains("sprocket dev module lock"));
 }
 
 #[test]
@@ -138,10 +138,10 @@ fn check_does_not_warn_on_current_branch_dependency_lock() {
         ),
     );
 
-    let lock = sprocket_with_config(fixture.config_path(), &["module", "lock"])
+    let lock = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         lock.status.success(),
         "command failed {status}: {stderr}",
@@ -174,7 +174,7 @@ fn check_does_not_warn_on_current_branch_dependency_lock() {
 fn cache_clean_all_works_outside_a_module() {
     let dir = tempfile::tempdir().unwrap();
     let home = isolated_home(dir.path(), "home-global-cache");
-    let mut command = sprocket(&["module", "cache", "clean", "--all"]);
+    let mut command = sprocket(&["dev", "module", "cache", "clean", "--all"]);
     command.current_dir(dir.path());
     use_home(&mut command, &home);
     let output = command.output().expect("failed to run sprocket");
@@ -195,10 +195,10 @@ fn fetch_populates_cache_then_verify_succeeds() {
         &format!(r#"    "tasks": {{ "git": "{repo_url}", "version": "^1.0", "path": "tasks" }}"#),
     );
 
-    let lock = sprocket_with_config(fixture.config_path(), &["module", "lock"])
+    let lock = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         lock.status.success(),
         "command failed {status}: {stderr}",
@@ -208,10 +208,10 @@ fn fetch_populates_cache_then_verify_succeeds() {
 
     fs::remove_dir_all(fixture.cache_path()).unwrap();
 
-    let fetch = sprocket_with_config(fixture.config_path(), &["module", "fetch"])
+    let fetch = sprocket_with_config(fixture.config_path(), &["dev", "module", "fetch"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module fetch");
+        .expect("failed to run sprocket dev module fetch");
     assert!(
         fetch.status.success(),
         "command failed {status}: {stderr}",
@@ -220,10 +220,10 @@ fn fetch_populates_cache_then_verify_succeeds() {
     );
     assert!(String::from_utf8_lossy(&fetch.stdout).contains("Fetched 1 dependency"));
 
-    let second_fetch = sprocket_with_config(fixture.config_path(), &["module", "fetch"])
+    let second_fetch = sprocket_with_config(fixture.config_path(), &["dev", "module", "fetch"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module fetch");
+        .expect("failed to run sprocket dev module fetch");
     assert!(
         second_fetch.status.success(),
         "command failed {status}: {stderr}",
@@ -232,10 +232,10 @@ fn fetch_populates_cache_then_verify_succeeds() {
     );
     assert!(String::from_utf8_lossy(&second_fetch.stdout).contains("Fetched 0 dependencies"));
 
-    let verify = sprocket_with_config(fixture.config_path(), &["module", "verify"])
+    let verify = sprocket_with_config(fixture.config_path(), &["dev", "module", "verify"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module verify");
+        .expect("failed to run sprocket dev module verify");
     assert!(
         verify.status.success(),
         "command failed {status}: {stderr}",
@@ -253,16 +253,16 @@ fn fetch_without_lockfile_errors() {
         &format!(r#"    "tasks": {{ "git": "{repo_url}", "version": "^1.0", "path": "tasks" }}"#),
     );
 
-    let fetch = sprocket_with_config(fixture.config_path(), &["module", "fetch"])
+    let fetch = sprocket_with_config(fixture.config_path(), &["dev", "module", "fetch"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module fetch");
+        .expect("failed to run sprocket dev module fetch");
     assert!(
         !fetch.status.success(),
         "command unexpectedly succeeded: {}",
         String::from_utf8_lossy(&fetch.stdout)
     );
-    assert!(String::from_utf8_lossy(&fetch.stderr).contains("sprocket module lock"));
+    assert!(String::from_utf8_lossy(&fetch.stderr).contains("sprocket dev module lock"));
 }
 
 #[test]
@@ -274,10 +274,10 @@ fn cache_clean_default_removes_current_lock_tree_only() {
         &format!(r#"    "tasks": {{ "git": "{repo_url}", "version": "^1.0", "path": "tasks" }}"#),
     );
 
-    let lock = sprocket_with_config(fixture.config_path(), &["module", "lock"])
+    let lock = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         lock.status.success(),
         "command failed {status}: {stderr}",
@@ -292,10 +292,10 @@ fn cache_clean_default_removes_current_lock_tree_only() {
     fs::create_dir_all(&unrelated).unwrap();
     fs::write(unrelated.join("sentinel.txt"), "keep").unwrap();
 
-    let clean = sprocket_with_config(fixture.config_path(), &["module", "cache", "clean"])
+    let clean = sprocket_with_config(fixture.config_path(), &["dev", "module", "cache", "clean"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module cache clean");
+        .expect("failed to run sprocket dev module cache clean");
     assert!(
         clean.status.success(),
         "command failed {status}: {stderr}",
@@ -313,16 +313,16 @@ fn cache_clean_default_removes_current_lock_tree_only() {
         "small caches must not be rounded up to GiB: {stdout}"
     );
 
-    let verify = sprocket_with_config(fixture.config_path(), &["module", "verify"])
+    let verify = sprocket_with_config(fixture.config_path(), &["dev", "module", "verify"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module verify");
+        .expect("failed to run sprocket dev module verify");
     assert!(
         !verify.status.success(),
         "command unexpectedly succeeded: {}",
         String::from_utf8_lossy(&verify.stdout)
     );
-    assert!(String::from_utf8_lossy(&verify.stderr).contains("sprocket module fetch"));
+    assert!(String::from_utf8_lossy(&verify.stderr).contains("sprocket dev module fetch"));
 }
 
 #[test]
@@ -334,10 +334,10 @@ fn cache_clean_all_removes_entire_cache() {
         &format!(r#"    "tasks": {{ "git": "{repo_url}", "version": "^1.0", "path": "tasks" }}"#),
     );
 
-    let lock = sprocket_with_config(fixture.config_path(), &["module", "lock"])
+    let lock = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         lock.status.success(),
         "command failed {status}: {stderr}",
@@ -354,11 +354,11 @@ fn cache_clean_all_removes_entire_cache() {
 
     let clean = sprocket_with_config(
         fixture.config_path(),
-        &["module", "cache", "clean", "--all"],
+        &["dev", "module", "cache", "clean", "--all"],
     )
     .current_dir(&consumer)
     .output()
-    .expect("failed to run sprocket module cache clean --all");
+    .expect("failed to run sprocket dev module cache clean --all");
     assert!(
         clean.status.success(),
         "command failed {status}: {stderr}",
@@ -375,12 +375,12 @@ fn cache_clean_all_removes_entire_cache() {
 
 #[test]
 fn module_clean_top_level_command_is_removed() {
-    let output = sprocket(&["module", "clean"])
+    let output = sprocket(&["dev", "module", "clean"])
         .output()
-        .expect("failed to run sprocket module clean");
+        .expect("failed to run sprocket dev module clean");
     assert!(
         !output.status.success(),
-        "`sprocket module clean` unexpectedly succeeded"
+        "`sprocket dev module clean` unexpectedly succeeded"
     );
     assert!(String::from_utf8_lossy(&output.stderr).contains("unrecognized subcommand"));
 }

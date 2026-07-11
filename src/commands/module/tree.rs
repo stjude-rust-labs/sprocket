@@ -1,4 +1,4 @@
-//! `sprocket module tree` and `sprocket module list`.
+//! `sprocket dev module tree` and `sprocket dev module list`.
 
 use std::collections::BTreeSet;
 
@@ -15,7 +15,7 @@ use crate::commands::module::require_lockfile;
 use crate::commands::module::trace_project;
 use crate::config::Config;
 
-/// Arguments to `sprocket module tree`.
+/// Arguments to `sprocket dev module tree`.
 #[derive(Parser, Debug)]
 pub struct TreeArgs {
     /// Maximum depth to print (`0` prints only the root module).
@@ -27,7 +27,7 @@ pub struct TreeArgs {
     pub locator: Locator,
 }
 
-/// Arguments to `sprocket module list`.
+/// Arguments to `sprocket dev module list`.
 #[derive(Parser, Debug)]
 pub struct ListArgs {
     /// Include transitive dependencies.
@@ -39,9 +39,9 @@ pub struct ListArgs {
     pub locator: Locator,
 }
 
-/// Runs `sprocket module tree`.
+/// Runs `sprocket dev module tree`.
 pub async fn tree(args: TreeArgs, _config: Config) -> CommandResult<()> {
-    tracing::trace!(depth = ?args.depth, "starting `sprocket module tree`");
+    tracing::trace!(depth = ?args.depth, "starting `sprocket dev module tree`");
     let project = discover(&args.locator)?;
     trace_project("module tree", &project);
     let lock = require_lockfile(&project)?;
@@ -60,9 +60,9 @@ pub async fn tree(args: TreeArgs, _config: Config) -> CommandResult<()> {
     Ok(())
 }
 
-/// Runs `sprocket module list`.
+/// Runs `sprocket dev module list`.
 pub async fn list(args: ListArgs, _config: Config) -> CommandResult<()> {
-    tracing::trace!(all = args.all, "starting `sprocket module list`");
+    tracing::trace!(all = args.all, "starting `sprocket dev module list`");
     let project = discover(&args.locator)?;
     trace_project("module list", &project);
     let lock = require_lockfile(&project)?;

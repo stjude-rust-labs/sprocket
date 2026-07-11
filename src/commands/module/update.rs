@@ -1,4 +1,4 @@
-//! `sprocket module update`.
+//! `sprocket dev module update`.
 
 use std::collections::BTreeSet;
 
@@ -25,7 +25,7 @@ use crate::commands::module::write_lockfile;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
-/// Arguments to `sprocket module update`.
+/// Arguments to `sprocket dev module update`.
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Dependency aliases to update. Empty updates all dependencies.
@@ -44,12 +44,12 @@ pub struct Args {
     pub locator: Locator,
 }
 
-/// Runs `sprocket module update`.
+/// Runs `sprocket dev module update`.
 pub async fn update(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         dry_run = args.dry_run,
         requested = args.names.len(),
-        "starting `sprocket module update`"
+        "starting `sprocket dev module update`"
     );
     let project = discover(&args.locator)?;
     trace_project("module update", &project);

@@ -1,4 +1,4 @@
-//! `sprocket module lock`.
+//! `sprocket dev module lock`.
 
 use clap::Parser;
 use wdl_modules::resolver::RelockStats;
@@ -16,7 +16,7 @@ use crate::commands::module::write_lockfile;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
-/// Arguments to `sprocket module lock`.
+/// Arguments to `sprocket dev module lock`.
 #[derive(Parser, Debug)]
 pub struct Args {
     /// Fail if `module-lock.json` is missing or out of date.
@@ -36,12 +36,12 @@ pub struct Args {
     pub locator: Locator,
 }
 
-/// Runs `sprocket module lock`.
+/// Runs `sprocket dev module lock`.
 pub async fn lock(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
     tracing::trace!(
         locked = args.locked,
         dry_run = args.dry_run,
-        "starting `sprocket module lock`"
+        "starting `sprocket dev module lock`"
     );
     let project = discover(&args.locator)?;
     trace_project("module lock", &project);

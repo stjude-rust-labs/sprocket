@@ -1,4 +1,4 @@
-//! Integration tests for `sprocket module lock`.
+//! Integration tests for `sprocket dev module lock`.
 
 use std::fs;
 
@@ -20,7 +20,7 @@ fn lock_prompts_before_trusting_new_signer_key() {
         ),
     );
 
-    let mut lock_command = sprocket_with_config(fixture.config_path(), &["module", "lock"]);
+    let mut lock_command = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"]);
     lock_command.current_dir(&consumer);
     use_home(&mut lock_command, &home);
     let lock = output_with_stdin(lock_command, "\n");
@@ -36,12 +36,12 @@ fn lock_prompts_before_trusting_new_signer_key() {
     assert!(!consumer.join("module-lock.json").exists());
 
     let mut list_command =
-        sprocket_with_config(fixture.config_path(), &["module", "trust", "list"]);
+        sprocket_with_config(fixture.config_path(), &["dev", "module", "trust", "list"]);
     list_command.current_dir(&consumer);
     use_home(&mut list_command, &home);
     let list = list_command
         .output()
-        .expect("failed to run sprocket module trust list");
+        .expect("failed to run sprocket dev module trust list");
     assert!(
         list.status.success(),
         "command failed {status}: {stderr}",
@@ -64,7 +64,7 @@ fn lock_accepts_new_signer_key_when_confirmed() {
         ),
     );
 
-    let mut lock_command = sprocket_with_config(fixture.config_path(), &["module", "lock"]);
+    let mut lock_command = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"]);
     lock_command.current_dir(&consumer);
     use_home(&mut lock_command, &home);
     let lock = output_with_stdin(lock_command, "y\n");
@@ -85,12 +85,12 @@ fn lock_accepts_new_signer_key_when_confirmed() {
         .to_openssh();
 
     let mut list_command =
-        sprocket_with_config(fixture.config_path(), &["module", "trust", "list"]);
+        sprocket_with_config(fixture.config_path(), &["dev", "module", "trust", "list"]);
     list_command.current_dir(&consumer);
     use_home(&mut list_command, &home);
     let list = list_command
         .output()
-        .expect("failed to run sprocket module trust list");
+        .expect("failed to run sprocket dev module trust list");
     assert!(
         list.status.success(),
         "command failed {status}: {stderr}",
@@ -114,12 +114,12 @@ fn lock_auto_trusts_new_signer_key_without_prompting() {
         ),
     );
 
-    let mut lock_command = sprocket_with_config(fixture.config_path(), &["module", "lock"]);
+    let mut lock_command = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"]);
     lock_command.current_dir(&consumer);
     use_home(&mut lock_command, &home);
     let lock = lock_command
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         lock.status.success(),
         "command failed {status}: {stderr}",
@@ -137,12 +137,12 @@ fn lock_auto_trusts_new_signer_key_without_prompting() {
         .expect("locked dependency should record a signer")
         .to_openssh();
     let mut list_command =
-        sprocket_with_config(fixture.config_path(), &["module", "trust", "list"]);
+        sprocket_with_config(fixture.config_path(), &["dev", "module", "trust", "list"]);
     list_command.current_dir(&consumer);
     use_home(&mut list_command, &home);
     let list = list_command
         .output()
-        .expect("failed to run sprocket module trust list");
+        .expect("failed to run sprocket dev module trust list");
     assert!(String::from_utf8_lossy(&list.stdout).contains(&signer));
 }
 
@@ -160,12 +160,12 @@ fn lock_tofu_trusts_new_signer_key_without_prompting() {
         ),
     );
 
-    let mut lock_command = sprocket_with_config(fixture.config_path(), &["module", "lock"]);
+    let mut lock_command = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"]);
     lock_command.current_dir(&consumer);
     use_home(&mut lock_command, &home);
     let lock = lock_command
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         lock.status.success(),
         "command failed {status}: {stderr}",
@@ -190,13 +190,13 @@ fn lock_trust_mode_flag_auto_trusts_without_prompting() {
 
     let mut lock_command = sprocket_with_config(
         fixture.config_path(),
-        &["module", "lock", "--trust-mode", "auto"],
+        &["dev", "module", "lock", "--trust-mode", "auto"],
     );
     lock_command.current_dir(&consumer);
     use_home(&mut lock_command, &home);
     let lock = lock_command
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         lock.status.success(),
         "command failed {status}: {stderr}",
@@ -209,10 +209,10 @@ fn lock_trust_mode_flag_auto_trusts_without_prompting() {
 #[test]
 fn lock_writes_lockfile() {
     let fixture = ModuleFixture::with_local_dep();
-    let add = sprocket(&["module", "add", "utils", "../dep", "--no-lock"])
+    let add = sprocket(&["dev", "module", "add", "utils", "../dep", "--no-lock"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module add --no-lock");
+        .expect("failed to run sprocket dev module add --no-lock");
     assert!(
         add.status.success(),
         "command failed {status}: {stderr}",
@@ -222,10 +222,10 @@ fn lock_writes_lockfile() {
 
     assert!(!fixture.consumer().join("module-lock.json").exists());
 
-    let output = sprocket(&["module", "lock"])
+    let output = sprocket(&["dev", "module", "lock"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         output.status.success(),
         "command failed {status}: {stderr}",
@@ -245,12 +245,12 @@ fn lock_writes_lockfile() {
 #[test]
 fn lock_rejects_removed_update_and_upgrade_subcommands() {
     for removed in ["update", "upgrade"] {
-        let output = sprocket(&["module", "lock", removed])
+        let output = sprocket(&["dev", "module", "lock", removed])
             .output()
-            .expect("failed to run sprocket module lock");
+            .expect("failed to run sprocket dev module lock");
         assert!(
             !output.status.success(),
-            "`sprocket module lock {removed}` unexpectedly succeeded"
+            "`sprocket dev module lock {removed}` unexpectedly succeeded"
         );
         assert!(
             String::from_utf8_lossy(&output.stderr).contains("unexpected argument"),
@@ -263,10 +263,10 @@ fn lock_rejects_removed_update_and_upgrade_subcommands() {
 #[test]
 fn lock_locked_flag_fails_on_drift() {
     let fixture = ModuleFixture::with_local_dep();
-    let add = sprocket(&["module", "add", "utils", "../dep", "--no-lock"])
+    let add = sprocket(&["dev", "module", "add", "utils", "../dep", "--no-lock"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module add --no-lock");
+        .expect("failed to run sprocket dev module add --no-lock");
     assert!(
         add.status.success(),
         "command failed {status}: {stderr}",
@@ -274,10 +274,10 @@ fn lock_locked_flag_fails_on_drift() {
         stderr = String::from_utf8_lossy(&add.stderr)
     );
 
-    let output = sprocket(&["module", "lock", "--locked"])
+    let output = sprocket(&["dev", "module", "lock", "--locked"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module lock --locked");
+        .expect("failed to run sprocket dev module lock --locked");
     assert!(
         !output.status.success(),
         "command unexpectedly succeeded: {}",
@@ -288,10 +288,10 @@ fn lock_locked_flag_fails_on_drift() {
 #[test]
 fn lock_idempotent_reports_up_to_date() {
     let fixture = ModuleFixture::with_local_dep();
-    let first = sprocket(&["module", "lock"])
+    let first = sprocket(&["dev", "module", "lock"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run first sprocket module lock");
+        .expect("failed to run first sprocket dev module lock");
     assert!(
         first.status.success(),
         "command failed {status}: {stderr}",
@@ -299,10 +299,10 @@ fn lock_idempotent_reports_up_to_date() {
         stderr = String::from_utf8_lossy(&first.stderr)
     );
 
-    let second = sprocket(&["module", "lock"])
+    let second = sprocket(&["dev", "module", "lock"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run second sprocket module lock");
+        .expect("failed to run second sprocket dev module lock");
     assert!(
         second.status.success(),
         "command failed {status}: {stderr}",
@@ -319,10 +319,10 @@ fn lock_idempotent_reports_up_to_date() {
 #[test]
 fn lock_locked_flag_succeeds_when_current() {
     let fixture = ModuleFixture::with_local_dep();
-    let first = sprocket(&["module", "lock"])
+    let first = sprocket(&["dev", "module", "lock"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         first.status.success(),
         "command failed {status}: {stderr}",
@@ -330,10 +330,10 @@ fn lock_locked_flag_succeeds_when_current() {
         stderr = String::from_utf8_lossy(&first.stderr)
     );
 
-    let locked = sprocket(&["module", "lock", "--locked"])
+    let locked = sprocket(&["dev", "module", "lock", "--locked"])
         .current_dir(fixture.consumer())
         .output()
-        .expect("failed to run sprocket module lock --locked");
+        .expect("failed to run sprocket dev module lock --locked");
     assert!(
         locked.status.success(),
         "command failed {status}: {stderr}",
@@ -366,12 +366,12 @@ fn lock_and_verify_succeed_despite_crlf_gitattributes() {
         ),
     );
 
-    let mut lock_command = sprocket_with_config(fixture.config_path(), &["module", "lock"]);
+    let mut lock_command = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"]);
     lock_command.current_dir(&consumer);
     use_home(&mut lock_command, &home);
     let lock = lock_command
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         lock.status.success(),
         "lock failed {status}: {stderr}",
@@ -379,12 +379,13 @@ fn lock_and_verify_succeed_despite_crlf_gitattributes() {
         stderr = String::from_utf8_lossy(&lock.stderr)
     );
 
-    let mut verify_command = sprocket_with_config(fixture.config_path(), &["module", "verify"]);
+    let mut verify_command =
+        sprocket_with_config(fixture.config_path(), &["dev", "module", "verify"]);
     verify_command.current_dir(&consumer);
     use_home(&mut verify_command, &home);
     let verify = verify_command
         .output()
-        .expect("failed to run sprocket module verify");
+        .expect("failed to run sprocket dev module verify");
     assert!(
         verify.status.success(),
         "verify failed {status}: {stderr}",
@@ -402,10 +403,10 @@ fn lock_resolves_file_git_dependency_with_config() {
         &format!(r#"    "tasks": {{ "git": "{repo_url}", "version": "^1.0", "path": "tasks" }}"#),
     );
 
-    let output = sprocket_with_config(fixture.config_path(), &["module", "lock"])
+    let output = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         output.status.success(),
         "command failed {status}: {stderr}",
@@ -429,10 +430,10 @@ fn lock_reports_not_a_sprocket_module_when_module_json_missing() {
         ),
     );
 
-    let output = sprocket_with_config(fixture.config_path(), &["module", "lock"])
+    let output = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"])
         .current_dir(&consumer)
         .output()
-        .expect("failed to run sprocket module lock");
+        .expect("failed to run sprocket dev module lock");
     assert!(
         !output.status.success(),
         "command unexpectedly succeeded: {}",

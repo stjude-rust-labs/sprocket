@@ -210,7 +210,7 @@ pub(crate) fn enforce_signer_trust(
             .collect::<Vec<_>>();
         anyhow::bail!(
             "refusing to update `module-lock.json`; signer trust changes require acceptance:\n  \
-             {}\n  accept signer trust changes with `sprocket module trust all`",
+             {}\n  accept signer trust changes with `sprocket dev module trust all`",
             offenders.join("\n  ")
         );
     }
