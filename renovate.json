@@ -89,13 +89,9 @@
       ]
     },
     {
-      "description": "Group all Python minor and patch updates into one PR",
+      "description": "Group all Python updates into one PR",
       "matchManagers": [
         "pep621"
-      ],
-      "matchUpdateTypes": [
-        "minor",
-        "patch"
       ],
       "groupName": "python updates",
       "rangeStrategy": "bump",
