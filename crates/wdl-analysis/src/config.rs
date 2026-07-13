@@ -2,6 +2,7 @@
 
 use std::sync::Arc;
 
+use schemars::JsonSchema;
 use toml_spanner::Context;
 use toml_spanner::Failed;
 use toml_spanner::FromToml;
@@ -225,20 +226,27 @@ struct ConfigInner {
     feature_flags: FeatureFlags,
 }
 
+/// Default value for the WDL v1.3 feature flag.
+fn default_wdl_1_3() -> bool {
+    true
+}
+
 /// A set of feature flags that can be enabled.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Toml)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Toml, JsonSchema)]
 pub struct FeatureFlags {
     /// Formerly enabled experimental WDL 1.3 features.
     ///
     /// This flag is now a no-op as WDL 1.3 is fully supported. Setting this to
     /// `false` will emit a warning.
     #[toml(default = true)]
+    #[schemars(default = "default_wdl_1_3")]
     wdl_1_3: bool,
     /// Enables experimental WDL 1.4 features.
     ///
     /// Defaults to `false`. While `false`, `wdl-analysis` reports an error for
     /// any document declaring `version 1.4`.
     #[toml(default)]
+    #[schemars(default)]
     wdl_1_4: bool,
 }
 

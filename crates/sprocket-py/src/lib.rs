@@ -24,6 +24,7 @@ mod _sprocket_bio {
 
     #[pymodule]
     mod grammar {
+        use pyo3::prelude::*;
         #[pymodule_export]
         use wdl_grammar::Diagnostic;
         #[pymodule_export]
@@ -32,6 +33,31 @@ mod _sprocket_bio {
         use wdl_grammar::Severity;
         #[pymodule_export]
         use wdl_grammar::Span;
+        #[pymodule_export]
+        use wdl_grammar::SyntaxKind;
+        // Re-exported.
+        #[pymodule_export]
+        use wdl_grammar::version::SupportedVersion;
+
+        #[pymodule]
+        mod grammar {
+            #[pymodule_export]
+            use wdl_grammar::grammar::py_document;
+        }
+
+        #[pymodule]
+        mod parser {
+            #[pymodule_export]
+            use wdl_grammar::parser::PyEvent;
+        }
+
+        #[pymodule]
+        mod version {
+            #[pymodule_export]
+            use wdl_grammar::version::SupportedVersion;
+            #[pymodule_export]
+            use wdl_grammar::version::V1;
+        }
     }
 
     /// Initializer that runs when the `_sprocket_bio` Python extension is

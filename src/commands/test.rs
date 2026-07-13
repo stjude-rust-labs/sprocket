@@ -71,6 +71,18 @@ const WORKSPACE_TEST_DIR: &str = "test";
 /// Test fixtures are located at `$WORKSPACE_TEST_DIR/$FIXTURES_DIR`
 const FIXTURES_DIR: &str = "fixtures";
 
+#[derive(Default, Debug, clap::Args)]
+#[group(required = false, multiple = true)]
+pub struct Filters {
+    /// Only run tests whose target (task/workflow) name contains the given
+    /// filter.
+    #[clap(short = 't', long, value_name = "TARGET")]
+    pub target: Option<String>,
+    /// Only run tests whose names contain the given filter.
+    #[clap(short = 'f', long, value_name = "FILTER")]
+    pub filter: Option<String>,
+}
+
 /// Arguments for the `test` subcommand.
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -95,13 +107,18 @@ pub struct Args {
     /// addition to a source file if the CWD is not the right workspace.
     #[clap(short, long)]
     pub workspace: Option<PathBuf>,
+    #[clap(flatten)]
+    pub filters: Filters,
+    /// If set, filters are matched exactly rather than by substring.
+    #[clap(long, requires = "Filters")]
+    pub exact: bool,
     /// Specific test tag that should be run.
     ///
     /// Can be repeated multiple times.
-    #[clap(short='t', long, value_name = "TAG",
+    #[clap(short='i', long, value_name = "TAG",
         action = clap::ArgAction::Append,
         num_args = 1,
-        conflicts_with="filter_tag",
+        conflicts_with="exclude_tag",
     )]
     pub include_tag: Vec<String>,
     /// Filter out any tests with a matching tag.
@@ -111,7 +128,7 @@ pub struct Args {
         action = clap::ArgAction::Append,
         num_args = 1,
     )]
-    pub filter_tag: Vec<String>,
+    pub exclude_tag: Vec<String>,
     /// Do not clean the file system of successful tests.
     ///
     /// The default behavior is to remove directories of successful tests,
@@ -183,15 +200,33 @@ fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
 
 /// Returns `true` if the test should be filtered.
 fn filter_test(
+    target: &str,
     test: &TestDefinition,
     include_tags: &HashSet<String>,
-    filter_tags: &HashSet<String>,
+    exclude_tags: &HashSet<String>,
+    target_filter: Option<&str>,
+    name_filter: Option<&str>,
+    exact: bool,
 ) -> bool {
     if !include_tags.is_empty() && !test.tags.iter().any(|t| include_tags.contains(t)) {
         return true;
     }
-    if test.tags.iter().any(|t| filter_tags.contains(t)) {
+    if test.tags.iter().any(|t| exclude_tags.contains(t)) {
         return true;
+    }
+
+    if let Some(filter) = target_filter
+        && ((exact && target != filter) || (!exact && !target.contains(filter)))
+    {
+        return true;
+    }
+
+    if let Some(filter) = name_filter {
+        if exact {
+            return &*test.name != filter;
+        }
+
+        return !test.name.contains(filter);
     }
     false
 }
@@ -440,7 +475,7 @@ impl Runner {
     async fn run(
         &self,
         documents: Vec<(&AnalysisResult, DocumentTests)>,
-        should_filter: impl Fn(&TestDefinition) -> bool,
+        should_filter: impl Fn(&str, &TestDefinition) -> bool,
         clean: bool,
         quiet: bool,
         errors: &mut Vec<Arc<anyhow::Error>>,
@@ -505,7 +540,7 @@ impl Runner {
         &self,
         analysis: &AnalysisResult,
         tests: DocumentTests,
-        should_filter: &impl Fn(&TestDefinition) -> bool,
+        should_filter: &impl Fn(&str, &TestDefinition) -> bool,
         errors: &mut Vec<Arc<anyhow::Error>>,
         all_results: &mut FullResults,
         tasks: &mut Vec<TestTask>,
@@ -538,7 +573,7 @@ impl Runner {
             let mut target_results = IndexMap::new();
 
             for test in definitions {
-                if should_filter(&test) {
+                if should_filter(&target, &test) {
                     continue;
                 }
 
@@ -926,8 +961,18 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
     };
 
     let include_tags = HashSet::from_iter(args.include_tag);
-    let filter_tags = HashSet::from_iter(args.filter_tag);
-    let should_filter = |test: &TestDefinition| filter_test(test, &include_tags, &filter_tags);
+    let exclude_tags = HashSet::from_iter(args.exclude_tag);
+    let should_filter = |target: &str, test: &TestDefinition| {
+        filter_test(
+            target,
+            test,
+            &include_tags,
+            &exclude_tags,
+            args.filters.target.as_deref(),
+            args.filters.filter.as_deref(),
+            args.exact,
+        )
+    };
     let mut errors = Vec::new();
     let mut runner_task = Box::pin(runner.run(
         documents,
@@ -994,13 +1039,15 @@ mod tests {
             source: None,
             workspace: None,
             include_tag: Vec::new(),
-            filter_tag: Vec::new(),
+            exclude_tag: Vec::new(),
             no_clean: false,
             clean_all: false,
             parallelism: None,
             fixtures_dir,
             run_dir,
             no_status: false,
+            filters: Filters::default(),
+            exact: false,
             report_mode: None,
             command: None,
         }

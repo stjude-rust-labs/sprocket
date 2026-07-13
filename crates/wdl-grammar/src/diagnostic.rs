@@ -14,7 +14,7 @@ use rowan::TextSize;
     pyo3::pyclass(
         module = "sprocket_bio.grammar",
         frozen,
-        skip_from_py_object,
+        from_py_object,
         get_all,
         str,
         eq,
@@ -590,7 +590,7 @@ mod python {
         }
 
         /// Returns a printable representation of this object.
-        fn __repr__(&self) -> String {
+        pub(crate) fn __repr__(&self) -> String {
             format!("Span({}, {})", self.start, self.len())
         }
     }

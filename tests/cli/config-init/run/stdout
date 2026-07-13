@@ -1,3 +1,5 @@
+#:schema https://raw.githubusercontent.com/stjude-rust-labs/sprocket/refs/heads/main/jsonschemas/sprocket.toml.json
+
 [format]
 indent = 4
 max_line_length = 90
