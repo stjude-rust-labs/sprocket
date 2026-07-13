@@ -1,6 +1,7 @@
 ## This is a test of the `DeprecatedPlaceholder` lint.
 
-#@ except: EmptyOutputs, ExpectedRuntimeKeys, MetaDescription, ShellCheck
+#@ except: BashSetSyntax, EmptyOutputs, ExpectedRuntimeKeys, MetaDescription
+#@ except: ShellCheck
 
 version 1.1
 
