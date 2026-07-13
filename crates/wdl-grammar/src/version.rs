@@ -9,6 +9,18 @@ use strum::IntoEnumIterator;
 // NOTE: it is expected that this enumeration is in increasing order of 1.x versions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, strum::EnumIter)]
 #[non_exhaustive]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(
+        module = "sprocket_bio.grammar.version",
+        frozen,
+        from_py_object,
+        rename_all = "SCREAMING_SNAKE_CASE",
+        eq,
+        ord,
+        str
+    )
+)]
 pub enum V1 {
     /// The document version is 1.0.
     Zero,
@@ -56,6 +68,18 @@ impl FromStr for V1 {
 // NOTE: it is expected that this enumeration is in increasing order of WDL versions.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 #[non_exhaustive]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(
+        module = "sprocket_bio.grammar.version",
+        frozen,
+        from_py_object,
+        rename_all = "SCREAMING_SNAKE_CASE",
+        eq,
+        ord,
+        str
+    )
+)]
 pub enum SupportedVersion {
     /// The document version is 1.x.
     V1(V1),
@@ -105,5 +129,36 @@ impl FromStr for SupportedVersion {
         }
 
         Err(format!("unsupported version `{s}`"))
+    }
+}
+
+/// Python-specific APIs.
+#[cfg(feature = "unstable-python")]
+mod python {
+    use pyo3::prelude::*;
+
+    use super::*;
+
+    #[pymethods]
+    impl SupportedVersion {
+        /// Returns `true` if the other version has the same major version as
+        /// this one.
+        ///
+        /// ```python
+        /// >>> from sprocket_bio.grammar.version import SupportedVersion, V1
+        /// >>> SupportedVersion.V1(V1.ZERO).has_same_major_version(SupportedVersion.V1(V1.TWO))
+        /// True
+        /// ```
+        #[pyo3(name = "has_same_major_version")]
+        fn py_has_same_major_version(&self, other: Bound<'_, SupportedVersion>) -> bool {
+            self.has_same_major_version(*other.get())
+        }
+
+        /// Returns a printable representation of this object.
+        fn __repr__(&self) -> String {
+            match self {
+                Self::V1(v1) => format!("SupportedVersion.V1({})", v1.__pyo3__repr__()),
+            }
+        }
     }
 }

@@ -1,0 +1,1 @@
+dev test -t say_hello -qq --no-status
