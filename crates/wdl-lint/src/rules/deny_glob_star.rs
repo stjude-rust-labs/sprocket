@@ -9,7 +9,6 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::Expr;
@@ -128,7 +127,7 @@ impl Visitor for DenyGlobStar {
                 {
                     diagnostics.exceptable_add(
                         glob_star_diagnostic(s.span()),
-                        SyntaxElement::from(decl.inner().clone()),
+                        decl.inner(),
                         &self.exceptable_nodes(),
                     );
                 }
