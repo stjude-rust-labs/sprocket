@@ -5036,6 +5036,7 @@ dependencies = [
  "http-body-util",
  "indexmap 2.14.0",
  "indicatif",
+ "itertools 0.15.0",
  "jsonschema",
  "libc",
  "libtest-mimic",
