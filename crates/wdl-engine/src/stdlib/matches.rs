@@ -1,6 +1,5 @@
 //! Implements the `matches` function from the WDL standard library.
 
-use regex::Regex;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
 
@@ -8,6 +7,7 @@ use super::CallContext;
 use super::Callback;
 use super::Function;
 use super::Signature;
+use super::regex_cache::cached_regex;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
 
@@ -29,7 +29,7 @@ fn matches(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .coerce_argument(1, PrimitiveType::String)
         .unwrap_string();
 
-    let regex = Regex::new(pattern.as_str())
+    let regex = cached_regex(pattern.as_str())
         .map_err(|e| function_call_failed(FUNCTION_NAME, &e, context.arguments[1].span))?;
     Ok(regex.is_match(input.as_str()).into())
 }

@@ -1,6 +1,5 @@
 //! Implements the `split` function from the WDL standard library.
 
-use regex::Regex;
 use wdl_analysis::stdlib::STDLIB as ANALYSIS_STDLIB;
 use wdl_analysis::types::PrimitiveType;
 use wdl_ast::Diagnostic;
@@ -9,6 +8,7 @@ use super::CallContext;
 use super::Callback;
 use super::Function;
 use super::Signature;
+use super::regex_cache::cached_regex;
 use crate::Array;
 use crate::PrimitiveValue;
 use crate::Value;
@@ -33,7 +33,7 @@ fn split(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .coerce_argument(1, PrimitiveType::String)
         .unwrap_string();
 
-    let regex = Regex::new(delimiter.as_str())
+    let regex = cached_regex(delimiter.as_str())
         .map_err(|e| function_call_failed(FUNCTION_NAME, &e, context.arguments[1].span))?;
 
     let elements = regex
