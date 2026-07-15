@@ -544,6 +544,15 @@ pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> an
 
 /// Prints a relock change summary in cargo-style action lines.
 pub fn print_relock_summary(stats: &RelockStats, printer: Printer) {
+    print_relock_summary_with(stats, "Locked", printer);
+}
+
+/// Prints a relock summary, using `added_verb` for newly added dependencies.
+///
+/// Callers that add a dependency (such as `sprocket dev module add`) pass
+/// `"Added"` so the top-level action reads naturally; the shared default is
+/// `"Locked"`.
+pub fn print_relock_summary_with(stats: &RelockStats, added_verb: &str, printer: Printer) {
     tracing::debug!(
         kept = stats.kept,
         added = stats.added.len(),
@@ -567,7 +576,7 @@ pub fn print_relock_summary(stats: &RelockStats, printer: Printer) {
             change.selector.as_deref(),
             change.commit.as_deref(),
         );
-        printer.status("Locked", format!("`{}`{details}", change.name));
+        printer.status(added_verb, format!("`{}`{details}", change.name));
     }
 
     for change in &stats.removed {

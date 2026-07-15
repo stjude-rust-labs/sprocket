@@ -24,7 +24,7 @@ fn add_local_path_dep_edits_manifest_and_locks() {
         stderr = String::from_utf8_lossy(&output.stderr)
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.trim_end().ends_with("Locked `utils`"));
+    assert!(stdout.trim_end().ends_with("Added `utils`"));
     assert!(!stdout.contains("Adding utils ("));
 
     let manifest = fs::read(fixture.consumer().join("module.json")).unwrap();

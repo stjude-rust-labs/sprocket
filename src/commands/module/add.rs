@@ -21,7 +21,7 @@ use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::parse_manifest_value;
-use crate::commands::module::print_relock_summary;
+use crate::commands::module::print_relock_summary_with;
 use crate::commands::module::read_manifest_value;
 use crate::commands::module::resolve_relock_for_manifest;
 use crate::commands::module::set_dependency;
@@ -139,7 +139,7 @@ pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<
     if let Some(outcome) = relock {
         write_lockfile(&project, &outcome.lockfile)?;
         tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
-        print_relock_summary(&outcome.stats, printer);
+        print_relock_summary_with(&outcome.stats, "Added", printer);
     } else {
         tracing::debug!("skipped relock after adding dependency");
         printer.status("Added", format!("`{}`", name.manifest()));
