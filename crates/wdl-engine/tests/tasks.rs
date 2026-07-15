@@ -42,6 +42,7 @@ use tracing::info;
 use tracing::level_filters::LevelFilter;
 use walkdir::WalkDir;
 use wdl_analysis::Analyzer;
+use wdl_analysis::TaskRef;
 use wdl_ast::Diagnostic;
 use wdl_ast::Severity;
 use wdl_engine::Engine;
@@ -143,7 +144,9 @@ fn run_test(test: &Path, config: TestConfig) -> BoxFuture<'_, Result<()>> {
             .local_task_by_name(&name)
             .ok_or_else(|| anyhow!("document does not contain a task named `{name}`"))?;
         inputs
-            .join_paths(task, |_| Ok(std::slice::from_ref(&test_dir_path)))
+            .join_paths(TaskRef::Local(task), &|_| {
+                Ok(std::slice::from_ref(&test_dir_path))
+            })
             .await?;
 
         let mut dir = TempDir::new_in(env!("CARGO_TARGET_TMPDIR"))
