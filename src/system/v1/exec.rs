@@ -57,6 +57,7 @@ pub use config::ConfigError;
 pub use config::ConfigResult;
 pub use names::generate_run_name;
 pub use source::validate as validate_source;
+use wdl::diagnostics::Mode;
 
 /// Represents a JSON object.
 type JsonObject = serde_json::Map<String, serde_json::Value>;
@@ -339,6 +340,10 @@ pub struct RunnableExecutor {
     inputs: JsonObject,
     /// Index key for result indexing, if requested.
     index_on: Option<String>,
+    /// The diagnostic reporting mode.
+    report_mode: Mode,
+    /// Whether to colorize diagnostics.
+    colorize: bool,
 }
 
 impl RunnableExecutor {
@@ -361,6 +366,8 @@ impl RunnableExecutor {
             self.fallback_version,
             self.modules_config.clone(),
             self.feature_flags,
+            self.report_mode,
+            self.colorize,
         )
         .await
         {
@@ -579,13 +586,15 @@ pub async fn analyze_wdl_document(
     fallback_version: Option<SupportedVersion>,
     modules_config: wdl_modules::resolver::ModulesConfig,
     feature_flags: FeatureFlags,
+    report_mode: Mode,
+    colorize: bool,
 ) -> Result<AnalysisResult> {
     let results = Analysis::default()
         .add_source(source.clone())
         .fallback_version(fallback_version)
         .modules_config(modules_config)
         .feature_flags(feature_flags)
-        .run()
+        .run(report_mode, colorize)
         .await
         .map_err(|errors| {
             anyhow!(

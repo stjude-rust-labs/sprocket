@@ -2,7 +2,8 @@
 ## in a `parameter_meta` section, and for ensuring that
 ## the order is the same as `input` section.
 
-#@ except: EmptyOutputs, InputName, MetaDescription, RequirementsSection
+#@ except: BashSetSyntax, EmptyOutputs, InputName, MetaDescription
+#@ except: RequirementsSection
 
 version 1.3
 

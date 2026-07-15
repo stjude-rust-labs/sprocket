@@ -8,6 +8,11 @@ commit_hash = "60c4e506136dbebc687c3db7b1e8d3a745f488c8"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
+message = "testrun.wdl:54:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/testrun.wdl/#L54"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
 message = "testrun.wdl:57:5: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/testrun.wdl/#L57"
 
@@ -30,6 +35,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/testrun.wdl"
 message = "testrun.wdl:98:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/testrun.wdl/#L98"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
+message = "ww-annotsv.wdl:53:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annotsv/ww-annotsv.wdl/#L53"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-annotsv/ww-annotsv.wdl"
@@ -90,6 +100,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-annovar/testrun.wdl"
 message = "testrun.wdl:94:45: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/testrun.wdl/#L94"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-annovar/ww-annovar.wdl"
+message = "ww-annovar.wdl:39:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-annovar/ww-annovar.wdl/#L39"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-aws-sso/testrun.wdl"
@@ -223,8 +238,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
+message = "testrun.wdl:50:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/testrun.wdl/#L50"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `bcftools_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/testrun.wdl/#L6"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
+message = "ww-bcftools.wdl:49:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bcftools/ww-bcftools.wdl/#L49"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
@@ -245,6 +270,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `bedparse_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedparse/testrun.wdl/#L6"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/ww-bedparse.wdl"
+message = "ww-bedparse.wdl:36:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedparse/ww-bedparse.wdl/#L36"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedparse/ww-bedparse.wdl"
@@ -282,6 +312,16 @@ message = "testrun.wdl:6:10: note[MetaSections]: workflow `bedtools_example` is 
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/testrun.wdl/#L6"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/testrun.wdl"
+message = "testrun.wdl:92:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/testrun.wdl/#L92"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
+message = "ww-bedtools.wdl:141:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/ww-bedtools.wdl/#L141"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
 message = "ww-bedtools.wdl:162:24: note[DeprecatedPlaceholder]: use of the deprecated `${}` placeholder option"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/ww-bedtools.wdl/#L162"
@@ -293,8 +333,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
+message = "ww-bedtools.wdl:35:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/ww-bedtools.wdl/#L35"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
 message = "ww-bedtools.wdl:51:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/ww-bedtools.wdl/#L51"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
+message = "ww-bedtools.wdl:87:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bedtools/ww-bedtools.wdl/#L87"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
@@ -318,6 +368,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
+message = "testrun.wdl:85:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L85"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bwa/testrun.wdl"
 message = "testrun.wdl:91:16: note[ShellCheck]: Quote to prevent word splitting/globbing, or split robustly with mapfile or read -a."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/testrun.wdl/#L91"
 
@@ -333,8 +388,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bwa/ww-bwa.wdl"
+message = "ww-bwa.wdl:32:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/ww-bwa.wdl/#L32"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bwa/ww-bwa.wdl"
 message = "ww-bwa.wdl:48:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/ww-bwa.wdl/#L48"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-bwa/ww-bwa.wdl"
+message = "ww-bwa.wdl:94:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-bwa/ww-bwa.wdl/#L94"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/testrun.wdl"
@@ -345,6 +410,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:108:5: note[MatchingOutputMeta]: `outputs` section of `meta` for the task `run_cnvkit` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L108"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
+message = "ww-cnvkit.wdl:142:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L142"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
@@ -395,6 +465,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:18:3: note[ParameterMetaMatched]: parameter metadata in task `create_reference` is out of order"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L18"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
+message = "ww-cnvkit.wdl:41:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-cnvkit/ww-cnvkit.wdl/#L41"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
@@ -512,9 +587,24 @@ message = "testrun.wdl:6:10: note[MetaSections]: workflow `deseq2_example` is mi
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/testrun.wdl/#L6"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/testrun.wdl"
+message = "testrun.wdl:74:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/testrun.wdl/#L74"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
+message = "ww-deseq2.wdl:100:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/ww-deseq2.wdl/#L100"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
 message = "ww-deseq2.wdl:121:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/ww-deseq2.wdl/#L121"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
+message = "ww-deseq2.wdl:42:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-deseq2/ww-deseq2.wdl/#L42"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deseq2/ww-deseq2.wdl"
@@ -543,6 +633,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
+message = "ww-fastqc.wdl:40:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L40"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-fastqc/ww-fastqc.wdl"
 message = "ww-fastqc.wdl:77:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-fastqc/ww-fastqc.wdl/#L77"
 
@@ -565,6 +660,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
 message = "testrun.wdl:294:5: note[TodoComment]: remaining `TODO` item found"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L294"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
+message = "testrun.wdl:343:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/testrun.wdl/#L343"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/testrun.wdl"
@@ -708,6 +808,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:1124:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1124"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1128:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1128"
 
@@ -728,6 +833,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:1180:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1180"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1185:7: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1185"
 
@@ -743,13 +853,28 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:1243:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1243"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1275:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L1275"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:147:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L147"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:194:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L194"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:239:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L239"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -763,8 +888,23 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:313:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L313"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:32:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L32"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:389:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L389"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:428:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L428"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -783,8 +923,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:533:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L533"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:575:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L575"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:619:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L619"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -793,8 +943,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:694:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L694"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:735:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L735"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:771:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L771"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -808,6 +968,16 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:818:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L818"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:81:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L81"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:822:15: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L822"
 
@@ -815,6 +985,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:832:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L832"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:876:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L876"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
@@ -832,9 +1007,19 @@ message = "ww-gatk.wdl:941:13: note[ContainerUri]: container URI uses a mutable 
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L941"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
+message = "ww-gatk.wdl:986:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gatk/ww-gatk.wdl/#L986"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
 message = "ww-gdc.wdl:117:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L117"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
+message = "ww-gdc.wdl:155:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L155"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
@@ -858,6 +1043,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
+message = "ww-gdc.wdl:40:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L40"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-gdc/ww-gdc.wdl"
 message = "ww-gdc.wdl:54:11: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-gdc/ww-gdc.wdl/#L54"
 
@@ -873,6 +1063,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
+message = "testrun.wdl:107:3: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/testrun.wdl/#L107"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
 message = "testrun.wdl:12:10: note[MetaSections]: workflow `ichorcna_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/testrun.wdl/#L12"
 
@@ -885,6 +1080,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
 message = "testrun.wdl:78:5: note[TodoComment]: remaining `TODO` item found"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/testrun.wdl/#L78"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
+message = "ww-ichorcna.wdl:106:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L106"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
@@ -928,6 +1128,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
+message = "ww-ichorcna.wdl:38:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L38"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
 message = "ww-ichorcna.wdl:44:20: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-ichorcna/ww-ichorcna.wdl/#L44"
 
@@ -958,8 +1163,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
+message = "testrun.wdl:54:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-manta/testrun.wdl/#L54"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-manta/testrun.wdl"
 message = "testrun.wdl:6:10: note[MetaSections]: workflow `manta_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-manta/testrun.wdl/#L6"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-manta/ww-manta.wdl"
+message = "ww-manta.wdl:45:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-manta/ww-manta.wdl/#L45"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/ww-manta.wdl"
@@ -982,6 +1197,11 @@ message = "ww-rseqc.wdl:110:13: note[ContainerUri]: container URI uses a mutable
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-rseqc/ww-rseqc.wdl/#L110"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-rseqc/ww-rseqc.wdl"
+message = "ww-rseqc.wdl:42:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-rseqc/ww-rseqc.wdl/#L42"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
 message = "testrun.wdl:121:7: note[ShellCheck]: Consider using { cmd1; cmd2; } >> file instead of individual redirects."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L121"
@@ -1000,6 +1220,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
 message = "testrun.wdl:17:10: note[MetaSections]: workflow `salmon_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L17"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-salmon/testrun.wdl"
+message = "testrun.wdl:96:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/testrun.wdl/#L96"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
@@ -1038,6 +1263,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
+message = "ww-salmon.wdl:155:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L155"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
 message = "ww-salmon.wdl:160:30: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L160"
 
@@ -1053,6 +1283,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
+message = "ww-salmon.wdl:31:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L31"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
 message = "ww-salmon.wdl:36:12: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L36"
 
@@ -1060,6 +1295,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
 message = "ww-salmon.wdl:58:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L58"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
+message = "ww-salmon.wdl:94:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-salmon/ww-salmon.wdl/#L94"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-salmon/ww-salmon.wdl"
@@ -1077,6 +1317,16 @@ message = "testrun.wdl:6:10: note[MetaSections]: workflow `samtools_example` is 
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/testrun.wdl/#L6"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-samtools/testrun.wdl"
+message = "testrun.wdl:92:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/testrun.wdl/#L92"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
+message = "ww-samtools.wdl:134:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/ww-samtools.wdl/#L134"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
 message = "ww-samtools.wdl:152:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/ww-samtools.wdl/#L152"
@@ -1088,6 +1338,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
+message = "ww-samtools.wdl:35:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/ww-samtools.wdl/#L35"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
 message = "ww-samtools.wdl:38:62: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/ww-samtools.wdl/#L38"
 
@@ -1095,6 +1350,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
 message = "ww-samtools.wdl:52:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/ww-samtools.wdl/#L52"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
+message = "ww-samtools.wdl:82:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-samtools/ww-samtools.wdl/#L82"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-samtools/ww-samtools.wdl"
@@ -1115,6 +1375,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/testrun.wdl"
 message = "testrun.wdl:33:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/testrun.wdl/#L33"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
+message = "ww-shapemapper.wdl:48:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-shapemapper/ww-shapemapper.wdl/#L48"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-shapemapper/ww-shapemapper.wdl"
@@ -1222,14 +1487,29 @@ message = "testrun.wdl:6:10: note[MetaSections]: workflow `sourmash_example` is 
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/testrun.wdl/#L6"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/testrun.wdl"
+message = "testrun.wdl:92:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/testrun.wdl/#L92"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
 message = "ww-sourmash.wdl:111:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L111"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
+message = "ww-sourmash.wdl:145:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L145"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
 message = "ww-sourmash.wdl:170:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L170"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
+message = "ww-sourmash.wdl:42:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L42"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
@@ -1248,6 +1528,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
+message = "ww-sourmash.wdl:96:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L96"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sourmash/ww-sourmash.wdl"
 message = "ww-sourmash.wdl:99:36: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sourmash/ww-sourmash.wdl/#L99"
 
@@ -1258,6 +1543,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
+message = "testrun.wdl:53:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/testrun.wdl/#L53"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sra/testrun.wdl"
 message = "testrun.wdl:5:10: note[MetaSections]: workflow `sra_example` is missing a `meta` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/testrun.wdl/#L5"
 
@@ -1265,6 +1555,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
 message = "ww-sra.wdl:2:4: note[TodoComment]: remaining `TODO` item found"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/ww-sra.wdl/#L2"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
+message = "ww-sra.wdl:33:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-sra/ww-sra.wdl/#L33"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-sra/ww-sra.wdl"
@@ -1302,9 +1597,24 @@ message = "testrun.wdl:169:13: note[ContainerUri]: container URI uses a mutable 
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/testrun.wdl/#L169"
 
 [[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-star/testrun.wdl"
+message = "testrun.wdl:86:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/testrun.wdl/#L86"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
+message = "ww-star.wdl:107:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/ww-star.wdl/#L107"
+
+[[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
 message = "ww-star.wdl:157:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/ww-star.wdl/#L157"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
+message = "ww-star.wdl:36:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-star/ww-star.wdl/#L36"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-star/ww-star.wdl"
@@ -1473,6 +1783,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-template/ww-template.wdl"
+message = "ww-template.wdl:41:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/ww-template.wdl/#L41"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-template/ww-template.wdl"
 message = "ww-template.wdl:55:10: note[OutputName]: declaration identifier starts with 'output'"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-template/ww-template.wdl/#L55"
 
@@ -1498,8 +1813,18 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
+message = "ww-testdata.wdl:126:3: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L126"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:137:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L137"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
+message = "ww-testdata.wdl:167:3: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L167"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -1548,6 +1873,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
+message = "ww-testdata.wdl:516:3: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L516"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:518:19: note[ShellCheck]: Double quote to prevent globbing and word splitting."
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L518"
 
@@ -1555,6 +1885,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:532:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L532"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
+message = "ww-testdata.wdl:563:3: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L563"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -1573,6 +1908,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
+message = "ww-testdata.wdl:655:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L655"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:674:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L674"
 
@@ -1580,6 +1920,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:684:5: note[DescriptionLength]: this description will be clipped in Sprocket documentation"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L684"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
+message = "ww-testdata.wdl:701:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L701"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -1593,13 +1938,28 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
+message = "ww-testdata.wdl:754:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L754"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:809:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L809"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
+message = "ww-testdata.wdl:826:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L826"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:845:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L845"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
+message = "ww-testdata.wdl:876:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-testdata/ww-testdata.wdl/#L876"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
@@ -1618,13 +1978,28 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:108:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/ww-tritonnp.wdl/#L108"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
 message = "ww-tritonnp.wdl:131:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/ww-tritonnp.wdl/#L131"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
+message = "ww-tritonnp.wdl:49:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/ww-tritonnp.wdl/#L49"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
 message = "ww-tritonnp.wdl:81:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-tritonnp/ww-tritonnp.wdl/#L81"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
+message = "testrun.wdl:105:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/modules/ww-varscan/testrun.wdl/#L105"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-varscan/testrun.wdl"
@@ -1693,6 +2068,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c70
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
+message = "ww-leukemia.wdl:421:5: warning[BashSetSyntax]: bad `set` command"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L421"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/workflows/ww-leukemia/ww-leukemia.wdl"
 message = "ww-leukemia.wdl:433:13: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/0aa8316110137c700125f78d0e47aaa1cfd4c611/workflows/ww-leukemia/ww-leukemia.wdl/#L433"
 
@@ -1717,6 +2097,16 @@ message = "flag_filter.wdl:71:6: note[EmptyOutputs]: task 'validate_string_is_12
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/flag_filter.wdl/#L71"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/flag_filter.wdl"
+message = "flag_filter.wdl:85:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/flag_filter.wdl/#L85"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:129:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L129"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "read_group.wdl:141:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L141"
@@ -1728,8 +2118,18 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:174:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L174"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
 message = "read_group.wdl:359:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L359"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:388:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/data_structures/read_group.wdl/#L388"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/data_structures/read_group.wdl"
@@ -1738,8 +2138,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
-message = "arriba.wdl:146:20: note[KnownRules]: unknown rule `LineWidth`"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/arriba.wdl/#L146"
+message = "arriba.wdl:185:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/arriba.wdl/#L185"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
@@ -1750,6 +2150,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:302:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/arriba.wdl/#L302"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/arriba.wdl"
+message = "arriba.wdl:335:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/arriba.wdl/#L335"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
@@ -1788,8 +2193,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/estimate.wdl"
-message = "estimate.wdl:34:16: note[KnownRules]: unknown rule `LineWidth`"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/estimate.wdl/#L34"
+message = "estimate.wdl:35:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/estimate.wdl/#L35"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/estimate.wdl"
@@ -1808,6 +2213,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:151:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/fq.wdl/#L151"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
 message = "fq.wdl:170:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/fq.wdl/#L170"
 
@@ -1818,13 +2228,18 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/fq.wdl"
+message = "fq.wdl:76:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/fq.wdl/#L76"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/fq.wdl"
 message = "fq.wdl:89:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/fq.wdl/#L89"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:124:16: note[KnownRules]: unknown rule `LineWidth`"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L124"
+message = "gatk4.wdl:125:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L125"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
@@ -1833,23 +2248,23 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:191:16: note[KnownRules]: unknown rule `LineWidth`"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L191"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:215:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L215"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
-message = "gatk4.wdl:278:16: note[KnownRules]: unknown rule `LineWidth`"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L278"
+message = "gatk4.wdl:279:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L279"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:301:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L301"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:354:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/gatk4.wdl/#L354"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
@@ -1870,6 +2285,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/htseq.wdl"
 message = "htseq.wdl:142:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/htseq.wdl/#L142"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/htseq.wdl"
+message = "htseq.wdl:178:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/htseq.wdl/#L178"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/htseq.wdl"
@@ -1902,14 +2322,14 @@ message = "kraken2.wdl:47:20: note[ContainerUri]: container URI uses a mutable t
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/kraken2.wdl/#L47"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/tools/kraken2.wdl"
-message = "kraken2.wdl:99:16: note[KnownRules]: unknown rule `ExpressionSpacing`"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/kraken2.wdl/#L99"
-
-[[diagnostics]]
 document = "stjudecloud/workflows:/tools/librarian.wdl"
 message = "librarian.wdl:57:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/librarian.wdl/#L57"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/md5sum.wdl"
+message = "md5sum.wdl:28:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/md5sum.wdl/#L28"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/md5sum.wdl"
@@ -1938,6 +2358,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:239:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/ngsderive.wdl/#L239"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:253:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/ngsderive.wdl/#L253"
 
@@ -1945,6 +2370,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
 message = "ngsderive.wdl:341:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/ngsderive.wdl/#L341"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/ngsderive.wdl"
+message = "ngsderive.wdl:410:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/ngsderive.wdl/#L410"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/ngsderive.wdl"
@@ -1988,8 +2418,18 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:541:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L541"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:557:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L557"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:604:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L604"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -1998,13 +2438,28 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:672:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L672"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:691:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L691"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:738:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L738"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:754:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L754"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:797:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L797"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -2015,6 +2470,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:874:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L874"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/picard.wdl"
+message = "picard.wdl:905:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/picard.wdl/#L905"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/picard.wdl"
@@ -2045,6 +2505,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
 message = "sambamba.wdl:172:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/sambamba.wdl/#L172"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/sambamba.wdl"
+message = "sambamba.wdl:209:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/sambamba.wdl/#L209"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/sambamba.wdl"
@@ -2098,6 +2563,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/samtools.wdl"
+message = "samtools.wdl:26:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/samtools.wdl/#L26"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/samtools.wdl"
 message = "samtools.wdl:32:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/samtools.wdl/#L32"
 
@@ -2148,6 +2618,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:117:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L117"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:131:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L131"
 
@@ -2155,6 +2630,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:136:6: note[EmptyOutputs]: task 'compression_integrity' defines no outputs"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L136"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:154:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L154"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -2178,6 +2658,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:340:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L340"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:354:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L354"
 
@@ -2185,6 +2670,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/tools/util.wdl"
 message = "util.wdl:359:6: note[EmptyOutputs]: task 'check_fastq_and_rg_concordance' defines no outputs"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L359"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/util.wdl"
+message = "util.wdl:389:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L389"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/util.wdl"
@@ -2207,24 +2697,14 @@ message = "util.wdl:83:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/tools/util.wdl/#L83"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
-message = "chipseq-standard.wdl:11:12: note[KnownRules]: unknown rule `LineWidth`"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/chipseq/chipseq-standard.wdl/#L11"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
-message = "chipseq-standard.wdl:13:12: note[KnownRules]: unknown rule `LineWidth`"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/chipseq/chipseq-standard.wdl/#L13"
-
-[[diagnostics]]
-document = "stjudecloud/workflows:/workflows/chipseq/chipseq-standard.wdl"
-message = "chipseq-standard.wdl:15:12: note[KnownRules]: unknown rule `LineWidth`"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/chipseq/chipseq-standard.wdl/#L15"
-
-[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
 message = "dnaseq-standard.wdl:131:6: note[EmptyOutputs]: task 'parse_input' defines no outputs"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/dnaseq/dnaseq-standard.wdl/#L131"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
+message = "dnaseq-standard.wdl:150:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/dnaseq/dnaseq-standard.wdl/#L150"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/dnaseq/dnaseq-standard.wdl"
@@ -2232,9 +2712,9 @@ message = "dnaseq-standard.wdl:161:20: note[ContainerUri]: container URI uses a 
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/dnaseq/dnaseq-standard.wdl/#L161"
 
 [[diagnostics]]
-document = "stjudecloud/workflows:/workflows/general/alignment-post.wdl"
-message = "alignment-post.wdl:6:12: note[KnownRules]: unknown rule `LineWidth`"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/general/alignment-post.wdl/#L6"
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:182:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/methylation/methylation-cohort.wdl/#L182"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
@@ -2243,13 +2723,28 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:232:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/methylation/methylation-cohort.wdl/#L232"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
 message = "methylation-cohort.wdl:249:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/methylation/methylation-cohort.wdl/#L249"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:277:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/methylation/methylation-cohort.wdl/#L277"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
 message = "methylation-cohort.wdl:288:20: note[ContainerUri]: container URI uses a mutable tag"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/methylation/methylation-cohort.wdl/#L288"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
+message = "methylation-cohort.wdl:314:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/methylation/methylation-cohort.wdl/#L314"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/methylation/methylation-cohort.wdl"
@@ -2263,8 +2758,8 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
-message = "quality-check-standard.wdl:128:20: note[KnownRules]: unknown rule `LineWidth`"
-permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/qc/quality-check-standard.wdl/#L128"
+message = "quality-check-standard.wdl:517:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/qc/quality-check-standard.wdl/#L517"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/qc/quality-check-standard.wdl"
@@ -2275,6 +2770,11 @@ permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
 message = "rnaseq-standard.wdl:141:6: note[EmptyOutputs]: task 'parse_input' defines no outputs"
 permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-standard.wdl/#L141"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
+message = "rnaseq-standard.wdl:166:5: warning[BashSetSyntax]: missing `set` command"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-standard.wdl/#L166"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"

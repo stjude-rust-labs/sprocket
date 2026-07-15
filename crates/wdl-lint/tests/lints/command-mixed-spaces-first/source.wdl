@@ -1,4 +1,4 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, EmptyOutputs
+#@ except: MetaDescription, ExpectedRuntimeKeys, EmptyOutputs, BashSetSyntax
 
 ## This is a test of having spaces before tabs in command sections.
 

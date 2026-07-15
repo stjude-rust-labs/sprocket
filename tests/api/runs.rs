@@ -10,7 +10,9 @@ use serde_json::json;
 use sprocket::Config;
 use sprocket::ServerConfig;
 use sprocket::server::AppState;
+use sprocket::server::ServerFailureMode;
 use sprocket::server::create_router;
+use sprocket::server::paths;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::Run;
 use sprocket::system::v1::db::RunStatus;
@@ -22,6 +24,7 @@ use tempfile::TempDir;
 use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
+use wdl::diagnostics::Mode;
 
 /// Create a test server with real database and filesystem.
 #[bon::builder]
@@ -44,6 +47,7 @@ async fn create_test_server(
         ..Default::default()
     };
     server_config.validate().unwrap();
+    let output_dir = server_config.output_dir.display().to_string();
 
     let db = SqliteDatabase::from_pool(pool).await.unwrap();
     let db: Arc<dyn Database> = Arc::new(db);
@@ -54,6 +58,8 @@ async fn create_test_server(
             server: server_config,
             ..Default::default()
         },
+        Mode::default(),
+        true,
         db.clone(),
     );
 
@@ -65,7 +71,11 @@ async fn create_test_server(
         .unwrap();
     rx.await.unwrap().unwrap();
 
-    let state = AppState::builder().run_manager_tx(run_manager_tx).build();
+    let state = AppState::builder()
+        .run_manager_tx(run_manager_tx)
+        .failure_mode(ServerFailureMode::Slow)
+        .output_dir(output_dir)
+        .build();
     let router = create_router()
         .state(state)
         .cors_layer(CorsLayer::new())
@@ -216,7 +226,7 @@ async fn submit_run_and_verify_completion(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -328,7 +338,7 @@ async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -373,7 +383,7 @@ async fn latest_symlink_updates_with_subsequent_runs(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -467,7 +477,7 @@ task sleep_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -498,7 +508,7 @@ task sleep_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .uri(paths::cancel_run(run_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -574,7 +584,7 @@ task sleep_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -602,7 +612,7 @@ task sleep_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .uri(paths::cancel_run(run_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -622,7 +632,7 @@ task sleep_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .uri(paths::cancel_run(run_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -741,7 +751,7 @@ task final_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -773,7 +783,7 @@ task final_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .uri(paths::cancel_run(run_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -884,7 +894,7 @@ task sleep_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -912,7 +922,7 @@ task sleep_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .uri(paths::cancel_run(run_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -969,7 +979,7 @@ task sleep_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -997,7 +1007,7 @@ task sleep_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .uri(paths::cancel_run(run_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1062,7 +1072,7 @@ task sleep_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -1089,7 +1099,7 @@ task sleep_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .uri(paths::cancel_run(run_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1108,7 +1118,7 @@ task sleep_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .uri(paths::cancel_run(run_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1171,7 +1181,7 @@ task sleep_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -1197,7 +1207,7 @@ task sleep_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .uri(paths::cancel_run(run_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1239,7 +1249,7 @@ this is not valid WDL syntax
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -1286,7 +1296,7 @@ async fn submit_run_with_forbidden_file_path(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -1307,7 +1317,7 @@ async fn get_run_not_found(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/runs/{}", fake_id))
+                .uri(paths::get_run(fake_id))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1339,7 +1349,7 @@ async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/runs")
+                    .uri(paths::LIST_RUNS)
                     .header("content-type", "application/json")
                     .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                     .unwrap(),
@@ -1367,7 +1377,7 @@ async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/runs?status=running")
+                .uri(format!("{}?status=running", paths::LIST_RUNS))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1386,7 +1396,7 @@ async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1407,7 +1417,7 @@ async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/runs?limit=2")
+                .uri(format!("{}?limit=2", paths::LIST_RUNS))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1430,7 +1440,7 @@ async fn list_runs_with_filtering(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/runs?status=completed")
+                .uri(format!("{}?status=completed", paths::LIST_RUNS))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1468,7 +1478,7 @@ async fn cancel_already_completed_run(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -1492,7 +1502,7 @@ async fn cancel_already_completed_run(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/runs/{}/outputs", run_id))
+                .uri(paths::get_run_outputs(run_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1517,7 +1527,7 @@ async fn cancel_already_completed_run(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri(format!("/api/v1/runs/{}/cancel", run_id))
+                .uri(paths::cancel_run(run_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1555,7 +1565,7 @@ async fn run_with_indexing(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -1672,7 +1682,7 @@ task slow_task {
             .oneshot(
                 Request::builder()
                     .method("POST")
-                    .uri("/api/v1/runs")
+                    .uri(paths::LIST_RUNS)
                     .header("content-type", "application/json")
                     .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                     .unwrap(),
@@ -1697,7 +1707,7 @@ task slow_task {
             .oneshot(
                 Request::builder()
                     .method("GET")
-                    .uri(format!("/api/v1/runs/{}", id))
+                    .uri(paths::get_run(id.parse().unwrap()))
                     .body(Body::empty())
                     .unwrap(),
             )
@@ -1771,7 +1781,7 @@ task my_task {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -1796,7 +1806,7 @@ task my_task {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!("/api/v1/runs/{}/outputs", run_id))
+                .uri(paths::get_run_outputs(run_id.parse().unwrap()))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -1854,7 +1864,7 @@ task task_two {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -1903,7 +1913,7 @@ async fn target_not_found_fails_run(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -1959,7 +1969,7 @@ version 1.2
         .oneshot(
             Request::builder()
                 .method("POST")
-                .uri("/api/v1/runs")
+                .uri(paths::LIST_RUNS)
                 .header("content-type", "application/json")
                 .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
                 .unwrap(),
@@ -2014,6 +2024,8 @@ async fn events_are_received_during_execution(pool: sqlx::SqlitePool) {
             server: server_config,
             ..Default::default()
         },
+        Mode::default(),
+        true,
         db.clone(),
     );
 
@@ -2073,7 +2085,7 @@ async fn invalid_next_token_returns_error(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri("/api/v1/runs?next_token=not_a_number")
+                .uri(format!("{}?next_token=not_a_number", paths::LIST_RUNS))
                 .body(Body::empty())
                 .unwrap(),
         )

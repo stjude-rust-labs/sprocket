@@ -13,6 +13,7 @@ use tower_http::trace::TraceLayer;
 use tracing::Level;
 use utoipa::OpenApi as _;
 use utoipa_swagger_ui::SwaggerUi;
+use wdl::diagnostics::Mode;
 
 use crate::config::Config;
 use crate::system::v1::exec::open_database;
@@ -21,8 +22,19 @@ use crate::system::v1::exec::svc::RunManagerSvc;
 mod api;
 
 pub use api::AppState;
+pub(crate) use api::v1::RunStatus;
+pub(crate) use api::v1::TaskStatus;
 pub(crate) use api::v1::error::ErrorResponse;
+pub use api::v1::info::ServerFailureMode;
+pub(crate) use api::v1::info::ServerInfoResponse;
+pub use api::v1::paths;
+pub(crate) use api::v1::runs::CancelRunResponse;
+pub(crate) use api::v1::runs::ListRunsResponse;
+pub(crate) use api::v1::runs::RunResponse;
 pub(crate) use api::v1::runs::SubmitRunRequest;
+pub(crate) use api::v1::tasks::ListTasksResponse;
+pub(crate) use api::v1::tasks::RunTaskCountsResponse;
+pub(crate) use api::v1::tasks::Task;
 
 /// The default channel buffer size.
 ///
@@ -44,8 +56,7 @@ pub fn create_router(state: AppState, cors_layer: CorsLayer) -> Router {
 
     Router::new()
         .merge(
-            SwaggerUi::new("/api/v1/swagger-ui")
-                .url("/api/v1/openapi.json", api::v1::ApiDoc::openapi()),
+            SwaggerUi::new(paths::SWAGGER_UI).url(paths::OPENAPI_JSON, api::v1::ApiDoc::openapi()),
         )
         .nest("/api", api::create_router(state))
         .layer(cors_layer)
@@ -57,13 +68,29 @@ pub fn create_router(state: AppState, cors_layer: CorsLayer) -> Router {
 /// # Errors
 ///
 /// Returns an error if we fail to initialize the database.
-async fn create_server_app(config: Config) -> anyhow::Result<Router> {
+async fn create_server_app(
+    config: Config,
+    report_mode: Mode,
+    colorize: bool,
+) -> anyhow::Result<Router> {
     let db_path = config.server.database_url();
 
     let db = open_database(&db_path).await?;
-    let (_, run_manager_tx) = RunManagerSvc::spawn(DEFAULT_CHANNEL_BUFFER_SIZE, config.clone(), db);
+    let failure_mode = ServerFailureMode::from(config.server.engine.failure_mode);
+    let output_dir = config.server.output_dir.display().to_string();
+    let (_, run_manager_tx) = RunManagerSvc::spawn(
+        DEFAULT_CHANNEL_BUFFER_SIZE,
+        config.clone(),
+        report_mode,
+        colorize,
+        db,
+    );
 
-    let state = AppState::builder().run_manager_tx(run_manager_tx).build();
+    let state = AppState::builder()
+        .run_manager_tx(run_manager_tx)
+        .failure_mode(failure_mode)
+        .output_dir(output_dir)
+        .build();
 
     let mut cors_layer = CorsLayer::new();
     for origin in config.server.allowed_origins {
@@ -82,8 +109,13 @@ async fn create_server_app(config: Config) -> anyhow::Result<Router> {
 /// # Errors
 ///
 /// Returns an error if the server fails to start.
-pub async fn run_with_listener(config: Config, tcp_listener: TcpListener) -> anyhow::Result<()> {
-    let app = create_server_app(config).await?;
+pub async fn run_with_listener(
+    config: Config,
+    report_mode: Mode,
+    colorize: bool,
+    tcp_listener: TcpListener,
+) -> anyhow::Result<()> {
+    let app = create_server_app(config, report_mode, colorize).await?;
     axum::serve(tcp_listener, app).await?;
     Ok(())
 }
@@ -93,11 +125,11 @@ pub async fn run_with_listener(config: Config, tcp_listener: TcpListener) -> any
 /// # Errors
 ///
 /// Returns an error if the server fails to start or bind to the address.
-pub async fn run(config: Config) -> anyhow::Result<()> {
+pub async fn run(config: Config, report_mode: Mode, colorize: bool) -> anyhow::Result<()> {
     let addr = format!("{}:{}", config.server.host, config.server.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     tracing::info!("server listening on {}", addr);
-    run_with_listener(config, listener).await?;
+    run_with_listener(config, report_mode, colorize, listener).await?;
 
     Ok(())
 }

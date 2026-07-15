@@ -32,6 +32,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Generate GitHub token
+        if: github.event_name != 'pull_request'
         uses: actions/create-github-app-token@v1
         id: generate-token
         with:
@@ -42,7 +43,7 @@ jobs:
         uses: renovatebot/github-action@v46.1.16
         with:
           configurationFile: renovate.json
-          token: ${{ steps.generate-token.outputs.token }}
+          token: ${{ steps.generate-token.outputs.token || github.token }}
         env:
           LOG_LEVEL: info
           RENOVATE_REPOSITORIES: ${{ github.repository }}

@@ -58,7 +58,7 @@ The following are high-level guiding principles of the Sprocket project.
 - Develop a suite of **modern development tools** that brings bioinformatics
   development on par with other modern languages (e.g.,
   [`wdl-lsp`](https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-lsp)).
-- Maintain an **community-focused codebase** that enables a diverse set of
+- Maintain a **community-focused codebase** that enables a diverse set of
   contributors from academic, non-profit, and commercial organizations.
 - Build on an **open, domain-tailored standard** to ensure the toolset remains
   singularly focused on unencumbered innovation within bioinformatics.
@@ -206,7 +206,7 @@ For more information about our contributor policies, please read the [contributi
 
 ## ⚙️ Minimum Supported Rust Version
 
-The minimum supported Rust version is currently `1.91.1`.
+The minimum supported Rust version is currently `1.95`.
 
 There is a CI job that verifies the declared minimum supported version.
 
@@ -227,7 +227,7 @@ cargo install cargo-msrv
 And run the following command:
 
 ```bash
-cargo msrv --min 1.91.1
+cargo msrv --min 1.95
 ```
 
 If the reported version is newer than the crate's current minimum supported

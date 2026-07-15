@@ -9,7 +9,6 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::MetadataValue;
@@ -183,7 +182,7 @@ impl Visitor for ParameterDescriptionRule {
                                 true,
                                 output_item.name().span(),
                             ),
-                            SyntaxElement::from(output_item.inner().clone()),
+                            output_item.inner(),
                             &self.exceptable_nodes(),
                         );
                     }
@@ -206,7 +205,7 @@ impl Visitor for ParameterDescriptionRule {
             if !has_valid_description(&item.value()) {
                 diagnostics.exceptable_add(
                     missing_description_diagnostic(item.name().text(), false, item.name().span()),
-                    SyntaxElement::from(item.inner().clone()),
+                    item.inner(),
                     &self.exceptable_nodes(),
                 );
             }

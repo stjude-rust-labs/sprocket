@@ -9,16 +9,21 @@ use colored::Colorize;
 use nonempty::NonEmpty;
 
 pub mod analyzer;
+pub mod cancel;
 pub mod check;
+pub mod client;
 pub mod completions;
 pub mod config;
 pub mod doc;
 pub mod explain;
 pub mod format;
 pub mod inputs;
+pub mod inspect;
 pub mod lock;
+pub mod retry;
 pub mod run;
 pub mod server;
+pub mod status;
 pub mod submit;
 pub mod test;
 pub mod validate;
@@ -136,10 +141,9 @@ pub enum DevCommands {
     Doc(doc::Args),
     /// Locks Docker images to a sha256 digest.
     Lock(lock::Args),
-    /// Runs the HTTP API server for run execution.
+    /// Run-management server commands (start, submit, status, inspect, cancel,
+    /// retry).
     Server(server::Args),
-    /// Submit a workflow to a Sprocket HTTP API server.
-    Submit(submit::Args),
     /// Runs unit tests for a WDL workspace.
     Test(test::Args),
 }

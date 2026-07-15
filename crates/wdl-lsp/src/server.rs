@@ -46,6 +46,7 @@ use wdl_analysis::Analyzer;
 use wdl_analysis::Config as AnalysisConfig;
 use wdl_analysis::DiagnosticsConfig;
 use wdl_analysis::FeatureFlags;
+use wdl_analysis::FormatConfig;
 use wdl_analysis::IncrementalChange;
 use wdl_analysis::SourceEdit;
 use wdl_analysis::SourcePosition;
@@ -276,6 +277,9 @@ pub struct ServerOptions {
 
     /// The diagnostic baseline for suppressing known diagnostics.
     pub baseline: Option<wdl_lint::Baseline>,
+
+    /// The formatting configuration to use.
+    pub format: FormatConfig,
 }
 
 impl ServerOptions {
@@ -298,6 +302,7 @@ impl Default for ServerOptions {
             feature_flags: Default::default(),
             resolution_context: Default::default(),
             baseline: None,
+            format: FormatConfig::default(),
         }
     }
 }
@@ -495,7 +500,8 @@ impl ServerOptions {
             ))
             .with_ignore_filename(ignore_name)
             .with_all_rules(all_rules)
-            .with_feature_flags(self.feature_flags);
+            .with_feature_flags(self.feature_flags)
+            .with_format_config(self.format);
 
         Analyzer::<ProgressToken>::new_with_validator_and_resolution(
             analyzer_config,

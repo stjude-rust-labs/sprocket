@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Added
 
 * Analysis resolves symbolic module imports (`import owner/module/path`, including the wildcard `import * from owner/module` and selected-member `import { a, b } from owner/module` forms) through a `wdl-modules` `Resolver`, materializing them to concrete files during analysis ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
+* `MeaninglessLintDirective` rule, which flags `#@ except` comments that don't suppress anything ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
+* `KnownRules` rule, which ensures only known rules are used in `except` directives ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
 * `Analyzer::delete_documents()` to forcefully delete documents from the graph, regardless of
   dependencies ([#917](https://github.com/stjude-rust-labs/sprocket/pull/917)).
 
@@ -24,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `maxRetries`, and `returnCodes`) is now version-aware: these keys are no
   longer type checked in WDL 1.0 documents, since they were not formally
   typed until WDL 1.1 ([#811](https://github.com/stjude-rust-labs/sprocket/issues/811)).
+
+### Changed
+
+* The analyzer's formatter now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
 
 ## 0.22.0 - 2026-06-26
 

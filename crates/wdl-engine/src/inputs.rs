@@ -49,6 +49,15 @@ fn check_input_type(_document: &Document, name: &str, input: &Input, value: &Val
 
     let ty = value.ty();
     if !ty.is_coercible_to(&expected_ty) {
+        if ty.as_array().is_some() && expected_ty.as_array().is_none() {
+            bail!(
+                "expected {expected_ty:#} for input `{name}`, but found {ty:#}\n\nnote: this can \
+                 happen when a key is repeated on the command line (e.g., `{name}=a {name}=b`) or \
+                 when an unquoted shell glob (e.g., `{name}=*.txt`) expands to more than one \
+                 value; provide exactly one value for this scalar input, or change the input's \
+                 declared type to an array if it should accept multiple values"
+            );
+        }
         bail!("expected {expected_ty:#} for input `{name}`, but found {ty:#}");
     }
 
