@@ -466,6 +466,10 @@ fn validator(
                     .map(|r| r as Box<dyn Rule>),
             ));
         }
+
+        // Even if linting isn't enabled, we need to make the validator aware of
+        // `wdl-lint` rules for `KnownRules`.
+        validator.extend_known_rules(wdl_lint::ALL_RULE_IDS.iter().cloned());
         validator
     }
 }
