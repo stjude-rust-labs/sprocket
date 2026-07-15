@@ -130,7 +130,7 @@ impl Visitor for ExceptDirectiveValidRule {
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
-        if let Some(wdl_ast::Directive::Except(ids)) = comment.directive() {
+        if let Some(wdl_ast::Directive::Except(rules)) = comment.directive() {
             let start: usize = comment.span().start();
 
             let excepted_element = comment
@@ -144,14 +144,16 @@ impl Visitor for ExceptDirectiveValidRule {
                     }
                 });
 
-            for id in ids {
+            for rule in rules {
+                let id = &rule.name;
+
                 if let Some(elem) = &excepted_element
                     && let Some(Some(exceptable_nodes)) = RULE_MAP.get(id.as_str())
                     && !exceptable_nodes.contains(&elem.kind())
                 {
                     diagnostics.add(misplaced_except_directive(
-                        &id,
-                        Span::new(start + comment.text().find(&id).unwrap(), id.len()),
+                        id,
+                        Span::new(start + comment.text().find(id).unwrap(), id.len()),
                         elem,
                         exceptable_nodes,
                     ));

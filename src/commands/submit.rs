@@ -76,6 +76,7 @@ pub struct Args {
 ///
 /// Submits a workflow to a Sprocket server based on the Args / Config.
 pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+    let report_mode = args.run_request_args.report_mode.unwrap_or_default();
     let source = match args.run_request_args.source {
         Source::Directory(ref dir) => {
             crate::analysis::resolve_module_entrypoint(dir, config.common.wdl.feature_flags)?
@@ -88,6 +89,8 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         config.common.wdl.fallback_version.into(),
         config.modules.clone(),
         config.common.wdl.feature_flags,
+        report_mode,
+        colorize,
     )
     .await?;
 
@@ -191,7 +194,7 @@ mod tests {
 
         let port = listener.local_addr()?.port();
         let server_task = tokio::task::spawn(async {
-            run_with_listener(config, listener).await?;
+            run_with_listener(config, Default::default(), false, listener).await?;
             anyhow::Result::<()>::Ok(())
         });
 

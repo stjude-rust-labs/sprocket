@@ -193,6 +193,16 @@ message = "downstream.wdl:286:11: warning[UnusedInput]: unused input `aligned_fa
 permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/477ef39ad69e86e90897ea7e313b86bfc12a2a96/workflows/downstream/downstream.wdl/#L286"
 
 [[diagnostics]]
+document = "PacificBiosciences/HiFi-human-WGS-WDL:/workflows/family.wdl"
+message = "family.wdl:465:16: note[MeaninglessLintDirective]: unnecessary `except` directive for lint rule `UnusedInput`"
+permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/477ef39ad69e86e90897ea7e313b86bfc12a2a96/workflows/family.wdl/#L465"
+
+[[diagnostics]]
+document = "PacificBiosciences/HiFi-human-WGS-WDL:/workflows/family.wdl"
+message = "family.wdl:467:16: note[MeaninglessLintDirective]: unnecessary `except` directive for lint rule `UnusedInput`"
+permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/477ef39ad69e86e90897ea7e313b86bfc12a2a96/workflows/family.wdl/#L467"
+
+[[diagnostics]]
 document = "PacificBiosciences/HiFi-human-WGS-WDL:/workflows/tertiary/tertiary.wdl"
 message = "tertiary.wdl:277:10: warning[UnusedInput]: unused input `vcf_index`"
 permalink = "https://github.com/PacificBiosciences/HiFi-human-WGS-WDL/blob/477ef39ad69e86e90897ea7e313b86bfc12a2a96/workflows/tertiary/tertiary.wdl/#L277"

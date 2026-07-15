@@ -78,6 +78,7 @@ pub struct Args {
 /// Fetches the original run's details, optionally re-analyzes the source,
 /// merges any input overrides, then submits a new run.
 pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+    let report_mode = args.report_mode.unwrap_or_default();
     let base_url = args.client_args.base_url(&config);
     let uuid = resolve_run_id(&args.run_id, &base_url).await?;
 
@@ -112,6 +113,8 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
             config.common.wdl.fallback_version.into(),
             config.modules.clone(),
             config.common.wdl.feature_flags,
+            report_mode,
+            colorize,
         )
         .await
         .map_err(|e| {
@@ -288,6 +291,8 @@ mod tests {
             None,
             wdl_modules::resolver::ModulesConfig::default(),
             wdl::analysis::FeatureFlags::default(),
+            Mode::default(),
+            true,
         )
         .await
         .unwrap();

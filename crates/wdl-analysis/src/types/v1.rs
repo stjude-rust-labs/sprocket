@@ -12,7 +12,6 @@ use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::TreeNode;
-use wdl_ast::TreeToken;
 use wdl_ast::v1;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
@@ -78,6 +77,7 @@ use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use wdl_ast::version::V1;
+use wdl_grammar::SyntaxKind;
 
 use super::ArrayType;
 use super::CompoundType;
@@ -569,6 +569,15 @@ pub trait EvaluationContext {
 
     /// Adds a diagnostic.
     fn add_diagnostic(&mut self, diagnostic: Diagnostic);
+
+    /// Same as [`Self::add_diagnostic()`], but check for `except` comments
+    /// first.
+    fn exceptable_add_diagnostic<N: TreeNode + Exceptable>(
+        &mut self,
+        diagnostic: Diagnostic,
+        element: &N,
+        exceptable_nodes: &Option<&'static [SyntaxKind]>,
+    );
 }
 
 /// Represents an evaluator of expression types.
@@ -1554,136 +1563,124 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     /// Evaluates the type of a call expression.
     fn evaluate_call_expr<N: TreeNode + Exceptable>(&mut self, expr: &CallExpr<N>) -> Option<Type> {
         let target = expr.target();
-        match STDLIB.function(target.text()) {
-            Some(f) => {
-                // Evaluate the argument expressions
-                let mut count = 0;
-                let mut arguments = [const { Type::Union }; MAX_PARAMETERS];
+        let Some(f) = STDLIB.function(target.text()) else {
+            self.context
+                .add_diagnostic(unknown_function(target.text(), target.span()));
+            return None;
+        };
 
-                for arg in expr.arguments() {
-                    if count < MAX_PARAMETERS {
-                        arguments[count] = self.evaluate_expr(&arg).unwrap_or(Type::Union);
-                    }
+        // Evaluate the argument expressions
+        let mut count = 0;
+        let mut arguments = [const { Type::Union }; MAX_PARAMETERS];
 
-                    count += 1;
-                }
-
-                match target.text() {
-                    "find" | "matches" | "sub" => {
-                        // above function expect the pattern as 2nd argument
-                        if let Some(Expr::Literal(LiteralExpr::String(pattern_literal))) =
-                            expr.arguments().nth(1)
-                            && let Some(value) = pattern_literal.text()
-                        {
-                            let pattern = value.text().to_string();
-                            if let Err(e) = regex::Regex::new(&pattern) {
-                                self.context.add_diagnostic(invalid_regex_pattern(
-                                    target.text(),
-                                    value.text(),
-                                    &e,
-                                    pattern_literal.span(),
-                                ));
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-
-                let arguments = &arguments[..count.min(MAX_PARAMETERS)];
-                if count <= MAX_PARAMETERS {
-                    match f.bind(self.context.version(), arguments) {
-                        Ok(binding) => {
-                            if let Some(severity) =
-                                self.context.diagnostics_config().unnecessary_function_call
-                                && !expr
-                                    .inner()
-                                    .ancestors()
-                                    .any(|node| node.is_rule_excepted(UnnecessaryFunctionCall::ID))
-                            {
-                                self.check_unnecessary_call(
-                                    &target,
-                                    arguments,
-                                    expr.arguments().map(|e| e.span()),
-                                    severity,
-                                );
-                            }
-                            return Some(binding.return_type().clone());
-                        }
-                        Err(FunctionBindError::RequiresVersion(minimum)) => {
-                            self.context.add_diagnostic(unsupported_function(
-                                minimum,
-                                target.text(),
-                                target.span(),
-                            ));
-                        }
-                        Err(FunctionBindError::TooFewArguments(minimum)) => {
-                            self.context.add_diagnostic(too_few_arguments(
-                                target.text(),
-                                target.span(),
-                                minimum,
-                                count,
-                            ));
-                        }
-                        Err(FunctionBindError::TooManyArguments(maximum)) => {
-                            self.context.add_diagnostic(too_many_arguments(
-                                target.text(),
-                                target.span(),
-                                maximum,
-                                count,
-                                expr.arguments().skip(maximum).map(|e| e.span()),
-                            ));
-                        }
-                        Err(FunctionBindError::ArgumentTypeMismatch { index, expected }) => {
-                            self.context.add_diagnostic(argument_type_mismatch(
-                                target.text(),
-                                &expected,
-                                &arguments[index],
-                                expr.arguments()
-                                    .nth(index)
-                                    .map(|e| e.span())
-                                    .expect("should have span"),
-                            ));
-                        }
-                        Err(FunctionBindError::Ambiguous { first, second }) => {
-                            self.context.add_diagnostic(ambiguous_argument(
-                                target.text(),
-                                target.span(),
-                                &first,
-                                &second,
-                            ));
-                        }
-                    }
-                } else {
-                    // Exceeded the maximum number of arguments to any function
-                    match f.param_min_max(self.context.version()) {
-                        Some((_, max)) => {
-                            assert!(max <= MAX_PARAMETERS);
-                            self.context.add_diagnostic(too_many_arguments(
-                                target.text(),
-                                target.span(),
-                                max,
-                                count,
-                                expr.arguments().skip(max).map(|e| e.span()),
-                            ));
-                        }
-                        None => {
-                            self.context.add_diagnostic(unsupported_function(
-                                f.minimum_version(),
-                                target.text(),
-                                target.span(),
-                            ));
-                        }
-                    }
-                }
-
-                Some(f.realize_unconstrained_return_type(arguments))
+        for arg in expr.arguments() {
+            if count < MAX_PARAMETERS {
+                arguments[count] = self.evaluate_expr(&arg).unwrap_or(Type::Union);
             }
-            None => {
-                self.context
-                    .add_diagnostic(unknown_function(target.text(), target.span()));
-                None
+
+            count += 1;
+        }
+
+        match target.text() {
+            "find" | "matches" | "sub" => {
+                // above function expect the pattern as 2nd argument
+                if let Some(Expr::Literal(LiteralExpr::String(pattern_literal))) =
+                    expr.arguments().nth(1)
+                    && let Some(value) = pattern_literal.text()
+                {
+                    let pattern = value.text().to_string();
+                    if let Err(e) = regex::Regex::new(&pattern) {
+                        self.context.add_diagnostic(invalid_regex_pattern(
+                            target.text(),
+                            value.text(),
+                            &e,
+                            pattern_literal.span(),
+                        ));
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        let arguments = &arguments[..count.min(MAX_PARAMETERS)];
+        if count <= MAX_PARAMETERS {
+            match f.bind(self.context.version(), arguments) {
+                Ok(binding) => {
+                    if let Some(severity) =
+                        self.context.diagnostics_config().unnecessary_function_call
+                    {
+                        self.check_unnecessary_call(expr, arguments, severity);
+                    }
+                    return Some(binding.return_type().clone());
+                }
+                Err(FunctionBindError::RequiresVersion(minimum)) => {
+                    self.context.add_diagnostic(unsupported_function(
+                        minimum,
+                        target.text(),
+                        target.span(),
+                    ));
+                }
+                Err(FunctionBindError::TooFewArguments(minimum)) => {
+                    self.context.add_diagnostic(too_few_arguments(
+                        target.text(),
+                        target.span(),
+                        minimum,
+                        count,
+                    ));
+                }
+                Err(FunctionBindError::TooManyArguments(maximum)) => {
+                    self.context.add_diagnostic(too_many_arguments(
+                        target.text(),
+                        target.span(),
+                        maximum,
+                        count,
+                        expr.arguments().skip(maximum).map(|e| e.span()),
+                    ));
+                }
+                Err(FunctionBindError::ArgumentTypeMismatch { index, expected }) => {
+                    self.context.add_diagnostic(argument_type_mismatch(
+                        target.text(),
+                        &expected,
+                        &arguments[index],
+                        expr.arguments()
+                            .nth(index)
+                            .map(|e| e.span())
+                            .expect("should have span"),
+                    ));
+                }
+                Err(FunctionBindError::Ambiguous { first, second }) => {
+                    self.context.add_diagnostic(ambiguous_argument(
+                        target.text(),
+                        target.span(),
+                        &first,
+                        &second,
+                    ));
+                }
+            }
+        } else {
+            // Exceeded the maximum number of arguments to any function
+            match f.param_min_max(self.context.version()) {
+                Some((_, max)) => {
+                    assert!(max <= MAX_PARAMETERS);
+                    self.context.add_diagnostic(too_many_arguments(
+                        target.text(),
+                        target.span(),
+                        max,
+                        count,
+                        expr.arguments().skip(max).map(|e| e.span()),
+                    ));
+                }
+                None => {
+                    self.context.add_diagnostic(unsupported_function(
+                        f.minimum_version(),
+                        target.text(),
+                        target.span(),
+                    ));
+                }
             }
         }
+
+        Some(f.realize_unconstrained_return_type(arguments))
     }
 
     /// Evaluates the type of an index expression.
@@ -1819,13 +1816,15 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Checks for unnecessary function calls.
-    fn check_unnecessary_call<T: TreeToken>(
+    fn check_unnecessary_call<N: TreeNode + Exceptable>(
         &mut self,
-        target: &Ident<T>,
+        call: &CallExpr<N>,
         arguments: &[Type],
-        mut spans: impl Iterator<Item = Span>,
         severity: Severity,
     ) {
+        let target = call.target();
+        let mut arg_spans = call.arguments().map(|arg| arg.span());
+
         let (label, span, fix) = match target.text() {
             "select_first" => {
                 if let Some(ty) = arguments[0].as_array().map(|a| a.element_type()) {
@@ -1834,7 +1833,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     }
                     (
                         format!("array element {ty:#} is not optional"),
-                        spans.next().expect("should have span"),
+                        arg_spans.next().expect("should have span"),
                         "replace the function call with the array's first element",
                     )
                 } else {
@@ -1848,7 +1847,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     }
                     (
                         format!("array element {ty:#} is not optional"),
-                        spans.next().expect("should have span"),
+                        arg_spans.next().expect("should have span"),
                         "replace the function call with the array itself",
                     )
                 } else {
@@ -1862,17 +1861,19 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
 
                 (
                     format!("{ty:#} is not optional", ty = arguments[0]),
-                    spans.next().expect("should have span"),
+                    arg_spans.next().expect("should have span"),
                     "replace the function call with `true`",
                 )
             }
             _ => return,
         };
 
-        self.context.add_diagnostic(
+        self.context.exceptable_add_diagnostic(
             unnecessary_function_call(target.text(), target.span(), &label, span)
                 .with_severity(severity)
                 .with_fix(fix),
+            call.inner(),
+            &UnnecessaryFunctionCall::EXCEPTABLE_NODES,
         )
     }
 }
