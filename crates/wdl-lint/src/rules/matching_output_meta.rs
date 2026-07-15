@@ -10,8 +10,8 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
+use wdl_ast::SyntaxNode;
 use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::OutputSection;
@@ -205,7 +205,7 @@ task generate_greeting {
 fn check_matching(
     diagnostics: &mut Diagnostics,
     rule: &mut MatchingOutputMetaRule<'_>,
-    element: SyntaxElement,
+    node: &SyntaxNode,
 ) {
     let mut exact_match = true;
     // Check for expected entries missing from `meta.outputs`.
@@ -220,7 +220,7 @@ fn check_matching(
                         rule.name.as_deref().expect("should have a name"),
                         rule.ty.expect("should have a type"),
                     ),
-                    element.clone(),
+                    node,
                     &rule.exceptable_nodes(),
                 );
             }
@@ -240,7 +240,7 @@ fn check_matching(
                     rule.name.as_deref().expect("should have a name"),
                     rule.ty.expect("should have a type"),
                 ),
-                element.clone(),
+                node,
                 &rule.exceptable_nodes(),
             );
         }
@@ -257,7 +257,7 @@ fn check_matching(
                 rule.name.as_deref().expect("should have a name"),
                 rule.ty.expect("should have a type"),
             ),
-            element,
+            node,
             &rule.exceptable_nodes(),
         );
     }
@@ -267,7 +267,7 @@ fn check_matching(
 fn handle_meta_outputs_and_reset(
     diagnostics: &mut Diagnostics,
     rule: &mut MatchingOutputMetaRule<'_>,
-    element: SyntaxElement,
+    node: &SyntaxNode,
 ) {
     if let Some(current_meta_span) = rule.current_meta_span
         && rule.current_meta_outputs_span.is_none()
@@ -279,11 +279,11 @@ fn handle_meta_outputs_and_reset(
                 rule.name.as_deref().expect("should have a name"),
                 rule.ty.expect("should have a type"),
             ),
-            element,
+            node,
             &rule.exceptable_nodes(),
         );
     } else {
-        check_matching(diagnostics, rule, element);
+        check_matching(diagnostics, rule, node);
     }
 
     rule.name = None;
@@ -320,11 +320,7 @@ impl Visitor for MatchingOutputMetaRule<'_> {
                 self.ty = Some("workflow");
             }
             VisitReason::Exit => {
-                handle_meta_outputs_and_reset(
-                    diagnostics,
-                    self,
-                    SyntaxElement::from(workflow.inner().clone()),
-                );
+                handle_meta_outputs_and_reset(diagnostics, self, workflow.inner());
             }
         }
     }
@@ -341,11 +337,7 @@ impl Visitor for MatchingOutputMetaRule<'_> {
                 self.ty = Some("task");
             }
             VisitReason::Exit => {
-                handle_meta_outputs_and_reset(
-                    diagnostics,
-                    self,
-                    SyntaxElement::from(task.inner().clone()),
-                );
+                handle_meta_outputs_and_reset(diagnostics, self, task.inner());
             }
         }
     }
@@ -439,7 +431,7 @@ impl Visitor for MatchingOutputMetaRule<'_> {
                                         self.name.as_deref().expect("should have a name"),
                                         self.ty.expect("should have a type"),
                                     ),
-                                    SyntaxElement::from(item.inner().clone()),
+                                    item.inner(),
                                     &self.exceptable_nodes(),
                                 );
                             }
