@@ -135,8 +135,7 @@ impl Diagnostics {
 
     /// Returns whether any diagnostics have a severity of [`Severity::Error`].
     pub fn has_errors(&self) -> bool {
-        self.0
-            .iter()
+        self.iter()
             .any(|diagnostic| diagnostic.severity() == Severity::Error)
     }
 
