@@ -24,7 +24,9 @@ fn add_local_path_dep_edits_manifest_and_locks() {
         stderr = String::from_utf8_lossy(&output.stderr)
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.trim_end().ends_with("Added `utils`"));
+    assert!(stdout.contains("Added `utils`"));
+    assert!(stdout.contains("Source"));
+    assert!(stdout.contains("../dep"));
     assert!(!stdout.contains("Adding utils ("));
 
     let manifest = fs::read(fixture.consumer().join("module.json")).unwrap();
@@ -127,11 +129,9 @@ fn add_git_dep_without_tags_tracks_default_branch_and_locks() {
     assert!(consumer.join("module-lock.json").exists());
 
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(!stdout.contains("no path-scoped Git version tags found"));
+    assert!(stdout.contains("no path-scoped version tags found for `tasks`"));
+    assert!(stdout.contains(&format!("tracking branch `{}`", default_branch)));
     assert!(!stdout.contains("Adding dep ("));
-    let stderr = String::from_utf8_lossy(&output.stderr);
-    assert!(stderr.contains("no path-scoped Git version tags found for `tasks`"));
-    assert!(stderr.contains(&format!("tracking branch `{}`", default_branch)));
 }
 
 #[test]
@@ -410,11 +410,7 @@ fn add_existing_identical_dep_reports_skipped_and_logs_noop() {
         stderr = String::from_utf8_lossy(&output.stderr)
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(
-        stdout
-            .trim_end()
-            .ends_with("Skipped `utils` already exists in the module's dependencies")
-    );
+    assert!(stdout.contains("Current `utils` already uses the requested source"));
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("dependency already exists with the same source"));
     assert_eq!(

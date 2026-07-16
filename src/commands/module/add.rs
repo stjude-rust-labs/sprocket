@@ -17,11 +17,12 @@ use wdl_modules::version_requirement::VersionRequirement;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
+use crate::commands::module::ModuleAction;
+use crate::commands::module::ModuleOutput;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::parse_manifest_value;
-use crate::commands::module::print_relock_summary_with;
 use crate::commands::module::read_manifest_value;
 use crate::commands::module::resolve_relock_for_manifest;
 use crate::commands::module::set_dependency;
@@ -94,7 +95,9 @@ pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<
     let (name, source_arg) = dependency_name_and_source(&args)?;
     let project = discover(&args.locator)?;
     trace_project("module add", &project);
-    let source = build_source(&args, &source_arg, &config, &name).await?;
+    let built = build_source(&args, &source_arg, &config, &name).await?;
+    let source = built.source;
+    let output = ModuleOutput::new(printer);
 
     let mut value = read_manifest_value(&project.manifest_path)?;
     if project.manifest.dependencies.get(&name) == Some(&source) {
@@ -102,13 +105,14 @@ pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<
             dependency = name.manifest(),
             "dependency already exists with the same source"
         );
-        printer.change(
-            "Skipped",
-            format!(
-                "`{}` already exists in the module's dependencies",
-                name.manifest()
-            ),
-        );
+        output.current(format!(
+            "`{}` already uses the requested source",
+            name.manifest()
+        ));
+        print_source_details(output, &source);
+        if let Some(note) = built.note {
+            output.detail("Note", note);
+        }
         return Ok(());
     }
 
@@ -139,13 +143,41 @@ pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<
     if let Some(outcome) = relock {
         write_lockfile(&project, &outcome.lockfile)?;
         tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
-        print_relock_summary_with(&outcome.stats, "Added", printer);
+        output.completed(ModuleAction::Add, format!("`{}`", name.manifest()));
+        print_source_details(output, &source);
+        if let Some(change) = outcome
+            .stats
+            .added
+            .iter()
+            .find(|change| change.name == name)
+            && let Some(commit) = change.commit.as_deref()
+        {
+            output.detail("Resolved", short_commit(commit));
+        }
+        output.detail(
+            "Lockfile",
+            crate::commands::module::count_noun(
+                outcome.lockfile.dependencies.len(),
+                "dependency",
+                "dependencies",
+            ),
+        );
     } else {
         tracing::debug!("skipped relock after adding dependency");
-        printer.status("Added", format!("`{}`", name.manifest()));
+        output.completed(ModuleAction::Add, format!("`{}`", name.manifest()));
+        print_source_details(output, &source);
+        output.detail("Lockfile", "not written (`--no-lock`)");
+    }
+    if let Some(note) = built.note {
+        output.detail("Note", note);
     }
 
     Ok(())
+}
+
+struct BuiltSource {
+    source: DependencySource,
+    note: Option<String>,
 }
 
 async fn build_source(
@@ -153,7 +185,7 @@ async fn build_source(
     source_arg: &str,
     config: &Config,
     name: &DependencyName,
-) -> anyhow::Result<DependencySource> {
+) -> anyhow::Result<BuiltSource> {
     let Some(url) = resolve_git_url(source_arg, args.git_platform, config)? else {
         let path = local_dependency_path(source_arg, args.path.as_deref())?;
         tracing::trace!(
@@ -161,9 +193,12 @@ async fn build_source(
             path = %path.display(),
             "building local path dependency source"
         );
-        return Ok(DependencySource::LocalPath {
-            path,
-            extra: serde_json::Map::new(),
+        return Ok(BuiltSource {
+            source: DependencySource::LocalPath {
+                path,
+                extra: serde_json::Map::new(),
+            },
+            note: None,
         });
     };
 
@@ -174,21 +209,27 @@ async fn build_source(
             "treating dependency source as a local path because the URL scheme is not a Git scheme"
         );
         let path = local_dependency_path(source_arg, args.path.as_deref())?;
-        return Ok(DependencySource::LocalPath {
-            path,
-            extra: serde_json::Map::new(),
+        return Ok(BuiltSource {
+            source: DependencySource::LocalPath {
+                path,
+                extra: serde_json::Map::new(),
+            },
+            note: None,
         });
     }
 
     let path = args.path.as_deref().map(str::parse).transpose()?;
-    let selector = if let Some(commit) = args.commit.as_deref() {
-        GitSelector::Commit(commit.parse()?)
+    let (selector, note) = if let Some(commit) = args.commit.as_deref() {
+        (GitSelector::Commit(commit.parse()?), None)
     } else if let Some(tag) = args.tag.clone() {
-        GitSelector::Tag(tag)
+        (GitSelector::Tag(tag), None)
     } else if let Some(branch) = args.branch.clone() {
-        GitSelector::Branch(branch)
+        (GitSelector::Branch(branch), None)
     } else if let Some(version) = args.version.as_deref() {
-        GitSelector::Version(version.parse::<VersionRequirement>()?)
+        (
+            GitSelector::Version(version.parse::<VersionRequirement>()?),
+            None,
+        )
     } else {
         discover_latest_selector(config, name, &url, path.as_ref()).await?
     };
@@ -199,12 +240,46 @@ async fn build_source(
         "built Git dependency source"
     );
 
-    Ok(DependencySource::Git {
-        url,
-        selector,
-        path,
-        extra: serde_json::Map::new(),
+    Ok(BuiltSource {
+        source: DependencySource::Git {
+            url,
+            selector,
+            path,
+            extra: serde_json::Map::new(),
+        },
+        note,
     })
+}
+
+fn print_source_details(output: ModuleOutput, source: &DependencySource) {
+    match source {
+        DependencySource::LocalPath { path, .. } => output.detail("Source", path.display()),
+        DependencySource::Git {
+            url,
+            selector,
+            path,
+            ..
+        } => {
+            output.detail("Source", url);
+            output.detail("Selector", selector_display(selector));
+            if let Some(path) = path {
+                output.detail("Path", path);
+            }
+        }
+    }
+}
+
+fn selector_display(selector: &GitSelector) -> String {
+    match selector {
+        GitSelector::Version(requirement) => format!("version `{requirement}`"),
+        GitSelector::Tag(tag) => format!("tag `{tag}`"),
+        GitSelector::Branch(branch) => format!("branch `{branch}`"),
+        GitSelector::Commit(commit) => format!("commit `{commit}`"),
+    }
+}
+
+fn short_commit(commit: &str) -> &str {
+    &commit[..7.min(commit.len())]
 }
 
 fn local_dependency_path(source: &str, module_path: Option<&str>) -> anyhow::Result<PathBuf> {
@@ -351,7 +426,7 @@ async fn discover_latest_selector(
     name: &DependencyName,
     url: &url::Url,
     path: Option<&GitModulePath>,
-) -> anyhow::Result<GitSelector> {
+) -> anyhow::Result<(GitSelector, Option<String>)> {
     let resolver = build_resolver(config, Lockfile::default())?;
     let temp_source = DependencySource::Git {
         url: url.clone(),
@@ -378,18 +453,21 @@ async fn discover_latest_selector(
                      --branch, or --commit"
                 )
             })?;
-        if let Some(path) = path {
-            tracing::info!(
-                "no path-scoped Git version tags found for `{path}`; tracking branch \
+        let note = if let Some(path) = path {
+            format!(
+                "no path-scoped version tags found for `{path}`; tracking branch \
                  `{default_branch}`"
-            );
+            )
         } else {
-            tracing::info!("no Git version tags found; tracking branch `{default_branch}`");
-        }
-        return Ok(GitSelector::Branch(default_branch));
+            format!("no version tags found; tracking branch `{default_branch}`")
+        };
+        return Ok((GitSelector::Branch(default_branch), Some(note)));
     };
-    Ok(GitSelector::Version(
-        format!("^{}.{}.{}", version.major, version.minor, version.patch).parse()?,
+    Ok((
+        GitSelector::Version(
+            format!("^{}.{}.{}", version.major, version.minor, version.patch).parse()?,
+        ),
+        None,
     ))
 }
 

@@ -1,14 +1,14 @@
 //! `sprocket dev module lock`.
 
 use clap::Parser;
-use wdl_modules::resolver::RelockStats;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
+use crate::commands::module::ModuleAction;
+use crate::commands::module::ModuleOutput;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::discover;
 use crate::commands::module::load_lockfile;
-use crate::commands::module::print_relock_summary;
 use crate::commands::module::resolve_relock_plan;
 use crate::commands::module::resolve_relock_with_signer_mode;
 use crate::commands::module::signer_change_mode;
@@ -45,6 +45,7 @@ pub async fn lock(args: Args, config: Config, printer: Printer) -> CommandResult
         "starting `sprocket dev module lock`"
     );
     let project = discover(&args.locator)?;
+    let output = ModuleOutput::new(printer);
     trace_project("module lock", &project);
     let lock = load_lockfile(&project)?;
     let satisfied = lock
@@ -64,20 +65,32 @@ pub async fn lock(args: Args, config: Config, printer: Printer) -> CommandResult
             );
         }
         tracing::debug!("`--locked` succeeded");
-        print_relock_summary(&RelockStats::default(), printer);
+        output.current("module lockfile is up to date");
         return Ok(());
     }
 
     if satisfied {
         tracing::debug!("skipped relock because lockfile is current");
-        print_relock_summary(&RelockStats::default(), printer);
+        output.current("module lockfile is up to date");
         return Ok(());
     }
 
     if args.dry_run {
         let plan = resolve_relock_plan(&config, &project, project.manifest.clone()).await?;
         tracing::debug!("dry run completed without writing lockfile or trust store");
-        print_relock_summary(&plan.outcome.stats, printer);
+        let changes = relock_change_count(&plan.outcome.stats);
+        output.planned(
+            ModuleAction::Lock,
+            crate::commands::module::count_noun(changes, "dependency change", "dependency changes"),
+        );
+        output.detail(
+            "Lockfile",
+            crate::commands::module::count_noun(
+                plan.outcome.lockfile.dependencies.len(),
+                "dependency",
+                "dependencies",
+            ),
+        );
         return Ok(());
     }
 
@@ -90,6 +103,24 @@ pub async fn lock(args: Args, config: Config, printer: Printer) -> CommandResult
     .await?;
     write_lockfile(&project, &outcome.lockfile)?;
     tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
-    print_relock_summary(&outcome.stats, printer);
+    output.completed(
+        ModuleAction::Lock,
+        crate::commands::module::count_noun(
+            outcome.lockfile.dependencies.len(),
+            "dependency",
+            "dependencies",
+        ),
+    );
+    let changes = relock_change_count(&outcome.stats);
+    if changes > 0 {
+        output.detail(
+            "Changed",
+            crate::commands::module::count_noun(changes, "dependency", "dependencies"),
+        );
+    }
     Ok(())
+}
+
+fn relock_change_count(stats: &wdl_modules::resolver::RelockStats) -> usize {
+    stats.added.len() + stats.removed.len() + stats.updated.len()
 }

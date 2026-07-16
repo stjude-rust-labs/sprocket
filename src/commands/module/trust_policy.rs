@@ -239,34 +239,54 @@ fn confirm_signer_key_upgrade(
     trust: &TrustStore,
     printer: Printer,
 ) -> anyhow::Result<bool> {
-    eprintln!("module signer key requires trust changes:");
+    eprintln!("module signer key requires trust changes");
     for change in changes {
         match change {
-            SignerChange::Added(signer) => eprintln!(
-                "  `{}` signer key added: {}",
-                signer.dep().manifest(),
-                render_signer_with_trust(&signer.key, signer.identity.as_ref(), trust)
-            ),
+            SignerChange::Added(signer) => {
+                eprintln!();
+                eprintln!("  Module     `{}`", signer.dep().manifest());
+                eprintln!("  Change     signer added");
+                eprintln!(
+                    "  Signer     {}",
+                    render_signer_with_trust(&signer.key, signer.identity.as_ref(), trust)
+                );
+            }
             SignerChange::Changed(signer) => match signer.old_key {
-                Some(old_key) => eprintln!(
-                    "  `{}` signer key changed: {} -> {}",
-                    signer.dep().manifest(),
-                    render_signer_with_trust(&old_key, None, trust),
-                    render_signer_with_trust(&signer.new_key, signer.identity.as_ref(), trust)
-                ),
-                None => eprintln!(
-                    "  `{}` signer key added to previously unsigned module: {}",
-                    signer.dep().manifest(),
-                    render_signer_with_trust(&signer.new_key, signer.identity.as_ref(), trust)
-                ),
+                Some(old_key) => {
+                    eprintln!();
+                    eprintln!("  Module     `{}`", signer.dep().manifest());
+                    eprintln!("  Change     signer changed");
+                    eprintln!(
+                        "  Previous   {}",
+                        render_signer_with_trust(&old_key, None, trust)
+                    );
+                    eprintln!(
+                        "  Current    {}",
+                        render_signer_with_trust(&signer.new_key, signer.identity.as_ref(), trust)
+                    );
+                }
+                None => {
+                    eprintln!();
+                    eprintln!("  Module     `{}`", signer.dep().manifest());
+                    eprintln!("  Change     previously unsigned module gained a signer");
+                    eprintln!(
+                        "  Signer     {}",
+                        render_signer_with_trust(&signer.new_key, signer.identity.as_ref(), trust)
+                    );
+                }
             },
-            SignerChange::Removed(signer) => eprintln!(
-                "  `{}` signer key removed: {}",
-                signer.dep().manifest(),
-                render_signer_with_trust(&signer.key, None, trust)
-            ),
+            SignerChange::Removed(signer) => {
+                eprintln!();
+                eprintln!("  Module     `{}`", signer.dep().manifest());
+                eprintln!("  Change     signer removed; dependency is now unsigned");
+                eprintln!(
+                    "  Previous   {}",
+                    render_signer_with_trust(&signer.key, None, trust)
+                );
+            }
         }
     }
+    eprintln!();
     printer.confirm("Accept these signer trust changes and update the lockfile?")
 }
 

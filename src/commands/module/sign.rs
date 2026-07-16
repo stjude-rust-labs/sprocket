@@ -14,6 +14,8 @@ use wdl_modules::signing::parse_openssh_public_key_identity;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
+use crate::commands::module::ModuleAction;
+use crate::commands::module::ModuleOutput;
 use crate::commands::module::discover;
 use crate::commands::module::trace_project;
 use crate::commands::printer::Printer;
@@ -60,7 +62,13 @@ pub async fn sign(args: Args, printer: Printer) -> CommandResult<()> {
     write_signature_atomically(&output, &module_signature)?;
     tracing::debug!(signature = %output.display(), "wrote module signature");
 
-    printer.status("Signed", format!("{} ({digest})", project.manifest.name));
+    let presentation = ModuleOutput::new(printer);
+    presentation.completed(
+        ModuleAction::Sign,
+        format!("module `{}`", project.manifest.name),
+    );
+    presentation.detail("Digest", digest);
+    presentation.detail("Signature", output.display());
     Ok(())
 }
 

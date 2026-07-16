@@ -183,7 +183,7 @@ fn cache_clean_all_works_outside_a_module() {
         "cache clean --all should not require a `module.json`: {stderr}",
         stderr = String::from_utf8_lossy(&output.stderr)
     );
-    assert!(String::from_utf8_lossy(&output.stdout).contains("Removed 0 cached modules"));
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Cleaned 0 cached modules"));
 }
 
 #[test]
@@ -230,7 +230,7 @@ fn fetch_populates_cache_then_verify_succeeds() {
         status = second_fetch.status,
         stderr = String::from_utf8_lossy(&second_fetch.stderr)
     );
-    assert!(String::from_utf8_lossy(&second_fetch.stdout).contains("Fetched 0 dependencies"));
+    assert!(String::from_utf8_lossy(&second_fetch.stdout).contains("Current module cache"));
 
     let verify = sprocket_with_config(fixture.config_path(), &["dev", "module", "verify"])
         .current_dir(&consumer)
@@ -307,7 +307,7 @@ fn cache_clean_default_removes_current_lock_tree_only() {
         "expected unrelated cache leaf to remain"
     );
     let stdout = String::from_utf8_lossy(&clean.stdout);
-    assert!(stdout.contains("Removed 1 cached module"));
+    assert!(stdout.contains("Cleaned 1 cached module"));
     assert!(
         !stdout.contains("GiB"),
         "small caches must not be rounded up to GiB: {stdout}"
@@ -370,7 +370,7 @@ fn cache_clean_all_removes_entire_cache() {
         "expected entire cache root to be removed"
     );
     let stdout = String::from_utf8_lossy(&clean.stdout);
-    assert!(stdout.contains("Removed 2 cached modules"));
+    assert!(stdout.contains("Cleaned 2 cached modules"));
 }
 
 #[test]

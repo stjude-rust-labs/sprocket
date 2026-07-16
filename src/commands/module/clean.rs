@@ -8,6 +8,8 @@ use wdl_modules::module::Module;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
+use crate::commands::module::ModuleAction;
+use crate::commands::module::ModuleOutput;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::require_lockfile;
@@ -90,13 +92,10 @@ pub async fn clean(args: Args, config: Config, printer: Printer) -> CommandResul
 
 /// Prints the cache-clean summary line.
 fn print_removed_summary(modules: usize, bytes: u64, printer: Printer) {
-    printer.status(
-        "Removed",
-        format!(
-            "{} cached {} ({})",
-            modules,
-            if modules == 1 { "module" } else { "modules" },
-            ByteSize::b(bytes).display().iec()
-        ),
+    let output = ModuleOutput::new(printer);
+    output.completed(
+        ModuleAction::Clean,
+        crate::commands::module::count_noun(modules, "cached module", "cached modules"),
     );
+    output.detail("Reclaimed", ByteSize::b(bytes).display().iec());
 }

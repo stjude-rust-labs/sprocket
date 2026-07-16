@@ -95,6 +95,15 @@ impl Printer {
         }
     }
 
+    /// Prints an indented label and value beneath an action line.
+    pub fn detail(&self, label: &str, value: impl fmt::Display) {
+        if self.colorize {
+            println!("  {:<10} {value}", label.cyan().bold());
+        } else {
+            println!("  {label:<10} {value}");
+        }
+    }
+
     /// Prints a confirmation prompt to stderr and reads one line from stdin.
     ///
     /// Appends ` [y/N] ` to the prompt. Any case variant of `y`/`yes`

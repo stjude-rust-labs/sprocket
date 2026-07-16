@@ -15,7 +15,6 @@ use wdl_modules::dependency::DependencySource;
 use wdl_modules::module::Module;
 use wdl_modules::resolver::GitResolver;
 use wdl_modules::resolver::RelockOutcome;
-use wdl_modules::resolver::RelockStats;
 use wdl_modules::resolver::ResolverPolicy;
 use wdl_modules::resolver::SignerIdentityMap;
 use wdl_modules::resolver::TrustMode;
@@ -30,6 +29,7 @@ pub mod clean;
 pub mod fetch;
 pub mod init;
 pub mod lock;
+mod output;
 pub mod remove;
 pub mod sign;
 pub mod tree;
@@ -39,6 +39,9 @@ pub mod update;
 pub mod upgrade;
 pub mod verify;
 
+pub(crate) use output::ModuleAction;
+pub(crate) use output::ModuleOutput;
+pub(crate) use output::count_noun;
 pub(crate) use trust_policy::SignerChangeMode;
 pub(crate) use trust_policy::accept_lockfile_signers;
 pub(crate) use trust_policy::enforce_signer_trust;
@@ -544,130 +547,6 @@ pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> an
     Ok(())
 }
 
-/// Prints a relock change summary in cargo-style action lines.
-pub fn print_relock_summary(stats: &RelockStats, printer: Printer) {
-    print_relock_summary_with(stats, "Locked", printer);
-}
-
-/// Prints a relock summary, using `added_verb` for newly added dependencies.
-///
-/// Callers that add a dependency (such as `sprocket dev module add`) pass
-/// `"Added"` so the top-level action reads naturally; the shared default is
-/// `"Locked"`.
-pub fn print_relock_summary_with(stats: &RelockStats, added_verb: &str, printer: Printer) {
-    tracing::debug!(
-        kept = stats.kept,
-        added = stats.added.len(),
-        removed = stats.removed.len(),
-        skipped = stats.skipped.len(),
-        updated = stats.updated.len(),
-        "computed relock summary"
-    );
-    if stats.added.is_empty()
-        && stats.removed.is_empty()
-        && stats.skipped.is_empty()
-        && stats.updated.is_empty()
-    {
-        printer.status("Locked", "(up to date)");
-        return;
-    }
-
-    for change in &stats.added {
-        let details = change_details(
-            change.path.as_deref(),
-            change.selector.as_deref(),
-            change.commit.as_deref(),
-        );
-        printer.status(added_verb, format!("`{}`{details}", change.name));
-    }
-
-    for change in &stats.removed {
-        let details = change_details(
-            change.path.as_deref(),
-            change.selector.as_deref(),
-            change.commit.as_deref(),
-        );
-        printer.status("Removed", format!("`{}`{details}", change.name));
-    }
-
-    for change in &stats.skipped {
-        let details = skipped_details(
-            change.path.as_deref(),
-            change.selector.as_deref(),
-            change.commit.as_deref(),
-        );
-        printer.change("Skipped", format!("`{}`{details}", change.name));
-    }
-
-    for change in &stats.updated {
-        let details = update_details(
-            change.from_path.as_deref(),
-            change.to_path.as_deref(),
-            change.from_selector.as_deref(),
-            change.to_selector.as_deref(),
-            change.from_commit.as_deref(),
-            change.to_commit.as_deref(),
-        );
-
-        printer.change("Updated", format!("`{}`{details}", change.name));
-    }
-}
-
-/// Prints update and upgrade lockfile output as lock-centric status lines.
-pub fn print_locking_summary(stats: &RelockStats, printer: Printer) {
-    printer.status(
-        "Locking",
-        format!("{} packages based on `module.json`", stats.updated.len()),
-    );
-
-    for change in &stats.updated {
-        let details = update_details(
-            change.from_path.as_deref(),
-            change.to_path.as_deref(),
-            change.from_selector.as_deref(),
-            change.to_selector.as_deref(),
-            change.from_commit.as_deref(),
-            change.to_commit.as_deref(),
-        );
-        printer.status("Updated", format!("{}{}", change.name.manifest(), details));
-    }
-}
-
-/// Renders skipped source metadata for update output.
-fn skipped_details(path: Option<&str>, selector: Option<&str>, commit: Option<&str>) -> String {
-    let mut parts = vec!["latest".to_string()];
-    parts.extend(change_detail_parts(path, selector, commit));
-    format!(" ({})", parts.join(", "))
-}
-
-/// Renders added or removed source metadata for summary output.
-fn change_details(path: Option<&str>, selector: Option<&str>, commit: Option<&str>) -> String {
-    let parts = change_detail_parts(path, selector, commit);
-    if parts.is_empty() {
-        return String::new();
-    }
-    format!(" ({})", parts.join(", "))
-}
-
-/// Collects the source metadata fragments shared by the summary renderers.
-fn change_detail_parts(
-    path: Option<&str>,
-    selector: Option<&str>,
-    commit: Option<&str>,
-) -> Vec<String> {
-    let mut details = Vec::new();
-    if let Some(selector) = selector {
-        details.push(format!("selector: {}", selector_detail(selector)));
-    }
-    if let Some(path) = path {
-        details.push(format!("path: `{path}`"));
-    }
-    if let Some(commit) = commit {
-        details.push(format!("commit: `{}`", short_commit(commit)));
-    }
-    details
-}
-
 #[cfg(test)]
 fn update_message(
     name: &impl std::fmt::Display,
@@ -691,7 +570,7 @@ fn update_message(
     )
 }
 
-fn update_details(
+pub(crate) fn update_details(
     from_path: Option<&str>,
     to_path: Option<&str>,
     from_selector: Option<&str>,
@@ -977,35 +856,5 @@ mod tests {
             "Updated `ww-bwa` (selector: branch `main`, path: `modules/ww-bwa`, commit: `a5805f5` \
              -> `8797145`)"
         );
-    }
-
-    #[test]
-    fn change_details_describes_available_source_metadata() {
-        assert_eq!(
-            change_details(
-                Some("modules/ww-bwa"),
-                Some("branch main"),
-                Some("8797145982ba1b1b7adb5ea716c03a7e4e9dd412")
-            ),
-            " (selector: branch `main`, path: `modules/ww-bwa`, commit: `8797145`)"
-        );
-        assert_eq!(
-            change_details(None, Some("version ^1"), None),
-            " (selector: version `^1`)"
-        );
-        assert_eq!(change_details(None, None, None), "");
-    }
-
-    #[test]
-    fn skipped_details_marks_dependency_as_latest() {
-        assert_eq!(
-            skipped_details(
-                Some("modules/ww-bwa"),
-                Some("branch main"),
-                Some("8797145982ba1b1b7adb5ea716c03a7e4e9dd412")
-            ),
-            " (latest, selector: branch `main`, path: `modules/ww-bwa`, commit: `8797145`)"
-        );
-        assert_eq!(skipped_details(None, None, None), " (latest)");
     }
 }

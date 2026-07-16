@@ -97,7 +97,8 @@ fn lock_update_updates_out_of_date_git_dependency() {
         stderr = String::from_utf8_lossy(&update.stderr)
     );
     let stdout = String::from_utf8_lossy(&update.stdout);
-    assert!(stdout.contains("Updated tasks"));
+    assert!(stdout.contains("Updated 1 dependency"));
+    assert!(stdout.contains("tasks"));
     assert!(stdout.contains("selector: branch"));
     assert!(stdout.contains(&format!("commit: `{}` -> `{}`", &stale[..7], &latest[..7])));
 
@@ -648,7 +649,7 @@ fn lock_update_skips_git_dependency_that_is_latest() {
         stderr = String::from_utf8_lossy(&update.stderr)
     );
     let stdout = String::from_utf8_lossy(&update.stdout);
-    assert!(stdout.contains("Locking 0 packages based on `module.json`"));
+    assert!(stdout.contains("Current module lockfile is up to date"));
 
     let after = fs::read(consumer.join("module-lock.json")).unwrap();
     assert_eq!(after, before);
@@ -963,10 +964,9 @@ fn upgrade_raises_constraint_and_relocks() {
         stderr = String::from_utf8_lossy(&upgrade.stderr)
     );
     let stdout = String::from_utf8_lossy(&upgrade.stdout);
-    assert!(stdout.contains("Upgrading 1 packages to latest version"));
-    assert!(stdout.contains("Upgraded tasks v1.0 -> v2.0.0"));
-    assert!(stdout.contains("Locking 1 packages based on `module.json`"));
-    assert!(stdout.contains("Updated tasks"));
+    assert!(stdout.contains("Upgraded 1 dependency"));
+    assert!(stdout.contains("tasks"));
+    assert!(stdout.contains("v1.0 -> v2.0.0"));
 
     assert_eq!(
         manifest_dep_version(&consumer, "tasks").as_deref(),
@@ -1013,7 +1013,9 @@ fn upgrade_dry_run_prints_changes_without_writing() {
     );
     let stdout = String::from_utf8_lossy(&upgrade.stdout);
     assert!(
-        stdout.contains("Upgrade tasks v1.0 -> v2.0.0 (dry-run)"),
+        stdout.contains("Would upgrade 1 dependency")
+            && stdout.contains("tasks")
+            && stdout.contains("v1.0 -> v2.0.0"),
         "dry run should print the planned change, got: {stdout}"
     );
 
@@ -1068,7 +1070,9 @@ fn upgrade_relocks_non_version_dependencies_too() {
         status = upgrade.status,
         stderr = String::from_utf8_lossy(&upgrade.stderr)
     );
-    assert!(String::from_utf8_lossy(&upgrade.stdout).contains("Updated branched"));
+    let stdout = String::from_utf8_lossy(&upgrade.stdout);
+    assert!(stdout.contains("branched"));
+    assert!(stdout.contains("commit:"));
 
     let lock_after = read_lockfile(&consumer);
     assert_ne!(branched_before, latest);

@@ -17,13 +17,14 @@ use wdl_modules::resolver::update_relock;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
+use crate::commands::module::ModuleAction;
+use crate::commands::module::ModuleOutput;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::enforce_lockfile_signer_policy;
 use crate::commands::module::load_lockfile;
 use crate::commands::module::parse_manifest_value;
-use crate::commands::module::print_locking_summary;
 use crate::commands::module::read_manifest_value;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
@@ -59,6 +60,7 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
         "starting `sprocket dev module upgrade`"
     );
     let project = discover(&args.locator)?;
+    let output = ModuleOutput::new(printer);
     trace_project("module upgrade", &project);
 
     let mut selected = Vec::new();
@@ -105,6 +107,7 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
 
     if eligible.is_empty() {
         tracing::debug!("no dependencies are eligible for upgrade");
+        output.current("no version-based dependencies are eligible for upgrade");
         return Ok(());
     }
     tracing::debug!(
@@ -147,22 +150,16 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
             dry_run = args.dry_run,
             "no version selectors need upgrading"
         );
-        printer.status("Finished", "no upgrades available");
+        output.current("all version constraints");
         return Ok(());
     }
 
     if args.dry_run {
-        for (name, old_req, new_req) in &changed {
-            printer.change(
-                "Upgrade",
-                format!(
-                    "{} {} -> {} (dry-run)",
-                    name.manifest(),
-                    version_display(old_req),
-                    version_display(new_req)
-                ),
-            );
-        }
+        output.planned(
+            ModuleAction::Upgrade,
+            crate::commands::module::count_noun(changed.len(), "dependency", "dependencies"),
+        );
+        print_upgrade_details(output, &changed);
         tracing::debug!(
             changed = changed.len(),
             "dry run completed without writing manifest"
@@ -203,29 +200,43 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
         changed = changed.len(),
         "wrote upgraded version selectors"
     );
-    printer.status(
-        "Upgrading",
-        format!("{} packages to latest version", changed.len()),
+    write_lockfile(&project, &outcome.lockfile)?;
+    tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
+    output.completed(
+        ModuleAction::Upgrade,
+        crate::commands::module::count_noun(changed.len(), "dependency", "dependencies"),
     );
-    for (name, old_req, new_req) in &changed {
-        printer.status(
-            "Upgraded",
+    print_upgrade_details(output, &changed);
+    for change in &outcome.stats.updated {
+        output.detail(
+            change.name.manifest(),
+            crate::commands::module::update_details(
+                change.from_path.as_deref(),
+                change.to_path.as_deref(),
+                change.from_selector.as_deref(),
+                change.to_selector.as_deref(),
+                change.from_commit.as_deref(),
+                change.to_commit.as_deref(),
+            )
+            .trim()
+            .trim_start_matches('(')
+            .trim_end_matches(')'),
+        );
+    }
+    Ok(())
+}
+
+fn print_upgrade_details(output: ModuleOutput, changed: &[(DependencyName, String, String)]) {
+    for (name, old_req, new_req) in changed {
+        output.detail(
+            name.manifest(),
             format!(
-                "{} {} -> {}",
-                name.manifest(),
+                "{} -> {}",
                 version_display(old_req),
                 version_display(new_req)
             ),
         );
     }
-    write_lockfile(&project, &outcome.lockfile)?;
-    tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
-    print_locking_summary(&outcome.stats, printer);
-    printer.status(
-        "Finished",
-        format!("updating {} packages", outcome.stats.updated.len()),
-    );
-    Ok(())
 }
 
 fn wildcard_version_source(source: &DependencySource) -> anyhow::Result<DependencySource> {

@@ -10,6 +10,8 @@ use wdl_modules::signing::ModuleSignature;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
+use crate::commands::module::ModuleAction;
+use crate::commands::module::ModuleOutput;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::render_signer;
@@ -112,7 +114,9 @@ fn verify_signature(
     tracing::debug!(digest = %digest, "hashed module content for signature verification");
     signature.verify(&digest).map_err(anyhow::Error::from)?;
 
-    printer.status("Verified", format!("signature ({digest})"));
+    let output = ModuleOutput::new(printer);
+    output.completed(ModuleAction::Verify, "module signature");
+    output.detail("Digest", digest);
     Ok(())
 }
 
@@ -180,7 +184,10 @@ fn verify_lockfile(
         ));
     }
 
-    printer.status("Verified", format!("{verified} dependencies"));
+    ModuleOutput::new(printer).completed(
+        ModuleAction::Verify,
+        crate::commands::module::count_noun(verified, "dependency", "dependencies"),
+    );
     Ok(unsigned)
 }
 

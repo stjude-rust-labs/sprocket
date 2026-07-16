@@ -87,7 +87,7 @@ fn init_preserves_existing_scaffold_files() {
     assert_eq!(fs::read_to_string(&readme).unwrap(), "# custom\n");
     assert_eq!(fs::read_to_string(&gitignore).unwrap(), "target/\n");
 
-    assert!(String::from_utf8_lossy(&output.stdout).contains("Created module `demo`"));
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Initialized module `demo`"));
 }
 
 #[test]

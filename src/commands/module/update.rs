@@ -12,15 +12,16 @@ use wdl_modules::resolver::update_relock;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
+use crate::commands::module::ModuleAction;
+use crate::commands::module::ModuleOutput;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::enforce_lockfile_signer_policy;
 use crate::commands::module::load_lockfile;
-use crate::commands::module::print_locking_summary;
-use crate::commands::module::print_relock_summary;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
+use crate::commands::module::update_details;
 use crate::commands::module::write_lockfile;
 use crate::commands::printer::Printer;
 use crate::config::Config;
@@ -52,6 +53,7 @@ pub async fn update(args: Args, config: Config, printer: Printer) -> CommandResu
         "starting `sprocket dev module update`"
     );
     let project = discover(&args.locator)?;
+    let output = ModuleOutput::new(printer);
     trace_project("module update", &project);
     let on_disk = load_lockfile(&project)?.unwrap_or_default();
 
@@ -91,7 +93,7 @@ pub async fn update(args: Args, config: Config, printer: Printer) -> CommandResu
 
     if args.dry_run {
         tracing::debug!("dry run completed without writing lockfile");
-        print_relock_summary(&outcome.stats, printer);
+        print_update_outcome(output, &outcome.stats, true);
         return Ok(());
     }
 
@@ -104,10 +106,41 @@ pub async fn update(args: Args, config: Config, printer: Printer) -> CommandResu
     )?;
     write_lockfile(&project, &outcome.lockfile)?;
     tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
-    print_locking_summary(&outcome.stats, printer);
-    printer.status(
-        "Finished",
-        format!("updating {} packages", outcome.stats.updated.len()),
-    );
+    print_update_outcome(output, &outcome.stats, false);
     Ok(())
+}
+
+fn print_update_outcome(
+    output: ModuleOutput,
+    stats: &wdl_modules::resolver::RelockStats,
+    dry_run: bool,
+) {
+    if stats.updated.is_empty() {
+        output.current("module lockfile is up to date");
+        return;
+    }
+
+    let count =
+        crate::commands::module::count_noun(stats.updated.len(), "dependency", "dependencies");
+    if dry_run {
+        output.planned(ModuleAction::Update, count);
+    } else {
+        output.completed(ModuleAction::Update, count);
+    }
+    for change in &stats.updated {
+        output.detail(
+            change.name.manifest(),
+            update_details(
+                change.from_path.as_deref(),
+                change.to_path.as_deref(),
+                change.from_selector.as_deref(),
+                change.to_selector.as_deref(),
+                change.from_commit.as_deref(),
+                change.to_commit.as_deref(),
+            )
+            .trim()
+            .trim_start_matches('(')
+            .trim_end_matches(')'),
+        );
+    }
 }

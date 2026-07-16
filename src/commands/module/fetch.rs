@@ -5,6 +5,8 @@ use wdl_modules::module::Module;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
+use crate::commands::module::ModuleAction;
+use crate::commands::module::ModuleOutput;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::require_lockfile;
@@ -38,16 +40,14 @@ pub async fn fetch(args: Args, config: Config, printer: Printer) -> CommandResul
         .map_err(anyhow::Error::from)?;
     tracing::debug!(fetched, "ensured locked dependencies are fetched");
 
-    printer.status(
-        "Fetched",
-        format!(
-            "{fetched} {}",
-            if fetched == 1 {
-                "dependency"
-            } else {
-                "dependencies"
-            }
-        ),
-    );
+    let output = ModuleOutput::new(printer);
+    if fetched == 0 {
+        output.current("module cache");
+    } else {
+        output.completed(
+            ModuleAction::Fetch,
+            crate::commands::module::count_noun(fetched, "dependency", "dependencies"),
+        );
+    }
     Ok(())
 }

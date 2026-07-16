@@ -4,10 +4,11 @@ use clap::Parser;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
+use crate::commands::module::ModuleAction;
+use crate::commands::module::ModuleOutput;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::discover;
 use crate::commands::module::parse_manifest_value;
-use crate::commands::module::print_relock_summary;
 use crate::commands::module::read_manifest_value;
 use crate::commands::module::remove_dependency;
 use crate::commands::module::resolve_relock_for_manifest;
@@ -44,6 +45,7 @@ pub async fn remove(args: Args, config: Config, printer: Printer) -> CommandResu
         "starting `sprocket dev module remove`"
     );
     let project = discover(&args.locator)?;
+    let output = ModuleOutput::new(printer);
     trace_project("module remove", &project);
     let mut value = read_manifest_value(&project.manifest_path)?;
     if !remove_dependency(&mut value, &args.name)? {
@@ -79,13 +81,19 @@ pub async fn remove(args: Args, config: Config, printer: Printer) -> CommandResu
     if let Some(outcome) = relock {
         write_lockfile(&project, &outcome.lockfile)?;
         tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
-        print_relock_summary(&outcome.stats, printer);
-        if outcome.stats.removed.is_empty() {
-            printer.status("Removed", format!("`{}`", args.name));
-        }
+        output.completed(ModuleAction::Remove, format!("`{}`", args.name));
+        output.detail(
+            "Lockfile",
+            crate::commands::module::count_noun(
+                outcome.lockfile.dependencies.len(),
+                "dependency",
+                "dependencies",
+            ),
+        );
     } else {
         tracing::debug!("skipped relock after removing dependency");
-        printer.status("Removed", format!("`{}`", args.name));
+        output.completed(ModuleAction::Remove, format!("`{}`", args.name));
+        output.detail("Lockfile", "not written (`--no-lock`)");
     }
 
     Ok(())

@@ -316,7 +316,7 @@ fn sign_writes_verifiable_signature() {
         status = verify.status,
         stderr = String::from_utf8_lossy(&verify.stderr)
     );
-    assert!(String::from_utf8_lossy(&verify.stdout).contains("Verified signature"));
+    assert!(String::from_utf8_lossy(&verify.stdout).contains("Verified module signature"));
 
     let verify_all = sprocket(&["dev", "module", "verify"])
         .current_dir(fixture.consumer())
@@ -328,7 +328,7 @@ fn sign_writes_verifiable_signature() {
         status = verify_all.status,
         stderr = String::from_utf8_lossy(&verify_all.stderr)
     );
-    assert!(String::from_utf8_lossy(&verify_all.stdout).contains("Verified signature"));
+    assert!(String::from_utf8_lossy(&verify_all.stdout).contains("Verified module signature"));
 }
 
 #[test]

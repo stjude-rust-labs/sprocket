@@ -11,6 +11,8 @@ use serde_json::Value;
 use wdl::ast::SupportedVersion;
 
 use crate::commands::CommandResult;
+use crate::commands::module::ModuleAction;
+use crate::commands::module::ModuleOutput;
 use crate::commands::module::write_manifest_value;
 use crate::commands::printer::Printer;
 
@@ -107,7 +109,12 @@ fn run_init(args: Args, printer: Printer) -> anyhow::Result<()> {
         tracing::debug!("skipped module scaffold files");
     }
 
-    printer.status("Created", format!("module `{name}`"));
+    let output = ModuleOutput::new(printer);
+    output.completed(ModuleAction::Initialize, format!("module `{name}`"));
+    output.detail("Manifest", manifest_path.display());
+    if !args.no_scaffold {
+        output.detail("Entrypoint", "index.wdl");
+    }
 
     Ok(())
 }
