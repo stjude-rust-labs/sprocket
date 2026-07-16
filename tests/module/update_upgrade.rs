@@ -26,6 +26,11 @@ fn update_moves_pin_to_newest_satisfying_version_and_is_idempotent() {
         status = first_lock.status,
         stderr = String::from_utf8_lossy(&first_lock.stderr)
     );
+    let lock_before_update = read_lockfile(&consumer);
+    let commit_before_update = locked_git_commit(&lock_before_update, "tasks");
+
+    add_unsigned_git_version(&fixture.repo_dir, "1.1.1");
+    let newest_commit = fixture.head_commit();
 
     let first_update = sprocket_with_config(fixture.config_path(), &["dev", "module", "update"])
         .current_dir(&consumer)
@@ -43,6 +48,18 @@ fn update_moves_pin_to_newest_satisfying_version_and_is_idempotent() {
         locked_git_selector(&lock_after_first_update, "tasks"),
         "version ^1.0"
     );
+    assert_eq!(
+        locked_git_commit(&lock_after_first_update, "tasks"),
+        newest_commit
+    );
+    assert_ne!(commit_before_update, newest_commit);
+    let stdout = String::from_utf8_lossy(&first_update.stdout);
+    assert!(stdout.contains("Updated 1 dependency"));
+    assert!(stdout.contains(&format!(
+        "commit: `{}` -> `{}`",
+        &commit_before_update[..7],
+        &newest_commit[..7]
+    )));
     let first_bytes = fs::read(consumer.join("module-lock.json")).unwrap();
 
     let second_update = sprocket_with_config(fixture.config_path(), &["dev", "module", "update"])

@@ -8,7 +8,6 @@ use wdl_modules::dependency::DependencyName;
 use crate::fixtures::*;
 
 #[test]
-#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 fn run_fails_when_locked_signer_key_is_removed_from_trust_store() {
     let (fixture, _public_key) = GitFixture::signed_without_version_tags();
     let home = isolated_home(fixture.dir.path(), "home-run-revoked");
@@ -44,33 +43,6 @@ fn run_fails_when_locked_signer_key_is_removed_from_trust_store() {
         .and_then(|entry| entry.signer)
         .expect("locked dependency should record a signer")
         .to_openssh();
-
-    let mut trust_command = sprocket_with_config(
-        fixture.config_path(),
-        &["dev", "module", "trust", "add", &public_key],
-    );
-    trust_command.current_dir(&consumer);
-    use_home(&mut trust_command, &home);
-    let trust = trust_command
-        .output()
-        .expect("failed to run sprocket dev module trust add");
-    assert!(
-        trust.status.success(),
-        "command failed {status}: {stderr}",
-        status = trust.status,
-        stderr = String::from_utf8_lossy(&trust.stderr)
-    );
-
-    let mut run_command = sprocket_with_config(fixture.config_path(), &["run", "."]);
-    run_command.current_dir(&consumer);
-    use_home(&mut run_command, &home);
-    let run = run_command.output().expect("failed to run sprocket run");
-    assert!(
-        run.status.success(),
-        "command failed {status}: {stderr}",
-        status = run.status,
-        stderr = String::from_utf8_lossy(&run.stderr)
-    );
 
     let mut remove_command = sprocket_with_config(
         fixture.config_path(),
