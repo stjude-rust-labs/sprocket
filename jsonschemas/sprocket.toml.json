@@ -1682,7 +1682,7 @@
         {
           "description": "Signer keys may be recorded without prompting when a caller\nexplicitly opts into automatic trust.",
           "type": "string",
-          "const": "auto"
+          "const": "auto-accept"
         },
         {
           "description": "Signer keys may be recorded without prompting when a caller\nexplicitly opts into trusting first observed keys.",
