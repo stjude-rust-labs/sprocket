@@ -4,8 +4,8 @@ use std::collections::BTreeSet;
 
 use anyhow::Context as _;
 use clap::Parser;
-use futures::future::try_join_all;
-use wdl_modules::Lockfile;
+use futures::StreamExt as _;
+use futures::TryStreamExt as _;
 use wdl_modules::Resolver as _;
 use wdl_modules::dependency::DependencyName;
 use wdl_modules::dependency::DependencySource;
@@ -31,6 +31,8 @@ use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
 use crate::commands::printer::Printer;
 use crate::config::Config;
+
+const VERSION_DISCOVERY_CONCURRENCY: usize = 8;
 
 /// Arguments to `sprocket dev module upgrade`.
 #[derive(Parser, Debug)]
@@ -93,11 +95,12 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
 
     let mut eligible = Vec::new();
     for name in selected {
-        let source = project
-            .manifest
-            .dependencies
-            .get(&name)
-            .expect("selected dependency must exist");
+        let source = project.manifest.dependencies.get(&name).with_context(|| {
+            format!(
+                "dependency `{}` disappeared during upgrade",
+                name.manifest()
+            )
+        })?;
         match source {
             DependencySource::Git {
                 selector: GitSelector::Version(req),
@@ -121,12 +124,9 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
         "checking latest dependency versions"
     );
 
-    let resolver = build_resolver(
-        &config,
-        load_lockfile(&project)?.unwrap_or_else(Lockfile::default),
-    )?;
+    let resolver = build_resolver(&config, load_lockfile(&project)?.unwrap_or_default())?;
 
-    let discovered = try_join_all(eligible.iter().map(|(name, source, old_req)| async {
+    let discovered = futures::stream::iter(eligible.iter().map(|(name, source, old_req)| async {
         let wildcard_source = wildcard_version_source(source)?;
         let versions = resolver
             .discover_versions(name, &wildcard_source, DependencyScope::TopLevel)
@@ -137,6 +137,8 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
             .with_context(|| format!("no discoverable versions found for `{}`", name.manifest()))?;
         Ok::<_, anyhow::Error>((name.clone(), old_req.clone(), highest))
     }))
+    .buffered(VERSION_DISCOVERY_CONCURRENCY)
+    .try_collect::<Vec<_>>()
     .await?;
     tracing::debug!(
         discovered = discovered.len(),
@@ -160,32 +162,12 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
         return Ok(());
     }
 
-    if args.dry_run {
-        output.planned(
-            ModuleAction::Upgrade,
-            crate::commands::module::count_noun(changed.len(), "dependency", "dependencies"),
-        );
-        print_upgrade_details(output, &changed);
-        tracing::debug!(
-            changed = changed.len(),
-            "dry run completed without writing manifest"
-        );
-        return Ok(());
-    }
-
-    let Some(mutation) = mutation else {
-        return Err(
-            anyhow::anyhow!("internal error; upgrade mutation lock was not acquired").into(),
-        );
-    };
     let mut manifest_value = read_manifest_value(&project.manifest_path)?;
     for (name, _, new_req) in &changed {
         set_version_selector(&mut manifest_value, name.manifest(), new_req)?;
     }
     let pending_manifest = parse_manifest_value(&manifest_value)?;
-    let existing = load_lockfile(&project)?.unwrap_or_default();
     let module = Module::new(std::sync::Arc::new(pending_manifest), project.root.clone());
-    let resolver = build_resolver(&config, existing)?;
     let tree = resolver
         .resolve_tree(&module)
         .await
@@ -198,6 +180,26 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
     )
     .map_err(anyhow::Error::from)?;
     let identities = signer_identity_map(&tree);
+
+    if args.dry_run {
+        output.planned(
+            ModuleAction::Upgrade,
+            crate::commands::module::count_noun(changed.len(), "dependency", "dependencies"),
+        );
+        print_upgrade_details(output, &changed);
+        print_lockfile_change_details(output, &outcome.stats);
+        tracing::debug!(
+            changed = changed.len(),
+            "dry run completed without writing manifest, lockfile, or trust store"
+        );
+        return Ok(());
+    }
+
+    let Some(mutation) = mutation else {
+        return Err(
+            anyhow::anyhow!("internal error; upgrade mutation lock was not acquired").into(),
+        );
+    };
     enforce_lockfile_signer_policy(
         resolver.lockfile(),
         &outcome.lockfile,
@@ -217,7 +219,12 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
         crate::commands::module::count_noun(changed.len(), "dependency", "dependencies"),
     );
     print_upgrade_details(output, &changed);
-    for change in &outcome.stats.updated {
+    print_lockfile_change_details(output, &outcome.stats);
+    Ok(())
+}
+
+fn print_lockfile_change_details(output: ModuleOutput, stats: &wdl_modules::resolver::RelockStats) {
+    for change in &stats.updated {
         output.detail(
             change.name.manifest(),
             crate::commands::module::update_details(
@@ -233,7 +240,6 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
             .trim_end_matches(')'),
         );
     }
-    Ok(())
 }
 
 fn print_upgrade_details(output: ModuleOutput, changed: &[(DependencyName, String, String)]) {

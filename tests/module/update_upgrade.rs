@@ -107,6 +107,50 @@ fn lock_update_updates_out_of_date_git_dependency() {
 }
 
 #[test]
+fn update_dry_run_resolves_changes_without_writing() -> anyhow::Result<()> {
+    let fixture = GitFixture::new();
+    let repo_url = fixture.repo_url();
+    let default_branch = fixture.default_branch();
+    let latest = fixture.head_commit();
+    let stale = fixture.head_parent_commit();
+    let consumer = fixture.write_consumer(
+        "consumer-update-dry-run",
+        &format!(
+            r#"    "tasks": {{ "git": "{repo_url}", "branch": "{default_branch}", "path": "tasks" }}"#
+        ),
+    );
+
+    let lock = sprocket_with_config(fixture.config_path(), &["dev", "module", "lock"])
+        .current_dir(&consumer)
+        .output()?;
+    assert!(lock.status.success());
+    set_locked_git_commit(&consumer, "tasks", &stale);
+    let manifest_before = fs::read(consumer.join("module.json"))?;
+    let lock_before = fs::read(consumer.join("module-lock.json"))?;
+
+    let update = sprocket_with_config(
+        fixture.config_path(),
+        &["dev", "module", "update", "--dry-run"],
+    )
+    .current_dir(&consumer)
+    .output()?;
+
+    assert!(
+        update.status.success(),
+        "command failed {status}: {stderr}",
+        status = update.status,
+        stderr = String::from_utf8_lossy(&update.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&update.stdout);
+    assert!(stdout.contains("Would update 1 dependency"));
+    assert!(stdout.contains(&format!("commit: `{}` -> `{}`", &stale[..7], &latest[..7])));
+    assert_eq!(fs::read(consumer.join("module.json"))?, manifest_before);
+    assert_eq!(fs::read(consumer.join("module-lock.json"))?, lock_before);
+    assert!(!consumer.join(".sprocket").join("module-mutation").exists());
+    Ok(())
+}
+
+#[test]
 fn lock_update_prompts_before_accepting_changed_signer_key() {
     let (fixture, _old_public_key) = GitFixture::signed_initial_version();
     let home = isolated_home(fixture.dir.path(), "home-update-prompt");
@@ -1018,6 +1062,10 @@ fn upgrade_dry_run_prints_changes_without_writing() {
             && stdout.contains("v1.0 -> v2.0.0"),
         "dry run should print the planned change, got: {stdout}"
     );
+    assert!(
+        stdout.contains("commit:"),
+        "dry run should include the resolved lockfile change, got: {stdout}"
+    );
 
     assert_eq!(
         fs::read(consumer.join("module.json")).unwrap(),
@@ -1029,6 +1077,7 @@ fn upgrade_dry_run_prints_changes_without_writing() {
         lock_before,
         "dry run must not modify `module-lock.json`"
     );
+    assert!(!consumer.join(".sprocket").join("module-mutation").exists());
 }
 
 #[test]
