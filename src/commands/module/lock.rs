@@ -6,6 +6,7 @@ use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::ModuleAction;
 use crate::commands::module::ModuleOutput;
+use crate::commands::module::ProjectMutation;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::discover;
 use crate::commands::module::load_lockfile;
@@ -13,7 +14,6 @@ use crate::commands::module::resolve_relock_plan;
 use crate::commands::module::resolve_relock_with_signer_mode;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
-use crate::commands::module::write_lockfile;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
@@ -44,7 +44,7 @@ pub async fn lock(args: Args, config: Config, printer: Printer) -> CommandResult
         dry_run = args.dry_run,
         "starting `sprocket dev module lock`"
     );
-    let project = discover(&args.locator)?;
+    let mut project = discover(&args.locator)?;
     let output = ModuleOutput::new(printer);
     trace_project("module lock", &project);
     let lock = load_lockfile(&project)?;
@@ -94,6 +94,16 @@ pub async fn lock(args: Args, config: Config, printer: Printer) -> CommandResult
         return Ok(());
     }
 
+    let mutation = ProjectMutation::acquire(&project)?;
+    project.reload()?;
+    if load_lockfile(&project)?
+        .as_ref()
+        .is_some_and(|lockfile| lockfile.satisfies_manifest(&project.manifest))
+    {
+        output.current("module lockfile is up to date");
+        return Ok(());
+    }
+
     let outcome = resolve_relock_with_signer_mode(
         &config,
         &project,
@@ -101,7 +111,7 @@ pub async fn lock(args: Args, config: Config, printer: Printer) -> CommandResult
         printer,
     )
     .await?;
-    write_lockfile(&project, &outcome.lockfile)?;
+    mutation.commit(&project, None, Some(&outcome.lockfile))?;
     tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
     output.completed(
         ModuleAction::Lock,

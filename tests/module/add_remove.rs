@@ -420,6 +420,26 @@ fn add_existing_identical_dep_reports_skipped_and_logs_noop() {
 }
 
 #[test]
+fn add_existing_identical_dep_repairs_missing_lockfile() -> anyhow::Result<()> {
+    let fixture = ModuleFixture::with_local_dep_added();
+    fs::remove_file(fixture.consumer().join("module-lock.json"))?;
+
+    let output = sprocket(&["dev", "module", "add", "utils", "../dep"])
+        .current_dir(fixture.consumer())
+        .output()?;
+
+    assert!(
+        output.status.success(),
+        "command failed {status}: {stderr}",
+        status = output.status,
+        stderr = String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(fixture.consumer().join("module-lock.json").exists());
+    assert!(String::from_utf8_lossy(&output.stdout).contains("Locked 1 dependency"));
+    Ok(())
+}
+
+#[test]
 fn remove_drops_dep_and_relocks() {
     let fixture = ModuleFixture::with_local_dep_added();
     let output = sprocket(&["dev", "module", "remove", "utils"])

@@ -14,6 +14,7 @@ use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::ModuleAction;
 use crate::commands::module::ModuleOutput;
+use crate::commands::module::ProjectMutation;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
@@ -22,7 +23,6 @@ use crate::commands::module::load_lockfile;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
 use crate::commands::module::update_details;
-use crate::commands::module::write_lockfile;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
@@ -52,7 +52,14 @@ pub async fn update(args: Args, config: Config, printer: Printer) -> CommandResu
         requested = args.names.len(),
         "starting `sprocket dev module update`"
     );
-    let project = discover(&args.locator)?;
+    let mut project = discover(&args.locator)?;
+    let mutation = if args.dry_run {
+        None
+    } else {
+        let mutation = ProjectMutation::acquire(&project)?;
+        project.reload()?;
+        Some(mutation)
+    };
     let output = ModuleOutput::new(printer);
     trace_project("module update", &project);
     let on_disk = load_lockfile(&project)?.unwrap_or_default();
@@ -97,6 +104,11 @@ pub async fn update(args: Args, config: Config, printer: Printer) -> CommandResu
         return Ok(());
     }
 
+    let Some(mutation) = mutation else {
+        return Err(
+            anyhow::anyhow!("internal error; update mutation lock was not acquired").into(),
+        );
+    };
     enforce_lockfile_signer_policy(
         resolver.lockfile(),
         &outcome.lockfile,
@@ -104,7 +116,7 @@ pub async fn update(args: Args, config: Config, printer: Printer) -> CommandResu
         signer_change_mode(&config, args.trust_mode),
         printer,
     )?;
-    write_lockfile(&project, &outcome.lockfile)?;
+    mutation.commit(&project, None, Some(&outcome.lockfile))?;
     tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
     print_update_outcome(output, &outcome.stats, false);
     Ok(())

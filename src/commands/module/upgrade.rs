@@ -19,6 +19,7 @@ use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::ModuleAction;
 use crate::commands::module::ModuleOutput;
+use crate::commands::module::ProjectMutation;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
@@ -28,8 +29,6 @@ use crate::commands::module::parse_manifest_value;
 use crate::commands::module::read_manifest_value;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
-use crate::commands::module::write_lockfile;
-use crate::commands::module::write_manifest_value;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
@@ -59,7 +58,14 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
         requested = args.names.len(),
         "starting `sprocket dev module upgrade`"
     );
-    let project = discover(&args.locator)?;
+    let mut project = discover(&args.locator)?;
+    let mutation = if args.dry_run {
+        None
+    } else {
+        let mutation = ProjectMutation::acquire(&project)?;
+        project.reload()?;
+        Some(mutation)
+    };
     let output = ModuleOutput::new(printer);
     trace_project("module upgrade", &project);
 
@@ -167,6 +173,11 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
         return Ok(());
     }
 
+    let Some(mutation) = mutation else {
+        return Err(
+            anyhow::anyhow!("internal error; upgrade mutation lock was not acquired").into(),
+        );
+    };
     let mut manifest_value = read_manifest_value(&project.manifest_path)?;
     for (name, _, new_req) in &changed {
         set_version_selector(&mut manifest_value, name.manifest(), new_req)?;
@@ -194,13 +205,12 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
         signer_change_mode(&config, args.trust_mode),
         printer,
     )?;
-    write_manifest_value(&project.manifest_path, &manifest_value)?;
+    mutation.commit(&project, Some(&manifest_value), Some(&outcome.lockfile))?;
     tracing::debug!(
         manifest = %project.manifest_path.display(),
         changed = changed.len(),
         "wrote upgraded version selectors"
     );
-    write_lockfile(&project, &outcome.lockfile)?;
     tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
     output.completed(
         ModuleAction::Upgrade,

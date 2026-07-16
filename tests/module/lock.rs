@@ -236,6 +236,7 @@ fn lock_dry_run_does_not_write_lockfile_or_trust_store() {
         stderr = String::from_utf8_lossy(&output.stderr)
     );
     assert!(!consumer.join("module-lock.json").exists());
+    assert!(!consumer.join(".sprocket").exists());
     assert!(
         !home
             .join(".config")

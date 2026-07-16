@@ -29,6 +29,7 @@ pub mod clean;
 pub mod fetch;
 pub mod init;
 pub mod lock;
+mod mutation;
 mod output;
 pub mod remove;
 pub mod sign;
@@ -39,6 +40,7 @@ pub mod update;
 pub mod upgrade;
 pub mod verify;
 
+pub(crate) use mutation::ProjectMutation;
 pub(crate) use output::ModuleAction;
 pub(crate) use output::ModuleOutput;
 pub(crate) use output::count_noun;
@@ -60,6 +62,19 @@ pub struct Project {
     pub manifest: Arc<Manifest>,
     /// Path to the sibling `module-lock.json`.
     pub lockfile_path: PathBuf,
+}
+
+impl Project {
+    /// Reloads the manifest while a project mutation lock is held.
+    pub(crate) fn reload(&mut self) -> anyhow::Result<()> {
+        let bytes = std::fs::read(&self.manifest_path)
+            .with_context(|| format!("reading `{}`", self.manifest_path.display()))?;
+        self.manifest = Arc::new(
+            Manifest::parse(&bytes)
+                .with_context(|| format!("parsing `{}`", self.manifest_path.display()))?,
+        );
+        Ok(())
+    }
 }
 
 /// Locates the governing `module.json`.
@@ -522,7 +537,7 @@ pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> an
         .unwrap_or_else(|| Path::new("."))
         .to_path_buf();
     let lockfile_path = manifest_path.with_file_name(wdl_modules::LOCKFILE_FILENAME);
-    let project = Project {
+    let mut project = Project {
         manifest_path,
         root,
         manifest: Arc::new(manifest),
@@ -537,13 +552,23 @@ pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> an
         return Ok(());
     }
 
+    let mutation = ProjectMutation::acquire(&project)?;
+    project.reload()?;
+    let existing = load_lockfile(&project)?;
+    if existing
+        .as_ref()
+        .is_some_and(|lock| lock.satisfies_manifest(&project.manifest))
+    {
+        return Ok(());
+    }
+
     tracing::info!(
         manifest = %project.manifest_path.display(),
         lockfile_present = existing.is_some(),
         "`module-lock.json` is missing or out of date; regenerating before execution"
     );
     let outcome = resolve_relock(config, &project).await?;
-    write_lockfile(&project, &outcome.lockfile)?;
+    mutation.commit(&project, None, Some(&outcome.lockfile))?;
     Ok(())
 }
 

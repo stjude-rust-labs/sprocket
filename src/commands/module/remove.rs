@@ -6,6 +6,7 @@ use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::ModuleAction;
 use crate::commands::module::ModuleOutput;
+use crate::commands::module::ProjectMutation;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::discover;
 use crate::commands::module::parse_manifest_value;
@@ -14,8 +15,6 @@ use crate::commands::module::remove_dependency;
 use crate::commands::module::resolve_relock_for_manifest;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
-use crate::commands::module::write_lockfile;
-use crate::commands::module::write_manifest_value;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
@@ -44,7 +43,9 @@ pub async fn remove(args: Args, config: Config, printer: Printer) -> CommandResu
         no_lock = args.no_lock,
         "starting `sprocket dev module remove`"
     );
-    let project = discover(&args.locator)?;
+    let mut project = discover(&args.locator)?;
+    let mutation = ProjectMutation::acquire(&project)?;
+    project.reload()?;
     let output = ModuleOutput::new(printer);
     trace_project("module remove", &project);
     let mut value = read_manifest_value(&project.manifest_path)?;
@@ -71,7 +72,11 @@ pub async fn remove(args: Args, config: Config, printer: Printer) -> CommandResu
         )
     };
 
-    write_manifest_value(&project.manifest_path, &value)?;
+    mutation.commit(
+        &project,
+        Some(&value),
+        relock.as_ref().map(|outcome| &outcome.lockfile),
+    )?;
     tracing::debug!(
         dependency = args.name,
         manifest = %project.manifest_path.display(),
@@ -79,7 +84,6 @@ pub async fn remove(args: Args, config: Config, printer: Printer) -> CommandResu
     );
 
     if let Some(outcome) = relock {
-        write_lockfile(&project, &outcome.lockfile)?;
         tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
         output.completed(ModuleAction::Remove, format!("`{}`", args.name));
         output.detail(

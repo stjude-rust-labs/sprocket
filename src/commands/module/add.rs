@@ -19,6 +19,7 @@ use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::ModuleAction;
 use crate::commands::module::ModuleOutput;
+use crate::commands::module::ProjectMutation;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
@@ -28,8 +29,6 @@ use crate::commands::module::resolve_relock_for_manifest;
 use crate::commands::module::set_dependency;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
-use crate::commands::module::write_lockfile;
-use crate::commands::module::write_manifest_value;
 use crate::commands::printer::Printer;
 use crate::config::Config;
 
@@ -93,7 +92,9 @@ pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<
         "starting `sprocket dev module add`"
     );
     let (name, source_arg) = dependency_name_and_source(&args)?;
-    let project = discover(&args.locator)?;
+    let mut project = discover(&args.locator)?;
+    let mutation = ProjectMutation::acquire(&project)?;
+    project.reload()?;
     trace_project("module add", &project);
     let built = build_source(&args, &source_arg, &config, &name).await?;
     let source = built.source;
@@ -105,10 +106,34 @@ pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<
             dependency = name.manifest(),
             "dependency already exists with the same source"
         );
-        output.current(format!(
-            "`{}` already uses the requested source",
-            name.manifest()
-        ));
+        let lockfile = crate::commands::module::load_lockfile(&project)?;
+        let lock_is_current = lockfile
+            .as_ref()
+            .is_some_and(|lockfile| lockfile.satisfies_manifest(&project.manifest));
+        if !args.no_lock && !lock_is_current {
+            let outcome = resolve_relock_for_manifest(
+                &config,
+                &project,
+                project.manifest.clone(),
+                signer_change_mode(&config, args.trust_mode),
+                printer,
+            )
+            .await?;
+            mutation.commit(&project, None, Some(&outcome.lockfile))?;
+            output.completed(
+                ModuleAction::Lock,
+                crate::commands::module::count_noun(
+                    outcome.lockfile.dependencies.len(),
+                    "dependency",
+                    "dependencies",
+                ),
+            );
+        } else {
+            output.current(format!(
+                "`{}` already uses the requested source",
+                name.manifest()
+            ));
+        }
         print_source_details(output, &source);
         if let Some(note) = built.note {
             output.detail("Note", note);
@@ -133,7 +158,11 @@ pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<
         )
     };
 
-    write_manifest_value(&project.manifest_path, &value)?;
+    mutation.commit(
+        &project,
+        Some(&value),
+        relock.as_ref().map(|outcome| &outcome.lockfile),
+    )?;
     tracing::debug!(
         dependency = name.manifest(),
         manifest = %project.manifest_path.display(),
@@ -141,7 +170,6 @@ pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<
     );
 
     if let Some(outcome) = relock {
-        write_lockfile(&project, &outcome.lockfile)?;
         tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
         output.completed(ModuleAction::Add, format!("`{}`", name.manifest()));
         print_source_details(output, &source);
