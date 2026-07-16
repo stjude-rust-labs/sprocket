@@ -551,7 +551,7 @@ fn is_rule_enabled(
         return false;
     }
 
-    enabled_lint_tags.intersect(rule.tags()).count() > 0
+    enabled_lint_tags.intersect(rule.tags()) == rule.tags()
 }
 
 /// Gets a lint visitor with the rules depending on provided options.

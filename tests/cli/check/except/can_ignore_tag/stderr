@@ -1,8 +1,0 @@
-warning[RequirementsSection]: task `say_hello` is missing a `requirements` section
-  ┌─ input-keyword.wdl:7:6
-  │
-7 │ task say_hello {
-  │      ^^^^^^^^^ this task is missing a `requirements` section
-  │
-  = fix: add a `requirements` section
-
