@@ -1,8 +1,10 @@
 //! User-level trust store at `<config>/sprocket/modules-trust.toml`.
 
+use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 
+use tempfile::NamedTempFile;
 use thiserror::Error;
 use toml_spanner::Toml;
 
@@ -112,10 +114,25 @@ impl TrustStore {
             path: path.to_path_buf(),
             source,
         })?;
-        std::fs::write(path, s).map_err(|source| TrustStoreError::Io {
-            path: path.to_path_buf(),
+        let parent = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        let mut temp = NamedTempFile::new_in(parent).map_err(|source| TrustStoreError::Io {
+            path: parent.to_path_buf(),
             source,
-        })
+        })?;
+        temp.write_all(s.as_bytes())
+            .and_then(|()| temp.as_file().sync_all())
+            .map_err(|source| TrustStoreError::Io {
+                path: temp.path().to_path_buf(),
+                source,
+            })?;
+        temp.persist(path).map_err(|error| TrustStoreError::Io {
+            path: path.to_path_buf(),
+            source: error.error,
+        })?;
+        Ok(())
     }
 
     /// Returns `true` when `key` is globally trusted.

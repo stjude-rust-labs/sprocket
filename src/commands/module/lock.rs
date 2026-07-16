@@ -9,6 +9,7 @@ use crate::commands::module::TrustModeArg;
 use crate::commands::module::discover;
 use crate::commands::module::load_lockfile;
 use crate::commands::module::print_relock_summary;
+use crate::commands::module::resolve_relock_plan;
 use crate::commands::module::resolve_relock_with_signer_mode;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
@@ -67,9 +68,16 @@ pub async fn lock(args: Args, config: Config, printer: Printer) -> CommandResult
         return Ok(());
     }
 
-    if satisfied && !args.dry_run {
+    if satisfied {
         tracing::debug!("skipped relock because lockfile is current");
         print_relock_summary(&RelockStats::default(), printer);
+        return Ok(());
+    }
+
+    if args.dry_run {
+        let plan = resolve_relock_plan(&config, &project, project.manifest.clone()).await?;
+        tracing::debug!("dry run completed without writing lockfile or trust store");
+        print_relock_summary(&plan.outcome.stats, printer);
         return Ok(());
     }
 
@@ -80,12 +88,6 @@ pub async fn lock(args: Args, config: Config, printer: Printer) -> CommandResult
         printer,
     )
     .await?;
-    if args.dry_run {
-        tracing::debug!("dry run completed without writing lockfile");
-        print_relock_summary(&outcome.stats, printer);
-        return Ok(());
-    }
-
     write_lockfile(&project, &outcome.lockfile)?;
     tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
     print_relock_summary(&outcome.stats, printer);

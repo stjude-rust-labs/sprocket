@@ -140,8 +140,6 @@ impl SignerChange<'_> {
                 Mode::Confirm | Mode::Tofu => Decision::Prompt,
                 Mode::Auto => Decision::AutoAccept,
             }),
-            // A removed signature only matters while its key is pinned.
-            Self::Removed(_) if !trust.contains_key(&self.key()) => None,
             Self::Removed(_) => Some(match mode {
                 Mode::Strict => Decision::Refuse,
                 Mode::Confirm | Mode::Tofu => Decision::Prompt,
@@ -579,12 +577,11 @@ mod tests {
     }
 
     #[test]
-    fn enforce_signer_trust_refuses_removal_while_pinned() {
+    fn enforce_signer_trust_refuses_removal_regardless_of_global_trust() {
         let url = "https://example.com/repo";
         let existing = signed_lockfile("dep", url, Some(vkey(1)));
         let new = signed_lockfile("dep", url, None);
 
-        // While the key is still pinned, the downgrade to unsigned is refused.
         let (_dir, path) = trust_path(&trust_for(vkey(1)));
         let err = enforce_signer_trust(
             &path,
@@ -600,9 +597,8 @@ mod tests {
             "unexpected error: {err}"
         );
 
-        // With no pin, the downgrade is accepted.
         let (_dir, path) = empty_trust_path();
-        enforce_signer_trust(
+        let err = enforce_signer_trust(
             &path,
             &existing,
             &new,
@@ -610,7 +606,11 @@ mod tests {
             SignerChangeMode::Strict,
             Printer::new(false),
         )
-        .expect("an unpinned downgrade should be accepted");
+        .unwrap_err();
+        assert!(
+            err.to_string().contains("signer key removed"),
+            "unexpected error: {err}"
+        );
     }
 
     #[test]

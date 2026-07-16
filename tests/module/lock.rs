@@ -207,6 +207,46 @@ fn lock_trust_mode_flag_auto_trusts_without_prompting() {
 }
 
 #[test]
+fn lock_dry_run_does_not_write_lockfile_or_trust_store() {
+    let (fixture, _public_key) = GitFixture::signed_without_version_tags();
+    let home = isolated_home(fixture.dir.path(), "home-lock-dry-run");
+    let repo_url = fixture.repo_url();
+    let default_branch = fixture.default_branch();
+    let consumer = fixture.write_consumer(
+        "consumer-lock-dry-run",
+        &format!(
+            r#"    "tasks": {{ "git": "{repo_url}", "branch": "{default_branch}", "path": "tasks" }}"#
+        ),
+    );
+
+    let mut command = sprocket_with_config(
+        fixture.config_path(),
+        &["dev", "module", "lock", "--dry-run", "--trust-mode", "auto"],
+    );
+    command.current_dir(&consumer);
+    use_home(&mut command, &home);
+    let output = command
+        .output()
+        .expect("failed to run sprocket dev module lock --dry-run");
+
+    assert!(
+        output.status.success(),
+        "command failed {status}: {stderr}",
+        status = output.status,
+        stderr = String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(!consumer.join("module-lock.json").exists());
+    assert!(
+        !home
+            .join(".config")
+            .join("sprocket")
+            .join("modules-trust.toml")
+            .exists()
+    );
+    assert!(!String::from_utf8_lossy(&output.stderr).contains("[y/N]"));
+}
+
+#[test]
 fn lock_writes_lockfile() {
     let fixture = ModuleFixture::with_local_dep();
     let add = sprocket(&["dev", "module", "add", "utils", "../dep", "--no-lock"])
