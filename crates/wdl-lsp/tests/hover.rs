@@ -47,6 +47,13 @@ fn assert_hover_content(hover: &Option<Hover>, expected: &str) {
     );
 }
 
+fn assert_no_hover(hover: &Option<Hover>) {
+    assert!(
+        hover.is_none(),
+        "expected no hover response, but got `{hover:?}`"
+    );
+}
+
 async fn setup() -> TestContext {
     let mut ctx = TestContext::new("hover");
     ctx.initialize().await;
@@ -201,15 +208,12 @@ async fn should_hover_version_filtering_v1_0() {
     let response = hover_request(&mut ctx, wdl, Position::new(12, 23))
         .await
         .expect("request should succeed");
-    assert_hover_not_content(
-        &response,
-        "split(input: String, delimiter: String) -> Array[String]",
-    );
+    assert_no_hover(&response);
     // Position of `contains_key`
     let response = hover_request(&mut ctx, wdl, Position::new(16, 22))
         .await
         .expect("request should succeed");
-    assert_hover_not_content(&response, "contains_key(map: Map[K, V], key: K)");
+    assert_no_hover(&response);
 }
 
 #[tokio::test]

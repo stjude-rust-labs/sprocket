@@ -463,9 +463,11 @@ fn resolve_hover_by_context(
             }
 
             if let Some(func) = STDLIB.function(call_expr.target().text()) {
-                let content =
-                    get_function_hover_content(document.version(), call_expr.target().text(), func);
-                return Ok(Some(content));
+                return Ok(get_function_hover_content(
+                    document.version(),
+                    call_expr.target().text(),
+                    func,
+                ));
             }
         }
 
@@ -526,21 +528,18 @@ fn find_global_hover_in_doc(document: &Document, token: &SyntaxToken) -> Result<
 ///
 /// This includes all overloaded signatures appropriate for the specified
 /// `version` and the documentation from the WDL specification.
+///
+/// Returns `None` if the document has no supported version or the function is
+/// unavailable in that version.
 fn get_function_hover_content(
     version: Option<SupportedVersion>,
     name: &str,
     func: &Function,
-) -> String {
-    let Some(v) = version else {
-        // The None case (un-analyzed document) has no meaningful stdlib content.
-        return String::from("");
-    };
+) -> Option<String> {
+    let v = version?;
 
     if func.minimum_version() > v {
-        // Return completely empty hover text for either unsupported monomorphic
-        // functions or polymorphic functions whose variants are all unsupported
-        // (`minimum_version` folds across all variants of a polymorphic function).
-        return String::from("");
+        return None;
     }
 
     let (detail, docs) = match func {
@@ -572,7 +571,7 @@ fn get_function_hover_content(
             (detail, docs)
         }
     };
-    format!("{detail}\n\n{docs}")
+    Some(format!("{detail}\n\n{docs}"))
 }
 
 /// Finds documentation for a variable declaration.
