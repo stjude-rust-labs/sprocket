@@ -9,8 +9,6 @@ use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
 use clap::builder::PossibleValuesParser;
-use codespan_reporting::diagnostic::Diagnostic;
-use codespan_reporting::files::SimpleFiles;
 use strum::VariantArray;
 use tracing::debug;
 use tracing::info;
@@ -20,14 +18,12 @@ use wdl::ast::Severity;
 use wdl::diagnostics::DiagnosticCounts;
 use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
-use wdl::diagnostics::get_diagnostics_display_config;
 use wdl::lint::ALL_TAG_NAMES;
 use wdl::lint::Baseline;
 use wdl::lint::BaselineEntry;
 use wdl::lint::Tag;
 use wdl::lint::TagSet;
 use wdl::lint::baseline::DEFAULT_BASELINE_FILENAME;
-use wdl::lint::find_nearest_rule;
 
 use super::explain::ALL_RULE_IDS;
 use crate::Config;
@@ -241,8 +237,6 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
     };
     let mut matcher = baseline.as_ref().map(|b| b.matcher());
 
-    report_unknown_rules(&except, report_mode, colorize)?;
-
     let provided_source_uris = sources
         .iter()
         .flat_map(|s| s.as_url())
@@ -287,7 +281,7 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         .fallback_version(config.common.wdl.fallback_version.into())
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
-        .run()
+        .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
 
@@ -489,54 +483,4 @@ pub async fn lint(args: LintArgs, config: Config, colorize: bool) -> CommandResu
         colorize,
     )
     .await
-}
-
-/// Reports any unknown rules as diagnostics.
-fn report_unknown_rules(
-    excepted: &[String],
-    report_mode: Mode,
-    colorize: bool,
-) -> anyhow::Result<()> {
-    let rules = ALL_RULE_IDS.clone();
-
-    let mut unknown_rules = excepted
-        .iter()
-        .filter(|exception| {
-            !rules
-                .iter()
-                .any(|rule| rule.eq_ignore_ascii_case(exception))
-        })
-        .map(|rule| (rule, find_nearest_rule(rule)))
-        .collect::<Vec<_>>();
-
-    if !unknown_rules.is_empty() {
-        unknown_rules.sort();
-
-        let (config, writer) = get_diagnostics_display_config(report_mode, colorize);
-        let mut writer = writer.lock();
-        let files = SimpleFiles::<String, String>::new();
-
-        for (unknown_rule, nearest_rule) in unknown_rules {
-            let mut notes = Vec::new();
-
-            if let Some(nearest_rule) = nearest_rule {
-                notes.push(format!("fix: did you mean the `{nearest_rule}` rule?"));
-            }
-
-            notes.push(String::from(
-                "run `sprocket explain --help` to see available rules",
-            ));
-
-            let warning = Diagnostic::warning()
-                .with_message(format!(
-                    "ignoring unknown rule provided via --except: {unknown_rule}",
-                ))
-                .with_notes(notes);
-
-            codespan_reporting::term::emit_to_write_style(&mut writer, config, &files, &warning)
-                .expect("failed to emit unknown rule warning");
-        }
-    }
-
-    Ok(())
 }

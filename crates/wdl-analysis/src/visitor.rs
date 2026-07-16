@@ -21,6 +21,8 @@
 //! visiting a V2 document; the hope is that enables some visitors to be
 //! "shared" across different WDL versions.
 
+use std::collections::HashSet;
+
 use rowan::WalkEvent;
 use tracing::trace;
 use wdl_ast::AstNode;
@@ -82,6 +84,15 @@ pub enum VisitReason {
 /// matching [VisitReason::Exit] call.
 #[allow(unused_variables)]
 pub trait Visitor {
+    /// Get all lint rules known to this `Visitor`.
+    ///
+    /// Note that [`Validator`]s will expect this value to be static.
+    ///
+    /// [`Validator`]: crate::Validator
+    fn known_rules(&self) -> HashSet<String> {
+        HashSet::new()
+    }
+
     /// Registers configuration with a visitor.
     fn register(&mut self, config: &Config) {}
 

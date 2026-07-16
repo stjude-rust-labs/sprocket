@@ -22,6 +22,13 @@ Options:
       --yaml
           Output the template as a YAML file
 
+  -m, --report-mode <MODE>
+          The report mode for any emitted diagnostics
+
+          Possible values:
+          - full:     Prints diagnostics as multiple lines
+          - one-line: Prints diagnostics as one line
+
   -v, --verbose...
           Increase logging verbosity
 

@@ -19,6 +19,7 @@ use wdl::ast::v1::InputSection;
 use wdl::ast::v1::LiteralExpr;
 use wdl::ast::v1::StringPart;
 use wdl::ast::v1::TaskDefinition;
+use wdl::diagnostics::Mode;
 
 use crate::Config;
 use crate::analysis::Analysis;
@@ -53,6 +54,10 @@ pub struct Args {
     /// Output the template as a YAML file.
     #[arg(long)]
     pub yaml: bool,
+
+    /// The report mode for any emitted diagnostics.
+    #[arg(short = 'm', long, value_name = "MODE", global = true)]
+    pub report_mode: Option<Mode>,
 }
 
 /// An input key.
@@ -453,17 +458,19 @@ impl InputProcessor {
 }
 
 /// Displays the input schema for a WDL document.
-pub async fn inputs(args: Args, config: Config) -> CommandResult<()> {
+pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     let source = match args.source {
         Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
     };
+
     let results = Analysis::default()
         .add_source(source.clone())
         .fallback_version(config.common.wdl.fallback_version.into())
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
-        .run()
+        .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
 

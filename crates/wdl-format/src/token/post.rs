@@ -137,7 +137,8 @@ impl Token for PostToken {
                                 prefix.push_str("except");
                                 prefix.push_str(DIRECTIVE_DELIMITER);
                                 prefix.push(' ');
-                                let mut rules: Vec<String> = exceptions.iter().cloned().collect();
+                                let mut rules: Vec<String> =
+                                    exceptions.iter().cloned().map(|e| e.name).collect();
                                 rules.sort();
                                 write!(f, "{prefix}")?;
                                 if let Some(max) = self.config.max_line_length.get() {

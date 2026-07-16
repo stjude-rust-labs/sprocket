@@ -2784,6 +2784,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 
 [[package]]
+name = "libmimalloc-sys"
+version = "0.1.49"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a45a52f43e1c16f667ccfe4dd8c85b7f7c204fd5e3bf46c5b0db9a5c3c0b8e9"
+dependencies = [
+ "cc",
+]
+
+[[package]]
 name = "libredox"
 version = "0.1.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3028,6 +3037,15 @@ name = "micromap"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a86d3146ed3995b5913c414f6664344b9617457320782e64f0bb44afd49d74"
+
+[[package]]
+name = "mimalloc"
+version = "0.1.52"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2d4139bb28d14ad1facf21d5eb8825051b326e172d216b39f6d31df53cc97862"
+dependencies = [
+ "libmimalloc-sys",
+]
 
 [[package]]
 name = "mime"
@@ -3505,12 +3523,6 @@ name = "pathdiff"
 version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "df94ce210e5bc13cb6651479fa48d14f601d9858cfe0467f43ae157023b938d3"
-
-[[package]]
-name = "peak_alloc"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ccc90935a8dd139fdf341762773687a1e361d3f54b396a55d9dd1f7001e484bb"
 
 [[package]]
 name = "pem-rfc7468"
@@ -4954,7 +4966,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket"
-version = "0.27.0"
+version = "0.28.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4979,12 +4991,13 @@ dependencies = [
  "indicatif",
  "itertools 0.15.0",
  "jsonschema",
+ "libc",
  "libtest-mimic",
+ "mimalloc",
  "nonempty",
  "opener",
  "path-clean",
  "pathdiff",
- "peak_alloc",
  "petname",
  "pretty_assertions",
  "rand 0.10.1",
@@ -5021,6 +5034,7 @@ dependencies = [
  "wdl",
  "wdl-modules",
  "whoami 2.1.2",
+ "windows-sys 0.61.2",
  "zip 8.6.0",
 ]
 
@@ -6398,7 +6412,7 @@ dependencies = [
 
 [[package]]
 name = "wdl"
-version = "0.23.2"
+version = "0.23.3"
 dependencies = [
  "anyhow",
  "clap",
@@ -6416,7 +6430,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-analysis"
-version = "0.22.0"
+version = "0.23.0"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -6442,6 +6456,7 @@ dependencies = [
  "schemars 1.2.1",
  "semver",
  "smallvec",
+ "strsim",
  "tempfile",
  "tokio",
  "toml-spanner",
@@ -6457,7 +6472,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-ast"
-version = "0.25.0"
+version = "0.26.0"
 dependencies = [
  "approx",
  "codespan-reporting",
@@ -6474,7 +6489,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-diagnostics"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "clap",
@@ -6487,7 +6502,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-doc"
-version = "0.15.2"
+version = "0.15.3"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6515,7 +6530,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-engine"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "anyhow",
  "approx",
@@ -6570,7 +6585,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-format"
-version = "0.19.0"
+version = "0.20.0"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -6585,7 +6600,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-grammar"
-version = "0.24.0"
+version = "0.25.0"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -6600,7 +6615,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lint"
-version = "0.24.1"
+version = "0.25.0"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -6619,7 +6634,6 @@ dependencies = [
  "schemars 1.2.1",
  "serde",
  "serde_json",
- "strsim",
  "strum",
  "tempfile",
  "thiserror",
@@ -6635,7 +6649,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lsp"
-version = "0.20.1"
+version = "0.21.0"
 dependencies = [
  "anyhow",
  "async-lsp",
@@ -6663,7 +6677,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-modules"
-version = "0.2.1"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "base64",

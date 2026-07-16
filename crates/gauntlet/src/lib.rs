@@ -207,7 +207,9 @@ pub async fn gauntlet(args: Args) -> Result<()> {
                 let mut validator = if args.arena {
                     Validator::empty()
                 } else {
-                    Validator::default()
+                    let mut validator = Validator::default();
+                    validator.extend_known_rules(wdl::lint::ALL_RULE_IDS.iter().cloned());
+                    validator
                 };
                 if args.arena {
                     validator.add_visitor(Linter::default());
