@@ -1,4 +1,4 @@
-//! Implements regex memoization
+//! Caches compiled regular expressions for WDL standard library functions.
 
 use std::collections::HashMap;
 use std::sync::LazyLock;
@@ -6,47 +6,38 @@ use std::sync::Mutex;
 
 use regex::Regex;
 
-/// Keeps track of the previously calculated Regexes
-///
-/// We only cache the sucessfully compiled Regex values
+/// Caches successfully compiled regular expressions by pattern.
 static REGEX_CACHE: LazyLock<Mutex<HashMap<String, Regex>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// Function for memoization of computed Regex values
-pub fn cached_regex(regex_pattern: &str) -> Result<Regex, regex::Error> {
-    let mut locked_cache = REGEX_CACHE.lock().expect("failed to lock regex cache");
-    let re = locked_cache.get(regex_pattern);
-    if let Some(value) = re {
-        return Ok(value.clone());
+/// Gets a cached regular expression or compiles and caches the given pattern.
+pub(super) fn get_or_compile_regex(pattern: &str) -> Result<Regex, regex::Error> {
+    let mut cache = REGEX_CACHE.lock().expect("failed to lock regex cache");
+    if let Some(regex) = cache.get(pattern) {
+        return Ok(regex.clone());
     }
 
-    let new_reg_ex = Regex::new(regex_pattern);
-    if let Ok(value) = &new_reg_ex {
-        locked_cache.insert(regex_pattern.to_string(), value.clone());
-    }
-    new_reg_ex
+    let regex = Regex::new(pattern)?;
+    cache.insert(pattern.to_string(), regex.clone());
+    Ok(regex)
 }
 
 #[cfg(test)]
 mod test {
-    use regex::Regex;
+    use super::get_or_compile_regex;
 
-    use crate::stdlib::regex_cache::cached_regex;
+    #[test]
+    fn gets_or_compiles_regex() {
+        let pattern = r"\d+";
 
-    #[tokio::test]
-    async fn regex_cache() {
-        let re_string = r"\d+".to_string();
-        {
-            let re: Regex = cached_regex(&re_string).unwrap();
-            assert_eq!(re.as_str(), re_string);
-        }
-        {
-            let re_cached: Regex = cached_regex(&re_string).unwrap();
-            assert_eq!(re_cached.as_str(), re_string);
-        }
-        {
-            let err = cached_regex("..\\");
-            assert!(err.is_err());
-        }
+        // SAFETY: the pattern is a valid regular expression.
+        let regex = get_or_compile_regex(pattern).unwrap();
+        assert_eq!(regex.as_str(), pattern);
+
+        // SAFETY: the pattern is a valid regular expression.
+        let cached = get_or_compile_regex(pattern).unwrap();
+        assert_eq!(cached.as_str(), pattern);
+
+        assert!(get_or_compile_regex("..\\").is_err());
     }
 }
