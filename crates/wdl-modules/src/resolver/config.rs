@@ -402,12 +402,12 @@ pub struct LargeFileWarningError(String);
 /// flags new signers; the CLI is responsible for acting on the policy
 /// (e.g., prompting the user when `Confirm` is set).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Toml, JsonSchema)]
-#[toml(Toml, rename_all = "lowercase")]
-#[schemars(rename_all = "lowercase")]
+#[toml(Toml, rename_all = "kebab-case")]
+#[schemars(rename_all = "kebab-case")]
 pub enum TrustMode {
     /// Signer keys may be recorded without prompting when a caller
     /// explicitly opts into automatic trust.
-    Auto,
+    AutoAccept,
     /// Signer keys may be recorded without prompting when a caller
     /// explicitly opts into trusting first observed keys.
     Tofu,
@@ -443,8 +443,9 @@ mod tests {
         let cfg: ModulesConfig = toml_spanner::from_str(r#"trust_mode = "confirm""#).unwrap();
         assert_eq!(cfg.trust_mode, TrustMode::Confirm);
 
-        let cfg: ModulesConfig = toml_spanner::from_str(r#"trust_mode = "auto""#).unwrap();
-        assert_eq!(cfg.trust_mode, TrustMode::Auto);
+        let cfg: ModulesConfig = toml_spanner::from_str(r#"trust_mode = "auto-accept""#).unwrap();
+        assert_eq!(cfg.trust_mode, TrustMode::AutoAccept);
+        assert!(toml_spanner::from_str::<ModulesConfig>(r#"trust_mode = "auto""#).is_err());
 
         let cfg: ModulesConfig = toml_spanner::from_str(r#"trust_mode = "tofu""#).unwrap();
         assert_eq!(cfg.trust_mode, TrustMode::Tofu);

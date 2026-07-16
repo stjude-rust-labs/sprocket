@@ -216,6 +216,22 @@ impl ResolvedSource {
         }
     }
 
+    /// Returns the resolved Git commit, or `None` for a local path.
+    pub fn git_sha(&self) -> Option<&GitCommit> {
+        match self {
+            Self::Git { sha, .. } => Some(sha),
+            Self::Path { .. } => None,
+        }
+    }
+
+    /// Returns the Git selector, or `None` for a local path.
+    pub fn git_selector(&self) -> Option<&GitSelector> {
+        match self {
+            Self::Git { selector, .. } => Some(selector),
+            Self::Path { .. } => None,
+        }
+    }
+
     /// Returns the source's identity coordinates for cycle detection.
     ///
     /// For Git sources this is the repository URL and sub-path; for

@@ -164,7 +164,7 @@ fn add_prompts_before_trusting_new_signer_key() {
 }
 
 #[test]
-fn add_trust_mode_flag_auto_trusts_without_prompting() {
+fn add_trust_mode_flag_auto_accepts_without_prompting() {
     let (fixture, _public_key) = GitFixture::signed_without_version_tags();
     let home = isolated_home(fixture.dir.path(), "home-add-auto-flag");
     let repo_url = fixture.repo_url();
@@ -180,7 +180,7 @@ fn add_trust_mode_flag_auto_trusts_without_prompting() {
             "--path",
             "tasks",
             "--trust-mode",
-            "auto",
+            "auto-accept",
         ],
     );
     add_command.current_dir(&consumer);
@@ -501,7 +501,7 @@ fn add_new_signer_matrix_respects_trust_mode() {
     let cases = [
         (CliTrustMode::Confirm, false, true),
         (CliTrustMode::Tofu, true, false),
-        (CliTrustMode::Auto, true, false),
+        (CliTrustMode::AutoAccept, true, false),
     ];
 
     for (mode, expect_success, expect_prompt) in cases {

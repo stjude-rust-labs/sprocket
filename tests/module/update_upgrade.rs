@@ -470,10 +470,10 @@ fn lock_update_tofu_prompts_before_accepting_changed_signer_key() {
 }
 
 #[test]
-fn lock_update_auto_trusts_changed_signer_key_without_prompting() {
+fn lock_update_auto_accepts_changed_signer_key_without_prompting() {
     let (fixture, _old_public_key) = GitFixture::signed_initial_version();
     let home = isolated_home(fixture.dir.path(), "home-update-auto");
-    set_fixture_trust_mode(&fixture, "auto");
+    set_fixture_trust_mode(&fixture, "auto-accept");
     let repo_url = fixture.repo_url();
     let consumer = fixture.write_consumer(
         "consumer-lock-update-signer-auto",
@@ -524,7 +524,7 @@ fn lock_update_auto_trusts_changed_signer_key_without_prompting() {
 }
 
 #[test]
-fn lock_update_trust_mode_flag_auto_trusts_without_prompting() {
+fn lock_update_trust_mode_flag_auto_accepts_without_prompting() {
     let (fixture, _old_public_key) = GitFixture::signed_initial_version();
     let home = isolated_home(fixture.dir.path(), "home-update-auto-flag");
     let repo_url = fixture.repo_url();
@@ -535,7 +535,7 @@ fn lock_update_trust_mode_flag_auto_trusts_without_prompting() {
 
     let mut lock_command = sprocket_with_config(
         fixture.config_path(),
-        &["dev", "module", "lock", "--trust-mode", "auto"],
+        &["dev", "module", "lock", "--trust-mode", "auto-accept"],
     );
     lock_command.current_dir(&consumer);
     use_home(&mut lock_command, &home);
@@ -549,7 +549,7 @@ fn lock_update_trust_mode_flag_auto_trusts_without_prompting() {
 
     let mut update_command = sprocket_with_config(
         fixture.config_path(),
-        &["dev", "module", "update", "--trust-mode", "auto"],
+        &["dev", "module", "update", "--trust-mode", "auto-accept"],
     );
     update_command.current_dir(&consumer);
     use_home(&mut update_command, &home);
@@ -577,7 +577,7 @@ fn lock_update_trust_mode_flag_auto_accepts_removed_signer_without_prompting() {
 
     let mut lock_command = sprocket_with_config(
         fixture.config_path(),
-        &["dev", "module", "lock", "--trust-mode", "auto"],
+        &["dev", "module", "lock", "--trust-mode", "auto-accept"],
     );
     lock_command.current_dir(&consumer);
     use_home(&mut lock_command, &home);
@@ -590,7 +590,7 @@ fn lock_update_trust_mode_flag_auto_accepts_removed_signer_without_prompting() {
 
     let mut update_command = sprocket_with_config(
         fixture.config_path(),
-        &["dev", "module", "update", "--trust-mode", "auto"],
+        &["dev", "module", "update", "--trust-mode", "auto-accept"],
     );
     update_command.current_dir(&consumer);
     use_home(&mut update_command, &home);
@@ -620,7 +620,7 @@ fn lock_update_trust_mode_flag_auto_accepts_removed_signer_without_prompting() {
 }
 
 #[test]
-fn lock_update_trust_mode_flag_auto_trusts_unsigned_to_signed_without_prompting() {
+fn lock_update_trust_mode_flag_auto_accepts_unsigned_to_signed_without_prompting() {
     let fixture = GitFixture::new();
     let home = isolated_home(
         fixture.dir.path(),
@@ -634,7 +634,7 @@ fn lock_update_trust_mode_flag_auto_trusts_unsigned_to_signed_without_prompting(
 
     let mut lock_command = sprocket_with_config(
         fixture.config_path(),
-        &["dev", "module", "lock", "--trust-mode", "auto"],
+        &["dev", "module", "lock", "--trust-mode", "auto-accept"],
     );
     lock_command.current_dir(&consumer);
     use_home(&mut lock_command, &home);
@@ -649,7 +649,7 @@ fn lock_update_trust_mode_flag_auto_trusts_unsigned_to_signed_without_prompting(
 
     let mut update_command = sprocket_with_config(
         fixture.config_path(),
-        &["dev", "module", "update", "--trust-mode", "auto"],
+        &["dev", "module", "update", "--trust-mode", "auto-accept"],
     );
     update_command.current_dir(&consumer);
     use_home(&mut update_command, &home);
@@ -829,7 +829,13 @@ fn lock_update_signer_transition_matrix_respects_trust_mode() {
             true,
             "previously unsigned module",
         ),
-        (SignerTransition::Added, CliTrustMode::Auto, true, false, ""),
+        (
+            SignerTransition::Added,
+            CliTrustMode::AutoAccept,
+            true,
+            false,
+            "",
+        ),
         (
             SignerTransition::Changed,
             CliTrustMode::Confirm,
@@ -846,7 +852,7 @@ fn lock_update_signer_transition_matrix_respects_trust_mode() {
         ),
         (
             SignerTransition::Changed,
-            CliTrustMode::Auto,
+            CliTrustMode::AutoAccept,
             true,
             false,
             "",
@@ -867,7 +873,7 @@ fn lock_update_signer_transition_matrix_respects_trust_mode() {
         ),
         (
             SignerTransition::Removed,
-            CliTrustMode::Auto,
+            CliTrustMode::AutoAccept,
             true,
             false,
             "",
@@ -919,7 +925,13 @@ fn lock_upgrade_signer_transition_matrix_respects_trust_mode() {
             true,
             "previously unsigned module",
         ),
-        (SignerTransition::Added, CliTrustMode::Auto, true, false, ""),
+        (
+            SignerTransition::Added,
+            CliTrustMode::AutoAccept,
+            true,
+            false,
+            "",
+        ),
         (
             SignerTransition::Changed,
             CliTrustMode::Confirm,
@@ -936,7 +948,7 @@ fn lock_upgrade_signer_transition_matrix_respects_trust_mode() {
         ),
         (
             SignerTransition::Changed,
-            CliTrustMode::Auto,
+            CliTrustMode::AutoAccept,
             true,
             false,
             "",
@@ -957,7 +969,7 @@ fn lock_upgrade_signer_transition_matrix_respects_trust_mode() {
         ),
         (
             SignerTransition::Removed,
-            CliTrustMode::Auto,
+            CliTrustMode::AutoAccept,
             true,
             false,
             "",
@@ -1290,9 +1302,9 @@ fn upgrade_prompts_when_dependency_becomes_signed() {
 }
 
 #[test]
-fn upgrade_trust_mode_flag_confirm_prompts_even_when_config_auto() {
+fn upgrade_trust_mode_flag_confirm_prompts_even_when_config_auto_accept() {
     let (fixture, _old_public_key) = GitFixture::signed_initial_version();
-    set_fixture_trust_mode(&fixture, "auto");
+    set_fixture_trust_mode(&fixture, "auto-accept");
     let home = isolated_home(fixture.dir.path(), "home-upgrade-confirm-flag");
     let repo_url = fixture.repo_url();
     let consumer = fixture.write_consumer(
@@ -1327,7 +1339,7 @@ fn upgrade_trust_mode_flag_confirm_prompts_even_when_config_auto() {
 }
 
 #[test]
-fn upgrade_trust_mode_flag_auto_trusts_unsigned_to_signed_without_prompting() {
+fn upgrade_trust_mode_flag_auto_accepts_unsigned_to_signed_without_prompting() {
     let fixture = GitFixture::new();
     let home = isolated_home(
         fixture.dir.path(),
@@ -1341,7 +1353,7 @@ fn upgrade_trust_mode_flag_auto_trusts_unsigned_to_signed_without_prompting() {
 
     let mut lock_command = sprocket_with_config(
         fixture.config_path(),
-        &["dev", "module", "lock", "--trust-mode", "auto"],
+        &["dev", "module", "lock", "--trust-mode", "auto-accept"],
     );
     lock_command.current_dir(&consumer);
     use_home(&mut lock_command, &home);
@@ -1356,7 +1368,7 @@ fn upgrade_trust_mode_flag_auto_trusts_unsigned_to_signed_without_prompting() {
 
     let mut upgrade_command = sprocket_with_config(
         fixture.config_path(),
-        &["dev", "module", "upgrade", "--trust-mode", "auto"],
+        &["dev", "module", "upgrade", "--trust-mode", "auto-accept"],
     );
     upgrade_command.current_dir(&consumer);
     use_home(&mut upgrade_command, &home);

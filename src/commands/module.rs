@@ -198,14 +198,14 @@ pub(crate) struct RelockPlan {
 
 /// Command-line override for module signer trust mode.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
-#[value(rename_all = "lower")]
+#[value(rename_all = "kebab-case")]
 pub enum TrustModeArg {
     /// Prompt before trusting signer keys.
     Confirm,
     /// Trust first-seen signer keys automatically, then prompt on changes.
     Tofu,
     /// Trust signer keys automatically.
-    Auto,
+    AutoAccept,
 }
 
 impl From<TrustModeArg> for TrustMode {
@@ -213,7 +213,7 @@ impl From<TrustModeArg> for TrustMode {
         match value {
             TrustModeArg::Confirm => TrustMode::Confirm,
             TrustModeArg::Tofu => TrustMode::Tofu,
-            TrustModeArg::Auto => TrustMode::Auto,
+            TrustModeArg::AutoAccept => TrustMode::AutoAccept,
         }
     }
 }

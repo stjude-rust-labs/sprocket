@@ -1,5 +1,6 @@
 //! Dependency-source parsing for `modules.json`.
 
+use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -276,6 +277,17 @@ pub enum GitSelector {
     /// A Git commit SHA, or any unique prefix of one (7–40 hex chars).
     /// The resolver expands a prefix to the full SHA at lock time.
     Commit(GitCommitish),
+}
+
+impl fmt::Display for GitSelector {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Version(requirement) => write!(f, "version {requirement}"),
+            Self::Tag(tag) => write!(f, "tag {tag}"),
+            Self::Branch(branch) => write!(f, "branch {branch}"),
+            Self::Commit(commit) => write!(f, "commit {commit}"),
+        }
+    }
 }
 
 /// Flat field set of a dependency declaration as it appears in

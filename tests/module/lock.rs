@@ -101,10 +101,10 @@ fn lock_accepts_new_signer_key_when_confirmed() {
 }
 
 #[test]
-fn lock_auto_trusts_new_signer_key_without_prompting() {
+fn lock_auto_accepts_new_signer_key_without_prompting() {
     let (fixture, _public_key) = GitFixture::signed_without_version_tags();
     let home = isolated_home(fixture.dir.path(), "home-lock-auto");
-    set_fixture_trust_mode(&fixture, "auto");
+    set_fixture_trust_mode(&fixture, "auto-accept");
     let repo_url = fixture.repo_url();
     let default_branch = fixture.default_branch();
     let consumer = fixture.write_consumer(
@@ -176,7 +176,7 @@ fn lock_tofu_trusts_new_signer_key_without_prompting() {
 }
 
 #[test]
-fn lock_trust_mode_flag_auto_trusts_without_prompting() {
+fn lock_trust_mode_flag_auto_accepts_without_prompting() {
     let (fixture, _public_key) = GitFixture::signed_without_version_tags();
     let home = isolated_home(fixture.dir.path(), "home-lock-auto-flag");
     let repo_url = fixture.repo_url();
@@ -190,7 +190,7 @@ fn lock_trust_mode_flag_auto_trusts_without_prompting() {
 
     let mut lock_command = sprocket_with_config(
         fixture.config_path(),
-        &["dev", "module", "lock", "--trust-mode", "auto"],
+        &["dev", "module", "lock", "--trust-mode", "auto-accept"],
     );
     lock_command.current_dir(&consumer);
     use_home(&mut lock_command, &home);
@@ -221,7 +221,14 @@ fn lock_dry_run_does_not_write_lockfile_or_trust_store() {
 
     let mut command = sprocket_with_config(
         fixture.config_path(),
-        &["dev", "module", "lock", "--dry-run", "--trust-mode", "auto"],
+        &[
+            "dev",
+            "module",
+            "lock",
+            "--dry-run",
+            "--trust-mode",
+            "auto-accept",
+        ],
     );
     command.current_dir(&consumer);
     use_home(&mut command, &home);
@@ -397,7 +404,7 @@ fn lock_locked_flag_succeeds_when_current() {
 fn lock_and_verify_succeed_despite_crlf_gitattributes() {
     let (fixture, _public_key) = GitFixture::signed_with_crlf_attributes();
     let home = isolated_home(fixture.dir.path(), "home-crlf-attributes");
-    set_fixture_trust_mode(&fixture, "auto");
+    set_fixture_trust_mode(&fixture, "auto-accept");
     let repo_url = fixture.repo_url();
     let default_branch = fixture.default_branch();
     let consumer = fixture.write_consumer(

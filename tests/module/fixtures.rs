@@ -480,7 +480,7 @@ pub(crate) enum SignerTransition {
 pub(crate) enum CliTrustMode {
     Confirm,
     Tofu,
-    Auto,
+    AutoAccept,
 }
 
 impl CliTrustMode {
@@ -488,7 +488,7 @@ impl CliTrustMode {
         match self {
             Self::Confirm => "confirm",
             Self::Tofu => "tofu",
-            Self::Auto => "auto",
+            Self::AutoAccept => "auto-accept",
         }
     }
 }
@@ -513,7 +513,7 @@ pub(crate) fn stage_update_transition(transition: SignerTransition) -> (GitFixtu
 
     let lock = sprocket_with_config(
         fixture.config_path(),
-        &["dev", "module", "lock", "--trust-mode", "auto"],
+        &["dev", "module", "lock", "--trust-mode", "auto-accept"],
     )
     .current_dir(&consumer)
     .output()
@@ -562,7 +562,7 @@ pub(crate) fn stage_upgrade_transition(transition: SignerTransition) -> (GitFixt
 
     let lock = sprocket_with_config(
         fixture.config_path(),
-        &["dev", "module", "lock", "--trust-mode", "auto"],
+        &["dev", "module", "lock", "--trust-mode", "auto-accept"],
     )
     .current_dir(&consumer)
     .output()

@@ -52,7 +52,7 @@ pub(crate) enum SignerChangeMode {
     /// Trust new signer keys without prompting but prompt on key changes.
     Tofu,
     /// Trust new or changed signer keys without prompting.
-    Auto,
+    AutoAccept,
 }
 
 impl SignerChangeMode {
@@ -61,7 +61,7 @@ impl SignerChangeMode {
         match trust_mode {
             TrustMode::Confirm => Self::Confirm,
             TrustMode::Tofu => Self::Tofu,
-            TrustMode::Auto => Self::Auto,
+            TrustMode::AutoAccept => Self::AutoAccept,
         }
     }
 }
@@ -133,17 +133,17 @@ impl SignerChange<'_> {
             Self::Added(_) => Some(match mode {
                 Mode::Strict => Decision::Refuse,
                 Mode::Confirm => Decision::Prompt,
-                Mode::Tofu | Mode::Auto => Decision::AutoAccept,
+                Mode::Tofu | Mode::AutoAccept => Decision::AutoAccept,
             }),
             Self::Changed(_) => Some(match mode {
                 Mode::Strict => Decision::Refuse,
                 Mode::Confirm | Mode::Tofu => Decision::Prompt,
-                Mode::Auto => Decision::AutoAccept,
+                Mode::AutoAccept => Decision::AutoAccept,
             }),
             Self::Removed(_) => Some(match mode {
                 Mode::Strict => Decision::Refuse,
                 Mode::Confirm | Mode::Tofu => Decision::Prompt,
-                Mode::Auto => Decision::AutoAccept,
+                Mode::AutoAccept => Decision::AutoAccept,
             }),
         }
     }
@@ -670,10 +670,10 @@ mod tests {
             &existing,
             &new,
             &SignerIdentityMap::new(),
-            SignerChangeMode::Auto,
+            SignerChangeMode::AutoAccept,
             Printer::new(false),
         )
-        .expect("auto mode should accept the batch");
+        .expect("auto-accept mode should accept the batch");
         let trust = TrustStore::load_or_default(&path).unwrap();
         assert!(
             trust.contains_key(&key),
@@ -694,10 +694,10 @@ mod tests {
             &existing,
             &new,
             &SignerIdentityMap::new(),
-            SignerChangeMode::Auto,
+            SignerChangeMode::AutoAccept,
             Printer::new(false),
         )
-        .expect("auto mode should accept the removed signature");
+        .expect("auto-accept mode should accept the removed signature");
         let trust = TrustStore::load_or_default(&path).unwrap();
         assert!(
             trust.contains_key(&key),

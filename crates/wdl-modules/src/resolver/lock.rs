@@ -61,7 +61,7 @@ pub struct NewSigner {
 impl NewSigner {
     /// The leaf dependency name (last element of `dep_chain`).
     pub fn dep(&self) -> &DependencyName {
-        // `dep_chain` is non-empty for every `NewSigner` produced
+        // SAFETY: `dep_chain` is non-empty for every `NewSigner` produced
         // by `LockfileDiff::compute`.
         self.dep_chain.last().unwrap()
     }
@@ -85,7 +85,7 @@ pub struct ChangedSigner {
 impl ChangedSigner {
     /// The leaf dependency name (last element of `dep_chain`).
     pub fn dep(&self) -> &DependencyName {
-        // `dep_chain` is non-empty for every `ChangedSigner`
+        // SAFETY: `dep_chain` is non-empty for every `ChangedSigner`
         // produced by `LockfileDiff::compute`.
         self.dep_chain.last().unwrap()
     }
@@ -103,7 +103,7 @@ pub struct RemovedSigner {
 impl RemovedSigner {
     /// The leaf dependency name (last element of `dep_chain`).
     pub fn dep(&self) -> &DependencyName {
-        // `dep_chain` is non-empty for every `RemovedSigner`
+        // SAFETY: `dep_chain` is non-empty for every `RemovedSigner`
         // produced by `LockfileDiff::compute`.
         self.dep_chain.last().unwrap()
     }
@@ -270,6 +270,17 @@ pub struct DependencyChange {
     pub commit: Option<String>,
 }
 
+impl From<(&DependencyName, &DependencyEntry)> for DependencyChange {
+    fn from((name, entry): (&DependencyName, &DependencyEntry)) -> Self {
+        Self {
+            name: name.clone(),
+            path: entry.source.source_path().map(str::to_string),
+            selector: entry.source.git_selector().map(ToString::to_string),
+            commit: entry.source.git_sha().map(ToString::to_string),
+        }
+    }
+}
+
 /// A dependency whose locked entry changed during relock.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DependencyUpdate {
@@ -287,6 +298,20 @@ pub struct DependencyUpdate {
     pub to_selector: Option<String>,
     /// The new resolved Git commit. `None` for local dependencies.
     pub to_commit: Option<String>,
+}
+
+impl From<(&DependencyName, &DependencyEntry, &DependencyEntry)> for DependencyUpdate {
+    fn from((name, previous, next): (&DependencyName, &DependencyEntry, &DependencyEntry)) -> Self {
+        Self {
+            name: name.clone(),
+            from_path: previous.source.source_path().map(str::to_string),
+            from_selector: previous.source.git_selector().map(ToString::to_string),
+            from_commit: previous.source.git_sha().map(ToString::to_string),
+            to_path: next.source.source_path().map(str::to_string),
+            to_selector: next.source.git_selector().map(ToString::to_string),
+            to_commit: next.source.git_sha().map(ToString::to_string),
+        }
+    }
 }
 
 /// Performs a partial relock against an existing lockfile.
@@ -335,17 +360,15 @@ pub fn partial_relock(
                 lockfile.dependencies.insert(name.clone(), prev.clone());
                 stats.kept += 1;
             }
-            Some(prev) => stats
-                .updated
-                .push(dependency_update(name, prev, &new_entry)),
-            None => stats.added.push(dependency_change(name, &new_entry)),
+            Some(prev) => stats.updated.push((name, prev, &new_entry).into()),
+            None => stats.added.push((name, &new_entry).into()),
         }
         lockfile.dependencies.insert(name.clone(), new_entry);
     }
 
     for (name, entry) in &existing.dependencies {
         if !consumer.dependencies.contains_key(name) {
-            stats.removed.push(dependency_change(name, entry));
+            stats.removed.push((name, entry).into());
         }
     }
 
@@ -386,53 +409,21 @@ pub fn update_relock(
         let new_entry = resolved_to_lockfile_entry(resolved);
         match existing_entry {
             Some(prev) if refreshed_entry_is_current(prev, &new_entry) => {
-                stats.skipped.push(dependency_change(name, &new_entry));
+                stats.skipped.push((name, &new_entry).into());
             }
-            Some(prev) => stats
-                .updated
-                .push(dependency_update(name, prev, &new_entry)),
-            None => stats.added.push(dependency_change(name, &new_entry)),
+            Some(prev) => stats.updated.push((name, prev, &new_entry).into()),
+            None => stats.added.push((name, &new_entry).into()),
         }
         lockfile.dependencies.insert(name.clone(), new_entry);
     }
 
     for (name, entry) in &existing.dependencies {
         if !consumer.dependencies.contains_key(name) {
-            stats.removed.push(dependency_change(name, entry));
+            stats.removed.push((name, entry).into());
         }
     }
 
     Ok(RelockOutcome { lockfile, stats })
-}
-
-/// Builds a summary entry for an added, removed, or skipped dependency.
-pub(crate) fn dependency_change(
-    name: &DependencyName,
-    entry: &DependencyEntry,
-) -> DependencyChange {
-    DependencyChange {
-        name: name.clone(),
-        path: source_path(entry),
-        selector: source_selector(entry),
-        commit: source_commit(entry),
-    }
-}
-
-/// Builds a summary entry for an updated dependency.
-pub(crate) fn dependency_update(
-    name: &DependencyName,
-    prev: &DependencyEntry,
-    next: &DependencyEntry,
-) -> DependencyUpdate {
-    DependencyUpdate {
-        name: name.clone(),
-        from_path: source_path(prev),
-        from_selector: source_selector(prev),
-        from_commit: source_commit(prev),
-        to_path: source_path(next),
-        to_selector: source_selector(next),
-        to_commit: source_commit(next),
-    }
 }
 
 /// Returns true when a refreshed entry did not advance the resolved source.
@@ -447,37 +438,6 @@ fn refreshed_entry_is_current(prev: &DependencyEntry, next: &DependencyEntry) ->
             },
         ) => prev_commit == next_commit,
         _ => prev == next,
-    }
-}
-
-/// Returns the source path for summary output.
-fn source_path(entry: &DependencyEntry) -> Option<String> {
-    entry.source.source_path().map(str::to_string)
-}
-
-/// Returns the resolved Git commit for summary output.
-fn source_commit(entry: &DependencyEntry) -> Option<String> {
-    match &entry.source {
-        ResolvedSource::Git { sha, .. } => Some(sha.as_str().to_string()),
-        ResolvedSource::Path { .. } => None,
-    }
-}
-
-/// Returns the Git selector for summary output.
-fn source_selector(entry: &DependencyEntry) -> Option<String> {
-    match &entry.source {
-        ResolvedSource::Git { selector, .. } => Some(selector_text(selector)),
-        ResolvedSource::Path { .. } => None,
-    }
-}
-
-/// Renders a Git selector for summary output.
-fn selector_text(selector: &GitSelector) -> String {
-    match selector {
-        GitSelector::Version(requirement) => format!("version {requirement}"),
-        GitSelector::Tag(tag) => format!("tag {tag}"),
-        GitSelector::Branch(branch) => format!("branch {branch}"),
-        GitSelector::Commit(commit) => format!("commit {commit}"),
     }
 }
 

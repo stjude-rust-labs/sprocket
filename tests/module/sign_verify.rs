@@ -136,7 +136,7 @@ fn verify_reports_all_untrusted_modules_at_once() {
 
     let mut lock_command = sprocket_with_config(
         fixture.config_path(),
-        &["dev", "module", "lock", "--trust-mode", "auto"],
+        &["dev", "module", "lock", "--trust-mode", "auto-accept"],
     );
     lock_command.current_dir(&consumer);
     use_home(&mut lock_command, &home);
