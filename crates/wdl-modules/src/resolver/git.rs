@@ -903,9 +903,90 @@ where
         enforce_tree_limits(&repo, head_oid, &new_paths, max_files, max_bytes)?;
     }
     let all_owned: Vec<String> = all.into_iter().collect();
+    clear_sparse_paths(leaf, &all_owned)?;
     apply_sparse_checkout(&repo, &all_owned)?;
     save_sparse_meta(leaf, &all_owned)?;
     Ok(())
+}
+
+/// Removes materialized sparse paths before restoring them from Git objects.
+fn clear_sparse_paths(leaf: &Path, paths: &[String]) -> Result<(), GitError> {
+    for path in paths {
+        if path == "." {
+            let entries = std::fs::read_dir(leaf).map_err(|source| GitError::Io {
+                path: leaf.to_path_buf(),
+                source,
+            })?;
+            for entry in entries {
+                let entry = entry.map_err(|source| GitError::Io {
+                    path: leaf.to_path_buf(),
+                    source,
+                })?;
+                if entry.file_name() == ".git" {
+                    continue;
+                }
+                remove_worktree_path(&entry.path())?;
+            }
+        } else {
+            remove_worktree_path(&leaf.join(path))?;
+        }
+    }
+    Ok(())
+}
+
+/// Removes a worktree path without following symbolic links.
+fn remove_worktree_path(path: &Path) -> Result<(), GitError> {
+    let metadata = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(source) => {
+            return Err(GitError::Io {
+                path: path.to_path_buf(),
+                source,
+            });
+        }
+    };
+    let result = if metadata.is_dir() {
+        std::fs::remove_dir_all(path)
+    } else {
+        std::fs::remove_file(path)
+    };
+    result.map_err(|source| GitError::Io {
+        path: path.to_path_buf(),
+        source,
+    })
+}
+
+/// Returns whether an existing cache leaf is pinned to `commit`.
+fn cache_leaf_matches_commit(leaf: &Path, commit: &str) -> Result<bool, GitError> {
+    let repo = Repository::open(leaf).map_err(GitError::Git)?;
+    let observed = repo
+        .head()
+        .map_err(GitError::Git)?
+        .peel_to_commit()
+        .map_err(GitError::Git)?
+        .id();
+    let expected = git2::Oid::from_str(commit).map_err(GitError::Git)?;
+    Ok(observed == expected)
+}
+
+/// Removes a cache leaf and its sparse metadata while its lock is held.
+fn clear_cache_leaf(leaf: &Path) -> Result<(), GitError> {
+    if leaf.exists() {
+        std::fs::remove_dir_all(leaf).map_err(|source| GitError::Io {
+            path: leaf.to_path_buf(),
+            source,
+        })?;
+    }
+    let sparse_meta = sparse_meta_path(leaf);
+    match std::fs::remove_file(&sparse_meta) {
+        Ok(()) => Ok(()),
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(source) => Err(GitError::Io {
+            path: sparse_meta,
+            source,
+        }),
+    }
 }
 
 /// Acquires an exclusive file lock for a cache leaf directory.
@@ -957,10 +1038,6 @@ fn lock_cache_leaf(leaf: &Path) -> Result<File, GitError> {
 /// covering at least `paths`. Clones if `leaf` does not yet exist;
 /// otherwise extends the existing leaf's sparse-checkout set.
 ///
-/// Cached leaves are keyed by `(url, commit)` upstream, so an existing
-/// leaf already corresponds to the requested commit; this helper does
-/// not re-validate that.
-///
 /// If the initial clone fails, the partially-written leaf is removed so a
 /// corrupt checkout does not persist.
 pub(crate) fn ensure_materialized<I, S>(
@@ -989,6 +1066,14 @@ where
     tracing::trace!(cache_leaf = %leaf.display(), "acquiring module cache leaf lock");
     let _lock = lock_cache_leaf(leaf)?;
     tracing::trace!(cache_leaf = %leaf.display(), "acquired module cache leaf lock");
+    if leaf.exists() && !cache_leaf_matches_commit(leaf, commit)? {
+        tracing::warn!(
+            cache_leaf = %leaf.display(),
+            commit,
+            "evicting module cache leaf with an unexpected Git HEAD"
+        );
+        clear_cache_leaf(leaf)?;
+    }
     if leaf.exists() {
         tracing::debug!(
             cache_leaf = %leaf.display(),
@@ -1157,6 +1242,8 @@ mod tests {
         assert!(fetched);
         assert!(leaf.join("csvkit").join("module.json").exists());
         assert!(!leaf.join("spellbook").exists());
+        std::fs::write(leaf.join("csvkit").join("index.wdl"), b"tampered").unwrap();
+        std::fs::write(leaf.join("csvkit").join("untracked.wdl"), b"untracked").unwrap();
 
         let fetched = ensure_materialized(
             CacheLocation {
@@ -1173,7 +1260,49 @@ mod tests {
         .unwrap();
         assert!(!fetched);
         assert!(leaf.join("csvkit").join("module.json").exists());
+        assert_eq!(
+            std::fs::read(leaf.join("csvkit").join("index.wdl")).unwrap(),
+            b"workflow w {}"
+        );
+        assert!(!leaf.join("csvkit").join("untracked.wdl").exists());
         assert!(leaf.join("spellbook").join("module.json").exists());
+
+        {
+            let cached = Repository::open(&leaf).unwrap();
+            let head = cached.head().unwrap().peel_to_commit().unwrap();
+            let tree = head.tree().unwrap();
+            let signature = Signature::now("test", "test@example.com").unwrap();
+            cached
+                .commit(
+                    Some("HEAD"),
+                    &signature,
+                    &signature,
+                    "unexpected cache commit",
+                    &tree,
+                    &[&head],
+                )
+                .unwrap();
+        }
+
+        let fetched = ensure_materialized(
+            CacheLocation {
+                root: dest.path(),
+                leaf: &leaf,
+            },
+            &url,
+            &sha,
+            ["csvkit"],
+            CredentialMode::Enabled,
+            None,
+            None,
+        )
+        .unwrap();
+        assert!(fetched);
+        let cached = Repository::open(&leaf).unwrap();
+        assert_eq!(
+            cached.head().unwrap().peel_to_commit().unwrap().id(),
+            git2::Oid::from_str(&sha).unwrap()
+        );
     }
 
     #[test]

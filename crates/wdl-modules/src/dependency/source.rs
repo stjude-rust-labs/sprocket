@@ -29,6 +29,10 @@ pub enum GitModulePathError {
     /// therefore disallowed.
     #[error("git module path must not be `.`")]
     Dot,
+
+    /// The path contains syntax interpreted specially by git pathspecs.
+    #[error("git module path contains reserved git pathspec character `{0}`")]
+    Pathspec(char),
 }
 
 /// A validated, canonical sub-path within a Git-backed dependency.
@@ -100,6 +104,16 @@ impl FromStr for GitModulePath {
         }
         if s == "." {
             return Err(GitModulePathError::Dot);
+        }
+        if let Some(character) = s
+            .chars()
+            .find(|character| matches!(character, '*' | '?' | '[' | ']' | '\\'))
+            .or_else(|| {
+                s.starts_with([':', '!', '^'])
+                    .then(|| s.chars().next().expect("path is not empty"))
+            })
+        {
+            return Err(GitModulePathError::Pathspec(character));
         }
         Ok(Self(RelativePath::from_str(s)?))
     }
@@ -594,6 +608,24 @@ mod git_module_path_tests {
             ),
             "expected `Invalid(EscapesRoot)` for `module/../../secret`"
         );
+    }
+
+    #[test]
+    fn rejects_git_pathspec_syntax() {
+        for path in [
+            "*",
+            "modules/[ab]",
+            "modules/?",
+            ":/modules",
+            "!modules",
+            "^modules",
+        ] {
+            let result = GitModulePath::from_str(path);
+            assert!(
+                matches!(result, Err(GitModulePathError::Pathspec(_))),
+                "expected `{path}` to reject Git pathspec syntax"
+            );
+        }
     }
 
     #[test]
