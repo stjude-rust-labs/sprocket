@@ -34,6 +34,38 @@ fn init_scaffolds_a_parseable_module() {
 }
 
 #[test]
+fn init_creates_a_missing_target_directory() -> anyhow::Result<()> {
+    let directory = tempfile::tempdir()?;
+    let target = directory.path().join("nested").join("module");
+    let target_arg = target.to_string_lossy().into_owned();
+    let output = sprocket(&["dev", "module", "init", &target_arg, "--name", "nested"]).output()?;
+
+    assert!(
+        output.status.success(),
+        "command failed {status}: {stderr}",
+        status = output.status,
+        stderr = String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(target.join("module.json").is_file());
+    assert!(target.join("index.wdl").is_file());
+    assert!(target.join("README.md").is_file());
+    Ok(())
+}
+
+#[test]
+fn init_invalid_manifest_does_not_create_target_directory() -> anyhow::Result<()> {
+    let directory = tempfile::tempdir()?;
+    let target = directory.path().join("invalid");
+    let target_arg = target.to_string_lossy().into_owned();
+    let output = sprocket(&["dev", "module", "init", &target_arg, "--license", "foo"]).output()?;
+
+    assert!(!output.status.success());
+    assert!(!target.exists());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("invalid SPDX license expression"));
+    Ok(())
+}
+
+#[test]
 fn directory_module_entrypoint_does_not_require_wdl_1_4() {
     let dir = tempfile::tempdir().unwrap();
     fs::write(

@@ -1,5 +1,7 @@
 //! `sprocket dev module init`.
 
+use std::ffi::OsString;
+use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
@@ -13,7 +15,6 @@ use wdl::ast::SupportedVersion;
 use crate::commands::CommandResult;
 use crate::commands::module::ModuleAction;
 use crate::commands::module::ModuleOutput;
-use crate::commands::module::write_manifest_value;
 use crate::commands::printer::Printer;
 
 /// Arguments to `sprocket dev module init`.
@@ -49,9 +50,17 @@ pub async fn init(args: Args, printer: Printer) -> CommandResult<()> {
 }
 
 fn run_init(args: Args, printer: Printer) -> anyhow::Result<()> {
-    let target_dir = args
-        .path
-        .unwrap_or(std::env::current_dir().context("reading current directory")?);
+    let current_dir = std::env::current_dir().context("reading current directory")?;
+    let target_dir = args.path.map_or_else(
+        || current_dir.clone(),
+        |path| {
+            if path.is_absolute() {
+                path
+            } else {
+                current_dir.join(path)
+            }
+        },
+    );
     let manifest_path = target_dir.join(wdl_modules::MANIFEST_FILENAME);
     tracing::debug!(
         target = %target_dir.display(),
@@ -59,15 +68,18 @@ fn run_init(args: Args, printer: Printer) -> anyhow::Result<()> {
         "initializing module project"
     );
 
-    if manifest_path.exists() {
-        tracing::debug!(manifest = %manifest_path.display(), "manifest already exists");
-        anyhow::bail!("`{}` already exists", manifest_path.display());
-    }
-
     let name = args.name.unwrap_or_else(|| infer_name(&target_dir));
     let license = args
         .license
         .unwrap_or_else(|| "Apache-2.0 OR MIT".to_string());
+    validate_name_and_license(&name, &license)?;
+
+    ensure_target_directory(&target_dir)?;
+    ensure_new_file_path(&manifest_path, "manifest")?;
+    if !args.no_scaffold {
+        ensure_scaffold_path(&target_dir.join("index.wdl"), "index.wdl")?;
+        ensure_scaffold_path(&target_dir.join("README.md"), "README.md")?;
+    }
 
     // Build the manifest as an ordered object. `entrypoint` is omitted: it
     // defaults to `index.wdl`, which is exactly what the scaffold writes.
@@ -90,7 +102,7 @@ fn run_init(args: Args, printer: Printer) -> anyhow::Result<()> {
         tracing::trace!("inferred module repository from Git config");
         manifest.insert("repository".to_string(), Value::String(repository));
     }
-    write_manifest_value(&manifest_path, &Value::Object(manifest))?;
+    write_new_manifest(&manifest_path, &Value::Object(manifest))?;
     tracing::debug!(manifest = %manifest_path.display(), "wrote module manifest");
 
     if !args.no_scaffold {
@@ -121,11 +133,136 @@ fn run_init(args: Args, printer: Printer) -> anyhow::Result<()> {
 
 /// Writes a scaffold file, leaving an existing file untouched and warning.
 fn write_scaffold_file(path: &Path, label: &str, content: String) -> anyhow::Result<()> {
-    if path.exists() {
-        tracing::warn!(path = %path.display(), label, "skipped existing scaffold file");
-        return Ok(());
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => {
+            tracing::warn!(path = %path.display(), label, "skipped existing scaffold file");
+            return Ok(());
+        }
+        Ok(_) => anyhow::bail!("scaffold path `{}` is not a regular file", path.display()),
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {}
+        Err(source) => {
+            return Err(source).with_context(|| format!("inspecting scaffold `{label}`"));
+        }
     }
-    std::fs::write(path, content).with_context(|| format!("writing scaffold `{label}`"))?;
+    let mut file = std::fs::OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(path)
+        .with_context(|| format!("creating scaffold `{label}`"))?;
+    file.write_all(content.as_bytes())
+        .with_context(|| format!("writing scaffold `{label}`"))?;
+    file.sync_all()
+        .with_context(|| format!("syncing scaffold `{label}`"))?;
+    Ok(())
+}
+
+/// Creates missing target components and rejects symbolic links.
+fn ensure_target_directory(target: &Path) -> anyhow::Result<()> {
+    let mut current = target;
+    let mut missing = Vec::<OsString>::new();
+    let existing = loop {
+        match std::fs::symlink_metadata(current) {
+            Ok(metadata) => {
+                if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                    anyhow::bail!(
+                        "module target `{}` is not a regular directory",
+                        current.display()
+                    );
+                }
+                break current.to_path_buf();
+            }
+            Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+                let name = current.file_name().with_context(|| {
+                    format!("module target `{}` has no directory name", target.display())
+                })?;
+                missing.push(name.to_os_string());
+                current = current.parent().with_context(|| {
+                    format!(
+                        "module target `{}` has no existing parent",
+                        target.display()
+                    )
+                })?;
+            }
+            Err(source) => {
+                return Err(source)
+                    .with_context(|| format!("inspecting module target `{}`", current.display()));
+            }
+        }
+    };
+
+    let mut directory = existing;
+    for component in missing.into_iter().rev() {
+        directory.push(component);
+        match std::fs::create_dir(&directory) {
+            Ok(()) => {}
+            Err(source) if source.kind() == std::io::ErrorKind::AlreadyExists => {
+                let metadata = std::fs::symlink_metadata(&directory).with_context(|| {
+                    format!("inspecting module target `{}`", directory.display())
+                })?;
+                if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                    anyhow::bail!(
+                        "module target `{}` is not a regular directory",
+                        directory.display()
+                    );
+                }
+            }
+            Err(source) => {
+                return Err(source)
+                    .with_context(|| format!("creating module target `{}`", directory.display()));
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Ensures initialization will not replace an existing manifest path.
+fn ensure_new_file_path(path: &Path, label: &str) -> anyhow::Result<()> {
+    match std::fs::symlink_metadata(path) {
+        Ok(_) => anyhow::bail!("{label} path `{}` already exists", path.display()),
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(source) => {
+            Err(source).with_context(|| format!("inspecting {label} path `{}`", path.display()))
+        }
+    }
+}
+
+/// Ensures an existing scaffold path is a regular file.
+fn ensure_scaffold_path(path: &Path, label: &str) -> anyhow::Result<()> {
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => Ok(()),
+        Ok(_) => anyhow::bail!("scaffold path `{}` is not a regular file", path.display()),
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(source) => Err(source).with_context(|| format!("inspecting scaffold `{label}`")),
+    }
+}
+
+/// Writes a validated manifest without replacing a concurrently created file.
+fn write_new_manifest(path: &Path, value: &Value) -> anyhow::Result<()> {
+    let mut bytes = serde_json::to_vec_pretty(value)?;
+    bytes.push(b'\n');
+    wdl_modules::Manifest::parse(&bytes).context("validating generated manifest")?;
+    let directory = path.parent().unwrap_or_else(|| Path::new("."));
+    let mut temp = tempfile::NamedTempFile::new_in(directory)
+        .with_context(|| format!("creating a temporary file in `{}`", directory.display()))?;
+    temp.write_all(&bytes)
+        .with_context(|| format!("writing `{}`", temp.path().display()))?;
+    temp.as_file()
+        .sync_all()
+        .with_context(|| format!("syncing `{}`", temp.path().display()))?;
+    super::align_temp_permissions(&temp, path)?;
+    temp.persist_noclobber(path)
+        .with_context(|| format!("creating `{}`", path.display()))?;
+    Ok(())
+}
+
+/// Validates user-controlled manifest fields before creating a target.
+fn validate_name_and_license(name: &str, license: &str) -> anyhow::Result<()> {
+    let value = serde_json::json!({
+        "name": name,
+        "license": license,
+    });
+    let bytes = serde_json::to_vec(&value)?;
+    wdl_modules::Manifest::parse(&bytes).context("validating generated manifest")?;
     Ok(())
 }
 
@@ -182,11 +319,25 @@ fn infer_repository(path: &Path) -> Option<String> {
 
     let repository = String::from_utf8(output.stdout).ok()?;
     let repository = repository.trim();
-    if repository.is_empty() {
-        None
-    } else {
-        Some(repository.to_string())
+    (!repository.is_empty())
+        .then(|| sanitize_repository(repository))
+        .flatten()
+}
+
+/// Removes credentials and request metadata from an inferred repository URL.
+fn sanitize_repository(repository: &str) -> Option<String> {
+    let Ok(mut url) = url::Url::parse(repository) else {
+        return Some(repository.to_string());
+    };
+    if matches!(url.scheme(), "http" | "https") {
+        url.set_username("").ok()?;
+        url.set_password(None).ok()?;
+    } else if url.password().is_some() {
+        url.set_password(None).ok()?;
     }
+    url.set_query(None);
+    url.set_fragment(None);
+    Some(url.to_string())
 }
 
 #[cfg(test)]
@@ -207,6 +358,55 @@ mod tests {
         assert_eq!(std::fs::read_to_string(&path)?, "version 1.0\n");
         assert!(logs_contain("skipped existing scaffold file"));
         assert!(logs_contain("index.wdl"));
+        Ok(())
+    }
+
+    #[test]
+    fn strips_credentials_from_inferred_repository_urls() {
+        assert_eq!(
+            sanitize_repository(
+                "https://token:secret@example.com/owner/repo.git?access_token=secret#fragment"
+            )
+            .as_deref(),
+            Some("https://example.com/owner/repo.git")
+        );
+        assert_eq!(
+            sanitize_repository("ssh://git:secret@example.com/owner/repo.git").as_deref(),
+            Some("ssh://git@example.com/owner/repo.git")
+        );
+        assert_eq!(
+            sanitize_repository("git@example.com:owner/repo.git").as_deref(),
+            Some("git@example.com:owner/repo.git")
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symlinked_target_directory() -> anyhow::Result<()> {
+        use std::os::unix::fs::symlink;
+
+        let directory = tempfile::tempdir()?;
+        let outside = tempfile::tempdir()?;
+        let target = directory.path().join("module");
+        symlink(outside.path(), &target)?;
+
+        assert!(ensure_target_directory(&target).is_err());
+        assert!(!outside.path().join(wdl_modules::MANIFEST_FILENAME).exists());
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_dangling_scaffold_symlink() -> anyhow::Result<()> {
+        use std::os::unix::fs::symlink;
+
+        let directory = tempfile::tempdir()?;
+        let outside = directory.path().join("outside.wdl");
+        let scaffold = directory.path().join("index.wdl");
+        symlink(&outside, &scaffold)?;
+
+        assert!(write_scaffold_file(&scaffold, "index.wdl", "version 1.3\n".to_string()).is_err());
+        assert!(!outside.exists());
         Ok(())
     }
 }
