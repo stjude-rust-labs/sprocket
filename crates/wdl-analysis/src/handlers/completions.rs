@@ -197,7 +197,7 @@ pub fn completion(
                     if let Some(scope) = scope {
                         add_scope_completions(scope, &mut items);
                     }
-                    add_stdlib_completions(&mut items);
+                    add_stdlib_completions(document.version(), &mut items);
                     add_struct_completions(document, scope, &mut items);
                     add_enum_type_completions(document, scope, &mut items);
                     add_namespace_completions(document, &mut items);
@@ -210,7 +210,7 @@ pub fn completion(
                     if let Some(scope) = scope {
                         add_scope_completions(scope, &mut items);
                     }
-                    add_stdlib_completions(&mut items);
+                    add_stdlib_completions(document.version(), &mut items);
                     add_struct_completions(document, scope, &mut items);
                     add_enum_type_completions(document, scope, &mut items);
                     add_namespace_completions(document, &mut items);
@@ -224,7 +224,7 @@ pub fn completion(
                     if let Some(scope) = scope {
                         add_scope_completions(scope, &mut items);
                     }
-                    add_stdlib_completions(&mut items);
+                    add_stdlib_completions(document.version(), &mut items);
                     add_struct_completions(document, scope, &mut items);
                     add_enum_type_completions(document, scope, &mut items);
                     break;
@@ -763,9 +763,15 @@ fn add_scope_completions(scope: ScopeRef<'_>, items: &mut Vec<CompletionItem>) {
     }
 }
 
-/// Adds completions for all WDL standard library functions.
-fn add_stdlib_completions(items: &mut Vec<CompletionItem>) {
-    for (name, func) in STDLIB.functions() {
+/// Adds completions for all WDL standard library functions appropriate for the
+/// specified `version`.
+fn add_stdlib_completions(version: Option<SupportedVersion>, items: &mut Vec<CompletionItem>) {
+    // The None case (un-analyzed document) has no meaningful stdlib context;
+    // nothing to add.
+    let Some(v) = version else {
+        return;
+    };
+    for (name, func) in STDLIB.functions().filter(|(_, f)| f.minimum_version() <= v) {
         match func {
             Function::Monomorphic(m) => {
                 let sig = m.signature();
@@ -784,7 +790,7 @@ fn add_stdlib_completions(items: &mut Vec<CompletionItem>) {
                 })
             }
             Function::Polymorphic(p) => {
-                for sig in p.signatures() {
+                for sig in p.signatures().iter().filter(|s| s.minimum_version() <= v) {
                     let params = TypeParameters::new(sig.type_parameters());
                     let detail = Some(format!("{name}{}", sig.display(&params)));
                     let docs = sig.definition().and_then(|d| make_md_docs(d.to_string()));
