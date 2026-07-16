@@ -1,8 +1,6 @@
 codecov:
   notify:
     after_n_builds: 6
-  ignore:
-    - "crates/gauntlet"
 
 coverage:
   status:
@@ -12,6 +10,9 @@ coverage:
     patch:
       default:
         informational: true
+
+ignore:
+  - "crates/gauntlet"
 
 comment:
   behavior: once
