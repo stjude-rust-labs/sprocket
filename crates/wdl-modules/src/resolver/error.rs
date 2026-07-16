@@ -169,6 +169,20 @@ pub enum ResolverError {
         identity: Option<SignerIdentity>,
     },
 
+    /// A dependency was unsigned when locked but now has a signature.
+    #[error(
+        "`{dep}` gained an unexpected signature after the lockfile was written ({})",
+        trust_all_hint(.observed.as_ref(), .identity.as_ref())
+    )]
+    UnexpectedSigner {
+        /// The owning dependency.
+        dep: String,
+        /// The signer key observed in `module.sig`.
+        observed: Box<VerifyingKey>,
+        /// Authenticated signer identity metadata.
+        identity: Option<SignerIdentity>,
+    },
+
     /// A dependency was signed when the lockfile was written but is now
     /// unsigned. This prevents a supply-chain downgrade where an
     /// attacker strips the signature from a module whose content hash

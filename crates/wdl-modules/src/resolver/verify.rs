@@ -247,11 +247,11 @@ fn read_and_verify_signature(
     sig.verify(checksum)
         .map_err(|_| ResolverError::SignatureVerificationFailed {
             dep: name.manifest().to_string(),
-            signer: Box::new(sig.public_key),
+            signer: Box::new(sig.public_key()),
         })?;
     Ok(Some(VerifiedSigner {
-        key: sig.public_key,
-        identity: sig.identity,
+        key: sig.public_key(),
+        identity: sig.identity().cloned(),
     }))
 }
 
@@ -287,6 +287,13 @@ pub(crate) fn verify_against_lockfile(
         });
     }
     match (locked_entry.signer, signer) {
+        (None, Some(observed)) => {
+            return Err(ResolverError::UnexpectedSigner {
+                dep: name.manifest().to_string(),
+                observed: Box::new(*observed),
+                identity: signer_identity.cloned(),
+            });
+        }
         (Some(expected), None) => {
             return Err(ResolverError::SignatureDowngrade {
                 dep: name.manifest().to_string(),
@@ -358,11 +365,8 @@ mod tests {
         write_module(dir, content);
         let checksum = crate::hash::hash_directory(dir).unwrap();
         let signing_key = signing_key_from_seed(seed);
-        let sig = crate::signing::ModuleSignature {
-            public_key: signing_key.verifying_key(),
-            identity: None,
-            signature: signing_key.sign(&checksum),
-        };
+        // SAFETY: `None` contains no invalid signer identity fields.
+        let sig = crate::signing::ModuleSignature::new(&signing_key, &checksum, None).unwrap();
         let mut buf = Vec::new();
         sig.write(&mut buf).unwrap();
         fs::write(dir.join(crate::SIGNATURE_FILENAME), buf).unwrap();
@@ -585,6 +589,41 @@ mod tests {
         assert!(
             matches!(err, ResolverError::SignatureDowngrade { .. }),
             "expected `SignatureDowngrade`, got: {err}"
+        );
+    }
+
+    #[test]
+    fn unexpected_signer_detected() {
+        let key = signing_key_from_seed(0xAB).verifying_key();
+        let checksum = ContentHash::from([0x01u8; 32]);
+        let dep = test_dep();
+        let mut deps = BTreeMap::new();
+        deps.insert(
+            dep.clone(),
+            DependencyEntry {
+                source: test_source(),
+                checksum: Some(checksum),
+                signer: None,
+                dependencies: BTreeMap::new(),
+            },
+        );
+        let lockfile = Lockfile {
+            version: crate::lockfile::LOCKFILE_VERSION,
+            dependencies: deps,
+        };
+        let result = verify_against_lockfile(
+            &lockfile,
+            &TrustStore::default(),
+            &[],
+            &dep,
+            &checksum,
+            Some(&key),
+            None,
+        );
+
+        assert!(
+            matches!(result, Err(ResolverError::UnexpectedSigner { .. })),
+            "expected `UnexpectedSigner`, got: {result:?}"
         );
     }
 

@@ -89,12 +89,8 @@ async fn resolve_and_lock_with_config(
 /// directory's content hash.
 fn write_signature(dir: &Path, signer: &crate::signing::SigningKey) {
     let digest = crate::hash::hash_directory(dir).unwrap();
-    let signature = signer.sign(&digest);
-    let sig = crate::signing::ModuleSignature {
-        public_key: signer.verifying_key(),
-        identity: None,
-        signature,
-    };
+    // SAFETY: `None` contains no invalid signer identity fields.
+    let sig = crate::signing::ModuleSignature::new(signer, &digest, None).unwrap();
     let mut buf = Vec::new();
     sig.write(&mut buf).unwrap();
     fs::write(dir.join(crate::SIGNATURE_FILENAME), buf).unwrap();

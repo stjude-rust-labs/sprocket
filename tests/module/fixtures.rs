@@ -256,11 +256,8 @@ impl GitFixture {
         let signing_key = SigningKey::from_openssh(&private_key).unwrap();
         let module_root = repo_dir.join("tasks");
         let checksum = hash_directory(&module_root).unwrap();
-        let signature = ModuleSignature {
-            public_key: signing_key.verifying_key(),
-            identity: None,
-            signature: signing_key.sign(&checksum),
-        };
+        // SAFETY: `None` contains no invalid signer identity fields.
+        let signature = ModuleSignature::new(&signing_key, &checksum, None).unwrap();
         let mut sig_bytes = Vec::new();
         signature.write(&mut sig_bytes).unwrap();
         fs::write(module_root.join("module.sig"), sig_bytes).unwrap();
@@ -326,11 +323,8 @@ impl GitFixture {
         let signing_key = SigningKey::from_openssh(&private_key).unwrap();
         let module_root = repo_dir.join("tasks");
         let checksum = hash_directory(&module_root).unwrap();
-        let signature = ModuleSignature {
-            public_key: signing_key.verifying_key(),
-            identity: None,
-            signature: signing_key.sign(&checksum),
-        };
+        // SAFETY: `None` contains no invalid signer identity fields.
+        let signature = ModuleSignature::new(&signing_key, &checksum, None).unwrap();
         let mut sig_bytes = Vec::new();
         signature.write(&mut sig_bytes).unwrap();
         fs::write(module_root.join("module.sig"), sig_bytes).unwrap();
@@ -455,11 +449,8 @@ pub(crate) fn write_signed_git_module(path: &Path, version: &str, signing_key: &
 
 pub(crate) fn sign_git_module(module_root: &Path, signing_key: &SigningKey) {
     let checksum = hash_directory(module_root).unwrap();
-    let signature = ModuleSignature {
-        public_key: signing_key.verifying_key(),
-        identity: None,
-        signature: signing_key.sign(&checksum),
-    };
+    // SAFETY: `None` contains no invalid signer identity fields.
+    let signature = ModuleSignature::new(signing_key, &checksum, None).unwrap();
     let mut sig_bytes = Vec::new();
     signature.write(&mut sig_bytes).unwrap();
     fs::write(module_root.join("module.sig"), sig_bytes).unwrap();

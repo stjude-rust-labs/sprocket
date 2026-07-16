@@ -51,12 +51,8 @@ pub async fn sign(args: Args, printer: Printer) -> CommandResult<()> {
         std::fs::read_to_string(&key).with_context(|| format!("reading `{}`", key.display()))?;
     let signing_key = SigningKey::from_openssh(&key_text).map_err(anyhow::Error::from)?;
     let identity = signer_identity_for_key_path(&key, signing_key.verifying_key());
-    let signature = signing_key.sign(&digest);
-    let module_signature = ModuleSignature {
-        public_key: signing_key.verifying_key(),
-        identity,
-        signature,
-    };
+    let module_signature =
+        ModuleSignature::new(&signing_key, &digest, identity).map_err(anyhow::Error::from)?;
 
     let output = args
         .output

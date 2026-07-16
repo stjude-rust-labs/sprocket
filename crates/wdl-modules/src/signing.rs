@@ -73,11 +73,21 @@ pub enum SignatureFileError {
     /// 64-byte Ed25519 signature.
     #[error(transparent)]
     Signature(#[from] SignatureError),
+
+    /// Signer identity metadata contains an invalid field.
+    #[error(
+        "invalid signer identity `{field}`; values must be at most 256 characters without control \
+         characters"
+    )]
+    InvalidIdentity {
+        /// The invalid identity field.
+        field: &'static str,
+    },
 }
 
-/// An error verifying an Ed25519 signature against a content hash.
+/// An error verifying an Ed25519 module signature.
 #[derive(Debug, Error)]
-#[error("signature does not match the supplied content hash")]
+#[error("signature does not match the supplied module content or signer identity")]
 pub struct VerifyError;
 
 /// An Ed25519 signing key.
@@ -103,6 +113,11 @@ impl SigningKey {
     /// Signs the raw 32-byte content digest of a [`ContentHash`].
     pub fn sign(&self, digest: &ContentHash) -> Signature {
         Signature(self.0.sign(digest.as_bytes()))
+    }
+
+    /// Signs an encoded module signature payload.
+    fn sign_message(&self, message: &[u8]) -> Signature {
+        Signature(self.0.sign(message))
     }
 }
 
@@ -140,6 +155,11 @@ impl VerifyingKey {
         self.0
             .verify(digest.as_bytes(), &sig.0)
             .map_err(|_| VerifyError)
+    }
+
+    /// Verifies an encoded module signature payload.
+    fn verify_message(&self, message: &[u8], sig: &Signature) -> Result<(), VerifyError> {
+        self.0.verify(message, &sig.0).map_err(|_| VerifyError)
     }
 
     /// Returns the raw 32-byte public key.
@@ -277,29 +297,105 @@ impl From<Signature> for String {
 #[serde(deny_unknown_fields)]
 pub struct ModuleSignature {
     /// The signer's Ed25519 public key in OpenSSH format.
-    pub public_key: VerifyingKey,
+    public_key: VerifyingKey,
     /// Optional signer identity metadata.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub identity: Option<SignerIdentity>,
-    /// The Ed25519 signature over the module's raw 32-byte content hash.
-    pub signature: Signature,
+    identity: Option<SignerIdentity>,
+    /// The Ed25519 signature over the module content and signer identity.
+    signature: Signature,
 }
 
 impl ModuleSignature {
+    /// Creates a signature over module content and signer identity metadata.
+    pub fn new(
+        signing_key: &SigningKey,
+        digest: &ContentHash,
+        identity: Option<SignerIdentity>,
+    ) -> Result<Self, SignatureFileError> {
+        validate_identity(identity.as_ref())?;
+        let signature = signing_key.sign_message(&signature_message(digest, identity.as_ref()));
+        Ok(Self {
+            public_key: signing_key.verifying_key(),
+            identity,
+            signature,
+        })
+    }
+
     /// Parses a `module.sig` JSON document.
     pub fn parse(bytes: &[u8]) -> Result<Self, SignatureFileError> {
-        Ok(crate::strict_json::from_slice(bytes)?)
+        let signature: Self = crate::strict_json::from_slice(bytes)?;
+        validate_identity(signature.identity.as_ref())?;
+        Ok(signature)
     }
 
     /// Writes the signature as JSON to `w`.
     pub fn write(&self, w: impl Write) -> io::Result<()> {
+        validate_identity(self.identity.as_ref()).map_err(io::Error::other)?;
         serde_json::to_writer_pretty(w, self).map_err(io::Error::other)
     }
 
-    /// Verifies that `signature` is a valid signature of `digest` under
-    /// `public_key`.
+    /// Returns the signer public key.
+    pub fn public_key(&self) -> VerifyingKey {
+        self.public_key
+    }
+
+    /// Returns the authenticated signer identity metadata.
+    pub fn identity(&self) -> Option<&SignerIdentity> {
+        self.identity.as_ref()
+    }
+
+    /// Verifies the module content and signer identity.
     pub fn verify(&self, digest: &ContentHash) -> Result<(), VerifyError> {
-        self.public_key.verify(digest, &self.signature)
+        self.public_key.verify_message(
+            &signature_message(digest, self.identity.as_ref()),
+            &self.signature,
+        )
+    }
+}
+
+/// Validates identity fields before signing, writing, or displaying them.
+fn validate_identity(identity: Option<&SignerIdentity>) -> Result<(), SignatureFileError> {
+    let Some(identity) = identity else {
+        return Ok(());
+    };
+    for (field, value) in [("name", &identity.name), ("email", &identity.email)] {
+        if value
+            .as_ref()
+            .is_some_and(|value| value.chars().count() > 256 || value.chars().any(char::is_control))
+        {
+            return Err(SignatureFileError::InvalidIdentity { field });
+        }
+    }
+    Ok(())
+}
+
+/// Encodes the domain-separated payload covered by a module signature.
+fn signature_message(digest: &ContentHash, identity: Option<&SignerIdentity>) -> Vec<u8> {
+    const DOMAIN: &[u8] = b"sprocket.module-signature.v1";
+
+    let mut message = Vec::with_capacity(128);
+    message.extend_from_slice(DOMAIN);
+    message.extend_from_slice(digest.as_bytes());
+    append_optional_string(
+        &mut message,
+        identity.and_then(|identity| identity.name.as_deref()),
+    );
+    append_optional_string(
+        &mut message,
+        identity.and_then(|identity| identity.email.as_deref()),
+    );
+    message
+}
+
+/// Appends an unambiguous optional UTF-8 string to a signature payload.
+fn append_optional_string(message: &mut Vec<u8>, value: Option<&str>) {
+    match value {
+        Some(value) => {
+            message.push(1);
+            message.extend_from_slice(&(value.len() as u64).to_le_bytes());
+            message.extend_from_slice(value.as_bytes());
+        }
+        None => message.push(0),
     }
 }
 
@@ -395,11 +491,8 @@ mod tests {
     fn module_signature_round_trips_through_json() {
         let signer = signing_key_from_seed(4);
         let digest = ContentHash::from([0x22; 32]);
-        let module_sig = ModuleSignature {
-            public_key: signer.verifying_key(),
-            identity: None,
-            signature: signer.sign(&digest),
-        };
+        // SAFETY: `None` contains no invalid signer identity fields.
+        let module_sig = ModuleSignature::new(&signer, &digest, None).unwrap();
 
         let mut buf = Vec::new();
         module_sig.write(&mut buf).unwrap();
@@ -413,17 +506,47 @@ mod tests {
         let signer = signing_key_from_seed(5);
         let signed_digest = ContentHash::from([0x22; 32]);
         let checked_digest = ContentHash::from([0x33; 32]);
-        let module_sig = ModuleSignature {
-            public_key: signer.verifying_key(),
-            identity: None,
-            signature: signer.sign(&signed_digest),
-        };
+        // SAFETY: `None` contains no invalid signer identity fields.
+        let module_sig = ModuleSignature::new(&signer, &signed_digest, None).unwrap();
 
         let error = module_sig.verify(&checked_digest).unwrap_err();
         assert_eq!(
             error.to_string(),
-            "signature does not match the supplied content hash"
+            "signature does not match the supplied module content or signer identity"
         );
+    }
+
+    #[test]
+    fn module_signature_authenticates_identity() -> Result<(), Box<dyn std::error::Error>> {
+        let signer = signing_key_from_seed(8);
+        let digest = ContentHash::from([0x55; 32]);
+        let identity = SignerIdentity {
+            name: Some("Original Signer".to_string()),
+            email: Some("original@example.com".to_string()),
+        };
+        let signature = ModuleSignature::new(&signer, &digest, Some(identity))?;
+        let mut value = serde_json::to_value(&signature)?;
+        value["identity"]["name"] = serde_json::Value::String("Impostor".to_string());
+        let bytes = serde_json::to_vec(&value)?;
+        let tampered = ModuleSignature::parse(&bytes)?;
+
+        assert!(tampered.verify(&digest).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn module_signature_rejects_identity_control_characters() {
+        let signer = signing_key_from_seed(9);
+        let digest = ContentHash::from([0x66; 32]);
+        let identity = SignerIdentity {
+            name: Some("trusted\u{1b}[2J".to_string()),
+            email: None,
+        };
+
+        assert!(matches!(
+            ModuleSignature::new(&signer, &digest, Some(identity)),
+            Err(SignatureFileError::InvalidIdentity { field: "name" })
+        ));
     }
 
     #[test]
