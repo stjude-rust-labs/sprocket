@@ -37,6 +37,7 @@ use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Direction;
 use wdl_ast::Directive;
+use wdl_ast::ExceptRule;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 
@@ -71,7 +72,7 @@ pub trait Exceptable {
     ///
     /// The set is the comma-delimited list of rule identifiers that follows a
     /// `#@ except:` comment.
-    fn rule_exceptions(&self) -> HashSet<String> {
+    fn rule_exceptions(&self) -> HashSet<ExceptRule> {
         HashSet::new()
     }
 
@@ -82,7 +83,7 @@ pub trait Exceptable {
 }
 
 impl Exceptable for SyntaxNode {
-    fn rule_exceptions(&self) -> HashSet<String> {
+    fn rule_exceptions(&self) -> HashSet<ExceptRule> {
         self.siblings_with_tokens(Direction::Prev)
             .skip(1) // self is included with siblings
             .map_while(|s| {
@@ -101,6 +102,6 @@ impl Exceptable for SyntaxNode {
     }
 
     fn is_rule_excepted(&self, id: &str) -> bool {
-        self.rule_exceptions().contains(id)
+        self.rule_exceptions().iter().any(|e| e.name == id)
     }
 }

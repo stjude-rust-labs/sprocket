@@ -37,6 +37,7 @@ use wdl_ast::SyntaxNode;
 use wdl_ast::version::V1;
 
 use crate::Config;
+use crate::Diagnostics;
 use crate::IncrementalChange;
 use crate::UsingFallbackVersion;
 use crate::document::Document;
@@ -420,7 +421,7 @@ impl DocumentGraphNode {
 
         // Reparse from the source
         let start = Instant::now();
-        let (document, mut diagnostics) =
+        let (document, parse_diagnostics) =
             wdl_ast::Document::parse(&source, self.config.fallback_version());
         debug!(
             "parsing of `{uri}` completed in {elapsed:?}",
@@ -428,11 +429,16 @@ impl DocumentGraphNode {
             elapsed = start.elapsed()
         );
 
+        let mut diagnostics = Diagnostics::default();
+        diagnostics.extend(parse_diagnostics);
+
         // Apply version fallback logic at this point, so that appropriate diagnostics
         // will prevent subsequent analysis from occurring on an unexpected
         // version
         let mut wdl_version = None;
-        if let Some(version_token) = document.version_statement().map(|stmt| stmt.version()) {
+        if let Some(version_statement) = document.version_statement() {
+            let version_token = version_statement.version();
+
             match (
                 version_token.text().parse::<SupportedVersion>(),
                 self.config.fallback_version(),
@@ -445,7 +451,7 @@ impl DocumentGraphNode {
                 (Err(_), Some(fallback)) => {
                     if let Some(severity) = self.config.diagnostics_config().using_fallback_version
                     {
-                        diagnostics.push(
+                        diagnostics.exceptable_add(
                             Diagnostic::warning(format!(
                                 "unsupported WDL version `{version}`; interpreting document as \
                                  version `{fallback}`",
@@ -457,6 +463,8 @@ impl DocumentGraphNode {
                                 "this version of WDL is not supported",
                                 version_token.span(),
                             ),
+                            version_statement.inner(),
+                            &UsingFallbackVersion::EXCEPTABLE_NODES,
                         );
                     }
                     wdl_version = Some(fallback);
@@ -472,7 +480,7 @@ impl DocumentGraphNode {
             wdl_version,
             root: document.inner().green().into(),
             lines,
-            diagnostics,
+            diagnostics: diagnostics.into(),
         })
     }
 

@@ -8,7 +8,9 @@ use futures::FutureExt;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
 use ordered_float::Pow;
+use wdl_analysis::Diagnostics;
 use wdl_analysis::DiagnosticsConfig;
+use wdl_analysis::Exceptable;
 use wdl_analysis::diagnostics::Io;
 use wdl_analysis::diagnostics::ambiguous_argument;
 use wdl_analysis::diagnostics::argument_type_mismatch;
@@ -65,6 +67,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::TreeNode;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::Expr;
@@ -90,6 +93,7 @@ use wdl_ast::v1::PlaceholderOption;
 use wdl_ast::v1::StringPart;
 use wdl_ast::v1::StrippedStringPart;
 use wdl_ast::version::V1;
+use wdl_grammar::SyntaxKind;
 
 use crate::Array;
 use crate::Coercible;
@@ -944,7 +948,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             /// The expression evaluation context.
             context: &'a C,
             /// The diagnostics from evaluating the type of an expression.
-            diagnostics: Vec<Diagnostic>,
+            diagnostics: Diagnostics,
         }
 
         impl<C: EvaluationContext> wdl_analysis::types::v1::EvaluationContext for TypeContext<'_, C> {
@@ -969,7 +973,17 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             }
 
             fn add_diagnostic(&mut self, diagnostic: Diagnostic) {
-                self.diagnostics.push(diagnostic);
+                self.diagnostics.add(diagnostic);
+            }
+
+            fn exceptable_add_diagnostic<N: TreeNode + Exceptable>(
+                &mut self,
+                diagnostic: Diagnostic,
+                element: &N,
+                exceptable_nodes: &Option<&'static [SyntaxKind]>,
+            ) {
+                self.diagnostics
+                    .exceptable_add(diagnostic, element, exceptable_nodes);
             }
         }
 
@@ -988,13 +1002,14 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             let value = self.evaluate_expr(&true_expr).await?;
             let mut context = TypeContext {
                 context: &self.context,
-                diagnostics: Vec::new(),
+                diagnostics: Diagnostics::default(),
             };
             let false_ty = ExprTypeEvaluator::new(&mut context)
                 .evaluate_expr(&false_expr)
                 .unwrap_or(Type::Union);
 
-            if let Some(diagnostic) = context.diagnostics.pop() {
+            let mut diagnostics: Vec<Diagnostic> = context.diagnostics.into();
+            if let Some(diagnostic) = diagnostics.pop() {
                 return Err(diagnostic);
             }
 
@@ -1006,12 +1021,14 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             let value = self.evaluate_expr(&false_expr).await?;
             let mut context = TypeContext {
                 context: &self.context,
-                diagnostics: Vec::new(),
+                diagnostics: Diagnostics::default(),
             };
             let true_ty = ExprTypeEvaluator::new(&mut context)
                 .evaluate_expr(&true_expr)
                 .unwrap_or(Type::Union);
-            if let Some(diagnostic) = context.diagnostics.pop() {
+
+            let mut diagnostics: Vec<Diagnostic> = context.diagnostics.into();
+            if let Some(diagnostic) = diagnostics.pop() {
                 return Err(diagnostic);
             }
 

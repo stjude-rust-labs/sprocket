@@ -9,7 +9,6 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::MetadataValue;
@@ -85,7 +84,7 @@ fn check_object_items(
             let value_type = get_value_type_name(&value);
             diagnostics.exceptable_add(
                 non_string_value_diagnostic(key, value_type, item.span()),
-                SyntaxElement::from(item.inner().clone()),
+                item.inner(),
                 exceptable_nodes,
             );
         }
@@ -196,7 +195,7 @@ impl Visitor for DocMetaStringsRule {
                 let value_type = get_value_type_name(&value);
                 diagnostics.exceptable_add(
                     non_string_value_diagnostic(key, value_type, item.span()),
-                    SyntaxElement::from(item.inner().clone()),
+                    item.inner(),
                     &self.exceptable_nodes(),
                 );
             }
@@ -237,7 +236,7 @@ impl Visitor for DocMetaStringsRule {
                     let value_type = get_value_type_name(&value);
                     diagnostics.exceptable_add(
                         non_string_value_diagnostic("description", value_type, item.span()),
-                        SyntaxElement::from(item.inner().clone()),
+                        item.inner(),
                         &self.exceptable_nodes(),
                     );
                 }

@@ -13,6 +13,7 @@ use tower_http::trace::TraceLayer;
 use tracing::Level;
 use utoipa::OpenApi as _;
 use utoipa_swagger_ui::SwaggerUi;
+use wdl::diagnostics::Mode;
 
 use crate::config::Config;
 use crate::system::v1::exec::open_database;
@@ -67,13 +68,23 @@ pub fn create_router(state: AppState, cors_layer: CorsLayer) -> Router {
 /// # Errors
 ///
 /// Returns an error if we fail to initialize the database.
-async fn create_server_app(config: Config) -> anyhow::Result<Router> {
+async fn create_server_app(
+    config: Config,
+    report_mode: Mode,
+    colorize: bool,
+) -> anyhow::Result<Router> {
     let db_path = config.server.database_url();
 
     let db = open_database(&db_path).await?;
     let failure_mode = ServerFailureMode::from(config.server.engine.failure_mode);
     let output_dir = config.server.output_dir.display().to_string();
-    let (_, run_manager_tx) = RunManagerSvc::spawn(DEFAULT_CHANNEL_BUFFER_SIZE, config.clone(), db);
+    let (_, run_manager_tx) = RunManagerSvc::spawn(
+        DEFAULT_CHANNEL_BUFFER_SIZE,
+        config.clone(),
+        report_mode,
+        colorize,
+        db,
+    );
 
     let state = AppState::builder()
         .run_manager_tx(run_manager_tx)
@@ -98,8 +109,13 @@ async fn create_server_app(config: Config) -> anyhow::Result<Router> {
 /// # Errors
 ///
 /// Returns an error if the server fails to start.
-pub async fn run_with_listener(config: Config, tcp_listener: TcpListener) -> anyhow::Result<()> {
-    let app = create_server_app(config).await?;
+pub async fn run_with_listener(
+    config: Config,
+    report_mode: Mode,
+    colorize: bool,
+    tcp_listener: TcpListener,
+) -> anyhow::Result<()> {
+    let app = create_server_app(config, report_mode, colorize).await?;
     axum::serve(tcp_listener, app).await?;
     Ok(())
 }
@@ -109,11 +125,11 @@ pub async fn run_with_listener(config: Config, tcp_listener: TcpListener) -> any
 /// # Errors
 ///
 /// Returns an error if the server fails to start or bind to the address.
-pub async fn run(config: Config) -> anyhow::Result<()> {
+pub async fn run(config: Config, report_mode: Mode, colorize: bool) -> anyhow::Result<()> {
     let addr = format!("{}:{}", config.server.host, config.server.port);
     let listener = tokio::net::TcpListener::bind(&addr).await?;
     tracing::info!("server listening on {}", addr);
-    run_with_listener(config, listener).await?;
+    run_with_listener(config, report_mode, colorize, listener).await?;
 
     Ok(())
 }

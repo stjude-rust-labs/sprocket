@@ -9,7 +9,6 @@ use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::CallStatement;
 use wdl_ast::version::V1;
@@ -140,7 +139,7 @@ impl Visitor for CallInputKeywordRule {
         {
             diagnostics.exceptable_add(
                 call_input_unnecessary(input_keyword.text_range().into()),
-                SyntaxElement::from(call.inner().clone()),
+                call.inner(),
                 &self.exceptable_nodes(),
             );
         }
