@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added default-branch discovery, signer identity metadata, locked-cache
+  verification, and scoped cache cleanup to the `git-resolver` APIs.
+
+#### Changed
+
+* `Manifest` no longer has a `version` field, and `Tool` now uses `url` and
+  `ids` instead of `homepage`, `doi`, and `biotools`.
+* `DependencyEntry` no longer records a version. Git entries use `sha` instead
+  of `commit`, while local path entries no longer carry a checksum or signer.
+* `ModuleSignature` now authenticates signer identity in its signed payload and
+  exposes validated construction and accessor methods instead of public fields.
+* `TrustMode::Auto` is now `TrustMode::AutoAccept` and serializes as
+  `"auto-accept"`.
+* Git cache reuse now verifies the requested commit and restores modified or
+  untracked materialized content before resolution.
+
 ## 0.3.0 - 2026-07-15
 
 ## 0.2.1 - 2026-06-26
@@ -17,20 +35,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.2.0 - 2026-06-03
 
-## 0.1.1 - 2026-05-14
-
 #### Added
 
-* Initial implementation of the `wdl-modules` crate, the pure-data-and-algorithms
-  layer of the WDL module system. This release covers manifest and lockfile
-  parsing, symbolic-path parsing, dependency-source parsing, content hashing
-  per [`openwdl/wdl#765`](https://github.com/openwdl/wdl/pull/765), Ed25519
-  signing and verification, OpenSSH public-key parsing, SPDX license
-  expression validation, and module file-tree validation
-  ([#836](https://github.com/stjude-rust-labs/sprocket/pull/836)).
 * Add `resolver` feature gate with `Resolver` trait, `GitResolver`
   implementation, on-disk sparse-checkout cache, version selection, lockfile
-  generation (`partial_relock`), signer trust handling, and module
+  generation (`partial_relock`), TOFU trust handling, and module
   materialization for symbolic imports
   ([#838](https://github.com/stjude-rust-labs/sprocket/pull/838)).
 * Add `GitModulePath` newtype validating Git sub-paths at parse time;
@@ -59,3 +68,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Structured cache keys include an 8-char URL hash suffix to prevent
   collisions between nested repository URLs
   ([#838](https://github.com/stjude-rust-labs/sprocket/pull/838)).
+
+## 0.1.1 - 2026-05-14
+
+#### Added
+
+* Initial implementation of the `wdl-modules` crate, the pure-data-and-algorithms
+  layer of the WDL module system. This release covers manifest and lockfile
+  parsing, symbolic-path parsing, dependency-source parsing, content hashing
+  per [`openwdl/wdl#765`](https://github.com/openwdl/wdl/pull/765), Ed25519
+  signing and verification, OpenSSH public-key parsing, SPDX license
+  expression validation, and module file-tree validation
+  ([#836](https://github.com/stjude-rust-labs/sprocket/pull/836)).

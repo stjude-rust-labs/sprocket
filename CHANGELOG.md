@@ -7,22 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-## 0.28.0 - 2026-07-15
-
 ### Added
 
-* Added server-management commands under `sprocket dev server` ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
-  * `status` shows a compact one-line status for a specific run, or lists all runs with pagination and status filtering; supports `--json`.
-  * `inspect` shows detailed information about a run, including per-status task counts, the server's output directory, and (with `--detailed`) a per-task breakdown.
-  * `cancel` cancels a queued or running run.
-  * `retry` resubmits a previous run with optional input overrides using the same syntax as `submit` (`key=value`, `@file`, repeated keys append to arrays).
-* New API endpoints on the `dev server` HTTP API: `GET /api/v1/info` (server metadata), `GET /api/v1/runs/{id}/tasks` (list a run's tasks, paginated and filterable by status), `GET /api/v1/runs/{id}/tasks/counts` (per-status task counts), `GET /api/v1/tasks` (list all tasks), `GET /api/v1/tasks/{name}` (single task), and `GET /api/v1/tasks/{name}/logs` (task logs, filterable by `stdout`/`stderr`) ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
-* Added a `strongish` content digest mode (`run.task.digests = "strongish"`) that hashes file size, last modified time, and the first 10 MiB of a file's contents; this is an intermediate strategy between `weak` and `strong`, similar to Cromwell's `fingerprint` call caching strategy ([#978](https://github.com/stjude-rust-labs/sprocket/pull/978)).
-* Added `-t` (`--target`), `-f` (`--filter`), and `--exact` options to `sprocket dev test` ([#952](https://github.com/stjude-rust-labs/sprocket/pull/952)).
-* Added `sprocket dev test schema` subcommand to generate a [JSON schema](https://json-schema.org) for
-  Sprocket test definitions ([#953](https://github.com/stjude-rust-labs/sprocket/pull/953)).
-* Added `sprocket config schema` subcommand to generate a [JSON schema](https://json-schema.org) for
-  `sprocket.toml` files ([#958](https://github.com/stjude-rust-labs/sprocket/pull/958)).
 * Added the `sprocket dev module` command group, including `sprocket dev module init` for bootstrapping new module manifests and scaffolding.
 * Added `sprocket dev module add` and `sprocket dev module remove` to manage dependencies in `module.json` and refresh `module-lock.json`.
 * Added `sprocket dev module lock` with `--locked` and `--dry-run` flows for CI gating and lockfile refreshes.
@@ -42,12 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-* Grouped the server commands under `sprocket dev server` (previously flat under `sprocket dev`): `server` and `submit` are now `sprocket dev server <subcommand>`. The `server` subcommand was renamed `start`. ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
-* `sprocket analyzer` now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
-* Replaced the `peak_alloc` global allocator with `mimalloc` and now query peak memory usage from the operating system on exit, removing per-allocation tracking overhead ([#990](https://github.com/stjude-rust-labs/sprocket/pull/990)).
-* Errors reported for a scalar input (e.g., `File`) that received multiple values now include a hint pointing to the likely cause—a repeated `key=value` on the command line or an unquoted shell glob (e.g., `key=*.txt`) that expanded to more than one value ([#998](https://github.com/stjude-rust-labs/sprocket/pull/998)).
-* The `-t` (`--include-tag`) and `-f` (`--filter-tag`) options for `sprocket dev test` have been renamed to
-  `-i` and `-e` (`--exclude-tag`), respectively ([#952](https://github.com/stjude-rust-labs/sprocket/pull/952)).
 * `module.json` no longer declares a module `version`; Git version tags are the source of truth for module versions.
 * `module-lock.json` no longer records dependency versions; it records the requested selector and resolved Git commit.
 * Renamed the `module-lock.json` Git source field from `commit` to `sha` to match the module specification.
@@ -59,13 +39,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * The manifest `exclude` field now uses gitignore-style glob semantics: `*` stays within a path segment, `**` crosses separators, and a plain directory name excludes everything beneath it.
 * Symbolic links are now rejected anywhere in a module tree; a module containing one is invalid.
 * A quoted `import` inside a module that resolves outside the module root now makes the module invalid.
-* Removing a previously recorded module signature is now flagged as a downgrade requiring explicit acceptance, and an unsigned module that gains a signature for the first time is recorded without a prompt.
+* Adding, changing, or removing a dependency signer now requires confirmation by default. `[modules] trust_mode = "tofu"` accepts a first-seen signer for a new dependency but prompts for later signer changes, while `"auto-accept"` accepts and reports every signer transition without prompting.
 * `sprocket dev module trust add` now trusts a global OpenSSH public key argument for all modules signed by that key; signer-change errors include the exact key in the suggested trust command.
-* `sprocket dev module add`, `sprocket dev module lock`, `sprocket dev module update`, and `sprocket dev module upgrade` now prompt before accepting signer keys by default; `[modules] trust_mode = "tofu"` trusts first-seen keys but prompts on later changes, while `"auto"` trusts signer keys without prompting.
 * `sprocket run` and `sprocket submit` now regenerate a missing or out-of-date `module-lock.json` before executing, rather than only warning.
+* Module commands now print a single outcome-oriented status followed by aligned details; dry runs use `Would update` or `Would upgrade` without mutating project or trust files.
 * `sprocket dev module verify` now summarizes unsigned modules in normal output instead of logging warnings when optional signature verification is skipped.
 * `sprocket dev module fetch` now counts only dependencies that were newly fetched into the module cache.
 * `sprocket dev module cache clean` now removes only the current module's locked cache tree by default; pass `--all` to remove every cached module.
+
+## 0.28.0 - 2026-07-15
+
+### Added
+
+* Added server-management commands under `sprocket dev server` ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
+  * `status` shows a compact one-line status for a specific run, or lists all runs with pagination and status filtering; supports `--json`.
+  * `inspect` shows detailed information about a run, including per-status task counts, the server's output directory, and (with `--detailed`) a per-task breakdown.
+  * `cancel` cancels a queued or running run.
+  * `retry` resubmits a previous run with optional input overrides using the same syntax as `submit` (`key=value`, `@file`, repeated keys append to arrays).
+* New API endpoints on the `dev server` HTTP API: `GET /api/v1/info` (server metadata), `GET /api/v1/runs/{id}/tasks` (list a run's tasks, paginated and filterable by status), `GET /api/v1/runs/{id}/tasks/counts` (per-status task counts), `GET /api/v1/tasks` (list all tasks), `GET /api/v1/tasks/{name}` (single task), and `GET /api/v1/tasks/{name}/logs` (task logs, filterable by `stdout`/`stderr`) ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
+* Added a `strongish` content digest mode (`run.task.digests = "strongish"`) that hashes file size, last modified time, and the first 10 MiB of a file's contents; this is an intermediate strategy between `weak` and `strong`, similar to Cromwell's `fingerprint` call caching strategy ([#978](https://github.com/stjude-rust-labs/sprocket/pull/978)).
+* Added `-t` (`--target`), `-f` (`--filter`), and `--exact` options to `sprocket dev test` ([#952](https://github.com/stjude-rust-labs/sprocket/pull/952)).
+* Added `sprocket dev test schema` subcommand to generate a [JSON schema](https://json-schema.org) for
+  Sprocket test definitions ([#953](https://github.com/stjude-rust-labs/sprocket/pull/953)).
+* Added `sprocket config schema` subcommand to generate a [JSON schema](https://json-schema.org) for
+  `sprocket.toml` files ([#958](https://github.com/stjude-rust-labs/sprocket/pull/958)).
+
+### Changed
+
+* Grouped the server commands under `sprocket dev server` (previously flat under `sprocket dev`): `server` and `submit` are now `sprocket dev server <subcommand>`. The `server` subcommand was renamed `start`. ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
+* `sprocket analyzer` now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
+* Replaced the `peak_alloc` global allocator with `mimalloc` and now query peak memory usage from the operating system on exit, removing per-allocation tracking overhead ([#990](https://github.com/stjude-rust-labs/sprocket/pull/990)).
+* Errors reported for a scalar input (e.g., `File`) that received multiple values now include a hint pointing to the likely cause—a repeated `key=value` on the command line or an unquoted shell glob (e.g., `key=*.txt`) that expanded to more than one value ([#998](https://github.com/stjude-rust-labs/sprocket/pull/998)).
+* The `-t` (`--include-tag`) and `-f` (`--filter-tag`) options for `sprocket dev test` have been renamed to
+  `-i` and `-e` (`--exclude-tag`), respectively ([#952](https://github.com/stjude-rust-labs/sprocket/pull/952)).
 
 ### Fixed
 
