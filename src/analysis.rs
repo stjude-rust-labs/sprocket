@@ -594,6 +594,8 @@ fn get_lint_visitor(
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use super::Analysis;
     use super::Source;
     use super::default_cache_root;
@@ -603,6 +605,13 @@ mod tests {
 
     /// Minimal valid `module.json` contents for discovery tests.
     const MANIFEST: &[u8] = br#"{"name":"example","version":"0.1.0","license":"MIT"}"#;
+
+    fn modules_config(cache_path: PathBuf) -> wdl_modules::resolver::ModulesConfig {
+        wdl_modules::resolver::ModulesConfig {
+            cache_path: Some(cache_path),
+            ..Default::default()
+        }
+    }
 
     #[test]
     fn cache_root_uses_global_location() {
@@ -709,7 +718,7 @@ mod tests {
             .add_source(Source::File(module_url))
             .add_source(Source::File(plain_url))
             .feature_flags(super::FeatureFlags::default().with_wdl_1_4())
-            .modules_config(wdl_modules::resolver::ModulesConfig::default());
+            .modules_config(modules_config(dir.path().join("cache")));
 
         let resolution = analysis
             .resolution_context_from_sources()
@@ -730,7 +739,7 @@ mod tests {
         let module_url = url::Url::from_file_path(module_dir.path().join("main.wdl")).unwrap();
         let analysis = Analysis::default()
             .add_source(Source::File(module_url))
-            .modules_config(wdl_modules::resolver::ModulesConfig::default());
+            .modules_config(modules_config(module_dir.path().join("cache")));
 
         let resolution = analysis
             .resolution_context_from_sources()
@@ -753,7 +762,7 @@ mod tests {
         let nested = module_dir.path().join("workflows").join("nested");
         std::fs::create_dir_all(&nested).unwrap();
 
-        let config = wdl_modules::resolver::ModulesConfig::default();
+        let config = modules_config(module_dir.path().join("cache"));
         let feature_flags = super::FeatureFlags::default().with_wdl_1_4();
 
         // The CLI surface starts from a source directory at the module root.

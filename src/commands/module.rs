@@ -747,7 +747,9 @@ mod tests {
         let lockfile_path = consumer_dir.join(wdl_modules::LOCKFILE_FILENAME);
         assert!(!lockfile_path.exists());
 
-        ensure_lockfile_current(&Config::default(), &consumer_dir)
+        let mut config = Config::default();
+        config.modules.cache_path = Some(work.path().join("cache"));
+        ensure_lockfile_current(&config, &consumer_dir)
             .await
             .expect("regeneration should succeed for a local path dependency");
 
