@@ -46,8 +46,9 @@ pub struct TreeStats {
 /// metadata exclusion. Calls `visitor` for each file with its path
 /// and size. Returns aggregate statistics.
 ///
-/// Rules enforced:
-/// - Entries named `.git` or `.sparse.json` are skipped.
+/// The walk enforces these rules.
+///
+/// - Entries named `.git` or `.sprocket` are skipped.
 /// - Any symbolic link is rejected with [`ModuleWalkError::Symlink`].
 /// - Only regular files are visited.
 pub fn walk_module_tree<E>(
@@ -95,9 +96,6 @@ fn walk_recursive<E>(
             })
         })?;
         let name = entry.file_name();
-        if NON_MODULE_CONTENT.iter().any(|s| *s == name) {
-            continue;
-        }
         let path = entry.path();
         let meta = std::fs::symlink_metadata(&path).map_err(|source| {
             WalkError::Walk(ModuleWalkError::Io {
@@ -111,6 +109,9 @@ fn walk_recursive<E>(
                 path.display().to_string(),
             )));
         }
+        if NON_MODULE_CONTENT.iter().any(|s| *s == name) {
+            continue;
+        }
         if meta.is_dir() {
             walk_recursive(&path, visitor, stats)?;
         } else if meta.is_file() {
@@ -120,4 +121,31 @@ fn walk_recursive<E>(
         }
     }
     Ok(())
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::convert::Infallible;
+    use std::os::unix::fs::symlink;
+
+    use tempfile::tempdir;
+
+    use super::*;
+
+    #[test]
+    fn rejects_symlink_in_excluded_directory() -> Result<(), Box<dyn std::error::Error>> {
+        let root = tempdir()?;
+        let outside = tempdir()?;
+        symlink(outside.path(), root.path().join(".sprocket"))?;
+
+        let result = walk_module_tree(root.path(), &mut |_, _| -> Result<(), Infallible> {
+            Ok(())
+        });
+
+        assert!(matches!(
+            result,
+            Err(WalkError::Walk(ModuleWalkError::Symlink(_)))
+        ));
+        Ok(())
+    }
 }

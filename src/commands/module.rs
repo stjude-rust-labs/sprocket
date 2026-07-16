@@ -268,12 +268,14 @@ pub fn build_resolver(config: &Config, lockfile: Lockfile) -> anyhow::Result<Git
         "built module resolver"
     );
 
-    Ok(GitResolver::builder()
+    let resolver = GitResolver::builder()
         .cache_root(cache_root)
         .trust(trust)
         .lockfile(lockfile)
         .policy(policy)
-        .build())
+        .build();
+    resolver.initialize_cache()?;
+    Ok(resolver)
 }
 
 /// Aligns a temporary file's permissions with its destination before an

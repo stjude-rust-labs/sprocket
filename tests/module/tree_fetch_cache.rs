@@ -374,6 +374,29 @@ fn cache_clean_all_removes_entire_cache() {
 }
 
 #[test]
+fn cache_clean_all_refuses_unowned_directory() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let cache = dir.path().join("not-a-cache");
+    fs::create_dir_all(&cache)?;
+    let sentinel = cache.join("keep.txt");
+    fs::write(&sentinel, "keep")?;
+    let cache_json = serde_json::to_string(&cache.to_string_lossy())?;
+    let config = dir.path().join("sprocket.toml");
+    fs::write(&config, format!("[modules]\ncache_path = {cache_json}\n"))?;
+
+    let output =
+        sprocket_with_config(&config, &["dev", "module", "cache", "clean", "--all"]).output()?;
+
+    assert!(!output.status.success());
+    assert!(sentinel.exists());
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("directory is non-empty and has no ownership marker")
+    );
+    Ok(())
+}
+
+#[test]
 fn module_clean_top_level_command_is_removed() {
     let output = sprocket(&["dev", "module", "clean"])
         .output()

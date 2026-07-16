@@ -117,11 +117,11 @@ impl GitFetcher {
         commit: &str,
         paths: &[&str],
         scope: DependencyScope,
-        leaf: &Path,
+        cache: crate::resolver::git::CacheLocation<'_>,
     ) -> Result<bool, ResolverError> {
         self.policy.check_git_url(dep, url, scope)?;
         let fetched = crate::resolver::git::ensure_materialized(
-            leaf,
+            cache,
             url,
             commit,
             paths.iter().copied(),

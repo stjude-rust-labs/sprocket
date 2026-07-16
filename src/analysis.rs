@@ -400,6 +400,7 @@ pub fn build_resolver(
             wdl_modules::resolver::ResolverPolicy::try_from(modules_config)?.without_credentials(),
         )
         .build();
+    resolver.initialize_cache()?;
 
     Ok(Arc::new(resolver))
 }

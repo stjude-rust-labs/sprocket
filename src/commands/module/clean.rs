@@ -1,14 +1,9 @@
 //! `sprocket dev module cache`.
 
-use std::io::ErrorKind;
-use std::path::Path;
-use std::path::PathBuf;
-
-use anyhow::Context as _;
 use bytesize::ByteSize;
 use clap::Parser;
 use clap::Subcommand;
-use walkdir::WalkDir;
+use wdl_modules::Lockfile;
 use wdl_modules::module::Module;
 
 use crate::commands::CommandResult;
@@ -62,16 +57,15 @@ pub async fn clean(args: Args, config: Config, printer: Printer) -> CommandResul
     );
 
     if args.all {
-        let modules = count_cache_leaves(&cache_root)?;
-        let bytes = path_size(&cache_root)?;
-        remove_cache_dir(&cache_root)?;
+        let resolver = build_resolver(&config, Lockfile::default())?;
+        let stats = resolver.clean_all_cache().map_err(anyhow::Error::from)?;
         tracing::debug!(
             cache = %cache_root.display(),
-            modules,
-            bytes,
+            modules = stats.modules,
+            bytes = stats.bytes,
             "removed entire module cache"
         );
-        print_removed_summary(modules, bytes, printer);
+        print_removed_summary(stats.modules, stats.bytes, printer);
         return Ok(());
     }
 
@@ -80,29 +74,17 @@ pub async fn clean(args: Args, config: Config, printer: Printer) -> CommandResul
     let lock = require_lockfile(&project)?;
     let module = Module::new(project.manifest.clone(), project.root.clone());
     let resolver = build_resolver(&config, lock)?;
-    let leaves = resolver
-        .locked_cache_leaves(&module)
+    let stats = resolver
+        .clean_locked_cache(&module)
         .map_err(anyhow::Error::from)?;
-
-    let mut modules = 0usize;
-    let mut bytes = 0u64;
-    for leaf in leaves {
-        if !leaf.exists() {
-            continue;
-        }
-        modules += 1;
-        bytes = bytes.saturating_add(path_size(&leaf)?);
-        remove_cache_dir(&leaf)?;
-        prune_empty_parents(leaf.parent(), &cache_root)?;
-    }
 
     tracing::debug!(
         cache = %cache_root.display(),
-        modules,
-        bytes,
+        modules = stats.modules,
+        bytes = stats.bytes,
         "removed locked module cache leaves"
     );
-    print_removed_summary(modules, bytes, printer);
+    print_removed_summary(stats.modules, stats.bytes, printer);
     Ok(())
 }
 
@@ -117,79 +99,4 @@ fn print_removed_summary(modules: usize, bytes: u64, printer: Printer) {
             ByteSize::b(bytes).display().iec()
         ),
     );
-}
-
-fn count_cache_leaves(path: &Path) -> anyhow::Result<usize> {
-    if !path.exists() {
-        return Ok(0);
-    }
-
-    let mut count = 0usize;
-    for entry in WalkDir::new(path) {
-        let entry = entry.with_context(|| format!("walking `{}`", path.display()))?;
-        if entry.file_type().is_dir() && is_commit_dir(entry.path()) {
-            count += 1;
-        }
-    }
-    Ok(count)
-}
-
-fn path_size(path: &Path) -> anyhow::Result<u64> {
-    if !path.exists() {
-        return Ok(0);
-    }
-
-    let mut bytes = 0u64;
-    for entry in WalkDir::new(path) {
-        let entry = entry.with_context(|| format!("walking `{}`", path.display()))?;
-        if entry.file_type().is_file() {
-            bytes = bytes.saturating_add(
-                entry
-                    .metadata()
-                    .with_context(|| format!("reading metadata for `{}`", entry.path().display()))?
-                    .len(),
-            );
-        }
-    }
-    Ok(bytes)
-}
-
-fn is_commit_dir(path: &Path) -> bool {
-    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-        return false;
-    };
-    name.len() == 40 && name.bytes().all(|byte| byte.is_ascii_hexdigit())
-}
-
-fn remove_cache_dir(path: &Path) -> anyhow::Result<()> {
-    match std::fs::remove_dir_all(path) {
-        Ok(()) => Ok(()),
-        Err(error) if error.kind() == ErrorKind::NotFound => {
-            tracing::trace!(cache = %path.display(), "module cache was already absent");
-            Ok(())
-        }
-        Err(error) => Err(error).with_context(|| format!("removing `{}`", path.display())),
-    }
-}
-
-fn prune_empty_parents(start: Option<&Path>, stop: &Path) -> anyhow::Result<()> {
-    let Some(mut current) = start.map(PathBuf::from) else {
-        return Ok(());
-    };
-
-    while current.starts_with(stop) && current != stop {
-        match std::fs::remove_dir(&current) {
-            Ok(()) => {}
-            Err(error) if error.kind() == ErrorKind::NotFound => {}
-            Err(error) if error.kind() == ErrorKind::DirectoryNotEmpty => break,
-            Err(error) => {
-                return Err(error).with_context(|| format!("removing `{}`", current.display()));
-            }
-        }
-        let Some(parent) = current.parent() else {
-            break;
-        };
-        current = parent.to_path_buf();
-    }
-    Ok(())
 }

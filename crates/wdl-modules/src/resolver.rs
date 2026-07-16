@@ -219,7 +219,37 @@ pub struct VerifyLockedReport {
 }
 
 #[cfg(feature = "git-resolver")]
+/// Summary of a WDL module cache cleanup.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct CacheCleanStats {
+    /// Number of materialized module commits removed.
+    pub modules: usize,
+    /// Number of cached bytes removed.
+    pub bytes: u64,
+}
+
+#[cfg(feature = "git-resolver")]
 impl GitResolver {
+    /// Initializes an empty cache root or validates its ownership marker.
+    pub fn initialize_cache(&self) -> Result<(), ResolverError> {
+        crate::resolver::git::initialize_cache_root(&self.cache_root)?;
+        Ok(())
+    }
+
+    /// Removes every materialized module from the owned cache root.
+    pub fn clean_all_cache(&self) -> Result<CacheCleanStats, ResolverError> {
+        let (modules, bytes) = crate::resolver::git::remove_cache_root(&self.cache_root)?;
+        Ok(CacheCleanStats { modules, bytes })
+    }
+
+    /// Removes cache leaves reachable from `consumer`'s locked dependency tree.
+    pub fn clean_locked_cache(&self, consumer: &Module) -> Result<CacheCleanStats, ResolverError> {
+        let leaves = self.locked_cache_leaves(consumer)?;
+        let (modules, bytes) =
+            crate::resolver::git::remove_cache_leaves(&self.cache_root, &leaves)?;
+        Ok(CacheCleanStats { modules, bytes })
+    }
+
     /// Returns the cache root.
     pub fn cache_root(&self) -> &Path {
         &self.cache_root
@@ -496,6 +526,7 @@ impl GitResolver {
         let dep_for_clone = name.clone();
         let url_for_clone = url.clone();
         let leaf_for_clone = plan.leaf.clone();
+        let cache_root = self.cache_root.clone();
         let commit_for_clone = plan.commit.clone();
         let sparse_path = plan.sparse_path.clone();
         tracing::debug!(
@@ -513,7 +544,10 @@ impl GitResolver {
                 commit_for_clone.as_str(),
                 &[sparse_path.as_str()],
                 scope,
-                &leaf_for_clone,
+                crate::resolver::git::CacheLocation {
+                    root: &cache_root,
+                    leaf: &leaf_for_clone,
+                },
             )
         })
         .await

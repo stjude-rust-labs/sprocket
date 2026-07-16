@@ -68,6 +68,21 @@ const SPARSE_META_EXT: &str = ".sparse.json";
 /// form the per-leaf advisory lock path.
 const LOCK_EXT: &str = ".lock";
 
+/// Filename that marks a directory as an owned WDL module cache.
+pub(crate) const CACHE_MARKER_FILENAME: &str = ".sprocket-wdl-module-cache";
+
+/// Versioned contents of the WDL module cache ownership marker.
+const CACHE_MARKER_CONTENT: &[u8] = b"sprocket-wdl-module-cache-v1\n";
+
+/// Root and leaf paths participating in one cache operation.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct CacheLocation<'a> {
+    /// Owned WDL module cache root.
+    pub root: &'a Path,
+    /// Commit-specific cache leaf.
+    pub leaf: &'a Path,
+}
+
 /// The module folders currently materialized in a sparse-checkout cache
 /// leaf.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -114,6 +129,15 @@ pub enum GitError {
     /// The cache leaf path has no parent directory and cannot be created.
     #[error("cache leaf path `{0}` has no parent directory")]
     RootLeaf(PathBuf),
+
+    /// A cache root is unsafe to initialize or remove.
+    #[error("unsafe WDL module cache root `{path}`; {reason}")]
+    UnsafeCacheRoot {
+        /// The unsafe cache root.
+        path: PathBuf,
+        /// The reason the root is unsafe.
+        reason: &'static str,
+    },
 
     /// A remote advertised more refs than the configured limit.
     #[error("remote at `{url}` advertised {count} refs, exceeding the limit of {limit}")]
@@ -172,6 +196,252 @@ pub enum GitError {
         /// The prefix that failed to resolve.
         prefix: String,
     },
+}
+
+/// Initializes an empty cache root or validates its ownership marker.
+pub(crate) fn initialize_cache_root(root: &Path) -> Result<(), GitError> {
+    let _lock = lock_cache_root_unchecked(root)?;
+    initialize_cache_root_locked(root)
+}
+
+/// Acquires a shared cache-root lock for a materialization or scoped cleanup.
+pub(crate) fn lock_cache_root_shared(root: &Path) -> Result<File, GitError> {
+    initialize_cache_root(root)?;
+    let lock_path = cache_root_lock_path(root)?;
+    let file = open_cache_root_lock(root)?;
+    file.lock_shared().map_err(|source| GitError::Io {
+        path: lock_path,
+        source,
+    })?;
+    validate_cache_marker(root)?;
+    Ok(file)
+}
+
+/// Acquires an exclusive cache-root lock for a full cleanup.
+pub(crate) fn lock_cache_root_exclusive(root: &Path) -> Result<File, GitError> {
+    initialize_cache_root(root)?;
+    let file = lock_cache_root_unchecked(root)?;
+    validate_cache_marker(root)?;
+    Ok(file)
+}
+
+/// Removes one cache leaf while holding its advisory lock.
+pub(crate) fn remove_cache_leaf(leaf: &Path) -> Result<bool, GitError> {
+    let _lock = lock_cache_leaf(leaf)?;
+    if !leaf.exists() {
+        return Ok(false);
+    }
+    std::fs::remove_dir_all(leaf).map_err(|source| GitError::Io {
+        path: leaf.to_path_buf(),
+        source,
+    })?;
+    let sparse_meta = sparse_meta_path(leaf);
+    match std::fs::remove_file(&sparse_meta) {
+        Ok(()) => {}
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {}
+        Err(source) => {
+            return Err(GitError::Io {
+                path: sparse_meta,
+                source,
+            });
+        }
+    }
+    Ok(true)
+}
+
+/// Removes every owned cache entry while holding the root lock exclusively.
+pub(crate) fn remove_cache_root(root: &Path) -> Result<(usize, u64), GitError> {
+    let _lock = lock_cache_root_exclusive(root)?;
+    let stats = cache_tree_stats(root)?;
+    std::fs::remove_dir_all(root).map_err(|source| GitError::Io {
+        path: root.to_path_buf(),
+        source,
+    })?;
+    Ok(stats)
+}
+
+/// Removes selected leaves while excluding concurrent full-cache cleanup.
+pub(crate) fn remove_cache_leaves(
+    root: &Path,
+    leaves: &[PathBuf],
+) -> Result<(usize, u64), GitError> {
+    let _root_lock = lock_cache_root_shared(root)?;
+    let mut modules = 0usize;
+    let mut bytes = 0u64;
+    for leaf in leaves {
+        if !leaf.starts_with(root) {
+            return Err(GitError::UnsafeCacheRoot {
+                path: leaf.clone(),
+                reason: "a cache leaf escaped its cache root",
+            });
+        }
+        if !leaf.exists() {
+            continue;
+        }
+        bytes = bytes.saturating_add(cache_tree_stats(leaf)?.1);
+        modules += usize::from(remove_cache_leaf(leaf)?);
+    }
+    Ok((modules, bytes))
+}
+
+/// Opens and exclusively locks the cache-root advisory lock.
+fn lock_cache_root_unchecked(root: &Path) -> Result<File, GitError> {
+    let path = cache_root_lock_path(root)?;
+    let file = File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&path)
+        .map_err(|source| GitError::Io {
+            path: path.clone(),
+            source,
+        })?;
+    file.lock()
+        .map_err(|source| GitError::Io { path, source })?;
+    Ok(file)
+}
+
+/// Opens the cache-root advisory lock without acquiring it.
+fn open_cache_root_lock(root: &Path) -> Result<File, GitError> {
+    let path = cache_root_lock_path(root)?;
+    File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&path)
+        .map_err(|source| GitError::Io { path, source })
+}
+
+/// Returns the advisory lock path placed next to a cache root.
+fn cache_root_lock_path(root: &Path) -> Result<PathBuf, GitError> {
+    let Some(name) = root.file_name().filter(|name| !name.is_empty()) else {
+        return Err(GitError::UnsafeCacheRoot {
+            path: root.to_path_buf(),
+            reason: "the path has no final directory component",
+        });
+    };
+    let parent = root
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    std::fs::create_dir_all(parent).map_err(|source| GitError::Io {
+        path: parent.to_path_buf(),
+        source,
+    })?;
+    Ok(parent.join(format!(".{}.lock", name.to_string_lossy())))
+}
+
+/// Creates an ownership marker only when the cache root is empty.
+fn initialize_cache_root_locked(root: &Path) -> Result<(), GitError> {
+    if root.exists() {
+        let metadata = std::fs::symlink_metadata(root).map_err(|source| GitError::Io {
+            path: root.to_path_buf(),
+            source,
+        })?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return Err(GitError::UnsafeCacheRoot {
+                path: root.to_path_buf(),
+                reason: "the path is not a regular directory",
+            });
+        }
+        let marker = root.join(CACHE_MARKER_FILENAME);
+        if marker.exists() {
+            return validate_cache_marker(root);
+        }
+        let mut entries = std::fs::read_dir(root).map_err(|source| GitError::Io {
+            path: root.to_path_buf(),
+            source,
+        })?;
+        if entries.next().is_some() {
+            return Err(GitError::UnsafeCacheRoot {
+                path: root.to_path_buf(),
+                reason: "the directory is non-empty and has no ownership marker",
+            });
+        }
+    } else {
+        std::fs::create_dir_all(root).map_err(|source| GitError::Io {
+            path: root.to_path_buf(),
+            source,
+        })?;
+    }
+
+    let marker = root.join(CACHE_MARKER_FILENAME);
+    std::fs::write(&marker, CACHE_MARKER_CONTENT).map_err(|source| GitError::Io {
+        path: marker,
+        source,
+    })
+}
+
+/// Validates the cache-root ownership marker without following symlinks.
+fn validate_cache_marker(root: &Path) -> Result<(), GitError> {
+    let marker = root.join(CACHE_MARKER_FILENAME);
+    let metadata = std::fs::symlink_metadata(&marker).map_err(|source| GitError::Io {
+        path: marker.clone(),
+        source,
+    })?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(GitError::UnsafeCacheRoot {
+            path: root.to_path_buf(),
+            reason: "the ownership marker is not a regular file",
+        });
+    }
+    let contents = std::fs::read(&marker).map_err(|source| GitError::Io {
+        path: marker,
+        source,
+    })?;
+    if contents != CACHE_MARKER_CONTENT {
+        return Err(GitError::UnsafeCacheRoot {
+            path: root.to_path_buf(),
+            reason: "the ownership marker has unexpected contents",
+        });
+    }
+    Ok(())
+}
+
+/// Counts commit directories and regular-file bytes without following symlinks.
+fn cache_tree_stats(path: &Path) -> Result<(usize, u64), GitError> {
+    let mut modules = 0usize;
+    let mut bytes = 0u64;
+    let entries = std::fs::read_dir(path).map_err(|source| GitError::Io {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    for entry in entries {
+        let entry = entry.map_err(|source| GitError::Io {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        let child = entry.path();
+        let metadata = std::fs::symlink_metadata(&child).map_err(|source| GitError::Io {
+            path: child.clone(),
+            source,
+        })?;
+        if metadata.is_dir() {
+            if is_commit_directory(&child) {
+                modules += 1;
+            }
+            let (nested_modules, nested_bytes) = cache_tree_stats(&child)?;
+            modules = modules.saturating_add(nested_modules);
+            bytes = bytes.saturating_add(nested_bytes);
+        } else if metadata.is_file() {
+            bytes = bytes.saturating_add(metadata.len());
+        }
+    }
+    Ok((modules, bytes))
+}
+
+/// Returns whether a path names a full Git commit cache directory.
+fn is_commit_directory(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| {
+            name.len() == 40
+                && name
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        })
 }
 
 /// Default credential resolver. Tries the user's configured Git
@@ -694,7 +964,7 @@ fn lock_cache_leaf(leaf: &Path) -> Result<File, GitError> {
 /// If the initial clone fails, the partially-written leaf is removed so a
 /// corrupt checkout does not persist.
 pub(crate) fn ensure_materialized<I, S>(
-    leaf: &Path,
+    cache: CacheLocation<'_>,
     url: &Url,
     commit: &str,
     paths: I,
@@ -706,6 +976,8 @@ where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
+    let _cache_lock = lock_cache_root_shared(cache.root)?;
+    let leaf = cache.leaf;
     let existed = leaf.exists();
     tracing::debug!(
         cache_leaf = %leaf.display(),
@@ -870,7 +1142,10 @@ mod tests {
         let url = Url::from_directory_path(upstream.path()).unwrap();
 
         let fetched = ensure_materialized(
-            &leaf,
+            CacheLocation {
+                root: dest.path(),
+                leaf: &leaf,
+            },
             &url,
             &sha,
             ["csvkit"],
@@ -884,7 +1159,10 @@ mod tests {
         assert!(!leaf.join("spellbook").exists());
 
         let fetched = ensure_materialized(
-            &leaf,
+            CacheLocation {
+                root: dest.path(),
+                leaf: &leaf,
+            },
             &url,
             &sha,
             ["spellbook"],
