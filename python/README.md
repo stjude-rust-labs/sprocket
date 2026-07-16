@@ -66,7 +66,7 @@ To generate code coverage reports, first install the `llvm-tools` [Rustup compon
 
 ```bash
 rustup component add llvm-tools
-cargo install cargo-llvm-cov --locked
+cargo install cargo-llvm-cov --version 0.8 --locked
 ```
 
 Then, run the following commands with the virtual environment activated:
