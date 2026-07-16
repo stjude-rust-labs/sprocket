@@ -85,7 +85,7 @@ jobs:
         run: pytest --cov=python/sprocket_bio --cov-report=json:codecov-py.json
 
       - name: Generate llvm-cov report
-        run: cargo llvm-cov report --codecov --output-path=codecov-rust.json
+        run: cargo llvm-cov report -p sprocket-py -p wdl-diagnostics -p wdl-grammar -p wdl-ast --codecov --output-path=codecov-rust.json
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
