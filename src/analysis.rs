@@ -366,7 +366,7 @@ pub(crate) fn discover_manifest_upward(
 /// The manifest is assumed to exist; discovery establishes that before this is
 /// called. Returns an error if the lockfile or trust store exists but cannot be
 /// read or parsed.
-pub fn build_resolver(
+pub(crate) fn build_resolver(
     modules_config: &wdl_modules::resolver::ModulesConfig,
     manifest_path: &std::path::Path,
 ) -> anyhow::Result<Arc<dyn wdl_modules::Resolver>> {

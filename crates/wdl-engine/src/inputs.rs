@@ -59,11 +59,11 @@ fn resolve_call_document<'a>(
     match call.kind() {
         CallKind::Task => base
             .imported_task_by_name(call.name())
-            .map(|task| (&task.document, task.name.as_str()))
+            .map(|task| (task.document(), task.name()))
             .unwrap_or((base, call.name())),
         CallKind::Workflow => base
             .imported_workflow_by_name(call.name())
-            .map(|workflow| (&workflow.document, workflow.name.as_str()))
+            .map(|workflow| (workflow.document(), workflow.name()))
             .unwrap_or((base, call.name())),
     }
 }

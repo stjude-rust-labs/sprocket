@@ -655,34 +655,68 @@ impl Workflow {
 #[derive(Debug)]
 pub struct ImportedTask {
     /// The task name in the source document.
-    pub name: String,
+    name: String,
     /// The span of the import statement that introduced this task.
-    pub span: Span,
+    span: Span,
     /// The source URI the task came from.
-    pub source: Arc<Url>,
+    source: Arc<Url>,
     /// The source document that defines the task.
-    pub document: Document,
+    document: Document,
     /// The inputs of the task.
-    pub inputs: Arc<IndexMap<String, Input>>,
+    inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the task.
-    pub outputs: Arc<IndexMap<String, Output>>,
+    outputs: Arc<IndexMap<String, Output>>,
+}
+
+impl ImportedTask {
+    /// Gets the task name in its source document.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Gets the source document that defines the task.
+    pub fn document(&self) -> &Document {
+        &self.document
+    }
+
+    /// Gets the source URI the task came from.
+    pub(crate) fn source(&self) -> &Url {
+        &self.source
+    }
 }
 
 /// A workflow imported into scope by a wildcard or selected-member import.
 #[derive(Debug)]
 pub struct ImportedWorkflow {
     /// The workflow name in the source document.
-    pub name: String,
+    name: String,
     /// The span of the import statement.
-    pub span: Span,
+    span: Span,
     /// The source URI.
-    pub source: Arc<Url>,
+    source: Arc<Url>,
     /// The source document that defines the workflow.
-    pub document: Document,
+    document: Document,
     /// The inputs of the workflow.
-    pub inputs: Arc<IndexMap<String, Input>>,
+    inputs: Arc<IndexMap<String, Input>>,
     /// The outputs of the workflow.
-    pub outputs: Arc<IndexMap<String, Output>>,
+    outputs: Arc<IndexMap<String, Output>>,
+}
+
+impl ImportedWorkflow {
+    /// Gets the workflow name in its source document.
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    /// Gets the source document that defines the workflow.
+    pub fn document(&self) -> &Document {
+        &self.document
+    }
+
+    /// Gets the source URI the workflow came from.
+    pub(crate) fn source(&self) -> &Url {
+        &self.source
+    }
 }
 
 /// A callable item.

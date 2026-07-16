@@ -1700,20 +1700,20 @@ impl State {
                 Target::Workflow,
             )
         } else if let Some(imported) = document.imported_task_by_name(target.text())
-            && let Some(task) = imported.document.task_by_name(&imported.name)
+            && let Some(task) = imported.document().task_by_name(imported.name())
         {
-            document = &imported.document;
+            document = imported.document();
             (
                 inputs.unwrap_or_else(|| Inputs::Task(Default::default())),
                 Target::Task(task),
             )
         } else if let Some(imported) = document.imported_workflow_by_name(target.text())
             && imported
-                .document
+                .document()
                 .workflow()
-                .is_some_and(|w| w.name() == imported.name)
+                .is_some_and(|w| w.name() == imported.name())
         {
-            document = &imported.document;
+            document = imported.document();
             (
                 inputs.unwrap_or_else(|| Inputs::Workflow(Default::default())),
                 Target::Workflow,
