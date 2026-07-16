@@ -108,12 +108,14 @@ Available rules:
   - UsingFallbackVersion
 
 Available tags:
+  - All
   - Clarity
   - Completeness
   - Correctness
   - Deprecated
   - Documentation
   - Naming
+  - Pedantic
   - Portability
   - Sorting
   - Spacing

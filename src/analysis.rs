@@ -56,9 +56,6 @@ pub struct Analysis {
     /// Which lint rules to enable, as specified via a [`TagSet`].
     enabled_lint_tags: TagSet,
 
-    /// Which lint rules to disable, as specified via a [`TagSet`].
-    disabled_lint_tags: TagSet,
-
     /// The lint rule configuration.
     lint_config: wdl::lint::Config,
 
@@ -123,12 +120,6 @@ impl Analysis {
     /// Sets the enabled lint tags.
     pub fn enabled_lint_tags(mut self, tags: TagSet) -> Self {
         self.enabled_lint_tags = tags;
-        self
-    }
-
-    /// Sets the disabled lint tags.
-    pub fn disabled_lint_tags(mut self, tags: TagSet) -> Self {
-        self.disabled_lint_tags = tags;
         self
     }
 
@@ -197,12 +188,7 @@ impl Analysis {
             let mut enabled_rules = vec![];
             let mut disabled_rules = vec![];
             for rule in wdl::lint::rules(&wdl::lint::Config::default()) {
-                if is_rule_enabled(
-                    &self.enabled_lint_tags,
-                    &self.disabled_lint_tags,
-                    &self.exceptions,
-                    rule.as_ref(),
-                ) {
+                if is_rule_enabled(&self.enabled_lint_tags, &self.exceptions, rule.as_ref()) {
                     enabled_rules.push(rule.id());
                 } else {
                     disabled_rules.push(rule.id());
@@ -227,12 +213,8 @@ impl Analysis {
             let mut validator = Validator::default();
 
             if self.enabled_lint_tags.count() > 0 {
-                let visitor = get_lint_visitor(
-                    &self.enabled_lint_tags,
-                    &self.disabled_lint_tags,
-                    &self.exceptions,
-                    &self.lint_config,
-                );
+                let visitor =
+                    get_lint_visitor(&self.enabled_lint_tags, &self.exceptions, &self.lint_config);
                 validator.add_visitor(visitor);
             } else {
                 // So the validator is always *aware* of `wdl-lint` rules, even when the linter
@@ -270,8 +252,7 @@ impl Default for Analysis {
         Self {
             sources: Default::default(),
             exceptions: Default::default(),
-            enabled_lint_tags: TagSet::new(&[]),
-            disabled_lint_tags: TagSet::new(&[]),
+            enabled_lint_tags: TagSet::EMPTY,
             lint_config: Default::default(),
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
             feature_flags: FeatureFlags::default(),
@@ -560,15 +541,17 @@ fn get_diagnostics_config(exceptions: &HashSet<String>) -> DiagnosticsConfig {
 /// Determines if a rule should be enabled.
 fn is_rule_enabled(
     enabled_lint_tags: &TagSet,
-    disabled_lint_tags: &TagSet,
     exceptions: &HashSet<String>,
     rule: &dyn Rule,
 ) -> bool {
+    if exceptions
+        .iter()
+        .any(|exception| exception.eq_ignore_ascii_case(rule.id()))
+    {
+        return false;
+    }
+
     enabled_lint_tags.intersect(rule.tags()).count() > 0
-        && disabled_lint_tags.intersect(rule.tags()).count() == 0
-        && !exceptions
-            .iter()
-            .any(|exception| exception.eq_ignore_ascii_case(rule.id()))
 }
 
 /// Gets a lint visitor with the rules depending on provided options.
@@ -578,7 +561,6 @@ fn is_rule_enabled(
 /// considered by `enabled_lint_tags`.
 fn get_lint_visitor(
     enabled_lint_tags: &TagSet,
-    disabled_lint_tags: &TagSet,
     exceptions: &HashSet<String>,
     lint_config: &wdl::lint::Config,
 ) -> Linter {
@@ -586,13 +568,8 @@ fn get_lint_visitor(
         wdl::lint::rules(lint_config)
             .into_iter()
             .filter_map(|rule| {
-                is_rule_enabled(
-                    enabled_lint_tags,
-                    disabled_lint_tags,
-                    exceptions,
-                    rule.as_ref(),
-                )
-                .then_some(rule as Box<dyn Rule>)
+                is_rule_enabled(enabled_lint_tags, exceptions, rule.as_ref())
+                    .then_some(rule as Box<dyn Rule>)
             }),
     )
 }
