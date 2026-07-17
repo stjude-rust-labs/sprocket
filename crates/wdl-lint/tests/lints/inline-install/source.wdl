@@ -1,5 +1,5 @@
 ## This is a test of the `InlineInstall` lint.
-#@ except: DoubleQuotes, ExpectedRuntimeKeys, MetaDescription, EmptyOutputs, RequirementsSection
+#@ except: BashSetSyntax, DoubleQuotes, ExpectedRuntimeKeys, MetaDescription, EmptyOutputs, RequirementsSection
 version 1.3
 
 task good {
