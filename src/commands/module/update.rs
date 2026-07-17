@@ -4,15 +4,19 @@ use std::collections::BTreeSet;
 
 use anyhow::Context as _;
 use clap::Parser;
+use wdl_modules::Lockfile;
 use wdl_modules::Resolver as _;
 use wdl_modules::dependency::DependencyName;
 use wdl_modules::module::Module;
+use wdl_modules::resolver::RelockOutcome;
+use wdl_modules::resolver::SignerIdentityMap;
 use wdl_modules::resolver::signer_identity_map;
 use wdl_modules::resolver::update_relock;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::ProjectMutation;
+use crate::commands::module::LockedProject;
+use crate::commands::module::Project;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
@@ -54,24 +58,56 @@ pub async fn update(args: Args, config: Config, output: CommandOutput) -> Comman
         requested = args.names.len(),
         "starting `sprocket dev module update`"
     );
-    let mut project = discover(&args.locator)?;
-    let mutation = if args.dry_run {
-        None
-    } else {
-        let mutation = ProjectMutation::acquire(&project)?;
-        project.reload()?;
-        Some(mutation)
-    };
-    trace_project("module update", &project);
-    let on_disk = load_lockfile(&project)?.unwrap_or_default();
+    let project = discover(&args.locator)?;
+    if args.dry_run {
+        trace_project("module update", &project);
+        let plan = plan_update(&args, &config, &project).await?;
+        tracing::debug!("dry run completed without writing lockfile");
+        print_update_outcome(output, &plan.outcome.stats, true);
+        return Ok(());
+    }
 
+    let project = LockedProject::acquire(project)?;
+    trace_project("module update", project.project());
+    let plan = plan_update(&args, &config, project.project()).await?;
+    enforce_lockfile_signer_policy(
+        &plan.existing,
+        &plan.outcome.lockfile,
+        &plan.identities,
+        signer_change_mode(&config, args.trust_mode),
+        output,
+    )?;
+    project.commit(None, Some(&plan.outcome.lockfile))?;
+    tracing::debug!(
+        lockfile = %project.project().lockfile_path.display(),
+        "wrote module lockfile"
+    );
+    print_update_outcome(output, &plan.outcome.stats, false);
+    Ok(())
+}
+
+struct UpdatePlan {
+    existing: Lockfile,
+    outcome: RelockOutcome,
+    identities: SignerIdentityMap,
+}
+
+async fn plan_update(
+    args: &Args,
+    config: &Config,
+    project: &Project,
+) -> anyhow::Result<UpdatePlan> {
+    let existing = load_lockfile(project)?.unwrap_or_default();
     let mut names = BTreeSet::new();
     for raw in &args.names {
         let name: DependencyName = raw
             .parse()
             .with_context(|| format!("invalid dependency name `{raw}`"))?;
         if !project.manifest.dependencies.contains_key(&name) {
-            return Err(anyhow::anyhow!("dependency `{}` not found in `module.json`", raw).into());
+            return Err(anyhow::anyhow!(
+                "dependency `{}` not found in `module.json`",
+                raw
+            ));
         }
         names.insert(name);
     }
@@ -86,7 +122,7 @@ pub async fn update(args: Args, config: Config, output: CommandOutput) -> Comman
     );
 
     let module = Module::new(project.manifest.clone(), project.root.clone());
-    let resolver = build_resolver(&config, on_disk)?;
+    let resolver = build_resolver(config, existing.clone())?;
     let tree = resolver
         .resolve_tree(&module)
         .await
@@ -99,28 +135,11 @@ pub async fn update(args: Args, config: Config, output: CommandOutput) -> Comman
         .map_err(anyhow::Error::from)?;
     let identities = signer_identity_map(&tree);
 
-    if args.dry_run {
-        tracing::debug!("dry run completed without writing lockfile");
-        print_update_outcome(output, &outcome.stats, true);
-        return Ok(());
-    }
-
-    let Some(mutation) = mutation else {
-        return Err(
-            anyhow::anyhow!("internal error; update mutation lock was not acquired").into(),
-        );
-    };
-    enforce_lockfile_signer_policy(
-        resolver.lockfile(),
-        &outcome.lockfile,
-        &identities,
-        signer_change_mode(&config, args.trust_mode),
-        output,
-    )?;
-    mutation.commit(&project, None, Some(&outcome.lockfile))?;
-    tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
-    print_update_outcome(output, &outcome.stats, false);
-    Ok(())
+    Ok(UpdatePlan {
+        existing,
+        outcome,
+        identities,
+    })
 }
 
 fn print_update_outcome(

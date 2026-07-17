@@ -4,7 +4,7 @@ use clap::Parser;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::ProjectMutation;
+use crate::commands::module::LockedProject;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::discover;
 use crate::commands::module::parse_manifest_value;
@@ -45,10 +45,9 @@ pub async fn remove(args: Args, config: Config, output: CommandOutput) -> Comman
         no_lock = args.no_lock,
         "starting `sprocket dev module remove`"
     );
-    let mut project = discover(&args.locator)?;
-    let mutation = ProjectMutation::acquire(&project)?;
-    project.reload()?;
-    trace_project("module remove", &project);
+    let locked = LockedProject::acquire(discover(&args.locator)?)?;
+    let project = locked.project();
+    trace_project("module remove", project);
     let mut value = read_manifest_value(&project.manifest_path)?;
     if !remove_dependency(&mut value, &args.name)? {
         tracing::debug!(dependency = args.name, "dependency was not present");
@@ -64,7 +63,7 @@ pub async fn remove(args: Args, config: Config, output: CommandOutput) -> Comman
         Some(
             resolve_relock_for_manifest(
                 &config,
-                &project,
+                project,
                 std::sync::Arc::new(pending_manifest),
                 signer_change_mode(&config, args.trust_mode),
                 output,
@@ -73,8 +72,7 @@ pub async fn remove(args: Args, config: Config, output: CommandOutput) -> Comman
         )
     };
 
-    mutation.commit(
-        &project,
+    locked.commit(
         Some(&value),
         relock.as_ref().map(|outcome| &outcome.lockfile),
     )?;

@@ -4,7 +4,7 @@ use clap::Parser;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::ProjectMutation;
+use crate::commands::module::LockedProject;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::discover;
 use crate::commands::module::load_lockfile;
@@ -46,7 +46,7 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
         dry_run = args.dry_run,
         "starting `sprocket dev module lock`"
     );
-    let mut project = discover(&args.locator)?;
+    let project = discover(&args.locator)?;
     trace_project("module lock", &project);
     let lock = load_lockfile(&project)?;
     let satisfied = lock
@@ -95,11 +95,10 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
         return Ok(());
     }
 
-    let mutation = ProjectMutation::acquire(&project)?;
-    project.reload()?;
-    if load_lockfile(&project)?
+    let project = LockedProject::acquire(project)?;
+    if load_lockfile(project.project())?
         .as_ref()
-        .is_some_and(|lockfile| lockfile.satisfies_manifest(&project.manifest))
+        .is_some_and(|lockfile| lockfile.satisfies_manifest(&project.project().manifest))
     {
         output.current("module lockfile is up to date");
         return Ok(());
@@ -107,13 +106,16 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
 
     let outcome = resolve_relock_with_signer_mode(
         &config,
-        &project,
+        project.project(),
         signer_change_mode(&config, args.trust_mode),
         output,
     )
     .await?;
-    mutation.commit(&project, None, Some(&outcome.lockfile))?;
-    tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
+    project.commit(None, Some(&outcome.lockfile))?;
+    tracing::debug!(
+        lockfile = %project.project().lockfile_path.display(),
+        "wrote module lockfile"
+    );
     output.completed(
         LOCK,
         count_noun(

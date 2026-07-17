@@ -6,18 +6,22 @@ use anyhow::Context as _;
 use clap::Parser;
 use futures::StreamExt as _;
 use futures::TryStreamExt as _;
+use wdl_modules::Lockfile;
 use wdl_modules::Resolver as _;
 use wdl_modules::dependency::DependencyName;
 use wdl_modules::dependency::DependencySource;
 use wdl_modules::dependency::GitSelector;
 use wdl_modules::module::Module;
 use wdl_modules::resolver::DependencyScope;
+use wdl_modules::resolver::RelockOutcome;
+use wdl_modules::resolver::SignerIdentityMap;
 use wdl_modules::resolver::signer_identity_map;
 use wdl_modules::resolver::update_relock;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::ProjectMutation;
+use crate::commands::module::LockedProject;
+use crate::commands::module::Project;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
@@ -62,16 +66,69 @@ pub async fn upgrade(args: Args, config: Config, output: CommandOutput) -> Comma
         requested = args.names.len(),
         "starting `sprocket dev module upgrade`"
     );
-    let mut project = discover(&args.locator)?;
-    let mutation = if args.dry_run {
-        None
-    } else {
-        let mutation = ProjectMutation::acquire(&project)?;
-        project.reload()?;
-        Some(mutation)
-    };
-    trace_project("module upgrade", &project);
+    let project = discover(&args.locator)?;
+    if args.dry_run {
+        trace_project("module upgrade", &project);
+        let plan = plan_upgrade(&args, &config, &project).await?;
+        print_upgrade_plan(output, plan);
+        return Ok(());
+    }
 
+    let project = LockedProject::acquire(project)?;
+    trace_project("module upgrade", project.project());
+    let plan = plan_upgrade(&args, &config, project.project()).await?;
+    let UpgradePlan::Changes(changes) = plan else {
+        print_upgrade_plan(output, plan);
+        return Ok(());
+    };
+    enforce_lockfile_signer_policy(
+        &changes.existing,
+        &changes.outcome.lockfile,
+        &changes.identities,
+        signer_change_mode(&config, args.trust_mode),
+        output,
+    )?;
+    project.commit(
+        Some(&changes.manifest_value),
+        Some(&changes.outcome.lockfile),
+    )?;
+    tracing::debug!(
+        manifest = %project.project().manifest_path.display(),
+        changed = changes.changed.len(),
+        "wrote upgraded version selectors"
+    );
+    tracing::debug!(
+        lockfile = %project.project().lockfile_path.display(),
+        "wrote module lockfile"
+    );
+    output.completed(
+        UPGRADE,
+        count_noun(changes.changed.len(), "dependency", "dependencies"),
+    );
+    print_upgrade_details(output, &changes.changed);
+    print_lockfile_change_details(output, &changes.outcome.stats);
+    Ok(())
+}
+
+enum UpgradePlan {
+    NoEligible,
+    Current,
+    Changes(Box<UpgradeChanges>),
+}
+
+struct UpgradeChanges {
+    existing: Lockfile,
+    manifest_value: serde_json::Value,
+    changed: Vec<(DependencyName, String, String)>,
+    outcome: RelockOutcome,
+    identities: SignerIdentityMap,
+}
+
+async fn plan_upgrade(
+    args: &Args,
+    config: &Config,
+    project: &Project,
+) -> anyhow::Result<UpgradePlan> {
     let mut selected = Vec::new();
     if args.names.is_empty() {
         selected.extend(project.manifest.dependencies.keys().cloned());
@@ -81,9 +138,9 @@ pub async fn upgrade(args: Args, config: Config, output: CommandOutput) -> Comma
                 .parse()
                 .with_context(|| format!("invalid dependency name `{raw}`"))?;
             if !project.manifest.dependencies.contains_key(&name) {
-                return Err(
-                    anyhow::anyhow!("dependency `{raw}` not found in `module.json`").into(),
-                );
+                return Err(anyhow::anyhow!(
+                    "dependency `{raw}` not found in `module.json`"
+                ));
             }
             selected.push(name);
         }
@@ -117,15 +174,15 @@ pub async fn upgrade(args: Args, config: Config, output: CommandOutput) -> Comma
 
     if eligible.is_empty() {
         tracing::debug!("no dependencies are eligible for upgrade");
-        output.current("no version-based dependencies are eligible for upgrade");
-        return Ok(());
+        return Ok(UpgradePlan::NoEligible);
     }
     tracing::debug!(
         eligible = eligible.len(),
         "checking latest dependency versions"
     );
 
-    let resolver = build_resolver(&config, load_lockfile(&project)?.unwrap_or_default())?;
+    let existing = load_lockfile(project)?.unwrap_or_default();
+    let resolver = build_resolver(config, existing.clone())?;
 
     let discovered = futures::stream::iter(eligible.iter().map(|(name, source, old_req)| async {
         let wildcard_source = wildcard_version_source(source)?;
@@ -159,8 +216,7 @@ pub async fn upgrade(args: Args, config: Config, output: CommandOutput) -> Comma
             dry_run = args.dry_run,
             "no version selectors need upgrading"
         );
-        output.current("all version constraints");
-        return Ok(());
+        return Ok(UpgradePlan::Current);
     }
 
     let mut manifest_value = read_manifest_value(&project.manifest_path)?;
@@ -182,46 +238,34 @@ pub async fn upgrade(args: Args, config: Config, output: CommandOutput) -> Comma
     .map_err(anyhow::Error::from)?;
     let identities = signer_identity_map(&tree);
 
-    if args.dry_run {
-        output.planned(
-            UPGRADE,
-            count_noun(changed.len(), "dependency", "dependencies"),
-        );
-        print_upgrade_details(output, &changed);
-        print_lockfile_change_details(output, &outcome.stats);
-        tracing::debug!(
-            changed = changed.len(),
-            "dry run completed without writing manifest, lockfile, or trust store"
-        );
-        return Ok(());
-    }
+    Ok(UpgradePlan::Changes(Box::new(UpgradeChanges {
+        existing,
+        manifest_value,
+        changed,
+        outcome,
+        identities,
+    })))
+}
 
-    let Some(mutation) = mutation else {
-        return Err(
-            anyhow::anyhow!("internal error; upgrade mutation lock was not acquired").into(),
-        );
-    };
-    enforce_lockfile_signer_policy(
-        resolver.lockfile(),
-        &outcome.lockfile,
-        &identities,
-        signer_change_mode(&config, args.trust_mode),
-        output,
-    )?;
-    mutation.commit(&project, Some(&manifest_value), Some(&outcome.lockfile))?;
-    tracing::debug!(
-        manifest = %project.manifest_path.display(),
-        changed = changed.len(),
-        "wrote upgraded version selectors"
-    );
-    tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
-    output.completed(
-        UPGRADE,
-        count_noun(changed.len(), "dependency", "dependencies"),
-    );
-    print_upgrade_details(output, &changed);
-    print_lockfile_change_details(output, &outcome.stats);
-    Ok(())
+fn print_upgrade_plan(output: CommandOutput, plan: UpgradePlan) {
+    match plan {
+        UpgradePlan::NoEligible => {
+            output.current("no version-based dependencies are eligible for upgrade");
+        }
+        UpgradePlan::Current => output.current("all version constraints"),
+        UpgradePlan::Changes(changes) => {
+            output.planned(
+                UPGRADE,
+                count_noun(changes.changed.len(), "dependency", "dependencies"),
+            );
+            print_upgrade_details(output, &changes.changed);
+            print_lockfile_change_details(output, &changes.outcome.stats);
+            tracing::debug!(
+                changed = changes.changed.len(),
+                "dry run completed without writing manifest, lockfile, or trust store"
+            );
+        }
+    }
 }
 
 fn print_lockfile_change_details(

@@ -17,7 +17,7 @@ use wdl_modules::version_requirement::VersionRequirement;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::ProjectMutation;
+use crate::commands::module::LockedProject;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
@@ -95,10 +95,9 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
         "starting `sprocket dev module add`"
     );
     let (name, source_arg) = dependency_name_and_source(&args)?;
-    let mut project = discover(&args.locator)?;
-    let mutation = ProjectMutation::acquire(&project)?;
-    project.reload()?;
-    trace_project("module add", &project);
+    let locked = LockedProject::acquire(discover(&args.locator)?)?;
+    let project = locked.project();
+    trace_project("module add", project);
     let built = build_source(&args, &source_arg, &config, &name).await?;
     let source = built.source;
     let mut value = read_manifest_value(&project.manifest_path)?;
@@ -107,20 +106,20 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
             dependency = name.manifest(),
             "dependency already exists with the same source"
         );
-        let lockfile = crate::commands::module::load_lockfile(&project)?;
+        let lockfile = crate::commands::module::load_lockfile(project)?;
         let lock_is_current = lockfile
             .as_ref()
             .is_some_and(|lockfile| lockfile.satisfies_manifest(&project.manifest));
         if !args.no_lock && !lock_is_current {
             let outcome = resolve_relock_for_manifest(
                 &config,
-                &project,
+                project,
                 project.manifest.clone(),
                 signer_change_mode(&config, args.trust_mode),
                 output,
             )
             .await?;
-            mutation.commit(&project, None, Some(&outcome.lockfile))?;
+            locked.commit(None, Some(&outcome.lockfile))?;
             output.completed(
                 LOCK,
                 count_noun(
@@ -150,7 +149,7 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
         Some(
             resolve_relock_for_manifest(
                 &config,
-                &project,
+                project,
                 std::sync::Arc::new(pending_manifest),
                 signer_change_mode(&config, args.trust_mode),
                 output,
@@ -159,8 +158,7 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
         )
     };
 
-    mutation.commit(
-        &project,
+    locked.commit(
         Some(&value),
         relock.as_ref().map(|outcome| &outcome.lockfile),
     )?;

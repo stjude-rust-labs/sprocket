@@ -32,7 +32,7 @@ pub use manifest::remove_dependency;
 pub use manifest::set_dependency;
 pub use manifest::write_lockfile;
 pub use manifest::write_manifest_value;
-pub(crate) use mutation::ProjectMutation;
+pub(crate) use mutation::LockedProject;
 pub use project::Locator;
 pub use project::Project;
 pub use project::discover;

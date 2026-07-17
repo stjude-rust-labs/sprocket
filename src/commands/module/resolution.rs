@@ -16,8 +16,8 @@ use wdl_modules::resolver::TrustMode;
 use wdl_modules::resolver::partial_relock;
 use wdl_modules::resolver::signer_identity_map;
 
+use super::LockedProject;
 use super::Project;
-use super::ProjectMutation;
 use super::load_lockfile;
 use super::trust_policy::SignerChangeMode;
 use super::trust_policy::enforce_signer_trust;
@@ -224,7 +224,7 @@ pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> an
         .unwrap_or_else(|| Path::new("."))
         .to_path_buf();
     let lockfile_path = manifest_path.with_file_name(wdl_modules::LOCKFILE_FILENAME);
-    let mut project = Project {
+    let project = Project {
         manifest_path,
         root,
         manifest: Arc::new(manifest),
@@ -239,23 +239,22 @@ pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> an
         return Ok(());
     }
 
-    let mutation = ProjectMutation::acquire(&project)?;
-    project.reload()?;
-    let existing = load_lockfile(&project)?;
+    let project = LockedProject::acquire(project)?;
+    let existing = load_lockfile(project.project())?;
     if existing
         .as_ref()
-        .is_some_and(|lock| lock.satisfies_manifest(&project.manifest))
+        .is_some_and(|lock| lock.satisfies_manifest(&project.project().manifest))
     {
         return Ok(());
     }
 
     tracing::info!(
-        manifest = %project.manifest_path.display(),
+        manifest = %project.project().manifest_path.display(),
         lockfile_present = existing.is_some(),
         "`module-lock.json` is missing or out of date; regenerating before execution"
     );
-    let outcome = resolve_relock(config, &project).await?;
-    mutation.commit(&project, None, Some(&outcome.lockfile))?;
+    let outcome = resolve_relock(config, project.project()).await?;
+    project.commit(None, Some(&outcome.lockfile))?;
     Ok(())
 }
 

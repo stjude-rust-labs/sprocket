@@ -16,9 +16,40 @@ const LOCK_FILENAME: &str = "module-mutation.lock";
 const ACTIVE_DIRECTORY: &str = "module-mutation";
 const PENDING_DIRECTORY: &str = "module-mutation.pending";
 
+/// A refreshed module project held under its exclusive mutation lock.
+#[derive(Debug)]
+pub(crate) struct LockedProject {
+    project: Project,
+    mutation: ProjectMutation,
+}
+
+impl LockedProject {
+    /// Acquires the project lock, recovers interrupted work, and reloads the
+    /// manifest under the lock.
+    pub(crate) fn acquire(mut project: Project) -> anyhow::Result<Self> {
+        let mutation = ProjectMutation::acquire(&project)?;
+        project.reload()?;
+        Ok(Self { project, mutation })
+    }
+
+    /// Returns the refreshed project snapshot protected by this lock.
+    pub(crate) fn project(&self) -> &Project {
+        &self.project
+    }
+
+    /// Atomically applies an optional manifest and lockfile update.
+    pub(crate) fn commit(
+        &self,
+        manifest: Option<&serde_json::Value>,
+        lockfile: Option<&Lockfile>,
+    ) -> anyhow::Result<()> {
+        self.mutation.commit(&self.project, manifest, lockfile)
+    }
+}
+
 /// An exclusive lock for mutations to one module project.
 #[derive(Debug)]
-pub(crate) struct ProjectMutation {
+struct ProjectMutation {
     _lock: File,
 }
 
