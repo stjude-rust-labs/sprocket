@@ -1426,3 +1426,58 @@ fn upgrade_skips_non_version_dep() {
     let manifest_after = fs::read(consumer.join("module.json")).unwrap();
     assert_eq!(manifest_after, manifest_before);
 }
+
+#[test]
+fn upgrade_rejects_an_unknown_dependency() {
+    let fixture = GitFixture::new();
+    let repo_url = fixture.repo_url();
+    let consumer = fixture.write_consumer(
+        "consumer-upgrade-unknown",
+        &format!(r#"    "tasks": {{ "git": "{repo_url}", "version": "^1.0", "path": "tasks" }}"#),
+    );
+
+    let output = sprocket_with_config(
+        fixture.config_path(),
+        &["dev", "module", "upgrade", "missing", "--dry-run"],
+    )
+    .current_dir(&consumer)
+    .output()
+    .expect("failed to run sprocket dev module upgrade");
+
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(
+        stderr.contains("dependency `missing` not found in `module.json`"),
+        "stderr: {stderr}"
+    );
+}
+
+#[test]
+fn upgrade_reports_current_version_constraints() {
+    let fixture = GitFixture::new();
+    let repo_url = fixture.repo_url();
+    let consumer = fixture.write_consumer(
+        "consumer-upgrade-current",
+        &format!(r#"    "tasks": {{ "git": "{repo_url}", "version": "^2.0.0", "path": "tasks" }}"#),
+    );
+
+    let output = sprocket_with_config(
+        fixture.config_path(),
+        &["dev", "module", "upgrade", "--dry-run"],
+    )
+    .current_dir(&consumer)
+    .output()
+    .expect("failed to run sprocket dev module upgrade");
+
+    assert!(
+        output.status.success(),
+        "command failed {status}: {stderr}",
+        status = output.status,
+        stderr = String::from_utf8_lossy(&output.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(
+        stdout.contains("all version constraints"),
+        "stdout: {stdout}"
+    );
+}
