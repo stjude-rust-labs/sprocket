@@ -114,14 +114,18 @@ impl ProjectMutation {
 
         match result {
             Ok(()) => transaction.finish(),
-            Err(source) => {
-                transaction
-                    .rollback()
-                    .context("rolling back the interrupted module project mutation")?;
-                Err(source)
-            }
+            Err(source) => match transaction.rollback() {
+                Ok(()) => Err(source),
+                Err(rollback) => Err(rollback_error(source, rollback)),
+            },
         }
     }
+}
+
+fn rollback_error(source: anyhow::Error, rollback: anyhow::Error) -> anyhow::Error {
+    source.context(format!(
+        "rolling back the interrupted module project mutation also failed; {rollback:#}"
+    ))
 }
 
 /// On-disk snapshots used to recover a project mutation.
@@ -493,6 +497,18 @@ mod tests {
         assert!(!state.join(PENDING_DIRECTORY).exists());
         assert!(!state.join(ACTIVE_DIRECTORY).exists());
         Ok(())
+    }
+
+    #[test]
+    fn rollback_failure_preserves_original_mutation_failure() {
+        let error = rollback_error(
+            anyhow::anyhow!("writing `module-lock.json` failed"),
+            anyhow::anyhow!("restoring `module.json` failed"),
+        );
+        let rendered = format!("{error:#}");
+
+        assert!(rendered.contains("writing `module-lock.json` failed"));
+        assert!(rendered.contains("restoring `module.json` failed"));
     }
 
     #[test]
