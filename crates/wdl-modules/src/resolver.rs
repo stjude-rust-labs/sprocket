@@ -17,7 +17,7 @@ pub(crate) mod fetch;
 #[cfg(feature = "git-resolver")]
 mod git;
 #[cfg(feature = "git-resolver")]
-pub(crate) mod lock;
+pub mod lock;
 #[cfg(feature = "git-resolver")]
 pub(crate) mod policy;
 pub(crate) mod scope;
@@ -90,30 +90,6 @@ pub use crate::resolver::error::MissingFileKind;
 pub use crate::resolver::error::ResolverError;
 #[cfg(feature = "git-resolver")]
 use crate::resolver::fetch::GitFetcher;
-#[cfg(feature = "git-resolver")]
-pub use crate::resolver::lock::ChangedSigner;
-#[cfg(feature = "git-resolver")]
-pub use crate::resolver::lock::DependencyChange;
-#[cfg(feature = "git-resolver")]
-pub use crate::resolver::lock::DependencyUpdate;
-#[cfg(feature = "git-resolver")]
-pub use crate::resolver::lock::LockfileDiff;
-#[cfg(feature = "git-resolver")]
-pub use crate::resolver::lock::NewSigner;
-#[cfg(feature = "git-resolver")]
-pub use crate::resolver::lock::RelockOutcome;
-#[cfg(feature = "git-resolver")]
-pub use crate::resolver::lock::RelockStats;
-#[cfg(feature = "git-resolver")]
-pub use crate::resolver::lock::RemovedSigner;
-#[cfg(feature = "git-resolver")]
-pub use crate::resolver::lock::SignerIdentityMap;
-#[cfg(feature = "git-resolver")]
-pub use crate::resolver::lock::partial_relock;
-#[cfg(feature = "git-resolver")]
-pub use crate::resolver::lock::signer_identity_map;
-#[cfg(feature = "git-resolver")]
-pub use crate::resolver::lock::update_relock;
 #[cfg(feature = "git-resolver")]
 pub use crate::resolver::policy::ResolverPolicy;
 pub use crate::resolver::scope::DependencyScope;

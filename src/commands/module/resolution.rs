@@ -9,12 +9,12 @@ use wdl_modules::Manifest;
 use wdl_modules::Resolver as _;
 use wdl_modules::module::Module;
 use wdl_modules::resolver::GitResolver;
-use wdl_modules::resolver::RelockOutcome;
 use wdl_modules::resolver::ResolverPolicy;
-use wdl_modules::resolver::SignerIdentityMap;
 use wdl_modules::resolver::TrustMode;
-use wdl_modules::resolver::partial_relock;
-use wdl_modules::resolver::signer_identity_map;
+use wdl_modules::resolver::lock::RelockOutcome;
+use wdl_modules::resolver::lock::SignerIdentityMap;
+use wdl_modules::resolver::lock::partial_relock;
+use wdl_modules::resolver::lock::signer_identity_map;
 
 use super::LockedProject;
 use super::Project;

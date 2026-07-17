@@ -2,7 +2,7 @@
 
 use wdl_modules::dependency::GitSelector;
 use wdl_modules::lockfile::ResolvedSource;
-use wdl_modules::resolver::DependencyUpdate;
+use wdl_modules::resolver::lock::DependencyUpdate;
 
 /// Formats a dependency update for an action line.
 #[cfg(test)]

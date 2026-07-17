@@ -13,10 +13,11 @@ use wdl_modules::dependency::DependencySource;
 use wdl_modules::dependency::GitSelector;
 use wdl_modules::module::Module;
 use wdl_modules::resolver::DependencyScope;
-use wdl_modules::resolver::RelockOutcome;
-use wdl_modules::resolver::SignerIdentityMap;
-use wdl_modules::resolver::signer_identity_map;
-use wdl_modules::resolver::update_relock;
+use wdl_modules::resolver::lock::RelockOutcome;
+use wdl_modules::resolver::lock::RelockStats;
+use wdl_modules::resolver::lock::SignerIdentityMap;
+use wdl_modules::resolver::lock::signer_identity_map;
+use wdl_modules::resolver::lock::update_relock;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
@@ -270,10 +271,7 @@ fn print_upgrade_plan(output: CommandOutput, plan: UpgradePlan) {
     }
 }
 
-fn print_lockfile_change_details(
-    output: CommandOutput,
-    stats: &wdl_modules::resolver::RelockStats,
-) {
+fn print_lockfile_change_details(output: CommandOutput, stats: &RelockStats) {
     for change in &stats.updated {
         output.detail(change.name.manifest(), dependency_update(change));
     }

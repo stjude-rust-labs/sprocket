@@ -8,10 +8,11 @@ use wdl_modules::Lockfile;
 use wdl_modules::Resolver as _;
 use wdl_modules::dependency::DependencyName;
 use wdl_modules::module::Module;
-use wdl_modules::resolver::RelockOutcome;
-use wdl_modules::resolver::SignerIdentityMap;
-use wdl_modules::resolver::signer_identity_map;
-use wdl_modules::resolver::update_relock;
+use wdl_modules::resolver::lock::RelockOutcome;
+use wdl_modules::resolver::lock::RelockStats;
+use wdl_modules::resolver::lock::SignerIdentityMap;
+use wdl_modules::resolver::lock::signer_identity_map;
+use wdl_modules::resolver::lock::update_relock;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
@@ -142,11 +143,7 @@ async fn plan_update(
     })
 }
 
-fn print_update_outcome(
-    output: CommandOutput,
-    stats: &wdl_modules::resolver::RelockStats,
-    dry_run: bool,
-) {
+fn print_update_outcome(output: CommandOutput, stats: &RelockStats, dry_run: bool) {
     if stats.updated.is_empty() {
         output.current("module lockfile is up to date");
         return;

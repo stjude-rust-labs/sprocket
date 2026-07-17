@@ -1,6 +1,7 @@
 //! `sprocket dev module lock`.
 
 use clap::Parser;
+use wdl_modules::resolver::lock::RelockStats;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
@@ -131,6 +132,6 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
     Ok(())
 }
 
-fn relock_change_count(stats: &wdl_modules::resolver::RelockStats) -> usize {
+fn relock_change_count(stats: &RelockStats) -> usize {
     stats.added.len() + stats.removed.len() + stats.updated.len()
 }

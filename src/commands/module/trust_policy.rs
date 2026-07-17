@@ -5,13 +5,13 @@ use std::path::Path;
 use anyhow::Context as _;
 use wdl_modules::Lockfile;
 use wdl_modules::lockfile::DependencyMap;
-use wdl_modules::resolver::ChangedSigner;
-use wdl_modules::resolver::LockfileDiff;
-use wdl_modules::resolver::NewSigner;
-use wdl_modules::resolver::RemovedSigner;
-use wdl_modules::resolver::SignerIdentityMap;
 use wdl_modules::resolver::TrustMode;
 use wdl_modules::resolver::TrustStore;
+use wdl_modules::resolver::lock::ChangedSigner;
+use wdl_modules::resolver::lock::LockfileDiff;
+use wdl_modules::resolver::lock::NewSigner;
+use wdl_modules::resolver::lock::RemovedSigner;
+use wdl_modules::resolver::lock::SignerIdentityMap;
 use wdl_modules::signing::SignerIdentity;
 use wdl_modules::signing::VerifyingKey;
 
