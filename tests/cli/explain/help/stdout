@@ -98,6 +98,7 @@ Available rules:
   - SectionOrdering
   - ShellCheck
   - SnakeCase
+  - StructOverMap
   - TodoComment
   - UnnecessaryFunctionCall
   - UnusedCall

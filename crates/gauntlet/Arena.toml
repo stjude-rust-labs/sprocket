@@ -4837,6 +4837,11 @@ message = "quality-check-standard.wdl:600:20: note[ContainerUri]: container URI 
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/qc/quality-check-standard.wdl/#L600"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
+message = "rnaseq-core.wdl:165:5: note[StructOverMap]: usage of `Map[String, String]`"
+permalink = "https://github.com/stjudecloud/workflows/blob/60c4e506136dbebc687c3db7b1e8d3a745f488c8/workflows/rnaseq/rnaseq-core.wdl/#L165"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-standard.wdl"
 message = "rnaseq-standard.wdl:170:5: warning[BashSetSyntax]: missing `set` command"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/rnaseq/rnaseq-standard.wdl/#L170"

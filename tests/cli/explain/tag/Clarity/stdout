@@ -12,3 +12,4 @@ Rules with the tag `Clarity`:
   - MetaSections
   - PascalCase
   - SnakeCase
+  - StructOverMap
