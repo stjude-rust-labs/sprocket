@@ -40,7 +40,7 @@ pub enum Tag {
     /// commands (e.g. `doc`).
     SprocketCompatibility,
 
-    /// Rules associated with performance of a document.
+    /// Rules associated with the performance of a document.
     Performance,
 }
 
