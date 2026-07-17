@@ -36,21 +36,24 @@ use crate::symbolic_path::SymbolicPath;
 #[derive(Debug)]
 pub(in crate::resolver) struct GitMaterializationPlan {
     /// The selected version from tag resolution, if any.
-    pub(in crate::resolver) selected_version: Option<Version>,
+    pub(super) selected_version: Option<Version>,
     /// The resolved commit SHA.
+    // Read by the co-located `resolver/tests.rs` (a sibling of
+    // `git_resolver`) via `plan_git_materialization`; Task 6 relocates
+    // those tests and can tighten this to `pub(super)`.
     pub(in crate::resolver) commit: GitCommit,
     /// The absolute path to the cache leaf directory.
-    pub(in crate::resolver) leaf: PathBuf,
+    pub(super) leaf: PathBuf,
     /// The sparse-checkout path (`path_prefix` or `"."`).
-    pub(in crate::resolver) sparse_path: String,
+    pub(super) sparse_path: String,
     /// The absolute path to the module root within the cache leaf.
-    pub(in crate::resolver) module_path: PathBuf,
+    pub(super) module_path: PathBuf,
 }
 
 /// Distinguishes resolver-owned cache paths from user-owned local
 /// paths. Only `Cached` variants may be evicted.
 #[derive(Clone, Debug)]
-pub(in crate::resolver) enum MaterializedRoot {
+pub(super) enum MaterializedRoot {
     /// A user's local module directory. Must never be evicted.
     Local(PathBuf),
     /// A resolver-owned cache leaf.
@@ -65,7 +68,7 @@ pub(in crate::resolver) enum MaterializedRoot {
 
 impl MaterializedRoot {
     /// Returns the module root regardless of ownership.
-    pub(in crate::resolver) fn module_root(&self) -> &Path {
+    pub(super) fn module_root(&self) -> &Path {
         match self {
             Self::Local(root) => root,
             Self::Cached { module_root, .. } => module_root,
@@ -81,7 +84,7 @@ impl GitResolver {
     /// method's documentation for the full contract.
     ///
     /// [`Resolver::materialize`]: crate::resolver::Resolver::materialize
-    pub(in crate::resolver) async fn materialize_file(
+    pub(super) async fn materialize_file(
         &self,
         consumer: &Module,
         path: &SymbolicPath,
@@ -236,7 +239,7 @@ impl GitResolver {
     ///
     /// On failure, cleans up the cache leaf so a corrupt partial
     /// checkout does not persist.
-    pub(in crate::resolver) async fn materialize_git(
+    pub(super) async fn materialize_git(
         &self,
         name: &DependencyName,
         url: &url::Url,
@@ -311,6 +314,10 @@ impl GitResolver {
     /// locked mode. The returned plan carries everything
     /// [`materialize_git`](Self::materialize_git) needs to run the
     /// sparse checkout and verify the result.
+    // Visibility is `pub(in crate::resolver)` only so the co-located
+    // `resolver/tests.rs` (a sibling of `git_resolver`) can exercise
+    // locked-plan coverage; Task 6 relocates those tests and tightens
+    // this to `pub(super)`.
     pub(in crate::resolver) async fn plan_git_materialization(
         &self,
         name: &DependencyName,
@@ -443,7 +450,7 @@ fn resolve_content_file(
 }
 
 /// Reads and parses `module.json` from `dir`.
-pub(in crate::resolver) fn read_manifest(dir: &Path) -> Result<Manifest, ResolverError> {
+pub(super) fn read_manifest(dir: &Path) -> Result<Manifest, ResolverError> {
     let path = dir.join(crate::MANIFEST_FILENAME);
     let bytes = std::fs::read(&path).map_err(|source| match source.kind() {
         std::io::ErrorKind::NotFound => ResolverError::MissingManifest { path: path.clone() },
@@ -466,6 +473,9 @@ pub(in crate::resolver) fn read_manifest(dir: &Path) -> Result<Manifest, Resolve
 /// matches, resolution fails with [`ResolverError::AmbiguousSubPath`]. A
 /// component with no match yields a `NotFound` I/O error that the caller
 /// maps to a missing-file error.
+// Visibility is `pub(in crate::resolver)` only so the co-located
+// `resolver/tests.rs` (a sibling of `git_resolver`) can exercise subpath
+// coverage; Task 6 relocates those tests and tightens this to `pub(super)`.
 pub(in crate::resolver) fn resolve_normalized_subpath(
     root: &Path,
     sub: &str,
@@ -538,6 +548,9 @@ pub(in crate::resolver) fn resolve_normalized_subpath(
 /// everything beneath it. To honor the directory-subtree rule, each
 /// pattern is compiled both literally and with a trailing `/**`, and
 /// `literal_separator` is enabled so a single `*` does not cross `/`.
+// Visibility is `pub(in crate::resolver)` only so the co-located
+// `resolver/tests.rs` (a sibling of `git_resolver`) can exercise exclude
+// coverage; Task 6 relocates those tests and tightens this to `pub(super)`.
 pub(in crate::resolver) fn exclude_set(
     patterns: &[crate::relative_path::RelativePath],
 ) -> Result<globset::GlobSet, ResolverError> {

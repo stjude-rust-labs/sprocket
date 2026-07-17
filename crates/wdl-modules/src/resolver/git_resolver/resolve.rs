@@ -61,7 +61,7 @@ impl GitResolver {
     /// This is the body backing [`Resolver::resolve_tree`].
     ///
     /// [`Resolver::resolve_tree`]: crate::resolver::Resolver::resolve_tree
-    pub(in crate::resolver) async fn resolve_fresh_tree(
+    pub(super) async fn resolve_fresh_tree(
         &self,
         consumer: &Module,
     ) -> Result<ResolvedTree, ResolverError> {
@@ -85,7 +85,7 @@ impl GitResolver {
     /// This is the body backing [`Resolver::discover_versions`].
     ///
     /// [`Resolver::discover_versions`]: crate::resolver::Resolver::discover_versions
-    pub(in crate::resolver) async fn discover_matching_versions(
+    pub(super) async fn discover_matching_versions(
         &self,
         name: &DependencyName,
         source: &DependencySource,
@@ -134,7 +134,7 @@ impl GitResolver {
     ///
     /// Each iteration: policy check, materialize, read manifest, cycle
     /// check, verify, recurse into transitive deps, assemble result.
-    pub(in crate::resolver) fn resolve_dependencies<'a>(
+    fn resolve_dependencies<'a>(
         &'a self,
         deps: &'a BTreeMap<DependencyName, DependencySource>,
         parent_root: &'a Path,
@@ -295,7 +295,7 @@ impl GitResolver {
     /// the selector variant), then maps the result to a commit. For
     /// version selectors, also returns the matched semver version so
     /// callers can record it in the resolved tree.
-    pub(in crate::resolver) async fn resolve_git_selector(
+    pub(super) async fn resolve_git_selector(
         &self,
         name: &DependencyName,
         url: &url::Url,

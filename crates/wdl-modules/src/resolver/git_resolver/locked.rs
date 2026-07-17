@@ -4,6 +4,12 @@
 //! cache-leaf enumeration, and non-fetching verification of a consumer's
 //! locked dependency tree. These operations never resolve selectors fresh;
 //! they read commits straight from the lockfile.
+//!
+//! The lockfile is attacker-influenced input, so [`GitResolver::ensure_locked`]
+//! still runs exactly one [`ResolverPolicy::check_git_url`] before each locked
+//! materialization's fetch; the recorded URL is not trusted implicitly.
+//!
+//! [`ResolverPolicy::check_git_url`]: crate::resolver::ResolverPolicy::check_git_url
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -77,6 +83,15 @@ impl GitResolver {
             } else {
                 DependencyScope::Transitive
             };
+
+            // Enforce URL scheme and host policy before any network access.
+            // Locked materialization reads commits straight from the
+            // lockfile, so this is the sole policy gate for the fetch that
+            // `materialize_git` performs below; neither
+            // `plan_git_materialization` (locked mode) nor `materialize_git`
+            // re-checks the URL.
+            self.policy.check_git_url(&name, &git, dep_scope)?;
+
             let plan = self
                 .plan_git_materialization(
                     &name,

@@ -511,6 +511,60 @@ fn locked_git_entry(selector: GitSelector) -> DependencyEntry {
     }
 }
 
+/// A forbidden lockfile Git URL must be rejected by the resolver policy
+/// before `ensure_locked` performs any fetch. The lockfile is
+/// attacker-influenced input, so `ensure_locked` must re-check every
+/// locked Git URL against the policy rather than trusting the recorded
+/// entry. Here the entry uses an `http://` scheme that is absent from the
+/// default top-level allow list, so the check fails before materialization
+/// and no cache leaf is created.
+#[tokio::test]
+async fn ensure_locked_rejects_forbidden_git_url_before_fetch() {
+    let cache = tempdir().unwrap();
+
+    let forbidden_url: url::Url = "http://github.com/acme/widget".parse().unwrap();
+    let sha: GitCommit = "0000000000000000000000000000000000000001".parse().unwrap();
+    let entry = DependencyEntry {
+        source: ResolvedSource::Git {
+            git: forbidden_url.clone(),
+            sha: sha.clone(),
+            path: None,
+            selector: GitSelector::Commit(
+                "0000000000000000000000000000000000000001".parse().unwrap(),
+            ),
+        },
+        checksum: Some(checksum()),
+        signer: None,
+        dependencies: Default::default(),
+    };
+    let r = locked_git_resolver(&cache, "widget", entry);
+
+    let workdir = tempdir().unwrap();
+    let consumer_dir = workdir.path().join("consumer");
+    write_manifest(&consumer_dir, "consumer", "1.0.0", &[]);
+    let consumer = Manifest::parse(&fs::read(consumer_dir.join(crate::MANIFEST_FILENAME)).unwrap())
+        .unwrap();
+    let consumer = module(consumer, &consumer_dir);
+    assert!(
+        consumer.lockfile_scope.is_empty(),
+        "consumer must be a top-level `Module`"
+    );
+
+    let err = r.ensure_locked(&consumer).await.unwrap_err();
+    assert!(
+        matches!(err, ResolverError::GitUrlPolicyViolation { .. }),
+        "expected `GitUrlPolicyViolation` before any fetch, got: {err}"
+    );
+
+    // The policy check must precede materialization: no cache leaf for the
+    // forbidden dependency may exist.
+    let leaf = CacheKey::from_git_url(&forbidden_url, &sha).absolute_path(r.cache_root());
+    assert!(
+        !leaf.exists(),
+        "forbidden locked URL must be rejected before any fetch creates a cache leaf"
+    );
+}
+
 #[tokio::test]
 async fn locked_git_materialization_rejects_version_selector_mismatch() {
     let cache = tempdir().unwrap();
