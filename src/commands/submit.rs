@@ -85,7 +85,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
     // Regenerate a stale or missing module lockfile before submitting so
     // the workflow runs against a consistent, reproducible tree.
     if let Some(dir) = source.local_start_dir() {
-        crate::commands::module::ensure_lockfile_current(&config, &dir).await?;
+        crate::commands::module::auto_lock::ensure_lockfile_current(&config, &dir).await?;
     }
 
     let document = analyze_source(

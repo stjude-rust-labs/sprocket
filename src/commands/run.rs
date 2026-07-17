@@ -648,7 +648,7 @@ pub async fn run(
     // Regenerate a stale or missing module lockfile before executing so
     // the run proceeds against a consistent, reproducible tree.
     if let Some(dir) = source.local_start_dir() {
-        crate::commands::module::ensure_lockfile_current(&config, &dir)
+        crate::commands::module::auto_lock::ensure_lockfile_current(&config, &dir)
             .await
             .map_err(CommandError::from)?;
     }

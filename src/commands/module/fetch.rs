@@ -3,9 +3,9 @@
 use clap::Parser;
 use wdl_modules::module::Module;
 
+use super::resolver::ResolverEnvironment;
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::require_lockfile;
 use crate::commands::module::trace_project;
@@ -35,7 +35,8 @@ pub async fn fetch(args: Args, config: Config, output: CommandOutput) -> Command
         "loaded module lockfile for fetch"
     );
     let module = Module::new(project.manifest.clone(), project.root.clone());
-    let resolver = build_resolver(&config, lock)?;
+    let environment = ResolverEnvironment::from_config(&config)?;
+    let resolver = environment.resolver(lock)?;
     let fetched = resolver
         .ensure_locked(&module)
         .await

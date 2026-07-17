@@ -8,9 +8,9 @@ use wdl_modules::resolver::ResolverError;
 use wdl_modules::resolver::VerifyLockedReport;
 use wdl_modules::signing::ModuleSignature;
 
+use super::resolver::ResolverEnvironment;
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::render_signer;
 use crate::commands::module::require_lockfile;
@@ -131,7 +131,8 @@ fn verify_lockfile(
     let lock = require_lockfile(project)?;
 
     let module = Module::new(project.manifest.clone(), project.root.clone());
-    let resolver = build_resolver(config, lock)?;
+    let environment = ResolverEnvironment::from_config(config)?;
+    let resolver = environment.resolver(lock)?;
     tracing::debug!("verifying locked dependencies from cache");
 
     let VerifyLockedReport {

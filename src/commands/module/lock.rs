@@ -3,15 +3,14 @@
 use clap::Parser;
 use wdl_modules::resolver::lock::RelockStats;
 
+use super::relock::RelockPlanner;
+use super::signer_policy::TrustModeArg;
+use super::signer_policy::signer_change_mode;
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::LockedProject;
-use crate::commands::module::TrustModeArg;
 use crate::commands::module::discover;
 use crate::commands::module::load_lockfile;
-use crate::commands::module::resolve_relock_plan;
-use crate::commands::module::resolve_relock_with_signer_mode;
-use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
@@ -78,7 +77,9 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
     }
 
     if args.dry_run {
-        let plan = resolve_relock_plan(&config, &project, project.manifest.clone()).await?;
+        let plan = RelockPlanner::new(&config, &project)
+            .plan(project.manifest.clone())
+            .await?;
         tracing::debug!("dry run completed without writing lockfile or trust store");
         let changes = relock_change_count(&plan.outcome.stats);
         output.planned(
@@ -105,13 +106,13 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
         return Ok(());
     }
 
-    let outcome = resolve_relock_with_signer_mode(
-        &config,
-        project.project(),
-        signer_change_mode(&config, args.trust_mode),
-        output,
-    )
-    .await?;
+    let outcome = RelockPlanner::new(&config, project.project())
+        .plan_and_enforce(
+            project.project().manifest.clone(),
+            signer_change_mode(&config, args.trust_mode),
+            output,
+        )
+        .await?;
     project.commit(None, Some(&outcome.lockfile))?;
     tracing::debug!(
         lockfile = %project.project().lockfile_path.display(),

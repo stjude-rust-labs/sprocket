@@ -6,9 +6,9 @@ use clap::Subcommand;
 use wdl_modules::Lockfile;
 use wdl_modules::module::Module;
 
+use super::resolver::ResolverEnvironment;
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::require_lockfile;
 use crate::commands::module::trace_project;
@@ -65,7 +65,8 @@ pub async fn clean(args: Args, config: Config, output: CommandOutput) -> Command
     );
 
     if args.all {
-        let resolver = build_resolver(&config, Lockfile::default())?;
+        let environment = ResolverEnvironment::from_config(&config)?;
+        let resolver = environment.resolver(Lockfile::default())?;
         let stats = resolver.clean_all_cache().map_err(anyhow::Error::from)?;
         tracing::debug!(
             cache = %cache_root.display(),
@@ -81,7 +82,8 @@ pub async fn clean(args: Args, config: Config, output: CommandOutput) -> Command
     trace_project("module cache clean", &project);
     let lock = require_lockfile(&project)?;
     let module = Module::new(project.manifest.clone(), project.root.clone());
-    let resolver = build_resolver(&config, lock)?;
+    let environment = ResolverEnvironment::from_config(&config)?;
+    let resolver = environment.resolver(lock)?;
     let stats = resolver
         .clean_locked_cache(&module)
         .map_err(anyhow::Error::from)?;

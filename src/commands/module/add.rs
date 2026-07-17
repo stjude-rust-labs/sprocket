@@ -15,19 +15,19 @@ use wdl_modules::resolver::DependencyScope;
 use wdl_modules::resolver::GitPlatform;
 use wdl_modules::version_requirement::VersionRequirement;
 
+use super::relock::RelockPlanner;
+use super::resolver::ResolverEnvironment;
+use super::signer_policy::TrustModeArg;
+use super::signer_policy::signer_change_mode;
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::LockedProject;
-use crate::commands::module::TrustModeArg;
-use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::git_selector;
 use crate::commands::module::parse_manifest_value;
 use crate::commands::module::read_manifest_value;
-use crate::commands::module::resolve_relock_for_manifest;
 use crate::commands::module::set_dependency;
 use crate::commands::module::short_commit;
-use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
@@ -113,14 +113,13 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
             .as_ref()
             .is_some_and(|lockfile| lockfile.satisfies_manifest(&project.manifest));
         if !args.no_lock && !lock_is_current {
-            let outcome = resolve_relock_for_manifest(
-                &config,
-                project,
-                project.manifest.clone(),
-                signer_change_mode(&config, args.trust_mode),
-                output,
-            )
-            .await?;
+            let outcome = RelockPlanner::new(&config, project)
+                .plan_and_enforce(
+                    project.manifest.clone(),
+                    signer_change_mode(&config, args.trust_mode),
+                    output,
+                )
+                .await?;
             locked.commit(None, Some(&outcome.lockfile))?;
             output.completed(
                 LOCK,
@@ -149,14 +148,13 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
     } else {
         let pending_manifest = parse_manifest_value(&value)?;
         Some(
-            resolve_relock_for_manifest(
-                &config,
-                project,
-                std::sync::Arc::new(pending_manifest),
-                signer_change_mode(&config, args.trust_mode),
-                output,
-            )
-            .await?,
+            RelockPlanner::new(&config, project)
+                .plan_and_enforce(
+                    std::sync::Arc::new(pending_manifest),
+                    signer_change_mode(&config, args.trust_mode),
+                    output,
+                )
+                .await?,
         )
     };
 
@@ -443,7 +441,8 @@ async fn discover_latest_selector(
     url: &url::Url,
     path: Option<&GitModulePath>,
 ) -> anyhow::Result<(GitSelector, Option<String>)> {
-    let resolver = build_resolver(config, Lockfile::default())?;
+    let environment = ResolverEnvironment::from_config(config)?;
+    let resolver = environment.resolver(Lockfile::default())?;
     let temp_source = DependencySource::Git {
         url: url.clone(),
         selector: GitSelector::Version("*".parse()?),

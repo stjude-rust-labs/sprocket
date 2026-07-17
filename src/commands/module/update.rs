@@ -14,17 +14,17 @@ use wdl_modules::resolver::lock::SignerIdentityMap;
 use wdl_modules::resolver::lock::signer_identity_map;
 use wdl_modules::resolver::lock::update_relock;
 
+use super::resolver::ResolverEnvironment;
+use super::signer_policy::TrustModeArg;
+use super::signer_policy::enforce_lockfile_signer_policy;
+use super::signer_policy::signer_change_mode;
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::LockedProject;
 use crate::commands::module::Project;
-use crate::commands::module::TrustModeArg;
-use crate::commands::module::build_resolver;
 use crate::commands::module::dependency_update;
 use crate::commands::module::discover;
-use crate::commands::module::enforce_lockfile_signer_policy;
 use crate::commands::module::load_lockfile;
-use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
@@ -123,7 +123,8 @@ async fn plan_update(
     );
 
     let module = Module::new(project.manifest.clone(), project.root.clone());
-    let resolver = build_resolver(config, existing.clone())?;
+    let environment = ResolverEnvironment::from_config(config)?;
+    let resolver = environment.resolver(existing.clone())?;
     let tree = resolver
         .resolve_tree(&module)
         .await

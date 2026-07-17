@@ -19,19 +19,19 @@ use wdl_modules::resolver::lock::SignerIdentityMap;
 use wdl_modules::resolver::lock::signer_identity_map;
 use wdl_modules::resolver::lock::update_relock;
 
+use super::resolver::ResolverEnvironment;
+use super::signer_policy::TrustModeArg;
+use super::signer_policy::enforce_lockfile_signer_policy;
+use super::signer_policy::signer_change_mode;
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::LockedProject;
 use crate::commands::module::Project;
-use crate::commands::module::TrustModeArg;
-use crate::commands::module::build_resolver;
 use crate::commands::module::dependency_update;
 use crate::commands::module::discover;
-use crate::commands::module::enforce_lockfile_signer_policy;
 use crate::commands::module::load_lockfile;
 use crate::commands::module::parse_manifest_value;
 use crate::commands::module::read_manifest_value;
-use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
 use crate::commands::module::version_constraint;
 use crate::commands::output::Action;
@@ -185,7 +185,8 @@ async fn plan_upgrade(
     );
 
     let existing = load_lockfile(project)?.unwrap_or_default();
-    let resolver = build_resolver(config, existing.clone())?;
+    let environment = ResolverEnvironment::from_config(config)?;
+    let resolver = environment.resolver(existing.clone())?;
 
     let discovered = futures::stream::iter(eligible.iter().map(|(name, source, old_req)| async {
         let wildcard_source = wildcard_version_source(source)?;
