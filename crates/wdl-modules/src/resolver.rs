@@ -260,7 +260,7 @@ impl GitResolver {
         &self.trust
     }
 
-    /// Returns a policy-enforcing Git fetcher.
+    /// Returns a policy-configured Git fetcher.
     fn fetcher(&self) -> GitFetcher {
         GitFetcher::new(self.policy.clone())
     }
@@ -274,9 +274,8 @@ impl GitResolver {
     ) -> Result<String, ResolverError> {
         self.policy.check_git_url(name, url, scope)?;
         let fetcher = self.fetcher();
-        let dep = name.clone();
         let url = url.clone();
-        tokio::task::spawn_blocking(move || fetcher.default_branch(&dep, &url, scope))
+        tokio::task::spawn_blocking(move || fetcher.default_branch(&url, scope))
             .await
             // The closure performs pure libgit2 work and does
             // not panic; `JoinError` only occurs on runtime shutdown.
@@ -523,7 +522,6 @@ impl GitResolver {
         plan: &GitMaterializationPlan,
     ) -> Result<MaterializedRoot, ResolverError> {
         let fetcher = self.fetcher();
-        let dep_for_clone = name.clone();
         let url_for_clone = url.clone();
         let leaf_for_clone = plan.leaf.clone();
         let cache_root = self.cache_root.clone();
@@ -539,7 +537,6 @@ impl GitResolver {
         );
         let result = tokio::task::spawn_blocking(move || {
             fetcher.ensure_materialized(
-                &dep_for_clone,
                 &url_for_clone,
                 commit_for_clone.as_str(),
                 &[sparse_path.as_str()],
@@ -761,16 +758,14 @@ impl GitResolver {
         let fetcher = self.fetcher();
         match selector {
             GitSelector::Version(requirement) => {
-                let dep = name.clone();
                 let url = url.clone();
                 let requirement = requirement.clone();
                 let path_prefix_owned = path_prefix.map(str::to_string);
-                let refs =
-                    tokio::task::spawn_blocking(move || fetcher.list_tags(&dep, &url, scope))
-                        .await
-                        // The closure performs only Git work; a
-                        // `JoinError` would only fire on runtime shutdown.
-                        .unwrap()?;
+                let refs = tokio::task::spawn_blocking(move || fetcher.list_tags(&url, scope))
+                    .await
+                    // The closure performs only Git work; a
+                    // `JoinError` would only fire on runtime shutdown.
+                    .unwrap()?;
                 let (version, commit) = crate::resolver::versions::resolve_version_to_commit(
                     &refs,
                     path_prefix_owned.as_deref(),
@@ -790,14 +785,12 @@ impl GitResolver {
                 Ok((Some(version), commit))
             }
             GitSelector::Tag(tag) => {
-                let dep = name.clone();
                 let url = url.clone();
                 let fetcher = self.fetcher();
-                let refs =
-                    tokio::task::spawn_blocking(move || fetcher.list_tags(&dep, &url, scope))
-                        .await
-                        // The closure does not panic.
-                        .unwrap()?;
+                let refs = tokio::task::spawn_blocking(move || fetcher.list_tags(&url, scope))
+                    .await
+                    // The closure does not panic.
+                    .unwrap()?;
                 let commit =
                     refs.get(tag)
                         .cloned()
@@ -809,14 +802,12 @@ impl GitResolver {
                 Ok((None, commit))
             }
             GitSelector::Branch(branch) => {
-                let dep = name.clone();
                 let url = url.clone();
                 let fetcher = self.fetcher();
-                let refs =
-                    tokio::task::spawn_blocking(move || fetcher.list_branches(&dep, &url, scope))
-                        .await
-                        // The closure does not panic.
-                        .unwrap()?;
+                let refs = tokio::task::spawn_blocking(move || fetcher.list_branches(&url, scope))
+                    .await
+                    // The closure does not panic.
+                    .unwrap()?;
                 let commit =
                     refs.get(branch)
                         .cloned()
@@ -838,7 +829,6 @@ impl GitResolver {
                         .expect("a full commit-ish is a valid commit SHA");
                     return Ok((None, full));
                 }
-                let dep = name.clone();
                 let url = url.clone();
                 let prefix = commit.as_str().to_string();
                 let work_dir = self.commit_expand_dir(&url, &prefix);
@@ -846,7 +836,7 @@ impl GitResolver {
                 let fetcher = self.fetcher();
                 let expand_dir = work_dir.clone();
                 let full = tokio::task::spawn_blocking(move || {
-                    fetcher.resolve_commit_prefix(&dep, &url, &prefix, scope, &expand_dir)
+                    fetcher.resolve_commit_prefix(&url, &prefix, scope, &expand_dir)
                 })
                 .await
                 // The closure performs only Git work and does not panic.
@@ -1151,13 +1141,13 @@ impl Resolver for GitResolver {
 
                 // List remote tags and filter to those satisfying the
                 // semver requirement.
+                self.policy.check_git_url(name, url, scope)?;
                 let fetcher = self.fetcher();
-                let dep = name.clone();
                 let url = url.clone();
                 let path_prefix = path.as_ref().map(GitModulePath::as_str).map(str::to_string);
                 let requirement = requirement.clone();
                 tokio::task::spawn_blocking(move || -> Result<Vec<Version>, ResolverError> {
-                    let refs = fetcher.list_tags(&dep, &url, scope)?;
+                    let refs = fetcher.list_tags(&url, scope)?;
                     Ok(crate::resolver::versions::filter_matching(
                         &refs,
                         path_prefix.as_deref(),

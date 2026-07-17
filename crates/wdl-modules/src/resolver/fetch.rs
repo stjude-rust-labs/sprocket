@@ -1,21 +1,21 @@
-//! Centralized Git remote access with policy enforcement.
+//! Centralized Git remote access configured by resolver policy.
 
 use std::path::Path;
 use std::sync::Arc;
 
 use url::Url;
 
-use crate::dependency::DependencyName;
 use crate::resolver::DependencyScope;
 use crate::resolver::error::ResolverError;
 use crate::resolver::policy::ResolverPolicy;
 use crate::resolver::versions::RemoteRefs;
 
-/// Centralized Git remote access. Every remote operation enforces
-/// URL scheme, host, credential, and ref-count policy before
-/// touching the network.
+/// Git remote operations configured with policy-derived limits and
+/// credential behavior.
+///
+/// The resolver checks URL policy before calling this layer.
 pub(crate) struct GitFetcher {
-    /// The resolver policy applied to all remote operations.
+    /// Policy-derived limits and credential behavior for remote operations.
     policy: Arc<ResolverPolicy>,
 }
 
@@ -25,14 +25,12 @@ impl GitFetcher {
         Self { policy }
     }
 
-    /// Lists tags from the remote, enforcing URL and credential policy.
+    /// Lists tags from an authorized remote.
     pub fn list_tags(
         &self,
-        dep: &DependencyName,
         url: &Url,
         scope: DependencyScope,
     ) -> Result<RemoteRefs, ResolverError> {
-        self.policy.check_git_url(dep, url, scope)?;
         let net = self.policy.git_policy(scope);
         crate::resolver::versions::discover_remote_tags(
             url,
@@ -42,15 +40,12 @@ impl GitFetcher {
         .map_err(ResolverError::from)
     }
 
-    /// Lists branches from the remote, enforcing URL and credential
-    /// policy.
+    /// Lists branches from an authorized remote.
     pub fn list_branches(
         &self,
-        dep: &DependencyName,
         url: &Url,
         scope: DependencyScope,
     ) -> Result<RemoteRefs, ResolverError> {
-        self.policy.check_git_url(dep, url, scope)?;
         let net = self.policy.git_policy(scope);
         crate::resolver::versions::discover_remote_branches(
             url,
@@ -63,7 +58,6 @@ impl GitFetcher {
     /// Discovers the remote's default branch.
     pub fn default_branch(
         &self,
-        _dep: &DependencyName,
         url: &Url,
         scope: DependencyScope,
     ) -> Result<String, ResolverError> {
@@ -76,8 +70,7 @@ impl GitFetcher {
         .map_err(ResolverError::from)
     }
 
-    /// Expands a commit-SHA prefix to the full SHA, enforcing URL and
-    /// credential policy.
+    /// Expands a commit-SHA prefix to the full SHA for an authorized remote.
     ///
     /// First tries `ls-remote`: the Git wire protocol advertises full ref
     /// SHAs, so a prefix that names a ref tip (a branch or tag head) is
@@ -88,13 +81,11 @@ impl GitFetcher {
     /// points into history.
     pub fn resolve_commit_prefix(
         &self,
-        dep: &DependencyName,
         url: &Url,
         prefix: &str,
         scope: DependencyScope,
         work_dir: &Path,
     ) -> Result<String, ResolverError> {
-        self.policy.check_git_url(dep, url, scope)?;
         let net = self.policy.git_policy(scope);
         let mode = self.policy.credential_mode(scope, url.host_str());
 
@@ -108,18 +99,15 @@ impl GitFetcher {
             .map_err(ResolverError::from)
     }
 
-    /// Ensures a cache leaf is materialized, enforcing URL, credential,
-    /// and tree-size policy.
+    /// Ensures a cache leaf is materialized from an authorized remote.
     pub fn ensure_materialized(
         &self,
-        dep: &DependencyName,
         url: &Url,
         commit: &str,
         paths: &[&str],
         scope: DependencyScope,
         cache: crate::resolver::git::CacheLocation<'_>,
     ) -> Result<bool, ResolverError> {
-        self.policy.check_git_url(dep, url, scope)?;
         let fetched = crate::resolver::git::ensure_materialized(
             cache,
             url,
@@ -177,27 +165,25 @@ mod tests {
             ..ModulesConfig::default()
         })?;
         let fetcher = GitFetcher::new(Arc::new(policy));
-        let dependency: DependencyName = "dep".parse()?;
         let sha = oid.to_string();
 
-        let tags = fetcher.list_tags(&dependency, &url, DependencyScope::TopLevel)?;
+        let tags = fetcher.list_tags(&url, DependencyScope::TopLevel)?;
         assert_eq!(
             tags.get("v1.0.0").map(|commit| commit.as_str()),
             Some(sha.as_str())
         );
-        let branches = fetcher.list_branches(&dependency, &url, DependencyScope::TopLevel)?;
+        let branches = fetcher.list_branches(&url, DependencyScope::TopLevel)?;
         assert_eq!(
             branches.get(&branch).map(|commit| commit.as_str()),
             Some(sha.as_str())
         );
         assert_eq!(
-            fetcher.default_branch(&dependency, &url, DependencyScope::TopLevel)?,
+            fetcher.default_branch(&url, DependencyScope::TopLevel)?,
             branch
         );
         let resolution = tempdir()?;
         assert_eq!(
             fetcher.resolve_commit_prefix(
-                &dependency,
                 &url,
                 &sha[..8],
                 DependencyScope::TopLevel,
@@ -213,7 +199,6 @@ mod tests {
             leaf: &leaf,
         };
         assert!(fetcher.ensure_materialized(
-            &dependency,
             &url,
             &sha,
             &["module"],
@@ -222,7 +207,6 @@ mod tests {
         )?);
         assert!(leaf.join("module").join(crate::MANIFEST_FILENAME).is_file());
         assert!(!fetcher.ensure_materialized(
-            &dependency,
             &url,
             &sha,
             &["module"],
