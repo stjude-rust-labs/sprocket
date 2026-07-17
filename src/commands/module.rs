@@ -21,7 +21,7 @@ use wdl_modules::resolver::TrustMode;
 use wdl_modules::resolver::partial_relock;
 use wdl_modules::resolver::signer_identity_map;
 
-use crate::commands::printer::Printer;
+use crate::commands::output::CommandOutput;
 use crate::config::Config;
 
 pub mod add;
@@ -30,7 +30,6 @@ pub mod fetch;
 pub mod init;
 pub mod lock;
 mod mutation;
-mod output;
 pub mod remove;
 pub mod sign;
 pub mod tree;
@@ -41,9 +40,6 @@ pub mod upgrade;
 pub mod verify;
 
 pub(crate) use mutation::ProjectMutation;
-pub(crate) use output::ModuleAction;
-pub(crate) use output::ModuleOutput;
-pub(crate) use output::count_noun;
 pub(crate) use trust_policy::SignerChangeMode;
 pub(crate) use trust_policy::accept_lockfile_signers;
 pub(crate) use trust_policy::enforce_signer_trust;
@@ -153,22 +149,22 @@ pub fn discover(locator: &Locator) -> anyhow::Result<Project> {
 pub async fn run(
     command: ModuleCommands,
     config: Config,
-    printer: Printer,
+    output: CommandOutput,
 ) -> crate::commands::CommandResult<()> {
     match command {
-        ModuleCommands::Init(args) => init::init(args, printer).await,
-        ModuleCommands::Add(args) => add::add(args, config, printer).await,
-        ModuleCommands::Remove(args) => remove::remove(args, config, printer).await,
-        ModuleCommands::Lock(args) => lock::lock(args, config, printer).await,
-        ModuleCommands::Update(args) => update::update(args, config, printer).await,
-        ModuleCommands::Upgrade(args) => upgrade::upgrade(args, config, printer).await,
-        ModuleCommands::Tree(args) => tree::tree(args).await,
-        ModuleCommands::List(args) => tree::list(args).await,
-        ModuleCommands::Verify(args) => verify::verify(args, config, printer).await,
-        ModuleCommands::Fetch(args) => fetch::fetch(args, config, printer).await,
-        ModuleCommands::Cache(args) => clean::cache(args, config, printer).await,
-        ModuleCommands::Sign(args) => sign::sign(args, printer).await,
-        ModuleCommands::Trust(args) => trust::trust(args, printer).await,
+        ModuleCommands::Init(args) => init::init(args, output).await,
+        ModuleCommands::Add(args) => add::add(args, config, output).await,
+        ModuleCommands::Remove(args) => remove::remove(args, config, output).await,
+        ModuleCommands::Lock(args) => lock::lock(args, config, output).await,
+        ModuleCommands::Update(args) => update::update(args, config, output).await,
+        ModuleCommands::Upgrade(args) => upgrade::upgrade(args, config, output).await,
+        ModuleCommands::Tree(args) => tree::tree(args, output).await,
+        ModuleCommands::List(args) => tree::list(args, output).await,
+        ModuleCommands::Verify(args) => verify::verify(args, config, output).await,
+        ModuleCommands::Fetch(args) => fetch::fetch(args, config, output).await,
+        ModuleCommands::Cache(args) => clean::cache(args, config, output).await,
+        ModuleCommands::Sign(args) => sign::sign(args, output).await,
+        ModuleCommands::Trust(args) => trust::trust(args, output).await,
     }
 }
 
@@ -425,7 +421,7 @@ pub(crate) async fn resolve_relock(
         config,
         project,
         SignerChangeMode::Strict,
-        Printer::new(false),
+        CommandOutput::new(false),
     )
     .await
 }
@@ -435,7 +431,7 @@ pub(crate) async fn resolve_relock_with_signer_mode(
     config: &Config,
     project: &Project,
     signer_mode: SignerChangeMode,
-    printer: Printer,
+    output: CommandOutput,
 ) -> anyhow::Result<RelockOutcome> {
     tracing::trace!(
         manifest = %project.manifest_path.display(),
@@ -446,7 +442,7 @@ pub(crate) async fn resolve_relock_with_signer_mode(
         project,
         project.manifest.clone(),
         signer_mode,
-        printer,
+        output,
     )
     .await
 }
@@ -458,7 +454,7 @@ pub(crate) async fn resolve_relock_for_manifest(
     project: &Project,
     manifest: Arc<Manifest>,
     signer_mode: SignerChangeMode,
-    printer: Printer,
+    output: CommandOutput,
 ) -> anyhow::Result<RelockOutcome> {
     let plan = resolve_relock_plan(config, project, manifest).await?;
     let trust_path = crate::analysis::default_trust_path();
@@ -468,7 +464,7 @@ pub(crate) async fn resolve_relock_for_manifest(
         &plan.outcome.lockfile,
         &plan.identities,
         signer_mode,
-        printer,
+        output,
     )?;
     Ok(plan.outcome)
 }
@@ -509,10 +505,10 @@ pub(crate) fn enforce_lockfile_signer_policy(
     new: &Lockfile,
     identities: &SignerIdentityMap,
     mode: SignerChangeMode,
-    printer: Printer,
+    output: CommandOutput,
 ) -> anyhow::Result<()> {
     let trust_path = crate::analysis::default_trust_path();
-    enforce_signer_trust(&trust_path, existing, new, identities, mode, printer)
+    enforce_signer_trust(&trust_path, existing, new, identities, mode, output)
 }
 
 /// Regenerates `module-lock.json` before execution when it is missing or

@@ -8,14 +8,16 @@ use wdl_modules::module::Module;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::ModuleAction;
-use crate::commands::module::ModuleOutput;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::require_lockfile;
 use crate::commands::module::trace_project;
-use crate::commands::printer::Printer;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
+use crate::commands::output::count_noun;
 use crate::config::Config;
+
+const CLEAN: Action = Action::new("Cleaned", "clean");
 
 /// Subcommands of `sprocket dev module cache`.
 #[derive(Subcommand, Debug)]
@@ -37,14 +39,18 @@ pub struct Args {
 }
 
 /// Runs `sprocket dev module cache`.
-pub async fn cache(command: CacheCommands, config: Config, printer: Printer) -> CommandResult<()> {
+pub async fn cache(
+    command: CacheCommands,
+    config: Config,
+    output: CommandOutput,
+) -> CommandResult<()> {
     match command {
-        CacheCommands::Clean(args) => clean(args, config, printer).await,
+        CacheCommands::Clean(args) => clean(args, config, output).await,
     }
 }
 
 /// Runs `sprocket dev module cache clean`.
-pub async fn clean(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
+pub async fn clean(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     tracing::trace!(all = args.all, "starting `sprocket dev module cache clean`");
     let cache_root = config
         .modules
@@ -67,7 +73,7 @@ pub async fn clean(args: Args, config: Config, printer: Printer) -> CommandResul
             bytes = stats.bytes,
             "removed entire module cache"
         );
-        print_removed_summary(stats.modules, stats.bytes, printer);
+        print_removed_summary(stats.modules, stats.bytes, output);
         return Ok(());
     }
 
@@ -86,16 +92,15 @@ pub async fn clean(args: Args, config: Config, printer: Printer) -> CommandResul
         bytes = stats.bytes,
         "removed locked module cache leaves"
     );
-    print_removed_summary(stats.modules, stats.bytes, printer);
+    print_removed_summary(stats.modules, stats.bytes, output);
     Ok(())
 }
 
 /// Prints the cache-clean summary line.
-fn print_removed_summary(modules: usize, bytes: u64, printer: Printer) {
-    let output = ModuleOutput::new(printer);
+fn print_removed_summary(modules: usize, bytes: u64, output: CommandOutput) {
     output.completed(
-        ModuleAction::Clean,
-        crate::commands::module::count_noun(modules, "cached module", "cached modules"),
+        CLEAN,
+        count_noun(modules, "cached module", "cached modules"),
     );
     output.detail("Reclaimed", ByteSize::b(bytes).display().iec());
 }

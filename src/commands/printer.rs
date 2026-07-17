@@ -49,14 +49,6 @@ impl Printer {
         Self { colorize }
     }
 
-    /// Returns whether output should be colorized.
-    ///
-    /// For interop with APIs that take the raw flag (e.g. diagnostic
-    /// emission).
-    pub fn colorize(&self) -> bool {
-        self.colorize
-    }
-
     /// Prints a successful or constructive action line (green verb).
     pub fn status(&self, verb: &str, rest: impl fmt::Display) {
         self.action(verb, rest, ActionColor::Green);
@@ -102,6 +94,21 @@ impl Printer {
         } else {
             println!("  {label:<10} {value}");
         }
+    }
+
+    /// Prints command payload to stdout without decoration.
+    pub fn payload(&self, value: impl fmt::Display) {
+        println!("{value}");
+    }
+
+    /// Prints interactive context to stderr without decoration.
+    pub fn diagnostic(&self, value: impl fmt::Display) {
+        eprintln!("{value}");
+    }
+
+    /// Prints a blank interactive-context line to stderr.
+    pub fn diagnostic_blank(&self) {
+        eprintln!();
     }
 
     /// Prints a confirmation prompt to stderr and reads one line from stdin.

@@ -10,15 +10,17 @@ use wdl_modules::signing::ModuleSignature;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::ModuleAction;
-use crate::commands::module::ModuleOutput;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::render_signer;
 use crate::commands::module::require_lockfile;
 use crate::commands::module::trace_project;
-use crate::commands::printer::Printer;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
+use crate::commands::output::count_noun;
 use crate::config::Config;
+
+const VERIFY: Action = Action::new("Verified", "verify");
 
 /// Arguments to `sprocket dev module verify`.
 #[derive(Parser, Debug)]
@@ -45,7 +47,7 @@ pub enum VerifyTarget {
 }
 
 /// Runs `sprocket dev module verify`.
-pub async fn verify(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
+pub async fn verify(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     tracing::trace!(
         target = ?args.target,
         strict = args.strict,
@@ -54,12 +56,12 @@ pub async fn verify(args: Args, config: Config, printer: Printer) -> CommandResu
     let project = discover(&args.locator)?;
     trace_project("module verify", &project);
     match args.target {
-        Some(VerifyTarget::Signature) => verify_signature(&project, printer)?,
+        Some(VerifyTarget::Signature) => verify_signature(&project, output)?,
         Some(VerifyTarget::Lockfile) => {
-            let unsigned = verify_lockfile(&project, &config, printer, args.strict)?;
+            let unsigned = verify_lockfile(&project, &config, output, args.strict)?;
             fail_if_strict_unsigned(None, &unsigned, args.strict)?;
         }
-        None => verify_all(&project, &config, printer, args.strict)?,
+        None => verify_all(&project, &config, output, args.strict)?,
     }
 
     Ok(())
@@ -68,7 +70,7 @@ pub async fn verify(args: Args, config: Config, printer: Printer) -> CommandResu
 fn verify_all(
     project: &crate::commands::module::Project,
     config: &Config,
-    printer: Printer,
+    output: CommandOutput,
     strict: bool,
 ) -> anyhow::Result<()> {
     let mut checked = 0usize;
@@ -76,15 +78,15 @@ fn verify_all(
     let mut unsigned_dependencies = Vec::new();
     if project.root.join(wdl_modules::SIGNATURE_FILENAME).exists() {
         tracing::debug!("verifying module signature as part of full verification");
-        verify_signature(project, printer)?;
+        verify_signature(project, output)?;
         checked += 1;
     } else {
         unsigned_current = Some(project.manifest.name.as_str().to_string());
-        print_unsigned_current_summary(printer, strict);
+        print_unsigned_current_summary(output, strict);
     }
     if project.lockfile_path.exists() {
         tracing::debug!("verifying lockfile as part of full verification");
-        unsigned_dependencies = verify_lockfile(project, config, printer, strict)?;
+        unsigned_dependencies = verify_lockfile(project, config, output, strict)?;
         checked += 1;
     }
     fail_if_strict_unsigned(unsigned_current.as_deref(), &unsigned_dependencies, strict)?;
@@ -99,7 +101,7 @@ fn verify_all(
 
 fn verify_signature(
     project: &crate::commands::module::Project,
-    printer: Printer,
+    output: CommandOutput,
 ) -> anyhow::Result<()> {
     let signature_path = project.root.join(wdl_modules::SIGNATURE_FILENAME);
     tracing::trace!(signature = %signature_path.display(), "reading module signature");
@@ -114,8 +116,7 @@ fn verify_signature(
     tracing::debug!(digest = %digest, "hashed module content for signature verification");
     signature.verify(&digest).map_err(anyhow::Error::from)?;
 
-    let output = ModuleOutput::new(printer);
-    output.completed(ModuleAction::Verify, "module signature");
+    output.completed(VERIFY, "module signature");
     output.detail("Digest", digest);
     Ok(())
 }
@@ -123,7 +124,7 @@ fn verify_signature(
 fn verify_lockfile(
     project: &crate::commands::module::Project,
     config: &Config,
-    printer: Printer,
+    output: CommandOutput,
     strict: bool,
 ) -> anyhow::Result<Vec<DependencyName>> {
     tracing::trace!(lockfile = %project.lockfile_path.display(), "reading module lockfile");
@@ -142,7 +143,7 @@ fn verify_lockfile(
         .map_err(anyhow::Error::from)?;
 
     if !unsigned.is_empty() {
-        print_unsigned_dependency_summary(unsigned.len(), printer, strict);
+        print_unsigned_dependency_summary(unsigned.len(), output, strict);
     }
 
     if !errors.is_empty() {
@@ -184,32 +185,29 @@ fn verify_lockfile(
         ));
     }
 
-    ModuleOutput::new(printer).completed(
-        ModuleAction::Verify,
-        crate::commands::module::count_noun(verified, "dependency", "dependencies"),
-    );
+    output.completed(VERIFY, count_noun(verified, "dependency", "dependencies"));
     Ok(unsigned)
 }
 
-fn print_unsigned_current_summary(printer: Printer, strict: bool) {
+fn print_unsigned_current_summary(output: CommandOutput, strict: bool) {
     print_unsigned_summary(
-        printer,
+        output,
         strict,
         "signature verification for current module (no `module.sig`)",
     );
 }
 
-fn print_unsigned_dependency_summary(unsigned: usize, printer: Printer, strict: bool) {
-    print_unsigned_summary(printer, strict, unsigned_dependency_summary(unsigned));
+fn print_unsigned_dependency_summary(unsigned: usize, output: CommandOutput, strict: bool) {
+    print_unsigned_summary(output, strict, unsigned_dependency_summary(unsigned));
 }
 
 /// Prints an unsigned-package summary line: a red `Failed` under strict
 /// verification, a cyan `Skipped` otherwise.
-fn print_unsigned_summary(printer: Printer, strict: bool, rest: impl std::fmt::Display) {
+fn print_unsigned_summary(output: CommandOutput, strict: bool, rest: impl std::fmt::Display) {
     if strict {
-        printer.failure("Failed", rest);
+        output.failed(rest);
     } else {
-        printer.info("Skipped", rest);
+        output.skipped(rest);
     }
 }
 

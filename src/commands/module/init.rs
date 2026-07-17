@@ -13,9 +13,10 @@ use serde_json::Value;
 use wdl::ast::SupportedVersion;
 
 use crate::commands::CommandResult;
-use crate::commands::module::ModuleAction;
-use crate::commands::module::ModuleOutput;
-use crate::commands::printer::Printer;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
+
+const INITIALIZE: Action = Action::new("Initialized", "initialize");
 
 /// Arguments to `sprocket dev module init`.
 #[derive(Parser, Debug)]
@@ -38,7 +39,7 @@ pub struct Args {
 }
 
 /// Runs `sprocket dev module init`.
-pub async fn init(args: Args, printer: Printer) -> CommandResult<()> {
+pub async fn init(args: Args, output: CommandOutput) -> CommandResult<()> {
     tracing::trace!(
         has_path = args.path.is_some(),
         has_name = args.name.is_some(),
@@ -46,10 +47,10 @@ pub async fn init(args: Args, printer: Printer) -> CommandResult<()> {
         no_scaffold = args.no_scaffold,
         "starting `sprocket dev module init`"
     );
-    run_init(args, printer).map_err(Into::into)
+    run_init(args, output).map_err(Into::into)
 }
 
-fn run_init(args: Args, printer: Printer) -> anyhow::Result<()> {
+fn run_init(args: Args, output: CommandOutput) -> anyhow::Result<()> {
     let current_dir = std::env::current_dir().context("reading current directory")?;
     let target_dir = args.path.map_or_else(
         || current_dir.clone(),
@@ -121,8 +122,7 @@ fn run_init(args: Args, printer: Printer) -> anyhow::Result<()> {
         tracing::debug!("skipped module scaffold files");
     }
 
-    let output = ModuleOutput::new(printer);
-    output.completed(ModuleAction::Initialize, format!("module `{name}`"));
+    output.completed(INITIALIZE, format!("module `{name}`"));
     output.detail("Manifest", manifest_path.display());
     if !args.no_scaffold {
         output.detail("Entrypoint", "index.wdl");

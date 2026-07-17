@@ -14,11 +14,12 @@ use wdl_modules::signing::parse_openssh_public_key_identity;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::ModuleAction;
-use crate::commands::module::ModuleOutput;
 use crate::commands::module::discover;
 use crate::commands::module::trace_project;
-use crate::commands::printer::Printer;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
+
+const SIGN: Action = Action::new("Signed", "sign");
 
 /// Arguments to `sprocket dev module sign`.
 #[derive(Parser, Debug)]
@@ -37,7 +38,7 @@ pub struct Args {
 }
 
 /// Runs `sprocket dev module sign`.
-pub async fn sign(args: Args, printer: Printer) -> CommandResult<()> {
+pub async fn sign(args: Args, output: CommandOutput) -> CommandResult<()> {
     tracing::trace!(
         explicit_key = args.key.is_some(),
         explicit_output = args.output.is_some(),
@@ -56,19 +57,15 @@ pub async fn sign(args: Args, printer: Printer) -> CommandResult<()> {
     let module_signature =
         ModuleSignature::new(&signing_key, &digest, identity).map_err(anyhow::Error::from)?;
 
-    let output = args
+    let signature_path = args
         .output
         .unwrap_or_else(|| project.root.join(wdl_modules::SIGNATURE_FILENAME));
-    write_signature_atomically(&output, &module_signature)?;
-    tracing::debug!(signature = %output.display(), "wrote module signature");
+    write_signature_atomically(&signature_path, &module_signature)?;
+    tracing::debug!(signature = %signature_path.display(), "wrote module signature");
 
-    let presentation = ModuleOutput::new(printer);
-    presentation.completed(
-        ModuleAction::Sign,
-        format!("module `{}`", project.manifest.name),
-    );
-    presentation.detail("Digest", digest);
-    presentation.detail("Signature", output.display());
+    output.completed(SIGN, format!("module `{}`", project.manifest.name));
+    output.detail("Digest", digest);
+    output.detail("Signature", signature_path.display());
     Ok(())
 }
 

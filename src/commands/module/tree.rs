@@ -13,6 +13,7 @@ use crate::commands::module::Locator;
 use crate::commands::module::discover;
 use crate::commands::module::require_lockfile;
 use crate::commands::module::trace_project;
+use crate::commands::output::CommandOutput;
 
 /// Arguments to `sprocket dev module tree`.
 #[derive(Parser, Debug)]
@@ -39,7 +40,7 @@ pub struct ListArgs {
 }
 
 /// Runs `sprocket dev module tree`.
-pub async fn tree(args: TreeArgs) -> CommandResult<()> {
+pub async fn tree(args: TreeArgs, output: CommandOutput) -> CommandResult<()> {
     tracing::trace!(depth = ?args.depth, "starting `sprocket dev module tree`");
     let project = discover(&args.locator)?;
     trace_project("module tree", &project);
@@ -49,18 +50,18 @@ pub async fn tree(args: TreeArgs) -> CommandResult<()> {
         "loaded module lockfile for tree"
     );
 
-    println!("{}", project.manifest.name);
+    output.payload(&project.manifest.name);
     if args.depth == Some(0) {
         tracing::trace!("printed root module only because depth is zero");
         return Ok(());
     }
 
-    print_tree_level(&lock.dependencies, "", 1, args.depth);
+    print_tree_level(&lock.dependencies, "", 1, args.depth, output);
     Ok(())
 }
 
 /// Runs `sprocket dev module list`.
-pub async fn list(args: ListArgs) -> CommandResult<()> {
+pub async fn list(args: ListArgs, output: CommandOutput) -> CommandResult<()> {
     tracing::trace!(all = args.all, "starting `sprocket dev module list`");
     let project = discover(&args.locator)?;
     trace_project("module list", &project);
@@ -82,11 +83,17 @@ pub async fn list(args: ListArgs) -> CommandResult<()> {
         "printing dependency list"
     );
 
-    print_rows(rows);
+    print_rows(rows, output);
     Ok(())
 }
 
-fn print_tree_level(entries: &DependencyMap, prefix: &str, depth: usize, max_depth: Option<usize>) {
+fn print_tree_level(
+    entries: &DependencyMap,
+    prefix: &str,
+    depth: usize,
+    max_depth: Option<usize>,
+    output: CommandOutput,
+) {
     if max_depth.is_some_and(|d| depth > d) {
         return;
     }
@@ -95,11 +102,11 @@ fn print_tree_level(entries: &DependencyMap, prefix: &str, depth: usize, max_dep
     for (index, (name, entry)) in entries.iter().enumerate() {
         let is_last = index + 1 == total;
         let connector = if is_last { "└── " } else { "├── " };
-        println!(
+        output.payload(format!(
             "{prefix}{connector}{} {}",
             name.manifest(),
             source_desc(&entry.source)
-        );
+        ));
 
         if max_depth.is_some_and(|d| depth >= d) {
             continue;
@@ -110,7 +117,13 @@ fn print_tree_level(entries: &DependencyMap, prefix: &str, depth: usize, max_dep
         } else {
             format!("{prefix}│   ")
         };
-        print_tree_level(&entry.dependencies, &next_prefix, depth + 1, max_depth);
+        print_tree_level(
+            &entry.dependencies,
+            &next_prefix,
+            depth + 1,
+            max_depth,
+            output,
+        );
     }
 }
 
@@ -157,7 +170,7 @@ fn collect_rows_from_map(entries: &DependencyMap, rows: &mut BTreeSet<(String, S
     }
 }
 
-fn print_rows(rows: Vec<(String, String)>) {
+fn print_rows(rows: Vec<(String, String)>, output: CommandOutput) {
     let alias_header = "name";
     let source_header = "source";
     let alias_width = rows
@@ -167,8 +180,8 @@ fn print_rows(rows: Vec<(String, String)>) {
         .unwrap_or(0)
         .max(alias_header.len());
 
-    println!("{:<alias_width$}  {}", alias_header, source_header);
+    output.payload(format!("{:<alias_width$}  {}", alias_header, source_header));
     for (alias, source) in rows {
-        println!("{:<alias_width$}  {}", alias, source);
+        output.payload(format!("{:<alias_width$}  {}", alias, source));
     }
 }

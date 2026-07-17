@@ -5,14 +5,16 @@ use wdl_modules::module::Module;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::ModuleAction;
-use crate::commands::module::ModuleOutput;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
 use crate::commands::module::require_lockfile;
 use crate::commands::module::trace_project;
-use crate::commands::printer::Printer;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
+use crate::commands::output::count_noun;
 use crate::config::Config;
+
+const FETCH: Action = Action::new("Fetched", "fetch");
 
 /// Arguments to `sprocket dev module fetch`.
 #[derive(Parser, Debug)]
@@ -23,7 +25,7 @@ pub struct Args {
 }
 
 /// Runs `sprocket dev module fetch`.
-pub async fn fetch(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
+pub async fn fetch(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     tracing::trace!("starting `sprocket dev module fetch`");
     let project = discover(&args.locator)?;
     trace_project("module fetch", &project);
@@ -40,14 +42,10 @@ pub async fn fetch(args: Args, config: Config, printer: Printer) -> CommandResul
         .map_err(anyhow::Error::from)?;
     tracing::debug!(fetched, "ensured locked dependencies are fetched");
 
-    let output = ModuleOutput::new(printer);
     if fetched == 0 {
         output.current("module cache");
     } else {
-        output.completed(
-            ModuleAction::Fetch,
-            crate::commands::module::count_noun(fetched, "dependency", "dependencies"),
-        );
+        output.completed(FETCH, count_noun(fetched, "dependency", "dependencies"));
     }
     Ok(())
 }

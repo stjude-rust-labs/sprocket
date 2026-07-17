@@ -12,8 +12,6 @@ use wdl_modules::resolver::update_relock;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::ModuleAction;
-use crate::commands::module::ModuleOutput;
 use crate::commands::module::ProjectMutation;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
@@ -23,8 +21,12 @@ use crate::commands::module::load_lockfile;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
 use crate::commands::module::update_details;
-use crate::commands::printer::Printer;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
+use crate::commands::output::count_noun;
 use crate::config::Config;
+
+const UPDATE: Action = Action::new("Updated", "update");
 
 /// Arguments to `sprocket dev module update`.
 #[derive(Parser, Debug)]
@@ -46,7 +48,7 @@ pub struct Args {
 }
 
 /// Runs `sprocket dev module update`.
-pub async fn update(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
+pub async fn update(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     tracing::trace!(
         dry_run = args.dry_run,
         requested = args.names.len(),
@@ -60,7 +62,6 @@ pub async fn update(args: Args, config: Config, printer: Printer) -> CommandResu
         project.reload()?;
         Some(mutation)
     };
-    let output = ModuleOutput::new(printer);
     trace_project("module update", &project);
     let on_disk = load_lockfile(&project)?.unwrap_or_default();
 
@@ -114,7 +115,7 @@ pub async fn update(args: Args, config: Config, printer: Printer) -> CommandResu
         &outcome.lockfile,
         &identities,
         signer_change_mode(&config, args.trust_mode),
-        printer,
+        output,
     )?;
     mutation.commit(&project, None, Some(&outcome.lockfile))?;
     tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
@@ -123,7 +124,7 @@ pub async fn update(args: Args, config: Config, printer: Printer) -> CommandResu
 }
 
 fn print_update_outcome(
-    output: ModuleOutput,
+    output: CommandOutput,
     stats: &wdl_modules::resolver::RelockStats,
     dry_run: bool,
 ) {
@@ -132,12 +133,11 @@ fn print_update_outcome(
         return;
     }
 
-    let count =
-        crate::commands::module::count_noun(stats.updated.len(), "dependency", "dependencies");
+    let count = count_noun(stats.updated.len(), "dependency", "dependencies");
     if dry_run {
-        output.planned(ModuleAction::Update, count);
+        output.planned(UPDATE, count);
     } else {
-        output.completed(ModuleAction::Update, count);
+        output.completed(UPDATE, count);
     }
     for change in &stats.updated {
         output.detail(

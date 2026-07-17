@@ -4,8 +4,6 @@ use clap::Parser;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::ModuleAction;
-use crate::commands::module::ModuleOutput;
 use crate::commands::module::ProjectMutation;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::discover;
@@ -14,8 +12,12 @@ use crate::commands::module::resolve_relock_plan;
 use crate::commands::module::resolve_relock_with_signer_mode;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
-use crate::commands::printer::Printer;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
+use crate::commands::output::count_noun;
 use crate::config::Config;
+
+const LOCK: Action = Action::new("Locked", "lock");
 
 /// Arguments to `sprocket dev module lock`.
 #[derive(Parser, Debug)]
@@ -38,14 +40,13 @@ pub struct Args {
 }
 
 /// Runs `sprocket dev module lock`.
-pub async fn lock(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
+pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     tracing::trace!(
         locked = args.locked,
         dry_run = args.dry_run,
         "starting `sprocket dev module lock`"
     );
     let mut project = discover(&args.locator)?;
-    let output = ModuleOutput::new(printer);
     trace_project("module lock", &project);
     let lock = load_lockfile(&project)?;
     let satisfied = lock
@@ -80,12 +81,12 @@ pub async fn lock(args: Args, config: Config, printer: Printer) -> CommandResult
         tracing::debug!("dry run completed without writing lockfile or trust store");
         let changes = relock_change_count(&plan.outcome.stats);
         output.planned(
-            ModuleAction::Lock,
-            crate::commands::module::count_noun(changes, "dependency change", "dependency changes"),
+            LOCK,
+            count_noun(changes, "dependency change", "dependency changes"),
         );
         output.detail(
             "Lockfile",
-            crate::commands::module::count_noun(
+            count_noun(
                 plan.outcome.lockfile.dependencies.len(),
                 "dependency",
                 "dependencies",
@@ -108,14 +109,14 @@ pub async fn lock(args: Args, config: Config, printer: Printer) -> CommandResult
         &config,
         &project,
         signer_change_mode(&config, args.trust_mode),
-        printer,
+        output,
     )
     .await?;
     mutation.commit(&project, None, Some(&outcome.lockfile))?;
     tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
     output.completed(
-        ModuleAction::Lock,
-        crate::commands::module::count_noun(
+        LOCK,
+        count_noun(
             outcome.lockfile.dependencies.len(),
             "dependency",
             "dependencies",
@@ -123,10 +124,7 @@ pub async fn lock(args: Args, config: Config, printer: Printer) -> CommandResult
     );
     let changes = relock_change_count(&outcome.stats);
     if changes > 0 {
-        output.detail(
-            "Changed",
-            crate::commands::module::count_noun(changes, "dependency", "dependencies"),
-        );
+        output.detail("Changed", count_noun(changes, "dependency", "dependencies"));
     }
     Ok(())
 }

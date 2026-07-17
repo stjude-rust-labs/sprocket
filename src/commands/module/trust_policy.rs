@@ -15,7 +15,11 @@ use wdl_modules::resolver::TrustStore;
 use wdl_modules::signing::SignerIdentity;
 use wdl_modules::signing::VerifyingKey;
 
-use crate::commands::printer::Printer;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
+
+const ACCEPT: Action = Action::new("Accepted", "accept");
+const TRUST: Action = Action::new("Trusted", "trust");
 
 /// Loads the trust store at `path` with a uniform error context.
 pub(crate) fn load_trust_store(path: &Path) -> anyhow::Result<TrustStore> {
@@ -161,7 +165,7 @@ pub(crate) fn enforce_signer_trust(
     new: &Lockfile,
     identities: &SignerIdentityMap,
     mode: SignerChangeMode,
-    printer: Printer,
+    output: CommandOutput,
 ) -> anyhow::Result<()> {
     let diff = LockfileDiff::compute_with_identities(existing, new, identities);
     if !diff.has_new_signers() && !diff.has_signer_changes() {
@@ -192,7 +196,7 @@ pub(crate) fn enforce_signer_trust(
     // Prompted changes are accepted or refused as a batch; any hard
     // refusal skips the prompt entirely.
     if !prompted.is_empty() {
-        if refused.is_empty() && confirm_signer_key_upgrade(&prompted, &trust, printer)? {
+        if refused.is_empty() && confirm_signer_key_upgrade(&prompted, &trust, output)? {
             accepted.append(&mut prompted);
         } else {
             refused.append(&mut prompted);
@@ -229,7 +233,7 @@ pub(crate) fn enforce_signer_trust(
     if trust_dirty {
         save_trust_store(trust_path, &trust)?;
     }
-    print_trust_change_summary(trusted_keys, printer);
+    print_trust_change_summary(trusted_keys, output);
     Ok(())
 }
 
@@ -237,57 +241,57 @@ pub(crate) fn enforce_signer_trust(
 fn confirm_signer_key_upgrade(
     changes: &[SignerChange<'_>],
     trust: &TrustStore,
-    printer: Printer,
+    output: CommandOutput,
 ) -> anyhow::Result<bool> {
-    eprintln!("module signer key requires trust changes");
+    output.diagnostic("module signer key requires trust changes");
     for change in changes {
         match change {
             SignerChange::Added(signer) => {
-                eprintln!();
-                eprintln!("  Module     `{}`", signer.dep().manifest());
-                eprintln!("  Change     signer added");
-                eprintln!(
+                output.diagnostic_blank();
+                output.diagnostic(format!("  Module     `{}`", signer.dep().manifest()));
+                output.diagnostic("  Change     signer added");
+                output.diagnostic(format!(
                     "  Signer     {}",
                     render_signer_with_trust(&signer.key, signer.identity.as_ref(), trust)
-                );
+                ));
             }
             SignerChange::Changed(signer) => match signer.old_key {
                 Some(old_key) => {
-                    eprintln!();
-                    eprintln!("  Module     `{}`", signer.dep().manifest());
-                    eprintln!("  Change     signer changed");
-                    eprintln!(
+                    output.diagnostic_blank();
+                    output.diagnostic(format!("  Module     `{}`", signer.dep().manifest()));
+                    output.diagnostic("  Change     signer changed");
+                    output.diagnostic(format!(
                         "  Previous   {}",
                         render_signer_with_trust(&old_key, None, trust)
-                    );
-                    eprintln!(
+                    ));
+                    output.diagnostic(format!(
                         "  Current    {}",
                         render_signer_with_trust(&signer.new_key, signer.identity.as_ref(), trust)
-                    );
+                    ));
                 }
                 None => {
-                    eprintln!();
-                    eprintln!("  Module     `{}`", signer.dep().manifest());
-                    eprintln!("  Change     previously unsigned module gained a signer");
-                    eprintln!(
+                    output.diagnostic_blank();
+                    output.diagnostic(format!("  Module     `{}`", signer.dep().manifest()));
+                    output.diagnostic("  Change     previously unsigned module gained a signer");
+                    output.diagnostic(format!(
                         "  Signer     {}",
                         render_signer_with_trust(&signer.new_key, signer.identity.as_ref(), trust)
-                    );
+                    ));
                 }
             },
             SignerChange::Removed(signer) => {
-                eprintln!();
-                eprintln!("  Module     `{}`", signer.dep().manifest());
-                eprintln!("  Change     signer removed; dependency is now unsigned");
-                eprintln!(
+                output.diagnostic_blank();
+                output.diagnostic(format!("  Module     `{}`", signer.dep().manifest()));
+                output.diagnostic("  Change     signer removed; dependency is now unsigned");
+                output.diagnostic(format!(
                     "  Previous   {}",
                     render_signer_with_trust(&signer.key, None, trust)
-                );
+                ));
             }
         }
     }
-    eprintln!();
-    printer.confirm("Accept these signer trust changes and update the lockfile?")
+    output.diagnostic_blank();
+    output.confirm("Accept these signer trust changes and update the lockfile?")
 }
 
 /// Signer key and optional identity queued for a trust-store change hint.
@@ -390,13 +394,13 @@ fn push_unique_signer(
 }
 
 /// Prints a summary action line for accepted signer trust changes.
-fn print_trust_change_summary(trusted: usize, printer: Printer) {
+fn print_trust_change_summary(trusted: usize, output: CommandOutput) {
     if trusted == 0 {
-        printer.status("Accepted", "signer trust changes");
+        output.completed(ACCEPT, "signer trust changes");
         return;
     }
 
-    printer.status("Trusted", format!("{trusted} signer keys"));
+    output.completed(TRUST, format!("{trusted} signer keys"));
 }
 
 /// Adds every signer key recorded in a lockfile to the trust store.
@@ -557,7 +561,7 @@ mod tests {
             &new,
             &SignerIdentityMap::new(),
             SignerChangeMode::Strict,
-            Printer::new(false),
+            CommandOutput::new(false),
         )
         .unwrap_err();
         assert!(
@@ -573,7 +577,7 @@ mod tests {
             &new,
             &SignerIdentityMap::new(),
             SignerChangeMode::Strict,
-            Printer::new(false),
+            CommandOutput::new(false),
         )
         .expect("a trusted new key should be accepted");
     }
@@ -591,7 +595,7 @@ mod tests {
             &new,
             &SignerIdentityMap::new(),
             SignerChangeMode::Confirm,
-            Printer::new(false),
+            CommandOutput::new(false),
         )
         .expect("a globally trusted replacement key should not prompt or fail");
     }
@@ -609,7 +613,7 @@ mod tests {
             &new,
             &SignerIdentityMap::new(),
             SignerChangeMode::Strict,
-            Printer::new(false),
+            CommandOutput::new(false),
         )
         .unwrap_err();
         assert!(
@@ -624,7 +628,7 @@ mod tests {
             &new,
             &SignerIdentityMap::new(),
             SignerChangeMode::Strict,
-            Printer::new(false),
+            CommandOutput::new(false),
         )
         .unwrap_err();
         assert!(
@@ -671,7 +675,7 @@ mod tests {
             &new,
             &SignerIdentityMap::new(),
             SignerChangeMode::AutoAccept,
-            Printer::new(false),
+            CommandOutput::new(false),
         )
         .expect("auto-accept mode should accept the batch");
         let trust = TrustStore::load_or_default(&path).unwrap();
@@ -695,7 +699,7 @@ mod tests {
             &new,
             &SignerIdentityMap::new(),
             SignerChangeMode::AutoAccept,
-            Printer::new(false),
+            CommandOutput::new(false),
         )
         .expect("auto-accept mode should accept the removed signature");
         let trust = TrustStore::load_or_default(&path).unwrap();
@@ -718,7 +722,7 @@ mod tests {
             &signed,
             &SignerIdentityMap::new(),
             SignerChangeMode::Strict,
-            Printer::new(false),
+            CommandOutput::new(false),
         )
         .unwrap();
 
@@ -730,7 +734,7 @@ mod tests {
             &signed,
             &SignerIdentityMap::new(),
             SignerChangeMode::Strict,
-            Printer::new(false),
+            CommandOutput::new(false),
         )
         .expect_err("a newly introduced signer should require trust");
         assert!(

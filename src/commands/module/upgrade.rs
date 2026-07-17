@@ -17,8 +17,6 @@ use wdl_modules::resolver::update_relock;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::ModuleAction;
-use crate::commands::module::ModuleOutput;
 use crate::commands::module::ProjectMutation;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
@@ -29,8 +27,12 @@ use crate::commands::module::parse_manifest_value;
 use crate::commands::module::read_manifest_value;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
-use crate::commands::printer::Printer;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
+use crate::commands::output::count_noun;
 use crate::config::Config;
+
+const UPGRADE: Action = Action::new("Upgraded", "upgrade");
 
 const VERSION_DISCOVERY_CONCURRENCY: usize = 8;
 
@@ -54,7 +56,7 @@ pub struct Args {
 }
 
 /// Runs `sprocket dev module upgrade`.
-pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
+pub async fn upgrade(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     tracing::trace!(
         dry_run = args.dry_run,
         requested = args.names.len(),
@@ -68,7 +70,6 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
         project.reload()?;
         Some(mutation)
     };
-    let output = ModuleOutput::new(printer);
     trace_project("module upgrade", &project);
 
     let mut selected = Vec::new();
@@ -183,8 +184,8 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
 
     if args.dry_run {
         output.planned(
-            ModuleAction::Upgrade,
-            crate::commands::module::count_noun(changed.len(), "dependency", "dependencies"),
+            UPGRADE,
+            count_noun(changed.len(), "dependency", "dependencies"),
         );
         print_upgrade_details(output, &changed);
         print_lockfile_change_details(output, &outcome.stats);
@@ -205,7 +206,7 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
         &outcome.lockfile,
         &identities,
         signer_change_mode(&config, args.trust_mode),
-        printer,
+        output,
     )?;
     mutation.commit(&project, Some(&manifest_value), Some(&outcome.lockfile))?;
     tracing::debug!(
@@ -215,15 +216,18 @@ pub async fn upgrade(args: Args, config: Config, printer: Printer) -> CommandRes
     );
     tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
     output.completed(
-        ModuleAction::Upgrade,
-        crate::commands::module::count_noun(changed.len(), "dependency", "dependencies"),
+        UPGRADE,
+        count_noun(changed.len(), "dependency", "dependencies"),
     );
     print_upgrade_details(output, &changed);
     print_lockfile_change_details(output, &outcome.stats);
     Ok(())
 }
 
-fn print_lockfile_change_details(output: ModuleOutput, stats: &wdl_modules::resolver::RelockStats) {
+fn print_lockfile_change_details(
+    output: CommandOutput,
+    stats: &wdl_modules::resolver::RelockStats,
+) {
     for change in &stats.updated {
         output.detail(
             change.name.manifest(),
@@ -242,7 +246,7 @@ fn print_lockfile_change_details(output: ModuleOutput, stats: &wdl_modules::reso
     }
 }
 
-fn print_upgrade_details(output: ModuleOutput, changed: &[(DependencyName, String, String)]) {
+fn print_upgrade_details(output: CommandOutput, changed: &[(DependencyName, String, String)]) {
     for (name, old_req, new_req) in changed {
         output.detail(
             name.manifest(),

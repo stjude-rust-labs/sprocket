@@ -17,8 +17,6 @@ use wdl_modules::version_requirement::VersionRequirement;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::ModuleAction;
-use crate::commands::module::ModuleOutput;
 use crate::commands::module::ProjectMutation;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
@@ -29,8 +27,13 @@ use crate::commands::module::resolve_relock_for_manifest;
 use crate::commands::module::set_dependency;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
-use crate::commands::printer::Printer;
+use crate::commands::output::Action;
+use crate::commands::output::CommandOutput;
+use crate::commands::output::count_noun;
 use crate::config::Config;
+
+const ADD: Action = Action::new("Added", "add");
+const LOCK: Action = Action::new("Locked", "lock");
 
 /// Arguments to `sprocket dev module add`.
 #[derive(Parser, Debug)]
@@ -84,7 +87,7 @@ pub struct Args {
 }
 
 /// Runs `sprocket dev module add`.
-pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<()> {
+pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     tracing::trace!(
         no_lock = args.no_lock,
         has_path = args.path.is_some(),
@@ -98,8 +101,6 @@ pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<
     trace_project("module add", &project);
     let built = build_source(&args, &source_arg, &config, &name).await?;
     let source = built.source;
-    let output = ModuleOutput::new(printer);
-
     let mut value = read_manifest_value(&project.manifest_path)?;
     if project.manifest.dependencies.get(&name) == Some(&source) {
         tracing::info!(
@@ -116,13 +117,13 @@ pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<
                 &project,
                 project.manifest.clone(),
                 signer_change_mode(&config, args.trust_mode),
-                printer,
+                output,
             )
             .await?;
             mutation.commit(&project, None, Some(&outcome.lockfile))?;
             output.completed(
-                ModuleAction::Lock,
-                crate::commands::module::count_noun(
+                LOCK,
+                count_noun(
                     outcome.lockfile.dependencies.len(),
                     "dependency",
                     "dependencies",
@@ -152,7 +153,7 @@ pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<
                 &project,
                 std::sync::Arc::new(pending_manifest),
                 signer_change_mode(&config, args.trust_mode),
-                printer,
+                output,
             )
             .await?,
         )
@@ -171,7 +172,7 @@ pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<
 
     if let Some(outcome) = relock {
         tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
-        output.completed(ModuleAction::Add, format!("`{}`", name.manifest()));
+        output.completed(ADD, format!("`{}`", name.manifest()));
         print_source_details(output, &source);
         if let Some(change) = outcome
             .stats
@@ -184,7 +185,7 @@ pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<
         }
         output.detail(
             "Lockfile",
-            crate::commands::module::count_noun(
+            count_noun(
                 outcome.lockfile.dependencies.len(),
                 "dependency",
                 "dependencies",
@@ -192,7 +193,7 @@ pub async fn add(args: Args, config: Config, printer: Printer) -> CommandResult<
         );
     } else {
         tracing::debug!("skipped relock after adding dependency");
-        output.completed(ModuleAction::Add, format!("`{}`", name.manifest()));
+        output.completed(ADD, format!("`{}`", name.manifest()));
         print_source_details(output, &source);
         output.detail("Lockfile", "not written (`--no-lock`)");
     }
@@ -279,7 +280,7 @@ async fn build_source(
     })
 }
 
-fn print_source_details(output: ModuleOutput, source: &DependencySource) {
+fn print_source_details(output: CommandOutput, source: &DependencySource) {
     match source {
         DependencySource::LocalPath { path, .. } => output.detail("Source", path.display()),
         DependencySource::Git {
