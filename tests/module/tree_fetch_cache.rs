@@ -8,7 +8,6 @@ use crate::fixtures::*;
 #[test]
 fn tree_prints_dependency() -> anyhow::Result<()> {
     let fixture = ModuleFixture::with_local_dep_added();
-    let dependency = fixture.dep().canonicalize()?;
     let output = sprocket(&["dev", "module", "tree"])
         .current_dir(fixture.consumer())
         .output()
@@ -20,9 +19,13 @@ fn tree_prints_dependency() -> anyhow::Result<()> {
         stderr = String::from_utf8_lossy(&output.stderr)
     );
     let stdout = String::from_utf8_lossy(&output.stdout);
+    let source = stdout
+        .strip_prefix("consumer\n└── utils (source: ")
+        .and_then(|value| value.strip_suffix(")\n"))
+        .ok_or_else(|| anyhow::anyhow!("unexpected tree output: {stdout}"))?;
     assert_eq!(
-        stdout.as_ref(),
-        format!("consumer\n└── utils (source: {})\n", dependency.display())
+        std::path::Path::new(source).canonicalize()?,
+        fixture.dep().canonicalize()?
     );
     Ok(())
 }
