@@ -35,7 +35,7 @@ impl GitFetcher {
         crate::resolver::versions::discover_remote_tags(
             url,
             net.max_advertised_refs,
-            self.policy.credential_mode(scope, url.host_str()),
+            self.policy.credential_mode(scope, url),
         )
         .map_err(ResolverError::from)
     }
@@ -50,7 +50,7 @@ impl GitFetcher {
         crate::resolver::versions::discover_remote_branches(
             url,
             net.max_advertised_refs,
-            self.policy.credential_mode(scope, url.host_str()),
+            self.policy.credential_mode(scope, url),
         )
         .map_err(ResolverError::from)
     }
@@ -64,7 +64,7 @@ impl GitFetcher {
         let net = self.policy.git_policy(scope);
         crate::resolver::git::discover_default_branch(
             url,
-            self.policy.credential_mode(scope, url.host_str()),
+            self.policy.credential_mode(scope, url),
             net.max_advertised_refs,
         )
         .map_err(ResolverError::from)
@@ -87,7 +87,7 @@ impl GitFetcher {
         work_dir: &Path,
     ) -> Result<String, ResolverError> {
         let net = self.policy.git_policy(scope);
-        let mode = self.policy.credential_mode(scope, url.host_str());
+        let mode = self.policy.credential_mode(scope, url);
 
         // Fast path: a prefix of an advertised ref's SHA needs no clone.
         let refs = crate::resolver::git::list_advertised_refs(url, net.max_advertised_refs, mode)?;
@@ -113,7 +113,7 @@ impl GitFetcher {
             url,
             commit,
             paths.iter().copied(),
-            self.policy.credential_mode(scope, url.host_str()),
+            self.policy.credential_mode(scope, url),
             self.policy.max_materialized_files,
             self.policy.max_materialized_bytes,
         )?;

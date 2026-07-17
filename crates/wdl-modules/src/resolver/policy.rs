@@ -185,26 +185,22 @@ impl ResolverPolicy {
         }
     }
 
-    /// Returns the credential mode for a Git operation against `host`.
+    /// Returns the credential mode for a Git operation against `url`.
     ///
     /// Top-level dependencies always present credentials, since the user
     /// declared their URLs directly. Transitive dependencies present
     /// credentials only for hosts named explicitly in
     /// `allowed_transitive_hosts`, so a transitive manifest cannot direct
     /// the user's credentials at a host the user has not vouched for.
-    pub(crate) fn credential_mode(
-        &self,
-        scope: DependencyScope,
-        host: Option<&str>,
-    ) -> CredentialMode {
+    pub(crate) fn credential_mode(&self, scope: DependencyScope, url: &Url) -> CredentialMode {
         if !self.credentials_enabled {
             return CredentialMode::Disabled;
         }
 
         match scope {
             DependencyScope::TopLevel => CredentialMode::Enabled,
-            DependencyScope::Transitive => match host {
-                Some(host) if self.transitive.host_policy.explicitly_allows(host) => {
+            DependencyScope::Transitive => match normalized_host(url) {
+                Some(host) if self.transitive.host_policy.explicitly_allows(&host) => {
                     CredentialMode::Enabled
                 }
                 _ => CredentialMode::Disabled,
@@ -325,18 +321,11 @@ impl ResolverPolicy {
                 url::Host::Ipv6(host) => {
                     let host = host.to_string();
                     let display = format!("[{host}]");
-                    if super::config::is_non_public_ip(&host) {
-                        return Err(ResolverError::GitHostNotAllowed {
-                            dep: name.manifest().to_string(),
-                            url: url.to_string(),
-                            host: display,
-                            config_key,
-                        });
-                    }
                     if self
                         .denied_hosts
                         .iter()
                         .any(|denied| denied.eq_ignore_ascii_case(&host))
+                        || super::config::is_non_public_ip(&host)
                     {
                         return Err(ResolverError::GitHostPolicyViolation {
                             dep: name.manifest().to_string(),
@@ -356,6 +345,15 @@ impl ResolverPolicy {
             }
         }
         Ok(())
+    }
+}
+
+/// Returns the URL host in the form used by host policies.
+fn normalized_host(url: &Url) -> Option<String> {
+    match url.host()? {
+        url::Host::Domain(host) => Some(host.to_string()),
+        url::Host::Ipv4(host) => Some(host.to_string()),
+        url::Host::Ipv6(host) => Some(host.to_string()),
     }
 }
 
@@ -435,15 +433,24 @@ mod tests {
     fn transitive_credentials_require_host_allowlist() {
         let default_policy = ResolverPolicy::default();
         assert_eq!(
-            default_policy.credential_mode(DependencyScope::Transitive, Some("github.com")),
+            default_policy.credential_mode(
+                DependencyScope::Transitive,
+                &url("https://github.com/org/repository.git")
+            ),
             CredentialMode::Enabled
         );
         assert_eq!(
-            default_policy.credential_mode(DependencyScope::Transitive, Some("bitbucket.org")),
+            default_policy.credential_mode(
+                DependencyScope::Transitive,
+                &url("https://bitbucket.org/org/repository.git")
+            ),
             CredentialMode::Disabled
         );
         assert_eq!(
-            default_policy.credential_mode(DependencyScope::TopLevel, Some("bitbucket.org")),
+            default_policy.credential_mode(
+                DependencyScope::TopLevel,
+                &url("https://bitbucket.org/org/repository.git")
+            ),
             CredentialMode::Enabled
         );
 
@@ -453,7 +460,10 @@ mod tests {
         })
         .unwrap();
         assert_eq!(
-            open.credential_mode(DependencyScope::Transitive, Some("github.com")),
+            open.credential_mode(
+                DependencyScope::Transitive,
+                &url("https://github.com/org/repository.git")
+            ),
             CredentialMode::Disabled
         );
     }
@@ -484,6 +494,62 @@ mod tests {
     }
 
     #[test]
+    fn default_policy_denies_all_non_public_literal_hosts() {
+        let policy = ResolverPolicy::default();
+        let dep = dependency();
+        let denied = [
+            "https://169.254.169.254/repository.git",
+            "https://10.0.0.1/repository.git",
+            "https://192.168.1.1/repository.git",
+            "https://172.16.0.1/repository.git",
+            "https://100.64.0.1/repository.git",
+            "https://127.0.0.1/repository.git",
+            "https://0.0.0.0/repository.git",
+            "https://255.255.255.255/repository.git",
+            "https://224.0.0.1/repository.git",
+            "https://[::1]/repository.git",
+            "https://[::]/repository.git",
+            "https://[fe80::1]/repository.git",
+            "https://[fc00::1]/repository.git",
+            "https://[ff02::1]/repository.git",
+            "https://[::ffff:127.0.0.1]/repository.git",
+            "https://[::ffff:169.254.169.254]/repository.git",
+            "https://[::ffff:10.0.0.1]/repository.git",
+            "https://[::ffff:192.168.1.1]/repository.git",
+        ];
+        for source in denied {
+            for scope in [DependencyScope::TopLevel, DependencyScope::Transitive] {
+                let error = policy
+                    .check_git_url(&dep, &url(source), scope)
+                    .expect_err("non-public literal hosts must be rejected");
+                assert!(
+                    matches!(error, ResolverError::GitHostPolicyViolation { .. }),
+                    "`{source}` should be rejected by host policy; got: {error}"
+                );
+                assert!(
+                    !error.to_string().contains("configured allow list"),
+                    "non-public literal errors must not suggest allowlisting: {error}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn default_policy_allows_public_literal_hosts() {
+        let policy = ResolverPolicy::default();
+        let dep = dependency();
+        for source in [
+            "https://140.82.121.3/repository.git",
+            "https://[2606:4700:4700::1111]/repository.git",
+            "https://[::ffff:140.82.121.3]/repository.git",
+        ] {
+            policy
+                .check_git_url(&dep, &url(source), DependencyScope::TopLevel)
+                .expect("public literal hosts should be allowed");
+        }
+    }
+
+    #[test]
     fn rejects_non_public_ipv6_literal_hosts_before_dns() {
         let policy = ResolverPolicy::default();
         let dep = dependency();
@@ -499,7 +565,7 @@ mod tests {
                 .check_git_url(&dep, &url(source), DependencyScope::TopLevel)
                 .expect_err("non-public IPv6 literal hosts must be rejected");
             assert!(
-                matches!(error, ResolverError::GitHostNotAllowed { .. }),
+                matches!(error, ResolverError::GitHostPolicyViolation { .. }),
                 "got: {error}"
             );
         }
@@ -591,18 +657,47 @@ mod tests {
             ),
             "got: {error}"
         );
+        assert!(
+            error.to_string().contains("to allow it, add"),
+            "ordinary denied hosts should retain config guidance: {error}"
+        );
     }
 
     #[test]
     fn credentials_can_be_disabled_for_every_scope() {
         let policy = ResolverPolicy::default().without_credentials();
         assert_eq!(
-            policy.credential_mode(DependencyScope::TopLevel, Some("github.com")),
+            policy.credential_mode(
+                DependencyScope::TopLevel,
+                &url("https://github.com/org/repository.git")
+            ),
             CredentialMode::Disabled
         );
         assert_eq!(
-            policy.credential_mode(DependencyScope::Transitive, Some("github.com")),
+            policy.credential_mode(
+                DependencyScope::Transitive,
+                &url("https://github.com/org/repository.git")
+            ),
             CredentialMode::Disabled
+        );
+    }
+
+    #[test]
+    fn transitive_ipv6_literal_credentials_use_normalized_host() {
+        let policy = ResolverPolicy::try_from(&ModulesConfig {
+            allowed_transitive_hosts: vec!["2606:4700:4700::1111".into()],
+            ..ModulesConfig::default()
+        })
+        .unwrap();
+        let dep = dependency();
+        let url = url("https://[2606:4700:4700::1111]/repository.git");
+
+        policy
+            .check_git_url(&dep, &url, DependencyScope::Transitive)
+            .expect("allowlisted IPv6 literal should pass host policy");
+        assert_eq!(
+            policy.credential_mode(DependencyScope::Transitive, &url),
+            CredentialMode::Enabled
         );
     }
 
