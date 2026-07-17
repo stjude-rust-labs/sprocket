@@ -53,9 +53,12 @@ use crate::Config;
 use crate::FileReloadHandle;
 use crate::FilterReloadHandle;
 use crate::analysis::Analysis;
+use crate::analysis::AnalysisResults;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::container_lock::ExtractionMode;
+use crate::container_lock::LoadedLock;
 use crate::inputs::Invocation;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::SprocketCommand;
@@ -718,9 +721,28 @@ pub async fn run(
     let document = results.filter(&[&source]).next().unwrap().document();
 
     let (target, inputs) = resolve_inputs(&args, document).await?;
+    let loaded_lock = prepare_container_lock(
+        &source,
+        &results,
+        &inputs,
+        target.name(),
+        &config.run.engine.task.container,
+    )
+    .await?;
+    if let Some(lock) = &loaded_lock {
+        config.run.engine.container_lock = Some(lock.policy().clone());
+    }
 
-    let (ctx, run_dir, db) =
-        setup_run_context(handle, &args, &config, &source, &target, &inputs).await?;
+    let (ctx, run_dir, db) = setup_run_context(
+        handle,
+        &args,
+        &config,
+        &source,
+        &target,
+        &inputs,
+        loaded_lock.as_ref().map(LoadedLock::snapshot),
+    )
+    .await?;
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
     let events = Events::new(
@@ -898,6 +920,49 @@ async fn resolve_inputs(args: &Args, document: &Document) -> Result<(Arc<Target>
     Ok((target, inputs))
 }
 
+async fn prepare_container_lock(
+    source: &Source,
+    results: &AnalysisResults,
+    inputs: &Inputs,
+    target: &str,
+    default_container: &str,
+) -> Result<Option<LoadedLock>> {
+    let Some(path) = crate::container_lock::discover(source)? else {
+        return Ok(None);
+    };
+    tracing::info!("using container lock `{}`", path.display());
+    let loaded = crate::container_lock::load(&path)?;
+    let remediation = format!(
+        "run `sprocket dev lock --output {}` to regenerate it",
+        path.parent()
+            .expect("a discovered lock path has a parent")
+            .display()
+    );
+    let uses =
+        crate::container_lock::extract(results, default_container, ExtractionMode::Preflight)?;
+    for usage in uses {
+        loaded
+            .policy()
+            .resolve(&usage.source)
+            .await
+            .map_err(|error| {
+                anyhow!(
+                    "failed to preflight container in task `{}` in `{}`; {remediation}: {error:#}",
+                    usage.task,
+                    usage.document,
+                )
+            })?;
+    }
+    loaded
+        .policy()
+        .preflight_inputs(inputs, default_container, target)
+        .await
+        .map_err(|error| {
+            anyhow!("failed to preflight container input overrides; {remediation}: {error:#}")
+        })?;
+    Ok(Some(loaded))
+}
+
 /// Setup the run output directory and database for a run.
 async fn setup_run_context(
     log_handle: FileReloadHandle,
@@ -906,6 +971,7 @@ async fn setup_run_context(
     source: &Source,
     target: &Target,
     inputs: &Inputs,
+    lock_snapshot: Option<&[u8]>,
 ) -> Result<(RunContext, RunDirectory, Arc<dyn Database>)> {
     // Set up output directory structure
     let output_dir = OutputDirectory::new(
@@ -928,6 +994,9 @@ async fn setup_run_context(
 
     // Create the run directory
     let run_dir = create_run_directory(&output_dir, target.name(), args.suffix.as_deref())?;
+    if let Some(snapshot) = lock_snapshot {
+        copy_lock_snapshot(&run_dir, snapshot)?;
+    }
 
     // Now that the run directory is created, initialize file logging
     initialize_file_logging(log_handle, run_dir.root())?;
@@ -974,6 +1043,14 @@ async fn setup_run_context(
     Ok((ctx, run_dir, db))
 }
 
+fn copy_lock_snapshot(run_dir: &RunDirectory, snapshot: &[u8]) -> Result<()> {
+    fs::write(
+        run_dir.root().join(crate::container_lock::LOCK_FILE_NAME),
+        snapshot,
+    )
+    .context("failed to copy the effective container lock into the run directory")
+}
+
 /// Initializes logging to `output.log` in the given run directory.
 fn initialize_file_logging(handle: FileReloadHandle, run_dir: &Path) -> Result<()> {
     fs::create_dir_all(run_dir).with_context(|| {
@@ -994,4 +1071,175 @@ fn initialize_file_logging(handle: FileReloadHandle, run_dir: &Path) -> Result<(
     handle
         .reload(layer().with_ansi(false).with_writer(log_file))
         .context("failed to initialize file logging")
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use wdl::diagnostics::Mode;
+    use wdl::engine::Inputs;
+    use wdl::engine::PrimitiveValue;
+    use wdl::engine::TaskInputs;
+
+    use super::copy_lock_snapshot;
+    use super::prepare_container_lock;
+    use crate::analysis::Analysis;
+    use crate::analysis::AnalysisResults;
+    use crate::analysis::Source;
+    use crate::container_lock::LOCK_FILE_NAME;
+    use crate::container_lock::load;
+    use crate::system::v1::fs::OutputDirectory;
+    use crate::system::v1::fs::RunDirectory;
+
+    async fn analyzed_task(directory: &Path, container: Option<&str>) -> (Source, AnalysisResults) {
+        let path = directory.join("source.wdl");
+        let requirement = container
+            .map(|value| format!("requirements {{ container: \"{value}\" }}"))
+            .unwrap_or_default();
+        std::fs::write(
+            &path,
+            format!(
+                "version 1.2\n\
+                 task hello {{\n\
+                     command {{ echo hello }}\n\
+                     {requirement}\n\
+                 }}\n"
+            ),
+        )
+        .unwrap();
+        let source: Source = path.to_string_lossy().parse().unwrap();
+        let results = Analysis::default()
+            .add_source(source.clone())
+            .run(Mode::default(), false)
+            .await
+            .unwrap();
+        (source, results)
+    }
+
+    fn write_test_lock(path: &Path, tags: &[&str]) {
+        let images = tags
+            .iter()
+            .map(|tag| {
+                format!(
+                    "\"docker://docker.io/library/ubuntu:{tag}\" = \
+                     \"docker://docker.io/library/ubuntu@sha256:{}\"\n",
+                    "a".repeat(64)
+                )
+            })
+            .collect::<String>();
+        std::fs::write(
+            path,
+            format!(
+                "version = 1\n\
+                 generation_time = \"2026-07-17T20:00:00Z\"\n\
+                 [images]\n{images}\
+                 [sif_files]\n"
+            ),
+        )
+        .unwrap();
+    }
+
+    #[tokio::test]
+    async fn no_discovered_lock_preserves_current_behavior() {
+        let root = tempfile::tempdir().unwrap();
+        let (source, results) = analyzed_task(root.path(), Some("ubuntu:24.04")).await;
+        let loaded = prepare_container_lock(
+            &source,
+            &results,
+            &Inputs::Task(TaskInputs::default()),
+            "hello",
+            "ubuntu:latest",
+        )
+        .await
+        .unwrap();
+        assert!(loaded.is_none());
+    }
+
+    #[tokio::test]
+    async fn nearest_lock_is_loaded_and_static_sources_are_preflighted() {
+        let root = tempfile::tempdir().unwrap();
+        std::fs::create_dir(root.path().join(".git")).unwrap();
+        let nested = root.path().join("nested");
+        std::fs::create_dir(&nested).unwrap();
+        write_test_lock(&root.path().join(LOCK_FILE_NAME), &["20.04"]);
+        write_test_lock(&nested.join(LOCK_FILE_NAME), &["24.04"]);
+        let (source, results) = analyzed_task(&nested, Some("ubuntu:24.04")).await;
+        let loaded = prepare_container_lock(
+            &source,
+            &results,
+            &Inputs::Task(TaskInputs::default()),
+            "hello",
+            "ubuntu:latest",
+        )
+        .await
+        .unwrap()
+        .unwrap();
+        assert_eq!(loaded.path(), nested.join(LOCK_FILE_NAME));
+    }
+
+    #[tokio::test]
+    async fn missing_static_entry_fails_before_run_setup() {
+        let root = tempfile::tempdir().unwrap();
+        write_test_lock(&root.path().join(LOCK_FILE_NAME), &[]);
+        let (source, results) = analyzed_task(root.path(), Some("ubuntu:24.04")).await;
+        let error = prepare_container_lock(
+            &source,
+            &results,
+            &Inputs::Task(TaskInputs::default()),
+            "hello",
+            "ubuntu:latest",
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("hello"), "{error}");
+        assert!(error.contains("ubuntu"), "{error}");
+        assert!(error.contains(LOCK_FILE_NAME), "{error}");
+        assert!(error.contains("sprocket dev lock"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn task_input_container_override_is_preflighted() {
+        let root = tempfile::tempdir().unwrap();
+        write_test_lock(&root.path().join(LOCK_FILE_NAME), &["latest"]);
+        let (source, results) = analyzed_task(root.path(), None).await;
+        let mut task_inputs = TaskInputs::default();
+        task_inputs.override_requirement("container", PrimitiveValue::new_string("ubuntu:24.04"));
+        let error = prepare_container_lock(
+            &source,
+            &results,
+            &Inputs::Task(task_inputs),
+            "hello",
+            "ubuntu:latest",
+        )
+        .await
+        .unwrap_err()
+        .to_string();
+        assert!(error.contains("input override"), "{error}");
+        assert!(error.contains("hello"), "{error}");
+        assert!(error.contains("ubuntu"), "{error}");
+        assert!(error.contains(LOCK_FILE_NAME), "{error}");
+    }
+
+    #[test]
+    fn run_directory_uses_loaded_lock_snapshot_after_project_lock_changes() {
+        let root = tempfile::tempdir().unwrap();
+        let project_lock = root.path().join(LOCK_FILE_NAME);
+        let original =
+            b"version = 1\ngeneration_time = \"2026-07-17T20:00:00Z\"\nimages = {}\nsif_files = {}\n";
+        std::fs::write(&project_lock, original).unwrap();
+        let loaded = load(&project_lock).unwrap();
+        std::fs::write(&project_lock, b"mutated lock contents").unwrap();
+
+        let output = OutputDirectory::new(root.path().join("out"));
+        let run_dir = RunDirectory::new(output, "run");
+        std::fs::create_dir_all(run_dir.root()).unwrap();
+        copy_lock_snapshot(&run_dir, loaded.snapshot()).unwrap();
+
+        assert_eq!(
+            std::fs::read(run_dir.root().join(LOCK_FILE_NAME)).unwrap(),
+            original
+        );
+    }
 }
