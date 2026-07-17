@@ -12,8 +12,11 @@ mod add_remove;
 #[path = "module/lock.rs"]
 mod lock;
 
-#[path = "module/update_upgrade.rs"]
-mod update_upgrade;
+#[path = "module/update.rs"]
+mod update;
+
+#[path = "module/upgrade.rs"]
+mod upgrade;
 
 #[path = "module/trust.rs"]
 mod trust;
