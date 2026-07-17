@@ -4,7 +4,6 @@ use tempfile::tempdir;
 
 use super::checksum;
 use super::locked_git_entry;
-use super::locked_git_resolver;
 use super::module;
 use super::resolver_with_lockfile;
 use super::write_manifest;
@@ -24,6 +23,16 @@ fn hash_from_byte(byte: u8) -> crate::hash::ContentHash {
     format!("sha256:{}", hex::encode([byte; 32]))
         .parse()
         .unwrap()
+}
+
+fn locked_git_resolver(
+    cache: &tempfile::TempDir,
+    dep: &str,
+    entry: DependencyEntry,
+) -> crate::resolver::GitResolver {
+    let mut lockfile = Lockfile::default();
+    lockfile.dependencies.insert(dep.parse().unwrap(), entry);
+    resolver_with_lockfile(cache, lockfile)
 }
 
 /// A forbidden lockfile Git URL must be rejected by the resolver policy

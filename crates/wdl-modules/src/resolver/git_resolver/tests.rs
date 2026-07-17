@@ -103,16 +103,6 @@ pub(super) async fn resolve_and_lock_with_config(
     (locked, outcome.lockfile)
 }
 
-pub(super) fn locked_git_resolver(
-    cache: &TempDir,
-    dep: &str,
-    entry: DependencyEntry,
-) -> GitResolver {
-    let mut lockfile = Lockfile::default();
-    lockfile.dependencies.insert(dep.parse().unwrap(), entry);
-    resolver_with_lockfile(cache, lockfile)
-}
-
 pub(super) fn locked_git_entry(selector: GitSelector) -> DependencyEntry {
     locked_git_entry_with(
         "https://github.com/openwdl/tasks",
