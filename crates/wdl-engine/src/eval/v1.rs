@@ -16,6 +16,15 @@ use std::sync::Mutex;
 use anyhow::Context;
 use anyhow::Result;
 pub(crate) use expr::*;
+/// Task requirement types exposed for callers that inspect analyzed WDL.
+pub mod requirements {
+    pub use super::task::requirements::ContainerSource;
+    pub(crate) use super::task::requirements::container;
+    pub(crate) use super::task::requirements::cpu;
+    pub(crate) use super::task::requirements::disks;
+    pub(crate) use super::task::requirements::gpu;
+    pub(crate) use super::task::requirements::memory;
+}
 use serde::Serialize;
 pub(crate) use task::*;
 use tokio::sync::broadcast;

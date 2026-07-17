@@ -14,6 +14,12 @@ use wdl::engine::ContainerLock;
 
 use crate::analysis::Source;
 
+mod extract;
+
+pub use extract::ContainerUse;
+pub use extract::ExtractionMode;
+pub use extract::extract;
+
 /// The container lock file name.
 pub const LOCK_FILE_NAME: &str = "sprocket.lock";
 
@@ -214,9 +220,8 @@ mod tests {
         let digest = format!("sha256:{}", "a".repeat(64));
         let path = root.path().join(LOCK_FILE_NAME);
         let contents = format!(
-            "generation_time = \"2025-06-25 13:00:00 UTC\"\n\
-             [images]\n\
-             \"ubuntu:24.04\" = \"ubuntu@{digest}\"\n"
+            "generation_time = \"2025-06-25 13:00:00 UTC\"\n[images]\n\"ubuntu:24.04\" = \
+             \"ubuntu@{digest}\"\n"
         );
         std::fs::write(&path, &contents)?;
 
@@ -237,10 +242,9 @@ mod tests {
         std::fs::write(
             &path,
             format!(
-                "generation_time = \"2025-06-25 13:00:00 UTC\"\n\
-                 [images]\n\
-                 \"ubuntu:24.04\" = \"ubuntu@{digest}\"\n\
-                 \"docker://docker.io/library/ubuntu:24.04\" = \"docker://docker.io/library/ubuntu@{digest}\"\n"
+                "generation_time = \"2025-06-25 13:00:00 UTC\"\n[images]\n\"ubuntu:24.04\" = \
+                 \"ubuntu@{digest}\"\n\"docker://docker.io/library/ubuntu:24.04\" = \
+                 \"docker://docker.io/library/ubuntu@{digest}\"\n"
             ),
         )?;
 

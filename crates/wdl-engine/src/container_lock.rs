@@ -9,7 +9,6 @@ use std::path::PathBuf;
 use anyhow::Context;
 use anyhow::Result;
 use path_clean::PathClean;
-
 pub use reference::RegistryReference;
 pub use reference::RegistryTransport;
 use reference::validate_sha256;
@@ -236,7 +235,7 @@ pub async fn sha256_file(path: &Path) -> Result<String> {
     encoded.push_str("sha256:");
     for byte in digest {
         encoded.push(HEX[(byte >> 4) as usize] as char);
-        encoded.push(HEX[(byte & 0x0f) as usize] as char);
+        encoded.push(HEX[(byte & 0x0F) as usize] as char);
     }
     Ok(encoded)
 }
