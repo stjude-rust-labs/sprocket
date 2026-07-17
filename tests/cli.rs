@@ -310,6 +310,7 @@ fn normalize_string(input: &str, temp_dir: &Path) -> String {
     s.to_string()
 }
 
+/// Collapses repeated `/` characters outside URI schemes to a single slash.
 fn collapse_path_slashes(input: &str) -> String {
     static URI_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
         // SAFETY: the fixture normalization regex is a tested constant.
@@ -327,6 +328,7 @@ fn collapse_path_slashes(input: &str) -> String {
     normalized
 }
 
+/// Appends `input` to `output` after collapsing consecutive `/` runs.
 fn collapse_slashes_into(input: &str, output: &mut String) {
     static SLASH_RUN_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
         // SAFETY: the fixture normalization regex is a tested constant.
