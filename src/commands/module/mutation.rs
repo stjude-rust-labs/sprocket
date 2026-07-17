@@ -116,15 +116,27 @@ impl ProjectMutation {
             Ok(()) => transaction.finish(),
             Err(source) => match transaction.rollback() {
                 Ok(()) => Err(source),
-                Err(rollback) => Err(rollback_error(source, rollback)),
+                Err(rollback) => Err(rollback_error(
+                    source,
+                    rollback,
+                    &project.manifest_path,
+                    &project.lockfile_path,
+                )),
             },
         }
     }
 }
 
-fn rollback_error(source: anyhow::Error, rollback: anyhow::Error) -> anyhow::Error {
+fn rollback_error(
+    source: anyhow::Error,
+    rollback: anyhow::Error,
+    manifest_path: &Path,
+    lockfile_path: &Path,
+) -> anyhow::Error {
     source.context(format!(
-        "rolling back the interrupted module project mutation also failed; {rollback:#}"
+        "rolling back the interrupted module project mutation also failed; inspect manifest `{}` and lockfile `{}` for manual recovery; {rollback:#}",
+        manifest_path.display(),
+        lockfile_path.display(),
     ))
 }
 
@@ -501,14 +513,20 @@ mod tests {
 
     #[test]
     fn rollback_failure_preserves_original_mutation_failure() {
+        let manifest_path = Path::new("/worktree/module.json");
+        let lockfile_path = Path::new("/worktree/module-lock.json");
         let error = rollback_error(
             anyhow::anyhow!("writing `module-lock.json` failed"),
             anyhow::anyhow!("restoring `module.json` failed"),
+            manifest_path,
+            lockfile_path,
         );
         let rendered = format!("{error:#}");
 
         assert!(rendered.contains("writing `module-lock.json` failed"));
         assert!(rendered.contains("restoring `module.json` failed"));
+        assert!(rendered.contains("/worktree/module.json"));
+        assert!(rendered.contains("/worktree/module-lock.json"));
     }
 
     #[test]
