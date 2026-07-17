@@ -3,6 +3,7 @@
 
 use std::fs;
 
+use git2::Repository;
 use wdl_modules::Manifest;
 
 use crate::fixtures::*;
@@ -141,4 +142,48 @@ fn module_commands_reject_missing_manifest_path() {
     assert!(!output.status.success());
     let stderr = String::from_utf8_lossy(&output.stderr);
     assert!(stderr.contains("does not exist"), "stderr: {stderr}");
+}
+
+#[test]
+fn init_infers_git_author_and_sanitized_repository() {
+    let dir = tempfile::tempdir().unwrap();
+    let repo = Repository::init(dir.path()).unwrap();
+    let mut config = repo.config().unwrap();
+    config.set_str("user.name", "Module Author").unwrap();
+    config.set_str("user.email", "author@example.com").unwrap();
+    repo.remote(
+        "origin",
+        "https://fixture:secret@example.com/acme/module.git",
+    )
+    .unwrap();
+
+    let output = sprocket(&[
+        "dev",
+        "module",
+        "init",
+        "--name",
+        "demo",
+        "--license",
+        "MIT",
+    ])
+    .current_dir(dir.path())
+    .output()
+    .expect("failed to run sprocket");
+    assert!(
+        output.status.success(),
+        "command failed {status}: {stderr}",
+        status = output.status,
+        stderr = String::from_utf8_lossy(&output.stderr)
+    );
+
+    let manifest: serde_json::Value =
+        serde_json::from_slice(&fs::read(dir.path().join("module.json")).unwrap()).unwrap();
+    assert_eq!(
+        manifest["authors"],
+        serde_json::json!(["Module Author <author@example.com>"])
+    );
+    assert_eq!(
+        manifest["repository"],
+        "https://example.com/acme/module.git"
+    );
 }
