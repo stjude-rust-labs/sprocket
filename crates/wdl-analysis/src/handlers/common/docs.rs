@@ -5,6 +5,7 @@ use std::fmt::Write;
 use lsp_types::Documentation;
 use lsp_types::MarkupContent;
 use rowan::TextSize;
+use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
@@ -22,11 +23,14 @@ use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::v1::format_meta_value;
 use wdl_ast::v1::get_param_meta;
+use wdl_grammar::SyntaxNode;
 
-use crate::document::Enum;
-use crate::document::Struct;
-use crate::document::Task;
+use crate::EnumRef;
+use crate::StructRef;
+use crate::TaskRef;
 use crate::document::Workflow;
+use crate::graph::DocumentGraph;
+use crate::graph::ParseState;
 
 /// Makes a LSP documentation from a definition text.
 pub fn make_md_docs(definition: String) -> Option<Documentation> {
@@ -297,12 +301,35 @@ fn render_enum_doc(n: &EnumDefinition, computed_type: Option<&str>) -> String {
     s
 }
 
+/// Get the CST root for an item that may be imported.
+fn get_root(
+    graph: &DocumentGraph,
+    current_root: &wdl_ast::Document,
+    source: Option<std::sync::Arc<Url>>,
+) -> Option<SyntaxNode> {
+    if let Some(uri) = source {
+        if let Some(idx) = graph.get_index(&uri) {
+            let node = graph.get(idx);
+            if let ParseState::Parsed { root, .. } = node.parse_state() {
+                return Some(SyntaxNode::new_root(root.clone()));
+            }
+        }
+        None
+    } else {
+        Some(current_root.inner().clone())
+    }
+}
+
 /// Provides documentation for tasks which includes `inputs`, `outputs`,
 /// `metadata`, `runtime`
-pub fn provide_task_documentation(task: &Task, root: &wdl_ast::Document) -> Option<String> {
+pub fn provide_task_documentation(
+    task: &TaskRef<'_>,
+    root: &wdl_ast::Document,
+    graph: &DocumentGraph,
+) -> Option<String> {
+    let root_node = get_root(graph, root, task.source())?;
     match TextSize::try_from(task.name_span().start()) {
-        Ok(offset) => root
-            .inner()
+        Ok(offset) => root_node
             .token_at_offset(offset)
             .left_biased()
             .and_then(|t| t.parent_ancestors().find_map(TaskDefinition::cast))
@@ -330,12 +357,13 @@ pub fn provide_workflow_documentation(
 
 /// Provides documentation for structs.
 pub fn provide_struct_documentation(
-    struct_info: &Struct,
+    struct_info: &StructRef<'_>,
     root: &wdl_ast::Document,
+    graph: &DocumentGraph,
 ) -> Option<String> {
+    let root_node = get_root(graph, root, struct_info.source())?;
     match TextSize::try_from(struct_info.name_span().start()) {
-        Ok(offset) => root
-            .inner()
+        Ok(offset) => root_node
             .token_at_offset(offset)
             .left_biased()
             .and_then(|t| t.parent_ancestors().find_map(StructDefinition::cast))
@@ -345,10 +373,14 @@ pub fn provide_struct_documentation(
 }
 
 /// Provides documentation for enums.
-pub fn provide_enum_documentation(enum_info: &Enum, root: &wdl_ast::Document) -> Option<String> {
+pub fn provide_enum_documentation(
+    enum_info: &EnumRef<'_>,
+    root: &wdl_ast::Document,
+    graph: &DocumentGraph,
+) -> Option<String> {
+    let root_node = get_root(graph, root, enum_info.source())?;
     match TextSize::try_from(enum_info.name_span().start()) {
-        Ok(offset) => root
-            .inner()
+        Ok(offset) => root_node
             .token_at_offset(offset)
             .left_biased()
             .and_then(|t| t.parent_ancestors().find_map(EnumDefinition::cast))

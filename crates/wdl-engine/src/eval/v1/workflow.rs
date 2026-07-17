@@ -191,7 +191,7 @@ impl EvaluationContext for WorkflowEvaluationContext<'_, '_> {
             .document
             .enum_by_name(enum_name)
             .ok_or(unknown_enum(enum_name))?;
-        let value = resolve_enum_choice_value(r#enum, choice_name)?;
+        let value = resolve_enum_choice_value(&r#enum, choice_name)?;
 
         let mut cache = self.state.evaluator.choice_cache.lock().unwrap();
         cache.insert(cache_key, value.clone());
@@ -673,7 +673,7 @@ impl Evaluator {
         debug!(
             workflow_id = id,
             workflow_name = workflow.name(),
-            document = document.uri().as_str(),
+            document = %document.uri(),
             "evaluating workflow",
         );
 
@@ -846,7 +846,7 @@ impl State {
                         debug!(
                             workflow_id = id.as_str(),
                             workflow_name = self.document.workflow().unwrap().name(),
-                            document = self.document.uri().as_str(),
+                            document = %self.document.uri(),
                             call_name = call_name.text(),
                             "evaluation of call statement has completed",
                         )
@@ -854,7 +854,7 @@ impl State {
                     WorkflowGraphNode::ConditionalClause(clause, _) => debug!(
                         workflow_id = id.as_str(),
                         workflow_name = self.document.workflow().unwrap().name(),
-                        document = self.document.uri().as_str(),
+                        document = %self.document.uri(),
                         clause_kind = format!("{}", clause.kind()),
                         expr = clause.expr().as_ref().map(|e| e.text().to_string()),
                         "evaluation of conditional clause has completed"
@@ -862,7 +862,7 @@ impl State {
                     WorkflowGraphNode::Conditional(..) => debug!(
                         workflow_id = id.as_str(),
                         workflow_name = self.document.workflow().unwrap().name(),
-                        document = self.document.uri().as_str(),
+                        document = %self.document.uri(),
                         "evaluation of conditional statement has completed",
                     ),
                     WorkflowGraphNode::Scatter(stmt, _) => {
@@ -870,7 +870,7 @@ impl State {
                         debug!(
                             workflow_id = id.as_str(),
                             workflow_name = self.document.workflow().unwrap().name(),
-                            document = self.document.uri().as_str(),
+                            document = %self.document.uri(),
                             variable = variable.text(),
                             "evaluation of scatter statement has completed",
                         )
@@ -891,7 +891,7 @@ impl State {
                 trace!(
                     workflow_id = id.as_str(),
                     workflow_name = self.document.workflow().unwrap().name(),
-                    document = self.document.uri().as_str(),
+                    document = %self.document.uri(),
                     "evaluating node `{n:?}` ({node:?})",
                     n = self.graph[node]
                 );
@@ -994,7 +994,7 @@ impl State {
                     debug!(
                         workflow_id = id,
                         workflow_name = self.document.workflow().unwrap().name(),
-                        document = self.document.uri().as_str(),
+                        document = %self.document.uri(),
                         input_name = name.text(),
                         "evaluating input default expression",
                     );
@@ -1012,7 +1012,7 @@ impl State {
                     debug!(
                         workflow_id = id,
                         workflow_name = self.document.workflow().unwrap().name(),
-                        document = self.document.uri().as_str(),
+                        document = %self.document.uri(),
                         input_name = name.text(),
                         "evaluating input default expression",
                     );
@@ -1089,7 +1089,7 @@ impl State {
         debug!(
             workflow_id = id,
             workflow_name = self.document.workflow().unwrap().name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             decl_name = name.text(),
             "evaluating private declaration",
         );
@@ -1152,7 +1152,7 @@ impl State {
         debug!(
             workflow_id = id,
             workflow_name = self.document.workflow().unwrap().name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             output_name = name.text(),
             "evaluating output",
         );
@@ -1239,7 +1239,7 @@ impl State {
                 debug!(
                     workflow_id = id.as_str(),
                     workflow_name = self.document.workflow().unwrap().name(),
-                    document = self.document.uri().as_str(),
+                    document = %self.document.uri(),
                     expr = expr.text().to_string(),
                     "evaluating conditional statement expression",
                 );
@@ -1264,7 +1264,7 @@ impl State {
                     debug!(
                         workflow_id = id.as_str(),
                         workflow_name = self.document.workflow().unwrap().name(),
-                        document = self.document.uri().as_str(),
+                        document = %self.document.uri(),
                         "conditional statement branch was not taken and subgraph will be skipped"
                     );
                     continue;
@@ -1273,7 +1273,7 @@ impl State {
                 debug!(
                     workflow_id = id.as_str(),
                     workflow_name = self.document.workflow().unwrap().name(),
-                    document = self.document.uri().as_str(),
+                    document = %self.document.uri(),
                     expr = expr.text().to_string(),
                     "conditional statement branch was taken and subgraph will be evaluated"
                 );
@@ -1282,7 +1282,7 @@ impl State {
                 debug!(
                     workflow_id = id.as_str(),
                     workflow_name = self.document.workflow().unwrap().name(),
-                    document = self.document.uri().as_str(),
+                    document = %self.document.uri(),
                     "else branch was taken and subgraph will be evaluated"
                 );
             }
@@ -1349,7 +1349,7 @@ impl State {
         debug!(
             workflow_id = id.as_str(),
             workflow_name = self.document.workflow().unwrap().name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             "no conditional statement branch was taken"
         );
 
@@ -1430,7 +1430,7 @@ impl State {
         debug!(
             workflow_id = id.as_str(),
             workflow_name = self.document.workflow().unwrap().name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             variable = variable.text(),
             "evaluating scatter statement",
         );
@@ -1655,7 +1655,7 @@ impl State {
         debug!(
             workflow_id = id,
             workflow_name = self.document.workflow().unwrap().name(),
-            document = self.document.uri().as_str(),
+            document = %self.document.uri(),
             call_name = alias.text(),
             "evaluating call statement",
         );
@@ -1681,53 +1681,55 @@ impl State {
             .as_ref()
             .map(|(_, ns)| ns.document())
             .unwrap_or(&self.document);
+
         // Resolve the call target against the namespaced document (or the
         // local document). A task or workflow re-exported into that
         // document by a scope-merging import resolves to its defining
         // document, so a namespaced call can reach a module's curated
         // surface.
-        let (mut inputs, call_target) = if let Some(task) = document.task_by_name(target.text()) {
-            (
-                inputs.unwrap_or_else(|| Inputs::Task(Default::default())),
-                Target::Task(task),
-            )
-        } else if document
-            .workflow()
-            .is_some_and(|w| w.name() == target.text())
-        {
-            (
-                inputs.unwrap_or_else(|| Inputs::Workflow(Default::default())),
-                Target::Workflow,
-            )
-        } else if let Some(imported) = document.imported_task_by_name(target.text())
-            && let Some(task) = imported.document().task_by_name(imported.name())
-        {
-            document = imported.document();
-            (
-                inputs.unwrap_or_else(|| Inputs::Task(Default::default())),
-                Target::Task(task),
-            )
-        } else if let Some(imported) = document.imported_workflow_by_name(target.text())
-            && imported
-                .document()
+        let (mut inputs, call_target) =
+            if let Some(task) = document.local_task_by_name(target.text()) {
+                (
+                    inputs.unwrap_or_else(|| Inputs::Task(Default::default())),
+                    Target::Task(task),
+                )
+            } else if document
                 .workflow()
-                .is_some_and(|w| w.name() == imported.name())
-        {
-            document = imported.document();
-            (
-                inputs.unwrap_or_else(|| Inputs::Workflow(Default::default())),
-                Target::Workflow,
-            )
-        } else {
-            return Err(EvaluationError::new(
-                self.document.clone(),
-                unknown_task_or_workflow(
-                    namespace.as_ref().map(|(_, ns)| ns.span()),
-                    target.text(),
-                    target.span(),
-                ),
-            ));
-        };
+                .is_some_and(|w| w.name() == target.text())
+            {
+                (
+                    inputs.unwrap_or_else(|| Inputs::Workflow(Default::default())),
+                    Target::Workflow,
+                )
+            } else if let Some(imported) = document.imported_task_by_name(target.text())
+                && let Some(task) = imported.document().local_task_by_name(imported.name())
+            {
+                document = imported.document();
+                (
+                    inputs.unwrap_or_else(|| Inputs::Task(Default::default())),
+                    Target::Task(task),
+                )
+            } else if let Some(imported) = document.imported_workflow_by_name(target.text())
+                && imported
+                    .document()
+                    .workflow()
+                    .is_some_and(|w| w.name() == imported.name())
+            {
+                document = imported.document();
+                (
+                    inputs.unwrap_or_else(|| Inputs::Workflow(Default::default())),
+                    Target::Workflow,
+                )
+            } else {
+                return Err(EvaluationError::new(
+                    self.document.clone(),
+                    unknown_task_or_workflow(
+                        namespace.as_ref().map(|(_, ns)| ns.span()),
+                        target.text(),
+                        target.span(),
+                    ),
+                ));
+            };
 
         // Evaluate the inputs
         let scatter_index = self

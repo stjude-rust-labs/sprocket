@@ -859,12 +859,14 @@ async fn execute_task_target(
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
 ) -> Result<Option<Outputs>, EvaluationError> {
-    let task = document.task_by_name(target.name()).with_context(|| {
-        format!(
-            "task `{name}` was not found in the document",
-            name = target.name()
-        )
-    })?;
+    let task = document
+        .local_task_by_name(target.name())
+        .with_context(|| {
+            format!(
+                "task `{name}` was not found in the document",
+                name = target.name()
+            )
+        })?;
 
     // Ensure the inputs are for a task
     if inputs.as_task_inputs().is_none() {

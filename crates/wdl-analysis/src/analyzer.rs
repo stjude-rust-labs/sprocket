@@ -207,6 +207,15 @@ pub enum SourcePositionEncoding {
     UTF16,
 }
 
+/// Represents an edit to a document's source after it has been applied.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AppliedEdit {
+    /// The range in the old string that was replaced.
+    pub range: Range<usize>,
+    /// The length of the new text that replaced it.
+    pub replacement_length: usize,
+}
+
 /// Represents an edit to a document's source.
 #[derive(Debug, Clone)]
 pub struct SourceEdit {
@@ -239,8 +248,13 @@ impl SourceEdit {
         self.range.start..self.range.end
     }
 
+    /// The replacement text.
+    pub(crate) fn text(&self) -> &str {
+        &self.text
+    }
+
     /// Applies the edit to the given string if it's in range.
-    pub(crate) fn apply(&self, source: &mut String, lines: &LineIndex) -> Result<()> {
+    pub(crate) fn apply(&self, source: &mut String, lines: &LineIndex) -> Result<Range<usize>> {
         let (start, end) = match self.encoding {
             SourcePositionEncoding::UTF8 => (
                 LineCol {
@@ -291,8 +305,8 @@ impl SourceEdit {
             bail!("edit end position is not at a character boundary");
         }
 
-        source.replace_range(range, &self.text);
-        Ok(())
+        source.replace_range(range.clone(), &self.text);
+        Ok(range)
     }
 }
 
