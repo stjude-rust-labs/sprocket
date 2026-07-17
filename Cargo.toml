@@ -49,6 +49,7 @@ convert_case = "0.11.0"
 crankshaft = { version = "0.10.0", features = ["docker"] }
 criterion = "0.8.2"
 dirs = "6.0.0"
+docker_credential = "1.4.0"
 dyn-clone = "1.0.20"
 ed25519-dalek = "2.2.0"
 faster-hex = "0.10.0"
@@ -76,6 +77,7 @@ mimalloc = "0.1.52"
 nonempty = "0.12.0"
 notify = "8.2.0"
 num_enum = "0.7.5"
+oci-client = { version = "0.17.0", default-features = false, features = ["rustls-tls"] }
 oci-spec = { version = "0.9", default-features = false, features = ["distribution"] }
 opener = "0.8.4"
 ordered-float = "5.1.0"
@@ -199,6 +201,7 @@ codespan-reporting.workspace = true
 colored.workspace = true
 crankshaft.workspace = true
 dirs.workspace = true
+docker_credential.workspace = true
 futures.workspace = true
 git-testament.workspace = true
 indexmap.workspace = true
@@ -206,6 +209,7 @@ indicatif.workspace = true
 itertools.workspace = true
 mimalloc.workspace = true
 nonempty.workspace = true
+oci-client.workspace = true
 opener.workspace = true
 path-clean.workspace = true
 pathdiff.workspace = true

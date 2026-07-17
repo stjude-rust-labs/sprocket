@@ -15,10 +15,13 @@ use wdl::engine::ContainerLock;
 use crate::analysis::Source;
 
 mod extract;
+mod registry;
 
 pub use extract::ContainerUse;
 pub use extract::ExtractionMode;
 pub use extract::extract;
+pub(crate) use registry::RegistryResolver;
+pub(crate) use registry::ResolveRegistryReferences;
 
 /// The container lock file name.
 pub const LOCK_FILE_NAME: &str = "sprocket.lock";
