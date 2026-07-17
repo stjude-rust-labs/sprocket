@@ -1,5 +1,9 @@
 //! Module-specific value formatting.
 
+use wdl_modules::dependency::GitSelector;
+use wdl_modules::lockfile::ResolvedSource;
+use wdl_modules::resolver::DependencyUpdate;
+
 /// Formats a dependency update for an action line.
 #[cfg(test)]
 fn update_message(
@@ -11,21 +15,74 @@ fn update_message(
     from_commit: Option<&str>,
     to_commit: Option<&str>,
 ) -> String {
-    format!(
-        "Updated `{name}`{}",
-        update_details(
-            from_path,
-            to_path,
-            from_selector,
-            to_selector,
-            from_commit,
-            to_commit
-        )
+    let details = update_details(
+        from_path,
+        to_path,
+        from_selector,
+        to_selector,
+        from_commit,
+        to_commit,
+    );
+    if details.is_empty() {
+        format!("Updated `{name}`")
+    } else {
+        format!("Updated `{name}` ({details})")
+    }
+}
+
+/// Formats a Git selector for user-facing output.
+pub(crate) fn git_selector(selector: &GitSelector) -> String {
+    selector_detail(&selector.to_string())
+}
+
+/// Formats a resolved dependency source for tree and table output.
+pub(crate) fn resolved_source(source: &ResolvedSource) -> String {
+    match source {
+        ResolvedSource::Git {
+            git,
+            sha,
+            path,
+            selector,
+        } => {
+            let mut parts = vec![
+                format!("source: {git}"),
+                format!(
+                    "selector: {} @{}",
+                    git_selector(selector),
+                    short_commit(sha.as_str())
+                ),
+            ];
+            if let Some(path) = path {
+                parts.push(format!("path: {path}"));
+            }
+            format!("({})", parts.join(", "))
+        }
+        ResolvedSource::Path { path } => format!("(source: {})", path.display()),
+    }
+}
+
+/// Formats a dependency lockfile update without surrounding delimiters.
+pub(crate) fn dependency_update(change: &DependencyUpdate) -> String {
+    update_details(
+        change.from_path.as_deref(),
+        change.to_path.as_deref(),
+        change.from_selector.as_deref(),
+        change.to_selector.as_deref(),
+        change.from_commit.as_deref(),
+        change.to_commit.as_deref(),
     )
 }
 
-/// Formats selector, path, and commit changes.
-pub(crate) fn update_details(
+/// Formats a version constraint as a release label.
+pub(crate) fn version_constraint(requirement: &str) -> String {
+    let version = requirement
+        .trim()
+        .trim_start_matches(['^', '=', '~', '>', '<'])
+        .trim_start_matches('=');
+    format!("v{version}")
+}
+
+fn update_details(
     from_path: Option<&str>,
     to_path: Option<&str>,
     from_selector: Option<&str>,
@@ -73,11 +130,7 @@ pub(crate) fn update_details(
         ));
     }
 
-    if !details.is_empty() {
-        return format!(" ({})", details.join(", "));
-    }
-
-    String::new()
+    details.join(", ")
 }
 
 fn selector_detail(selector: &str) -> String {
@@ -87,7 +140,7 @@ fn selector_detail(selector: &str) -> String {
     )
 }
 
-fn short_commit(commit: &str) -> &str {
+pub(crate) fn short_commit(commit: &str) -> &str {
     &commit[..7.min(commit.len())]
 }
 

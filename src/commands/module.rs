@@ -24,7 +24,11 @@ pub mod update;
 pub mod upgrade;
 pub mod verify;
 
-pub(crate) use display::update_details;
+pub(crate) use display::dependency_update;
+pub(crate) use display::git_selector;
+pub(crate) use display::resolved_source;
+pub(crate) use display::short_commit;
+pub(crate) use display::version_constraint;
 pub(crate) use manifest::align_temp_permissions;
 pub(crate) use manifest::parse_manifest_value;
 pub use manifest::read_manifest_value;

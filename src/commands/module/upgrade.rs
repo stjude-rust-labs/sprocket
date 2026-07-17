@@ -24,6 +24,7 @@ use crate::commands::module::LockedProject;
 use crate::commands::module::Project;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
+use crate::commands::module::dependency_update;
 use crate::commands::module::discover;
 use crate::commands::module::enforce_lockfile_signer_policy;
 use crate::commands::module::load_lockfile;
@@ -31,6 +32,7 @@ use crate::commands::module::parse_manifest_value;
 use crate::commands::module::read_manifest_value;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
+use crate::commands::module::version_constraint;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
 use crate::commands::output::count_noun;
@@ -273,20 +275,7 @@ fn print_lockfile_change_details(
     stats: &wdl_modules::resolver::RelockStats,
 ) {
     for change in &stats.updated {
-        output.detail(
-            change.name.manifest(),
-            crate::commands::module::update_details(
-                change.from_path.as_deref(),
-                change.to_path.as_deref(),
-                change.from_selector.as_deref(),
-                change.to_selector.as_deref(),
-                change.from_commit.as_deref(),
-                change.to_commit.as_deref(),
-            )
-            .trim()
-            .trim_start_matches('(')
-            .trim_end_matches(')'),
-        );
+        output.detail(change.name.manifest(), dependency_update(change));
     }
 }
 
@@ -296,8 +285,8 @@ fn print_upgrade_details(output: CommandOutput, changed: &[(DependencyName, Stri
             name.manifest(),
             format!(
                 "{} -> {}",
-                version_display(old_req),
-                version_display(new_req)
+                version_constraint(old_req),
+                version_constraint(new_req)
             ),
         );
     }
@@ -342,12 +331,4 @@ fn set_version_selector(
         serde_json::Value::String(version_req.to_string()),
     );
     Ok(())
-}
-
-fn version_display(req: &str) -> String {
-    let version = req
-        .trim()
-        .trim_start_matches(['^', '=', '~', '>', '<'])
-        .trim_start_matches('=');
-    format!("v{version}")
 }

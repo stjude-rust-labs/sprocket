@@ -19,12 +19,12 @@ use crate::commands::module::LockedProject;
 use crate::commands::module::Project;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
+use crate::commands::module::dependency_update;
 use crate::commands::module::discover;
 use crate::commands::module::enforce_lockfile_signer_policy;
 use crate::commands::module::load_lockfile;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
-use crate::commands::module::update_details;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
 use crate::commands::output::count_noun;
@@ -159,19 +159,6 @@ fn print_update_outcome(
         output.completed(UPDATE, count);
     }
     for change in &stats.updated {
-        output.detail(
-            change.name.manifest(),
-            update_details(
-                change.from_path.as_deref(),
-                change.to_path.as_deref(),
-                change.from_selector.as_deref(),
-                change.to_selector.as_deref(),
-                change.from_commit.as_deref(),
-                change.to_commit.as_deref(),
-            )
-            .trim()
-            .trim_start_matches('(')
-            .trim_end_matches(')'),
-        );
+        output.detail(change.name.manifest(), dependency_update(change));
     }
 }

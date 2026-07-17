@@ -21,10 +21,12 @@ use crate::commands::module::LockedProject;
 use crate::commands::module::TrustModeArg;
 use crate::commands::module::build_resolver;
 use crate::commands::module::discover;
+use crate::commands::module::git_selector;
 use crate::commands::module::parse_manifest_value;
 use crate::commands::module::read_manifest_value;
 use crate::commands::module::resolve_relock_for_manifest;
 use crate::commands::module::set_dependency;
+use crate::commands::module::short_commit;
 use crate::commands::module::signer_change_mode;
 use crate::commands::module::trace_project;
 use crate::commands::output::Action;
@@ -288,25 +290,12 @@ fn print_source_details(output: CommandOutput, source: &DependencySource) {
             ..
         } => {
             output.detail("Source", url);
-            output.detail("Selector", selector_display(selector));
+            output.detail("Selector", git_selector(selector));
             if let Some(path) = path {
                 output.detail("Path", path);
             }
         }
     }
-}
-
-fn selector_display(selector: &GitSelector) -> String {
-    match selector {
-        GitSelector::Version(requirement) => format!("version `{requirement}`"),
-        GitSelector::Tag(tag) => format!("tag `{tag}`"),
-        GitSelector::Branch(branch) => format!("branch `{branch}`"),
-        GitSelector::Commit(commit) => format!("commit `{commit}`"),
-    }
-}
-
-fn short_commit(commit: &str) -> &str {
-    &commit[..7.min(commit.len())]
 }
 
 fn local_dependency_path(source: &str, module_path: Option<&str>) -> anyhow::Result<PathBuf> {

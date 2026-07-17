@@ -4,14 +4,13 @@ use std::collections::BTreeSet;
 
 use clap::Parser;
 use wdl_modules::Lockfile;
-use wdl_modules::dependency::GitSelector;
 use wdl_modules::lockfile::DependencyMap;
-use wdl_modules::lockfile::ResolvedSource;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::discover;
 use crate::commands::module::require_lockfile;
+use crate::commands::module::resolved_source;
 use crate::commands::module::trace_project;
 use crate::commands::output::CommandOutput;
 
@@ -74,7 +73,7 @@ pub async fn list(args: ListArgs, output: CommandOutput) -> CommandResult<()> {
     } else {
         lock.dependencies
             .iter()
-            .map(|(name, entry)| (name.manifest().to_string(), source_desc(&entry.source)))
+            .map(|(name, entry)| (name.manifest().to_string(), resolved_source(&entry.source)))
             .collect::<Vec<_>>()
     };
     tracing::debug!(
@@ -105,7 +104,7 @@ fn print_tree_level(
         output.payload(format!(
             "{prefix}{connector}{} {}",
             name.manifest(),
-            source_desc(&entry.source)
+            resolved_source(&entry.source)
         ));
 
         if max_depth.is_some_and(|d| depth >= d) {
@@ -127,45 +126,13 @@ fn print_tree_level(
     }
 }
 
-fn source_desc(source: &ResolvedSource) -> String {
-    match source {
-        ResolvedSource::Git {
-            git,
-            sha,
-            path,
-            selector,
-        } => {
-            let short = &sha.as_str()[..7.min(sha.as_str().len())];
-            let selector = selector_text(selector);
-            let mut parts = vec![
-                format!("source: {git}"),
-                format!("selector: {selector} @{short}"),
-            ];
-            if let Some(path) = path {
-                parts.push(format!("path: {path}"));
-            }
-            format!("({})", parts.join(", "))
-        }
-        ResolvedSource::Path { path } => format!("(source: {})", path.display()),
-    }
-}
-
-fn selector_text(selector: &GitSelector) -> String {
-    match selector {
-        GitSelector::Version(requirement) => format!("version `{requirement}`"),
-        GitSelector::Tag(tag) => format!("tag `{tag}`"),
-        GitSelector::Branch(branch) => format!("branch `{branch}`"),
-        GitSelector::Commit(commit) => format!("commit `{commit}`"),
-    }
-}
-
 fn collect_all_rows(lock: &Lockfile, rows: &mut BTreeSet<(String, String)>) {
     collect_rows_from_map(&lock.dependencies, rows);
 }
 
 fn collect_rows_from_map(entries: &DependencyMap, rows: &mut BTreeSet<(String, String)>) {
     for (name, entry) in entries {
-        rows.insert((name.manifest().to_string(), source_desc(&entry.source)));
+        rows.insert((name.manifest().to_string(), resolved_source(&entry.source)));
         collect_rows_from_map(&entry.dependencies, rows);
     }
 }
