@@ -373,6 +373,20 @@ mod tests {
 
     use super::*;
 
+    fn test_project(root: &Path, lockfile_path: PathBuf) -> anyhow::Result<Project> {
+        let manifest_path = root.join(wdl_modules::MANIFEST_FILENAME);
+        std::fs::write(&manifest_path, br#"{"name":"test","license":"MIT"}"#)?;
+        let manifest = Arc::new(wdl_modules::Manifest::parse(&std::fs::read(
+            &manifest_path,
+        )?)?);
+        Ok(Project {
+            manifest_path,
+            root: root.to_path_buf(),
+            manifest,
+            lockfile_path,
+        })
+    }
+
     #[test]
     fn recovers_interrupted_pair_mutation() -> anyhow::Result<()> {
         let directory = tempfile::tempdir()?;
@@ -402,6 +416,67 @@ mod tests {
         let _recovered = ProjectMutation::acquire(&project)?;
         assert_eq!(std::fs::read(&manifest_path)?, original);
         assert!(!lockfile_path.exists());
+        Ok(())
+    }
+
+    #[test]
+    fn commit_writes_manifest_and_lockfile() -> anyhow::Result<()> {
+        let directory = tempfile::tempdir()?;
+        let lockfile_path = directory.path().join(wdl_modules::LOCKFILE_FILENAME);
+        let project = test_project(directory.path(), lockfile_path.clone())?;
+        let mutation = ProjectMutation::acquire(&project)?;
+
+        mutation.commit(&project, None, None)?;
+
+        let manifest = serde_json::json!({"name": "updated", "license": "MIT"});
+        let lockfile = Lockfile::default();
+        mutation.commit(&project, Some(&manifest), Some(&lockfile))?;
+
+        assert_eq!(
+            super::super::read_manifest_value(&project.manifest_path)?,
+            manifest
+        );
+        assert!(lockfile_path.is_file());
+        let state = directory.path().join(STATE_DIRECTORY);
+        assert!(!state.join(PENDING_DIRECTORY).exists());
+        assert!(!state.join(ACTIVE_DIRECTORY).exists());
+        Ok(())
+    }
+
+    #[test]
+    fn rolls_back_manifest_when_lockfile_write_fails() -> anyhow::Result<()> {
+        let directory = tempfile::tempdir()?;
+        let lockfile_path = directory.path().join("missing").join("module-lock.json");
+        let project = test_project(directory.path(), lockfile_path)?;
+        let original_manifest = std::fs::read(&project.manifest_path)?;
+        let manifest = serde_json::json!({"name": "updated", "license": "MIT"});
+        let mutation = ProjectMutation::acquire(&project)?;
+
+        let error = mutation
+            .commit(&project, Some(&manifest), Some(&Lockfile::default()))
+            .expect_err("writing into a missing directory should fail");
+
+        assert!(error.to_string().contains("temporary file"));
+        assert_eq!(std::fs::read(&project.manifest_path)?, original_manifest);
+        let state = directory.path().join(STATE_DIRECTORY);
+        assert!(!state.join(PENDING_DIRECTORY).exists());
+        assert!(!state.join(ACTIVE_DIRECTORY).exists());
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_non_directory_transaction_state() -> anyhow::Result<()> {
+        let directory = tempfile::tempdir()?;
+        std::fs::write(directory.path().join(STATE_DIRECTORY), b"not a directory")?;
+        let project = test_project(
+            directory.path(),
+            directory.path().join(wdl_modules::LOCKFILE_FILENAME),
+        )?;
+
+        let error = ProjectMutation::acquire(&project)
+            .expect_err("a non-directory transaction state should fail");
+
+        assert!(error.to_string().contains("is not a regular directory"));
         Ok(())
     }
 }
