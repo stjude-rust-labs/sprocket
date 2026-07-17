@@ -120,7 +120,8 @@ where
         reference.with_digest(&digest)
     }
 
-    /// Resolves canonical references once, with at most eight concurrent requests.
+    /// Resolves canonical references once, with at most eight concurrent
+    /// requests.
     pub(crate) async fn resolve_all(
         &self,
         references: impl IntoIterator<Item = RegistryReference>,

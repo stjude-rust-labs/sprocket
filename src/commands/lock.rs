@@ -30,11 +30,11 @@ use crate::container_lock::write_atomic;
 /// Arguments for the `lock` subcommand.
 #[derive(Parser, Debug)]
 pub struct Args {
-    /// A source WDL document, directory, or URL.
+    /// A WDL source document, directory, or URL to scan for static containers.
     #[clap(value_name = "SOURCE")]
     pub source: Option<Source>,
 
-    /// Output directory for the lock file.
+    /// Directory where `sprocket.lock` is written.
     #[clap(short, long, value_name = "DIR")]
     pub output: Option<PathBuf>,
 
@@ -314,10 +314,9 @@ task images {
         assert_eq!(
             lock,
             format!(
-                "version = 1\ngeneration_time = \"{timestamp}\"\nsif_files = {{}}\n\n[images]\n\
-                 \"docker://a.example/team/tool:v2\" = \
-                 \"docker://a.example/team/tool@{digest}\"\n\
-                 \"oras://z.example/team/tool:v1\" = \
+                "version = 1\ngeneration_time = \"{timestamp}\"\nsif_files = \
+                 {{}}\n\n[images]\n\"docker://a.example/team/tool:v2\" = \
+                 \"docker://a.example/team/tool@{digest}\"\n\"oras://z.example/team/tool:v1\" = \
                  \"oras://z.example/team/tool@{digest}\"\n"
             )
         );

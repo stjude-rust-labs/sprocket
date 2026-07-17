@@ -95,6 +95,10 @@ pub struct Args {
     ///
     /// The source file may be specified by either a local file path, a URL, or
     /// a WDL module directory containing a `module.json`.
+    ///
+    /// When a `sprocket.lock` file exists at or above the source without
+    /// crossing a git root, `run` enforces it before creating containers. Runs
+    /// without a lock keep the current container behavior.
     #[clap(value_name = "SOURCE")]
     pub source: Source,
 
@@ -1099,13 +1103,7 @@ mod tests {
             .unwrap_or_default();
         std::fs::write(
             &path,
-            format!(
-                "version 1.2\n\
-                 task hello {{\n\
-                     command {{ echo hello }}\n\
-                     {requirement}\n\
-                 }}\n"
-            ),
+            format!("version 1.2\ntask hello {{\ncommand {{ echo hello }}\n{requirement}\n}}\n"),
         )
         .unwrap();
         let source: Source = path.to_string_lossy().parse().unwrap();
@@ -1131,10 +1129,8 @@ mod tests {
         std::fs::write(
             path,
             format!(
-                "version = 1\n\
-                 generation_time = \"2026-07-17T20:00:00Z\"\n\
-                 [images]\n{images}\
-                 [sif_files]\n"
+                "version = 1\ngeneration_time = \
+                 \"2026-07-17T20:00:00Z\"\n[images]\n{images}[sif_files]\n"
             ),
         )
         .unwrap();

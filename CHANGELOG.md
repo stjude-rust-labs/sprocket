@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* `sprocket dev lock` writes version `1` `sprocket.lock` files for static task containers, including Docker and ORAS digest pins, lock-directory-relative SIF paths, SIF `sha256` checksums, and generation timestamps.
+* CLI fixtures cover empty locks, static-expression errors, SIF-only locks, and strict `run` failures for missing lock entries without contacting public registries or requiring Docker.
+
+### Changed
+
+* `sprocket run` automatically discovers the nearest `sprocket.lock` above the WDL source, enforces it strictly when present, and copies the effective lock into each run directory. Runs without a lock keep existing container behavior, and there is no opt-out for a discovered lock.
+* Container locking reuses Docker configuration and credential helpers for registry requests without requiring a Docker daemon. Docker and ORAS locks record the top-level manifest digest returned by the registry, which may be an image-index digest for multi-architecture tags.
+* Container lock handling treats missing requirements and `container: "*"` as the configured default task container, handles static container arrays entry by entry, loads legacy locks without a `version` field, and rejects unsupported mutable container schemes under lock generation or enforcement.
+
 ## 0.28.0 - 2026-07-15
 
 ### Added

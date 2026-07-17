@@ -46,6 +46,12 @@ use walkdir::WalkDir;
 static TIMESTAMP_PATTERN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\d{4}-\d{2}-\d{2}_\d{12,}").unwrap());
 
+/// Regex pattern for RFC 3339 timestamps generated in lock files.
+static RFC3339_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    // SAFETY: the fixture normalization regex is a tested constant.
+    Regex::new(r#"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"#).unwrap()
+});
+
 /// Regex pattern for UUIDs.
 static UUID_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
@@ -298,7 +304,23 @@ fn normalize_string(input: &str, temp_dir: &Path) -> String {
 
     let s = UUID_PATTERN.replace_all(&s, "_UUID_");
     let s = TIMESTAMP_PATTERN.replace_all(&s, "_TIMESTAMP_");
+    let s = RFC3339_PATTERN.replace_all(&s, "_GENERATION_TIME_");
     s.to_string()
+}
+
+#[test]
+fn normalizes_lock_generation_times() {
+    normalizes_lock_generation_times_impl();
+}
+
+/// Checks that generated lock timestamps normalize to a stable placeholder.
+fn normalizes_lock_generation_times_impl() {
+    // SAFETY: this test only needs any writable temporary directory.
+    let temp = tempfile::tempdir().unwrap();
+    assert_eq!(
+        normalize_string("generation_time = \"2026-07-17T20:00:00Z\"\n", temp.path(),),
+        "generation_time = \"_GENERATION_TIME_\"\n"
+    );
 }
 
 /// Normalizes a path by replacing dynamic components (timestamps) with
@@ -649,15 +671,17 @@ fn main() {
     let test_root = Path::new("tests/cli");
     let tests = find_tests(test_root);
 
-    let trials = tests
-        .into_iter()
-        .map(|test| {
-            let name = get_test_name(&test, test_root);
-            Trial::test(name.clone(), move || {
-                run_test(&test, name).map_err(Into::into)
-            })
+    let mut trials = vec![Trial::test("normalizes_lock_generation_times", || {
+        normalizes_lock_generation_times_impl();
+        Ok(())
+    })];
+
+    trials.extend(tests.into_iter().map(|test| {
+        let name = get_test_name(&test, test_root);
+        Trial::test(name.clone(), move || {
+            run_test(&test, name).map_err(Into::into)
         })
-        .collect();
+    }));
 
     libtest_mimic::run(&args, trials).exit();
 }
