@@ -961,11 +961,17 @@ fn lock_update_mixed_signer_batch_is_all_or_nothing() {
     let lock_path = batch.consumer.join("module-lock.json");
     let lock_before = fs::read(&lock_path).expect("baseline lockfile should exist");
 
+    // The scenario-private trust store the refused update must not mutate. It
+    // exists already because the baseline lock trusted `beta`'s first key.
+    let trust_path = batch.trust_store_path();
+    let trust_before = fs::read(&trust_path).expect("baseline trust store should exist");
+
     let mut command = sprocket_with_config(
         &batch.config_path,
         &["dev", "module", "update", "--trust-mode", "tofu"],
     );
     command.current_dir(&batch.consumer);
+    use_home(&mut command, &batch.home);
     // Decline the batched confirmation for the refused (changed-signer) half.
     let output = output_with_stdin(command, "\n");
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -1001,13 +1007,15 @@ fn lock_update_mixed_signer_batch_is_all_or_nothing() {
         "the auto-acceptable `alpha` dependency must not be locked when the batch is refused"
     );
 
-    // All-or-nothing: the otherwise auto-accepted signer key is not trusted.
-    let trust_path = shared_trust_store_path();
-    if trust_path.exists() {
-        let trust = fs::read_to_string(&trust_path).expect("trust store should be readable");
-        assert!(
-            !trust.contains(&batch.auto_accept_key),
-            "the auto-accepted signer key must not persist to the trust store after a refusal"
-        );
-    }
+    // All-or-nothing: the scenario-private trust store is byte-for-byte
+    // unchanged, so the otherwise auto-accepted signer key never persists.
+    let trust_after = fs::read(&trust_path).expect("trust store should still exist");
+    assert_eq!(
+        trust_after, trust_before,
+        "a refused update must not mutate the trust store"
+    );
+    assert!(
+        !String::from_utf8_lossy(&trust_after).contains(&batch.auto_accept_key),
+        "the auto-accepted signer key must not persist to the trust store after a refusal"
+    );
 }

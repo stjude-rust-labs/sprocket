@@ -216,17 +216,29 @@ impl SignerDecisionPlan {
     /// bails without mutating anything. Otherwise every accepted addition or
     /// change is trusted, the store is saved once when it changed, and each
     /// accepted transition is reported.
-    fn apply(
+    fn apply(self, trust_file: &mut TrustStoreFile, output: CommandOutput) -> anyhow::Result<()> {
+        self.apply_with_confirmation(trust_file, output, confirm_signer_key_upgrade)
+    }
+
+    /// Applies the plan, resolving the batched prompt through `confirm`.
+    ///
+    /// This is the injection seam behind [`SignerDecisionPlan::apply`], which
+    /// supplies the production [`confirm_signer_key_upgrade`]. Isolating the
+    /// confirmation lets tests prove that a hard refusal short-circuits the
+    /// prompt without ever consulting it, and that the batch mutates nothing.
+    fn apply_with_confirmation<F>(
         mut self,
         trust_file: &mut TrustStoreFile,
         output: CommandOutput,
-    ) -> anyhow::Result<()> {
+        confirm: F,
+    ) -> anyhow::Result<()>
+    where
+        F: FnOnce(&[SignerChange], &TrustStore, CommandOutput) -> anyhow::Result<bool>,
+    {
         // Prompted changes are accepted or refused as a batch; any hard
         // refusal skips the prompt entirely.
         if !self.prompted.is_empty() {
-            if self.refused.is_empty()
-                && confirm_signer_key_upgrade(&self.prompted, trust_file.store(), output)?
-            {
+            if self.refused.is_empty() && confirm(&self.prompted, trust_file.store(), output)? {
                 self.accepted.append(&mut self.prompted);
             } else {
                 self.refused.append(&mut self.prompted);
@@ -799,6 +811,97 @@ mod tests {
                 "refused batch must not write the trust store"
             );
         }
+    }
+
+    #[test]
+    fn refused_batch_never_invokes_confirmation_and_persists_nothing() {
+        // A plan that pairs a hard refusal with a prompted change *and* an
+        // auto-accepted addition must void the entire batch without ever
+        // consulting the interactive confirmation: the hard refusal
+        // short-circuits the prompt. This drives `apply` through its
+        // `apply_with_confirmation` seam with a closure that panics if called,
+        // proving the callback is never invoked while every change lands in the
+        // refusal report and nothing is mutated or persisted.
+        let refused = SignerChange::Removed(RemovedSigner {
+            dep_chain: vec!["refused-dep".parse().unwrap()],
+            key: vkey(51),
+        });
+        let prompted = SignerChange::Changed(ChangedSigner {
+            dep_chain: vec!["prompted-dep".parse().unwrap()],
+            old_key: Some(vkey(52)),
+            new_key: vkey(53),
+            identity: None,
+        });
+        let auto_key = vkey(54);
+        let accepted = SignerChange::Added(NewSigner {
+            dep_chain: vec!["accepted-dep".parse().unwrap()],
+            key: auto_key,
+            identity: Some(SignerIdentity {
+                name: Some("Auto Trusted".to_string()),
+                email: Some("auto-trusted@example.com".to_string()),
+            }),
+        });
+
+        let plan = SignerDecisionPlan {
+            refused: vec![refused],
+            prompted: vec![prompted],
+            accepted: vec![accepted],
+        };
+
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("trust.toml");
+        let mut file = TrustStoreFile::load(path.clone()).unwrap();
+
+        // The confirmation closure both counts invocations and panics, so any
+        // call fails the test immediately and unambiguously.
+        let mut confirmations = 0usize;
+        let err = plan
+            .apply_with_confirmation(&mut file, CommandOutput::new(false), |_, _, _| {
+                confirmations += 1;
+                panic!("confirmation must not be consulted when a change is hard-refused");
+            })
+            .expect_err("a batch containing a refusal must be refused as a whole");
+
+        assert_eq!(
+            confirmations, 0,
+            "the confirmation closure must never be invoked for a refused batch"
+        );
+
+        // Every change - refused, prompted, and auto-accepted - is surfaced in
+        // the single refusal report.
+        let message = err.to_string();
+        assert!(
+            message.contains("signer trust changes require"),
+            "unexpected error: {message}"
+        );
+        assert!(
+            message.contains("refused-dep"),
+            "the refused change must appear in the refusal report: {message}"
+        );
+        assert!(
+            message.contains("prompted-dep"),
+            "the prompted change must appear in the refusal report: {message}"
+        );
+        assert!(
+            message.contains("accepted-dep"),
+            "the auto-accepted change must appear in the refusal report: {message}"
+        );
+
+        // No trust mutation in memory...
+        assert!(
+            !file.store().contains_key(&auto_key),
+            "auto-accepted key must not be trusted when the batch is refused"
+        );
+        assert!(
+            file.store().identity(&auto_key).is_none(),
+            "auto-accepted identity must not be recorded when the batch is refused"
+        );
+        // ...nor on disk: the refused batch writes no trust store at all.
+        let reloaded = TrustStore::load_or_default(&path).unwrap();
+        assert!(
+            !reloaded.contains_key(&auto_key),
+            "refused batch must not write the trust store"
+        );
     }
 
     #[test]

@@ -619,11 +619,29 @@ pub(crate) struct MixedSignerBatch {
     _dir: tempfile::TempDir,
     /// Path to the shared `sprocket.toml` used for every command.
     pub(crate) config_path: PathBuf,
+    /// Scenario-private home directory. Every command in the scenario runs with
+    /// this as `$HOME` (via [`use_home`]), so the trust store and cache live
+    /// under `$HOME/.config/sprocket` instead of the process-shared config
+    /// root.
+    pub(crate) home: PathBuf,
     /// Path to the consumer project whose lockfile the update targets.
     pub(crate) consumer: PathBuf,
     /// OpenSSH public key of `alpha`'s signer: the key TOFU would auto-trust
     /// on its own but must not persist when the batch is refused.
     pub(crate) auto_accept_key: String,
+}
+
+impl MixedSignerBatch {
+    /// Path to this scenario's private trust store.
+    ///
+    /// [`use_home`] points `SPROCKET_CONFIG_ROOT` at `$HOME/.config/sprocket`,
+    /// so every command in the scenario reads and writes its trust store here.
+    pub(crate) fn trust_store_path(&self) -> PathBuf {
+        self.home
+            .join(".config")
+            .join("sprocket")
+            .join("modules-trust.toml")
+    }
 }
 
 /// Writes a consumer `module.json`/`index.wdl` with the given dependency block.
@@ -647,22 +665,15 @@ fn write_consumer_manifest(consumer: &Path, dependencies: &str) {
     fs::write(consumer.join("index.wdl"), "version 1.3\n").unwrap();
 }
 
-/// Path to the shared trust store that spawned `sprocket` commands persist to.
-///
-/// Commands resolve their trust store under `SPROCKET_CONFIG_ROOT`, which
-/// [`sprocket_with_global_args`] points at [`SHARED_CONFIG_ROOT`].
-pub(crate) fn shared_trust_store_path() -> PathBuf {
-    SHARED_CONFIG_ROOT
-        .get()
-        .expect("shared config root should be initialized by a spawned command")
-        .path()
-        .join("modules-trust.toml")
-}
-
 /// Stages the [`MixedSignerBatch`] scenario described on that type.
 pub(crate) fn stage_mixed_signer_batch() -> MixedSignerBatch {
     let dir = tempfile::tempdir().unwrap();
     let base = dir.path();
+
+    // A scenario-private home so the trust store and cache stay under
+    // `$HOME/.config/sprocket` instead of the process-shared config root; every
+    // command below runs with this home via `use_home`.
+    let home = isolated_home(base, "home-mixed-signer-batch");
 
     // `alpha`: a brand-new signed dependency. As a fresh lockfile entry its
     // signer is a `NewSigner`, which TOFU trusts automatically.
@@ -704,13 +715,13 @@ pub(crate) fn stage_mixed_signer_batch() -> MixedSignerBatch {
         &consumer,
         &format!(r#"    "beta": {{ "git": "{beta_url}", "version": "^1.0", "path": "tasks" }}"#),
     );
-    let lock = sprocket_with_config(
+    let mut lock_command = sprocket_with_config(
         &config_path,
         &["dev", "module", "lock", "--trust-mode", "auto-accept"],
-    )
-    .current_dir(&consumer)
-    .output()
-    .expect("failed to run baseline lock");
+    );
+    lock_command.current_dir(&consumer);
+    use_home(&mut lock_command, &home);
+    let lock = lock_command.output().expect("failed to run baseline lock");
     assert!(
         lock.status.success(),
         "baseline lock failed {status}: {stderr}",
@@ -735,6 +746,7 @@ pub(crate) fn stage_mixed_signer_batch() -> MixedSignerBatch {
     MixedSignerBatch {
         _dir: dir,
         config_path,
+        home,
         consumer,
         auto_accept_key,
     }
