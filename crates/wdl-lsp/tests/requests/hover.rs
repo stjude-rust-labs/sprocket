@@ -47,6 +47,13 @@ fn assert_hover_content(hover: &Option<Hover>, expected: &str) {
     );
 }
 
+fn assert_no_hover(hover: &Option<Hover>) {
+    assert!(
+        hover.is_none(),
+        "expected no hover response, but got `{hover:?}`"
+    );
+}
+
 async fn setup() -> TestContext {
     let mut ctx = TestContextBuilder::new("hover").build();
     ctx.initialize().await;
@@ -140,6 +147,73 @@ async fn should_hover_stdlib_function() {
         .expect("request should succeed");
     assert_hover_content(&response, "read_string(file: File) -> String");
     assert_hover_content(&response, "Reads an entire file as a `String`");
+}
+
+#[tokio::test]
+async fn should_hover_version_filtering() {
+    let mut ctx = setup().await;
+    let wdl = "version_filtering.wdl";
+    // Position of `basename`
+    let response = hover_request(&mut ctx, wdl, Position::new(9, 19))
+        .await
+        .expect("request should succeed");
+    assert_hover_content(
+        &response,
+        "basename(path: File, <suffix: String>) -> String",
+    );
+    assert_hover_content(
+        &response,
+        "basename(path: String, <suffix: String>) -> String",
+    );
+    assert_hover_content(
+        &response,
+        "basename(path: Directory, <suffix: String>) -> String",
+    );
+    // Position of `split`
+    let response = hover_request(&mut ctx, wdl, Position::new(12, 23))
+        .await
+        .expect("request should succeed");
+    assert_hover_content(
+        &response,
+        "split(input: String, delimiter: String) -> Array[String]",
+    );
+    // Position of `contains_key`
+    let response = hover_request(&mut ctx, wdl, Position::new(16, 22))
+        .await
+        .expect("request should succeed");
+    assert_hover_content(&response, "contains_key(map: Map[K, V], key: K)");
+}
+
+#[tokio::test]
+async fn should_hover_version_filtering_v1_0() {
+    let mut ctx = setup().await;
+    let wdl = "version_filtering_v1_0.wdl";
+    // Position of `basename`
+    let response = hover_request(&mut ctx, wdl, Position::new(9, 19))
+        .await
+        .expect("request should succeed");
+    assert_hover_content(
+        &response,
+        "basename(path: File, <suffix: String>) -> String",
+    );
+    assert_hover_not_content(
+        &response,
+        "basename(path: String, <suffix: String>) -> String",
+    );
+    assert_hover_not_content(
+        &response,
+        "basename(path: Directory, <suffix: String>) -> String",
+    );
+    // Position of `split`
+    let response = hover_request(&mut ctx, wdl, Position::new(12, 23))
+        .await
+        .expect("request should succeed");
+    assert_no_hover(&response);
+    // Position of `contains_key`
+    let response = hover_request(&mut ctx, wdl, Position::new(16, 22))
+        .await
+        .expect("request should succeed");
+    assert_no_hover(&response);
 }
 
 #[tokio::test]

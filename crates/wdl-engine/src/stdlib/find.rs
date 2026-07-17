@@ -1,6 +1,5 @@
 //! Implements the `find` function from the WDL standard library.
 
-use regex::Regex;
 use wdl_analysis::types::Optional;
 use wdl_analysis::types::PrimitiveType;
 use wdl_analysis::types::Type;
@@ -10,6 +9,7 @@ use super::CallContext;
 use super::Callback;
 use super::Function;
 use super::Signature;
+use super::regex_cache::get_or_compile_regex;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
@@ -33,7 +33,7 @@ fn find(context: CallContext<'_>) -> Result<Value, Diagnostic> {
         .coerce_argument(1, PrimitiveType::String)
         .unwrap_string();
 
-    let regex = Regex::new(pattern.as_str())
+    let regex = get_or_compile_regex(pattern.as_str())
         .map_err(|e| function_call_failed(FUNCTION_NAME, &e, context.arguments[1].span))?;
 
     match regex.find(input.as_str()) {
