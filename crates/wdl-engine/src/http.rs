@@ -194,13 +194,13 @@ impl HttpTransferer {
             .with_link_to_cache(true)
             .with_overwrite(true)
             .with_hash_algorithm(config.http.hash_algorithm)
-            .with_maybe_retries(Some(
+            .with_retries(
                 config
                     .http
                     .retries
                     .try_into()
                     .context("invalid HTTP retries")?,
-            ))
+            )
             .with_azure(azure_config)
             .with_s3(s3_config)
             .with_google(google_config)

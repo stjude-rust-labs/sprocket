@@ -523,6 +523,10 @@ impl DockerBackend {
 }
 
 impl TaskExecutionBackend for DockerBackend {
+    fn name(&self) -> &'static str {
+        "docker"
+    }
+
     fn constraints(
         &self,
         inputs: &TaskInputs,
