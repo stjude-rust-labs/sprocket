@@ -952,3 +952,62 @@ fn lock_update_signer_transition_matrix_respects_trust_mode() {
         }
     }
 }
+
+#[test]
+fn lock_update_mixed_signer_batch_is_all_or_nothing() {
+    let batch = stage_mixed_signer_batch();
+
+    // The lockfile the refused update must leave byte-for-byte untouched.
+    let lock_path = batch.consumer.join("module-lock.json");
+    let lock_before = fs::read(&lock_path).expect("baseline lockfile should exist");
+
+    let mut command = sprocket_with_config(
+        &batch.config_path,
+        &["dev", "module", "update", "--trust-mode", "tofu"],
+    );
+    command.current_dir(&batch.consumer);
+    // Decline the batched confirmation for the refused (changed-signer) half.
+    let output = output_with_stdin(command, "\n");
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    // The mixed batch is refused as a single unit.
+    assert!(
+        !output.status.success(),
+        "a refused mixed batch must fail the update: stderr={stderr}"
+    );
+    // The refusable change routes the whole batch through one prompt...
+    assert!(
+        stderr.contains("[y/N]"),
+        "the changed signer should drive a single batched prompt: stderr={stderr}"
+    );
+    // ...and declining it accepts and trusts nothing.
+    assert!(
+        !stdout.contains("Accepted"),
+        "a refused batch must not report any accepted change: stdout={stdout}"
+    );
+
+    // All-or-nothing: the proposed lockfile is never written.
+    let lock_after = fs::read(&lock_path).expect("lockfile should still exist");
+    assert_eq!(
+        lock_after, lock_before,
+        "a refused update must not rewrite `module-lock.json`"
+    );
+    // The brand-new, otherwise auto-accepted dependency is not locked.
+    let lock = read_lockfile(&batch.consumer);
+    let alpha: wdl_modules::dependency::DependencyName = "alpha".parse().unwrap();
+    assert!(
+        !lock.dependencies.contains_key(&alpha),
+        "the auto-acceptable `alpha` dependency must not be locked when the batch is refused"
+    );
+
+    // All-or-nothing: the otherwise auto-accepted signer key is not trusted.
+    let trust_path = shared_trust_store_path();
+    if trust_path.exists() {
+        let trust = fs::read_to_string(&trust_path).expect("trust store should be readable");
+        assert!(
+            !trust.contains(&batch.auto_accept_key),
+            "the auto-accepted signer key must not persist to the trust store after a refusal"
+        );
+    }
+}

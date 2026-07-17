@@ -727,6 +727,81 @@ mod tests {
     }
 
     #[test]
+    fn mixed_batch_refuses_atomically_without_prompting_or_persisting() {
+        // A batch that pairs an auto-acceptable addition (a brand-new signed
+        // dependency, which TOFU would trust on its own) with a refused
+        // transition is all-or-nothing:
+        //   * no prompt is shown, because a hard refusal short-circuits the
+        //     confirmation entirely (`prompted` stays untouched);
+        //   * the otherwise auto-accepted key and identity are never inserted;
+        //   * `apply` returns an error, so the caller never writes the proposed
+        //     lockfile.
+        let auto_key = vkey(41);
+        let auto_identity = SignerIdentity {
+            name: Some("Auto Trusted".to_string()),
+            email: Some("auto-trusted@example.com".to_string()),
+        };
+        let refused_key = vkey(42);
+
+        // Matrix: the auto-acceptable addition is paired with each refusable
+        // "other" transition kind.
+        let refused_variants = [
+            SignerChange::Removed(RemovedSigner {
+                dep_chain: vec!["beta".parse().unwrap()],
+                key: refused_key,
+            }),
+            SignerChange::Changed(ChangedSigner {
+                dep_chain: vec!["beta".parse().unwrap()],
+                old_key: Some(vkey(43)),
+                new_key: refused_key,
+                identity: None,
+            }),
+        ];
+
+        for refused in refused_variants {
+            let accepted = SignerChange::Added(NewSigner {
+                dep_chain: vec!["alpha".parse().unwrap()],
+                key: auto_key,
+                identity: Some(auto_identity.clone()),
+            });
+            let plan = SignerDecisionPlan {
+                refused: vec![refused],
+                prompted: Vec::new(),
+                accepted: vec![accepted],
+            };
+
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("trust.toml");
+            let mut file = TrustStoreFile::load(path.clone()).unwrap();
+
+            let err = plan
+                .apply(&mut file, CommandOutput::new(false))
+                .expect_err("a batch containing a refusal must be refused as a whole");
+            assert!(
+                err.to_string().contains("signer trust changes require"),
+                "unexpected error: {err}"
+            );
+
+            // The otherwise auto-accepted key and identity are not persisted in
+            // memory...
+            assert!(
+                !file.store().contains_key(&auto_key),
+                "auto-accepted key must not be trusted when the batch is refused"
+            );
+            assert!(
+                file.store().identity(&auto_key).is_none(),
+                "auto-accepted identity must not be recorded when the batch is refused"
+            );
+            // ...nor on disk: the refused batch writes no trust store at all.
+            let reloaded = TrustStore::load_or_default(&path).unwrap();
+            assert!(
+                !reloaded.contains_key(&auto_key),
+                "refused batch must not write the trust store"
+            );
+        }
+    }
+
+    #[test]
     fn enforce_signer_trust_allows_unchanged_and_refuses_new_untrusted_signer() {
         let url = "https://example.com/repo";
         let signed = signed_lockfile("dep", url, Some(vkey(1)));

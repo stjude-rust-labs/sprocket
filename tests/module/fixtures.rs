@@ -604,6 +604,142 @@ pub(crate) fn set_fixture_trust_mode(fixture: &GitFixture, trust_mode: &str) {
     .unwrap();
 }
 
+/// A staged mixed-signer batch: the next `update` produces one auto-acceptable
+/// and one refused signer transition in the same command.
+///
+/// `alpha` is a brand-new signed dependency (a `NewSigner`, which TOFU trusts
+/// automatically) added to the manifest after the baseline lock. `beta` is an
+/// already-trusted dependency whose signer key is rotated (a changed signer,
+/// which TOFU refuses without an interactive yes). Because a single trust mode
+/// never both auto-accepts one transition and hard-refuses another, this
+/// CLI-reachable mix necessarily routes the refusable change through the batch
+/// prompt; declining it must void the whole batch.
+pub(crate) struct MixedSignerBatch {
+    /// Keeps the fixture's temporary tree (repos, cache, consumer) alive.
+    _dir: tempfile::TempDir,
+    /// Path to the shared `sprocket.toml` used for every command.
+    pub(crate) config_path: PathBuf,
+    /// Path to the consumer project whose lockfile the update targets.
+    pub(crate) consumer: PathBuf,
+    /// OpenSSH public key of `alpha`'s signer: the key TOFU would auto-trust
+    /// on its own but must not persist when the batch is refused.
+    pub(crate) auto_accept_key: String,
+}
+
+/// Writes a consumer `module.json`/`index.wdl` with the given dependency block.
+fn write_consumer_manifest(consumer: &Path, dependencies: &str) {
+    fs::create_dir_all(consumer).unwrap();
+    fs::write(
+        consumer.join("module.json"),
+        format!(
+            r#"{{
+  "name": "consumer",
+  "license": "MIT",
+  "entrypoint": "index.wdl",
+  "dependencies": {{
+{dependencies}
+  }}
+}}
+"#
+        ),
+    )
+    .unwrap();
+    fs::write(consumer.join("index.wdl"), "version 1.3\n").unwrap();
+}
+
+/// Path to the shared trust store that spawned `sprocket` commands persist to.
+///
+/// Commands resolve their trust store under `SPROCKET_CONFIG_ROOT`, which
+/// [`sprocket_with_global_args`] points at [`SHARED_CONFIG_ROOT`].
+pub(crate) fn shared_trust_store_path() -> PathBuf {
+    SHARED_CONFIG_ROOT
+        .get()
+        .expect("shared config root should be initialized by a spawned command")
+        .path()
+        .join("modules-trust.toml")
+}
+
+/// Stages the [`MixedSignerBatch`] scenario described on that type.
+pub(crate) fn stage_mixed_signer_batch() -> MixedSignerBatch {
+    let dir = tempfile::tempdir().unwrap();
+    let base = dir.path();
+
+    // `alpha`: a brand-new signed dependency. As a fresh lockfile entry its
+    // signer is a `NewSigner`, which TOFU trusts automatically.
+    let alpha_repo = base.join("alpha-repo");
+    fs::create_dir_all(&alpha_repo).unwrap();
+    let alpha_git = Repository::init(&alpha_repo).unwrap();
+    let alpha_key = SigningKey::from_openssh(&generate_openssh_ed25519_private_key()).unwrap();
+    write_signed_git_module(&alpha_repo, "1.0.0", &alpha_key);
+    commit_and_tag(&alpha_git, "add signed alpha v1.0.0", "1.0.0");
+    let auto_accept_key = alpha_key.verifying_key().to_openssh();
+    let alpha_url = url::Url::from_file_path(&alpha_repo).unwrap().to_string();
+
+    // `beta`: a signed dependency that is trusted at baseline and then has its
+    // signer key rotated, producing a changed signer TOFU refuses to accept
+    // without an interactive yes.
+    let beta_repo = base.join("beta-repo");
+    fs::create_dir_all(&beta_repo).unwrap();
+    let beta_git = Repository::init(&beta_repo).unwrap();
+    let beta_key = SigningKey::from_openssh(&generate_openssh_ed25519_private_key()).unwrap();
+    write_signed_git_module(&beta_repo, "1.0.0", &beta_key);
+    commit_and_tag(&beta_git, "add signed beta v1.0.0", "1.0.0");
+    let beta_url = url::Url::from_file_path(&beta_repo).unwrap().to_string();
+
+    // A single config: one trust store, one cache, `file://` repos allowed.
+    let cache_path = serde_json::to_string(&base.join("module-cache").to_string_lossy()).unwrap();
+    let config_path = base.join("sprocket.toml");
+    fs::write(
+        &config_path,
+        format!(
+            "[modules]\ncache_path = {cache_path}\nallowed_schemes = [\"file\", \"https\", \
+             \"ssh\"]\ndenied_hosts = []\n"
+        ),
+    )
+    .unwrap();
+
+    // Baseline: depend on `beta` only, then lock and trust its first key.
+    let consumer = base.join("consumer-mixed-batch");
+    write_consumer_manifest(
+        &consumer,
+        &format!(r#"    "beta": {{ "git": "{beta_url}", "version": "^1.0", "path": "tasks" }}"#),
+    );
+    let lock = sprocket_with_config(
+        &config_path,
+        &["dev", "module", "lock", "--trust-mode", "auto-accept"],
+    )
+    .current_dir(&consumer)
+    .output()
+    .expect("failed to run baseline lock");
+    assert!(
+        lock.status.success(),
+        "baseline lock failed {status}: {stderr}",
+        status = lock.status,
+        stderr = String::from_utf8_lossy(&lock.stderr)
+    );
+
+    // Introduce the brand-new signed `alpha` dependency (auto-acceptable) and
+    // rotate `beta`'s signer key (refusable) so the next update batches both.
+    write_consumer_manifest(
+        &consumer,
+        &format!(
+            "    \"alpha\": {{ \"git\": \"{alpha_url}\", \"version\": \"^1.0\", \"path\": \
+             \"tasks\" }},\n    \"beta\": {{ \"git\": \"{beta_url}\", \"version\": \"^1.0\", \
+             \"path\": \"tasks\" }}"
+        ),
+    );
+    let beta_rotated_key =
+        SigningKey::from_openssh(&generate_openssh_ed25519_private_key()).unwrap();
+    add_signed_git_version(&beta_repo, "1.1.6", &beta_rotated_key);
+
+    MixedSignerBatch {
+        _dir: dir,
+        config_path,
+        consumer,
+        auto_accept_key,
+    }
+}
+
 pub(crate) fn commit_and_tag(repo: &Repository, message: &str, tag: &str) {
     commit(repo, message);
 
