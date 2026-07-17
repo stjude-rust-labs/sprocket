@@ -190,42 +190,189 @@
             "null"
           ]
         },
+        "rules": {
+          "description": "Per-rule configuration, keyed by rule ID.",
+          "$ref": "#/$defs/RuleConfigs"
+        },
         "lint": {
-          "description": "Lint rule configuration.",
-          "$ref": "#/$defs/WdlLintConfig"
+          "description": "The removed `[check.lint]` table.\n\nThis is retained only to detect configurations that predate per-rule\ntables so a precise migration error can be reported.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/LegacyLint"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false
     },
-    "WdlLintConfig": {
-      "description": "The configuration for lint rules.",
+    "RuleConfigs": {
+      "description": "The unified per-rule configuration table (`[check.rules]`).\n\nEach entry is keyed by rule ID and may set a `severity` override plus any\nparameters applicable to that rule. Both `wdl-analysis` and `wdl-lint` rules\nshare this namespace.",
+      "$ref": "#/$defs/Config2"
+    },
+    "Config2": {
+      "description": "The configuration for lint rules.\n\nThis is a table of per-rule settings keyed by rule ID. Rules without an\nentry use their defaults.",
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/RuleConfig"
+      }
+    },
+    "RuleConfig": {
+      "description": "Per-rule configuration.\n\nA rule's table may set `severity` to override its severity (or `off`\nto disable it) along with any parameters applicable to that rule.",
       "type": "object",
       "properties": {
-        "allowed_runtime_keys": {
-          "description": "List of keys to ignore in the [`ExpectedRuntimeKeys`] lint.\n\n##### Example\n\n```toml\nallowed_runtime_keys = [\"foo\"]\n```\n\n[`ExpectedRuntimeKeys`]: crate::rules::ExpectedRuntimeKeysRule",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
+        "severity": {
+          "description": "The severity override for the rule.\n\nWhen absent, the rule emits at its built-in default severity.",
+          "anyOf": [
+            {
+              "$ref": "#/$defs/RuleSeverity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "allowed_names": {
-          "description": "List of names to ignore in the [`SnakeCase`] and [`DeclarationName`]\nlints.\n\n##### Example\n\n```toml\nallowed_names = [\"Foo\", \"counter_int\"]\n```\n\n[`SnakeCase`]: crate::rules::SnakeCaseRule\n[`DeclarationName`]: crate::rules::DeclarationNameRule",
+          "description": "Names to ignore in the rule.\n\n```toml\nallowed_names = [\"GATK\", \"counter_int\"]\n```",
           "type": "array",
           "items": {
             "type": "string"
-          },
-          "default": []
+          }
+        },
+        "allowed_runtime_keys": {
+          "description": "Runtime keys to allow in addition to the keys defined by the spec.\n\n```toml\nallowed_runtime_keys = [\"foo\"]\n```",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "max_length": {
+          "description": "The maximum allowed length, in characters, of a description.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "min_length": {
+          "description": "The minimum length, in characters, below which a name is flagged as too\nshort.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0
+        },
+        "check_prefixes": {
+          "description": "Whether to flag disallowed name prefixes (such as `in_` or `out_`).",
+          "type": "boolean"
+        },
+        "keywords": {
+          "description": "The comment keywords that trigger the rule.\n\n```toml\nkeywords = [\"TODO\", \"FIXME\"]\n```",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reserved_keys": {
+          "description": "The reserved meta keys that are required to have string values.",
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "task": {
+          "description": "The case style required for task names.",
+          "$ref": "#/$defs/CaseStyle"
+        },
+        "workflow": {
+          "description": "The case style required for workflow names.",
+          "$ref": "#/$defs/CaseStyle"
+        },
+        "variable": {
+          "description": "The case style required for variable names (inputs, outputs, and private\ndeclarations).",
+          "$ref": "#/$defs/CaseStyle"
+        },
+        "type": {
+          "description": "The case style required for user-defined type names and enum choices.",
+          "$ref": "#/$defs/CaseStyle"
+        },
+        "struct_member": {
+          "description": "The case style required for struct members.",
+          "$ref": "#/$defs/CaseStyle"
         },
         "bash_set_options": {
-          "description": "List of options to enforce in the bash `set` builtin for every\n`command` section.\n\n##### Example\n\n```toml\nbash_set_options = [\"errexit\", \"nounset\", \"pipefail\"]\n```",
+          "description": "The bash `set` options to enforce in every `command` section.\n\n```toml\nbash_set_options = [\"errexit\", \"nounset\", \"pipefail\"]\n```",
           "type": "array",
           "items": {
             "$ref": "#/$defs/BashSetOption"
-          },
-          "default": []
+          }
         }
-      }
+      },
+      "additionalProperties": false,
+      "required": [
+        "allowed_names",
+        "allowed_runtime_keys",
+        "max_length",
+        "min_length",
+        "check_prefixes",
+        "keywords",
+        "reserved_keys",
+        "task",
+        "workflow",
+        "variable",
+        "type",
+        "struct_member",
+        "bash_set_options"
+      ]
+    },
+    "RuleSeverity": {
+      "description": "An overridden severity for a rule.\n\nThis is distinct from the absence of an override, which leaves a rule\nemitting at its built-in default severity.",
+      "oneOf": [
+        {
+          "description": "Disable the rule entirely.",
+          "type": "string",
+          "const": "off"
+        },
+        {
+          "description": "Emit the rule's diagnostics at note severity.",
+          "type": "string",
+          "const": "note"
+        },
+        {
+          "description": "Emit the rule's diagnostics at warning severity.",
+          "type": "string",
+          "const": "warning"
+        },
+        {
+          "description": "Emit the rule's diagnostics at error severity.",
+          "type": "string",
+          "const": "error"
+        }
+      ]
+    },
+    "CaseStyle": {
+      "description": "A naming convention case style.",
+      "oneOf": [
+        {
+          "description": "`snake_case`.",
+          "type": "string",
+          "const": "snake_case"
+        },
+        {
+          "description": "`SCREAMING_SNAKE_CASE`.",
+          "type": "string",
+          "const": "screaming_snake_case"
+        },
+        {
+          "description": "`camelCase`.",
+          "type": "string",
+          "const": "camelCase"
+        },
+        {
+          "description": "`PascalCase`.",
+          "type": "string",
+          "const": "PascalCase"
+        }
+      ]
     },
     "BashSetOption": {
       "description": "Supported options for `set`.\n\nSee <https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html> for a description\nof each option.",
@@ -252,6 +399,32 @@
         "verbose",
         "xtrace"
       ]
+    },
+    "LegacyLint": {
+      "description": "The removed `[check.lint]` table.\n\nIts presence triggers a migration error pointing at the per-rule tables.",
+      "type": "object",
+      "properties": {
+        "allowed_names": {
+          "description": "The old global `allowed_names` parameter.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowed_runtime_keys": {
+          "description": "The old global `allowed_runtime_keys` parameter.",
+          "type": [
+            "array",
+            "null"
+          ],
+          "items": {
+            "type": "string"
+          }
+        }
+      }
     },
     "AnalyzerConfig": {
       "description": "Represents the configuration for the Sprocket `analyzer` command.",

@@ -3,6 +3,10 @@
 use std::process::Command;
 use std::process::Stdio;
 
+use wdl_analysis::rules as analysis_rules;
+
+use crate::rules::RULE_MAP;
+
 /// Determines whether or not a string containing embedded quotes is balanced.
 pub fn is_quote_balanced(s: &str, quote_char: char) -> bool {
     let mut closed = true;
@@ -68,6 +72,21 @@ pub fn program_exists(exec: &str) -> bool {
         .stderr(Stdio::null())
         .status()
         .is_ok_and(|r| r.success())
+}
+
+/// Finds the nearest rule ID to the given unknown rule ID, or `None` if no rule
+/// ID is close enough.
+///
+/// Both `wdl-lint` and `wdl-analysis` rule IDs are considered. The similarity
+/// calculation is delegated to [`wdl_analysis::find_nearest_rule`] so there is
+/// a single source of truth for the matching logic.
+pub fn find_nearest_rule(unknown_rule_id: &str) -> Option<String> {
+    let analysis = analysis_rules();
+    let known = RULE_MAP
+        .keys()
+        .copied()
+        .chain(analysis.iter().map(|rule| rule.id()));
+    wdl_analysis::find_nearest_rule(known, unknown_rule_id)
 }
 
 /// Serializes a list of items using the Oxford comma.
@@ -158,6 +177,29 @@ mod test {
         assert!(is_quote_balanced(s, '\''));
         let s = "this string has unclosed single quotes'";
         assert_eq!(is_quote_balanced(s, '\''), false);
+    }
+
+    #[test]
+    fn test_find_nearest_rule() {
+        // Test exact match
+        let nearest = find_nearest_rule("NamingConvention");
+        assert_eq!(nearest.as_deref(), Some("NamingConvention"));
+
+        // Test close match
+        let nearest = find_nearest_rule("NamingConventionX");
+        assert_eq!(nearest.as_deref(), Some("NamingConvention"));
+
+        // Test another exact match
+        let nearest = find_nearest_rule("ContainerUri");
+        assert_eq!(nearest.as_deref(), Some("ContainerUri"));
+
+        // Test a typo
+        let nearest = find_nearest_rule("ContainerUrl");
+        assert_eq!(nearest.as_deref(), Some("ContainerUri"));
+
+        // Test a completely different string
+        let nearest = find_nearest_rule("CompletelyDifferentRule");
+        assert_eq!(nearest.as_deref(), None);
     }
 
     #[test]

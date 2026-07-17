@@ -7893,6 +7893,11 @@ message = "ww-tritonnp.wdl:50:10: warning[UnusedInput]: unused input `reference_
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-tritonnp/ww-tritonnp.wdl/#L50"
 
 [[diagnostics]]
+document = "stjudecloud/workflows:/data_structures/read_group.wdl"
+message = "read_group.wdl:45:12: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/data_structures/read_group.wdl/#L45"
+
+[[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
 message = "arriba.wdl:352:14: warning[UnusedInput]: unused input `bam_index`"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/arriba.wdl/#L352"
@@ -7911,6 +7916,16 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:103:14: warning[UnusedInput]: unused input `dict`"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/gatk4.wdl/#L103"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:104:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/gatk4.wdl/#L104"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:106:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/gatk4.wdl/#L106"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
@@ -7941,6 +7956,16 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
 message = "gatk4.wdl:257:14: warning[UnusedInput]: unused input `dict`"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/gatk4.wdl/#L257"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:258:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/gatk4.wdl/#L258"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/gatk4.wdl"
+message = "gatk4.wdl:260:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/gatk4.wdl/#L260"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/gatk4.wdl"
@@ -7981,6 +8006,111 @@ permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8
 document = "stjudecloud/workflows:/tools/picard.wdl"
 message = "picard.wdl:841:21: warning[UnusedInput]: unused input `vcfs_indexes`"
 permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/picard.wdl/#L841"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:638:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L638"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:640:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L640"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:643:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L643"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:645:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L645"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:654:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L654"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:656:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L656"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:689:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L689"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:73:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L73"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:75:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L75"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/tools/star.wdl"
+message = "star.wdl:909:12: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/tools/star.wdl/#L909"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:129:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/reference/gatk-reference.wdl/#L129"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:131:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/reference/gatk-reference.wdl/#L131"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:49:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/reference/gatk-reference.wdl/#L49"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:51:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/reference/gatk-reference.wdl/#L51"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:55:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/reference/gatk-reference.wdl/#L55"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:57:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/reference/gatk-reference.wdl/#L57"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:59:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/reference/gatk-reference.wdl/#L59"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/reference/gatk-reference.wdl"
+message = "gatk-reference.wdl:63:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/reference/gatk-reference.wdl/#L63"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-core.wdl"
+message = "rnaseq-core.wdl:155:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/rnaseq/rnaseq-core.wdl/#L155"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:46:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/rnaseq/rnaseq-variant-calling.wdl/#L46"
+
+[[diagnostics]]
+document = "stjudecloud/workflows:/workflows/rnaseq/rnaseq-variant-calling.wdl"
+message = "rnaseq-variant-calling.wdl:48:20: note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`"
+permalink = "https://github.com/stjudecloud/workflows/blob/f421780da5596243cf6d8ffc341b3d3ba2c23c13/workflows/rnaseq/rnaseq-variant-calling.wdl/#L48"
 
 [[diagnostics]]
 document = "theiagen/public_health_bioinformatics:/tasks/assembly/task_artic_consensus.wdl"

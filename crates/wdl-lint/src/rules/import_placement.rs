@@ -9,6 +9,7 @@ use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SyntaxKind;
+use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::StructDefinition;
 use wdl_ast::v1::TaskDefinition;
@@ -124,6 +125,15 @@ impl Visitor for ImportPlacementRule {
         reason: VisitReason,
         _: &StructDefinition,
     ) {
+        if reason == VisitReason::Exit {
+            return;
+        }
+
+        // Saw an item other than an import, imports are no longer valid
+        self.invalid = true;
+    }
+
+    fn enum_definition(&mut self, _: &mut Diagnostics, reason: VisitReason, _: &EnumDefinition) {
         if reason == VisitReason::Exit {
             return;
         }

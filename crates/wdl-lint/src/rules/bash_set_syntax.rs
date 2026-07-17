@@ -105,7 +105,7 @@ pub struct BashSetSyntax {
 impl BashSetSyntax {
     /// Create a new `BashSetSyntax` rule.
     pub fn new(config: &Config) -> Self {
-        let mut expected_options: Vec<BashSetOption> = config.bash_set_options.clone();
+        let mut expected_options: Vec<BashSetOption> = config.resolved(ID).bash_set_options.clone();
         expected_options.sort();
 
         Self { expected_options }

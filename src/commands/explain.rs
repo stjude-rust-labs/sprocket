@@ -31,13 +31,30 @@ const USAGE: &str = "sprocket explain [RULE]
     sprocket explain --tag <TAG>
     sprocket explain --definitions";
 
-/// All rule IDs sorted alphabetically.
+/// All current rule IDs sorted alphabetically.
+///
+/// This is the set used for display and excludes deprecated aliases.
 pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
     let mut ids: Vec<String> = analysis::ALL_RULE_IDS
         .iter()
         .chain(lint::ALL_RULE_IDS.iter())
         .map(ToString::to_string)
         .collect();
+    ids.sort();
+    ids
+});
+
+/// All rule IDs accepted on the command line.
+///
+/// Deprecated aliases are included so `explain` can emit a targeted migration
+/// error that points at the replacement rule ID.
+pub static ACCEPTED_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
+    let mut ids = ALL_RULE_IDS.clone();
+    ids.extend(
+        analysis::RULE_ALIASES
+            .iter()
+            .map(|(alias, _)| alias.to_string()),
+    );
     ids.sort();
     ids
 });
@@ -73,7 +90,7 @@ pub struct Args {
         "list_all_tags"
     ],
         value_name = "RULE",
-        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
         ignore_case = true,
         hide_possible_values = true,
     )]
@@ -116,15 +133,15 @@ pub enum RuleSource {
     WdlAnalysis,
 }
 
-/// A config field that applies to a lint rule.
+/// A config field that applies to a rule.
 #[derive(Debug, Serialize)]
 pub struct ConfigField {
     /// The name of the field, as it appears in the config file.
     pub name: &'static str,
     /// A Markdown-formatted description of the field.
     pub description: &'static str,
-    /// The default value of the field as a TOML string.
-    pub default: String,
+    /// The default value of the field as a TOML string, if present.
+    pub default: Option<String>,
 }
 
 /// A lint rule, either from `wdl-lint` or `wdl-analysis`.
@@ -150,8 +167,18 @@ pub struct Rule {
     /// A list of rule IDs related to this rule, if the crate supports them.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub related: Option<&'static [&'static str]>,
-    /// Crate-specific configuration fields that apply to this rule.
-    pub config: Option<Vec<ConfigField>>,
+    /// Configuration fields that apply to this rule.
+    pub config: Vec<ConfigField>,
+}
+
+/// Returns the severity configuration shared by every rule.
+fn severity_config_field() -> ConfigField {
+    ConfigField {
+        name: "severity",
+        description: "Overrides the rule's severity. Use `off`, `note`, `warning`, or `error`; \
+                      omit the field to use the built-in severity.",
+        default: None,
+    }
 }
 
 /// Helper function for serializing `Example`.
@@ -250,6 +277,25 @@ impl Display for Rule {
             }
         };
 
+        writeln!(f, "\n{}", "Configuration:".bold())?;
+        for field in &self.config {
+            if field.name == "severity" {
+                writeln!(
+                    f,
+                    "  severity (default, off, note, warning, error) under `[check.rules.{id}]`",
+                    id = self.id
+                )?;
+            } else {
+                let summary = field.description.lines().next().unwrap_or_default().trim();
+                writeln!(
+                    f,
+                    "  {name} (default: {default}) {summary}",
+                    name = field.name.cyan(),
+                    default = field.default.as_deref().unwrap_or("built-in"),
+                )?;
+            }
+        }
+
         if !self.examples.is_empty() {
             writeln!(f, "\n{}", "Examples:".bold())?;
             for example in self.examples {
@@ -275,21 +321,17 @@ fn wdl_lint() -> impl Iterator<Item = Rule> {
     wdl::lint::rules(&wdl::lint::Config::default())
         .into_iter()
         .map(|rule| {
-            let applicable_config_fields = Config::fields()
-                .into_iter()
-                .filter(|field| field.applicable_lints.contains(&rule.id()))
-                .map(|field| ConfigField {
-                    name: field.name,
-                    description: field.description,
-                    default: field.default,
-                })
-                .collect::<Vec<_>>();
-
-            let applicable_config_fields = if applicable_config_fields.is_empty() {
-                None
-            } else {
-                Some(applicable_config_fields)
-            };
+            let mut config = vec![severity_config_field()];
+            config.extend(
+                Config::params()
+                    .into_iter()
+                    .filter(|param| param.applicable_rules.contains(&rule.id()))
+                    .map(|param| ConfigField {
+                        name: param.name,
+                        description: param.description,
+                        default: Some(param.default),
+                    }),
+            );
 
             Rule {
                 source: RuleSource::WdlLint,
@@ -300,7 +342,7 @@ fn wdl_lint() -> impl Iterator<Item = Rule> {
                 examples: rule.examples(),
                 url: rule.url(),
                 related: Some(rule.related_rules()),
-                config: applicable_config_fields,
+                config,
             }
         })
 }
@@ -316,7 +358,7 @@ fn wdl_analysis() -> impl Iterator<Item = Rule> {
         examples: rule.examples(),
         url: None,
         related: None,
-        config: None,
+        config: vec![severity_config_field()],
     })
 }
 
@@ -451,6 +493,12 @@ pub fn explain(args: Args) -> CommandResult<()> {
     }
 
     if let Some(rule_name) = args.rule_name {
+        if let Some(replacement) = analysis::replacement_rule_id(&rule_name) {
+            return Err(anyhow!(
+                "deprecated rule `{rule_name}`; run `sprocket explain {replacement}` instead"
+            )
+            .into());
+        }
         let lowercase_name = rule_name.to_lowercase();
 
         match wdl_lint()
@@ -470,4 +518,25 @@ pub fn explain(args: Args) -> CommandResult<()> {
     }
 
     unreachable!();
+}
+
+#[cfg(test)]
+mod test {
+    use std::collections::HashSet;
+
+    /// The unified `[check.rules]` configuration namespace relies on rule IDs
+    /// being globally unique across `wdl-analysis` and `wdl-lint`.
+    #[test]
+    fn rule_ids_are_globally_unique() {
+        let analysis: HashSet<&str> = wdl::analysis::ALL_RULE_IDS
+            .iter()
+            .map(String::as_str)
+            .collect();
+        for id in wdl::lint::ALL_RULE_IDS.iter() {
+            assert!(
+                !analysis.contains(id.as_str()),
+                "rule id `{id}` is defined in both `wdl-analysis` and `wdl-lint`"
+            );
+        }
+    }
 }

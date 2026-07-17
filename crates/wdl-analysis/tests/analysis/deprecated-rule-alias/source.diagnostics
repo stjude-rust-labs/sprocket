@@ -1,0 +1,8 @@
+note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`
+  ┌─ tests/analysis/deprecated-rule-alias/source.wdl:7:12
+  │
+7 │ #@ except: SnakeCase
+  │            ^^^^^^^^^ update this `except` directive
+  │
+  = fix: replace `SnakeCase` with `NamingConvention`
+

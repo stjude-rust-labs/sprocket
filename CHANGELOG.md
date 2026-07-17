@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Per-rule lint and validation configuration under `[check.rules.<RuleId>]`,
+  letting each rule set its severity (`off`, `note`, `warning`, or `error`) and
+  any parameters that apply to it.
+* `--deny`, `--warn`, and `--note` flags on `check` and `lint` to set a rule's
+  severity from the command line, taking precedence over config files.
+* `--sort-imports`, `--sort-inputs`, and `--trailing-commas` flags (with `--no-`
+  counterparts) on `format`.
+* `sprocket explain` now lists each rule's configurable severity and parameters,
+  and `sprocket config init` emits a commented template pointing at the per-rule
+  tables.
 * Added server-management commands under `sprocket dev server` ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
   * `status` shows a compact one-line status for a specific run, or lists all runs with pagination and status filtering; supports `--json`.
   * `inspect` shows detailed information about a run, including per-status task counts, the server's output directory, and (with `--detailed`) a per-task breakdown.
@@ -26,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+* Replaced the flat `[check.lint]` configuration table with per-rule
+  `[check.rules.<RuleId>]` tables. A configuration that still uses `[check.lint]`
+  now produces a migration error describing the move.
 * Grouped the server commands under `sprocket dev server` (previously flat under `sprocket dev`): `server` and `submit` are now `sprocket dev server <subcommand>`. The `server` subcommand was renamed `start`. ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
 * `sprocket analyzer` now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
 * Replaced the `peak_alloc` global allocator with `mimalloc` and now query peak memory usage from the operating system on exit, removing per-allocation tracking overhead ([#990](https://github.com/stjude-rust-labs/sprocket/pull/990)).
@@ -35,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* Lint rule parameters configured in `sprocket.toml` are now honored by the
+  `check` and `lint` commands; previously they were applied only in the editor.
 * `dev server` HTTP endpoints and CLI commands now reject non-positive `--limit` values and negative or unparsable `next_token` values (previously `limit=0` could loop pagination and `limit=-1` triggered SQLite's unbounded-fetch behavior) ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
 * The "missing version statement" parse error no longer claims all WDL documents require a version statement (untrue for draft-2); it now scopes the claim to WDL v1.0+ and adds migration guidance for draft-2 documents ([#993](https://github.com/stjude-rust-labs/sprocket/pull/993)).
 

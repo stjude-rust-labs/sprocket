@@ -14,6 +14,7 @@ use wdl_ast::SyntaxKind;
 use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::MetadataValue;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -21,23 +22,31 @@ use crate::TagSet;
 /// The identifier for the description length rule.
 const ID: &str = "DescriptionLength";
 
-/// The maximum length of a description before it is summarized.
-const DESCRIPTION_MAX_LENGTH: usize = 140;
-
 /// Creates a description too long diagnostic.
-fn description_too_long(span: Span) -> Diagnostic {
+fn description_too_long(span: Span, max_length: usize) -> Diagnostic {
     Diagnostic::note("this description will be clipped in Sprocket documentation")
         .with_rule(ID)
         .with_highlight(span)
         .with_fix(format!(
-            "shorten this string so it is less than or equal to {DESCRIPTION_MAX_LENGTH} \
-             characters"
+            "shorten this string so it is less than or equal to {max_length} characters"
         ))
 }
 
 /// Detects a malformed lint directive.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct DescriptionLengthRule;
+#[derive(Debug, Clone, Copy)]
+pub struct DescriptionLengthRule {
+    /// The maximum allowed length of a description, in characters.
+    max_length: usize,
+}
+
+impl DescriptionLengthRule {
+    /// Creates a new instance of the rule from the given configuration.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            max_length: config.resolved(ID).max_length as usize,
+        }
+    }
+}
 
 impl Rule for DescriptionLengthRule {
     fn id(&self) -> &'static str {
@@ -104,7 +113,9 @@ workflow example {
 
 impl Visitor for DescriptionLengthRule {
     fn reset(&mut self) {
-        *self = Self
+        *self = Self {
+            max_length: self.max_length,
+        }
     }
 
     fn metadata_section(
@@ -128,9 +139,9 @@ impl Visitor for DescriptionLengthRule {
             // just checked to ensure it's not empty above.
             description.text().unwrap().unescape_to(&mut text);
 
-            if text.len() > DESCRIPTION_MAX_LENGTH {
+            if text.len() > self.max_length {
                 diagnostics.exceptable_add(
-                    description_too_long(description_item.name().span()),
+                    description_too_long(description_item.name().span(), self.max_length),
                     description_item.inner(),
                     &self.exceptable_nodes(),
                 );
@@ -151,9 +162,9 @@ impl Visitor for DescriptionLengthRule {
                     // just checked to ensure it's not empty above.
                     description.text().unwrap().unescape_to(&mut text);
 
-                    if text.len() > DESCRIPTION_MAX_LENGTH {
+                    if text.len() > self.max_length {
                         diagnostics.exceptable_add(
-                            description_too_long(output.name().span()),
+                            description_too_long(output.name().span(), self.max_length),
                             output.inner(),
                             &self.exceptable_nodes(),
                         );
@@ -170,9 +181,9 @@ impl Visitor for DescriptionLengthRule {
                     // just checked to ensure it's not empty above.
                     description.text().unwrap().unescape_to(&mut text);
 
-                    if text.len() > DESCRIPTION_MAX_LENGTH {
+                    if text.len() > self.max_length {
                         diagnostics.exceptable_add(
-                            description_too_long(description_item.name().span()),
+                            description_too_long(description_item.name().span(), self.max_length),
                             description_item.inner(),
                             &self.exceptable_nodes(),
                         );
@@ -201,9 +212,9 @@ impl Visitor for DescriptionLengthRule {
                 // just checked to ensure it's not empty above.
                 description.text().unwrap().unescape_to(&mut text);
 
-                if text.len() > DESCRIPTION_MAX_LENGTH {
+                if text.len() > self.max_length {
                     diagnostics.exceptable_add(
-                        description_too_long(param.name().span()),
+                        description_too_long(param.name().span(), self.max_length),
                         param.inner(),
                         &self.exceptable_nodes(),
                     );
@@ -220,9 +231,9 @@ impl Visitor for DescriptionLengthRule {
                 // just checked to ensure it's not empty above.
                 description.text().unwrap().unescape_to(&mut text);
 
-                if text.len() > DESCRIPTION_MAX_LENGTH {
+                if text.len() > self.max_length {
                     diagnostics.exceptable_add(
-                        description_too_long(description_item.name().span()),
+                        description_too_long(description_item.name().span(), self.max_length),
                         description_item.inner(),
                         &self.exceptable_nodes(),
                     );

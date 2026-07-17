@@ -35,6 +35,7 @@ use wdl_ast::Diagnostic;
 use wdl_lint::Config;
 use wdl_lint::Linter;
 use wdl_lint::Rule;
+use wdl_lint::RuleSeverity;
 use wdl_lint::rules;
 
 /// Finds tests for this package.
@@ -142,8 +143,13 @@ async fn run_test_inner(
         |_, _, _, _| async {},
         move || {
             let mut validator = Validator::default();
-            validator.add_visitor(Linter::new(
-                rules(&config).into_iter().map(|r| r as Box<dyn Rule>),
+            let overrides = wdl_lint::severity_overrides(&config);
+            validator.add_visitor(Linter::new_with_overrides(
+                rules(&config)
+                    .into_iter()
+                    .filter(|r| config.severity_override(r.id()) != Some(RuleSeverity::Off))
+                    .map(|r| r as Box<dyn Rule>),
+                overrides,
             ));
             validator
         },
