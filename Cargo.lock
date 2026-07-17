@@ -6625,6 +6625,7 @@ dependencies = [
  "path-clean",
  "pretty_assertions",
  "rand 0.10.1",
+ "regex",
  "rowan",
  "schemars 1.2.1",
  "serde",
