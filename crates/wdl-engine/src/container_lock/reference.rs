@@ -180,6 +180,21 @@ mod tests {
     }
 
     #[test]
+    fn canonicalizes_tagged_digest_references_to_digest_only() {
+        let digest = format!("sha256:{}", "b".repeat(64));
+        let reference = RegistryReference::try_from_source(&ContainerSource::Docker(format!(
+            "ubuntu:24.04@{digest}"
+        )))
+        .unwrap();
+
+        assert_eq!(
+            reference.canonical(),
+            format!("docker://docker.io/library/ubuntu@{digest}")
+        );
+        assert!(reference.is_immutable());
+    }
+
+    #[test]
     fn rejects_non_sha256_digest() {
         let reference =
             RegistryReference::try_from_source(&ContainerSource::Docker("ubuntu:24.04".into()))
