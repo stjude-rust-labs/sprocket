@@ -756,6 +756,10 @@ impl LsfApptainerBackend {
 }
 
 impl TaskExecutionBackend for LsfApptainerBackend {
+    fn name(&self) -> &'static str {
+        "lsf_apptainer"
+    }
+
     fn constraints(
         &self,
         inputs: &TaskInputs,

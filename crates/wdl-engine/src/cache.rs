@@ -319,6 +319,10 @@ pub struct KeyRequest<'a> {
     ///
     /// This field directly contributes to the cache key.
     pub document_uri: &'a Url,
+    /// The name of the backend that is executing the task.
+    ///
+    /// This field directly contributes to the cache key.
+    pub backend: &'a str,
     /// The name of the task.
     ///
     /// This field directly contributes to the cache key.
@@ -453,6 +457,7 @@ impl CallCache {
         // Calculate the task's cache key
         let mut hasher = blake3::Hasher::new();
         request.document_uri.hash(&mut hasher);
+        request.backend.hash(&mut hasher);
         request.task_name.hash(&mut hasher);
         hash_sequence(
             &mut hasher,
@@ -667,6 +672,7 @@ mod test {
             // `prepare_task`.
             KeyRequest {
                 document_uri: &self.document_uri,
+                backend: "foo",
                 task_name: "test",
                 inputs: &self.inputs,
                 command: "cat /mnt/task/0/input",

@@ -1663,6 +1663,7 @@ impl Evaluator {
                         };
                     let request = KeyRequest {
                         document_uri: state.document.uri().as_ref(),
+                        backend: self.backend.name(),
                         task_name: task.name(),
                         inputs: &state.inputs,
                         command: &command,
