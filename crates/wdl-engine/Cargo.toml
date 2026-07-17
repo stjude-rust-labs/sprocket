@@ -41,6 +41,7 @@ secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml_ng = { workspace = true }
+sha2 = { workspace = true }
 shellexpand = { workspace = true }
 sysinfo = { workspace = true }
 tempfile = { workspace = true }

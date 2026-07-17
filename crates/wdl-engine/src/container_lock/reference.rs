@@ -19,7 +19,9 @@ pub enum RegistryTransport {
 /// A canonical transport-aware registry reference.
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub struct RegistryReference {
+    /// The source transport for the reference.
     transport: RegistryTransport,
+    /// The normalized OCI distribution reference.
     reference: Reference,
 }
 

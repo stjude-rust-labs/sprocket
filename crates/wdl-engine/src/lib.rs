@@ -33,6 +33,7 @@ mod units;
 mod value;
 
 pub use config::Config;
+pub use container_lock::ContainerLock;
 pub use eval::*;
 pub use inputs::*;
 pub use outputs::*;
