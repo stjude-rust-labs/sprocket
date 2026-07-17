@@ -34,14 +34,11 @@ use crate::symbolic_path::SymbolicPath;
 
 /// Pre-computed materialization parameters for a Git dependency.
 #[derive(Debug)]
-pub(in crate::resolver) struct GitMaterializationPlan {
+pub(super) struct GitMaterializationPlan {
     /// The selected version from tag resolution, if any.
     pub(super) selected_version: Option<Version>,
     /// The resolved commit SHA.
-    // Read by the co-located `resolver/tests.rs` (a sibling of
-    // `git_resolver`) via `plan_git_materialization`; Task 6 relocates
-    // those tests and can tighten this to `pub(super)`.
-    pub(in crate::resolver) commit: GitCommit,
+    pub(super) commit: GitCommit,
     /// The absolute path to the cache leaf directory.
     pub(super) leaf: PathBuf,
     /// The sparse-checkout path (`path_prefix` or `"."`).
@@ -314,11 +311,7 @@ impl GitResolver {
     /// locked mode. The returned plan carries everything
     /// [`materialize_git`](Self::materialize_git) needs to run the
     /// sparse checkout and verify the result.
-    // Visibility is `pub(in crate::resolver)` only so the co-located
-    // `resolver/tests.rs` (a sibling of `git_resolver`) can exercise
-    // locked-plan coverage; Task 6 relocates those tests and tightens
-    // this to `pub(super)`.
-    pub(in crate::resolver) async fn plan_git_materialization(
+    pub(super) async fn plan_git_materialization(
         &self,
         name: &DependencyName,
         url: &url::Url,
@@ -331,12 +324,12 @@ impl GitResolver {
 
         let (selected_version, commit) = match mode {
             ResolutionMode::Locked { lockfile_scope } => {
-                let locked_entry =
-                    self.lockfile()
-                        .find_scoped(lockfile_scope, name)
-                        .ok_or_else(|| ResolverError::NotInLockfile {
-                            dep: name.manifest().to_string(),
-                        })?;
+                let locked_entry = self
+                    .lockfile()
+                    .find_scoped(lockfile_scope, name)
+                    .ok_or_else(|| ResolverError::NotInLockfile {
+                        dep: name.manifest().to_string(),
+                    })?;
                 let (locked_url, locked_commit, locked_path, locked_selector) =
                     match &locked_entry.source {
                         ResolvedSource::Git {
@@ -473,10 +466,7 @@ pub(super) fn read_manifest(dir: &Path) -> Result<Manifest, ResolverError> {
 /// matches, resolution fails with [`ResolverError::AmbiguousSubPath`]. A
 /// component with no match yields a `NotFound` I/O error that the caller
 /// maps to a missing-file error.
-// Visibility is `pub(in crate::resolver)` only so the co-located
-// `resolver/tests.rs` (a sibling of `git_resolver`) can exercise subpath
-// coverage; Task 6 relocates those tests and tightens this to `pub(super)`.
-pub(in crate::resolver) fn resolve_normalized_subpath(
+pub(super) fn resolve_normalized_subpath(
     root: &Path,
     sub: &str,
     dep: &DependencyName,
@@ -548,10 +538,7 @@ pub(in crate::resolver) fn resolve_normalized_subpath(
 /// everything beneath it. To honor the directory-subtree rule, each
 /// pattern is compiled both literally and with a trailing `/**`, and
 /// `literal_separator` is enabled so a single `*` does not cross `/`.
-// Visibility is `pub(in crate::resolver)` only so the co-located
-// `resolver/tests.rs` (a sibling of `git_resolver`) can exercise exclude
-// coverage; Task 6 relocates those tests and tightens this to `pub(super)`.
-pub(in crate::resolver) fn exclude_set(
+pub(super) fn exclude_set(
     patterns: &[crate::relative_path::RelativePath],
 ) -> Result<globset::GlobSet, ResolverError> {
     if patterns.is_empty() {

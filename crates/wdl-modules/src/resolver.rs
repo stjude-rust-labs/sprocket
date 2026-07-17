@@ -71,32 +71,6 @@ pub use crate::resolver::types::MaterializedFile;
 pub use crate::resolver::types::ResolvedDependency;
 pub use crate::resolver::types::ResolvedModule;
 pub use crate::resolver::types::ResolvedTree;
-
-// Internal re-exports still consumed by the co-located resolver tests via
-// `use super::*`. Task 6 relocates these tests, at which point this block
-// can be removed.
-#[cfg(all(test, feature = "git-resolver"))]
-use std::path::Path;
-#[cfg(all(test, feature = "git-resolver"))]
-use crate::Lockfile;
-#[cfg(all(test, feature = "git-resolver"))]
-use crate::Manifest;
-#[cfg(all(test, feature = "git-resolver"))]
-use crate::dependency::GitSelector;
-#[cfg(all(test, feature = "git-resolver"))]
-use crate::lockfile::DependencyEntry;
-#[cfg(all(test, feature = "git-resolver"))]
-use crate::lockfile::GitCommit;
-#[cfg(all(test, feature = "git-resolver"))]
-use crate::lockfile::ResolvedSource;
-#[cfg(all(test, feature = "git-resolver"))]
-use crate::resolver::cache::CacheKey;
-#[cfg(all(test, feature = "git-resolver"))]
-use crate::resolver::git_resolver::materialize::exclude_set;
-#[cfg(all(test, feature = "git-resolver"))]
-use crate::resolver::git_resolver::materialize::resolve_normalized_subpath;
-#[cfg(all(test, feature = "git-resolver"))]
-use crate::resolver::scope::ResolutionMode;
 use crate::symbolic_path::SymbolicPath;
 
 /// Resolves WDL module imports to concrete files on disk.
@@ -146,6 +120,3 @@ pub trait Resolver: std::fmt::Debug + Send + Sync {
         scope: DependencyScope,
     ) -> Result<Vec<Version>, ResolverError>;
 }
-
-#[cfg(all(test, feature = "git-resolver"))]
-mod tests;

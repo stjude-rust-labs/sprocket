@@ -33,9 +33,12 @@ use crate::resolver::types::MaterializedFile;
 use crate::resolver::types::ResolvedTree;
 use crate::symbolic_path::SymbolicPath;
 
-pub(in crate::resolver) mod materialize;
 mod locked;
+mod materialize;
 mod resolve;
+
+#[cfg(test)]
+mod tests;
 
 /// The default Git-backed [`Resolver`].
 ///
