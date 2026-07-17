@@ -11,9 +11,13 @@ use std::str::FromStr;
 
 use toml_spanner::Arena;
 use toml_spanner::Context;
+use toml_spanner::Error as TomlError;
 use toml_spanner::Failed;
 use toml_spanner::FromToml;
 use toml_spanner::Item;
+use toml_spanner::Key;
+use toml_spanner::Table;
+use toml_spanner::TableStyle;
 use toml_spanner::ToToml;
 use toml_spanner::ToTomlError;
 use toml_spanner::Toml;
@@ -213,6 +217,16 @@ pub struct ParamSpec {
 
 /// Defines the [`RuleConfig`] parameters along with their defaults, the rules
 /// they apply to, and the introspection used by tooling.
+macro_rules! rule_param_name {
+    ($field:ident) => {
+        stringify!($field)
+    };
+    ($field:ident @ $rename:tt) => {
+        $rename
+    };
+}
+
+/// Defines configurable rule parameters and their generated behavior.
 macro_rules! define_rule_params {
     (
         $(
@@ -251,18 +265,67 @@ macro_rules! define_rule_params {
             }
         }
 
+        impl RuleConfig {
+            /// Validates values that depend on the configured rule.
+            pub fn validate(&self, rule_id: &str) -> Result<(), String> {
+                if rule_id == "TodoComment" {
+                    for (index, keyword) in self.keywords.iter().enumerate() {
+                        if keyword.is_empty() {
+                            return Err(String::from(
+                                "`keywords` entries for rule `TodoComment` cannot be empty",
+                            ));
+                        }
+
+                        if self.keywords[..index].contains(keyword) {
+                            return Err(format!(
+                                "`keywords` for rule `TodoComment` contains duplicate entry \
+                                 `{keyword}`"
+                            ));
+                        }
+                    }
+                }
+
+                Ok(())
+            }
+
+            /// Serializes only parameters applicable to the configured rule.
+            fn to_toml_for_rule<'a>(
+                &'a self,
+                rule_id: &str,
+                arena: &'a Arena,
+            ) -> Result<Item<'a>, ToTomlError> {
+                let mut table = Table::new();
+                table.set_style(TableStyle::Header);
+
+                if let Some(severity) = &self.severity {
+                    table.insert_unique(
+                        Key::new("severity"),
+                        severity.to_toml(arena)?,
+                        arena,
+                    );
+                }
+
+                $(
+                    if [$(stringify!($rule)),+].contains(&rule_id) {
+                        table.insert_unique(
+                            Key::new(rule_param_name!($field $(@ $rename)?)),
+                            self.$field.to_toml(arena)?,
+                            arena,
+                        );
+                    }
+                )+
+
+                Ok(table.into_item())
+            }
+        }
+
         impl Config {
             /// Returns the metadata for every configurable rule parameter.
             pub fn params() -> Vec<ParamSpec> {
                 vec![
                     $(
                         ParamSpec {
-                            name: {
-                                #[allow(unused_mut, unused_assignments)]
-                                let mut name = stringify!($field);
-                                $(name = $rename;)?
-                                name
-                            },
+                            name: rule_param_name!($field $(@ $rename)?),
                             description: concat!($($doc, '\n',)*).trim(),
                             default: {
                                 let default: $ty = $default;
@@ -273,6 +336,29 @@ macro_rules! define_rule_params {
                         },
                     )+
                 ]
+            }
+
+            /// Returns whether a parameter name is recognized.
+            pub fn has_parameter(parameter: &str) -> bool {
+                parameter == "severity"
+                    $(
+                        || parameter == rule_param_name!($field $(@ $rename)?)
+                    )+
+            }
+
+            /// Returns whether a parameter applies to a rule.
+            pub fn parameter_applies_to(rule_id: &str, parameter: &str) -> bool {
+                if parameter == "severity" {
+                    return true;
+                }
+
+                $(
+                    if parameter == rule_param_name!($field $(@ $rename)?) {
+                        return [$(stringify!($rule)),+].contains(&rule_id);
+                    }
+                )+
+
+                false
             }
         }
     };
@@ -379,13 +465,69 @@ impl Config {
 
 impl<'de> FromToml<'de> for Config {
     fn from_toml(ctx: &mut Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
-        Ok(Self(BTreeMap::from_toml(ctx, item)?))
+        let table = item.require_table(ctx)?;
+        let mut map = BTreeMap::new();
+        let mut failed = false;
+
+        for (key, value) in table {
+            let rule_id = key.name;
+            if !crate::ALL_RULE_IDS.iter().any(|id| id == rule_id) {
+                ctx.push_error(TomlError::custom(
+                    format!("unknown lint rule `{rule_id}`"),
+                    key.span,
+                ));
+                failed = true;
+                continue;
+            }
+
+            if let Some(entry) = value.as_table() {
+                for (parameter, _) in entry {
+                    if Self::has_parameter(parameter.name)
+                        && !Self::parameter_applies_to(rule_id, parameter.name)
+                    {
+                        ctx.push_error(TomlError::custom(
+                            format!(
+                                "`{param}` is not a configurable parameter for rule `{rule_id}`",
+                                param = parameter.name
+                            ),
+                            parameter.span,
+                        ));
+                        failed = true;
+                    }
+                }
+            }
+
+            match RuleConfig::from_toml(ctx, value) {
+                Ok(config) => {
+                    if let Err(error) = config.validate(rule_id) {
+                        ctx.push_error(TomlError::custom(error, key.span));
+                        failed = true;
+                    } else {
+                        map.insert(rule_id.to_string(), config);
+                    }
+                }
+                Err(_) => failed = true,
+            }
+        }
+
+        if failed { Err(Failed) } else { Ok(Self(map)) }
     }
 }
 
 impl ToToml for Config {
     fn to_toml<'a>(&'a self, arena: &'a Arena) -> Result<Item<'a>, ToTomlError> {
-        self.0.to_toml(arena)
+        let mut table = Table::new();
+        table.set_style(TableStyle::Implicit);
+
+        for (rule_id, config) in &self.0 {
+            table.insert_unique(
+                Key::new(rule_id),
+                config.to_toml_for_rule(rule_id, arena)?,
+                arena,
+            );
+        }
+
+        Ok(table.into_item())
     }
 }
 
@@ -476,6 +618,37 @@ mod test {
     }
 
     #[test]
+    fn rejects_unknown_rule() {
+        let err = toml_spanner::from_str::<Config>("[NotARule]\nseverity = \"off\"\n").unwrap_err();
+        assert!(err.to_string().contains("unknown lint rule"), "{err}");
+    }
+
+    #[test]
+    fn rejects_inapplicable_parameter() {
+        let err =
+            toml_spanner::from_str::<Config>("[ContainerUri]\nmax_length = 10\n").unwrap_err();
+        assert!(
+            err.to_string().contains("not a configurable parameter"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_todo_keywords() {
+        let empty =
+            toml_spanner::from_str::<Config>("[TodoComment]\nkeywords = [\"\"]\n").unwrap_err();
+        assert!(empty.to_string().contains("cannot be empty"), "{empty}");
+
+        let duplicate =
+            toml_spanner::from_str::<Config>("[TodoComment]\nkeywords = [\"TODO\", \"TODO\"]\n")
+                .unwrap_err();
+        assert!(
+            duplicate.to_string().contains("duplicate entry `TODO`"),
+            "{duplicate}"
+        );
+    }
+
+    #[test]
     fn rejects_invalid_severity() {
         let err = toml_spanner::from_str::<Config>("[NamingConvention]\nseverity = \"loud\"\n")
             .unwrap_err();
@@ -487,6 +660,7 @@ mod test {
         let config: Config =
             toml_spanner::from_str("[ContainerUri]\nseverity = \"warning\"\n").unwrap();
         let serialized = toml_spanner::to_string(&config).unwrap();
+        assert!(!serialized.contains("allowed_names"));
         let reparsed: Config = toml_spanner::from_str(&serialized).unwrap();
         assert_eq!(
             reparsed.severity_override("ContainerUri"),

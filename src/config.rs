@@ -1,7 +1,6 @@
 //! Implementation of the configuration module.
 
 use std::collections::BTreeMap;
-use std::collections::HashMap;
 use std::collections::HashSet;
 use std::env;
 use std::fmt;
@@ -350,15 +349,6 @@ static ANALYSIS_RULE_IDS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| {
         .collect()
 });
 
-/// Maps a configurable parameter name to the rules it applies to.
-static PARAM_APPLICABILITY: LazyLock<HashMap<&'static str, &'static [&'static str]>> =
-    LazyLock::new(|| {
-        wdl::lint::Config::params()
-            .into_iter()
-            .map(|param| (param.name, param.applicable_rules))
-            .collect()
-    });
-
 /// The unified per-rule configuration table (`[check.rules]`).
 ///
 /// Each entry is keyed by rule ID and may set a `severity` override plus any
@@ -455,8 +445,9 @@ impl<'de> FromToml<'de> for RuleConfigs {
                         continue;
                     }
 
-                    if let Some(rules) = PARAM_APPLICABILITY.get(param.name)
-                        && !(is_lint && rules.contains(&rule_id))
+                    if wdl::lint::Config::has_parameter(param.name)
+                        && !(is_lint
+                            && wdl::lint::Config::parameter_applies_to(rule_id, param.name))
                     {
                         ctx.push_error(TomlError::custom(
                             format!(
@@ -472,7 +463,12 @@ impl<'de> FromToml<'de> for RuleConfigs {
 
             match wdl::lint::RuleConfig::from_toml(ctx, value) {
                 Ok(config) => {
-                    map.insert(rule_id.to_string(), config);
+                    if let Err(error) = config.validate(rule_id) {
+                        ctx.push_error(TomlError::custom(error, key.span));
+                        failed = true;
+                    } else {
+                        map.insert(rule_id.to_string(), config);
+                    }
                 }
                 Err(_) => failed = true,
             }
@@ -1239,6 +1235,29 @@ mod test {
             toml_spanner::from_str("[check.rules.UnusedImport]\nseverity = \"error\"\n").unwrap();
         let overrides = config.check.rules.analysis_severity_overrides();
         assert_eq!(overrides.get("UnusedImport"), Some(&Some(Severity::Error)));
+    }
+
+    #[test]
+    fn check_rules_round_trip() {
+        let config: Config = toml_spanner::from_str(
+            "[check.rules.UnusedImport]\nseverity = \"error\"\n\n\
+             [check.rules.NamingConvention]\nseverity = \"warning\"\ntask = \"camelCase\"\n",
+        )
+        .unwrap();
+        let serialized = toml_spanner::to_string(&config).unwrap();
+        let reparsed: Config = toml_spanner::from_str(&serialized).unwrap();
+
+        assert_eq!(reparsed.check.rules, config.check.rules);
+        assert!(!serialized.contains("[check.rules.UnusedImport]\nallowed_names"));
+    }
+
+    #[test]
+    fn rejects_invalid_todo_keywords() {
+        let err = toml_spanner::from_str::<Config>(
+            "[check.rules.TodoComment]\nkeywords = [\"TODO\", \"\"]\n",
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("cannot be empty"), "{err}");
     }
 
     #[test]

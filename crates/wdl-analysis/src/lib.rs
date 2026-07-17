@@ -102,7 +102,7 @@ pub trait Exceptable {
 
 impl Exceptable for SyntaxNode {
     fn rule_exceptions(&self) -> HashSet<String> {
-        let exceptions: HashSet<String> = self
+        let mut exceptions: HashSet<String> = self
             .siblings_with_tokens(Direction::Prev)
             .skip(1) // self is included with siblings
             .map_while(|s| {
@@ -118,6 +118,13 @@ impl Exceptable for SyntaxNode {
                 Directive::Except(e) => e,
             })
             .collect();
+
+        let replacements = exceptions
+            .iter()
+            .filter_map(|id| replacement_rule_id(id))
+            .map(ToString::to_string)
+            .collect::<Vec<_>>();
+        exceptions.extend(replacements);
         exceptions
     }
 
@@ -139,9 +146,22 @@ mod alias_tests {
     }
 
     #[test]
-    fn except_directives_do_not_expand_aliases() {
-        let set = HashSet::from(["SnakeCase".to_string()]);
-        assert!(set.contains("SnakeCase"));
-        assert!(!set.contains("NamingConvention"));
+    fn except_directives_expand_aliases() {
+        use wdl_ast::AstNode as _;
+
+        let (document, diagnostics) = wdl_ast::Document::parse(
+            "version 1.2\n\n#@ except: SnakeCase\ntask BadName {\n    command <<<>>>\n}\n",
+            None,
+        );
+        assert!(diagnostics.is_empty());
+        let wdl_ast::Ast::V1(ast) = document.ast() else {
+            panic!("test document should use WDL v1");
+        };
+        let Some(task) = ast.tasks().next() else {
+            panic!("test document should contain a task");
+        };
+        let exceptions = task.inner().rule_exceptions();
+        assert!(exceptions.contains("SnakeCase"));
+        assert!(exceptions.contains("NamingConvention"));
     }
 }

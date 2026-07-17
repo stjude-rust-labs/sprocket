@@ -12,8 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `Diagnostics::len` and `Diagnostics::as_mut_slice` for post-processing emitted
   diagnostics.
 * `DiagnosticsConfig::with_overrides` to apply per-rule severity overrides.
-* `RULE_ALIASES` and `canonical_rule_id` for mapping deprecated rule IDs to their
-  replacements, and alias expansion in `#@ except` directives.
+* `RULE_ALIASES` and `replacement_rule_id` for mapping deprecated rule IDs to
+  their replacements, and alias expansion in `#@ except` directives.
 * Analysis resolves symbolic module imports (`import owner/module/path`, including the wildcard `import * from owner/module` and selected-member `import { a, b } from owner/module` forms) through a `wdl-modules` `Resolver`, materializing them to concrete files during analysis ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
 
 #### Changed

@@ -15,10 +15,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `PascalCase`. It enforces a case style per identifier category (`task`,
   `workflow`, `variable`, `type`, and `struct_member`) and supports
   `snake_case`, `screaming_snake_case`, `camelCase`, and `PascalCase`.
-  The `SnakeCase` and `PascalCase` IDs now report targeted migration
-  diagnostics. `NamingConvention` also checks enum names and enum choices (as
-  user-defined types) against the `type` case style, while struct members
-  default to `snake_case`.
+  The `SnakeCase` and `PascalCase` IDs now report targeted migration diagnostics
+  while continuing to suppress `NamingConvention` in `#@ except` directives.
+  `NamingConvention` also checks enum names and enum choices (as user-defined
+  types) against the `type` case style, while struct members default to
+  `snake_case`.
 * Configurable parameters for `DescriptionLength` (`max_length`), `InputName`
   and `OutputName` (`min_length`, `check_prefixes`), `TodoComment` (`keywords`),
   and `DocMetaStrings` (`reserved_keys`).

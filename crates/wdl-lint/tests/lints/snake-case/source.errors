@@ -54,11 +54,3 @@ note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention
    │
    = fix: replace `SnakeCase` with `NamingConvention`
 
-warning[NamingConvention]: struct member name `OK` is not snake case
-   ┌─ tests/lints/snake-case/source.wdl:84:12
-   │
-84 │     String OK
-   │            ^^ this name must be snake case
-   │
-   = fix: replace `OK` with `ok`
-

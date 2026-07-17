@@ -114,3 +114,36 @@ impl Visitor for TodoCommentRule {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use wdl_ast::AstNode as _;
+    use wdl_ast::Document;
+
+    use super::*;
+
+    #[test]
+    fn configured_keyword_emits_diagnostic() {
+        // SAFETY: the static configuration uses a known rule and valid keyword.
+        let config = toml_spanner::from_str("[TodoComment]\nkeywords = [\"FIXME\"]\n").unwrap();
+        let mut rule = TodoCommentRule::new(&config);
+        let (document, parse_diagnostics) = Document::parse(
+            "version 1.2\n\n# FIXME: finish this\nworkflow test {}\n",
+            None,
+        );
+        assert!(parse_diagnostics.is_empty());
+        // SAFETY: the parsed source contains one comment token.
+        let comment = document
+            .inner()
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find_map(Comment::cast)
+            .unwrap();
+        let mut diagnostics = Diagnostics::default();
+
+        rule.comment(&mut diagnostics, &comment);
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics.as_mut_slice()[0].rule(), Some(ID));
+    }
+}

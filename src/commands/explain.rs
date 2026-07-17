@@ -133,15 +133,15 @@ pub enum RuleSource {
     WdlAnalysis,
 }
 
-/// A config field that applies to a lint rule.
+/// A config field that applies to a rule.
 #[derive(Debug, Serialize)]
 pub struct ConfigField {
     /// The name of the field, as it appears in the config file.
     pub name: &'static str,
     /// A Markdown-formatted description of the field.
     pub description: &'static str,
-    /// The default value of the field as a TOML string.
-    pub default: String,
+    /// The default value of the field as a TOML string, if present.
+    pub default: Option<String>,
 }
 
 /// A lint rule, either from `wdl-lint` or `wdl-analysis`.
@@ -167,8 +167,18 @@ pub struct Rule {
     /// A list of rule IDs related to this rule, if the crate supports them.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub related: Option<&'static [&'static str]>,
-    /// Crate-specific configuration fields that apply to this rule.
-    pub config: Option<Vec<ConfigField>>,
+    /// Configuration fields that apply to this rule.
+    pub config: Vec<ConfigField>,
+}
+
+/// Returns the severity configuration shared by every rule.
+fn severity_config_field() -> ConfigField {
+    ConfigField {
+        name: "severity",
+        description: "Overrides the rule's severity. Use `off`, `note`, `warning`, or `error`; \
+                      omit the field to use the built-in severity.",
+        default: None,
+    }
 }
 
 /// Helper function for serializing `Example`.
@@ -268,19 +278,20 @@ impl Display for Rule {
         };
 
         writeln!(f, "\n{}", "Configuration:".bold())?;
-        writeln!(
-            f,
-            "  severity (default, off, note, warning, error) under `[check.rules.{id}]`",
-            id = self.id
-        )?;
-        if let Some(config) = &self.config {
-            for field in config {
+        for field in &self.config {
+            if field.name == "severity" {
+                writeln!(
+                    f,
+                    "  severity (default, off, note, warning, error) under `[check.rules.{id}]`",
+                    id = self.id
+                )?;
+            } else {
                 let summary = field.description.lines().next().unwrap_or_default().trim();
                 writeln!(
                     f,
                     "  {name} (default: {default}) {summary}",
                     name = field.name.cyan(),
-                    default = field.default,
+                    default = field.default.as_deref().unwrap_or("built-in"),
                 )?;
             }
         }
@@ -310,21 +321,17 @@ fn wdl_lint() -> impl Iterator<Item = Rule> {
     wdl::lint::rules(&wdl::lint::Config::default())
         .into_iter()
         .map(|rule| {
-            let applicable_config_fields = Config::params()
-                .into_iter()
-                .filter(|param| param.applicable_rules.contains(&rule.id()))
-                .map(|param| ConfigField {
-                    name: param.name,
-                    description: param.description,
-                    default: param.default,
-                })
-                .collect::<Vec<_>>();
-
-            let applicable_config_fields = if applicable_config_fields.is_empty() {
-                None
-            } else {
-                Some(applicable_config_fields)
-            };
+            let mut config = vec![severity_config_field()];
+            config.extend(
+                Config::params()
+                    .into_iter()
+                    .filter(|param| param.applicable_rules.contains(&rule.id()))
+                    .map(|param| ConfigField {
+                        name: param.name,
+                        description: param.description,
+                        default: Some(param.default),
+                    }),
+            );
 
             Rule {
                 source: RuleSource::WdlLint,
@@ -335,7 +342,7 @@ fn wdl_lint() -> impl Iterator<Item = Rule> {
                 examples: rule.examples(),
                 url: rule.url(),
                 related: Some(rule.related_rules()),
-                config: applicable_config_fields,
+                config,
             }
         })
 }
@@ -351,7 +358,7 @@ fn wdl_analysis() -> impl Iterator<Item = Rule> {
         examples: rule.examples(),
         url: None,
         related: None,
-        config: None,
+        config: vec![severity_config_field()],
     })
 }
 

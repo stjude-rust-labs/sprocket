@@ -268,17 +268,21 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         .collect::<Vec<_>>();
     let cli_flagged: HashSet<String> = cli_severities.iter().map(|(r, _)| r.clone()).collect();
 
-    // A rule named by a severity flag is never excepted, so `--deny` can
-    // re-enable a rule disabled via config.
-    let except: Vec<String> = args
+    let mut except: Vec<String> = args
         .common
         .except
         .iter()
         .chain(config.check.except.iter())
         .cloned()
-        .chain(config.check.rules.disabled_rules())
-        .filter(|id| !cli_flagged.iter().any(|f| f.eq_ignore_ascii_case(id)))
         .collect();
+    except.extend(
+        config
+            .check
+            .rules
+            .disabled_rules()
+            .into_iter()
+            .filter(|id| !cli_flagged.iter().any(|f| f.eq_ignore_ascii_case(id))),
+    );
 
     let deny_notes = args.common.deny_notes || config.check.deny_notes;
     let deny_warnings = args.common.deny_warnings || config.check.deny_warnings || deny_notes;
