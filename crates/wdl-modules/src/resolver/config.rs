@@ -155,33 +155,6 @@ impl Default for ModulesConfig {
     }
 }
 
-#[cfg(test)]
-use crate::resolver::DependencyScope;
-
-#[cfg(test)]
-impl ModulesConfig {
-    /// Returns `true` if the given host is permitted for a dependency
-    /// at this level of the tree.
-    fn host_allowed(&self, host: &str, scope: DependencyScope) -> bool {
-        if self
-            .denied_hosts
-            .iter()
-            .any(|h| h.eq_ignore_ascii_case(host))
-        {
-            return false;
-        }
-        if is_non_public_ip(host) {
-            return false;
-        }
-        let allowed = if matches!(scope, DependencyScope::Transitive) {
-            &self.allowed_transitive_hosts
-        } else {
-            &self.allowed_hosts
-        };
-        allowed.is_empty() || allowed.iter().any(|h| h.eq_ignore_ascii_case(host))
-    }
-}
-
 /// Returns `true` if `host` parses as a non-public IP address
 /// (loopback, private RFC1918, link-local, unique-local, multicast,
 /// unspecified, or the AWS/cloud metadata service at
@@ -420,7 +393,6 @@ pub enum TrustMode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resolver::DependencyScope;
 
     #[test]
     fn parses_default_threshold_when_absent() {
@@ -494,70 +466,5 @@ mod tests {
         let err =
             toml_spanner::from_str::<ModulesConfig>(r#"large_file_warning = "abc""#).unwrap_err();
         assert!(err.to_string().contains("abc"), "wrong message: {err}");
-    }
-
-    #[test]
-    fn default_policy_denies_localhost_hosts() {
-        let cfg = ModulesConfig::default();
-        assert!(!cfg.host_allowed("localhost", DependencyScope::TopLevel));
-        assert!(!cfg.host_allowed("127.0.0.1", DependencyScope::Transitive));
-        assert!(!cfg.host_allowed("::1", DependencyScope::Transitive));
-        assert!(!cfg.host_allowed("0.0.0.0", DependencyScope::TopLevel));
-    }
-
-    #[test]
-    fn default_policy_denies_private_and_metadata_ips() {
-        let cfg = ModulesConfig::default();
-        let denied = [
-            "169.254.169.254",
-            "10.0.0.1",
-            "192.168.1.1",
-            "172.16.0.1",
-            "100.64.0.1",
-            "127.0.0.1",
-            "0.0.0.0",
-            "255.255.255.255",
-            "224.0.0.1",
-            "::1",
-            "::",
-            "fe80::1",
-            "fc00::1",
-            "ff02::1",
-            // IPv4-mapped IPv6
-            "::ffff:127.0.0.1",
-            "::ffff:169.254.169.254",
-            "::ffff:10.0.0.1",
-            "::ffff:192.168.1.1",
-        ];
-        for ip in denied {
-            for scope in [DependencyScope::TopLevel, DependencyScope::Transitive] {
-                assert!(
-                    !cfg.host_allowed(ip, scope),
-                    "`{ip}` should be denied for `{scope:?}`"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn default_policy_allows_public_hosts() {
-        let cfg = ModulesConfig::default();
-        assert!(cfg.host_allowed("github.com", DependencyScope::TopLevel));
-        assert!(cfg.host_allowed("github.com", DependencyScope::Transitive));
-        assert!(
-            cfg.host_allowed("::ffff:140.82.121.3", DependencyScope::TopLevel),
-            "public IPv4-mapped IPv6 should be allowed"
-        );
-    }
-
-    #[test]
-    fn allowlist_limits_transitive_hosts() {
-        let cfg = ModulesConfig {
-            allowed_transitive_hosts: vec!["github.com".into()],
-            ..ModulesConfig::default()
-        };
-        assert!(cfg.host_allowed("github.com", DependencyScope::Transitive));
-        assert!(!cfg.host_allowed("gitlab.com", DependencyScope::Transitive));
-        assert!(cfg.host_allowed("gitlab.com", DependencyScope::TopLevel));
     }
 }

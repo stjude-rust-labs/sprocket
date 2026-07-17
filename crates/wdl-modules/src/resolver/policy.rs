@@ -326,14 +326,23 @@ fn validate_resolved_addresses(addrs: &[std::net::SocketAddr]) -> Result<(), Opt
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dependency::DependencyName;
     use crate::resolver::config::ModulesConfig;
     use crate::resolver::error::ResolverError;
+
+    fn dependency() -> DependencyName {
+        "dep".parse().unwrap()
+    }
+
+    fn url(source: &str) -> Url {
+        source.parse().unwrap()
+    }
 
     #[test]
     fn blocks_file_scheme() {
         let policy = ResolverPolicy::default();
-        let dep = "foo".parse().unwrap();
-        let url: url::Url = "file:///tmp/repo".parse().unwrap();
+        let dep = dependency();
+        let url = url("file:///repo");
         let err = policy
             .check_git_url(&dep, &url, DependencyScope::TopLevel)
             .unwrap_err();
@@ -346,8 +355,8 @@ mod tests {
     #[test]
     fn allows_ssh_top_level_blocks_transitive() {
         let policy = ResolverPolicy::default();
-        let dep = "foo".parse().unwrap();
-        let url: url::Url = "ssh://git@github.com/x/y".parse().unwrap();
+        let dep = dependency();
+        let url = url("ssh://git@github.com/x/y");
         policy
             .check_git_url(&dep, &url, DependencyScope::TopLevel)
             .unwrap();
@@ -360,8 +369,8 @@ mod tests {
     #[test]
     fn allows_https_by_default() {
         let policy = ResolverPolicy::default();
-        let dep = "foo".parse().unwrap();
-        let url: url::Url = "https://github.com/x/y".parse().unwrap();
+        let dep = dependency();
+        let url = url("https://github.com/x/y");
         policy
             .check_git_url(&dep, &url, DependencyScope::TopLevel)
             .unwrap();
@@ -394,6 +403,126 @@ mod tests {
         assert_eq!(
             open.credential_mode(DependencyScope::Transitive, Some("github.com")),
             CredentialMode::Disabled
+        );
+    }
+
+    #[test]
+    fn rejects_loopback_and_private_hosts_through_public_policy_boundary() {
+        let policy = ResolverPolicy::default();
+        let dep = dependency();
+        for (scope, source) in [
+            (
+                DependencyScope::TopLevel,
+                "https://localhost/repository.git",
+            ),
+            (
+                DependencyScope::Transitive,
+                "https://127.0.0.1/repository.git",
+            ),
+            (DependencyScope::TopLevel, "https://0.0.0.0/repository.git"),
+        ] {
+            let error = policy
+                .check_git_url(&dep, &url(source), scope)
+                .expect_err("loopback and private hosts must be rejected");
+            assert!(
+                matches!(error, ResolverError::GitHostPolicyViolation { .. }),
+                "got: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_ipv6_literal_hosts_fail_closed_at_resolution() {
+        let policy = ResolverPolicy::default();
+        let dep = dependency();
+        for source in [
+            "https://[::1]/repository.git",
+            "https://[::ffff:127.0.0.1]/repository.git",
+            "https://[::ffff:169.254.169.254]/repository.git",
+            "https://[::ffff:10.0.0.1]/repository.git",
+        ] {
+            let error = policy
+                .check_git_url(&dep, &url(source), DependencyScope::TopLevel)
+                .expect_err("IPv6-literal URLs must fail closed");
+            assert!(
+                matches!(error, ResolverError::GitHostResolutionFailed { .. }),
+                "got: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn allows_public_ipv4_host() {
+        let policy = ResolverPolicy::default();
+        let dep = dependency();
+        policy
+            .check_git_url(
+                &dep,
+                &url("https://140.82.121.3/repository.git"),
+                DependencyScope::TopLevel,
+            )
+            .expect("configured public host should be allowed");
+    }
+
+    #[test]
+    fn allowlists_apply_per_scope_for_complete_urls() {
+        let policy = ResolverPolicy::try_from(&ModulesConfig {
+            allowed_hosts: vec!["github.com".into()],
+            allowed_transitive_hosts: vec!["gitlab.com".into()],
+            ..ModulesConfig::default()
+        })
+        .unwrap();
+        let dep = dependency();
+
+        policy
+            .check_git_url(
+                &dep,
+                &url("https://github.com/org/repository.git"),
+                DependencyScope::TopLevel,
+            )
+            .expect("configured host should be allowed");
+        policy
+            .check_git_url(
+                &dep,
+                &url("https://gitlab.com/org/repository.git"),
+                DependencyScope::Transitive,
+            )
+            .expect("configured host should be allowed");
+
+        let error = policy
+            .check_git_url(
+                &dep,
+                &url("https://github.com/org/repository.git"),
+                DependencyScope::Transitive,
+            )
+            .expect_err("top-level allowlist should not apply to transitive dependencies");
+        assert!(
+            matches!(
+                error,
+                ResolverError::GitHostNotAllowed {
+                    config_key: "allowed_transitive_hosts",
+                    ..
+                }
+            ),
+            "got: {error}"
+        );
+
+        let error = policy
+            .check_git_url(
+                &dep,
+                &url("https://gitlab.com/org/repository.git"),
+                DependencyScope::TopLevel,
+            )
+            .expect_err("transitive allowlist should not apply to top-level dependencies");
+        assert!(
+            matches!(
+                error,
+                ResolverError::GitHostNotAllowed {
+                    config_key: "allowed_hosts",
+                    ..
+                }
+            ),
+            "got: {error}"
         );
     }
 
@@ -432,10 +561,8 @@ mod tests {
     #[test]
     fn dns_failure_rejects_url() {
         let policy = ResolverPolicy::default();
-        let dep = "foo".parse().unwrap();
-        let url: url::Url = "https://this-host-does-not-exist-xyzzy.invalid/x/y"
-            .parse()
-            .unwrap();
+        let dep = dependency();
+        let url = url("https://this-host-does-not-exist-xyzzy.invalid/x/y");
         let err = policy
             .check_git_url(&dep, &url, DependencyScope::TopLevel)
             .unwrap_err();
