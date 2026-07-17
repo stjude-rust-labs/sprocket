@@ -1057,6 +1057,7 @@ impl<S: 'static> Server<S> {
             .config
             .analyzer
             .goto_definition(
+                ProgressToken::default(),
                 params.text_document_position_params.text_document.uri,
                 position,
                 SourcePositionEncoding::UTF16,
@@ -1195,7 +1196,7 @@ impl<S: 'static> Server<S> {
         let result = state
             .config
             .analyzer
-            .code_lens(params.text_document.uri)
+            .code_lens(ProgressToken::default(), params.text_document.uri)
             .await
             .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
 
@@ -1217,6 +1218,7 @@ impl<S: 'static> Server<S> {
             .config
             .analyzer
             .hover(
+                ProgressToken::default(),
                 params.text_document_position_params.text_document.uri,
                 position,
                 SourcePositionEncoding::UTF16,
@@ -1241,7 +1243,12 @@ impl<S: 'static> Server<S> {
         let result = state
             .config
             .analyzer
-            .incoming_calls(params.item.uri, position, SourcePositionEncoding::UTF16)
+            .incoming_calls(
+                ProgressToken::default(),
+                params.item.uri,
+                position,
+                SourcePositionEncoding::UTF16,
+            )
             .await
             .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
 
@@ -1263,7 +1270,11 @@ impl<S: 'static> Server<S> {
         let result = state
             .config
             .analyzer
-            .inlay_hints(params.text_document.uri, params.range)
+            .inlay_hints(
+                ProgressToken::default(),
+                params.text_document.uri,
+                params.range,
+            )
             .await
             .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
 
@@ -1284,7 +1295,12 @@ impl<S: 'static> Server<S> {
         let result = state
             .config
             .analyzer
-            .outgoing_calls(params.item.uri, position, SourcePositionEncoding::UTF16)
+            .outgoing_calls(
+                ProgressToken::default(),
+                params.item.uri,
+                position,
+                SourcePositionEncoding::UTF16,
+            )
             .await
             .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
 
@@ -1306,6 +1322,7 @@ impl<S: 'static> Server<S> {
             .config
             .analyzer
             .call_hierarchy(
+                ProgressToken::default(),
                 params.text_document_position_params.text_document.uri,
                 position,
                 SourcePositionEncoding::UTF16,
@@ -1331,6 +1348,7 @@ impl<S: 'static> Server<S> {
             .config
             .analyzer
             .find_all_references(
+                ProgressToken::default(),
                 params.text_document_position.text_document.uri,
                 position,
                 SourcePositionEncoding::UTF16,
@@ -1357,6 +1375,7 @@ impl<S: 'static> Server<S> {
             .config
             .analyzer
             .rename(
+                ProgressToken::default(),
                 params.text_document_position.text_document.uri,
                 position,
                 SourcePositionEncoding::UTF16,
@@ -1377,7 +1396,7 @@ impl<S: 'static> Server<S> {
         let result = state
             .config
             .analyzer
-            .semantic_tokens(params.text_document.uri)
+            .semantic_tokens(ProgressToken::default(), params.text_document.uri)
             .await
             .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
 
