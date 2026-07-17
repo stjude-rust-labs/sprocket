@@ -193,10 +193,12 @@ fn snapshot_file(journal: &Path, label: &str, path: &Path) -> anyhow::Result<()>
             let bytes =
                 std::fs::read(path).with_context(|| format!("reading `{}`", path.display()))?;
             let snapshot = journal.join(format!("{label}.before"));
-            std::fs::write(&snapshot, bytes)
+            let mut snapshot_file = File::create(&snapshot)
                 .with_context(|| format!("writing mutation snapshot `{}`", snapshot.display()))?;
-            File::open(&snapshot)
-                .and_then(|file| file.sync_all())
+            std::io::Write::write_all(&mut snapshot_file, &bytes)
+                .with_context(|| format!("writing mutation snapshot `{}`", snapshot.display()))?;
+            snapshot_file
+                .sync_all()
                 .with_context(|| format!("syncing mutation snapshot `{}`", snapshot.display()))?;
         }
         Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
@@ -310,7 +312,9 @@ fn sync_project_files(manifest_path: &Path, lockfile_path: &Path) -> anyhow::Res
     for path in [manifest_path, lockfile_path] {
         match std::fs::symlink_metadata(path) {
             Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => {
-                File::open(path)
+                OpenOptions::new()
+                    .write(true)
+                    .open(path)
                     .and_then(|file| file.sync_all())
                     .with_context(|| format!("syncing `{}`", path.display()))?;
             }
