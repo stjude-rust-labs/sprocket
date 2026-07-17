@@ -132,3 +132,103 @@ impl GitFetcher {
         Ok(fetched)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::io;
+
+    use git2::Repository;
+    use git2::Signature;
+    use tempfile::tempdir;
+
+    use super::*;
+    use crate::resolver::config::ModulesConfig;
+
+    #[test]
+    fn local_remote_operations_materialize_module() -> Result<(), Box<dyn std::error::Error>> {
+        let upstream = tempdir()?;
+        let repo = Repository::init(upstream.path())?;
+        let module = upstream.path().join("module");
+        fs::create_dir(&module)?;
+        fs::write(
+            module.join(crate::MANIFEST_FILENAME),
+            br#"{"name":"dep","license":"MIT"}"#,
+        )?;
+        fs::write(module.join("index.wdl"), b"version 1.3\nworkflow w {}\n")?;
+
+        let mut index = repo.index()?;
+        index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;
+        index.write()?;
+        let tree = repo.find_tree(index.write_tree()?)?;
+        let signature = Signature::now("test", "test@example.com")?;
+        let oid = repo.commit(Some("HEAD"), &signature, &signature, "initial", &tree, &[])?;
+        repo.tag_lightweight("v1.0.0", &repo.find_object(oid, None)?, false)?;
+        let branch = repo
+            .head()?
+            .shorthand()
+            .map_err(|source| io::Error::new(io::ErrorKind::InvalidData, source))?
+            .to_string();
+
+        let url = Url::from_file_path(upstream.path())
+            .map_err(|()| io::Error::other("failed to create file URL"))?;
+        let policy = ResolverPolicy::try_from(&ModulesConfig {
+            allowed_schemes: vec!["file".to_string()],
+            ..ModulesConfig::default()
+        })?;
+        let fetcher = GitFetcher::new(Arc::new(policy));
+        let dependency: DependencyName = "dep".parse()?;
+        let sha = oid.to_string();
+
+        let tags = fetcher.list_tags(&dependency, &url, DependencyScope::TopLevel)?;
+        assert_eq!(
+            tags.get("v1.0.0").map(|commit| commit.as_str()),
+            Some(sha.as_str())
+        );
+        let branches = fetcher.list_branches(&dependency, &url, DependencyScope::TopLevel)?;
+        assert_eq!(
+            branches.get(&branch).map(|commit| commit.as_str()),
+            Some(sha.as_str())
+        );
+        assert_eq!(
+            fetcher.default_branch(&dependency, &url, DependencyScope::TopLevel)?,
+            branch
+        );
+        let resolution = tempdir()?;
+        assert_eq!(
+            fetcher.resolve_commit_prefix(
+                &dependency,
+                &url,
+                &sha[..8],
+                DependencyScope::TopLevel,
+                &resolution.path().join("fallback"),
+            )?,
+            sha
+        );
+
+        let cache = tempdir()?;
+        let leaf = cache.path().join(&sha);
+        let location = crate::resolver::git::CacheLocation {
+            root: cache.path(),
+            leaf: &leaf,
+        };
+        assert!(fetcher.ensure_materialized(
+            &dependency,
+            &url,
+            &sha,
+            &["module"],
+            DependencyScope::TopLevel,
+            location,
+        )?);
+        assert!(leaf.join("module").join(crate::MANIFEST_FILENAME).is_file());
+        assert!(!fetcher.ensure_materialized(
+            &dependency,
+            &url,
+            &sha,
+            &["module"],
+            DependencyScope::TopLevel,
+            location,
+        )?);
+        Ok(())
+    }
+}
