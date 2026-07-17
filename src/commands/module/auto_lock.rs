@@ -11,7 +11,7 @@ use super::LockedProject;
 use super::Project;
 use super::load_lockfile;
 use super::relock::RelockPlanner;
-use super::trust_policy::SignerChangeMode;
+use super::signer_policy::SignerChangeMode;
 use crate::commands::output::CommandOutput;
 use crate::config::Config;
 

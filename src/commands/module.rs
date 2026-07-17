@@ -22,7 +22,7 @@ pub mod sign;
 mod signer_policy;
 pub mod tree;
 pub mod trust;
-mod trust_policy;
+mod trust_store;
 pub mod update;
 pub mod upgrade;
 pub mod verify;
@@ -47,10 +47,8 @@ pub use project::load_lockfile;
 pub(crate) use project::require_lockfile;
 pub(crate) use project::trace_project;
 pub use signer_policy::TrustModeArg;
-pub(crate) use trust_policy::accept_lockfile_signers;
-pub(crate) use trust_policy::load_trust_store;
-pub(crate) use trust_policy::render_signer;
-pub(crate) use trust_policy::save_trust_store;
+pub(crate) use signer_policy::render_signer;
+pub(crate) use trust_store::TrustStoreFile;
 
 /// Subcommands of `sprocket dev module`.
 #[derive(Subcommand, Debug)]

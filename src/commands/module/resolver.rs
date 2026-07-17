@@ -7,7 +7,7 @@ use wdl_modules::resolver::GitResolver;
 use wdl_modules::resolver::ResolverPolicy;
 use wdl_modules::resolver::TrustStore;
 
-use super::trust_policy::load_trust_store;
+use super::TrustStoreFile;
 use crate::config::Config;
 
 /// The shared cache, trust, and policy inputs used to build resolvers for
@@ -43,7 +43,8 @@ impl ResolverEnvironment {
             trust_store = %trust_path.display(),
             "using module trust store"
         );
-        let trust = load_trust_store(&trust_path)?;
+        let trust_file = TrustStoreFile::load(trust_path)?;
+        let trust = trust_file.into_store();
         let policy = ResolverPolicy::try_from(&config.modules)?;
         Ok(Self {
             cache_root,

@@ -14,8 +14,8 @@ use wdl_modules::resolver::lock::signer_identity_map;
 use super::Project;
 use super::load_lockfile;
 use super::resolver::ResolverEnvironment;
+use super::signer_policy::SignerChangeMode;
 use super::signer_policy::enforce_lockfile_signer_policy;
-use super::trust_policy::SignerChangeMode;
 use crate::commands::output::CommandOutput;
 use crate::config::Config;
 

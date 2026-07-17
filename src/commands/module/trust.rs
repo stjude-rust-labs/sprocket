@@ -9,11 +9,9 @@ use wdl_modules::signing::parse_openssh_public_key_identity;
 
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
-use crate::commands::module::accept_lockfile_signers;
+use crate::commands::module::TrustStoreFile;
 use crate::commands::module::discover;
-use crate::commands::module::load_trust_store;
 use crate::commands::module::require_lockfile;
-use crate::commands::module::save_trust_store;
 use crate::commands::module::trace_project;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
@@ -90,7 +88,7 @@ pub async fn list(output: CommandOutput) -> CommandResult<()> {
     tracing::trace!("starting `sprocket dev module trust list`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
-    let store = load_trust_store(&trust_path)?;
+    let store = TrustStoreFile::load(trust_path)?.into_store();
 
     if store.keys.is_empty() {
         tracing::info!("no trusted module keys configured");
@@ -114,7 +112,7 @@ pub async fn all(args: AllArgs, output: CommandOutput) -> CommandResult<()> {
 
     let lockfile = require_lockfile(&project)?;
     let trust_path = crate::analysis::default_trust_path();
-    let trusted = accept_lockfile_signers(&trust_path, &lockfile)?;
+    let trusted = TrustStoreFile::load(trust_path)?.accept_lockfile_signers(&lockfile)?;
 
     output.completed(TRUST, format!("{trusted} signer keys"));
     Ok(())
@@ -125,7 +123,8 @@ pub async fn add(args: AddArgs, output: CommandOutput) -> CommandResult<()> {
     tracing::trace!("starting `sprocket dev module trust add`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
-    let mut store = load_trust_store(&trust_path)?;
+    let mut trust_file = TrustStoreFile::load(trust_path)?;
+    let store = trust_file.store_mut();
 
     if args.keys.len() > 1 && (args.name.is_some() || args.email.is_some()) {
         return Err(anyhow::anyhow!("`--name` and `--email` require exactly one key").into());
@@ -156,7 +155,7 @@ pub async fn add(args: AddArgs, output: CommandOutput) -> CommandResult<()> {
         output.completed(TRUST, key.to_openssh());
     }
 
-    save_trust_store(&trust_path, &store)?;
+    trust_file.save()?;
     Ok(())
 }
 
@@ -201,7 +200,8 @@ pub async fn remove(args: RemoveArgs, output: CommandOutput) -> CommandResult<()
     tracing::trace!("starting `sprocket dev module trust remove`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
-    let mut store = load_trust_store(&trust_path)?;
+    let mut trust_file = TrustStoreFile::load(trust_path)?;
+    let store = trust_file.store_mut();
 
     let mut parsed = Vec::new();
     for key in &args.keys {
@@ -221,7 +221,7 @@ pub async fn remove(args: RemoveArgs, output: CommandOutput) -> CommandResult<()
         return Err(anyhow::anyhow!("no matching trusted keys").into());
     }
 
-    save_trust_store(&trust_path, &store)?;
+    trust_file.save()?;
     Ok(())
 }
 
@@ -230,10 +230,10 @@ pub async fn destroy(output: CommandOutput) -> CommandResult<()> {
     tracing::trace!("starting `sprocket dev module trust destroy`");
     let trust_path = crate::analysis::default_trust_path();
     tracing::info!(trust_store = %trust_path.display(), "using module trust store");
-    let mut store = load_trust_store(&trust_path)?;
+    let mut trust_file = TrustStoreFile::load(trust_path)?;
 
-    store.clear();
-    save_trust_store(&trust_path, &store)?;
+    trust_file.store_mut().clear();
+    trust_file.save()?;
     output.completed(REMOVE, "all trusted keys");
     Ok(())
 }
