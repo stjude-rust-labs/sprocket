@@ -97,6 +97,15 @@ fn write_signature(dir: &Path, signer: &crate::signing::SigningKey) {
 }
 
 #[test]
+fn git_resolver_facade_exposes_only_command_api() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<GitResolver>();
+    assert_send_sync::<GitResolverBuilder>();
+    assert_send_sync::<CacheCleanStats>();
+    assert_send_sync::<VerifyLockedReport>();
+}
+
+#[test]
 fn builds_with_explicit_paths() {
     let cache = tempdir().unwrap();
     let r = GitResolver::builder()
