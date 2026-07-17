@@ -12,7 +12,6 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::CommandSection;
 
@@ -159,7 +158,7 @@ impl Visitor for InlineInstall {
                     section.span().start() + mat.start(),
                     mat.end() - mat.start(),
                 )),
-                SyntaxElement::from(section.inner().clone()),
+                section.inner(),
                 &self.exceptable_nodes(),
             );
         }
