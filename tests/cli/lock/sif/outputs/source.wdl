@@ -6,6 +6,6 @@ task local_sif {
     >>>
 
     requirements {
-        container: "fil/images/tool.sif"
+        container: "file://images/tool.sif"
     }
 }

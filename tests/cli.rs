@@ -273,13 +273,15 @@ fn normalize_string(input: &str, temp_dir: &Path) -> String {
         .replace("\r\n", "\n")
         .replace("\\r\\n", "\\n")
         .replace("sprocket.exe", "sprocket")
-        .replace("\\", "/")
-        .replace("//", "/");
+        .replace("\\", "/");
+    let s = collapse_path_slashes(&s);
 
     // Strip Windows drive prefixes (e.g., `C:`) from absolute paths.
-    static DRIVE_PREFIX: std::sync::LazyLock<regex::Regex> =
-        std::sync::LazyLock::new(|| regex::Regex::new(r"[A-Za-z]:(/\S)").unwrap());
-    let s = DRIVE_PREFIX.replace_all(&s, "$1");
+    static DRIVE_PREFIX: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        // SAFETY: the fixture normalization regex is a tested constant.
+        regex::Regex::new(r#"(^|[^A-Za-z0-9_/])([A-Za-z]):/+"#).unwrap()
+    });
+    let s = DRIVE_PREFIX.replace_all(&s, "$1/");
 
     // Normalize Windows OS error messages to their Unix equivalents.
     const WINDOWS_TO_UNIX_ERRORS: &[(&str, &str)] = &[
@@ -308,18 +310,58 @@ fn normalize_string(input: &str, temp_dir: &Path) -> String {
     s.to_string()
 }
 
-#[test]
-fn normalizes_lock_generation_times() {
-    normalizes_lock_generation_times_impl();
+fn collapse_path_slashes(input: &str) -> String {
+    static URI_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+        // SAFETY: the fixture normalization regex is a tested constant.
+        Regex::new(r##"[A-Za-z][A-Za-z0-9+.-]*://[^\s"'`<>)]*"##).unwrap()
+    });
+
+    let mut normalized = String::with_capacity(input.len());
+    let mut last = 0;
+    for uri in URI_PATTERN.find_iter(input) {
+        collapse_slashes_into(&input[last..uri.start()], &mut normalized);
+        normalized.push_str(uri.as_str());
+        last = uri.end();
+    }
+    collapse_slashes_into(&input[last..], &mut normalized);
+    normalized
 }
 
-/// Checks that generated lock timestamps normalize to a stable placeholder.
+fn collapse_slashes_into(input: &str, output: &mut String) {
+    static SLASH_RUN_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+        // SAFETY: the fixture normalization regex is a tested constant.
+        Regex::new(r"/{2,}").unwrap()
+    });
+
+    output.push_str(&SLASH_RUN_PATTERN.replace_all(input, "/"));
+}
+
+/// Checks fixture normalization for lock files and Windows paths.
 fn normalizes_lock_generation_times_impl() {
     // SAFETY: this test only needs any writable temporary directory.
     let temp = tempfile::tempdir().unwrap();
     assert_eq!(
         normalize_string("generation_time = \"2026-07-17T20:00:00Z\"\n", temp.path(),),
         "generation_time = \"_GENERATION_TIME_\"\n"
+    );
+    assert_eq!(
+        normalize_string("container = \"file://images/tool.sif\"\n", temp.path(),),
+        "container = \"file://images/tool.sif\"\n"
+    );
+    assert_eq!(
+        normalize_string(
+            "container = \"docker://docker.io/library/ubuntu:24.04\"\n",
+            temp.path(),
+        ),
+        "container = \"docker://docker.io/library/ubuntu:24.04\"\n"
+    );
+    assert_eq!(
+        normalize_string("path = \"C:\\Users\\runner\\work\"\n", temp.path(),),
+        "path = \"/Users/runner/work\"\n"
+    );
+    assert_eq!(
+        normalize_string("path = \"/var//folders//runner\"\n", temp.path(),),
+        "path = \"/var/folders/runner\"\n"
     );
 }
 

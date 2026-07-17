@@ -133,7 +133,7 @@ version = 1
 generation_time = "2026-07-17T20:00:00Z"
 
 [images]
-"docker.io/library/ubuntu:24.04" = "docker.io/library/ubuntu@sha256:..."
+"docker://docker.io/library/ubuntu:24.04" = "docker://docker.io/library/ubuntu@sha256:..."
 "oras://ghcr.io/example/tool:1.0" = "oras://ghcr.io/example/tool@sha256:..."
 
 [sif_files]
