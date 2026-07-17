@@ -27,7 +27,8 @@
   "enabledManagers": [
     "cargo",
     "npm",
-    "github-actions"
+    "github-actions",
+    "pep621"
   ],
   "lockFileMaintenance": {
     "enabled": true,
@@ -50,7 +51,7 @@
       ]
     },
     {
-      "description": "Group all npm updates into one PR",
+      "description": "Group all npm minor and patch updates into one PR",
       "matchManagers": [
         "npm"
       ],
@@ -85,6 +86,17 @@
       "groupName": "cargo updates",
       "addLabels": [
         "cargo"
+      ]
+    },
+    {
+      "description": "Group all Python updates into one PR",
+      "matchManagers": [
+        "pep621"
+      ],
+      "groupName": "python updates",
+      "rangeStrategy": "bump",
+      "addLabels": [
+        "python"
       ]
     }
   ],

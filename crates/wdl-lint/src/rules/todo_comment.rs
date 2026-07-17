@@ -8,7 +8,7 @@ use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
+use wdl_ast::TreeToken;
 
 use crate::Config;
 use crate::Rule;
@@ -107,7 +107,7 @@ impl Visitor for TodoCommentRule {
             for (offset, pattern) in comment.text().match_indices(keyword.as_str()) {
                 diagnostics.exceptable_add(
                     todo_comment(keyword, pattern, comment.span(), offset),
-                    SyntaxElement::from(comment.inner().clone()),
+                    &TreeToken::parent(comment.inner()),
                     &self.exceptable_nodes(),
                 );
             }

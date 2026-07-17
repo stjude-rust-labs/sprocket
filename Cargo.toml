@@ -64,6 +64,7 @@ ignore = "0.4.25"
 indexmap = "2.13.0"
 indicatif = "0.18.3"
 itertools = "0.15.0"
+jsonschema = "0.47.0"
 libc = "0.2"
 libtest-mimic = "^0.8.1"
 line-index = "0.1.2"
@@ -71,6 +72,7 @@ logos = "0.16.1"
 lsp-types = "=0.95.1"
 macropol = "0.1.4"
 maud = "0.27.0"
+mimalloc = "0.1.52"
 nonempty = "0.12.0"
 notify = "8.2.0"
 num_enum = "0.7.5"
@@ -80,7 +82,6 @@ parking_lot = "0.12.5"
 paste = "1.0.15"
 path-clean = "1.0.1"
 pathdiff = "0.2.3"
-peak_alloc = "0.3.0"
 petgraph = "0.8.3"
 petname = { version = "2.0.2", features = ["default-rng", "default-words"] }
 pretty_assertions = "1.4.1"
@@ -117,6 +118,7 @@ thiserror = "2.0.18"
 tokio = { version = "1.49.0", features = ["full"] }
 tokio-retry2 = "0.9.1"
 tokio-util = "0.7.18"
+toml = "1.1.2"
 toml-spanner = { version = "1.0.2", features = ["derive", "to-toml"] }
 tower = { version = "0.5.3", features = ["util"] }
 tower-http = { version = "0.7.0", features = ["cors", "trace"] }
@@ -132,10 +134,11 @@ utoipa = { version = "5.4.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 uuid = { version = "1.20.0", features = ["serde", "v4"] }
 walkdir = "2.5.0"
-wdl = { version = "0.23.2", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
-wdl-modules = { version = "0.2.1", path = "crates/wdl-modules", features = ["git-resolver"] }
+wdl = { version = "0.23.3", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
+wdl-modules = { version = "0.3.0", path = "crates/wdl-modules", features = ["git-resolver"] }
 which = "8.0.0"
 whoami = "2.1.0"
+windows-sys = "0.61"
 zip = { version = "8.1.0", default-features = false, features = [] }
 
 [workspace.lints.rust]
@@ -161,7 +164,7 @@ new_without_default = "allow"
 
 [package]
 name = "sprocket"
-version = "0.27.0"
+version = "0.28.0"
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true
@@ -170,6 +173,16 @@ homepage.workspace = true
 repository.workspace = true
 documentation = "https://sprocket.bio/overview.html"
 readme = "README.md"
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Threading",
+] }
 
 [dependencies]
 anyhow.workspace = true
@@ -190,11 +203,11 @@ git-testament.workspace = true
 indexmap.workspace = true
 indicatif.workspace = true
 itertools.workspace = true
+mimalloc.workspace = true
 nonempty.workspace = true
 opener.workspace = true
 path-clean.workspace = true
 pathdiff.workspace = true
-peak_alloc.workspace = true
 petname.workspace = true
 pretty_assertions.workspace = true
 rand.workspace = true
@@ -230,13 +243,15 @@ whoami.workspace = true
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
 http-body-util = "0.1.3"
+jsonschema = { workspace = true }
 libtest-mimic.workspace = true
 regex.workspace = true
 reqwest = { workspace = true, features = ["blocking"] }
 shlex.workspace = true
 tempfile.workspace = true
+toml = { workspace = true }
 walkdir.workspace = true
-zip.workspace = true
+zip = { workspace = true, features = ["deflate"] }
 
 [lints]
 workspace = true

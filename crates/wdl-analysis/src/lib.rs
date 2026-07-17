@@ -37,6 +37,7 @@ use wdl_ast::AstToken;
 use wdl_ast::Comment;
 use wdl_ast::Direction;
 use wdl_ast::Directive;
+use wdl_ast::ExceptRule;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 
@@ -90,7 +91,7 @@ pub trait Exceptable {
     ///
     /// The set is the comma-delimited list of rule identifiers that follows a
     /// `#@ except:` comment.
-    fn rule_exceptions(&self) -> HashSet<String> {
+    fn rule_exceptions(&self) -> HashSet<ExceptRule> {
         HashSet::new()
     }
 
@@ -101,8 +102,8 @@ pub trait Exceptable {
 }
 
 impl Exceptable for SyntaxNode {
-    fn rule_exceptions(&self) -> HashSet<String> {
-        let mut exceptions: HashSet<String> = self
+    fn rule_exceptions(&self) -> HashSet<ExceptRule> {
+        let mut exceptions: HashSet<ExceptRule> = self
             .siblings_with_tokens(Direction::Prev)
             .skip(1) // self is included with siblings
             .map_while(|s| {
@@ -119,17 +120,24 @@ impl Exceptable for SyntaxNode {
             })
             .collect();
 
+        // Expand deprecated alias exceptions by inserting a replacement
+        // `ExceptRule` that shares the alias's span. The original alias entry is
+        // retained so that migration diagnostics can still point at it.
         let replacements = exceptions
             .iter()
-            .filter_map(|id| replacement_rule_id(id))
-            .map(ToString::to_string)
+            .filter_map(|rule| {
+                replacement_rule_id(&rule.name).map(|replacement| ExceptRule {
+                    name: replacement.to_string(),
+                    span: rule.span,
+                })
+            })
             .collect::<Vec<_>>();
         exceptions.extend(replacements);
         exceptions
     }
 
     fn is_rule_excepted(&self, id: &str) -> bool {
-        self.rule_exceptions().contains(id)
+        self.rule_exceptions().iter().any(|e| e.name == id)
     }
 }
 
@@ -161,7 +169,7 @@ mod alias_tests {
             panic!("test document should contain a task");
         };
         let exceptions = task.inner().rule_exceptions();
-        assert!(exceptions.contains("SnakeCase"));
-        assert!(exceptions.contains("NamingConvention"));
+        assert!(exceptions.iter().any(|e| e.name == "SnakeCase"));
+        assert!(exceptions.iter().any(|e| e.name == "NamingConvention"));
     }
 }

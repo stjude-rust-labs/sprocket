@@ -3,7 +3,6 @@
 use std::process::Command;
 use std::process::Stdio;
 
-use strsim::levenshtein;
 use wdl_analysis::rules as analysis_rules;
 
 use crate::rules::RULE_MAP;
@@ -75,30 +74,19 @@ pub fn program_exists(exec: &str) -> bool {
         .is_ok_and(|r| r.success())
 }
 
-/// Finds the nearest rule ID to the given unknown rule ID,
-/// or `None` if no rule ID is close enough.
-pub fn find_nearest_rule(unknown_rule_id: &str) -> Option<&'static str> {
-    let threshold = calculate_threshold(unknown_rule_id.len());
-
-    RULE_MAP
+/// Finds the nearest rule ID to the given unknown rule ID, or `None` if no rule
+/// ID is close enough.
+///
+/// Both `wdl-lint` and `wdl-analysis` rule IDs are considered. The similarity
+/// calculation is delegated to [`wdl_analysis::find_nearest_rule`] so there is
+/// a single source of truth for the matching logic.
+pub fn find_nearest_rule(unknown_rule_id: &str) -> Option<String> {
+    let analysis = analysis_rules();
+    let known = RULE_MAP
         .keys()
         .copied()
-        .chain(analysis_rules().iter().map(|rule| rule.id()))
-        .map(|rule_id| (rule_id, levenshtein(unknown_rule_id, rule_id)))
-        .filter(|(_, distance)| *distance <= threshold)
-        .min_by_key(|(_, distance)| *distance)
-        .map(|(rule_id, _)| rule_id)
-}
-
-/// Calculates a threshold for string similarity based on input length.
-fn calculate_threshold(input_len: usize) -> usize {
-    if input_len <= 3 {
-        return 1;
-    }
-    if input_len <= 10 {
-        return input_len / 3 + 1;
-    }
-    5
+        .chain(analysis.iter().map(|rule| rule.id()));
+    wdl_analysis::find_nearest_rule(known, unknown_rule_id)
 }
 
 /// Serializes a list of items using the Oxford comma.
@@ -195,23 +183,23 @@ mod test {
     fn test_find_nearest_rule() {
         // Test exact match
         let nearest = find_nearest_rule("NamingConvention");
-        assert_eq!(nearest, Some("NamingConvention"));
+        assert_eq!(nearest.as_deref(), Some("NamingConvention"));
 
         // Test close match
         let nearest = find_nearest_rule("NamingConventionX");
-        assert_eq!(nearest, Some("NamingConvention"));
+        assert_eq!(nearest.as_deref(), Some("NamingConvention"));
 
         // Test another exact match
         let nearest = find_nearest_rule("ContainerUri");
-        assert_eq!(nearest, Some("ContainerUri"));
+        assert_eq!(nearest.as_deref(), Some("ContainerUri"));
 
         // Test a typo
         let nearest = find_nearest_rule("ContainerUrl");
-        assert_eq!(nearest, Some("ContainerUri"));
+        assert_eq!(nearest.as_deref(), Some("ContainerUri"));
 
         // Test a completely different string
         let nearest = find_nearest_rule("CompletelyDifferentRule");
-        assert_eq!(nearest, None);
+        assert_eq!(nearest.as_deref(), None);
     }
 
     #[test]

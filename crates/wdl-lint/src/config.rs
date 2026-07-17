@@ -9,6 +9,7 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::str::FromStr;
 
+use schemars::JsonSchema;
 use toml_spanner::Arena;
 use toml_spanner::Context;
 use toml_spanner::Error as TomlError;
@@ -23,11 +24,14 @@ use toml_spanner::ToTomlError;
 use toml_spanner::Toml;
 use wdl_ast::Severity;
 
+use crate::rules::BashSetOption;
+
 /// An overridden severity for a rule.
 ///
 /// This is distinct from the absence of an override, which leaves a rule
 /// emitting at its built-in default severity.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, JsonSchema)]
+#[schemars(rename_all = "lowercase")]
 pub enum RuleSeverity {
     /// Disable the rule entirely.
     Off,
@@ -81,6 +85,12 @@ impl fmt::Display for RuleSeverity {
     }
 }
 
+impl serde::Serialize for RuleSeverity {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(&self.to_string())
+    }
+}
+
 impl<'de> FromToml<'de> for RuleSeverity {
     fn from_toml(ctx: &mut Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
         let Some(s) = item.as_str() else {
@@ -98,15 +108,19 @@ impl ToToml for RuleSeverity {
 }
 
 /// A naming convention case style.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, JsonSchema)]
 pub enum CaseStyle {
     /// `snake_case`.
+    #[schemars(rename = "snake_case")]
     Snake,
     /// `SCREAMING_SNAKE_CASE`.
+    #[schemars(rename = "screaming_snake_case")]
     ScreamingSnake,
     /// `camelCase`.
+    #[schemars(rename = "camelCase")]
     Camel,
     /// `PascalCase`.
+    #[schemars(rename = "PascalCase")]
     Pascal,
 }
 
@@ -239,17 +253,20 @@ macro_rules! define_rule_params {
         ///
         /// A rule's table may set `severity` to override its severity (or `off`
         /// to disable it) along with any parameters applicable to that rule.
-        #[derive(Clone, Debug, PartialEq, Eq, Toml)]
+        #[derive(Clone, Debug, PartialEq, Eq, Toml, JsonSchema)]
         #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+        #[schemars(rename_all = "snake_case", deny_unknown_fields)]
         pub struct RuleConfig {
             /// The severity override for the rule.
             ///
             /// When absent, the rule emits at its built-in default severity.
             #[toml(default)]
+            #[schemars(default)]
             pub severity: Option<RuleSeverity>,
             $(
                 $(#[doc = $doc])+
                 #[toml(default = $default $(, rename = $rename)?)]
+                $(#[schemars(rename = $rename)])?
                 pub $field: $ty,
             )+
         }
@@ -418,13 +435,24 @@ define_rule_params! {
     /// The case style required for struct members.
     #[rules(NamingConvention)]
     struct_member: CaseStyle = CaseStyle::Snake,
+    /// The bash `set` options to enforce in every `command` section.
+    ///
+    /// ```toml
+    /// bash_set_options = ["errexit", "nounset", "pipefail"]
+    /// ```
+    #[rules(BashSetSyntax)]
+    bash_set_options: Vec<BashSetOption> = vec![
+        BashSetOption::ErrExit,
+        BashSetOption::NoUnset,
+        BashSetOption::Pipefail,
+    ],
 }
 
 /// The configuration for lint rules.
 ///
 /// This is a table of per-rule settings keyed by rule ID. Rules without an
 /// entry use their defaults.
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, JsonSchema)]
 pub struct Config(BTreeMap<String, RuleConfig>);
 
 impl Config {

@@ -8,7 +8,6 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::Decl;
@@ -211,7 +210,7 @@ fn check_decl_name(
         // name is too short
         diagnostics.exceptable_add(
             decl_identifier_too_short(decl.name().span(), min_length),
-            SyntaxElement::from(decl.inner().clone()),
+            decl.inner(),
             exceptable_nodes,
         );
     }
@@ -233,7 +232,7 @@ fn check_decl_name(
                     // name starts with "out"
                     diagnostics.exceptable_add(
                         decl_identifier_starts_with_out(decl.name().span()),
-                        SyntaxElement::from(decl.inner().clone()),
+                        decl.inner(),
                         exceptable_nodes,
                     );
                 } else {
@@ -242,7 +241,7 @@ fn check_decl_name(
                         // name starts with "output"
                         diagnostics.exceptable_add(
                             decl_identifier_starts_with_output(decl.name().span()),
-                            SyntaxElement::from(decl.inner().clone()),
+                            decl.inner(),
                             exceptable_nodes,
                         );
                     }

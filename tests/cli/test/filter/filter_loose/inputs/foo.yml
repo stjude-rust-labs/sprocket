@@ -1,0 +1,5 @@
+say_hello:
+  - name: loose1
+  - name: loose2
+  - name: stillloose3
+  - name: different

@@ -60,13 +60,15 @@ pub async fn analyze_source(
     fallback_version: Option<SupportedVersion>,
     modules_config: wdl_modules::resolver::ModulesConfig,
     feature_flags: wdl::analysis::FeatureFlags,
+    report_mode: Mode,
+    colorize: bool,
 ) -> CommandResult<Document> {
     let results = Analysis::default()
         .add_source(source.clone())
         .fallback_version(fallback_version)
         .modules_config(modules_config)
         .feature_flags(feature_flags)
-        .run()
+        .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
 
@@ -183,7 +185,8 @@ async fn resolve_target_and_inputs(
 }
 
 /// The main function for the `validate` subcommand.
-pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
+pub async fn validate(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     if let Source::Directory(_) = args.source {
         return Err(
             anyhow!("directory sources are not supported for the `validate` command").into(),
@@ -195,6 +198,8 @@ pub async fn validate(args: Args, config: Config) -> CommandResult<()> {
         config.common.wdl.fallback_version.into(),
         config.modules.clone(),
         config.common.wdl.feature_flags,
+        report_mode,
+        colorize,
     )
     .await?;
 

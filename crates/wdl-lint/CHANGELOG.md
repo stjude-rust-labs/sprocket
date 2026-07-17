@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## Unreleased
+
 #### Added
 
 * Per-rule configuration with severity overrides and parameters, keyed by rule
@@ -27,6 +29,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Fixed
 
 * `ImportPlacement` now flags imports placed after a top-level `enum`.
+
+## 0.25.0 - 2026-07-15
+
+#### Added
+
+* Added `BashSetSyntax` lint rule to enforce consistent [bash set](https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html)
+  commands in every `command` section ([#843](https://github.com/stjude-rust-labs/sprocket/pull/843)).
+
+#### Removed
+
+* Removed the `KnownRules` rule, and promoted it to `wdl-analysis` ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
 
 ## 0.24.1 - 2026-06-26
 

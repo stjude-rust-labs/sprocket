@@ -61,6 +61,7 @@ Options:
           Print version
 
 Available rules:
+  - BashSetSyntax
   - CallInputKeyword
   - CommandSectionIndentation
   - ConciseInput
@@ -83,6 +84,7 @@ Available rules:
   - InputName
   - KnownRules
   - MatchingOutputMeta
+  - MeaninglessLintDirective
   - MetaDescription
   - MetaSections
   - MisleadingDeclarationOrder

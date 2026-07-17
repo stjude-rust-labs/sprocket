@@ -1,6 +1,6 @@
 [package]
 name = "wdl-analysis"
-version = "0.22.0"
+version = "0.23.0"
 rust-version.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -28,16 +28,18 @@ rayon = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
 rowan = { workspace = true }
+schemars = { workspace = true }
 smallvec = { workspace = true }
+strsim = { workspace = true }
 tokio = { workspace = true }
 toml-spanner = { workspace = true }
 tracing = { workspace = true }
 url = { workspace = true }
 uuid = { workspace = true, features = ["v4"] }
-wdl-ast = { path = "../wdl-ast", version = "0.25.0" }
-wdl-format = { path = "../wdl-format", version = "0.19.0" }
-wdl-grammar = { path = "../wdl-grammar", version = "0.24.0" }
-wdl-modules = { path = "../wdl-modules", version = "0.2.1" }
+wdl-ast = { path = "../wdl-ast", version = "0.26.0" }
+wdl-format = { path = "../wdl-format", version = "0.20.0" }
+wdl-grammar = { path = "../wdl-grammar", version = "0.25.0" }
+wdl-modules = { path = "../wdl-modules", version = "0.3.0" }
 
 [dev-dependencies]
 async-trait = { workspace = true }

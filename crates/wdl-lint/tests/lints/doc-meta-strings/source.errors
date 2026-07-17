@@ -1,15 +1,15 @@
 warning[DocMetaStrings]: metadata key `description` should have a `String` value, found integer
-   ┌─ tests/lints/doc-meta-strings/source.wdl:19:13
+   ┌─ tests/lints/doc-meta-strings/source.wdl:20:13
    │
-19 │             description: 456,  # Should warn: integer instead of string
+20 │             description: 456,  # Should warn: integer instead of string
    │             ^^^^^^^^^^^^^^^^ `description` must be a `String` for proper documentation rendering
    │
    = fix: change the value of `description` to a `String`
 
 warning[DocMetaStrings]: metadata key `description` should have a `String` value, found integer
-   ┌─ tests/lints/doc-meta-strings/source.wdl:30:9
+   ┌─ tests/lints/doc-meta-strings/source.wdl:31:9
    │
-30 │         flag_input: 42  # Invalid: non-string value for parameter description - should warn
+31 │         flag_input: 42  # Invalid: non-string value for parameter description - should warn
    │         ^^^^^^^^^^^^^^ `description` must be a `String` for proper documentation rendering
    │
    = fix: change the value of `description` to a `String`

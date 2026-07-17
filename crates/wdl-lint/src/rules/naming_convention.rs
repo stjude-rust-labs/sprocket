@@ -13,8 +13,8 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
+use wdl_ast::SyntaxNode;
 use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::InputSection;
@@ -158,7 +158,7 @@ impl NamingConventionRule {
         name: &str,
         span: Span,
         diagnostics: &mut Diagnostics,
-        element: SyntaxElement,
+        element: &SyntaxNode,
     ) {
         if self.allowed_names.contains(name) {
             return;
@@ -274,7 +274,7 @@ impl Visitor for NamingConventionRule {
                     name.text(),
                     name.span(),
                     diagnostics,
-                    SyntaxElement::from(def.inner().clone()),
+                    def.inner(),
                 );
             }
             VisitReason::Exit => {
@@ -299,7 +299,7 @@ impl Visitor for NamingConventionRule {
             name.text(),
             name.span(),
             diagnostics,
-            SyntaxElement::from(def.inner().clone()),
+            def.inner(),
         );
 
         for choice in def.choices() {
@@ -309,7 +309,7 @@ impl Visitor for NamingConventionRule {
                 name.text(),
                 name.span(),
                 diagnostics,
-                SyntaxElement::from(choice.inner().clone()),
+                choice.inner(),
             );
         }
     }
@@ -348,7 +348,7 @@ impl Visitor for NamingConventionRule {
             name.text(),
             name.span(),
             diagnostics,
-            SyntaxElement::from(task.inner().clone()),
+            task.inner(),
         );
     }
 
@@ -368,7 +368,7 @@ impl Visitor for NamingConventionRule {
             name.text(),
             name.span(),
             diagnostics,
-            SyntaxElement::from(workflow.inner().clone()),
+            workflow.inner(),
         );
     }
 
@@ -379,13 +379,7 @@ impl Visitor for NamingConventionRule {
 
         let name = decl.name();
         let context = self.determine_decl_context();
-        self.check_name(
-            context,
-            name.text(),
-            name.span(),
-            diagnostics,
-            SyntaxElement::from(decl.inner().clone()),
-        );
+        self.check_name(context, name.text(), name.span(), diagnostics, decl.inner());
     }
 
     fn unbound_decl(
@@ -400,12 +394,6 @@ impl Visitor for NamingConventionRule {
 
         let name = decl.name();
         let context = self.determine_decl_context();
-        self.check_name(
-            context,
-            name.text(),
-            name.span(),
-            diagnostics,
-            SyntaxElement::from(decl.inner().clone()),
-        );
+        self.check_name(context, name.text(), name.span(), diagnostics, decl.inner());
     }
 }

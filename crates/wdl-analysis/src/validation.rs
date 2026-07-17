@@ -1,18 +1,28 @@
 //! Validator for WDL documents.
 
+use std::collections::HashMap;
+use std::collections::HashSet;
+
+use strsim::levenshtein;
+use wdl_ast::AstNode;
 use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
+use wdl_ast::ExceptRule;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxElement;
-use wdl_ast::SyntaxKind;
+use wdl_ast::TreeNode;
 use wdl_ast::VersionStatement;
 use wdl_ast::Whitespace;
 use wdl_ast::v1;
+use wdl_grammar::Severity;
+use wdl_grammar::SyntaxKind;
 
+use crate::ALL_RULE_IDS;
 use crate::Config;
 use crate::Exceptable;
+use crate::MeaninglessLintDirective;
 use crate::VisitReason;
 use crate::Visitor;
+use crate::diagnostics::meaningless_lint_directive;
 use crate::document::Document;
 
 mod counts;
@@ -20,63 +30,112 @@ mod env;
 mod exprs;
 mod imports;
 mod keys;
+mod known_rules;
 mod numbers;
 mod requirements;
 mod strings;
 mod version;
 
+/// Finds the nearest known rule ID to the given unknown rule ID,
+/// or `None` if no rule ID is close enough.
+pub fn find_nearest_rule<'a>(
+    known_rules: impl IntoIterator<Item = &'a str>,
+    unknown_rule_id: &str,
+) -> Option<String> {
+    let threshold = if unknown_rule_id.len() <= 3 {
+        1
+    } else if unknown_rule_id.len() <= 10 {
+        unknown_rule_id.len() / 3 + 1
+    } else {
+        5
+    };
+
+    known_rules
+        .into_iter()
+        .map(|rule_id| (rule_id, levenshtein(unknown_rule_id, rule_id)))
+        .filter(|(_, distance)| *distance <= threshold)
+        .min_by_key(|(_, distance)| *distance)
+        .map(|(rule_id, _)| rule_id.to_string())
+}
+
 /// Represents a collection of validation diagnostics.
 ///
 /// Validation visitors receive a diagnostics collection during
 /// visitation of the AST.
-#[derive(Debug, Default)]
-pub struct Diagnostics(pub(crate) Vec<Diagnostic>);
+#[derive(Clone, Debug, Default)]
+pub struct Diagnostics {
+    /// Diagnostics to emit.
+    pub(crate) diagnostics: Vec<Diagnostic>,
+    /// `#@ except:` directives discovered during traversal.
+    ///
+    /// `HashMap<Rule, applied>`
+    exceptions: HashMap<ExceptRule, bool>,
+}
 
 impl Diagnostics {
     /// Adds a diagnostic to the collection.
+    ///
+    /// NOTE: This is intended for diagnostics that cannot be suppressed.
+    /// Otherwise, [`Diagnostics::exceptable_add()`] should be used.
     pub fn add(&mut self, diagnostic: Diagnostic) {
-        self.0.push(diagnostic);
+        self.diagnostics.push(diagnostic);
+    }
+
+    /// Adds rule exceptions to the collection.
+    pub fn add_exceptions(&mut self, exceptions: impl IntoIterator<Item = ExceptRule>) {
+        for e in exceptions {
+            self.exceptions.entry(e).or_insert(false);
+        }
     }
 
     /// Adds a diagnostic to the collection, unless the diagnostic is for an
     /// element that has an exception for the given rule.
     ///
     /// If the diagnostic does not have a rule, the diagnostic is always added.
-    pub fn exceptable_add(
+    pub fn exceptable_add<N: TreeNode + Exceptable>(
         &mut self,
         diagnostic: Diagnostic,
-        element: SyntaxElement,
+        element: &N,
         exceptable_nodes: &Option<&'static [SyntaxKind]>,
     ) {
-        if let Some(rule) = diagnostic.rule() {
-            for node in element.ancestors().filter(|node| {
-                exceptable_nodes
-                    .as_ref()
-                    .is_none_or(|nodes| nodes.contains(&node.kind()))
-            }) {
-                if node.is_rule_excepted(rule) {
-                    // Rule is currently excepted, don't add the diagnostic
-                    return;
-                }
+        let Some(target_rule) = diagnostic.rule() else {
+            self.add(diagnostic);
+            return;
+        };
+
+        for node in element.ancestors().filter(|node| {
+            exceptable_nodes
+                .as_ref()
+                .is_none_or(|nodes| nodes.contains(&node.kind()))
+        }) {
+            let mut rule_excepted = false;
+            for rule in node
+                .rule_exceptions()
+                .into_iter()
+                .filter(|rule| rule.name == target_rule)
+            {
+                rule_excepted = true;
+                self.exceptions
+                    .entry(rule)
+                    .and_modify(|applied| *applied = true);
+            }
+
+            if rule_excepted {
+                return;
             }
         }
 
         self.add(diagnostic);
     }
 
-    /// Extends the collection with another collection of diagnostics.
-    pub fn extend(&mut self, diagnostics: Diagnostics) {
-        self.0.extend(diagnostics.0);
-    }
-
     /// Returns whether the collection is empty.
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
+        self.diagnostics.is_empty()
     }
 
     /// Returns the number of diagnostics in the collection.
     pub fn len(&self) -> usize {
-        self.0.len()
+        self.diagnostics.len()
     }
 
     /// Returns a mutable slice of the diagnostics in the collection.
@@ -84,12 +143,38 @@ impl Diagnostics {
     /// This is used by visitors (such as the linter) to post-process the
     /// severity of diagnostics they have just added.
     pub fn as_mut_slice(&mut self) -> &mut [Diagnostic] {
-        &mut self.0
+        &mut self.diagnostics
     }
 
     /// Sorts the diagnostics in the collection.
     pub fn sort(&mut self) {
-        self.0.sort();
+        self.diagnostics.sort();
+    }
+
+    /// Iterate the diagnostics emitted so far.
+    pub fn iter(&self) -> std::slice::Iter<'_, Diagnostic> {
+        self.diagnostics.iter()
+    }
+}
+
+impl Extend<Diagnostic> for Diagnostics {
+    fn extend<I: IntoIterator<Item = Diagnostic>>(&mut self, iter: I) {
+        self.diagnostics.extend(iter);
+    }
+}
+
+impl IntoIterator for Diagnostics {
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+    type Item = Diagnostic;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.diagnostics.into_iter()
+    }
+}
+
+impl From<Diagnostics> for Vec<Diagnostic> {
+    fn from(input: Diagnostics) -> Self {
+        input.diagnostics
     }
 }
 
@@ -102,36 +187,118 @@ impl Diagnostics {
 pub struct Validator {
     /// The set of validation visitors.
     visitors: Vec<Box<dyn Visitor>>,
+    /// The known rules visitor.
+    known_rules: known_rules::KnownRules,
 }
 
 impl Validator {
     /// Creates a validator with an empty visitors set.
-    pub const fn empty() -> Self {
+    pub fn empty() -> Self {
         Self {
             visitors: Vec::new(),
+            // Analysis rules are always known
+            known_rules: known_rules::KnownRules::new(ALL_RULE_IDS.iter().cloned().collect()),
         }
     }
 
     /// Adds a visitor to the validator.
     pub fn add_visitor<V: Visitor + 'static>(&mut self, visitor: V) {
-        self.visitors.push(Box::new(visitor));
+        self.add_visitors(std::iter::once(Box::new(visitor) as Box<dyn Visitor>));
     }
 
     /// Adds multiple visitors to the validator.
     pub fn add_visitors(&mut self, visitors: impl IntoIterator<Item = Box<dyn Visitor>>) {
-        self.visitors.extend(visitors)
+        for visitor in visitors {
+            self.known_rules.extend(visitor.known_rules());
+            self.visitors.push(visitor);
+        }
+    }
+
+    /// Adds rule names to the validator's known rules set.
+    pub fn extend_known_rules(&mut self, rules: impl IntoIterator<Item = String>) {
+        self.known_rules.extend(rules);
+    }
+
+    /// Catch any unapplied lint exceptions.
+    ///
+    /// When the [`Validator`] is created, it is made aware of all `#@ except`
+    /// comments in the document. As it runs, exceptable diagnostics are
+    /// passed through [`Diagnostics::exceptable_add()`], which
+    /// tracks whether any `#@ except` comment suppresses it and marks the
+    /// comment as used.
+    ///
+    /// Any unmarked comments, with exception to the special cases below, will
+    /// be reported as `MeaninglessLintDirective`s.
+    fn check_meaningless_lint_directives(
+        &self,
+        document: &Document,
+        diagnostics: &mut Diagnostics,
+        severity: Severity,
+    ) {
+        let mut meaningless_lint_directives = Diagnostics::default();
+
+        let visitor_known_rules = self.known_rules();
+
+        // `ExceptDirectiveValid` does a different job of checking whether a lint
+        // exception is *ever* applicable to the applied node.
+        // `MeaninglessLintDirective` should only fire if the exception
+        // comment is valid to begin with.
+        let invalid_directives = diagnostics
+            .iter()
+            .filter_map(|d| {
+                // Unfortunately, somewhat hacky since `ExceptDirectiveValid` comes from
+                // `wdl-lint`
+                if d.rule() == Some("ExceptDirectiveValid") {
+                    d.labels().next().map(|l| l.span())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        for (exception, applied) in &diagnostics.exceptions {
+            if *applied
+                // Try not to clash with `ExceptDirectiveValid`
+                || invalid_directives.contains(&exception.span)
+                // If none of the visitors know the rule, it can't ever fire
+                || (!ALL_RULE_IDS.iter().any(|r| r == &exception.name) && !visitor_known_rules.contains(&exception.name))
+            {
+                continue;
+            }
+
+            let diagnostic = meaningless_lint_directive(&exception.name, exception.span, severity);
+            if let Some(target) = exception.target_node(&document.root()) {
+                meaningless_lint_directives.exceptable_add(
+                    diagnostic,
+                    &target,
+                    &MeaninglessLintDirective::EXCEPTABLE_NODES,
+                );
+            } else {
+                meaningless_lint_directives.add(diagnostic);
+            }
+        }
+
+        diagnostics.extend(meaningless_lint_directives.diagnostics);
     }
 
     /// Validates the given document and returns the validation errors upon
     /// failure.
-    pub fn validate(
-        &mut self,
-        document: &Document,
-        config: &Config,
-    ) -> Result<(), Vec<Diagnostic>> {
-        let mut diagnostics = Diagnostics::default();
+    pub fn validate(&mut self, document: &Document, config: &Config) -> Result<(), Diagnostics> {
+        let mut diagnostics = Diagnostics {
+            exceptions: document.analysis_diagnostics().exceptions.clone(),
+            ..Default::default()
+        };
+
         self.register(config);
         document.visit(&mut diagnostics, self);
+
+        if let Some(severity) = document
+            .config()
+            .diagnostics_config()
+            .meaningless_lint_directive
+        {
+            self.check_meaningless_lint_directives(document, &mut diagnostics, severity);
+        }
 
         self.reset();
 
@@ -139,31 +306,48 @@ impl Validator {
             Ok(())
         } else {
             diagnostics.sort();
-            Err(diagnostics.0)
+            Err(diagnostics)
         }
+    }
+
+    /// Finds the nearest known rule ID to the given unknown rule ID,
+    /// or `None` if no rule ID is close enough.
+    pub fn find_nearest_rule(&self, unknown_rule_id: &str) -> Option<String> {
+        find_nearest_rule(
+            self.known_rules.known_rules().iter().map(String::as_str),
+            unknown_rule_id,
+        )
     }
 }
 
 impl Default for Validator {
     /// Creates a validator with the default validation visitors.
     fn default() -> Self {
-        Self {
-            visitors: vec![
-                Box::new(strings::LiteralTextVisitor),
-                Box::<counts::CountingVisitor>::default(),
-                Box::<keys::UniqueKeysVisitor>::default(),
-                Box::<numbers::NumberVisitor>::default(),
-                Box::<version::VersionVisitor>::default(),
-                Box::<requirements::RequirementsVisitor>::default(),
-                Box::<exprs::ScopedExprVisitor>::default(),
-                Box::<imports::ImportsVisitor>::default(),
-                Box::<env::EnvVisitor>::default(),
-            ],
-        }
+        let mut validator = Self::empty();
+        validator.add_visitors([
+            Box::new(strings::LiteralTextVisitor) as Box<dyn Visitor>,
+            Box::<counts::CountingVisitor>::default(),
+            Box::<keys::UniqueKeysVisitor>::default(),
+            Box::<numbers::NumberVisitor>::default(),
+            Box::<version::VersionVisitor>::default(),
+            Box::<requirements::RequirementsVisitor>::default(),
+            Box::<exprs::ScopedExprVisitor>::default(),
+            Box::<imports::ImportsVisitor>::default(),
+            Box::<env::EnvVisitor>::default(),
+        ]);
+        validator
     }
 }
 
 impl Visitor for Validator {
+    fn known_rules(&self) -> HashSet<String> {
+        let mut known_rules = HashSet::new();
+        for visitor in &self.visitors {
+            known_rules.extend(visitor.known_rules());
+        }
+        known_rules
+    }
+
     fn register(&mut self, config: &crate::Config) {
         for visitor in self.visitors.iter_mut() {
             visitor.register(config);
@@ -171,6 +355,7 @@ impl Visitor for Validator {
     }
 
     fn reset(&mut self) {
+        self.known_rules.reset();
         for visitor in self.visitors.iter_mut() {
             visitor.reset();
         }
@@ -183,6 +368,7 @@ impl Visitor for Validator {
         doc: &Document,
         version: SupportedVersion,
     ) {
+        self.known_rules.document(diagnostics, reason, doc, version);
         for visitor in self.visitors.iter_mut() {
             visitor.document(diagnostics, reason, doc, version);
         }
@@ -195,6 +381,7 @@ impl Visitor for Validator {
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
+        self.known_rules.comment(diagnostics, comment);
         for visitor in self.visitors.iter_mut() {
             visitor.comment(diagnostics, comment);
         }
@@ -206,6 +393,15 @@ impl Visitor for Validator {
         reason: VisitReason,
         stmt: &VersionStatement,
     ) {
+        if reason == VisitReason::Enter {
+            // Global exceptions are always considered applied
+            for (rule, applied) in &mut diagnostics.exceptions {
+                if rule.span < stmt.span() {
+                    *applied = true;
+                }
+            }
+        }
+
         for visitor in self.visitors.iter_mut() {
             visitor.version_statement(diagnostics, reason, stmt);
         }
@@ -495,13 +691,13 @@ impl Visitor for Validator {
 }
 
 #[cfg(test)]
-mod test {
-    use wdl_ast::Severity;
-
+mod tests {
     use super::*;
 
     #[test]
     fn len_and_slice_track_additions() {
+        use wdl_ast::Severity;
+
         let mut diagnostics = Diagnostics::default();
         assert_eq!(diagnostics.len(), 0);
 
@@ -512,5 +708,34 @@ mod test {
             *d = d.clone().with_severity(Severity::Error);
         }
         assert_eq!(diagnostics.as_mut_slice()[0].severity(), Severity::Error);
+    }
+
+    #[test]
+    fn test_find_nearest_rule() {
+        let validator = Validator::default();
+
+        // Test exact match
+        let nearest = validator.find_nearest_rule("UnusedInput");
+        pretty_assertions::assert_eq!(nearest.as_deref(), Some("UnusedInput"));
+
+        // Test close match
+        let nearest = validator.find_nearest_rule("UnusedInputt");
+        pretty_assertions::assert_eq!(nearest.as_deref(), Some("UnusedInput"));
+
+        // Test another exact match
+        let nearest = validator.find_nearest_rule("UnusedCall");
+        pretty_assertions::assert_eq!(nearest.as_deref(), Some("UnusedCall"));
+
+        // Test a typo
+        let nearest = validator.find_nearest_rule("UnusedKall");
+        pretty_assertions::assert_eq!(nearest.as_deref(), Some("UnusedCall"));
+
+        // Test a more significant typo
+        let nearest = validator.find_nearest_rule("UnnecessaryFunctionAl");
+        pretty_assertions::assert_eq!(nearest.as_deref(), Some("UnnecessaryFunctionCall"));
+
+        // Test a completely different string
+        let nearest = validator.find_nearest_rule("CompletelyDifferentRule");
+        pretty_assertions::assert_eq!(nearest.as_deref(), None);
     }
 }

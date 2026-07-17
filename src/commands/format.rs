@@ -222,7 +222,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                 .fallback_version(fallback_version)
                 .modules_config(modules_config.clone())
                 .feature_flags(feature_flags)
-                .run()
+                .run(report_mode, colorize)
                 .await
                 .map_err(CommandError::from)?;
             let sources = sources.iter().collect::<Vec<_>>();
@@ -283,7 +283,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                 .fallback_version(fallback_version)
                 .modules_config(modules_config.clone())
                 .feature_flags(feature_flags)
-                .run()
+                .run(report_mode, colorize)
                 .await
                 .map_err(CommandError::from)?;
             let result = results.filter(&[&source]).next().unwrap();
@@ -317,7 +317,7 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
                 .fallback_version(fallback_version)
                 .modules_config(modules_config.clone())
                 .feature_flags(feature_flags)
-                .run()
+                .run(report_mode, colorize)
                 .await
                 .map_err(CommandError::from)?;
             let sources = sources.iter().collect::<Vec<_>>();

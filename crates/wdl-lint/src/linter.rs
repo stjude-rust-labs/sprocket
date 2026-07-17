@@ -120,6 +120,10 @@ impl Default for Linter {
 }
 
 impl Visitor for Linter {
+    fn known_rules(&self) -> HashSet<String> {
+        self.rules.keys().map(ToString::to_string).collect()
+    }
+
     fn reset(&mut self) {
         // Reset the state of each rule
         for rule in self.rules.values_mut() {
@@ -143,7 +147,9 @@ impl Visitor for Linter {
                     .version_statement()
                     .expect("document should have version statement")
                     .inner()
-                    .rule_exceptions(),
+                    .rule_exceptions()
+                    .into_iter()
+                    .map(|e| e.name),
             );
         }
 

@@ -12,7 +12,6 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::CommandPart;
 use wdl_ast::v1::CommandSection;
@@ -217,7 +216,7 @@ impl Visitor for CommandSectionIndentationRule {
                     span,
                     kind.expect("an indentation kind should be present"),
                 ),
-                SyntaxElement::from(section.inner().clone()),
+                section.inner(),
                 &self.exceptable_nodes(),
             );
         }

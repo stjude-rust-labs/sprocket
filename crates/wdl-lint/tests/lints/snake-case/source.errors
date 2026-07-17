@@ -1,56 +1,48 @@
 warning[NamingConvention]: workflow name `BadWorkflow` is not snake case
-  ┌─ tests/lints/snake-case/source.wdl:5:10
+  ┌─ tests/lints/snake-case/source.wdl:6:10
   │
-5 │ workflow BadWorkflow {
+6 │ workflow BadWorkflow {
   │          ^^^^^^^^^^^ this name must be snake case
   │
   = fix: replace `BadWorkflow` with `bad_workflow`
 
 warning[NamingConvention]: private declaration name `badPrivateDecl` is not snake case
-  ┌─ tests/lints/snake-case/source.wdl:8:11
+  ┌─ tests/lints/snake-case/source.wdl:9:11
   │
-8 │     Float badPrivateDecl = 3.14
+9 │     Float badPrivateDecl = 3.14
   │           ^^^^^^^^^^^^^^ this name must be snake case
   │
   = fix: replace `badPrivateDecl` with `bad_private_decl`
 
 warning[NamingConvention]: task name `BadTask` is not snake case
-   ┌─ tests/lints/snake-case/source.wdl:19:6
+   ┌─ tests/lints/snake-case/source.wdl:20:6
    │
-19 │ task BadTask {
+20 │ task BadTask {
    │      ^^^^^^^ this name must be snake case
    │
    = fix: replace `BadTask` with `bad_task`
 
 warning[NamingConvention]: input name `BadInput` is not snake case
-   ┌─ tests/lints/snake-case/source.wdl:28:16
+   ┌─ tests/lints/snake-case/source.wdl:29:16
    │
-28 │         String BadInput
+29 │         String BadInput
    │                ^^^^^^^^ this name must be snake case
    │
    = fix: replace `BadInput` with `bad_input`
 
 warning[NamingConvention]: output name `badOut` is not snake case
-   ┌─ tests/lints/snake-case/source.wdl:37:14
+   ┌─ tests/lints/snake-case/source.wdl:38:14
    │
-37 │         File badOut = "out.txt"
+38 │         File badOut = "out.txt"
    │              ^^^^^^ this name must be snake case
    │
    = fix: replace `badOut` with `bad_out`
 
 warning[NamingConvention]: struct member name `bAdFiElD` is not snake case
-   ┌─ tests/lints/snake-case/source.wdl:82:12
+   ┌─ tests/lints/snake-case/source.wdl:83:12
    │
-82 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
+83 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
    │            ^^^^^^^^ this name must be snake case
    │
    = fix: replace `bAdFiElD` with `b_ad_fi_el_d`
-
-note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`
-   ┌─ tests/lints/snake-case/source.wdl:83:16
-   │
-83 │     #@ except: SnakeCase
-   │                ^^^^^^^^^ update this `except` directive
-   │
-   = fix: replace `SnakeCase` with `NamingConvention`
 

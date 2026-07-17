@@ -1,55 +1,15 @@
-note[KnownRules]: unknown rule `Unknown`
-  ┌─ tests/lints/except/source.wdl:3:12
-  │
-3 │ #@ except: Unknown
-  │            ^^^^^^^ cannot make an exception for this rule
-  │
-  = fix: remove the unknown rule from the exception list
-
-note[KnownRules]: deprecated rule `PascalCase`; replace it with `NamingConvention`
-  ┌─ tests/lints/except/source.wdl:8:12
-  │
-8 │ #@ except: PascalCase, SnakeCase
-  │            ^^^^^^^^^^ update this `except` directive
-  │
-  = fix: replace `PascalCase` with `NamingConvention`
-
-note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`
-  ┌─ tests/lints/except/source.wdl:8:24
-  │
-8 │ #@ except: PascalCase, SnakeCase
-  │                        ^^^^^^^^^ update this `except` directive
-  │
-  = fix: replace `SnakeCase` with `NamingConvention`
-
-note[KnownRules]: unknown rule `AlsoUnknown`
-   ┌─ tests/lints/except/source.wdl:16:16
-   │
-16 │     #@ except: AlsoUnknown, SnakeCase
-   │                ^^^^^^^^^^^ cannot make an exception for this rule
-   │
-   = fix: remove the unknown rule from the exception list
-
-note[KnownRules]: deprecated rule `SnakeCase`; replace it with `NamingConvention`
-   ┌─ tests/lints/except/source.wdl:16:29
-   │
-16 │     #@ except: AlsoUnknown, SnakeCase
-   │                             ^^^^^^^^^ update this `except` directive
-   │
-   = fix: replace `SnakeCase` with `NamingConvention`
-
 warning[NamingConvention]: struct member name `NotOk` is not snake case
-   ┌─ tests/lints/except/source.wdl:18:9
+   ┌─ tests/lints/except/source.wdl:16:9
    │
-18 │     Int NotOk       # NOT OK
+16 │     Int NotOk       # NOT OK
    │         ^^^^^ this name must be snake case
    │
    = fix: replace `NotOk` with `not_ok`
 
 note[DoubleQuotes]: string defined with single quotes
-   ┌─ tests/lints/except/source.wdl:23:18
+   ┌─ tests/lints/except/source.wdl:21:18
    │
-23 │     String bad = 'bad string'   # NOT OK
+21 │     String bad = 'bad string'   # NOT OK
    │                  ^^^^^^^^^^^^
    │
    = fix: change the string to use double quotes

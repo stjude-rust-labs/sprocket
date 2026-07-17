@@ -14,7 +14,7 @@ use rowan::TextSize;
     pyo3::pyclass(
         module = "sprocket_bio.grammar",
         frozen,
-        skip_from_py_object,
+        from_py_object,
         get_all,
         str,
         eq,
@@ -61,6 +61,20 @@ impl Span {
     /// Determines if the span contains the given offset.
     pub fn contains(&self, offset: usize) -> bool {
         offset >= self.start && offset < self.end
+    }
+
+    /// Whether this span is **fully** contained within `other`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// # use wdl_grammar::Span;
+    /// let parent = Span::new(0, 10);
+    /// let child = Span::new(5, 5);
+    /// assert!(child.within(parent));
+    /// ```
+    pub fn within(&self, other: Self) -> bool {
+        self.start >= other.start && self.end <= other.end
     }
 
     /// Calculates an intersection of two spans, if one exists.
@@ -576,7 +590,7 @@ mod python {
         }
 
         /// Returns a printable representation of this object.
-        fn __repr__(&self) -> String {
+        pub(crate) fn __repr__(&self) -> String {
             format!("Span({}, {})", self.start, self.len())
         }
     }

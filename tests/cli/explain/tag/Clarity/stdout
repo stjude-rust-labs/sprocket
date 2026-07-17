@@ -9,6 +9,5 @@ Rules with the tag `Clarity`:
   - ExceptDirectiveValid
   - HereDocCommands
   - ImportPlacement
-  - KnownRules
   - MetaSections
   - NamingConvention

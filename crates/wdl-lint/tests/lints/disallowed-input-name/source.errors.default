@@ -1,31 +1,31 @@
 note[InputName]: declaration identifier must be at least 3 characters
-   ┌─ tests/lints/disallowed-input-name/source.wdl:18:14
+   ┌─ tests/lints/disallowed-input-name/source.wdl:20:14
    │
-18 │         File f  # This is not OK
+20 │         File f  # This is not OK
    │              ^
    │
    = fix: rename the identifier to be at least 3 characters long
 
 note[InputName]: declaration identifier starts with 'in'
-   ┌─ tests/lints/disallowed-input-name/source.wdl:19:16
+   ┌─ tests/lints/disallowed-input-name/source.wdl:21:16
    │
-19 │         String in_string_name  # This is not OK
+21 │         String in_string_name  # This is not OK
    │                ^^^^^^^^^^^^^^
    │
    = fix: rename the identifier to not start with 'in'
 
 note[InputName]: declaration identifier starts with 'input'
-   ┌─ tests/lints/disallowed-input-name/source.wdl:20:16
+   ┌─ tests/lints/disallowed-input-name/source.wdl:22:16
    │
-20 │         String input_string  # This is not OK
+22 │         String input_string  # This is not OK
    │                ^^^^^^^^^^^^
    │
    = fix: rename the identifier to not start with 'input'
 
 note[InputName]: declaration identifier starts with 'in'
-   ┌─ tests/lints/disallowed-input-name/source.wdl:21:16
+   ┌─ tests/lints/disallowed-input-name/source.wdl:23:16
    │
-21 │         String in_string  # This is not OK
+23 │         String in_string  # This is not OK
    │                ^^^^^^^^^
    │
    = fix: rename the identifier to not start with 'in'

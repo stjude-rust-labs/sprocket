@@ -1,3 +1,13 @@
+warning[BashSetSyntax]: missing `set` command
+   ┌─ tests/lints/severity-override/source.wdl:12:5
+   │  
+12 │ ╭     command <<<
+13 │ │         echo "Hello, World!"
+14 │ │     >>>
+   │ ╰───────^
+   │  
+   = help: `set` commands should be on the first line of `command` sections
+
 error[ContainerUri]: container URI is missing a tag
    ┌─ tests/lints/severity-override/source.wdl:20:20
    │
@@ -5,6 +15,16 @@ error[ContainerUri]: container URI is missing a tag
    │                    ^^^^^^^^
    │
    = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
+
+warning[BashSetSyntax]: missing `set` command
+   ┌─ tests/lints/severity-override/source.wdl:29:5
+   │  
+29 │ ╭     command <<<
+30 │ │         echo "Hello, World!"
+31 │ │     >>>
+   │ ╰───────^
+   │  
+   = help: `set` commands should be on the first line of `command` sections
 
 error[ContainerUri]: container URI uses a mutable tag
    ┌─ tests/lints/severity-override/source.wdl:37:20
@@ -14,6 +34,36 @@ error[ContainerUri]: container URI uses a mutable tag
    │
    = fix: replace the mutable tag with its SHA256 equivalent (e.g., `ubuntu@sha256:foobar` instead of `ubuntu:latest`)
 
+warning[BashSetSyntax]: missing `set` command
+   ┌─ tests/lints/severity-override/source.wdl:46:5
+   │  
+46 │ ╭     command <<<
+47 │ │         echo "Hello, World!"
+48 │ │     >>>
+   │ ╰───────^
+   │  
+   = help: `set` commands should be on the first line of `command` sections
+
+warning[BashSetSyntax]: missing `set` command
+   ┌─ tests/lints/severity-override/source.wdl:63:5
+   │  
+63 │ ╭     command <<<
+64 │ │         echo "Hello, World!"
+65 │ │     >>>
+   │ ╰───────^
+   │  
+   = help: `set` commands should be on the first line of `command` sections
+
+warning[BashSetSyntax]: missing `set` command
+   ┌─ tests/lints/severity-override/source.wdl:81:5
+   │  
+81 │ ╭     command <<<
+82 │ │         echo "Hello, World!"
+83 │ │     >>>
+   │ ╰───────^
+   │  
+   = help: `set` commands should be on the first line of `command` sections
+
 error[ContainerUri]: container URI is missing a tag
    ┌─ tests/lints/severity-override/source.wdl:90:17
    │
@@ -21,6 +71,16 @@ error[ContainerUri]: container URI is missing a tag
    │                 ^^^^^^^^
    │
    = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
+
+warning[BashSetSyntax]: missing `set` command
+    ┌─ tests/lints/severity-override/source.wdl:99:5
+    │  
+ 99 │ ╭     command <<<
+100 │ │         echo "Hello, World!"
+101 │ │     >>>
+    │ ╰───────^
+    │  
+    = help: `set` commands should be on the first line of `command` sections
 
 error[ContainerUri]: container URI uses a mutable tag
     ┌─ tests/lints/severity-override/source.wdl:108:17
@@ -30,6 +90,26 @@ error[ContainerUri]: container URI uses a mutable tag
     │
     = fix: replace the mutable tag with its SHA256 equivalent (e.g., `ubuntu@sha256:foobar` instead of `ubuntu:latest`)
 
+warning[BashSetSyntax]: missing `set` command
+    ┌─ tests/lints/severity-override/source.wdl:117:5
+    │  
+117 │ ╭     command <<<
+118 │ │         echo "Hello, World!"
+119 │ │     >>>
+    │ ╰───────^
+    │  
+    = help: `set` commands should be on the first line of `command` sections
+
+warning[BashSetSyntax]: missing `set` command
+    ┌─ tests/lints/severity-override/source.wdl:134:5
+    │  
+134 │ ╭     command <<<
+135 │ │         echo "Hello, World!"
+136 │ │     >>>
+    │ ╰───────^
+    │  
+    = help: `set` commands should be on the first line of `command` sections
+
 error[ContainerUri]: an array with a single value should be a string literal
     ┌─ tests/lints/severity-override/source.wdl:142:21
     │
@@ -37,6 +117,16 @@ error[ContainerUri]: an array with a single value should be a string literal
     │                     ^^^
     │
     = fix: change the array to a string literal representing the first value
+
+warning[BashSetSyntax]: missing `set` command
+    ┌─ tests/lints/severity-override/source.wdl:151:5
+    │  
+151 │ ╭     command <<<
+152 │ │         echo "Hello, World!"
+153 │ │     >>>
+    │ ╰───────^
+    │  
+    = help: `set` commands should be on the first line of `command` sections
 
 error[ContainerUri]: container arrays containing `*` are ambiguous
     ┌─ tests/lints/severity-override/source.wdl:160:13
@@ -59,6 +149,16 @@ error[ContainerUri]: container URI is missing a tag
     │
     = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
 
+warning[BashSetSyntax]: missing `set` command
+    ┌─ tests/lints/severity-override/source.wdl:173:5
+    │  
+173 │ ╭     command <<<
+174 │ │         echo "Hello, World!"
+175 │ │     >>>
+    │ ╰───────^
+    │  
+    = help: `set` commands should be on the first line of `command` sections
+
 error[ContainerUri]: empty arrays are ambiguous and should contain at least one entry
     ┌─ tests/lints/severity-override/source.wdl:181:20
     │
@@ -66,6 +166,56 @@ error[ContainerUri]: empty arrays are ambiguous and should contain at least one 
     │                    ^^
     │
     = fix: add an entry or remove the entry altogether
+
+warning[BashSetSyntax]: missing `set` command
+    ┌─ tests/lints/severity-override/source.wdl:190:5
+    │  
+190 │ ╭     command <<<
+191 │ │         echo "Hello, World!"
+192 │ │     >>>
+    │ ╰───────^
+    │  
+    = help: `set` commands should be on the first line of `command` sections
+
+warning[BashSetSyntax]: missing `set` command
+    ┌─ tests/lints/severity-override/source.wdl:212:5
+    │  
+212 │ ╭     command <<<
+213 │ │         echo "Hello, World!"
+214 │ │     >>>
+    │ ╰───────^
+    │  
+    = help: `set` commands should be on the first line of `command` sections
+
+warning[BashSetSyntax]: missing `set` command
+    ┌─ tests/lints/severity-override/source.wdl:231:5
+    │  
+231 │ ╭     command <<<
+232 │ │         echo "Hello, World!"
+233 │ │     >>>
+    │ ╰───────^
+    │  
+    = help: `set` commands should be on the first line of `command` sections
+
+warning[BashSetSyntax]: missing `set` command
+    ┌─ tests/lints/severity-override/source.wdl:245:5
+    │  
+245 │ ╭     command <<<
+246 │ │         echo "Hello, World!"
+247 │ │     >>>
+    │ ╰───────^
+    │  
+    = help: `set` commands should be on the first line of `command` sections
+
+warning[BashSetSyntax]: missing `set` command
+    ┌─ tests/lints/severity-override/source.wdl:259:5
+    │  
+259 │ ╭     command <<<
+260 │ │         echo "Hello, World!"
+261 │ │     >>>
+    │ ╰───────^
+    │  
+    = help: `set` commands should be on the first line of `command` sections
 
 error[ContainerUri]: container URI uses a mutable tag
     ┌─ tests/lints/severity-override/source.wdl:268:20

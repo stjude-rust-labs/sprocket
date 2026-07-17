@@ -8,6 +8,11 @@ use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::config::Config;
 
+/// The [Taplo schema directive] for `sprocket.toml`.
+///
+/// [Taplo schema directive]: https://taplo.tamasfe.dev/configuration/directives.html#the-schema-directive
+const SCHEMA_DIRECTIVE: &str = "#:schema https://raw.githubusercontent.com/stjude-rust-labs/sprocket/refs/heads/main/jsonschemas/sprocket.toml.json";
+
 /// Arguments for the `config` subcommand.
 #[derive(Parser, Debug, Clone)]
 pub struct Args {
@@ -26,6 +31,9 @@ impl Args {
 /// Subcommands for the `config` command.
 #[derive(Subcommand, Debug, Clone)]
 pub enum ConfigSubcommand {
+    /// Print the JSON schema for `sprocket.toml` to stdout.
+    Schema,
+
     /// Generates a default configuration file.
     Init,
 
@@ -63,15 +71,22 @@ const INIT_HEADER: &str = "\
 
 /// Runs the `config` command.
 pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
-    let (config, header) = match args.command {
-        ConfigSubcommand::Init => (Config::default(), Some(INIT_HEADER)),
+    let (config, header, include_schema_directive) = match args.command {
+        ConfigSubcommand::Schema => {
+            let schema = schemars::schema_for!(Config);
+            let schema_pretty =
+                serde_json::to_string_pretty(&schema).context("serializing config schema")?;
+            println!("{schema_pretty}");
+            return Ok(());
+        }
+        ConfigSubcommand::Init => (Config::default(), Some(INIT_HEADER), true),
         ConfigSubcommand::Resolve(args) => {
             // Redact any secrets unless explicitly requested not to
             if !args.unredact {
                 config.run.engine = config.run.engine.redact();
             }
 
-            (config, None)
+            (config, None, false)
         }
     };
 
@@ -79,9 +94,15 @@ pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
         .context("failed to serialize configuration")
         .map_err(CommandError::Single)?;
 
-    match header {
-        Some(header) => println!("{header}\n{serialized}"),
-        None => println!("{serialized}"),
+    let mut output = String::new();
+    if include_schema_directive {
+        output.push_str(SCHEMA_DIRECTIVE);
+        output.push_str("\n\n");
     }
+    match header {
+        Some(header) => output.push_str(&format!("{header}\n{serialized}")),
+        None => output.push_str(&serialized),
+    }
+    println!("{output}");
     Ok(())
 }
