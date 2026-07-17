@@ -21,6 +21,10 @@ fn tree_prints_dependency() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("utils"));
     assert!(!stdout.contains("1.0.0"));
+    assert!(
+        !stdout.contains("(("),
+        "unexpected nested parentheses: {stdout}"
+    );
 }
 
 #[test]

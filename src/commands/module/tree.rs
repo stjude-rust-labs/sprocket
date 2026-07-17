@@ -96,7 +96,7 @@ fn print_tree_level(entries: &DependencyMap, prefix: &str, depth: usize, max_dep
         let is_last = index + 1 == total;
         let connector = if is_last { "└── " } else { "├── " };
         println!(
-            "{prefix}{connector}{} ({})",
+            "{prefix}{connector}{} {}",
             name.manifest(),
             source_desc(&entry.source)
         );
