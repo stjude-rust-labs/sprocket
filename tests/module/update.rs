@@ -403,7 +403,11 @@ fn lock_update_accepts_changed_signer_key_when_confirmed() {
         stderr = String::from_utf8_lossy(&update.stderr)
     );
     assert!(String::from_utf8_lossy(&update.stderr).contains("[y/N]"));
-    assert!(String::from_utf8_lossy(&update.stdout).contains("Trusted 1 signer keys"));
+    let stdout = String::from_utf8_lossy(&update.stdout);
+    assert!(stdout.contains("Accepted 1 signer change"), "{stdout}");
+    assert!(stdout.contains("Signer"), "{stdout}");
+    assert!(stdout.contains("signer changed"), "{stdout}");
+    assert!(stdout.contains("Trusted 1 signer key"), "{stdout}");
 
     let mut list_command =
         sprocket_with_config(fixture.config_path(), &["dev", "module", "trust", "list"]);
@@ -510,7 +514,11 @@ fn lock_update_auto_accepts_changed_signer_key_without_prompting() {
         stderr = String::from_utf8_lossy(&update.stderr)
     );
     assert!(!String::from_utf8_lossy(&update.stderr).contains("[y/N]"));
-    assert!(String::from_utf8_lossy(&update.stdout).contains("Trusted 1 signer keys"));
+    let stdout = String::from_utf8_lossy(&update.stdout);
+    assert!(stdout.contains("Accepted 1 signer change"), "{stdout}");
+    assert!(stdout.contains("Signer"), "{stdout}");
+    assert!(stdout.contains("signer changed"), "{stdout}");
+    assert!(stdout.contains("Trusted 1 signer key"), "{stdout}");
 
     let mut list_command =
         sprocket_with_config(fixture.config_path(), &["dev", "module", "trust", "list"]);
@@ -562,6 +570,11 @@ fn lock_update_trust_mode_flag_auto_accepts_without_prompting() {
         stderr = String::from_utf8_lossy(&update.stderr)
     );
     assert!(!String::from_utf8_lossy(&update.stderr).contains("[y/N]"));
+    let stdout = String::from_utf8_lossy(&update.stdout);
+    assert!(stdout.contains("Accepted 1 signer change"), "{stdout}");
+    assert!(stdout.contains("Signer"), "{stdout}");
+    assert!(stdout.contains("signer changed"), "{stdout}");
+    assert!(stdout.contains("Trusted 1 signer key"), "{stdout}");
 }
 
 #[test]
@@ -603,7 +616,10 @@ fn lock_update_trust_mode_flag_auto_accepts_removed_signer_without_prompting() {
         stderr = String::from_utf8_lossy(&update.stderr)
     );
     assert!(!String::from_utf8_lossy(&update.stderr).contains("[y/N]"));
-    assert!(String::from_utf8_lossy(&update.stdout).contains("Accepted signer trust changes"));
+    let stdout = String::from_utf8_lossy(&update.stdout);
+    assert!(stdout.contains("Accepted 1 signer change"), "{stdout}");
+    assert!(stdout.contains("Signer"), "{stdout}");
+    assert!(stdout.contains("signer removed"), "{stdout}");
 
     let mut list_command =
         sprocket_with_config(fixture.config_path(), &["dev", "module", "trust", "list"]);
@@ -662,6 +678,11 @@ fn lock_update_trust_mode_flag_auto_accepts_unsigned_to_signed_without_prompting
         stderr = String::from_utf8_lossy(&update.stderr)
     );
     assert!(!String::from_utf8_lossy(&update.stderr).contains("[y/N]"));
+    let stdout = String::from_utf8_lossy(&update.stdout);
+    assert!(stdout.contains("Accepted 1 signer change"), "{stdout}");
+    assert!(stdout.contains("Signer"), "{stdout}");
+    assert!(stdout.contains("signer added"), "{stdout}");
+    assert!(stdout.contains("Trusted 1 signer key"), "{stdout}");
 
     let mut list_command =
         sprocket_with_config(fixture.config_path(), &["dev", "module", "trust", "list"]);
@@ -903,6 +924,31 @@ fn lock_update_signer_transition_matrix_respects_trust_mode() {
                 stderr.contains(expected_phrase),
                 "transition={transition:?} mode={mode:?} stderr={stderr}"
             );
+        }
+        if expect_success {
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            assert!(
+                stdout.contains("Accepted 1 signer change"),
+                "transition={transition:?} mode={mode:?} stdout={stdout}"
+            );
+            assert!(
+                stdout.contains("Signer"),
+                "transition={transition:?} mode={mode:?} stdout={stdout}"
+            );
+            match transition {
+                SignerTransition::Added => assert!(
+                    stdout.contains("signer added"),
+                    "transition={transition:?} mode={mode:?} stdout={stdout}"
+                ),
+                SignerTransition::Changed => assert!(
+                    stdout.contains("signer changed"),
+                    "transition={transition:?} mode={mode:?} stdout={stdout}"
+                ),
+                SignerTransition::Removed => assert!(
+                    stdout.contains("signer removed"),
+                    "transition={transition:?} mode={mode:?} stdout={stdout}"
+                ),
+            }
         }
     }
 }

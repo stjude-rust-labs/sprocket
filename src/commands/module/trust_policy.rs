@@ -17,6 +17,7 @@ use wdl_modules::signing::VerifyingKey;
 
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
+use crate::commands::output::count_noun;
 
 const ACCEPT: Action = Action::new("Accepted", "accept");
 const TRUST: Action = Action::new("Trusted", "trust");
@@ -122,6 +123,26 @@ impl SignerChange<'_> {
             Self::Added(added) => added_signer_message(added, trust),
             Self::Changed(changed) => changed_signer_message(changed, trust),
             Self::Removed(removed) => removed_signer_message(removed, trust),
+        }
+    }
+
+    /// Renders the accepted-summary detail line for this transition.
+    fn accepted_summary(&self) -> String {
+        match self {
+            Self::Added(signer) => {
+                format!("`{}`: signer added", signer.dep().manifest())
+            }
+            Self::Changed(signer) => {
+                let transition = if signer.old_key.is_some() {
+                    "signer changed"
+                } else {
+                    "signer added"
+                };
+                format!("`{}`: {transition}", signer.dep().manifest())
+            }
+            Self::Removed(signer) => {
+                format!("`{}`: signer removed", signer.dep().manifest())
+            }
         }
     }
 
@@ -233,7 +254,7 @@ pub(crate) fn enforce_signer_trust(
     if trust_dirty {
         save_trust_store(trust_path, &trust)?;
     }
-    print_trust_change_summary(trusted_keys, output);
+    print_trust_change_summary(&accepted, trusted_keys, output);
     Ok(())
 }
 
@@ -394,13 +415,21 @@ fn push_unique_signer(
 }
 
 /// Prints a summary action line for accepted signer trust changes.
-fn print_trust_change_summary(trusted: usize, output: CommandOutput) {
-    if trusted == 0 {
-        output.completed(ACCEPT, "signer trust changes");
-        return;
+fn print_trust_change_summary(
+    accepted: &[SignerChange<'_>],
+    trusted: usize,
+    output: CommandOutput,
+) {
+    output.completed(
+        ACCEPT,
+        count_noun(accepted.len(), "signer change", "signer changes"),
+    );
+    for change in accepted {
+        output.detail("Signer", change.accepted_summary());
     }
-
-    output.completed(TRUST, format!("{trusted} signer keys"));
+    if trusted > 0 {
+        output.completed(TRUST, count_noun(trusted, "signer key", "signer keys"));
+    }
 }
 
 /// Adds every signer key recorded in a lockfile to the trust store.
