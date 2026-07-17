@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * `sprocket run` automatically discovers the nearest `sprocket.lock` above the WDL source, enforces it strictly when present, and copies the effective lock into each run directory. Runs without a lock keep existing container behavior, and there is no opt-out for a discovered lock.
+* `sprocket dev server` and `sprocket dev server submit` do not discover project `sprocket.lock` files; use direct `sprocket run` for automatic lock discovery and enforcement.
 * Container locking reuses Docker configuration and credential helpers for registry requests without requiring a Docker daemon. Docker and ORAS locks record the top-level manifest digest returned by the registry, which may be an image-index digest for multi-architecture tags.
 * Container lock handling treats missing requirements and `container: "*"` as the configured default task container, handles static container arrays entry by entry, loads legacy locks without a `version` field, and rejects unsupported mutable container schemes under lock generation or enforcement.
 

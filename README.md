@@ -126,6 +126,8 @@ Omit the `/v0.27.0` tag to track the latest commit on `main`.
 
 `sprocket run` automatically looks for the nearest `sprocket.lock` at or above the WDL source without crossing a `.git` directory. When a lock exists, `run` enforces it strictly before creating containers and also copies the exact lock bytes into the run directory for provenance. Runs without a lock keep the existing behavior and resolve containers normally. There is no command-line opt-out for a discovered lock; remove or move the lock file when a run should not use it.
 
+`sprocket dev server` and `sprocket dev server submit` do not discover project `sprocket.lock` files. Use direct `sprocket run` when you want automatic lock discovery and enforcement.
+
 Version `1` locks use TOML:
 
 ```toml
