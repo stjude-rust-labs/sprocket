@@ -231,75 +231,127 @@ impl ResolverPolicy {
                 scheme: url.scheme().to_string(),
             });
         }
-        if let Some(host) = url.host_str() {
-            if self
-                .denied_hosts
-                .iter()
-                .any(|h| h.eq_ignore_ascii_case(host))
-            {
-                return Err(ResolverError::GitHostPolicyViolation {
-                    dep: name.manifest().to_string(),
-                    url: url.to_string(),
-                    host: host.to_string(),
-                });
-            }
-            if super::config::is_non_public_ip(host) {
-                return Err(ResolverError::GitHostPolicyViolation {
-                    dep: name.manifest().to_string(),
-                    url: url.to_string(),
-                    host: host.to_string(),
-                });
-            }
-            if !net.host_policy.allows(host) {
-                return Err(ResolverError::GitHostNotAllowed {
-                    dep: name.manifest().to_string(),
-                    url: url.to_string(),
-                    host: host.to_string(),
-                    config_key: match scope {
-                        DependencyScope::TopLevel => "allowed_hosts",
-                        DependencyScope::Transitive => "allowed_transitive_hosts",
-                    },
-                });
-            }
-            // Resolve the hostname to IP addresses and reject if any
-            // resolved address is non-public.
-            //
-            // Port 0 is passed only because `to_socket_addrs` requires a
-            // port; the value is insignificant for the address lookup and
-            // the DNS result is identical for any port. The policy does not
-            // restrict which port the URL itself uses; that is left to the
-            // caller's URL.
-            //
-            // Both DNS failure and empty results are treated as rejection
-            // (fail-closed). libgit2 re-resolves during connect/clone, so
-            // a DNS rebinding attack between this check and the fetch
-            // remains possible; fully preventing it would require
-            // peer-IP validation in a custom transport.
-            if host.parse::<std::net::IpAddr>().is_err() && url.scheme() != "file" {
-                let addrs: Vec<std::net::SocketAddr> =
-                    match std::net::ToSocketAddrs::to_socket_addrs(&(host, 0)) {
-                        Ok(iter) => iter.collect(),
-                        Err(_) => {
-                            return Err(ResolverError::GitHostResolutionFailed {
-                                dep: name.manifest().to_string(),
-                                url: url.to_string(),
-                                host: host.to_string(),
-                            });
-                        }
-                    };
-                if let Err(bad_ip) = validate_resolved_addresses(&addrs) {
-                    return match bad_ip {
-                        Some(ip) => Err(ResolverError::GitHostPolicyViolation {
-                            dep: name.manifest().to_string(),
-                            url: url.to_string(),
-                            host: format!("{host} (resolves to {ip})"),
-                        }),
-                        None => Err(ResolverError::GitHostResolutionFailed {
+        let config_key = match scope {
+            DependencyScope::TopLevel => "allowed_hosts",
+            DependencyScope::Transitive => "allowed_transitive_hosts",
+        };
+        if let Some(host) = url.host() {
+            match host {
+                url::Host::Domain(host) => {
+                    if self
+                        .denied_hosts
+                        .iter()
+                        .any(|h| h.eq_ignore_ascii_case(host))
+                    {
+                        return Err(ResolverError::GitHostPolicyViolation {
                             dep: name.manifest().to_string(),
                             url: url.to_string(),
                             host: host.to_string(),
-                        }),
-                    };
+                        });
+                    }
+                    if !net.host_policy.allows(host) {
+                        return Err(ResolverError::GitHostNotAllowed {
+                            dep: name.manifest().to_string(),
+                            url: url.to_string(),
+                            host: host.to_string(),
+                            config_key,
+                        });
+                    }
+                    // Resolve the hostname to IP addresses and reject if any
+                    // resolved address is non-public.
+                    //
+                    // Port 0 is passed only because `to_socket_addrs` requires a
+                    // port; the value is insignificant for the address lookup and
+                    // the DNS result is identical for any port. The policy does not
+                    // restrict which port the URL itself uses; that is left to the
+                    // caller's URL.
+                    //
+                    // Both DNS failure and empty results are treated as rejection
+                    // (fail-closed). libgit2 re-resolves during connect/clone, so
+                    // a DNS rebinding attack between this check and the fetch
+                    // remains possible; fully preventing it would require
+                    // peer-IP validation in a custom transport.
+                    if url.scheme() != "file" {
+                        let addrs: Vec<std::net::SocketAddr> =
+                            match std::net::ToSocketAddrs::to_socket_addrs(&(host, 0)) {
+                                Ok(iter) => iter.collect(),
+                                Err(_) => {
+                                    return Err(ResolverError::GitHostResolutionFailed {
+                                        dep: name.manifest().to_string(),
+                                        url: url.to_string(),
+                                        host: host.to_string(),
+                                    });
+                                }
+                            };
+                        if let Err(bad_ip) = validate_resolved_addresses(&addrs) {
+                            return match bad_ip {
+                                Some(ip) => Err(ResolverError::GitHostPolicyViolation {
+                                    dep: name.manifest().to_string(),
+                                    url: url.to_string(),
+                                    host: format!("{host} (resolves to {ip})"),
+                                }),
+                                None => Err(ResolverError::GitHostResolutionFailed {
+                                    dep: name.manifest().to_string(),
+                                    url: url.to_string(),
+                                    host: host.to_string(),
+                                }),
+                            };
+                        }
+                    }
+                }
+                url::Host::Ipv4(host) => {
+                    let host = host.to_string();
+                    if self
+                        .denied_hosts
+                        .iter()
+                        .any(|denied| denied.eq_ignore_ascii_case(&host))
+                        || super::config::is_non_public_ip(&host)
+                    {
+                        return Err(ResolverError::GitHostPolicyViolation {
+                            dep: name.manifest().to_string(),
+                            url: url.to_string(),
+                            host,
+                        });
+                    }
+                    if !net.host_policy.allows(&host) {
+                        return Err(ResolverError::GitHostNotAllowed {
+                            dep: name.manifest().to_string(),
+                            url: url.to_string(),
+                            host,
+                            config_key,
+                        });
+                    }
+                }
+                url::Host::Ipv6(host) => {
+                    let host = host.to_string();
+                    let display = format!("[{host}]");
+                    if super::config::is_non_public_ip(&host) {
+                        return Err(ResolverError::GitHostNotAllowed {
+                            dep: name.manifest().to_string(),
+                            url: url.to_string(),
+                            host: display,
+                            config_key,
+                        });
+                    }
+                    if self
+                        .denied_hosts
+                        .iter()
+                        .any(|denied| denied.eq_ignore_ascii_case(&host))
+                    {
+                        return Err(ResolverError::GitHostPolicyViolation {
+                            dep: name.manifest().to_string(),
+                            url: url.to_string(),
+                            host: display,
+                        });
+                    }
+                    if !net.host_policy.allows(&host) {
+                        return Err(ResolverError::GitHostNotAllowed {
+                            dep: name.manifest().to_string(),
+                            url: url.to_string(),
+                            host: display,
+                            config_key,
+                        });
+                    }
                 }
             }
         }
@@ -432,23 +484,38 @@ mod tests {
     }
 
     #[test]
-    fn rejects_ipv6_literal_hosts_fail_closed_at_resolution() {
+    fn rejects_non_public_ipv6_literal_hosts_before_dns() {
         let policy = ResolverPolicy::default();
         let dep = dependency();
         for source in [
             "https://[::1]/repository.git",
+            "https://[::]/repository.git",
+            "https://[fd00::1]/repository.git",
             "https://[::ffff:127.0.0.1]/repository.git",
             "https://[::ffff:169.254.169.254]/repository.git",
             "https://[::ffff:10.0.0.1]/repository.git",
         ] {
             let error = policy
                 .check_git_url(&dep, &url(source), DependencyScope::TopLevel)
-                .expect_err("IPv6-literal URLs must fail closed");
+                .expect_err("non-public IPv6 literal hosts must be rejected");
             assert!(
-                matches!(error, ResolverError::GitHostResolutionFailed { .. }),
+                matches!(error, ResolverError::GitHostNotAllowed { .. }),
                 "got: {error}"
             );
         }
+    }
+
+    #[test]
+    fn allows_public_ipv4_mapped_ipv6_host() {
+        let policy = ResolverPolicy::default();
+        let dep = dependency();
+        policy
+            .check_git_url(
+                &dep,
+                &url("https://[::ffff:140.82.121.3]/repository.git"),
+                DependencyScope::TopLevel,
+            )
+            .expect("configured public host should be allowed");
     }
 
     #[test]
