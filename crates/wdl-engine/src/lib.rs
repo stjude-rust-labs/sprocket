@@ -18,6 +18,8 @@ use wdl_ast::TreeNode;
 mod backend;
 mod cache;
 pub mod config;
+/// Canonical registry reference helpers.
+pub mod container_lock;
 mod diagnostics;
 mod digest;
 mod eval;
