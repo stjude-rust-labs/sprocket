@@ -137,8 +137,8 @@ utoipa = { version = "5.4.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 uuid = { version = "1.20.0", features = ["serde", "v4"] }
 walkdir = "2.5.0"
-wdl = { version = "0.23.2", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
-wdl-modules = { version = "0.2.1", path = "crates/wdl-modules", features = ["git-resolver"] }
+wdl = { version = "0.23.3", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
+wdl-modules = { version = "0.3.0", path = "crates/wdl-modules", features = ["git-resolver"] }
 which = "8.0.0"
 whoami = "2.1.0"
 windows-sys = "0.61"
@@ -167,7 +167,7 @@ new_without_default = "allow"
 
 [package]
 name = "sprocket"
-version = "0.27.0"
+version = "0.28.0"
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true
