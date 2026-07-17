@@ -1,17 +1,22 @@
 //! Language server protocol handlers.
 
 use wdl_ast::Span;
+use wdl_ast::TreeNode;
 
 use crate::DiagnosticsConfig;
 use crate::Document;
+use crate::Exceptable;
 use crate::diagnostics;
 use crate::document::ScopeRef;
 use crate::types::v1::EvaluationContext;
 
+mod call_hierarchy;
+mod code_lens;
 mod common;
 mod completions;
 mod document_symbol;
 mod find_all_references;
+mod folding_range;
 mod goto_definition;
 mod hover;
 mod inlay_hints;
@@ -21,15 +26,20 @@ mod signature_help;
 pub(crate) mod snippets;
 mod workspace_symbol;
 
+pub use call_hierarchy::*;
+pub use code_lens::*;
 pub use completions::*;
 pub use document_symbol::*;
 pub use find_all_references::*;
+pub use folding_range::*;
 pub use goto_definition::*;
 pub use hover::*;
 pub use inlay_hints::*;
 pub use rename::*;
 pub use semantic_tokens::*;
 pub use signature_help::*;
+use wdl_grammar::Diagnostic;
+use wdl_grammar::SyntaxKind;
 pub use workspace_symbol::*;
 
 /// Context for evaluating expression types during LSP operations.
@@ -59,7 +69,7 @@ impl EvaluationContext for TypeEvalContext<'_> {
             .expect("document should have a version")
     }
 
-    fn resolve_name(&self, name: &str, _: Span) -> Option<crate::types::Type> {
+    fn resolve_name(&mut self, name: &str, _: Span) -> Option<crate::types::Type> {
         // Check if there are any variables with this name and return if so.
         if let Some(var) = self.scope.lookup(name).map(|n| n.ty().clone()) {
             return Some(var);
@@ -114,4 +124,13 @@ impl EvaluationContext for TypeEvalContext<'_> {
     /// Diagnostics are collected and reported through separate mechanisms,
     /// so we don't need to accumulate them during expression evaluation.
     fn add_diagnostic(&mut self, _: wdl_ast::Diagnostic) {}
+
+    /// Same as above.
+    fn exceptable_add_diagnostic<N: TreeNode + Exceptable>(
+        &mut self,
+        _: Diagnostic,
+        _: &N,
+        _: &Option<&'static [SyntaxKind]>,
+    ) {
+    }
 }

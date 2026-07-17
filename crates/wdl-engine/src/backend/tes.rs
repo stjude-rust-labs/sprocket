@@ -1,6 +1,5 @@
 //! Implementation of the TES backend.
 
-use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
 use std::sync::Mutex;
@@ -41,9 +40,9 @@ use crate::EvaluationPath;
 use crate::EvaluationPathKind;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
+use crate::Object;
 use crate::PrimitiveValue;
 use crate::TaskInputs;
-use crate::Value;
 use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::backend::STDERR_FILE_NAME;
 use crate::backend::STDOUT_FILE_NAME;
@@ -106,13 +105,13 @@ impl TesBackend {
 
         let mut http = backend::tes::http::Config::default();
         match &backend_config.auth {
-            Some(TesBackendAuthConfig::Basic(config)) => {
+            Some(TesBackendAuthConfig::Basic { config }) => {
                 http.auth = Some(HttpAuthConfig::Basic {
                     username: config.username.clone(),
                     password: config.password.inner().expose_secret().to_string(),
                 });
             }
-            Some(TesBackendAuthConfig::Bearer(config)) => {
+            Some(TesBackendAuthConfig::Bearer { config }) => {
                 http.auth = Some(HttpAuthConfig::Bearer {
                     token: config.token.inner().expose_secret().to_string(),
                 });
@@ -152,8 +151,8 @@ impl TaskExecutionBackend for TesBackend {
     fn constraints(
         &self,
         inputs: &TaskInputs,
-        requirements: &HashMap<String, Value>,
-        hints: &HashMap<String, Value>,
+        requirements: &Object,
+        hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
         let containers = requirements::container(inputs, requirements, &self.config.task.container);
         for container in &containers {

@@ -49,8 +49,8 @@ pub struct Args {
     )]
     pub indentation_size: Option<usize>,
 
-    /// The maximum line length (default is 90). 0 means do not use a maximum
-    /// line length.
+    /// The maximum line length (default is 90, valid range is 60–240). `none`
+    /// means do not use a maximum line length.
     #[arg(long, value_name = "LENGTH", global = true)]
     pub max_line_length: Option<String>,
 
@@ -121,7 +121,9 @@ fn format_document(
 /// Runs the `format` command.
 pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
-    let fallback_version = config.common.wdl.fallback_version.inner().cloned();
+    let fallback_version = config.common.wdl.fallback_version.into();
+    let feature_flags = config.common.wdl.feature_flags;
+    let modules_config = config.modules.clone();
 
     let indent = if args.with_tabs || args.indentation_size.is_some() {
         Indent::try_new(args.with_tabs, args.indentation_size)
@@ -165,7 +167,9 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
             let results = Analysis::default()
                 .extend_sources(sources.clone())
                 .fallback_version(fallback_version)
-                .run()
+                .modules_config(modules_config.clone())
+                .feature_flags(feature_flags)
+                .run(report_mode, colorize)
                 .await
                 .map_err(CommandError::from)?;
             let sources = sources.iter().collect::<Vec<_>>();
@@ -224,7 +228,9 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
             let results = Analysis::default()
                 .add_source(source.clone())
                 .fallback_version(fallback_version)
-                .run()
+                .modules_config(modules_config.clone())
+                .feature_flags(feature_flags)
+                .run(report_mode, colorize)
                 .await
                 .map_err(CommandError::from)?;
             let result = results.filter(&[&source]).next().unwrap();
@@ -256,7 +262,9 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
             let results = Analysis::default()
                 .extend_sources(sources.clone())
                 .fallback_version(fallback_version)
-                .run()
+                .modules_config(modules_config.clone())
+                .feature_flags(feature_flags)
+                .run(report_mode, colorize)
                 .await
                 .map_err(CommandError::from)?;
             let sources = sources.iter().collect::<Vec<_>>();

@@ -1,5 +1,5 @@
-#@ except: MetaDescription, MetaSections, ParameterMetaMatched
-#@ except: RequirementsSection, MatchingOutputMeta
+#@ except: BashSetSyntax, MatchingOutputMeta, MetaDescription, MetaSections
+#@ except: ParameterMetaMatched, RequirementsSection
 
 version 1.2
 

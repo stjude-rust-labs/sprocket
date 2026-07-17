@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use arrayvec::ArrayString;
 use indexmap::IndexMap;
+use indexmap::IndexSet;
 use petgraph::graph::NodeIndex;
 use rowan::GreenNode;
 use rowan::TextRange;
@@ -23,10 +24,10 @@ use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
 
+use crate::Diagnostics;
 use crate::config::Config;
 use crate::diagnostics::Context;
 use crate::diagnostics::no_common_type;
-use crate::diagnostics::unused_import;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::types::CallType;
@@ -39,20 +40,17 @@ pub mod v1;
 /// WDL 1.2.
 pub const TASK_VAR_NAME: &str = "task";
 
-/// Represents a namespace introduced by an import.
+/// A successfully resolved namespace introduced by an import.
 #[derive(Debug)]
 pub struct Namespace {
     /// The span of the import that introduced the namespace.
-    span: Span,
+    pub(crate) span: Span,
     /// The URI of the imported document that introduced the namespace.
     source: Arc<Url>,
     /// The namespace's document.
     document: Document,
     /// Whether or not the namespace is used (i.e. referenced) in the document.
-    used: bool,
-    /// Whether or not the namespace is excepted from the "unused import"
-    /// diagnostic.
-    excepted: bool,
+    pub(crate) used: bool,
 }
 
 impl Namespace {
@@ -91,10 +89,16 @@ pub struct Struct {
     ///
     /// This is used to calculate type equivalence for imports.
     node: rowan::GreenNode,
-    /// The namespace that defines the struct.
+    /// The source of this struct.
     ///
-    /// This is `Some` only for imported structs.
-    namespace: Option<String>,
+    /// `Some(uri)` means the struct was imported (by a namespaced, wildcard, or
+    /// selective import) from the document at `uri`. Imported structs carry
+    /// their resolved type from that document, so they are not type-checked
+    /// again here, and `uri` locates the original definition for
+    /// go-to-definition.
+    ///
+    /// `None` means the struct is defined locally in the containing document.
+    source: Option<Arc<Url>>,
     /// The type of the struct.
     ///
     /// Initially this is `None` until a type check occurs.
@@ -122,12 +126,14 @@ impl Struct {
         &self.node
     }
 
-    /// Gets the namespace that defines this struct.
+    /// Gets the URI of the document this struct was imported from.
     ///
-    /// Returns `None` for structs defined in the containing document or `Some`
-    /// for a struct introduced by an import.
-    pub fn namespace(&self) -> Option<&str> {
-        self.namespace.as_deref()
+    /// Returns `Some(uri)` for an imported struct (whether namespaced,
+    /// wildcard, or selective), where `uri` is the document the struct was
+    /// imported from. Returns `None` for a struct defined locally in the
+    /// containing document.
+    pub fn source(&self) -> Option<&Arc<Url>> {
+        self.source.as_ref()
     }
 
     /// Gets the type of the struct.
@@ -157,12 +163,17 @@ pub struct Enum {
     /// Stores the CST node of the enum.
     ///
     /// This is used to calculate type equivalence for imports and can be
-    /// reconstructed into an AST node to access variant expressions.
+    /// reconstructed into an AST node to access choice expressions.
     node: rowan::GreenNode,
-    /// The namespace that defines the enum.
+    /// The source of this enum.
     ///
-    /// This is `Some` only for imported enums.
-    namespace: Option<String>,
+    /// `Some(uri)` means the enum was imported (by a namespaced, wildcard, or
+    /// selective import) from the document at `uri`. Imported enums carry their
+    /// resolved type from that document, so they are not type-checked again
+    /// here, and `uri` locates the original definition for go-to-definition.
+    ///
+    /// `None` means the enum is defined locally in the containing document.
+    source: Option<Arc<Url>>,
     /// The type of the enum.
     ///
     /// Initially this is `None` until a type check/coercion occurs.
@@ -192,15 +203,19 @@ impl Enum {
 
     /// Reconstructs the AST definition from the stored green node.
     ///
-    /// This provides access to variant expressions and other AST details.
+    /// This provides access to choice expressions and other AST details.
     pub fn definition(&self) -> wdl_ast::v1::EnumDefinition {
         wdl_ast::v1::EnumDefinition::cast(wdl_ast::SyntaxNode::new_root(self.node.clone()))
             .expect("stored node should be a valid enum definition")
     }
 
-    /// Gets the namespace that defines this enum.
-    pub fn namespace(&self) -> Option<&str> {
-        self.namespace.as_deref()
+    /// Gets the URI of the document this enum was imported from.
+    ///
+    /// Returns `Some(uri)` for an imported enum (whether namespaced, wildcard,
+    /// or selective), where `uri` is the document the enum was imported from.
+    /// Returns `None` for an enum defined locally in the containing document.
+    pub fn source(&self) -> Option<&Arc<Url>> {
+        self.source.as_ref()
     }
 
     /// Gets the type of the enum.
@@ -523,6 +538,8 @@ pub struct Task {
     name_span: Span,
     /// The name of the task.
     name: String,
+    /// The span of the task definition.
+    span: Span,
     /// The scopes contained in the task.
     ///
     /// The first scope will always be the task's scope.
@@ -544,6 +561,11 @@ impl Task {
     /// Gets the span of the name.
     pub fn name_span(&self) -> Span {
         self.name_span
+    }
+
+    /// Gets the span of the workflow definition.
+    pub fn span(&self) -> Span {
+        self.span
     }
 
     /// Gets the scope of the task.
@@ -569,6 +591,8 @@ pub struct Workflow {
     name_span: Span,
     /// The name of the workflow.
     name: String,
+    /// The span of the workflow definition.
+    span: Span,
     /// The scopes contained in the workflow.
     ///
     /// The first scope will always be the workflow's scope.
@@ -594,6 +618,11 @@ impl Workflow {
     /// Gets the span of the name.
     pub fn name_span(&self) -> Span {
         self.name_span
+    }
+
+    /// Gets the span of the workflow definition.
+    pub fn span(&self) -> Span {
+        self.span
     }
 
     /// Gets the scope of the workflow.
@@ -622,6 +651,79 @@ impl Workflow {
     }
 }
 
+/// A task imported into scope by a wildcard or selected-member import.
+#[derive(Debug)]
+pub(crate) struct ImportedTask {
+    /// The task name in the source document.
+    pub name: String,
+    /// The span of the import statement that introduced this task.
+    pub span: Span,
+    /// The source URI the task came from.
+    pub source: Arc<Url>,
+    /// The inputs of the task.
+    pub inputs: Arc<IndexMap<String, Input>>,
+    /// The outputs of the task.
+    pub outputs: Arc<IndexMap<String, Output>>,
+}
+
+/// A workflow imported into scope by a wildcard or selected-member import.
+#[derive(Debug)]
+pub(crate) struct ImportedWorkflow {
+    /// The workflow name in the source document.
+    pub name: String,
+    /// The span of the import statement.
+    pub span: Span,
+    /// The source URI.
+    pub source: Arc<Url>,
+    /// The inputs of the workflow.
+    pub inputs: Arc<IndexMap<String, Input>>,
+    /// The outputs of the workflow.
+    pub outputs: Arc<IndexMap<String, Output>>,
+}
+
+/// A callable item.
+#[derive(Debug)]
+pub enum Callable<'a> {
+    /// A workflow.
+    Workflow(&'a Workflow),
+    /// A task.
+    Task(&'a Task),
+}
+
+impl Callable<'_> {
+    /// Get the name of this callable.
+    pub fn name(&self) -> &str {
+        match self {
+            Callable::Workflow(w) => w.name(),
+            Callable::Task(t) => t.name(),
+        }
+    }
+
+    /// Get the [`Span`] of the callable's name.
+    pub fn name_span(&self) -> Span {
+        match self {
+            Callable::Workflow(w) => w.name_span(),
+            Callable::Task(t) => t.name_span(),
+        }
+    }
+
+    /// Get the [`Span`] of the callable's full definition.
+    pub fn span(&self) -> Span {
+        match self {
+            Callable::Workflow(w) => w.span(),
+            Callable::Task(t) => t.span(),
+        }
+    }
+
+    /// Get the inputs of the callable.
+    pub fn inputs(&self) -> &IndexMap<String, Input> {
+        match self {
+            Callable::Workflow(w) => w.inputs(),
+            Callable::Task(t) => t.inputs(),
+        }
+    }
+}
+
 /// Represents analysis data about a WDL document.
 #[derive(Debug)]
 pub(crate) struct DocumentData {
@@ -639,8 +741,14 @@ pub(crate) struct DocumentData {
     uri: Arc<Url>,
     /// The version of the document.
     version: Option<SupportedVersion>,
-    /// The namespaces in the document.
+    /// The successfully resolved namespaces in the document, keyed by name.
     namespaces: IndexMap<String, Namespace>,
+    /// The names of imports that failed to resolve, keyed by name, each with
+    /// the span of the failing import. Kept so that downstream references to
+    /// the imported name (e.g., `import spellbook` followed by
+    /// `call spellbook.fireball`) don't produce cascading "unknown namespace"
+    /// diagnostics.
+    failed_imports: IndexMap<String, Span>,
     /// The tasks in the document.
     tasks: IndexMap<String, Task>,
     /// The singular workflow in the document.
@@ -649,10 +757,16 @@ pub(crate) struct DocumentData {
     structs: IndexMap<String, Struct>,
     /// The enums in the document.
     enums: IndexMap<String, Enum>,
+    /// Tasks imported via wildcard or selected-member imports.
+    imported_tasks: IndexMap<String, ImportedTask>,
+    /// Workflows imported via wildcard or selected-member imports.
+    imported_workflows: IndexMap<String, ImportedWorkflow>,
+    /// Selected task or workflow imports that failed to resolve.
+    failed_selected_imports: IndexSet<String>,
     /// The diagnostics from parsing.
     parse_diagnostics: Vec<Diagnostic>,
     /// The diagnostics from analysis.
-    analysis_diagnostics: Vec<Diagnostic>,
+    analysis_diagnostics: Diagnostics,
 }
 
 impl DocumentData {
@@ -671,10 +785,14 @@ impl DocumentData {
             uri,
             version,
             namespaces: Default::default(),
+            failed_imports: Default::default(),
             tasks: Default::default(),
             workflow: Default::default(),
             structs: Default::default(),
             enums: Default::default(),
+            imported_tasks: Default::default(),
+            imported_workflows: Default::default(),
+            failed_selected_imports: Default::default(),
             parse_diagnostics: diagnostics,
             analysis_diagnostics: Default::default(),
         }
@@ -688,7 +806,9 @@ impl DocumentData {
     pub fn context(&self, name: &str) -> Option<Context> {
         // Look through the various data structures for the name
         if let Some(ns) = self.namespaces.get(name) {
-            Some(Context::Namespace(ns.span()))
+            Some(Context::Namespace(ns.span))
+        } else if let Some(span) = self.failed_imports.get(name) {
+            Some(Context::Namespace(*span))
         } else if let Some(task) = self.tasks.get(name) {
             Some(Context::Task(task.name_span()))
         } else if let Some(wf) = &self.workflow
@@ -778,22 +898,6 @@ impl Document {
         match root.ast_with_version_fallback(config.fallback_version()) {
             Ast::Unsupported => {}
             Ast::V1(ast) => v1::populate_document(&mut data, &config, graph, index, &ast),
-        }
-
-        // Check for unused imports
-        if let Some(severity) = config.diagnostics_config().unused_import {
-            let DocumentData {
-                namespaces,
-                analysis_diagnostics,
-                ..
-            } = &mut data;
-
-            analysis_diagnostics.extend(
-                namespaces
-                    .iter()
-                    .filter(|(_, ns)| !ns.used && !ns.excepted)
-                    .map(|(name, ns)| unused_import(name, ns.span()).with_severity(severity)),
-            );
         }
 
         Self {
@@ -886,12 +990,12 @@ impl Document {
         self.data.version
     }
 
-    /// Gets the namespaces in the document.
+    /// Gets the successfully resolved namespaces in the document.
     pub fn namespaces(&self) -> impl Iterator<Item = (&str, &Namespace)> {
         self.data.namespaces.iter().map(|(n, ns)| (n.as_str(), ns))
     }
 
-    /// Gets a namespace in the document by name.
+    /// Gets a successfully resolved namespace in the document by name.
     pub fn namespace(&self, name: &str) -> Option<&Namespace> {
         self.data.namespaces.get(name)
     }
@@ -906,11 +1010,47 @@ impl Document {
         self.data.tasks.get(name)
     }
 
+    /// Gets an imported task in the document by local name.
+    pub(crate) fn imported_task_by_name(&self, name: &str) -> Option<&ImportedTask> {
+        self.data.imported_tasks.get(name)
+    }
+
     /// Gets a workflow in the document.
     ///
     /// Returns `None` if the document did not contain a workflow.
     pub fn workflow(&self) -> Option<&Workflow> {
         self.data.workflow.as_ref()
+    }
+
+    /// Gets an imported workflow in the document by local name.
+    pub(crate) fn imported_workflow_by_name(&self, name: &str) -> Option<&ImportedWorkflow> {
+        self.data.imported_workflows.get(name)
+    }
+
+    /// Gets a [`Callable`] in the document by name.
+    ///
+    /// Returns `None` if the document did not contain a callable definition
+    /// with the given name.
+    pub fn callable_by_name(&self, name: &str) -> Option<Callable<'_>> {
+        if let Some(workflow) = self.workflow()
+            && workflow.name() == name
+        {
+            return Some(Callable::Workflow(workflow));
+        }
+
+        if let Some(task) = self.task_by_name(name) {
+            return Some(Callable::Task(task));
+        }
+
+        None
+    }
+
+    /// Get all callable targets in the document.
+    pub fn callables(&self) -> impl Iterator<Item = Callable<'_>> {
+        self.workflow()
+            .map(Callable::Workflow)
+            .into_iter()
+            .chain(self.tasks().map(Callable::Task))
     }
 
     /// Gets the structs in the document.
@@ -946,18 +1086,18 @@ impl Document {
         None
     }
 
-    /// Gets a cache key for an enum variant lookup.
-    pub fn get_variant_cache_key(
+    /// Gets a cache key for an enum choice lookup.
+    pub fn get_choice_cache_key(
         &self,
         name: &str,
-        variant: &str,
-    ) -> Option<crate::types::EnumVariantCacheKey> {
+        choice: &str,
+    ) -> Option<crate::types::EnumChoiceCacheKey> {
         let (enum_index, _, r#enum) = self.data.enums.get_full(name)?;
         let enum_ty = r#enum.ty()?.as_enum()?;
-        let variant_index = enum_ty.variants().iter().position(|v| v == variant)?;
-        Some(crate::types::EnumVariantCacheKey::new(
+        let choice_index = enum_ty.choices().iter().position(|v| v == choice)?;
+        Some(crate::types::EnumChoiceCacheKey::new(
             enum_index,
-            variant_index,
+            choice_index,
         ))
     }
 
@@ -967,7 +1107,7 @@ impl Document {
     }
 
     /// Gets the analysis diagnostics for the document.
-    pub fn analysis_diagnostics(&self) -> &[Diagnostic] {
+    pub fn analysis_diagnostics(&self) -> &Diagnostics {
         &self.data.analysis_diagnostics
     }
 
@@ -976,7 +1116,7 @@ impl Document {
         self.data
             .parse_diagnostics
             .iter()
-            .chain(self.data.analysis_diagnostics.iter())
+            .chain(self.data.analysis_diagnostics.diagnostics.iter())
     }
 
     /// Sorts the diagnostics for the document.
@@ -997,10 +1137,10 @@ impl Document {
     /// # Panics
     ///
     /// Panics if there is more than one reference to the document.
-    pub fn extend_diagnostics(&mut self, diagnostics: Vec<Diagnostic>) -> Self {
+    pub fn extend_diagnostics(&mut self, diagnostics: Diagnostics) -> Self {
         let data = &mut self.data;
         let inner = Arc::get_mut(data).expect("should only have one reference");
-        inner.analysis_diagnostics.extend(diagnostics);
+        inner.analysis_diagnostics.extend(diagnostics.diagnostics);
         Self { data: data.clone() }
     }
 
@@ -1085,7 +1225,7 @@ impl Document {
 
         // Check every imported document for errors
         for (_, ns) in self.namespaces() {
-            if ns.document.has_errors() {
+            if ns.document().has_errors() {
                 return true;
             }
         }

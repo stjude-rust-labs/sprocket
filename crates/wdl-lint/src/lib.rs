@@ -47,7 +47,6 @@ pub use config::Config;
 pub use config::ConfigField;
 pub use linter::*;
 pub use tags::*;
-pub use util::find_nearest_rule;
 pub use wdl_analysis as analysis;
 pub use wdl_ast as ast;
 
@@ -146,7 +145,6 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::<rules::HostPathLiteralsRule>::default(),
         Box::<rules::ContainerUriRule>::default(),
         Box::<rules::RequirementsSectionRule>::default(),
-        Box::<rules::KnownRulesRule>::default(),
         Box::<rules::ExceptDirectiveValidRule>::default(),
         Box::<rules::ParameterDescriptionRule>::default(),
         Box::<rules::ConciseInputRule>::default(),
@@ -156,6 +154,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::<rules::UnusedDocCommentsRule>::default(),
         Box::<rules::DenyGlobStar>::default(),
         Box::<rules::EmptyOutputs>::default(),
+        Box::new(rules::BashSetSyntax::new(config)),
         Box::<rules::InlineInstall>::default(),
     ];
 

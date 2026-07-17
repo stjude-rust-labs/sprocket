@@ -1,6 +1,5 @@
 //! Implementation of task execution backends.
 
-use std::collections::HashMap;
 use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
@@ -13,6 +12,7 @@ use indexmap::IndexMap;
 use crate::ContentKind;
 use crate::EvaluationPath;
 use crate::GuestPath;
+use crate::Object;
 use crate::TaskInputs;
 use crate::Value;
 use crate::http::Location;
@@ -209,13 +209,15 @@ pub struct ExecuteTaskRequest<'a> {
     /// The backend inputs for task.
     pub backend_inputs: &'a [Input],
     /// The requirements of the task.
-    pub requirements: &'a HashMap<String, Value>,
+    pub requirements: &'a Object,
     /// The hints of the task.
-    pub hints: &'a HashMap<String, Value>,
+    pub hints: &'a Object,
     /// The environment variables of the task.
     pub env: &'a IndexMap<String, String>,
     /// The constraints for the task's execution.
     pub constraints: &'a TaskExecutionConstraints,
+    /// The evaluation base directory (i.e. the document's directory).
+    pub base_dir: &'a EvaluationPath,
     /// The attempt directory for the task's execution.
     pub attempt_dir: &'a Path,
     /// The temp directory for the evaluation.
@@ -278,8 +280,8 @@ pub(crate) trait TaskExecutionBackend: Send + Sync {
     fn constraints(
         &self,
         inputs: &TaskInputs,
-        requirements: &HashMap<String, Value>,
-        hints: &HashMap<String, Value>,
+        requirements: &Object,
+        hints: &Object,
     ) -> Result<TaskExecutionConstraints>;
 
     /// Gets the guest (container) inputs directory of the backend.

@@ -17,6 +17,7 @@ use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::Events;
 
+use crate::analysis::Source;
 use crate::config::Config;
 use crate::config::FallbackVersion;
 use crate::config::ServerConfig;
@@ -37,6 +38,7 @@ use crate::system::v1::fs::OutputDirectory;
 pub(crate) mod commands;
 
 pub use commands::*;
+use wdl::diagnostics::Mode;
 
 /// Channel capacity for events.
 ///
@@ -59,6 +61,10 @@ pub struct RunManagerSvc {
     config: ServerConfig,
     /// The fallback WDL version for documents with unrecognized versions.
     fallback_version: FallbackVersion,
+    /// Feature flags used during analysis.
+    feature_flags: wdl::analysis::FeatureFlags,
+    /// Module resolver configuration used during analysis.
+    modules_config: wdl_modules::resolver::ModulesConfig,
     /// The output directory root.
     output_dir: OutputDirectory,
     /// A handle to the database.
@@ -80,24 +86,35 @@ pub struct RunManagerSvc {
     /// A [`tokio::sync::Mutex`] is used because the [`run()`][Self::run] future
     /// must be `Send`.
     runs: Arc<Mutex<HashMap<Uuid, CancellationContext>>>,
+    /// The diagnostic reporting mode.
+    report_mode: Mode,
+    /// Whether to colorize diagnostics.
+    colorize: bool,
 }
 
 impl RunManagerSvc {
     /// Create a new run manager.
-    pub fn new(config: Config, db: Arc<dyn Database>, rx: Rx) -> Self {
+    pub fn new(
+        config: Config,
+        report_mode: Mode,
+        colorize: bool,
+        db: Arc<dyn Database>,
+        rx: Rx,
+    ) -> Self {
         let fallback_version = config.common.wdl.fallback_version;
+        let feature_flags = config.common.wdl.feature_flags;
+        let modules_config = config.modules.clone();
         let config = config.server;
-        let semaphore = config
-            .max_concurrent_runs
-            .inner()
-            .cloned()
-            .map(|n| Arc::new(Semaphore::new(n)));
+        let semaphore =
+            Option::<usize>::from(config.max_concurrent_runs).map(|n| Arc::new(Semaphore::new(n)));
 
         let output_dir = OutputDirectory::new(&config.output_dir);
 
         Self {
             config,
             fallback_version,
+            feature_flags,
+            modules_config,
             output_dir,
             db,
             // NOTE: this is empty upon creation, but it's created lazily upon
@@ -106,6 +123,8 @@ impl RunManagerSvc {
             rx,
             semaphore,
             runs: Default::default(),
+            report_mode,
+            colorize,
         }
     }
 
@@ -210,6 +229,11 @@ impl RunManagerSvc {
                     let result = list_tasks(&self.db, run_id, status, limit, offset).await;
                     let _ = rx.send(result);
                 }
+                RunManagerCmd::CountRunTasksByStatus { run_id, rx } => {
+                    trace!(?run_id, "received `CountRunTasksByStatus` command");
+                    let result = count_run_tasks_by_status(&self.db, run_id).await;
+                    let _ = rx.send(result);
+                }
                 RunManagerCmd::GetTask { name, rx } => {
                     trace!(?name, "received `GetTask` command");
                     let result = get_task(&self.db, name).await;
@@ -251,10 +275,12 @@ impl RunManagerSvc {
     pub fn spawn(
         channel_buffer_size: usize,
         config: Config,
+        report_mode: Mode,
+        colorize: bool,
         db: Arc<dyn Database>,
     ) -> (JoinHandle<()>, mpsc::Sender<RunManagerCmd>) {
         let (tx, rx) = mpsc::channel(channel_buffer_size);
-        let manager = Self::new(config, db, rx);
+        let manager = Self::new(config, report_mode, colorize, db, rx);
         let handle = tokio::spawn(manager.run());
         (handle, tx)
     }
@@ -268,7 +294,13 @@ impl RunManagerSvc {
         target: Option<String>,
         index_on: Option<String>,
     ) -> Result<SubmitResponse, SubmitRunError> {
-        let source = validate_source(&source, &self.config)?;
+        let source = match validate_source(&source, &self.config)? {
+            Source::Directory(dir) => {
+                crate::analysis::resolve_module_entrypoint(&dir, self.feature_flags)
+                    .map_err(SubmitRunError::Analysis)?
+            }
+            source => source,
+        };
 
         let (run_id, run_generated_name, _) = create_run_record(
             self.db.as_ref(),
@@ -292,11 +324,15 @@ impl RunManagerSvc {
             .runs(self.runs.clone())
             .run_id(run_id)
             .run_name(run_generated_name.clone())
-            .maybe_fallback_version(self.fallback_version.inner().cloned())
+            .maybe_fallback_version(self.fallback_version.into())
+            .feature_flags(self.feature_flags)
+            .modules_config(self.modules_config.clone())
             .source(source)
             .maybe_target(target)
             .inputs(inputs)
             .maybe_index_on(index_on)
+            .report_mode(self.report_mode)
+            .colorize(self.colorize)
             .build();
 
         let semaphore = self.semaphore.clone();
@@ -305,7 +341,7 @@ impl RunManagerSvc {
                 // SAFETY: the semaphore is Arc-wrapped and held by the manager for its
                 // entire lifetime. It is never explicitly closed. If this fails, it
                 // indicates a catastrophic programming error.
-                Some(sem.acquire().await.expect("semaphore closed"))
+                Some(sem.acquire().await.unwrap())
             } else {
                 None
             };
@@ -532,6 +568,15 @@ async fn list_tasks(
     let tasks = db.list_tasks(run_id, status, limit, offset).await?;
     let total = db.count_tasks(run_id, status).await?;
     Ok(ListTasksResponse { tasks, total })
+}
+
+/// Counts a run's tasks grouped by status.
+async fn count_run_tasks_by_status(
+    db: &Arc<dyn Database>,
+    run_id: Uuid,
+) -> Result<RunTaskCountsResponse, DatabaseError> {
+    let counts = db.count_tasks_by_status(run_id).await?;
+    Ok(RunTaskCountsResponse { counts })
 }
 
 /// Gets a task with a given name.

@@ -7,31 +7,53 @@ mod newline;
 pub use indent::Indent;
 pub use max_line_length::MaxLineLength;
 pub use newline::NewlineStyle;
-use serde::Deserialize;
-use serde::Serialize;
+use schemars::JsonSchema;
+use toml_spanner::Toml;
+use toml_spanner::helper::display;
+use toml_spanner::helper::parse_string;
 
 /// Default for whether import sorting is enabled.
-const SORT_IMPORTS_DEFAULT: bool = true;
+fn sort_imports_default() -> bool {
+    true
+}
+
 /// Default for whether input sorting is enabled.
-const SORT_INPUTS_DEFAULT: bool = false;
+fn sort_inputs_default() -> bool {
+    false
+}
+
 /// Default for whether trailing commas are enabled.
-const TRAILING_COMMAS_DEFAULT: bool = true;
+fn trailing_commas_default() -> bool {
+    true
+}
 
 /// Configuration for formatting.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-#[serde(default, deny_unknown_fields)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, deny_unknown_fields)]
 pub struct Config {
     /// The indentation configuration.
+    #[toml(default)]
+    #[schemars(default)]
     pub indent: Indent,
     /// The maximum line length.
+    #[toml(default)]
+    #[schemars(default)]
     pub max_line_length: MaxLineLength,
     /// Whether to sort import statements alphabetically.
+    #[toml(default = sort_imports_default())]
+    #[schemars(default = "sort_imports_default")]
     pub sort_imports: bool,
     /// Whether to sort input sections.
+    #[toml(default = sort_inputs_default())]
+    #[schemars(default = "sort_inputs_default")]
     pub sort_inputs: bool,
     /// Whether to add trailing commas to multiline lists.
+    #[toml(default = trailing_commas_default())]
+    #[schemars(default = "trailing_commas_default")]
     pub trailing_commas: bool,
     /// The newline style.
+    #[toml(default, FromToml with = parse_string, ToToml with = display)]
+    #[schemars(default)]
     pub newline_style: NewlineStyle,
 }
 
@@ -40,9 +62,9 @@ impl Default for Config {
         Self {
             indent: Indent::default(),
             max_line_length: MaxLineLength::default(),
-            sort_imports: SORT_IMPORTS_DEFAULT,
-            sort_inputs: SORT_INPUTS_DEFAULT,
-            trailing_commas: TRAILING_COMMAS_DEFAULT,
+            sort_imports: sort_imports_default(),
+            sort_inputs: sort_inputs_default(),
+            trailing_commas: trailing_commas_default(),
             newline_style: NewlineStyle::default(),
         }
     }

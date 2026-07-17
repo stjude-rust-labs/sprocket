@@ -580,7 +580,7 @@ impl Database for SqliteDatabase {
         }
         query.push_str(" order by t.created_at desc limit ? offset ?");
 
-        let mut q = sqlx::query_as(&query);
+        let mut q = sqlx::query_as(sqlx::AssertSqlSafe(query));
 
         if let Some(run_id) = run_id {
             q = q.bind(run_id.to_string());
@@ -605,7 +605,7 @@ impl Database for SqliteDatabase {
             query.push_str(" and t.status = ?");
         }
 
-        let mut q = sqlx::query_scalar(&query);
+        let mut q = sqlx::query_scalar(sqlx::AssertSqlSafe(query));
 
         if let Some(run_id) = run_id {
             q = q.bind(run_id.to_string());
@@ -616,6 +616,20 @@ impl Database for SqliteDatabase {
 
         let count: i64 = q.fetch_one(&self.pool).await?;
         Ok(count)
+    }
+
+    async fn count_tasks_by_status(&self, run_id: Uuid) -> Result<Vec<(TaskStatus, i64)>> {
+        let counts: Vec<(TaskStatus, i64)> = sqlx::query_as(
+            "select t.status, count(*) as count
+             from tasks t join runs r on t.run_id = r.id
+             where r.uuid = ?
+             group by t.status",
+        )
+        .bind(run_id.to_string())
+        .fetch_all(&self.pool)
+        .await?;
+
+        Ok(counts)
     }
 
     async fn insert_task_log(
@@ -658,7 +672,7 @@ impl Database for SqliteDatabase {
         }
         query.push_str(" order by created_at asc limit ? offset ?");
 
-        let mut q = sqlx::query_as(&query);
+        let mut q = sqlx::query_as(sqlx::AssertSqlSafe(query));
         q = q.bind(task_name);
 
         if let Some(source) = source {
@@ -680,7 +694,7 @@ impl Database for SqliteDatabase {
             query.push_str(" and source = ?");
         }
 
-        let mut q = sqlx::query_scalar(&query);
+        let mut q = sqlx::query_scalar(sqlx::AssertSqlSafe(query));
         q = q.bind(task_name);
 
         if let Some(source) = source {
@@ -1209,6 +1223,74 @@ mod tests {
             .await
             .expect("failed to list tasks");
         assert_eq!(tasks.len(), 2);
+    }
+
+    #[sqlx::test]
+    async fn count_tasks_by_status(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("wf"), "{}")
+            .await
+            .expect("failed to create run");
+
+        let other_run_id = Uuid::new_v4();
+        db.create_run(
+            other_run_id,
+            session_id,
+            "other-run",
+            "test.wdl",
+            Some("wf"),
+            "{}",
+        )
+        .await
+        .expect("failed to create run");
+
+        // run_id: two pending, one running, one completed.
+        for name in ["t1", "t2", "t3", "t4"] {
+            db.create_task(name, run_id)
+                .await
+                .expect("failed to create task");
+        }
+        db.update_task_started("t3", Utc::now())
+            .await
+            .expect("failed to update task");
+        db.update_task_completed("t4", Some(0), Utc::now())
+            .await
+            .expect("failed to update task");
+
+        // A task on a different run must not be counted.
+        db.create_task("other", other_run_id)
+            .await
+            .expect("failed to create task");
+
+        let counts = db
+            .count_tasks_by_status(run_id)
+            .await
+            .expect("failed to count tasks by status");
+        let counts: std::collections::HashMap<TaskStatus, i64> = counts.into_iter().collect();
+
+        assert_eq!(counts.get(&TaskStatus::Pending).copied(), Some(2));
+        assert_eq!(counts.get(&TaskStatus::Running).copied(), Some(1));
+        assert_eq!(counts.get(&TaskStatus::Completed).copied(), Some(1));
+        // Statuses with no tasks are absent.
+        assert_eq!(counts.get(&TaskStatus::Failed), None);
+        // The total across all statuses for this run is four.
+        assert_eq!(counts.values().sum::<i64>(), 4);
+
+        // An unknown run yields no rows.
+        let empty = db
+            .count_tasks_by_status(Uuid::new_v4())
+            .await
+            .expect("failed to count tasks by status");
+        assert!(empty.is_empty());
     }
 
     #[sqlx::test]

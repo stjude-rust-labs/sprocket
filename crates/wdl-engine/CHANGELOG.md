@@ -7,6 +7,59 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.17.0 - 2026-07-15
+
+#### Added
+
+* Added a `strongish` content digest mode (`run.task.digests = "strongish"`) that hashes file size, last modified time, and the first 10 MiB of a file's contents; this is an intermediate strategy between `weak` and `strong`, similar to Cromwell's `fingerprint` call caching strategy ([#978](https://github.com/stjude-rust-labs/sprocket/pull/978)).
+
+#### Changed
+
+* Input type-mismatch errors now include a hint when a scalar input (e.g., `File`) was given an array value, explaining that this commonly happens when a key is repeated on the command line or when an unquoted shell glob expands to more than one value ([#998](https://github.com/stjude-rust-labs/sprocket/pull/998)).
+
+## 0.16.0 - 2026-06-26
+
+#### Added
+
+* Added dynamic `bsub` arguments to the LSF backend ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
+* Added dynamic `sbatch` arguments to the Slurm backend ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
+* Added `run.http.hash_algorithm` to configure input upload content digest
+  algorithm to use (use `none` to disable, defaults to `sha256`) ([#954](https://github.com/stjude-rust-labs/sprocket/pull/954)).
+* Added `ConfigBuilder` type for merging engine configurations together ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+
+#### Changed
+
+* Apptainer settings for the LSF and Slurm backends have moved into an
+  `apptainer` sub-collection, and `extra_apptainer_exec_args` has been
+  renamed to `apptainer.extra_args` ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
+* LSF backend setting `extra_bsub_args` has been renamed to `bsub.args` ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
+* Slurm backend setting `extra_sbatch_args` has been renamed to `sbatch.args` ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
+* Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
+* Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+
+#### Fixed
+
+* Fixed an issue where a task could not output a `Directory` value that was a
+  subpath of a `Directory` input ([#933](https://github.com/stjude-rust-labs/sprocket/pull/933)).
+
+#### Dependencies
+
+* Updated to `cloud-copy` 0.9.0 for a number of fixes ([#954](https://github.com/stjude-rust-labs/sprocket/pull/954)).
+
+## 0.15.0 - 2026-06-03
+
+#### Added
+
+* Added `CancellationContext::child()` to create dependent cancellation contexts ([#891](https://github.com/stjude-rust-labs/sprocket/pull/891)).
+
+#### Fixed
+
+* Fixed shared lock acquisition to reopen new lock files read-only before locking ([#869](https://github.com/stjude-rust-labs/sprocket/pull/869)).
+
+#### Dependencies
+
+* Bumped `cloud-copy` to `0.8.0`, which adds support for downloading files using multiple parallel streams ([#909](https://github.com/stjude-rust-labs/sprocket/pull/909)).
+
 ## 0.14.0 - 2026-05-14
 
 ## 0.13.2 - 2026-04-22
@@ -197,7 +250,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Removed
 
 * Removed the `codespan` cargo feature in favor of enabling codespan reporting always ([#462](https://github.com/stjude-rust-labs/sprocket/pull/462)).
-
 
 ## 0.9.0 - 10-14-2025
 

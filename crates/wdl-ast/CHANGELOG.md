@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.26.0 - 2026-07-15
+
+#### Added
+
+* Added the `unstable-python` feature flag, which enables APIs related to Sprocket's Python bindings ([#941](https://github.com/stjude-rust-labs/sprocket/pull/941)).
+
+## 0.25.0 - 2026-06-26
+
+#### Changed
+
+* Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
+
+#### Fixed
+
+* `Directive::from_str` no longer treats a trailing comma in an `except`
+  directive's rule list as an empty rule id ([#925](https://github.com/stjude-rust-labs/sprocket/issues/925)).
+
+## 0.24.0 - 2026-06-03
+
+#### Added
+
+* `CommentKind` and `Comment::kind()` to determine the type of a comment ([#867](https://github.com/stjude-rust-labs/sprocket/pull/867)).
+
+#### Changed
+
+* Replaced `Comment::is_{directive,doc_comment}` with `CommentKind` ([#867](https://github.com/stjude-rust-labs/sprocket/pull/867)).
+* `AstNode::{braced,heredoc}_scope_span` now takes a boolean to control whether to include the braces in the span ([#867](https://github.com/stjude-rust-labs/sprocket/pull/867)).
+
 ## 0.23.0 - 2026-05-14
 
 #### Added

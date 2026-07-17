@@ -1,4 +1,5 @@
-#@ except: MetaDescription, MatchingOutputMeta, ExpectedRuntimeKeys, EmptyOutputs
+#@ except: BashSetSyntax, EmptyOutputs, ExpectedRuntimeKeys, MatchingOutputMeta
+#@ except: MetaDescription
 
 version 1.0
 
@@ -7,10 +8,10 @@ workflow BadWorkflow {
 
     Float badPrivateDecl = 3.14
     call BadTask { input:
-        BadInput = "something"
+        BadInput = "something",
     }
     call good_task { input:
-        good_input = "something"
+        good_input = "something",
     }
 
     output {}
@@ -42,12 +43,12 @@ task BadTask {
 
 task BadButAllowedTask {
     meta {}
-    
+
     parameter_meta {}
-    
+
     command <<<
     >>>
-    
+
     runtime {}
 }
 

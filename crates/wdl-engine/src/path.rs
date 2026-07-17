@@ -107,6 +107,16 @@ impl EvaluationPath {
         self.0
     }
 
+    /// Gets a string representation of the path.
+    ///
+    /// Returns `None` if the path can't be represented as UTF-8.
+    pub fn as_str(&self) -> Option<&str> {
+        match &self.0 {
+            EvaluationPathKind::Local(path) => path.to_str(),
+            EvaluationPathKind::Remote(url) => Some(url.as_str()),
+        }
+    }
+
     /// Returns `true` if the path is local.
     pub fn is_local(&self) -> bool {
         matches!(&self.0, EvaluationPathKind::Local(_))
@@ -248,14 +258,6 @@ impl FromStr for EvaluationPath {
 impl fmt::Display for EvaluationPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.0.fmt(f)
-    }
-}
-
-impl TryFrom<&str> for EvaluationPath {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &str) -> Result<Self> {
-        value.parse()
     }
 }
 

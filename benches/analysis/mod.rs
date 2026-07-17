@@ -69,6 +69,18 @@ impl AnalyzeWorkflows {
             analyzer.analyze(()).await.unwrap()
         })
     }
+
+    /// Analyze the given set of documents as a single batch.
+    fn analyze_documents(&self, documents: &[Url]) -> Vec<AnalysisResult> {
+        self.runtime.block_on(async {
+            let config = AnalysisConfig::default();
+            let analyzer = Analyzer::new(config, |_, _, _, _| async {});
+            for document in documents {
+                analyzer.add_document(document.clone()).await.unwrap();
+            }
+            analyzer.analyze(()).await.unwrap()
+        })
+    }
 }
 
 /// Benchmark the analysis of a single document from the `workflows` repo.
@@ -140,5 +152,32 @@ pub fn bench(c: &mut Criterion) {
             );
         }
     }
+    standalone_documents.finish();
+
+    // A deterministic, network-free benchmark. Analyzes every WDL file in the
+    // repo that performs no imports, as a single batch. Because none of these
+    // files import remote resources, the timing reflects CPU and allocator cost
+    // rather than network variance, which makes it suitable for comparing
+    // allocators.
+    let import_free: Vec<Url> = walkdir::WalkDir::new(workflows_repo.path())
+        .into_iter()
+        .filter_map(Result::ok)
+        .filter(|e| e.path().extension() == Some(OsStr::new("wdl")))
+        .filter(|e| {
+            std::fs::read_to_string(e.path())
+                .map(|s| !s.lines().any(|l| l.trim_start().starts_with("import")))
+                .unwrap_or(false)
+        })
+        .map(|e| Url::from_file_path(e.path()).unwrap())
+        .collect();
+
+    let analyze = AnalyzeWorkflows::new(workflows_repo.path(), None, None);
+    let mut corpus_group = c.benchmark_group("analyze_local_corpus");
+    corpus_group.bench_function(
+        format!("import_free_{count}_files", count = import_free.len()),
+        |b| b.iter(|| analyze.analyze_documents(&import_free)),
+    );
+    corpus_group.finish();
+
     drop(workflows_repo);
 }

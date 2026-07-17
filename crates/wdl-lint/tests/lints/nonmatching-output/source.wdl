@@ -1,4 +1,5 @@
-#@ except: MetaDescription, OutputName, RuntimeSection, EmptyOutputs
+#@ except: BashSetSyntax, EmptyOutputs, MetaDescription, OutputName
+#@ except: RuntimeSection
 
 version 1.1
 
@@ -6,11 +7,11 @@ version 1.1
 task foo {
     meta {
         outputs: {
-            out: "String output of task foo"
+            out: "String output of task foo",
         }
     }
 
-    command <<< >>>
+    command <<<>>>
 
     output {
         String out = read_string(stdout())
@@ -21,7 +22,7 @@ task foo {
 task bar {
     meta {}
 
-    command <<< >>>
+    command <<<>>>
 
     output {
         String s = "hello"
@@ -32,11 +33,11 @@ task bar {
 task baz {
     meta {
         outputs: {
-            s: "String output of task baz"
+            s: "String output of task baz",
         }
     }
 
-    command <<< >>>
+    command <<<>>>
 
     output {
         String s = "hello"
@@ -53,7 +54,7 @@ task qux {
         }
     }
 
-    command <<< >>>
+    command <<<>>>
 
     output {
         String s = "hello"
@@ -71,7 +72,7 @@ task quux {
         }
     }
 
-    command <<< >>>
+    command <<<>>>
 
     output {
         String s = "hello"
@@ -86,7 +87,7 @@ task corge {
         outputs: "string"
     }
 
-    command <<< >>>
+    command <<<>>>
 
     output {
         String s = "hello"
@@ -99,7 +100,7 @@ task corge {
 task grault {
     meta {}
 
-    command <<< >>>
+    command <<<>>>
 
     output {}  # There should be no warnings here.
 }
@@ -115,7 +116,7 @@ task garply {
         }
     }
 
-    command <<< >>>
+    command <<<>>>
 
     output {
         String s = "hello"
@@ -134,7 +135,7 @@ task garply2 {
         }
     }
 
-    command <<< >>>
+    command <<<>>>
 
     output {
         String s = "hello"
@@ -142,8 +143,8 @@ task garply2 {
     }
 }
 
-#@ except: MatchingOutputMeta
 # This task should not trigger a warning due to `#@ except`.
+#@ except: MatchingOutputMeta
 task waldo {
     meta {
         outputs: {
@@ -152,7 +153,7 @@ task waldo {
         }
     }
 
-    command <<< >>>
+    command <<<>>>
 
     output {
         String s = "hello"
@@ -171,7 +172,7 @@ task waldo2 {
         }
     }
 
-    command <<< >>>
+    command <<<>>>
 
     output {
         String s = "hello"
@@ -190,9 +191,10 @@ task quuux {
         }
     }
 
-    command <<< >>>
+    command <<<>>>
 
-    output {}
+    output {
+    }
 }
 
 # This should not trigger a warning.
@@ -207,7 +209,7 @@ task quuuux {
         }
     }
 
-    command <<< >>>
+    command <<<>>>
 
     output {
         String s = "string"
@@ -224,5 +226,5 @@ task no_output_section {
         }
     }
 
-    command <<< >>>
+    command <<<>>>
 }

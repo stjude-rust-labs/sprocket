@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/gauntlet",
+    "crates/sprocket-py",
     "crates/wdl",
     "crates/wdl-analysis",
     "crates/wdl-ast",
@@ -12,6 +13,7 @@ members = [
     "crates/wdl-lint",
     "crates/wdl-lsp",
     "crates/wdl-modules",
+    "fuzz",
 ]
 resolver = "2"
 
@@ -21,28 +23,28 @@ edition = "2024"
 authors = ["The Sprocket project contributors"]
 homepage = "https://sprocket.bio"
 repository = "https://github.com/stjude-rust-labs/sprocket"
-rust-version = "1.91.1"
+rust-version = "1.95"
 
 [workspace.dependencies]
 ammonia = "4.1.2"
 anyhow = "1.0.100"
 approx = "0.5.1"
 arrayvec = { version = "0.7.6", features = ["serde"] }
+async-lsp = "0.2.4"
 async-trait = "0.1.89"
 axum = "0.8.8"
 base64 = "0.22.1"
 bimap = "0.6.3"
 blake3 = { version = "1.8.3", features = ["mmap"] }
 bon = "3.8.2"
-bytesize = { version = "2.3.1", features = ["serde"] }
+bytesize = { version = "2.3.1" }
 chrono = "0.4.43"
 clap = { version = "4.5.57", features = ["derive", "string"] }
 clap-verbosity-flag = { version = "3.0.4", features = ["tracing"] }
 clap_complete = "4.5.65"
-cloud-copy = { version = "0.7.0", features = ["cli"] }
+cloud-copy = { version = "0.9.0", features = ["cli"] }
 codespan-reporting = "0.13.1"
 colored = "3.1.1"
-config = { version = "0.15.21", default-features = false, features = ["toml", "preserve_order"] }
 convert_case = "0.11.0"
 crankshaft = { version = "0.10.0", features = ["docker"] }
 criterion = "0.8.2"
@@ -55,20 +57,22 @@ fs_extra = "1.3.0"
 ftree = "1.3.0"
 futures = "0.3.31"
 git-testament = "0.2.6"
-git2 = "0.20.4"
+git2 = "0.21.0"
 globset = "0.4.18"
 hex = "0.4.3"
 ignore = "0.4.25"
-indexmap = { version = "2.13.0", features = ["serde"] }
+indexmap = "2.13.0"
 indicatif = "0.18.3"
-itertools = "0.14.0"
+itertools = "0.15.0"
+jsonschema = "0.47.0"
 libc = "0.2"
 libtest-mimic = "^0.8.1"
 line-index = "0.1.2"
 logos = "0.16.1"
-lsp-types = "0.94.1"
+lsp-types = "=0.95.1"
 macropol = "0.1.4"
 maud = "0.27.0"
+mimalloc = "0.1.52"
 nonempty = "0.12.0"
 notify = "8.2.0"
 num_enum = "0.7.5"
@@ -78,50 +82,50 @@ parking_lot = "0.12.5"
 paste = "1.0.15"
 path-clean = "1.0.1"
 pathdiff = "0.2.3"
-peak_alloc = "0.3.0"
 petgraph = "0.8.3"
 petname = { version = "2.0.2", features = ["default-rng", "default-words"] }
 pretty_assertions = "1.4.1"
 pulldown-cmark = "0.13.0"
-rand = "0.9.2"
+pyo3 = "0.29.0"
+rand = "0.10.0"
 rayon = "1.11.0"
 regex = "1.12.3"
 reqwest = { version = "0.13.1", default-features = false, features = ["rustls", "http2", "charset"] }
 rev_buf_reader = "0.3.0"
 rowan = "0.16.1"
+schemars = "1.2.1"
 secrecy = "0.10.3"
 semver = "1.0.28"
 serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 serde_with = "3.16.1"
 serde_yaml_ng = "0.10.0"
-sha2 = "0.10.9"
+sha2 = "0.11.0"
 shellexpand = "3.1.2"
 shlex = "1.3.0"
 similar = "2.7.0"
 smallvec = "1.15.1"
 spdx = "0.13.4"
-sqlx = { version = "0.8.6", features = ["runtime-tokio", "sqlite", "chrono", "uuid", "migrate"] }
+sqlx = { version = "0.9.0", features = ["runtime-tokio", "sqlite", "chrono", "uuid", "migrate"] }
 ssh-key = "0.6.7"
 strsim = "0.11.1"
-struct-patch = "0.10.4"
-strum = { version = "0.27", features = ["derive"] }
-sysinfo = "0.38.0"
+struct-patch = "0.12.0"
+strum = { version = "0.28", features = ["derive"] }
+sysinfo = "0.39.0"
 tempfile = "3.24.0"
-thirtyfour = "0.36.1"
+thirtyfour = "0.37.1"
 thiserror = "2.0.18"
 tokio = { version = "1.49.0", features = ["full"] }
 tokio-retry2 = "0.9.1"
 tokio-util = "0.7.18"
-toml = "0.9.11"
-toml_edit = { version = "0.24.0", features = ["serde"] }
+toml = "1.1.2"
+toml-spanner = { version = "1.0.2", features = ["derive", "to-toml"] }
 tower = { version = "0.5.3", features = ["util"] }
-tower-http = { version = "0.6.8", features = ["cors", "trace"] }
-tower-lsp = "0.20.0"
+tower-http = { version = "0.7.0", features = ["cors", "trace"] }
 tracing = "0.1.44"
 tracing-indicatif = "0.3.14"
 tracing-log = "0.2.0"
-tracing-subscriber = { version = "0.3.22", features = ["env-filter"] }
+tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 tracing-test = "0.2.5"
 unicode-normalization = "0.1.25"
 url = "2.5.8"
@@ -130,9 +134,11 @@ utoipa = { version = "5.4.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 uuid = { version = "1.20.0", features = ["serde", "v4"] }
 walkdir = "2.5.0"
-wdl = { version = "0.23.0", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
+wdl = { version = "0.23.3", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
+wdl-modules = { version = "0.3.0", path = "crates/wdl-modules", features = ["git-resolver"] }
 which = "8.0.0"
 whoami = "2.1.0"
+windows-sys = "0.61"
 zip = { version = "8.1.0", default-features = false, features = [] }
 
 [workspace.lints.rust]
@@ -158,7 +164,7 @@ new_without_default = "allow"
 
 [package]
 name = "sprocket"
-version = "0.25.0"
+version = "0.28.0"
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true
@@ -167,6 +173,16 @@ homepage.workspace = true
 repository.workspace = true
 documentation = "https://sprocket.bio/overview.html"
 readme = "README.md"
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { workspace = true, features = [
+    "Win32_Foundation",
+    "Win32_System_ProcessStatus",
+    "Win32_System_Threading",
+] }
 
 [dependencies]
 anyhow.workspace = true
@@ -180,7 +196,6 @@ clap_complete.workspace = true
 cloud-copy.workspace = true
 codespan-reporting.workspace = true
 colored.workspace = true
-config.workspace = true
 crankshaft.workspace = true
 dirs.workspace = true
 futures.workspace = true
@@ -188,16 +203,17 @@ git-testament.workspace = true
 indexmap.workspace = true
 indicatif.workspace = true
 itertools.workspace = true
+mimalloc.workspace = true
 nonempty.workspace = true
 opener.workspace = true
 path-clean.workspace = true
 pathdiff.workspace = true
-peak_alloc.workspace = true
 petname.workspace = true
 pretty_assertions.workspace = true
 rand.workspace = true
 regex.workspace = true
 reqwest.workspace = true
+schemars = { workspace = true, features = ["indexmap2"] }
 serde.workspace = true
 serde_json.workspace = true
 serde_yaml_ng.workspace = true
@@ -209,7 +225,7 @@ thiserror.workspace = true
 tokio.workspace = true
 tokio-retry2.workspace = true
 tokio-util.workspace = true
-toml.workspace = true
+toml-spanner.workspace = true
 tower.workspace = true
 tower-http.workspace = true
 tracing.workspace = true
@@ -221,18 +237,21 @@ utoipa-swagger-ui.workspace = true
 uuid.workspace = true
 walkdir.workspace = true
 wdl.workspace = true
+wdl-modules.workspace = true
 whoami.workspace = true
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
 http-body-util = "0.1.3"
+jsonschema = { workspace = true }
 libtest-mimic.workspace = true
 regex.workspace = true
 reqwest = { workspace = true, features = ["blocking"] }
 shlex.workspace = true
 tempfile.workspace = true
+toml = { workspace = true }
 walkdir.workspace = true
-zip.workspace = true
+zip = { workspace = true, features = ["deflate"] }
 
 [lints]
 workspace = true

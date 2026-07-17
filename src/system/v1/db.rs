@@ -226,6 +226,11 @@ pub trait Database: Send + Sync {
     /// Count total tasks with optional filters.
     async fn count_tasks(&self, run_id: Option<Uuid>, status: Option<TaskStatus>) -> Result<i64>;
 
+    /// Count the tasks of a run grouped by status.
+    ///
+    /// Only statuses that have at least one task are returned.
+    async fn count_tasks_by_status(&self, run_id: Uuid) -> Result<Vec<(TaskStatus, i64)>>;
+
     /// Insert a task log entry.
     async fn insert_task_log(&self, task_name: &str, source: LogSource, chunk: &[u8])
     -> Result<()>;

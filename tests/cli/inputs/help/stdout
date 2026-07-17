@@ -4,7 +4,7 @@ Usage: sprocket inputs [OPTIONS] <SOURCE>
 
 Arguments:
   <SOURCE>
-          A source WDL document or URL
+          A source WDL document, URL, or a WDL module directory containing a `module.json`
 
 Options:
   -t, --target <NAME>
@@ -21,6 +21,13 @@ Options:
 
       --yaml
           Output the template as a YAML file
+
+  -m, --report-mode <MODE>
+          The report mode for any emitted diagnostics
+
+          Possible values:
+          - full:     Prints diagnostics as multiple lines
+          - one-line: Prints diagnostics as one line
 
   -v, --verbose...
           Increase logging verbosity

@@ -7,15 +7,15 @@
       <img alt="CI: Status" src="https://github.com/stjude-rust-labs/sprocket/actions/workflows/CI.yml/badge.svg" />
     </a>
     <a href="https://codecov.io/gh/stjude-rust-labs/sprocket" > 
-      <img src="https://codecov.io/gh/stjude-rust-labs/sprocket/branch/main/graph/badge.svg?token=06DXFHBDNC"/> 
+      <img alt="Coverage: Codecov" src="https://codecov.io/gh/stjude-rust-labs/sprocket/branch/main/graph/badge.svg?token=06DXFHBDNC"/> 
     </a>
     <a href="https://crates.io/crates/sprocket" target="_blank">
-      <img alt="crates.io version" src="https://img.shields.io/crates/v/sprocket">
+      <img alt="crates.io: Version" src="https://img.shields.io/crates/v/sprocket">
     </a>
-    <a href="https://rustseq.zulipchat.com" target="_blank">
-      <img alt="CI: Status" src="https://img.shields.io/badge/chat-%23workflows--bin--sprocket-blue?logo=zulip&logoColor=f6f6f6" />
+    <a href="https://join.slack.com/t/openwdl/shared_invite/zt-ctmj4mhf-cFBNxIiZYs6SY9HgM9UAVw" target="_blank">
+      <img alt="Chat: Slack" src="https://badgen.net/badge/icon/%23sprocket/4A154B?icon=slack&label=slack" />
     </a>
-    <img alt="crates.io downloads" src="https://img.shields.io/crates/d/sprocket">
+    <img alt="crates.io: Downloads" src="https://img.shields.io/crates/d/sprocket">
   </p>
 
   <p align="center">
@@ -58,7 +58,7 @@ The following are high-level guiding principles of the Sprocket project.
 - Develop a suite of **modern development tools** that brings bioinformatics
   development on par with other modern languages (e.g.,
   [`wdl-lsp`](https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-lsp)).
-- Maintain an **community-focused codebase** that enables a diverse set of
+- Maintain a **community-focused codebase** that enables a diverse set of
   contributors from academic, non-profit, and commercial organizations.
 - Build on an **open, domain-tailored standard** to ensure the toolset remains
   singularly focused on unencumbered innovation within bioinformatics.
@@ -99,8 +99,25 @@ brew install sprocket
 Sprocket is available as a Docker [image](https://github.com/stjude-rust-labs/sprocket/pkgs/container/sprocket).
 
 ```bash
-docker pull ghcr.io/stjude-rust-labs/sprocket:v0.18.0
+docker pull ghcr.io/stjude-rust-labs/sprocket:v0.27.0
 ```
+
+### Nix Flake
+
+Sprocket ships a [Nix](https://nixos.org/download/) flake. With flakes
+enabled, you can build or run Sprocket directly from the repository. Pin a
+release tag for reproducible results:
+
+```bash
+# Build the binary (output at ./result/bin/sprocket)
+nix build github:stjude-rust-labs/sprocket/v0.27.0#sprocket
+./result/bin/sprocket --help
+
+# Or run it without installing
+nix run github:stjude-rust-labs/sprocket/v0.27.0 -- --help
+```
+
+Omit the `/v0.27.0` tag to track the latest commit on `main`.
 
 ## 🖥️ Development
 
@@ -117,6 +134,21 @@ cargo build --release
 # Run the `sprocket` command line tool
 cargo run --release
 ```
+
+### Nix development shell
+
+Alternatively, if you have Nix with flakes enabled, the repository ships
+a development shell that provides the Rust toolchain, `shellcheck`, and
+the cargo tooling used by CI (`cargo-nextest`, `cargo-llvm-cov`,
+`cargo-deny`, `cargo-sort`, `cargo-msrv`, `taplo`) along with the nix
+linters (`nixfmt`, `deadnix`, `statix`). Enter it with:
+
+```bash
+nix develop
+```
+
+[`direnv`](https://direnv.net/) users can `direnv allow` the bundled
+`.envrc` to auto-activate the shell on `cd`.
 
 ### Dependencies
 
@@ -139,6 +171,8 @@ software are difficult, it may be easiest to wrap an `apptainer` invocation of
 
 apptainer -s run docker://koalaman/shellcheck:stable $@
 ```
+
+If you are developing the Python bindings, please see [the Python-specific `README.md`](./python/README.md).
 
 ## 🚧️ Tests
 
@@ -172,7 +206,7 @@ For more information about our contributor policies, please read the [contributi
 
 ## ⚙️ Minimum Supported Rust Version
 
-The minimum supported Rust version is currently `1.91.1`.
+The minimum supported Rust version is currently `1.95`.
 
 There is a CI job that verifies the declared minimum supported version.
 
@@ -193,7 +227,7 @@ cargo install cargo-msrv
 And run the following command:
 
 ```bash
-cargo msrv --min 1.91.1
+cargo msrv --min 1.95
 ```
 
 If the reported version is newer than the crate's current minimum supported

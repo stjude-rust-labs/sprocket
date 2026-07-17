@@ -25,14 +25,13 @@ use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 
 use crate::Coercible;
 use crate::ONE_GIBIBYTE;
+use crate::Object;
 use crate::TaskInputs;
-use crate::Value;
 use crate::config::Config;
 use crate::units::StorageUnit;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::task::DEFAULT_GPU_COUNT;
 use crate::v1::task::DEFAULT_TASK_REQUIREMENT_CPU;
-use crate::v1::task::DEFAULT_TASK_REQUIREMENT_MAX_RETRIES;
 use crate::v1::task::DEFAULT_TASK_REQUIREMENT_MEMORY;
 use crate::v1::task::find_key_value;
 use crate::v1::task::parse_storage_value;
@@ -155,10 +154,7 @@ impl std::fmt::Display for ContainerSource {
 
 /// Returns whether the task has an explicit `container` (or `docker` alias)
 /// requirement set in either inputs or requirements.
-pub(crate) fn has_container_requirement(
-    inputs: &TaskInputs,
-    requirements: &HashMap<String, Value>,
-) -> bool {
+pub(crate) fn has_container_requirement(inputs: &TaskInputs, requirements: &Object) -> bool {
     find_key_value(
         &[TASK_REQUIREMENT_CONTAINER, TASK_REQUIREMENT_CONTAINER_ALIAS],
         |key| inputs.requirement(key).or_else(|| requirements.get(key)),
@@ -173,7 +169,7 @@ pub(crate) fn has_container_requirement(
 /// resolved to the configured default container.
 pub(crate) fn container(
     inputs: &TaskInputs,
-    requirements: &HashMap<String, Value>,
+    requirements: &Object,
     default: &str,
 ) -> Vec<ContainerSource> {
     let entry = find_key_value(
@@ -229,7 +225,7 @@ pub(crate) fn container(
 }
 
 /// Gets the `cpu` requirement from a requirements map.
-pub(crate) fn cpu(inputs: &TaskInputs, requirements: &HashMap<String, Value>) -> f64 {
+pub(crate) fn cpu(inputs: &TaskInputs, requirements: &Object) -> f64 {
     find_key_value(&[TASK_REQUIREMENT_CPU], |key| {
         inputs.requirement(key).or_else(|| requirements.get(key))
     })
@@ -242,7 +238,7 @@ pub(crate) fn cpu(inputs: &TaskInputs, requirements: &HashMap<String, Value>) ->
 }
 
 /// Gets the `memory` requirement from a requirements map.
-pub(crate) fn memory(inputs: &TaskInputs, requirements: &HashMap<String, Value>) -> Result<i64> {
+pub(crate) fn memory(inputs: &TaskInputs, requirements: &Object) -> Result<i64> {
     if let Some((key, value)) = find_key_value(&[TASK_REQUIREMENT_MEMORY], |key| {
         inputs.requirement(key).or_else(|| requirements.get(key))
     }) {
@@ -257,11 +253,7 @@ pub(crate) fn memory(inputs: &TaskInputs, requirements: &HashMap<String, Value>)
 }
 
 /// Gets the number of required GPUs from requirements and hints.
-pub(crate) fn gpu(
-    inputs: &TaskInputs,
-    requirements: &HashMap<String, Value>,
-    hints: &HashMap<String, Value>,
-) -> Option<u64> {
+pub(crate) fn gpu(inputs: &TaskInputs, requirements: &Object, hints: &Object) -> Option<u64> {
     // If `requirements { gpu: false }` or there is no `gpu` requirement, return
     // `None`.
     let Some(true) = find_key_value(&[TASK_REQUIREMENT_GPU], |key| {
@@ -349,15 +341,15 @@ pub(crate) struct DiskRequirement {
 /// Upon success, returns a mapping of mount point to disk requirement.
 pub(crate) fn disks<'a>(
     inputs: &'a TaskInputs,
-    requirements: &'a HashMap<String, Value>,
-    hints: &HashMap<String, Value>,
+    requirements: &'a Object,
+    hints: &Object,
 ) -> Result<HashMap<&'a str, DiskRequirement>> {
     /// Helper for looking up a disk type from the hints.
     ///
     /// If we don't recognize the specification, we ignore it.
     fn lookup_type(
         mount_point: Option<&str>,
-        hints: &HashMap<String, Value>,
+        hints: &Object,
         inputs: &TaskInputs,
     ) -> Option<DiskType> {
         find_key_value(&[TASK_HINT_DISKS], |key| {
@@ -454,7 +446,7 @@ pub(crate) fn disks<'a>(
     /// Inserts a disk into the disks map.
     fn insert_disk<'a>(
         spec: &'a str,
-        hints: &HashMap<String, Value>,
+        hints: &Object,
         inputs: &TaskInputs,
         disks: &mut HashMap<&'a str, DiskRequirement>,
     ) -> Result<()> {
@@ -519,7 +511,7 @@ pub(crate) fn disks<'a>(
 /// fallback.
 pub(crate) fn max_retries(
     inputs: &TaskInputs,
-    requirements: &HashMap<String, Value>,
+    requirements: &Object,
     config: &Config,
 ) -> Result<u64> {
     if let Some((key, value)) = find_key_value(
@@ -536,32 +528,30 @@ pub(crate) fn max_retries(
             .map(|value| value as u64);
     }
 
-    Ok(config
-        .task
-        .retries
-        .inner()
-        .cloned()
-        .unwrap_or(DEFAULT_TASK_REQUIREMENT_MAX_RETRIES))
+    Ok(config.task.retries.into())
 }
 
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
 
+    use indexmap::IndexMap;
+
     use super::ContainerSource;
     use super::*;
     use crate::PrimitiveValue;
+    use crate::Value;
     use crate::config::DEFAULT_TASK_CONTAINER;
 
-    fn map_with_value(key: &str, value: Value) -> HashMap<String, Value> {
-        let mut map = HashMap::new();
+    fn object_with_value(key: &str, value: Value) -> Object {
+        let mut map = IndexMap::new();
         map.insert(key.to_string(), value);
-        map
+        Object::new(map)
     }
 
     #[test]
     fn memory_disallows_negative_values() {
-        let requirements = map_with_value(TASK_REQUIREMENT_MEMORY, Value::from(-1));
+        let requirements = object_with_value(TASK_REQUIREMENT_MEMORY, Value::from(-1));
         let err = memory(&TaskInputs::default(), &requirements)
             .expect_err("`memory` should reject negatives");
         assert!(
@@ -572,7 +562,7 @@ mod tests {
 
     #[test]
     fn max_retries_disallows_negative_values() {
-        let requirements = map_with_value(TASK_REQUIREMENT_MAX_RETRIES, Value::from(-2));
+        let requirements = object_with_value(TASK_REQUIREMENT_MAX_RETRIES, Value::from(-2));
         let err = max_retries(&TaskInputs::default(), &requirements, &Config::default())
             .expect_err("`max_retries` should reject negatives");
         assert!(
@@ -677,7 +667,7 @@ mod tests {
     fn container_returns_default_when_unset() {
         let result = container(
             &TaskInputs::default(),
-            &HashMap::new(),
+            &Object::empty(),
             DEFAULT_TASK_CONTAINER,
         );
         assert_eq!(result.len(), 1);
@@ -689,7 +679,7 @@ mod tests {
 
     #[test]
     fn container_returns_custom_default_when_unset() {
-        let result = container(&TaskInputs::default(), &HashMap::new(), "alpine:3.18");
+        let result = container(&TaskInputs::default(), &Object::empty(), "alpine:3.18");
         assert_eq!(result.len(), 1);
         assert_eq!(
             result[0],
@@ -699,7 +689,7 @@ mod tests {
 
     #[test]
     fn container_returns_single_image() {
-        let requirements = map_with_value(
+        let requirements = object_with_value(
             TASK_REQUIREMENT_CONTAINER,
             PrimitiveValue::new_string("foo:bar").into(),
         );
@@ -714,7 +704,7 @@ mod tests {
 
     #[test]
     fn container_resolves_single_wildcard_to_default() {
-        let requirements = map_with_value(
+        let requirements = object_with_value(
             TASK_REQUIREMENT_CONTAINER,
             PrimitiveValue::new_string("*").into(),
         );
@@ -732,7 +722,7 @@ mod tests {
 
     #[test]
     fn container_resolves_single_wildcard_to_custom_default() {
-        let requirements = map_with_value(
+        let requirements = object_with_value(
             TASK_REQUIREMENT_CONTAINER,
             PrimitiveValue::new_string("*").into(),
         );
@@ -754,7 +744,7 @@ mod tests {
             ArrayType::new(wdl_analysis::types::PrimitiveType::String),
             elements,
         );
-        let requirements = map_with_value(
+        let requirements = object_with_value(
             TASK_REQUIREMENT_CONTAINER,
             Value::Compound(crate::CompoundValue::Array(array)),
         );
@@ -783,7 +773,7 @@ mod tests {
             ArrayType::new(wdl_analysis::types::PrimitiveType::String),
             elements,
         );
-        let requirements = map_with_value(
+        let requirements = object_with_value(
             TASK_REQUIREMENT_CONTAINER,
             Value::Compound(crate::CompoundValue::Array(array)),
         );
@@ -814,7 +804,7 @@ mod tests {
             ArrayType::new(wdl_analysis::types::PrimitiveType::String),
             elements,
         );
-        let requirements = map_with_value(
+        let requirements = object_with_value(
             TASK_REQUIREMENT_CONTAINER,
             Value::Compound(crate::CompoundValue::Array(array)),
         );
@@ -839,7 +829,7 @@ mod tests {
         inputs.override_requirement("max_retries", 1234);
         inputs.override_hint("gpu", 10);
 
-        let mut requirements: HashMap<String, Value> = Default::default();
+        let mut requirements: IndexMap<String, Value> = Default::default();
         requirements.insert(
             "container".to_string(),
             PrimitiveValue::new_string("baz:qux").into(),
@@ -851,6 +841,7 @@ mod tests {
             PrimitiveValue::new_string("1 GiB").into(),
         );
         requirements.insert("max_retries".to_string(), PrimitiveValue::from(1).into());
+        let requirements = Object::new(requirements);
 
         assert_eq!(
             container(&inputs, &requirements, DEFAULT_TASK_CONTAINER)
@@ -862,10 +853,10 @@ mod tests {
 
         assert_eq!(cpu(&inputs, &requirements), 1234.0);
 
-        assert_eq!(gpu(&inputs, &requirements, &Default::default()), Some(10));
+        assert_eq!(gpu(&inputs, &requirements, &Object::empty()), Some(10));
 
         assert_eq!(
-            disks(&inputs, &requirements, &Default::default()).unwrap(),
+            disks(&inputs, &requirements, &Object::empty()).unwrap(),
             HashMap::from_iter([(
                 "/",
                 DiskRequirement {

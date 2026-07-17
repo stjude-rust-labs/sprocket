@@ -9,6 +9,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::path::absolute;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -23,6 +24,7 @@ use serde_json::Value as JsonValue;
 use tokio::fs::remove_dir_all;
 use tokio::select;
 use tokio::task::JoinSet;
+use tokio::time::sleep;
 use tracing::debug;
 use tracing::error;
 use tracing::info;
@@ -31,6 +33,7 @@ use tracing::subscriber::NoSubscriber;
 use wdl::analysis::AnalysisResult;
 use wdl::ast::AstNode;
 use wdl::diagnostics::DiagnosticCounts;
+use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
@@ -49,6 +52,7 @@ use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
+use crate::config::TestConfig;
 use crate::eval::Evaluator;
 use crate::system::v1::fs::RUNS_DIR;
 use crate::test::DocumentTests;
@@ -67,6 +71,18 @@ const WORKSPACE_TEST_DIR: &str = "test";
 /// Test fixtures are located at `$WORKSPACE_TEST_DIR/$FIXTURES_DIR`
 const FIXTURES_DIR: &str = "fixtures";
 
+#[derive(Default, Debug, clap::Args)]
+#[group(required = false, multiple = true)]
+pub struct Filters {
+    /// Only run tests whose target (task/workflow) name contains the given
+    /// filter.
+    #[clap(short = 't', long, value_name = "TARGET")]
+    pub target: Option<String>,
+    /// Only run tests whose names contain the given filter.
+    #[clap(short = 'f', long, value_name = "FILTER")]
+    pub filter: Option<String>,
+}
+
 /// Arguments for the `test` subcommand.
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -79,7 +95,8 @@ pub struct Args {
     /// present.
     ///
     /// If a `<workspace>/test/` directory does not exist, one will be created
-    /// and it will contain a `runs/` directory for test executions.
+    /// and it will contain a `runs/` directory for test executions, unless
+    /// otherwise specified.
     ///
     /// If not specified and the `source` argument is a directory, it's assumed
     /// that directory is also the workspace. This can be specified in addition
@@ -90,13 +107,18 @@ pub struct Args {
     /// addition to a source file if the CWD is not the right workspace.
     #[clap(short, long)]
     pub workspace: Option<PathBuf>,
+    #[clap(flatten)]
+    pub filters: Filters,
+    /// If set, filters are matched exactly rather than by substring.
+    #[clap(long, requires = "Filters")]
+    pub exact: bool,
     /// Specific test tag that should be run.
     ///
     /// Can be repeated multiple times.
-    #[clap(short='t', long, value_name = "TAG",
+    #[clap(short='i', long, value_name = "TAG",
         action = clap::ArgAction::Append,
         num_args = 1,
-        conflicts_with="filter_tag",
+        conflicts_with="exclude_tag",
     )]
     pub include_tag: Vec<String>,
     /// Filter out any tests with a matching tag.
@@ -106,7 +128,7 @@ pub struct Args {
         action = clap::ArgAction::Append,
         num_args = 1,
     )]
-    pub filter_tag: Vec<String>,
+    pub exclude_tag: Vec<String>,
     /// Do not clean the file system of successful tests.
     ///
     /// The default behavior is to remove directories of successful tests,
@@ -119,9 +141,31 @@ pub struct Args {
     /// The number of test executions to run in parallel.
     #[clap(short, long)]
     pub parallelism: Option<usize>,
+    /// Directory containing fixture files used by tests.
+    ///
+    /// If not specified, defaults to `<workspace>/test/fixtures`.
+    #[clap(long)]
+    pub fixtures_dir: Option<PathBuf>,
+    /// Directory to execute tests in.
+    ///
+    /// If not specified, defaults to `<workspace>/test/runs`.
+    #[clap(long)]
+    pub run_dir: Option<PathBuf>,
     /// Do not print results as tests complete.
     #[clap(long)]
     pub no_status: bool,
+    /// The report mode for any emitted diagnostics.
+    #[arg(short = 'm', long, value_name = "MODE", global = true)]
+    pub report_mode: Option<Mode>,
+    #[command(subcommand)]
+    pub command: Option<Subcommand>,
+}
+
+/// Subcommands for `sprocket dev test`
+#[derive(clap::Subcommand, Debug)]
+pub enum Subcommand {
+    /// Print the JSON schema for Sprocket test definition YAMLs to stdout.
+    Schema,
 }
 
 fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
@@ -156,15 +200,33 @@ fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
 
 /// Returns `true` if the test should be filtered.
 fn filter_test(
+    target: &str,
     test: &TestDefinition,
     include_tags: &HashSet<String>,
-    filter_tags: &HashSet<String>,
+    exclude_tags: &HashSet<String>,
+    target_filter: Option<&str>,
+    name_filter: Option<&str>,
+    exact: bool,
 ) -> bool {
     if !include_tags.is_empty() && !test.tags.iter().any(|t| include_tags.contains(t)) {
         return true;
     }
-    if test.tags.iter().any(|t| filter_tags.contains(t)) {
+    if test.tags.iter().any(|t| exclude_tags.contains(t)) {
         return true;
+    }
+
+    if let Some(filter) = target_filter
+        && ((exact && target != filter) || (!exact && !target.contains(filter)))
+    {
+        return true;
+    }
+
+    if let Some(filter) = name_filter {
+        if exact {
+            return &*test.name != filter;
+        }
+
+        return !test.name.contains(filter);
     }
     false
 }
@@ -271,11 +333,21 @@ impl TestIteration {
                 },
                 RunResult::Task(result) => match *result {
                     Ok(evaled_task) => {
-                        if evaled_task.exit_code() != assertions.exit_code {
+                        let actual_exit_code = evaled_task.exit_code();
+
+                        if assertions.should_fail {
+                            if actual_exit_code == 0 {
+                                return Ok(IterationResult::Fail(anyhow!(
+                                    "{id} exited with code `0` but `should_fail` expected a \
+                                     nonzero exit code: see `{dir}`",
+                                    dir = run_dir.display(),
+                                )));
+                            }
+                        } else if actual_exit_code != assertions.exit_code {
                             return Ok(IterationResult::Fail(anyhow!(
                                 "{id} exited with code `{actual}` but test expected exit code \
                                  `{expected}`: see `{dir}`",
-                                actual = evaled_task.exit_code(),
+                                actual = actual_exit_code,
                                 expected = assertions.exit_code,
                                 dir = run_dir.display(),
                             )));
@@ -318,7 +390,7 @@ impl TestIteration {
                         let outputs = match evaled_task.into_outputs() {
                             Ok(outputs) => outputs,
                             Err(eval_err) => {
-                                if assertions.exit_code == 0 {
+                                if assertions.exit_code == 0 && !assertions.should_fail {
                                     return Err(anyhow!(
                                         "unexpected evaluation error: {}",
                                         eval_err.to_string()
@@ -390,6 +462,7 @@ struct Runner {
     fixtures: Arc<EvaluationPath>,
     engine_config: Arc<wdl::engine::Config>,
     permits: usize,
+    throttle: u64,
     cancellation: CancellationContext,
 }
 
@@ -402,7 +475,7 @@ impl Runner {
     async fn run(
         &self,
         documents: Vec<(&AnalysisResult, DocumentTests)>,
-        should_filter: impl Fn(&TestDefinition) -> bool,
+        should_filter: impl Fn(&str, &TestDefinition) -> bool,
         clean: bool,
         quiet: bool,
         errors: &mut Vec<Arc<anyhow::Error>>,
@@ -430,12 +503,14 @@ impl Runner {
                 break;
             }
 
-            if permits == 0 {
+            let throttle = if permits == 0 {
                 self.process_next_result(&mut futures, &mut all_results, clean, quiet)
                     .await?;
+                false
             } else {
                 permits -= 1;
-            }
+                true
+            };
 
             self.spawn_future(
                 &mut futures,
@@ -446,6 +521,10 @@ impl Runner {
                 task.inputs,
             )
             .await;
+
+            if throttle {
+                sleep(Duration::from_millis(self.throttle)).await;
+            }
         }
 
         while !futures.is_empty() {
@@ -461,7 +540,7 @@ impl Runner {
         &self,
         analysis: &AnalysisResult,
         tests: DocumentTests,
-        should_filter: &impl Fn(&TestDefinition) -> bool,
+        should_filter: &impl Fn(&str, &TestDefinition) -> bool,
         errors: &mut Vec<Arc<anyhow::Error>>,
         all_results: &mut FullResults,
         tasks: &mut Vec<TestTask>,
@@ -494,7 +573,7 @@ impl Runner {
             let mut target_results = IndexMap::new();
 
             for test in definitions {
-                if should_filter(&test) {
+                if should_filter(&target, &test) {
                     continue;
                 }
 
@@ -639,7 +718,7 @@ impl Runner {
         let run_dir = root.join(id.iteration_num.to_string());
         let events = Events::disabled();
         let target = id.target.clone();
-        let cancellation = self.cancellation.clone();
+        let cancellation = self.cancellation.child(FailureMode::Fast);
         futures.spawn(
             async move {
                 let evaluator =
@@ -733,10 +812,43 @@ async fn summarize_results(
     }
 }
 
+fn resolve_test_paths(
+    config: &TestConfig,
+    workspace: &Path,
+    fixtures_dir: &Option<PathBuf>,
+    run_dir: &Option<PathBuf>,
+) -> (PathBuf, PathBuf) {
+    let test_dir = workspace.join(WORKSPACE_TEST_DIR);
+    let fixtures_dir = fixtures_dir
+        .clone()
+        .or_else(|| config.fixtures_dir.clone())
+        .unwrap_or_else(|| test_dir.join(FIXTURES_DIR));
+    let run_dir = run_dir
+        .clone()
+        .or_else(|| config.run_dir.clone())
+        .unwrap_or_else(|| test_dir.join(RUNS_DIR));
+    (fixtures_dir, run_dir)
+}
+
 /// Performs the `test` command.
 pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
+    if matches!(args.command, Some(Subcommand::Schema)) {
+        let schema = schemars::schema_for!(DocumentTests);
+        let schema_pretty =
+            serde_json::to_string_pretty(&schema).context("serializing test schema")?;
+        println!("{schema_pretty}");
+        return Ok(());
+    }
+
+    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     let source = args.source.unwrap_or_default();
-    let parallelism = args.parallelism.unwrap_or(config.test.parallelism);
+    let parallelism = args.parallelism.unwrap_or(
+        config
+            .test
+            .parallelism
+            .try_into()
+            .context("invalid test parallelism")?,
+    );
     let (source, workspace) = match (&source, args.workspace) {
         (Source::Url(_), _) => {
             return Err(anyhow!("the `test` subcommand does not accept remote sources").into());
@@ -760,8 +872,10 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
 
     let analysis_results = Analysis::default()
         .add_source(source.clone())
-        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
-        .run()
+        .fallback_version(config.common.wdl.fallback_version.into())
+        .modules_config(config.modules.clone())
+        .feature_flags(config.common.wdl.feature_flags)
+        .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
 
@@ -827,8 +941,9 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
         return Err(e.into());
     }
 
-    let test_dir = workspace.join(WORKSPACE_TEST_DIR);
-    let fixture_origins = EvaluationPath::from(test_dir.join(FIXTURES_DIR).as_path());
+    let (fixtures_dir, run_dir) =
+        resolve_test_paths(&config.test, &workspace, &args.fixtures_dir, &args.run_dir);
+    let fixture_origins = EvaluationPath::from(fixtures_dir.as_path());
 
     config.run.engine.task.cache = CallCachingMode::Off;
     config.run.engine.task.cpu_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
@@ -837,16 +952,27 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
 
     let cancellation = CancellationContext::new(FailureMode::Fast);
     let runner = Runner {
-        root: test_dir.join(RUNS_DIR),
+        root: run_dir,
         fixtures: fixture_origins.into(),
         engine_config: config.run.engine.into(),
         permits: parallelism,
+        throttle: config.test.throttle,
         cancellation: cancellation.clone(),
     };
 
     let include_tags = HashSet::from_iter(args.include_tag);
-    let filter_tags = HashSet::from_iter(args.filter_tag);
-    let should_filter = |test: &TestDefinition| filter_test(test, &include_tags, &filter_tags);
+    let exclude_tags = HashSet::from_iter(args.exclude_tag);
+    let should_filter = |target: &str, test: &TestDefinition| {
+        filter_test(
+            target,
+            test,
+            &include_tags,
+            &exclude_tags,
+            args.filters.target.as_deref(),
+            args.filters.filter.as_deref(),
+            args.exact,
+        )
+    };
     let mut errors = Vec::new();
     let mut runner_task = Box::pin(runner.run(
         documents,
@@ -902,4 +1028,121 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
     };
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn args_with_overrides(fixtures_dir: Option<PathBuf>, run_dir: Option<PathBuf>) -> Args {
+        Args {
+            source: None,
+            workspace: None,
+            include_tag: Vec::new(),
+            exclude_tag: Vec::new(),
+            no_clean: false,
+            clean_all: false,
+            parallelism: None,
+            fixtures_dir,
+            run_dir,
+            no_status: false,
+            filters: Filters::default(),
+            exact: false,
+            report_mode: None,
+            command: None,
+        }
+    }
+
+    #[test]
+    fn resolve_test_paths_defaults_to_workspace_test_layout() {
+        let workspace = PathBuf::from("/workspace");
+        let args = args_with_overrides(None, None);
+        let config = TestConfig::default();
+
+        let (fixtures_dir, run_dir) =
+            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+
+        assert_eq!(fixtures_dir, workspace.join("test").join("fixtures"));
+        assert_eq!(run_dir, workspace.join("test").join("runs"));
+    }
+
+    #[test]
+    fn resolve_test_paths_uses_custom_fixtures_dir() {
+        let workspace = PathBuf::from("/workspace");
+        let custom_fixtures = PathBuf::from("/custom-fixtures");
+        let args = args_with_overrides(Some(custom_fixtures.clone()), None);
+        let config = TestConfig::default();
+
+        let (fixtures_dir, run_dir) =
+            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+
+        assert_eq!(fixtures_dir, custom_fixtures);
+        assert_eq!(run_dir, workspace.join("test").join("runs"));
+    }
+
+    #[test]
+    fn resolve_test_paths_uses_custom_run_dir() {
+        let workspace = PathBuf::from("/workspace");
+        let custom_run_dir = PathBuf::from("/custom-runs");
+        let args = args_with_overrides(None, Some(custom_run_dir.clone()));
+        let config = TestConfig::default();
+
+        let (fixtures_dir, run_dir) =
+            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+
+        assert_eq!(fixtures_dir, workspace.join("test").join("fixtures"));
+        assert_eq!(run_dir, custom_run_dir);
+    }
+
+    #[test]
+    fn resolve_test_paths_can_set_both_independently() {
+        let workspace = PathBuf::from("/workspace");
+        let custom_fixtures = PathBuf::from("/custom-fixtures");
+        let custom_run_dir = PathBuf::from("/custom-runs");
+        let args = args_with_overrides(Some(custom_fixtures.clone()), Some(custom_run_dir.clone()));
+        let config = TestConfig::default();
+
+        let (fixtures_dir, run_dir) =
+            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+
+        assert_eq!(fixtures_dir, custom_fixtures);
+        assert_eq!(run_dir, custom_run_dir);
+    }
+
+    #[test]
+    fn resolve_test_paths_uses_config_when_cli_not_set() {
+        let workspace = PathBuf::from("/workspace");
+        let args = args_with_overrides(None, None);
+        let config = TestConfig {
+            fixtures_dir: Some(PathBuf::from("/config-fixtures")),
+            run_dir: Some(PathBuf::from("/config-runs")),
+            ..Default::default()
+        };
+
+        let (fixtures_dir, run_dir) =
+            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+
+        assert_eq!(fixtures_dir, PathBuf::from("/config-fixtures"));
+        assert_eq!(run_dir, PathBuf::from("/config-runs"));
+    }
+
+    #[test]
+    fn resolve_test_paths_cli_overrides_config() {
+        let workspace = PathBuf::from("/workspace");
+        let args = args_with_overrides(
+            Some(PathBuf::from("/cli-fixtures")),
+            Some(PathBuf::from("/cli-runs")),
+        );
+        let config = TestConfig {
+            fixtures_dir: Some(PathBuf::from("/config-fixtures")),
+            run_dir: Some(PathBuf::from("/config-runs")),
+            ..Default::default()
+        };
+
+        let (fixtures_dir, run_dir) =
+            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+
+        assert_eq!(fixtures_dir, PathBuf::from("/cli-fixtures"));
+        assert_eq!(run_dir, PathBuf::from("/cli-runs"));
+    }
 }

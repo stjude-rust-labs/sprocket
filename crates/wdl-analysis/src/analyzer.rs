@@ -6,6 +6,7 @@ use std::future::Future;
 use std::mem::ManuallyDrop;
 use std::ops::Range;
 use std::path::Path;
+use std::path::PathBuf;
 use std::path::absolute;
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -21,8 +22,13 @@ use line_index::LineCol;
 use line_index::LineIndex;
 use line_index::WideEncoding;
 use line_index::WideLineCol;
+use lsp_types::CallHierarchyIncomingCall;
+use lsp_types::CallHierarchyItem;
+use lsp_types::CallHierarchyOutgoingCall;
+use lsp_types::CodeLens;
 use lsp_types::CompletionResponse;
 use lsp_types::DocumentSymbolResponse;
+use lsp_types::FoldingRange;
 use lsp_types::GotoDefinitionResponse;
 use lsp_types::Hover;
 use lsp_types::InlayHint;
@@ -44,15 +50,20 @@ use crate::graph::ParseState;
 use crate::queue::AddRequest;
 use crate::queue::AnalysisQueue;
 use crate::queue::AnalyzeRequest;
+use crate::queue::CallHierarchyRequest;
+use crate::queue::CodeLensRequest;
 use crate::queue::CompletionRequest;
 use crate::queue::DocumentSymbolRequest;
 use crate::queue::FindAllReferencesRequest;
+use crate::queue::FoldingRangeRequest;
 use crate::queue::FormatRequest;
 use crate::queue::GotoDefinitionRequest;
 use crate::queue::HoverRequest;
+use crate::queue::IncomingCallsRequest;
 use crate::queue::InlayHintsRequest;
 use crate::queue::NotifyChangeRequest;
 use crate::queue::NotifyIncrementalChangeRequest;
+use crate::queue::OutgoingCallsRequest;
 use crate::queue::RemoveRequest;
 use crate::queue::RenameRequest;
 use crate::queue::Request;
@@ -315,7 +326,6 @@ pub struct IncrementalChange {
 /// the queue thread to join.
 ///
 /// The type parameter is the context type passed to the progress callback.
-#[derive(Debug)]
 pub struct Analyzer<Context> {
     /// The sender for sending analysis requests to the queue.
     sender: ManuallyDrop<mpsc::UnboundedSender<Request<Context>>>,
@@ -323,6 +333,91 @@ pub struct Analyzer<Context> {
     handle: Option<JoinHandle<()>>,
     /// The config to use during analysis.
     config: Config,
+    /// The context used to resolve symbolic module imports.
+    resolution: ResolutionContext,
+}
+
+impl<Context> fmt::Debug for Analyzer<Context> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Analyzer")
+            .field("config", &self.config)
+            .field("resolution", &self.resolution)
+            .finish_non_exhaustive()
+    }
+}
+
+/// The context required to resolve symbolic module imports during analysis.
+///
+/// This is an either/or by construction. Resolution is either
+/// [`Disabled`](ResolutionContext::Disabled), in which case symbolic imports do
+/// not resolve, or [`Enabled`](ResolutionContext::Enabled), which always pairs
+/// a resolver with the consumer module it resolves imports for. The pairing is
+/// kept in one variant so a resolver can never exist without a module, nor a
+/// module without a resolver.
+#[derive(Clone, Debug, Default)]
+pub enum ResolutionContext {
+    /// Module resolution is disabled; symbolic imports do not resolve.
+    #[default]
+    Disabled,
+    /// Module resolution is enabled for a consumer module.
+    Enabled {
+        /// The resolver used to materialize symbolic module imports.
+        resolver: Arc<dyn wdl_modules::Resolver>,
+        /// The consumer [`Module`](wdl_modules::module::Module) governing the
+        /// analyzed sources.
+        ///
+        /// The caller builds this from the manifest it already parsed during
+        /// discovery and hands it over here, so constructing a resolution
+        /// context performs no filesystem I/O and the analysis queue never
+        /// re-reads `module.json`.
+        consumer_module: wdl_modules::module::Module,
+    },
+}
+
+impl ResolutionContext {
+    /// Creates a resolution context that resolves symbolic imports for the
+    /// given consumer module through the given resolver.
+    pub fn enabled(
+        resolver: Arc<dyn wdl_modules::Resolver>,
+        consumer_module: wdl_modules::module::Module,
+    ) -> Self {
+        Self::Enabled {
+            resolver,
+            consumer_module,
+        }
+    }
+
+    /// Returns the root directory of the consumer module governing analysis, if
+    /// resolution is enabled.
+    pub fn module_root(&self) -> Option<&Path> {
+        match self {
+            Self::Disabled => None,
+            Self::Enabled {
+                consumer_module, ..
+            } => Some(consumer_module.root.as_path()),
+        }
+    }
+
+    /// Splits the context into the resolver and consumer module the analysis
+    /// queue runs with.
+    ///
+    /// Both are `None` when resolution is disabled and both are `Some` when it
+    /// is enabled, so the queue never holds a resolver without a module nor a
+    /// module without a resolver.
+    pub(crate) fn into_parts(
+        self,
+    ) -> (
+        Option<Arc<dyn wdl_modules::Resolver>>,
+        Option<wdl_modules::module::Module>,
+    ) {
+        match self {
+            Self::Disabled => (None, None),
+            Self::Enabled {
+                resolver,
+                consumer_module,
+            } => (Some(resolver), Some(consumer_module)),
+        }
+    }
 }
 
 impl<Context> Analyzer<Context>
@@ -341,7 +436,31 @@ where
         Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
         Return: Future<Output = ()>,
     {
-        Self::new_with_validator(config, progress, crate::Validator::default)
+        Self::new_with_resolution(config, ResolutionContext::default(), progress)
+    }
+
+    /// Constructs a new analyzer with the given config and resolution context.
+    ///
+    /// The provided progress callback will be invoked during analysis.
+    ///
+    /// The analyzer will use a default validator for validation.
+    ///
+    /// The analyzer must be constructed from the context of a Tokio runtime.
+    pub fn new_with_resolution<Progress, Return>(
+        config: Config,
+        resolution: ResolutionContext,
+        progress: Progress,
+    ) -> Self
+    where
+        Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
+        Return: Future<Output = ()>,
+    {
+        Self::new_with_validator_and_resolution(
+            config,
+            resolution,
+            progress,
+            crate::Validator::default,
+        )
     }
 
     /// Constructs a new analyzer with the given config and validator function.
@@ -362,11 +481,41 @@ where
         Return: Future<Output = ()>,
         Validator: Fn() -> crate::Validator + Send + Sync + 'static,
     {
+        Self::new_with_validator_and_resolution(
+            config,
+            ResolutionContext::default(),
+            progress,
+            validator,
+        )
+    }
+
+    /// Constructs a new analyzer with the given config, resolution context, and
+    /// validator function.
+    ///
+    /// The provided progress callback will be invoked during analysis.
+    ///
+    /// This validator function will be called once per worker thread to
+    /// initialize a thread-local validator.
+    ///
+    /// The analyzer must be constructed from the context of a Tokio runtime.
+    pub fn new_with_validator_and_resolution<Progress, Return, Validator>(
+        config: Config,
+        resolution: ResolutionContext,
+        progress: Progress,
+        validator: Validator,
+    ) -> Self
+    where
+        Progress: Fn(Context, ProgressKind, usize, usize) -> Return + Send + 'static,
+        Return: Future<Output = ()>,
+        Validator: Fn() -> crate::Validator + Send + Sync + 'static,
+    {
         let (tx, rx) = mpsc::unbounded_channel();
         let tokio = Handle::current();
         let inner_config = config.clone();
+        let inner_resolution = resolution.clone();
         let handle = std::thread::spawn(move || {
-            let queue = AnalysisQueue::new(inner_config, tokio, progress, validator);
+            let queue =
+                AnalysisQueue::new(inner_config, tokio, inner_resolution, progress, validator);
             queue.run(rx);
         });
 
@@ -374,6 +523,7 @@ where
             sender: ManuallyDrop::new(tx),
             handle: Some(handle),
             config,
+            resolution,
         }
     }
 
@@ -406,9 +556,19 @@ where
     ///
     /// Returns an error if there was a problem discovering documents for the
     /// specified path.
-    pub async fn add_directory(&self, path: impl AsRef<Path>) -> Result<()> {
-        let path = path.as_ref().to_path_buf();
+    pub async fn add_directory(&self, path: impl Into<PathBuf>) -> Result<()> {
+        let path = path.into();
         let config = self.config.clone();
+        // When the scanned directory lies inside the active module, stop the
+        // walk at nested module boundaries: a subdirectory with its own
+        // `module.json` is a separate (local-path dependency) module whose WDL
+        // files reach the analyzer through symbolic-import materialization, not
+        // directory scanning. Outside an active module there is nothing to scope
+        // to, so scan everything.
+        let stop_at_module_boundaries = self
+            .resolution
+            .module_root()
+            .is_some_and(|root| path.starts_with(root));
         // Start by searching for documents
         let documents = RayonHandle::spawn(move || -> Result<IndexSet<Url>> {
             let mut documents = IndexSet::new();
@@ -427,6 +587,23 @@ where
             let mut walker = WalkBuilder::new(&path);
             if let Some(ignore_filename) = config.ignore_filename() {
                 walker.add_custom_ignore_filename(ignore_filename);
+            }
+            if stop_at_module_boundaries {
+                // Stop descending into subdirectories that declare their own
+                // module via a `module.json` file. Those directories belong to
+                // a different module (a local-path dependency) and their WDL
+                // files reach the analyzer through symbolic-import
+                // materialization, not directory scanning.
+                let root_for_filter = path.clone();
+                walker.filter_entry(move |entry| {
+                    if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
+                        return true;
+                    }
+                    if entry.path() == root_for_filter {
+                        return true;
+                    }
+                    !wdl_modules::module::is_module_root(entry.path())
+                });
             }
             let walker = walker
                 .standard_filters(false)
@@ -603,6 +780,36 @@ where
         })?
     }
 
+    /// Get the call hierarchy for the symbol at the current position.
+    pub async fn call_hierarchy(
+        &self,
+        document: Url,
+        position: SourcePosition,
+        encoding: SourcePositionEncoding,
+    ) -> Result<Option<Vec<CallHierarchyItem>>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::CallHierarchy(CallHierarchyRequest {
+                document,
+                position,
+                encoding,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send call hierarchy request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive call hierarchy response from analysis queue because the \
+                 channel has closed"
+            )
+        })
+    }
+
     /// Formats a document.
     pub async fn format_document(&self, document: Url) -> Result<Option<(u32, u32, String)>> {
         let (tx, rx) = oneshot::channel();
@@ -617,6 +824,29 @@ where
 
         rx.await.map_err(|_| {
             anyhow!("failed to send format request to the queue because the channel has closed")
+        })
+    }
+
+    /// Get all folding ranges in a document.
+    pub async fn folding_range(&self, document: Url) -> Result<Option<Vec<FoldingRange>>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::FoldingRange(FoldingRangeRequest {
+                document,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send folding range request to the queue because the channel has \
+                     closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive folding range response from analysis queue because the channel \
+                 has closed"
+            )
         })
     }
 
@@ -678,6 +908,28 @@ where
             anyhow!(
                 "failed to receive find all references response from analysis queue because the \
                  client channel has closed"
+            )
+        })
+    }
+
+    /// Get all code lenses in a document.
+    pub async fn code_lens(&self, document: Url) -> Result<Option<Vec<CodeLens>>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::CodeLens(CodeLensRequest {
+                document,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send codelens request to analysis queue because the channel has \
+                     closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to send codelens request to analysis queue because the channel has closed"
             )
         })
     }
@@ -841,6 +1093,66 @@ where
         })
     }
 
+    /// Get the incoming calls for the symbol at the current position.
+    pub async fn incoming_calls(
+        &self,
+        document: Url,
+        position: SourcePosition,
+        encoding: SourcePositionEncoding,
+    ) -> Result<Option<Vec<CallHierarchyIncomingCall>>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::IncomingCalls(IncomingCallsRequest {
+                document,
+                position,
+                encoding,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send incoming calls request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive incoming calls response from analysis queue because the \
+                 channel has closed"
+            )
+        })
+    }
+
+    /// Get the outgoing calls for the symbol at the current position.
+    pub async fn outgoing_calls(
+        &self,
+        document: Url,
+        position: SourcePosition,
+        encoding: SourcePositionEncoding,
+    ) -> Result<Option<Vec<CallHierarchyOutgoingCall>>> {
+        let (tx, rx) = oneshot::channel();
+        self.sender
+            .send(Request::OutgoingCalls(OutgoingCallsRequest {
+                document,
+                position,
+                encoding,
+                completed: tx,
+            }))
+            .map_err(|_| {
+                anyhow!(
+                    "failed to send outgoing calls request to analysis queue because the channel \
+                     has closed"
+                )
+            })?;
+
+        rx.await.map_err(|_| {
+            anyhow!(
+                "failed to receive outgoing calls response from analysis queue because the \
+                 channel has closed"
+            )
+        })
+    }
+
     /// Gets signature help for a function call at a given position.
     pub async fn signature_help(
         &self,
@@ -926,6 +1238,7 @@ const _: () = {
 #[cfg(test)]
 mod test {
     use std::fs;
+    use std::path::PathBuf;
 
     use tempfile::TempDir;
     use wdl_ast::Severity;
@@ -1202,5 +1515,332 @@ workflow test {
             .unwrap();
         let results = analyzer.analyze(()).await.unwrap();
         assert!(results.is_empty());
+    }
+
+    #[tokio::test]
+    async fn selected_imported_task_conflicts_with_local_workflow() {
+        let dir = TempDir::new().expect("failed to create temporary directory");
+        fs::write(
+            dir.path().join("lib.wdl"),
+            r#"version 1.4
+task run {
+    command <<<>>>
+}
+"#,
+        )
+        .expect("failed to create library document");
+        fs::write(
+            dir.path().join("source.wdl"),
+            r#"version 1.4
+import { run } from "lib.wdl"
+workflow run {
+}
+"#,
+        )
+        .expect("failed to create source document");
+
+        let config = Config::default()
+            .with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+        let analyzer = Analyzer::new(config, |(), _, _, _| async {});
+        analyzer
+            .add_document(path_to_uri(dir.path().join("source.wdl")).expect("should convert"))
+            .await
+            .expect("should add document");
+
+        let results = analyzer.analyze(()).await.expect("analysis should succeed");
+        let source = results
+            .iter()
+            .find(|result| result.document.uri().path().contains("source.wdl"))
+            .expect("should find source result");
+        let errors = source
+            .document
+            .diagnostics()
+            .filter(|diagnostic| diagnostic.severity() == Severity::Error)
+            .map(|diagnostic| diagnostic.message())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            errors,
+            ["import of `run` conflicts with an existing definition"]
+        );
+    }
+
+    #[tokio::test]
+    async fn symbolic_import_resolves_through_mock_resolver() {
+        use wdl_modules::Manifest;
+        use wdl_modules::lockfile::ResolvedSource;
+        use wdl_modules::resolver::MaterializedFile;
+        use wdl_modules::resolver::ResolvedTree;
+        use wdl_modules::resolver::ResolverError;
+
+        #[derive(Debug)]
+        struct MockResolver {
+            dep_path: PathBuf,
+        }
+
+        #[async_trait::async_trait]
+        impl wdl_modules::Resolver for MockResolver {
+            async fn materialize(
+                &self,
+                _consumer: &wdl_modules::module::Module,
+                path: &wdl_modules::symbolic_path::SymbolicPath,
+            ) -> Result<MaterializedFile, ResolverError> {
+                let rel = match path.sub_path() {
+                    Some(sub) => {
+                        let mut p = sub.to_path_buf();
+                        p.set_extension("wdl");
+                        p
+                    }
+                    None => std::path::PathBuf::from("index.wdl"),
+                };
+                let file_path = self.dep_path.join(rel);
+                let manifest_bytes = fs::read(self.dep_path.join("module.json")).unwrap();
+                let manifest = Manifest::parse(&manifest_bytes).unwrap();
+                Ok(MaterializedFile {
+                    path: file_path,
+                    module_root: self.dep_path.clone(),
+                    source: ResolvedSource::Path {
+                        path: self.dep_path.clone(),
+                    },
+                    manifest: Arc::new(manifest),
+                })
+            }
+
+            async fn resolve_tree(
+                &self,
+                _consumer: &wdl_modules::module::Module,
+            ) -> Result<ResolvedTree, ResolverError> {
+                Ok(ResolvedTree::default())
+            }
+
+            async fn discover_versions(
+                &self,
+                _name: &wdl_modules::dependency::DependencyName,
+                _source: &wdl_modules::dependency::DependencySource,
+                _scope: wdl_modules::resolver::DependencyScope,
+            ) -> Result<Vec<semver::Version>, ResolverError> {
+                Ok(Vec::new())
+            }
+        }
+
+        let dir = TempDir::new().expect("failed to create temporary directory");
+
+        let dep_dir = dir.path().join("dep");
+        fs::create_dir_all(&dep_dir).unwrap();
+        fs::write(
+            dep_dir.join("module.json"),
+            r#"{"name":"dep","version":"1.0.0","license":"MIT"}"#,
+        )
+        .unwrap();
+        fs::write(
+            dep_dir.join("index.wdl"),
+            "version 1.4\n\ntask hello {\n    command <<<>>>\n}\n",
+        )
+        .unwrap();
+
+        let consumer_dir = dir.path().join("consumer");
+        fs::create_dir_all(&consumer_dir).unwrap();
+        let dep_path_json = dep_dir.display().to_string().replace('\\', "/");
+        fs::write(
+            consumer_dir.join("module.json"),
+            format!(
+                r#"{{"name":"consumer","version":"0.1.0","license":"MIT","dependencies":{{"dep":{{"path":"{dep_path_json}"}}}}}}"#
+            ),
+        )
+        .unwrap();
+        fs::write(
+            consumer_dir.join("source.wdl"),
+            "version 1.4\n\nimport dep\nimport \"lib.wdl\"\n\nworkflow main {}\n",
+        )
+        .unwrap();
+        fs::write(
+            consumer_dir.join("lib.wdl"),
+            "version 1.4\n\nimport dep\n\ntask lib {\n    command <<<>>>\n}\n",
+        )
+        .unwrap();
+
+        let config = Config::default()
+            .with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+        let resolver: Arc<dyn wdl_modules::Resolver> = Arc::new(MockResolver {
+            dep_path: dep_dir.clone(),
+        });
+        let consumer_module = wdl_modules::module::Module::load_from_path(&consumer_dir)
+            .expect("test consumer module should load");
+        let resolution = ResolutionContext::enabled(resolver, consumer_module);
+        let analyzer = Analyzer::new_with_resolution(config, resolution, |(), _, _, _| async {});
+        analyzer
+            .add_document(path_to_uri(consumer_dir.join("source.wdl")).expect("should convert"))
+            .await
+            .expect("should add document");
+
+        let results = analyzer.analyze(()).await.unwrap();
+        assert!(!results.is_empty(), "should have analysis results");
+        let consumer_result = results
+            .iter()
+            .find(|r| r.document.uri().path().contains("source.wdl"))
+            .expect("should find consumer result");
+        let errors: Vec<_> = consumer_result
+            .document
+            .diagnostics()
+            .filter(|d| d.severity() == Severity::Error)
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "consumer should have no errors, got: {:?}",
+            errors.iter().map(|d| d.message()).collect::<Vec<_>>()
+        );
+        let lib_result = results
+            .iter()
+            .find(|r| r.document.uri().path().contains("lib.wdl"))
+            .expect("should find uri import result");
+        let errors: Vec<_> = lib_result
+            .document
+            .diagnostics()
+            .filter(|d| d.severity() == Severity::Error)
+            .collect();
+        assert!(
+            errors.is_empty(),
+            "uri import should have no errors, got: {:?}",
+            errors.iter().map(|d| d.message()).collect::<Vec<_>>()
+        );
+    }
+
+    #[tokio::test]
+    async fn concurrent_symbolic_imports_faster_than_serial() {
+        use std::sync::atomic::AtomicUsize;
+        use std::sync::atomic::Ordering;
+        use std::time::Duration;
+
+        use wdl_modules::Manifest;
+        use wdl_modules::lockfile::ResolvedSource;
+        use wdl_modules::resolver::MaterializedFile;
+        use wdl_modules::resolver::ResolvedTree;
+        use wdl_modules::resolver::ResolverError;
+
+        /// A resolver that tracks overlapping `materialize` calls.
+        #[derive(Debug)]
+        struct SlowMockResolver {
+            dep_path: PathBuf,
+            delay: Duration,
+            active: AtomicUsize,
+            max_active: AtomicUsize,
+        }
+
+        #[async_trait::async_trait]
+        impl wdl_modules::Resolver for SlowMockResolver {
+            async fn materialize(
+                &self,
+                _consumer: &wdl_modules::module::Module,
+                path: &wdl_modules::symbolic_path::SymbolicPath,
+            ) -> Result<MaterializedFile, ResolverError> {
+                let active = self.active.fetch_add(1, Ordering::SeqCst) + 1;
+                self.max_active.fetch_max(active, Ordering::SeqCst);
+                tokio::time::sleep(self.delay).await;
+                self.active.fetch_sub(1, Ordering::SeqCst);
+                let rel = match path.sub_path() {
+                    Some(sub) => {
+                        let mut p = sub.to_path_buf();
+                        p.set_extension("wdl");
+                        p
+                    }
+                    None => std::path::PathBuf::from("index.wdl"),
+                };
+                let file_path = self.dep_path.join(rel);
+                let manifest_bytes = fs::read(self.dep_path.join("module.json")).unwrap();
+                let manifest = Manifest::parse(&manifest_bytes).unwrap();
+                Ok(MaterializedFile {
+                    path: file_path,
+                    module_root: self.dep_path.clone(),
+                    source: ResolvedSource::Path {
+                        path: self.dep_path.clone(),
+                    },
+                    manifest: Arc::new(manifest),
+                })
+            }
+
+            async fn resolve_tree(
+                &self,
+                _consumer: &wdl_modules::module::Module,
+            ) -> Result<ResolvedTree, ResolverError> {
+                Ok(ResolvedTree::default())
+            }
+
+            async fn discover_versions(
+                &self,
+                _name: &wdl_modules::dependency::DependencyName,
+                _source: &wdl_modules::dependency::DependencySource,
+                _scope: wdl_modules::resolver::DependencyScope,
+            ) -> Result<Vec<semver::Version>, ResolverError> {
+                Ok(Vec::new())
+            }
+        }
+
+        const IMPORT_COUNT: usize = 8;
+        const DELAY_MS: u64 = 200;
+
+        let dir = TempDir::new().expect("failed to create temporary directory");
+
+        let dep_dir = dir.path().join("slowdep");
+        fs::create_dir_all(&dep_dir).unwrap();
+        fs::write(
+            dep_dir.join("module.json"),
+            r#"{"name":"slowdep","version":"1.0.0","license":"MIT"}"#,
+        )
+        .unwrap();
+        for i in 0..IMPORT_COUNT {
+            fs::write(
+                dep_dir.join(format!("sub{i}.wdl")),
+                "version 1.4\n\ntask noop {\n    command <<<>>>\n}\n",
+            )
+            .unwrap();
+        }
+        fs::write(
+            dep_dir.join("index.wdl"),
+            "version 1.4\n\ntask noop {\n    command <<<>>>\n}\n",
+        )
+        .unwrap();
+
+        let consumer_dir = dir.path().join("slowconsumer");
+        fs::create_dir_all(&consumer_dir).unwrap();
+        let dep_path_json = dep_dir.display().to_string().replace('\\', "/");
+        fs::write(
+            consumer_dir.join("module.json"),
+            format!(
+                r#"{{"name":"slowconsumer","version":"0.1.0","license":"MIT","dependencies":{{"slowdep":{{"path":"{dep_path_json}"}}}}}}"#
+            ),
+        )
+        .unwrap();
+
+        let mut source = "version 1.4\n\n".to_string();
+        for i in 0..IMPORT_COUNT {
+            source.push_str(&format!("import slowdep/sub{i}\n"));
+        }
+        source.push_str("\nworkflow main {}\n");
+        fs::write(consumer_dir.join("source.wdl"), &source).unwrap();
+
+        let config = Config::default()
+            .with_feature_flags(crate::config::FeatureFlags::default().with_wdl_1_4());
+        let resolver = Arc::new(SlowMockResolver {
+            dep_path: dep_dir.clone(),
+            delay: Duration::from_millis(DELAY_MS),
+            active: AtomicUsize::new(0),
+            max_active: AtomicUsize::new(0),
+        });
+        let resolver_trait: Arc<dyn wdl_modules::Resolver> = resolver.clone();
+        let consumer_module = wdl_modules::module::Module::load_from_path(&consumer_dir)
+            .expect("test consumer module should load");
+        let resolution = ResolutionContext::enabled(resolver_trait, consumer_module);
+        let analyzer = Analyzer::new_with_resolution(config, resolution, |(), _, _, _| async {});
+        analyzer
+            .add_document(path_to_uri(consumer_dir.join("source.wdl")).expect("should convert"))
+            .await
+            .expect("should add document");
+
+        let results = analyzer.analyze(()).await.unwrap();
+
+        assert!(!results.is_empty(), "should have analysis results");
+        assert!(
+            resolver.max_active.load(Ordering::SeqCst) > 1,
+            "symbolic imports should materialize concurrently"
+        );
     }
 }

@@ -8,7 +8,9 @@ use futures::FutureExt;
 use futures::future::BoxFuture;
 use indexmap::IndexMap;
 use ordered_float::Pow;
+use wdl_analysis::Diagnostics;
 use wdl_analysis::DiagnosticsConfig;
+use wdl_analysis::Exceptable;
 use wdl_analysis::diagnostics::Io;
 use wdl_analysis::diagnostics::ambiguous_argument;
 use wdl_analysis::diagnostics::argument_type_mismatch;
@@ -65,6 +67,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
+use wdl_ast::TreeNode;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::Expr;
@@ -90,11 +93,12 @@ use wdl_ast::v1::PlaceholderOption;
 use wdl_ast::v1::StringPart;
 use wdl_ast::v1::StrippedStringPart;
 use wdl_ast::version::V1;
+use wdl_grammar::SyntaxKind;
 
 use crate::Array;
 use crate::Coercible;
 use crate::CompoundValue;
-use crate::EnumVariant;
+use crate::EnumChoice;
 use crate::EvaluationContext;
 use crate::HiddenValue;
 use crate::HintsValue;
@@ -118,8 +122,8 @@ use crate::diagnostics::multiline_string_requirement;
 use crate::diagnostics::not_an_object_member;
 use crate::diagnostics::numeric_overflow;
 use crate::diagnostics::runtime_type_mismatch;
-use crate::diagnostics::unknown_enum_variant;
-use crate::diagnostics::unknown_enum_variant_access;
+use crate::diagnostics::unknown_enum_choice;
+use crate::diagnostics::unknown_enum_choice_access;
 use crate::stdlib::CallArgument;
 use crate::stdlib::CallContext;
 use crate::stdlib::STDLIB;
@@ -421,7 +425,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                         }
                     }
                 }
-                Value::Compound(CompoundValue::EnumVariant(e)) => {
+                Value::Compound(CompoundValue::EnumChoice(e)) => {
                     write!(buffer, "{}", e.name()).unwrap()
                 }
                 v => {
@@ -944,7 +948,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             /// The expression evaluation context.
             context: &'a C,
             /// The diagnostics from evaluating the type of an expression.
-            diagnostics: Vec<Diagnostic>,
+            diagnostics: Diagnostics,
         }
 
         impl<C: EvaluationContext> wdl_analysis::types::v1::EvaluationContext for TypeContext<'_, C> {
@@ -952,7 +956,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 self.context.version()
             }
 
-            fn resolve_name(&self, name: &str, span: Span) -> Option<Type> {
+            fn resolve_name(&mut self, name: &str, span: Span) -> Option<Type> {
                 self.context.resolve_name(name, span).map(|v| v.ty()).ok()
             }
 
@@ -969,7 +973,17 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             }
 
             fn add_diagnostic(&mut self, diagnostic: Diagnostic) {
-                self.diagnostics.push(diagnostic);
+                self.diagnostics.add(diagnostic);
+            }
+
+            fn exceptable_add_diagnostic<N: TreeNode + Exceptable>(
+                &mut self,
+                diagnostic: Diagnostic,
+                element: &N,
+                exceptable_nodes: &Option<&'static [SyntaxKind]>,
+            ) {
+                self.diagnostics
+                    .exceptable_add(diagnostic, element, exceptable_nodes);
             }
         }
 
@@ -988,13 +1002,14 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             let value = self.evaluate_expr(&true_expr).await?;
             let mut context = TypeContext {
                 context: &self.context,
-                diagnostics: Vec::new(),
+                diagnostics: Diagnostics::default(),
             };
             let false_ty = ExprTypeEvaluator::new(&mut context)
                 .evaluate_expr(&false_expr)
                 .unwrap_or(Type::Union);
 
-            if let Some(diagnostic) = context.diagnostics.pop() {
+            let mut diagnostics: Vec<Diagnostic> = context.diagnostics.into();
+            if let Some(diagnostic) = diagnostics.pop() {
                 return Err(diagnostic);
             }
 
@@ -1006,12 +1021,14 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
             let value = self.evaluate_expr(&false_expr).await?;
             let mut context = TypeContext {
                 context: &self.context,
-                diagnostics: Vec::new(),
+                diagnostics: Diagnostics::default(),
             };
             let true_ty = ExprTypeEvaluator::new(&mut context)
                 .evaluate_expr(&true_expr)
                 .unwrap_or(Type::Union);
-            if let Some(diagnostic) = context.diagnostics.pop() {
+
+            let mut diagnostics: Vec<Diagnostic> = context.diagnostics.into();
+            if let Some(diagnostic) = diagnostics.pop() {
                 return Err(diagnostic);
             }
 
@@ -1439,7 +1456,7 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     .expect("should be a map type")
                     .key_type()
                     .as_primitive()
-                    .expect("key type should be primitive");
+                    .ok_or_else(|| map_key_not_found(index.span()))?;
 
                 let key = match self.evaluate_expr(&index).await? {
                     Value::Primitive(key) if key.ty().is_coercible_to(&key_type.into()) => key,
@@ -1482,10 +1499,11 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                     &name,
                 )),
             },
-            Value::Compound(CompoundValue::Object(object)) => match object.get(name.text()) {
-                Some(value) => Ok(value.clone()),
-                None => Err(not_an_object_member(&name)),
-            },
+            Value::Compound(CompoundValue::Object(object)) => self
+                .context
+                .object_access(&object, name.text())
+                .or_else(|| object.get(name.text()).cloned())
+                .ok_or_else(|| not_an_object_member(&name)),
             Value::Hidden(HiddenValue::TaskPreEvaluation(task)) => match task.field(name.text()) {
                 Some(value) => Ok(value.clone()),
                 None => Err(not_a_task_member(&name)),
@@ -1509,10 +1527,11 @@ impl<C: EvaluationContext> ExprEvaluator<C> {
                 if let Some(enum_ty) = ty.as_enum() {
                     let value = self
                         .context()
-                        .enum_variant_value(enum_ty.name(), name.text())
-                        .map_err(|_| unknown_enum_variant_access(enum_ty.name(), &name))?;
-                    let variant = EnumVariant::new(enum_ty.clone(), name.text(), value);
-                    Ok(Value::Compound(CompoundValue::EnumVariant(variant)))
+                        .enum_choice_value(enum_ty.name(), name.text())
+                        .map_err(|_| unknown_enum_choice_access(enum_ty.name(), &name))?;
+
+                    let choice = EnumChoice::new(enum_ty.clone(), name.text(), value);
+                    Ok(Value::Compound(CompoundValue::EnumChoice(choice)))
                 } else {
                     Err(cannot_access(ty, target.span()))
                 }
@@ -1662,36 +1681,36 @@ fn parse_constant_value(target_ty: &Type, expr: &Expr) -> Option<Value> {
     Some(value.coerce(None, target_ty).unwrap())
 }
 
-/// Resolves the value of an enum variant by looking up the variant's expression
+/// Resolves the value of an enum choice by looking up the choice's expression
 /// in the AST and resolving it to its literal value.
 ///
 /// # Panics
 ///
-/// The function panics if the variant value cannot be parsed as a literal or if
-/// the variant's value does not coerce to the enum's inner value type.
+/// The function panics if the choice value cannot be parsed as a literal or if
+/// the choice's value does not coerce to the enum's inner value type.
 ///
 /// All of these should be caught by `wdl-analysis` checks.
-pub(crate) fn resolve_enum_variant_value(
+pub(crate) fn resolve_enum_choice_value(
     r#enum: &Enum,
-    variant_name: &str,
+    choice_name: &str,
 ) -> Result<Value, Diagnostic> {
     // SAFETY: we can assume that any type associated with an [`Enum`] entry is
     // an [`EnumType`] at this point in analysis.
     let enum_ty = r#enum.ty().unwrap().as_enum().unwrap();
 
-    let variant = r#enum
+    let choice = r#enum
         .definition()
-        .variants()
-        .find(|variant| variant.name().text() == variant_name)
-        .ok_or(unknown_enum_variant(enum_ty.name(), variant_name))?;
+        .choices()
+        .find(|choice| choice.name().text() == choice_name)
+        .ok_or(unknown_enum_choice(enum_ty.name(), choice_name))?;
 
-    if let Some(value_expr) = variant.value() {
+    if let Some(value_expr) = choice.value() {
         // SAFETY: see the panic notice for this function.
         Ok(parse_constant_value(enum_ty.inner_value_type(), &value_expr).unwrap())
     } else {
         // NOTE: when no expression is provided, the default is the
-        // variant name as a string.
-        Ok(Value::Primitive(PrimitiveValue::new_string(variant_name)))
+        // choice name as a string.
+        Ok(Value::Primitive(PrimitiveValue::new_string(choice_name)))
     }
 }
 
@@ -1892,10 +1911,10 @@ pub(crate) mod test {
                 .ok_or_else(|| unknown_type(name, span))
         }
 
-        fn enum_variant_value(
+        fn enum_choice_value(
             &self,
             _enum_name: &str,
-            _variant_name: &str,
+            _choice_name: &str,
         ) -> Result<Value, Diagnostic> {
             unimplemented!();
         }
@@ -1977,7 +1996,7 @@ pub(crate) mod test {
             }
             Err((marker, diagnostic)) => {
                 marker.abandon(&mut parser);
-                Err(diagnostic)
+                Err(diagnostic.into())
             }
         }
     }
@@ -3732,5 +3751,16 @@ pub(crate) mod test {
             .await
             .unwrap_err();
         assert_eq!(diagnostic.message(), "cannot access type `Int`");
+    }
+
+    #[tokio::test]
+    async fn empty_map_access() {
+        // This test will to ensure accessing an empty map does not panic
+        let env = TestEnv::default();
+        let diagnostic = eval_v1_expr(&env, V1::Zero, "{}['foo']").await.unwrap_err();
+        assert_eq!(
+            diagnostic.message(),
+            "the map does not contain an entry for the specified key"
+        );
     }
 }

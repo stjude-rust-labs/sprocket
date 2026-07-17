@@ -1,32 +1,28 @@
+#@ except: BashSetSyntax
+
 ## This is a test for a missing description in a `meta` section.
 
 version 1.3
 
 #@ except: RequirementsSection, EmptyOutputs
 task foo {
-    meta {
-    }
+    meta {}
 
     command <<<>>>
 
-    output {
-    }
+    output {}
 
-    runtime {
-    }
+    runtime {}
 }
 
 workflow bar {
-    meta {
-    }
+    meta {}
 
-    output {
-    }
+    output {}
 }
 
 struct Baz {
-    meta {
-    }
+    meta {}
 
     parameter_meta {
         x: "foo"

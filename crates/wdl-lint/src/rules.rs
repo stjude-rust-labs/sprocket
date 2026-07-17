@@ -1,5 +1,6 @@
 //! Module for the lint rules.
 
+mod bash_set_syntax;
 mod call_input_keyword;
 mod command_section_indentation;
 mod concise_input;
@@ -21,7 +22,6 @@ mod host_path_literals;
 mod import_placement;
 mod inline_install;
 mod input_name;
-mod known_rules;
 mod matching_output_meta;
 mod meta_description;
 mod meta_sections;
@@ -38,6 +38,7 @@ mod snake_case;
 mod todo_comment;
 mod unused_doc_comments;
 
+pub use bash_set_syntax::*;
 pub use call_input_keyword::*;
 pub use command_section_indentation::*;
 pub use concise_input::*;
@@ -59,7 +60,6 @@ pub use host_path_literals::*;
 pub use import_placement::*;
 pub use inline_install::*;
 pub use input_name::*;
-pub use known_rules::*;
 pub use matching_output_meta::*;
 pub use meta_description::*;
 pub use meta_sections::*;

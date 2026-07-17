@@ -16,8 +16,8 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
+use wdl_ast::SyntaxNode;
 use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::InputSection;
 use wdl_ast::v1::OutputSection;
@@ -80,7 +80,7 @@ fn check_name(
     name: &str,
     span: Span,
     diagnostics: &mut Diagnostics,
-    element: SyntaxElement,
+    node: &SyntaxNode,
     exceptable_nodes: &Option<&'static [SyntaxKind]>,
 ) {
     if allowed_names.contains(name) {
@@ -93,7 +93,7 @@ fn check_name(
     let properly_cased_name = converter.convert(name);
     if name != properly_cased_name {
         let warning = snake_case(context, name, &properly_cased_name, span);
-        diagnostics.exceptable_add(warning, element, exceptable_nodes);
+        diagnostics.exceptable_add(warning, node, exceptable_nodes);
     }
 }
 
@@ -117,7 +117,7 @@ impl SnakeCaseRule {
             within_struct: false,
             within_input: false,
             within_output: false,
-            allowed_names: config.allowed_names.clone(),
+            allowed_names: HashSet::from_iter(config.allowed_names.iter().cloned()),
         }
     }
 }
@@ -275,7 +275,7 @@ impl Visitor for SnakeCaseRule {
             name.text(),
             name.span(),
             diagnostics,
-            SyntaxElement::from(task.inner().clone()),
+            task.inner(),
             &self.exceptable_nodes(),
         );
     }
@@ -297,7 +297,7 @@ impl Visitor for SnakeCaseRule {
             name.text(),
             name.span(),
             diagnostics,
-            SyntaxElement::from(workflow.inner().clone()),
+            workflow.inner(),
             &self.exceptable_nodes(),
         );
     }
@@ -315,7 +315,7 @@ impl Visitor for SnakeCaseRule {
             name.text(),
             name.span(),
             diagnostics,
-            SyntaxElement::from(decl.inner().clone()),
+            decl.inner(),
             &self.exceptable_nodes(),
         );
     }
@@ -338,7 +338,7 @@ impl Visitor for SnakeCaseRule {
             name.text(),
             name.span(),
             diagnostics,
-            SyntaxElement::from(decl.inner().clone()),
+            decl.inner(),
             &self.exceptable_nodes(),
         );
     }

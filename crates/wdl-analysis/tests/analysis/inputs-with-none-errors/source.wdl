@@ -1,8 +1,7 @@
 ## This is a test that passing `None` to a required input without a
 ## default is still an error in WDL 1.2+.
 ## See: https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#optional-inputs-with-defaults
-
-#@ except: UnusedInput, UnusedDeclaration, UnusedCall
+#@ except: UnusedCall, UnusedDeclaration, UnusedInput
 version 1.3
 
 import "w.wdl"
@@ -34,8 +33,7 @@ workflow test {
         input4 = None,
     }
 
-    call t as t2 {
-    }
+    call t as t2
 
     call w.w as w1 {
         input1 = None,
@@ -44,6 +42,5 @@ workflow test {
         input4 = None,
     }
 
-    call w.w as w2 {
-    }
+    call w.w as w2
 }

@@ -6,11 +6,12 @@ use wdl_analysis::LabeledSnippet;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
+use wdl_ast::CommentKind;
 use wdl_ast::DOC_COMMENT_PREFIX;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
+use wdl_ast::TreeToken;
 
 use crate::Rule;
 use crate::Tag;
@@ -94,7 +95,7 @@ impl Visitor for EmptyDocCommentRule {
             return;
         }
 
-        if !comment.is_doc_comment() {
+        if comment.kind() != CommentKind::Documentation {
             return;
         }
 
@@ -111,22 +112,22 @@ impl Visitor for EmptyDocCommentRule {
         while let Some(sibling) = current {
             match sibling.kind() {
                 SyntaxKind::Comment => {
-                    if let Some(c) = Comment::cast(sibling.as_token().unwrap().clone()) {
-                        if c.is_doc_comment() {
-                            let text = c.text();
-                            let content = text.strip_prefix(DOC_COMMENT_PREFIX).unwrap_or(text);
-                            if !content.trim().is_empty() {
-                                all_empty = false;
-                            }
+                    let Some(c) = Comment::cast(sibling.as_token().unwrap().clone()) else {
+                        break;
+                    };
 
-                            last_span = c.span();
-                            self.skip_count += 1;
-                        } else {
-                            break;
-                        }
-                    } else {
+                    if c.kind() != CommentKind::Documentation {
                         break;
                     }
+
+                    let text = c.text();
+                    let content = text.strip_prefix(DOC_COMMENT_PREFIX).unwrap_or(text);
+                    if !content.trim().is_empty() {
+                        all_empty = false;
+                    }
+
+                    last_span = c.span();
+                    self.skip_count += 1;
                 }
                 SyntaxKind::Whitespace => {}
                 _ => {
@@ -142,7 +143,7 @@ impl Visitor for EmptyDocCommentRule {
 
             diagnostics.exceptable_add(
                 empty_doc_comment(span),
-                SyntaxElement::from(comment.inner().clone()),
+                &TreeToken::parent(comment.inner()),
                 &self.exceptable_nodes(),
             );
         }

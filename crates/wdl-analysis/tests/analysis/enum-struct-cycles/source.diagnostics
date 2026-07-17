@@ -1,0 +1,32 @@
+error: enum `CyclicEnum` has a recursive definition
+  ┌─ tests/analysis/enum-struct-cycles/source.wdl:4:6
+  │
+4 │ enum CyclicEnum[CyclicStruct] {}
+  │      ^^^^^^^^^^
+  │
+  = help: the type `CyclicStruct` participates in the recursion
+
+error: enum `CyclicEnum2` has a recursive definition
+   ┌─ tests/analysis/enum-struct-cycles/source.wdl:11:6
+   │
+11 │ enum CyclicEnum2[Array[CyclicEnum2]] {
+   │      ^^^^^^^^^^^
+   │
+   = help: the type `CyclicEnum2` participates in the recursion
+
+error: enum `CyclicEnum4` has a recursive definition
+   ┌─ tests/analysis/enum-struct-cycles/source.wdl:20:6
+   │
+20 │ enum CyclicEnum4[Array[CyclicEnum3]] {
+   │      ^^^^^^^^^^^
+   │
+   = help: the type `CyclicEnum3` participates in the recursion
+
+error: enum `CyclicEnum5` has a recursive definition
+   ┌─ tests/analysis/enum-struct-cycles/source.wdl:25:6
+   │
+25 │ enum CyclicEnum5[Map[String, CyclicStruct3]] {}
+   │      ^^^^^^^^^^^
+   │
+   = help: the type `CyclicStruct3` participates in the recursion
+

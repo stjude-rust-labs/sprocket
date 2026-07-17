@@ -59,6 +59,7 @@ mod read_object;
 mod read_objects;
 mod read_string;
 mod read_tsv;
+mod regex_cache;
 mod round;
 mod select_all;
 mod select_first;

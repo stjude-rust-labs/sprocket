@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.25.0 - 2026-07-15
+
+#### Added
+
+* Added the `unstable-python` feature flag, which enables APIs related to Sprocket's Python bindings ([#941](https://github.com/stjude-rust-labs/sprocket/pull/941)).
+
+#### Fixed
+
+* `Diagnostic` now considers its `help` field in its `Ord` implementation ([#941](https://github.com/stjude-rust-labs/sprocket/pull/941)).
+
+* The preamble parser's "missing version statement" diagnostic no longer overclaims that all WDL documents require a version statement; it is now scoped to WDL v1.0+ and includes migration guidance for draft-2 documents ([#993](https://github.com/stjude-rust-labs/sprocket/pull/993)).
+
+## 0.24.0 - 2026-06-26
+
+#### Changed
+
+* Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
+* Removed dependency on `serde` ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+* `Parser` now produces `ParseDiagnostic`s instead of `Diagnostic`s ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
+* `Parser` now handles deduplication of diagnostics, so the `Output` will no longer contain
+  identical diagnostics ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
+* In nested expressions, only the innermost expression will produce an "unexpected end of input"
+  diagnostic ([#927](https://github.com/stjude-rust-labs/sprocket/pull/927)).
+* `Parser` now has a hard recursion limit of `128` on nested expressions ([#930](https://github.com/stjude-rust-labs/sprocket/pull/930)).
+
+## 0.23.0 - 2026-06-03
+
+#### Changed
+
+* `SyntaxKind::is_keyword()` no longer includes types, see `SyntaxKind::is_type()` ([#870](https://github.com/stjude-rust-labs/sprocket/pull/870)).
+* `Parser` now produces a single `Unknown` token and diagnostic for consecutive unknown tokens ([#908](https://github.com/stjude-rust-labs/sprocket/pull/908)).
+
 ## 0.22.0 - 2026-05-14
 
 #### Added

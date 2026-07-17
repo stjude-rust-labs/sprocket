@@ -1,23 +1,23 @@
 note[MetaDescription]: task `foo` is missing a description key
-  ┌─ tests/lints/description-missing/source.wdl:7:5
+  ┌─ tests/lints/description-missing/source.wdl:9:5
   │
-7 │     meta {
+9 │     meta {}
   │     ^^^^
   │
   = fix: add a `description` key to the meta section
 
 note[MetaDescription]: workflow `bar` is missing a description key
-   ┌─ tests/lints/description-missing/source.wdl:20:5
+   ┌─ tests/lints/description-missing/source.wdl:19:5
    │
-20 │     meta {
+19 │     meta {}
    │     ^^^^
    │
    = fix: add a `description` key to the meta section
 
 note[MetaDescription]: struct `Baz` is missing a description key
-   ┌─ tests/lints/description-missing/source.wdl:28:5
+   ┌─ tests/lints/description-missing/source.wdl:25:5
    │
-28 │     meta {
+25 │     meta {}
    │     ^^^^
    │
    = fix: add a `description` key to the meta section

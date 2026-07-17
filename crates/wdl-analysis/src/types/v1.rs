@@ -12,7 +12,6 @@ use wdl_ast::Severity;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
 use wdl_ast::TreeNode;
-use wdl_ast::TreeToken;
 use wdl_ast::v1;
 use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
@@ -78,6 +77,7 @@ use wdl_ast::v1::TASK_REQUIREMENT_MEMORY;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES;
 use wdl_ast::v1::TASK_REQUIREMENT_RETURN_CODES_ALIAS;
 use wdl_ast::version::V1;
+use wdl_grammar::SyntaxKind;
 
 use super::ArrayType;
 use super::CompoundType;
@@ -151,8 +151,8 @@ pub fn task_member_type_pre_evaluation(name: &str) -> Option<Type> {
 
 /// Gets the type of a `task` variable member for post-evaluation contexts.
 ///
-/// This is used in command and output sections where all task fields are
-/// available.
+/// This is used in command and output sections. Not all `task` fields are
+/// immediately available, however.
 ///
 /// Returns [`None`] if the given member name is unknown.
 pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -> Option<Type> {
@@ -160,12 +160,12 @@ pub fn task_member_type_post_evaluation(version: SupportedVersion, name: &str) -
         TASK_FIELD_NAME | TASK_FIELD_ID => Some(PrimitiveType::String.into()),
         TASK_FIELD_CONTAINER => Some(Type::from(PrimitiveType::String).optional()),
         TASK_FIELD_CPU => Some(PrimitiveType::Float.into()),
-        TASK_FIELD_MEMORY | TASK_FIELD_ATTEMPT => Some(PrimitiveType::Integer.into()),
+        TASK_FIELD_MEMORY | TASK_FIELD_ATTEMPT | TASK_FIELD_RETURN_CODE => {
+            Some(PrimitiveType::Integer.into())
+        }
         TASK_FIELD_GPU | TASK_FIELD_FPGA => Some(STDLIB.array_string_type().clone().into()),
         TASK_FIELD_DISKS => Some(STDLIB.map_string_int_type().clone().into()),
-        TASK_FIELD_END_TIME | TASK_FIELD_RETURN_CODE => {
-            Some(Type::from(PrimitiveType::Integer).optional())
-        }
+        TASK_FIELD_END_TIME => Some(Type::from(PrimitiveType::Integer).optional()),
         TASK_FIELD_META | TASK_FIELD_PARAMETER_META | TASK_FIELD_EXT => Some(Type::Object),
         TASK_FIELD_MAX_RETRIES if version >= SupportedVersion::V1(V1::Three) => {
             Some(PrimitiveType::Integer.into())
@@ -238,21 +238,31 @@ pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&
         ])
     });
 
+    // WDL 1.0 does not formally define the `cpu`, `gpu`, `disks`, `maxRetries`,
+    // or `return_codes`/`returnCodes` runtime keys; per the 1.0 specification,
+    // only `docker`/`container` and `memory` are given recommended type
+    // conventions. As such, type checking for the remaining keys should only
+    // apply to documents declaring `version 1.1` or later (see
+    // https://github.com/stjude-rust-labs/sprocket/issues/811).
     match name {
         TASK_REQUIREMENT_CONTAINER | TASK_REQUIREMENT_CONTAINER_ALIAS => Some(&CONTAINER_TYPES),
-        TASK_REQUIREMENT_CPU => Some(CPU_TYPES),
-        TASK_REQUIREMENT_DISKS => Some(&DISKS_TYPES),
-        TASK_REQUIREMENT_GPU => Some(GPU_TYPES),
+        TASK_REQUIREMENT_CPU if version >= SupportedVersion::V1(V1::One) => Some(CPU_TYPES),
+        TASK_REQUIREMENT_DISKS if version >= SupportedVersion::V1(V1::One) => Some(&DISKS_TYPES),
+        TASK_REQUIREMENT_GPU if version >= SupportedVersion::V1(V1::One) => Some(GPU_TYPES),
         TASK_REQUIREMENT_FPGA if version >= SupportedVersion::V1(V1::Two) => Some(FPGA_TYPES),
         TASK_REQUIREMENT_MAX_RETRIES if version >= SupportedVersion::V1(V1::Two) => {
             Some(MAX_RETRIES_TYPES)
         }
-        TASK_REQUIREMENT_MAX_RETRIES_ALIAS => Some(MAX_RETRIES_TYPES),
+        TASK_REQUIREMENT_MAX_RETRIES_ALIAS if version >= SupportedVersion::V1(V1::One) => {
+            Some(MAX_RETRIES_TYPES)
+        }
         TASK_REQUIREMENT_MEMORY => Some(MEMORY_TYPES),
         TASK_REQUIREMENT_RETURN_CODES if version >= SupportedVersion::V1(V1::Two) => {
             Some(&RETURN_CODES_TYPES)
         }
-        TASK_REQUIREMENT_RETURN_CODES_ALIAS => Some(&RETURN_CODES_TYPES),
+        TASK_REQUIREMENT_RETURN_CODES_ALIAS if version >= SupportedVersion::V1(V1::One) => {
+            Some(&RETURN_CODES_TYPES)
+        }
         _ => None,
     }
 }
@@ -510,7 +520,7 @@ where
             definition
                 .members()
                 .map(|d| Ok((d.name().text().to_string(), self.convert_type(&d.ty())?)))
-                .collect::<Result<Vec<_>, _>>()?,
+                .collect::<Result<Vec<_>, Diagnostic>>()?,
         ))
     }
 }
@@ -541,7 +551,7 @@ pub trait EvaluationContext {
     ///   that custom type. For example, returns a type name reference to
     ///   `Status` in the expression `Status.Active` (where `Status`) is an
     ///   enum.
-    fn resolve_name(&self, name: &str, span: Span) -> Option<Type>;
+    fn resolve_name(&mut self, name: &str, span: Span) -> Option<Type>;
 
     /// Resolves a type name to a type.
     ///
@@ -559,6 +569,15 @@ pub trait EvaluationContext {
 
     /// Adds a diagnostic.
     fn add_diagnostic(&mut self, diagnostic: Diagnostic);
+
+    /// Same as [`Self::add_diagnostic()`], but check for `except` comments
+    /// first.
+    fn exceptable_add_diagnostic<N: TreeNode + Exceptable>(
+        &mut self,
+        diagnostic: Diagnostic,
+        element: &N,
+        exceptable_nodes: &Option<&'static [SyntaxKind]>,
+    );
 }
 
 /// Represents an evaluator of expression types.
@@ -997,6 +1016,30 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
         expr: &Expr<N>,
     ) {
         let expr_ty = self.evaluate_expr(expr).unwrap_or(Type::Union);
+
+        // The `cpu`, `gpu`, `disks`, `maxRetries`, and `returnCodes` keys are not
+        // formally typed until WDL 1.1 (see the WDL 1.0 specification's runtime
+        // section, which only gives recommended conventions for `docker` and
+        // `memory`). Some of these names are shared with differently-typed
+        // `hints` keys (e.g. `gpu` and `disks`), so simply letting the
+        // `task_requirement_types` lookup fail for WDL 1.0 documents isn't
+        // sufficient; doing so would incorrectly fall through to checking
+        // against the `hints` types below. Instead, skip type checking for
+        // these keys entirely when the document version is older than 1.1.
+        // See https://github.com/stjude-rust-labs/sprocket/issues/811.
+        if self.context.version() < SupportedVersion::V1(V1::One)
+            && matches!(
+                name.text(),
+                TASK_REQUIREMENT_CPU
+                    | TASK_REQUIREMENT_GPU
+                    | TASK_REQUIREMENT_DISKS
+                    | TASK_REQUIREMENT_MAX_RETRIES_ALIAS
+                    | TASK_REQUIREMENT_RETURN_CODES_ALIAS
+            )
+        {
+            return;
+        }
+
         if !self.evaluate_requirement(name, expr, &expr_ty) {
             // Always use object types for `runtime` section `inputs` and `outputs` keys as
             // only `hints` sections can use input/output hidden types
@@ -1520,136 +1563,124 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     /// Evaluates the type of a call expression.
     fn evaluate_call_expr<N: TreeNode + Exceptable>(&mut self, expr: &CallExpr<N>) -> Option<Type> {
         let target = expr.target();
-        match STDLIB.function(target.text()) {
-            Some(f) => {
-                // Evaluate the argument expressions
-                let mut count = 0;
-                let mut arguments = [const { Type::Union }; MAX_PARAMETERS];
+        let Some(f) = STDLIB.function(target.text()) else {
+            self.context
+                .add_diagnostic(unknown_function(target.text(), target.span()));
+            return None;
+        };
 
-                for arg in expr.arguments() {
-                    if count < MAX_PARAMETERS {
-                        arguments[count] = self.evaluate_expr(&arg).unwrap_or(Type::Union);
-                    }
+        // Evaluate the argument expressions
+        let mut count = 0;
+        let mut arguments = [const { Type::Union }; MAX_PARAMETERS];
 
-                    count += 1;
-                }
-
-                match target.text() {
-                    "find" | "matches" | "sub" => {
-                        // above function expect the pattern as 2nd argument
-                        if let Some(Expr::Literal(LiteralExpr::String(pattern_literal))) =
-                            expr.arguments().nth(1)
-                            && let Some(value) = pattern_literal.text()
-                        {
-                            let pattern = value.text().to_string();
-                            if let Err(e) = regex::Regex::new(&pattern) {
-                                self.context.add_diagnostic(invalid_regex_pattern(
-                                    target.text(),
-                                    value.text(),
-                                    &e,
-                                    pattern_literal.span(),
-                                ));
-                            }
-                        }
-                    }
-                    _ => {}
-                }
-
-                let arguments = &arguments[..count.min(MAX_PARAMETERS)];
-                if count <= MAX_PARAMETERS {
-                    match f.bind(self.context.version(), arguments) {
-                        Ok(binding) => {
-                            if let Some(severity) =
-                                self.context.diagnostics_config().unnecessary_function_call
-                                && !expr
-                                    .inner()
-                                    .ancestors()
-                                    .any(|node| node.is_rule_excepted(UnnecessaryFunctionCall::ID))
-                            {
-                                self.check_unnecessary_call(
-                                    &target,
-                                    arguments,
-                                    expr.arguments().map(|e| e.span()),
-                                    severity,
-                                );
-                            }
-                            return Some(binding.return_type().clone());
-                        }
-                        Err(FunctionBindError::RequiresVersion(minimum)) => {
-                            self.context.add_diagnostic(unsupported_function(
-                                minimum,
-                                target.text(),
-                                target.span(),
-                            ));
-                        }
-                        Err(FunctionBindError::TooFewArguments(minimum)) => {
-                            self.context.add_diagnostic(too_few_arguments(
-                                target.text(),
-                                target.span(),
-                                minimum,
-                                count,
-                            ));
-                        }
-                        Err(FunctionBindError::TooManyArguments(maximum)) => {
-                            self.context.add_diagnostic(too_many_arguments(
-                                target.text(),
-                                target.span(),
-                                maximum,
-                                count,
-                                expr.arguments().skip(maximum).map(|e| e.span()),
-                            ));
-                        }
-                        Err(FunctionBindError::ArgumentTypeMismatch { index, expected }) => {
-                            self.context.add_diagnostic(argument_type_mismatch(
-                                target.text(),
-                                &expected,
-                                &arguments[index],
-                                expr.arguments()
-                                    .nth(index)
-                                    .map(|e| e.span())
-                                    .expect("should have span"),
-                            ));
-                        }
-                        Err(FunctionBindError::Ambiguous { first, second }) => {
-                            self.context.add_diagnostic(ambiguous_argument(
-                                target.text(),
-                                target.span(),
-                                &first,
-                                &second,
-                            ));
-                        }
-                    }
-                } else {
-                    // Exceeded the maximum number of arguments to any function
-                    match f.param_min_max(self.context.version()) {
-                        Some((_, max)) => {
-                            assert!(max <= MAX_PARAMETERS);
-                            self.context.add_diagnostic(too_many_arguments(
-                                target.text(),
-                                target.span(),
-                                max,
-                                count,
-                                expr.arguments().skip(max).map(|e| e.span()),
-                            ));
-                        }
-                        None => {
-                            self.context.add_diagnostic(unsupported_function(
-                                f.minimum_version(),
-                                target.text(),
-                                target.span(),
-                            ));
-                        }
-                    }
-                }
-
-                Some(f.realize_unconstrained_return_type(arguments))
+        for arg in expr.arguments() {
+            if count < MAX_PARAMETERS {
+                arguments[count] = self.evaluate_expr(&arg).unwrap_or(Type::Union);
             }
-            None => {
-                self.context
-                    .add_diagnostic(unknown_function(target.text(), target.span()));
-                None
+
+            count += 1;
+        }
+
+        match target.text() {
+            "find" | "matches" | "sub" => {
+                // above function expect the pattern as 2nd argument
+                if let Some(Expr::Literal(LiteralExpr::String(pattern_literal))) =
+                    expr.arguments().nth(1)
+                    && let Some(value) = pattern_literal.text()
+                {
+                    let pattern = value.text().to_string();
+                    if let Err(e) = regex::Regex::new(&pattern) {
+                        self.context.add_diagnostic(invalid_regex_pattern(
+                            target.text(),
+                            value.text(),
+                            &e,
+                            pattern_literal.span(),
+                        ));
+                    }
+                }
+            }
+            _ => {}
+        }
+
+        let arguments = &arguments[..count.min(MAX_PARAMETERS)];
+        if count <= MAX_PARAMETERS {
+            match f.bind(self.context.version(), arguments) {
+                Ok(binding) => {
+                    if let Some(severity) =
+                        self.context.diagnostics_config().unnecessary_function_call
+                    {
+                        self.check_unnecessary_call(expr, arguments, severity);
+                    }
+                    return Some(binding.return_type().clone());
+                }
+                Err(FunctionBindError::RequiresVersion(minimum)) => {
+                    self.context.add_diagnostic(unsupported_function(
+                        minimum,
+                        target.text(),
+                        target.span(),
+                    ));
+                }
+                Err(FunctionBindError::TooFewArguments(minimum)) => {
+                    self.context.add_diagnostic(too_few_arguments(
+                        target.text(),
+                        target.span(),
+                        minimum,
+                        count,
+                    ));
+                }
+                Err(FunctionBindError::TooManyArguments(maximum)) => {
+                    self.context.add_diagnostic(too_many_arguments(
+                        target.text(),
+                        target.span(),
+                        maximum,
+                        count,
+                        expr.arguments().skip(maximum).map(|e| e.span()),
+                    ));
+                }
+                Err(FunctionBindError::ArgumentTypeMismatch { index, expected }) => {
+                    self.context.add_diagnostic(argument_type_mismatch(
+                        target.text(),
+                        &expected,
+                        &arguments[index],
+                        expr.arguments()
+                            .nth(index)
+                            .map(|e| e.span())
+                            .expect("should have span"),
+                    ));
+                }
+                Err(FunctionBindError::Ambiguous { first, second }) => {
+                    self.context.add_diagnostic(ambiguous_argument(
+                        target.text(),
+                        target.span(),
+                        &first,
+                        &second,
+                    ));
+                }
+            }
+        } else {
+            // Exceeded the maximum number of arguments to any function
+            match f.param_min_max(self.context.version()) {
+                Some((_, max)) => {
+                    assert!(max <= MAX_PARAMETERS);
+                    self.context.add_diagnostic(too_many_arguments(
+                        target.text(),
+                        target.span(),
+                        max,
+                        count,
+                        expr.arguments().skip(max).map(|e| e.span()),
+                    ));
+                }
+                None => {
+                    self.context.add_diagnostic(unsupported_function(
+                        f.minimum_version(),
+                        target.text(),
+                        target.span(),
+                    ));
+                }
             }
         }
+
+        Some(f.realize_unconstrained_return_type(arguments))
     }
 
     /// Evaluates the type of an index expression.
@@ -1785,13 +1816,15 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
     }
 
     /// Checks for unnecessary function calls.
-    fn check_unnecessary_call<T: TreeToken>(
+    fn check_unnecessary_call<N: TreeNode + Exceptable>(
         &mut self,
-        target: &Ident<T>,
+        call: &CallExpr<N>,
         arguments: &[Type],
-        mut spans: impl Iterator<Item = Span>,
         severity: Severity,
     ) {
+        let target = call.target();
+        let mut arg_spans = call.arguments().map(|arg| arg.span());
+
         let (label, span, fix) = match target.text() {
             "select_first" => {
                 if let Some(ty) = arguments[0].as_array().map(|a| a.element_type()) {
@@ -1800,7 +1833,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     }
                     (
                         format!("array element {ty:#} is not optional"),
-                        spans.next().expect("should have span"),
+                        arg_spans.next().expect("should have span"),
                         "replace the function call with the array's first element",
                     )
                 } else {
@@ -1814,7 +1847,7 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
                     }
                     (
                         format!("array element {ty:#} is not optional"),
-                        spans.next().expect("should have span"),
+                        arg_spans.next().expect("should have span"),
                         "replace the function call with the array itself",
                     )
                 } else {
@@ -1828,17 +1861,19 @@ impl<'a, C: EvaluationContext> ExprTypeEvaluator<'a, C> {
 
                 (
                     format!("{ty:#} is not optional", ty = arguments[0]),
-                    spans.next().expect("should have span"),
+                    arg_spans.next().expect("should have span"),
                     "replace the function call with `true`",
                 )
             }
             _ => return,
         };
 
-        self.context.add_diagnostic(
+        self.context.exceptable_add_diagnostic(
             unnecessary_function_call(target.text(), target.span(), &label, span)
                 .with_severity(severity)
                 .with_fix(fix),
+            call.inner(),
+            &UnnecessaryFunctionCall::EXCEPTABLE_NODES,
         )
     }
 }

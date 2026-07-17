@@ -7,7 +7,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::thread::available_parallelism;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -194,22 +193,20 @@ impl HttpTransferer {
         let copy_config = cloud_copy::Config::builder()
             .with_link_to_cache(true)
             .with_overwrite(true)
-            .with_maybe_retries(config.http.retries.into())
+            .with_hash_algorithm(config.http.hash_algorithm)
+            .with_maybe_retries(Some(
+                config
+                    .http
+                    .retries
+                    .try_into()
+                    .context("invalid HTTP retries")?,
+            ))
             .with_azure(azure_config)
             .with_s3(s3_config)
             .with_google(google_config)
             .build();
 
         let client = HttpClient::new_with_cache(copy_config.clone(), cache_dir);
-
-        let semaphore = Semaphore::new(
-            config
-                .http
-                .parallelism
-                .inner()
-                .cloned()
-                .unwrap_or_else(|| available_parallelism().map(Into::into).unwrap_or(1)),
-        );
 
         Ok(Self(Arc::new(HttpTransfererInner {
             config: copy_config,
@@ -218,7 +215,7 @@ impl HttpTransferer {
             temp_dir,
             cancel,
             events,
-            semaphore,
+            semaphore: Semaphore::new(config.http.parallelism.into()),
         })))
     }
 }

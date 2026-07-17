@@ -6,16 +6,21 @@
 //! See: [LSP Specification](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#textDocument_hover)
 
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
 use lsp_types::Hover;
 use lsp_types::HoverContents;
 use lsp_types::MarkupContent;
 use lsp_types::MarkupKind;
+use rowan::Direction;
 use tracing::debug;
 use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
+use wdl_ast::Comment;
+use wdl_ast::CommentKind;
 use wdl_ast::Documented;
+use wdl_ast::Ident;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxNode;
 use wdl_ast::SyntaxToken;
@@ -25,13 +30,15 @@ use wdl_ast::v1::AccessExpr;
 use wdl_ast::v1::CallExpr;
 use wdl_ast::v1::CallTarget;
 use wdl_ast::v1::Decl;
-use wdl_ast::v1::EnumVariant;
+use wdl_ast::v1::EnumChoice;
 use wdl_ast::v1::LiteralStruct;
 use wdl_ast::v1::LiteralStructItem;
 use wdl_ast::v1::MetadataObject;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::ParameterMetadataSection;
 use wdl_ast::v1::StructDefinition;
+use wdl_grammar::SupportedVersion;
+use wdl_grammar::SyntaxElement;
 
 use crate::Document;
 use crate::SourcePosition;
@@ -39,7 +46,7 @@ use crate::SourcePositionEncoding;
 use crate::graph::DocumentGraph;
 use crate::graph::ParseState;
 use crate::handlers::TypeEvalContext;
-use crate::handlers::common::find_identifier_token_at_offset;
+use crate::handlers::common::comments_to_string;
 use crate::handlers::common::location_from_span;
 use crate::handlers::common::position_to_offset;
 use crate::handlers::common::provide_enum_documentation;
@@ -86,14 +93,15 @@ pub fn hover(
     };
 
     let offset = position_to_offset(&lines, position, encoding)?;
-    let Some(token) = find_identifier_token_at_offset(&root, offset) else {
-        bail!("no identifier found at position");
-    };
+    let hovered_token = root
+        .token_at_offset(offset)
+        .find(|t| t.kind() == SyntaxKind::Ident || t.kind() == SyntaxKind::Comment)
+        .ok_or_else(|| anyhow!("no hoverable token found at offset"))?;
 
-    let parent_node = token.parent().expect("token has no parent");
+    let parent_node = hovered_token.parent().expect("token has no parent");
 
-    if let Ok(Some(value)) = resolve_hover_content(&parent_node, &token, document, graph) {
-        let range = location_from_span(document_uri, token.span(), &lines)?.range;
+    if let Ok(Some(value)) = resolve_hover_content(&parent_node, &hovered_token, document, graph) {
+        let range = location_from_span(document_uri, hovered_token.span(), &lines)?.range;
         Ok(Some(Hover {
             contents: HoverContents::Markup(MarkupContent {
                 kind: MarkupKind::Markdown,
@@ -170,15 +178,58 @@ fn resolve_hover_by_context(
     document: &Document,
     graph: &DocumentGraph,
 ) -> Result<Option<String>> {
+    // Hovering doc comments of an item produces the same content as hovering the
+    // identifier of the item
+    if token.kind() == SyntaxKind::Comment {
+        let comment = Comment::cast(token.clone()).expect("should cast");
+        if comment.kind() != CommentKind::Documentation {
+            return Ok(None);
+        }
+
+        for sibling in token.siblings_with_tokens(Direction::Next) {
+            let target = match sibling {
+                SyntaxElement::Node(target) => target,
+                // Also lets line comments and directives through, like `wdl-doc`
+                SyntaxElement::Token(token)
+                    if token.kind() == SyntaxKind::Comment
+                        || token.kind() == SyntaxKind::Whitespace =>
+                {
+                    continue;
+                }
+                _ => break,
+            };
+
+            if target.kind() == SyntaxKind::VersionStatementNode {
+                return match document.root().doc_comments() {
+                    Some(comments) if !comments.is_empty() => Ok(comments_to_string(comments)),
+                    _ => Ok(None),
+                };
+            }
+
+            let Some(item_name) = target.descendants_with_tokens().find_map(|element| {
+                if let SyntaxElement::Token(token) = element
+                    && let Some(ident) = Ident::cast(token)
+                {
+                    return Some(ident);
+                }
+                None
+            }) else {
+                break;
+            };
+
+            return resolve_hover_content(&target, item_name.inner(), document, graph);
+        }
+    }
+
     match parent_node.kind() {
         SyntaxKind::TypeRefNode | SyntaxKind::LiteralStructNode => {
             if let Some(s) = document.struct_by_name(token.text()) {
-                let root = if let Some(ns_name) = s.namespace() {
-                    // SAFETY: we just found a struct with this namespace name and the document
-                    // guarantees that `document.namespaces` contains a corresponding entry for
-                    // `ns_name`.
-                    let ns = document.namespace(ns_name).unwrap();
-                    let node = graph.get(graph.get_index(ns.source()).unwrap());
+                let root = if let Some(source) = s.source() {
+                    // SAFETY: `source` is the URI the import resolved to,
+                    // which is guaranteed to be present in the graph.
+                    let node = graph.get(graph.get_index(source).unwrap());
+                    // SAFETY: we successfully resolved the node above; it is
+                    // in `ParseState::Parsed`, which has a document.
                     node.document().unwrap().root()
                 } else {
                     document.root()
@@ -186,12 +237,12 @@ fn resolve_hover_by_context(
                 return Ok(provide_struct_documentation(s, &root));
             }
             if let Some(e) = document.enum_by_name(token.text()) {
-                let root = if let Some(ns_name) = e.namespace() {
-                    // SAFETY: we just found an enum with this namespace name and the document
-                    // guarantees that `document.namespaces` contains a corresponding entry for
-                    // `ns_name`.
-                    let ns = document.namespace(ns_name).unwrap();
-                    let node = graph.get(graph.get_index(ns.source()).unwrap());
+                let root = if let Some(source) = e.source() {
+                    // SAFETY: `source` is the URI the import resolved to,
+                    // which is guaranteed to be present in the graph.
+                    let node = graph.get(graph.get_index(source).unwrap());
+                    // SAFETY: we successfully resolved the node above; it is
+                    // in `ParseState::Parsed`, which has a document.
                     node.document().unwrap().root()
                 } else {
                     document.root()
@@ -199,22 +250,22 @@ fn resolve_hover_by_context(
                 return Ok(provide_enum_documentation(e, &root));
             }
         }
-        SyntaxKind::EnumVariantNode => {
-            let variant = EnumVariant::cast(parent_node.clone()).unwrap();
-            let variant_name = variant.name().text().to_string();
+        SyntaxKind::EnumChoiceNode => {
+            let choice = EnumChoice::cast(parent_node.clone()).unwrap();
+            let choice_name = choice.name().text().to_string();
 
-            // Show the variant value (explicit or inferred)
-            if let Some(value_expr) = variant.value() {
+            // Show the choice value (explicit or inferred)
+            if let Some(value_expr) = choice.value() {
                 // Has explicit value
                 let content = format!(
                     "```wdl\n{} = {}\n```",
-                    variant_name,
+                    choice_name,
                     value_expr.inner().text()
                 );
                 return Ok(Some(content));
             } else {
-                // Inferred value (defaults to string of variant name)
-                let content = format!("```wdl\n{} = \"{}\"\n```", variant_name, variant_name);
+                // Inferred value (defaults to string of choice name)
+                let content = format!("```wdl\n{} = \"{}\"\n```", choice_name, choice_name);
                 return Ok(Some(content));
             }
         }
@@ -228,7 +279,6 @@ fn resolve_hover_by_context(
                     if token.span() == name.span() {
                         (Some(ns), name)
                     } else if token.span() == ns.span() {
-                        // namespace identifier hovered
                         if let Some(ns) = document.namespace(token.text()) {
                             return Ok(Some(format!(
                                 "```wdl\n(import) {}\n```\nImports from `{}`",
@@ -247,13 +297,8 @@ fn resolve_hover_by_context(
             };
 
             let target_doc = if let Some(ns_name) = ns_name {
-                // SAFETY: we just found a call with this namespace name and the document
-                // guarantees that `document.namespaces` contains a corresponding entry for
-                // `ns_name`.
                 let ns = document.namespace(ns_name.text()).unwrap();
 
-                // SAFETY: `ns.source` comes from a valid namespace entry which guarantees the
-                // document exists in the graph.
                 let node = graph.get(graph.get_index(ns.source()).unwrap());
                 node.document().unwrap()
             } else {
@@ -290,17 +335,17 @@ fn resolve_hover_by_context(
 
             let (member_ty, documentation) = match target_type {
                 Type::TypeNameRef(CustomType::Enum(e)) => {
-                    if e.variants().iter().any(|text| text == member.text()) {
+                    if e.choices().iter().any(|text| text == member.text()) {
                         // Try to find the enum definition to get the actual value
                         if let Some(enum_entry) = document.enum_by_name(e.name()) {
                             let definition = enum_entry.definition();
 
-                            // Find the specific variant
-                            if let Some(variant) = definition
-                                .variants()
-                                .find(|v| v.name().text() == member.text())
+                            // Find the specific choice
+                            if let Some(choice) = definition
+                                .choices()
+                                .find(|c| c.name().text() == member.text())
                             {
-                                let value_str = if let Some(value_expr) = variant.value() {
+                                let value_str = if let Some(value_expr) = choice.value() {
                                     value_expr.inner().text().to_string()
                                 } else {
                                     format!("\"{}\"", member.text())
@@ -334,15 +379,8 @@ fn resolve_hover_by_context(
                 }
                 Type::Compound(CompoundType::Custom(CustomType::Struct(s)), _) => {
                     let target_doc = if let Some(s) = document.struct_by_name(s.name()) {
-                        if let Some(ns_name) = s.namespace() {
-                            // SAFETY: we just found a struct with this namespace name and the
-                            // document guarantees that `document.namespaces` contains a
-                            // corresponding entry for `ns_name`.
-                            let ns = document.namespace(ns_name).unwrap();
-
-                            // SAFETY: `ns.source` comes from a valid namespace entry which
-                            // guarantees the document exists in the graph.
-                            let node = graph.get(graph.get_index(ns.source()).unwrap());
+                        if let Some(source) = s.source() {
+                            let node = graph.get(graph.get_index(source).unwrap());
                             node.document().unwrap()
                         } else {
                             document
@@ -366,17 +404,17 @@ fn resolve_hover_by_context(
                     _ => (None, None),
                 },
                 Type::Compound(CompoundType::Custom(CustomType::Enum(e)), _) => {
-                    if e.variants().iter().any(|text| text == member.text()) {
+                    if e.choices().iter().any(|text| text == member.text()) {
                         // Try to find the enum definition to get the actual value
                         if let Some(enum_entry) = document.enum_by_name(e.name()) {
                             let definition = enum_entry.definition();
 
-                            // Find the specific variant
-                            if let Some(variant) = definition
-                                .variants()
-                                .find(|v| v.name().text() == member.text())
+                            // Find the specific choice
+                            if let Some(choice) = definition
+                                .choices()
+                                .find(|c| c.name().text() == member.text())
                             {
-                                let value_str = if let Some(value_expr) = variant.value() {
+                                let value_str = if let Some(value_expr) = choice.value() {
                                     value_expr.inner().text().to_string()
                                 } else {
                                     format!("\"{}\"", member.text())
@@ -425,8 +463,11 @@ fn resolve_hover_by_context(
             }
 
             if let Some(func) = STDLIB.function(call_expr.target().text()) {
-                let content = get_function_hover_content(call_expr.target().text(), func);
-                return Ok(Some(content));
+                return Ok(get_function_hover_content(
+                    document.version(),
+                    call_expr.target().text(),
+                    func,
+                ));
             }
         }
 
@@ -485,9 +526,22 @@ fn find_global_hover_in_doc(document: &Document, token: &SyntaxToken) -> Result<
 
 /// Generates markdown content for a standard library function's hover info.
 ///
-/// This includes all overloaded signatures and the documentation from the WDL
-/// specification.
-fn get_function_hover_content(name: &str, func: &Function) -> String {
+/// This includes all overloaded signatures appropriate for the specified
+/// `version` and the documentation from the WDL specification.
+///
+/// Returns `None` if the document has no supported version or the function is
+/// unavailable in that version.
+fn get_function_hover_content(
+    version: Option<SupportedVersion>,
+    name: &str,
+    func: &Function,
+) -> Option<String> {
+    let v = version?;
+
+    if func.minimum_version() > v {
+        return None;
+    }
+
     let (detail, docs) = match func {
         Function::Monomorphic(m) => {
             let sig = m.signature();
@@ -500,6 +554,7 @@ fn get_function_hover_content(name: &str, func: &Function) -> String {
             let detail = p
                 .signatures()
                 .iter()
+                .filter(|s| s.minimum_version() <= v)
                 .map(|s| {
                     let params = TypeParameters::new(s.type_parameters());
                     format!("```wdl\n{}{}\n```", name, s.display(&params))
@@ -509,13 +564,14 @@ fn get_function_hover_content(name: &str, func: &Function) -> String {
 
             let docs = p
                 .signatures()
-                .first()
+                .iter()
+                .find(|s| s.minimum_version() <= v)
                 .and_then(|s| s.definition())
                 .unwrap_or("");
             (detail, docs)
         }
     };
-    format!("{detail}\n\n{docs}")
+    Some(format!("{detail}\n\n{docs}"))
 }
 
 /// Finds documentation for a variable declaration.

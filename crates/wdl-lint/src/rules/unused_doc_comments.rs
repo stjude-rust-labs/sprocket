@@ -6,6 +6,7 @@ use wdl_analysis::LabeledSnippet;
 use wdl_analysis::Visitor;
 use wdl_ast::AstToken;
 use wdl_ast::Comment;
+use wdl_ast::CommentKind;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SyntaxElement;
@@ -64,7 +65,7 @@ const VALID_SYNTAX_KINDS_FOR_DOC_COMMENTS: &[SyntaxKind] = &[
     SyntaxKind::StructDefinitionNode,
     SyntaxKind::EnumDefinitionNode,
     SyntaxKind::TaskDefinitionNode,
-    SyntaxKind::EnumVariantNode,
+    SyntaxKind::EnumChoiceNode,
     SyntaxKind::UnboundDeclNode,
     SyntaxKind::BoundDeclNode,
 ];
@@ -150,7 +151,7 @@ impl UnusedDocCommentsRule {
 
             if let Some(continued_comment) =
                 sibling.as_token().and_then(|t| Comment::cast(t.clone()))
-                && continued_comment.is_doc_comment()
+                && continued_comment.kind() == CommentKind::Documentation
             {
                 self.skip_count += 1;
                 span_end = continued_comment.span().end();
@@ -195,7 +196,7 @@ impl Rule for UnusedDocCommentsRule {
         - Fields in Input Sections
         - Fields in Output Sections
         - Enum Definitions
-        - Enum Variants"
+        - Enum Choices"
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -265,7 +266,7 @@ impl Visitor for UnusedDocCommentsRule {
 
         // If the visited comment isn't a doc comment, then
         // there's no need to process it!
-        if !comment.is_doc_comment() {
+        if comment.kind() != CommentKind::Documentation {
             return;
         }
 

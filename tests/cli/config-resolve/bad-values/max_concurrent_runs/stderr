@@ -1,4 +1,6 @@
-error: parsing `bad.toml`
+error: failed to deserialize configuration file `bad.toml`
+  ┌─ bad.toml:2:23
+  │
+2 │ max_concurrent_runs = "foobar"
+  │                       ^^^^^^^^ expected a positive integer or `unlimited` for maximum concurrent runs
 
-Caused by:
-    expected a positive number or `unlimited`, got `foobar` for key `server.max_concurrent_runs`

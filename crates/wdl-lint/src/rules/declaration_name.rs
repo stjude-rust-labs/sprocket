@@ -47,7 +47,7 @@ impl DeclarationNameRule {
     /// Create a new instance of `DeclarationNameRule`.
     pub fn new(config: &Config) -> DeclarationNameRule {
         Self {
-            allowed_names: config.allowed_names.clone(),
+            allowed_names: HashSet::from_iter(config.allowed_names.iter().cloned()),
         }
     }
 }
@@ -184,20 +184,12 @@ fn check_decl_name(
             let words = convert_case::split(&name, &convert_case::Boundary::defaults());
             if words.into_iter().any(|w| w == type_lower) {
                 let diagnostic = decl_identifier_with_type(ident.span(), name, type_name);
-                state.exceptable_add(
-                    diagnostic,
-                    rowan::NodeOrToken::Node(decl.inner().to_owned()),
-                    exceptable_nodes,
-                );
+                state.exceptable_add(diagnostic, decl.inner(), exceptable_nodes);
                 return;
             }
         } else if name_lower.contains(&type_lower) {
             let diagnostic = decl_identifier_with_type(ident.span(), name, type_name);
-            state.exceptable_add(
-                diagnostic,
-                rowan::NodeOrToken::Node(decl.inner().to_owned()),
-                exceptable_nodes,
-            );
+            state.exceptable_add(diagnostic, decl.inner(), exceptable_nodes);
             return;
         }
     }

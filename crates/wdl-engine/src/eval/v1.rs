@@ -6,6 +6,7 @@ mod validators;
 mod workflow;
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::BufWriter;
 use std::path::Path;
@@ -19,7 +20,7 @@ use serde::Serialize;
 pub(crate) use task::*;
 use tokio::sync::broadcast;
 use tracing::info;
-use wdl_analysis::types::EnumVariantCacheKey;
+use wdl_analysis::types::EnumChoiceCacheKey;
 
 use super::CancellationContext;
 use super::Events;
@@ -70,8 +71,8 @@ pub struct Evaluator {
     cache: Option<CallCache>,
     /// The events for evaluation.
     events: Option<broadcast::Sender<EngineEvent>>,
-    /// Cache for evaluated enum variant values to avoid redundant AST lookups.
-    variant_cache: Arc<Mutex<HashMap<EnumVariantCacheKey, Value>>>,
+    /// Cache for evaluated enum choice values to avoid redundant AST lookups.
+    choice_cache: Arc<Mutex<HashMap<EnumChoiceCacheKey, Value>>>,
 }
 
 impl Evaluator {
@@ -85,12 +86,17 @@ impl Evaluator {
         cancellation: CancellationContext,
         events: Events,
     ) -> Result<Self> {
-        config.validate().await?;
+        config
+            .validate()
+            .await
+            .context("failed to validate configuration")?;
 
         let root_dir = root_dir.as_ref();
         let backend = config
             .create_backend(root_dir, events.clone(), cancellation.clone())
-            .await?;
+            .await
+            .context("failed to create task execution backend")?;
+
         let transferer = Arc::new(HttpTransferer::new(
             config.clone(),
             cancellation.first(),
@@ -108,9 +114,13 @@ impl Evaluator {
                     config.task.digests,
                     transferer.clone(),
                     Arc::new(CallCacheExclusions {
-                        inputs: config.task.excluded_cache_inputs.clone(),
-                        requirements: config.task.excluded_cache_requirements.clone(),
-                        hints: config.task.excluded_cache_hints.clone(),
+                        inputs: HashSet::from_iter(
+                            config.task.excluded_cache_inputs.iter().cloned(),
+                        ),
+                        requirements: HashSet::from_iter(
+                            config.task.excluded_cache_requirements.iter().cloned(),
+                        ),
+                        hints: HashSet::from_iter(config.task.excluded_cache_hints.iter().cloned()),
                     }),
                 )
                 .await?,
@@ -124,7 +134,7 @@ impl Evaluator {
             transferer,
             cache,
             events: events.engine().clone(),
-            variant_cache: Default::default(),
+            choice_cache: Default::default(),
         })
     }
 }

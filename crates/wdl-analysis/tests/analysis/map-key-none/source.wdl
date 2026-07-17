@@ -2,8 +2,10 @@
 version 1.3
 
 task test {
-    #@except: UnusedDeclaration
-    Map[String?, String] incorrect = { None: "wrong" }
-    
+    #@ except: UnusedDeclaration
+    Map[String?, String] incorrect = {
+        None: "wrong",
+    }
+
     command <<<>>>
 }

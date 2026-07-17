@@ -1,6 +1,6 @@
 [package]
 name = "wdl-diagnostics"
-version = "0.1.2"
+version = "0.1.5"
 description = "Utilities for reporting diagnostics in the wdl-* family of crates"
 license.workspace = true
 edition.workspace = true
@@ -12,14 +12,20 @@ rust-version.workspace = true
 
 [features]
 backtrace = ["dep:wdl-engine"]
+# Enables APIs related to Sprocket's Python bindings.
+#
+# This feature is not subject to `wdl-diagnostics`'s semver guarantees. There may be breaking
+# changes across patch versions. Use at your own risk.
+unstable-python = ["dep:pyo3", "wdl-ast/unstable-python"]
 
 [dependencies]
 anyhow.workspace = true
 clap.workspace = true
 codespan-reporting.workspace = true
-serde.workspace = true
-wdl-ast = { path = "../wdl-ast", version = "0.23.0" }
-wdl-engine = { path = "../wdl-engine", version = "0.14.0", optional = true }
+pyo3 = { workspace = true, optional = true, features = ["anyhow"] }
+schemars.workspace = true
+wdl-ast = { path = "../wdl-ast", version = "0.26.0" }
+wdl-engine = { path = "../wdl-engine", version = "0.17.0", optional = true }
 
 [lints]
 workspace = true

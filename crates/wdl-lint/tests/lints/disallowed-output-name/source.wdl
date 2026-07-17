@@ -1,3 +1,5 @@
+#@ except: BashSetSyntax
+
 version 1.3
 
 #@ except: RequirementsSection, SnakeCase
@@ -14,11 +16,9 @@ task foo {
         }
     }
 
-    parameter_meta {
-    }
+    parameter_meta {}
 
-    input {
-    }
+    input {}
 
     command <<< >>>
 

@@ -1,6 +1,6 @@
 [package]
 name = "wdl-grammar"
-version = "0.22.0"
+version = "0.25.0"
 description = "A parse tree for Workflow Description Language (WDL) documents"
 authors.workspace = true
 rust-version.workspace = true
@@ -10,12 +10,19 @@ homepage.workspace = true
 repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-grammar"
 documentation = "https://docs.rs/wdl-grammar"
 
+[features]
+# Enables APIs related to Sprocket's Python bindings.
+#
+# This feature is not subject to `wdl-grammar`'s semver guarantees. There may be breaking changes
+# across patch versions. Use at your own risk.
+unstable-python = ["dep:pyo3"]
+
 [dependencies]
 codespan-reporting = { workspace = true }
+indexmap = { workspace = true }
 logos = { workspace = true }
+pyo3 = { workspace = true, optional = true }
 rowan = { workspace = true }
-serde = { workspace = true }
-serde_with = { workspace = true }
 strum = { workspace = true }
 
 [dev-dependencies]

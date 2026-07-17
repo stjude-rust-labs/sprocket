@@ -2,11 +2,15 @@
 
 use std::str::FromStr;
 
+#[cfg(feature = "unstable-python")]
+pub use python::py_document;
+
 use super::Diagnostic;
 use super::Span;
 use super::SupportedVersion;
 use super::lexer::PreambleToken;
 use super::parser::Event;
+use super::parser::ParseDiagnostic;
 use super::parser::Parser;
 use super::tree::SyntaxKind;
 use crate::lexer::VersionStatementToken;
@@ -97,15 +101,21 @@ pub fn document(
             }
         }
         found => {
-            let mut diagnostic =
-                Diagnostic::error("a WDL document must start with a version statement");
+            let mut diagnostic = Diagnostic::error("missing version statement")
+                .with_help(
+                    "omitting the version statement declares the document as WDL draft-2, which \
+                     is not supported",
+                )
+                .with_fix("upgrade WDL draft-2 documents to v1.0 or later");
 
             if let Some((_, span)) = found {
-                diagnostic =
-                    diagnostic.with_label("a version statement must come before this", span);
+                diagnostic = diagnostic.with_label(
+                    "WDL v1.0+ documents must begin with a version statement",
+                    span,
+                );
             }
 
-            (parser, diagnostic)
+            (parser, diagnostic.into())
         }
     };
 
@@ -132,7 +142,7 @@ fn unsupported_version(version: &str, span: Span) -> Diagnostic {
 fn version_statement(
     mut parser: Parser<'_, PreambleToken>,
     fallback_version: Option<SupportedVersion>,
-) -> (Parser<'_, PreambleToken>, Option<Diagnostic>) {
+) -> (Parser<'_, PreambleToken>, Option<ParseDiagnostic>) {
     let marker = parser.start();
     parser.require(PreambleToken::VersionKeyword);
 
@@ -140,11 +150,12 @@ fn version_statement(
     match parser.expect(VersionStatementToken::Version) {
         Ok(span) => match SupportedVersion::from_str(parser.source(span)) {
             Ok(version) => parser.set_version(version),
-            Err(e) => {
+            Err(_) => {
                 if let Some(fallback) = fallback_version {
                     parser.set_version(fallback);
                 } else {
-                    parser.diagnostic(unsupported_version(&e, span));
+                    let diagnostic = unsupported_version(parser.source(span), span).into();
+                    parser.diagnostic(diagnostic);
                 }
             }
         },
@@ -156,4 +167,33 @@ fn version_statement(
 
     marker.complete(&mut parser, SyntaxKind::VersionStatementNode);
     (parser.morph(), None)
+}
+
+/// Python-specific APIs.
+#[cfg(feature = "unstable-python")]
+mod python {
+    use pyo3::prelude::*;
+
+    use super::*;
+    use crate::lexer::Lexer;
+    use crate::parser::PyEvent;
+
+    /// Parses a WDL document.
+    ///
+    /// Returns the parser events that result from parsing the document.
+    #[pyfunction(name = "document")]
+    pub fn py_document(
+        // The original function accepts a `Parser` instead of the source string. `Parser` is
+        // intentionally not implemented in the Python bindings due to its use of generics, which
+        // is why it is substituted out here.
+        source: &str,
+        fallback_version: Option<SupportedVersion>,
+    ) -> (Vec<PyEvent>, Vec<Diagnostic>) {
+        let (events, diagnostics) = document(Parser::new(Lexer::new(source)), fallback_version);
+
+        // Converts `Event`s into `PyEvent`s.
+        let events = events.into_iter().map(PyEvent::from_event).collect();
+
+        (events, diagnostics)
+    }
 }

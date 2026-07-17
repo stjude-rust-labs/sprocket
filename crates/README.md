@@ -8,12 +8,12 @@
       <img alt="CI: Status" src="https://github.com/stjude-rust-labs/sprocket/actions/workflows/CI.yml/badge.svg" />
     </a>
     <a href="https://crates.io/crates/wdl" target="_blank">
-      <img alt="crates.io version" src="https://img.shields.io/crates/v/wdl">
+      <img alt="crates.io: Version" src="https://img.shields.io/crates/v/wdl">
     </a>
-    <a href="https://rustseq.zulipchat.com/join/coxb7c7b3bbahlfx7poeqqrd/" target="_blank">
-      <img alt="CI: Status" src="https://img.shields.io/badge/chat-%23workflows--lib--wdl-blue?logo=zulip&logoColor=f6f6f6" />
+    <a href="https://join.slack.com/t/openwdl/shared_invite/zt-ctmj4mhf-cFBNxIiZYs6SY9HgM9UAVw" target="_blank">
+      <img alt="Chat: Slack" src="https://badgen.net/badge/icon/%23sprocket/4A154B?icon=slack&label=slack" />
     </a>
-    <img alt="crates.io downloads" src="https://img.shields.io/crates/d/wdl">
+    <img alt="crates.io: Downloads" src="https://img.shields.io/crates/d/wdl">
   </p>
 
   <p align="center">

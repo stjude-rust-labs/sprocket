@@ -8,11 +8,11 @@ use anyhow::Context;
 use chrono::prelude::*;
 use clap::Parser;
 use crankshaft::docker::Docker;
-use serde::Deserialize;
-use serde::Serialize;
+use toml_spanner::Toml;
 use wdl::ast::AstToken;
 use wdl::ast::v1::Expr;
 use wdl::ast::v1::LiteralExpr;
+use wdl::diagnostics::Mode;
 
 use crate::Config;
 use crate::analysis::Analysis;
@@ -33,20 +33,26 @@ pub struct Args {
     /// Output directory for the lock file.
     #[clap(short, long, value_name = "DIR")]
     pub output: Option<PathBuf>,
+
+    /// The report mode for any emitted diagnostics.
+    #[arg(short = 'm', long, value_name = "MODE", global = true)]
+    pub report_mode: Option<Mode>,
 }
 
 /// Represents the lock file structure.
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Toml)]
+#[toml(ToToml)]
 struct Lock {
     /// The time when the lock file was created.
-    #[serde(rename = "generation_time")]
+    #[toml(rename = "generation_time")]
     timestamp: String,
     /// A mapping of Docker image names to their sha256 digests.
     images: HashMap<String, String>,
 }
 
 /// Performs the `lock` command.
-pub async fn lock(args: Args, config: Config) -> CommandResult<()> {
+pub async fn lock(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
+    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     let output_path = args
         .output
         .unwrap_or_else(|| PathBuf::from(std::path::Component::CurDir.as_os_str()))
@@ -55,8 +61,10 @@ pub async fn lock(args: Args, config: Config) -> CommandResult<()> {
     let s = args.source.unwrap_or_default();
     let results = Analysis::default()
         .add_source(s)
-        .fallback_version(config.common.wdl.fallback_version.inner().cloned())
-        .run()
+        .fallback_version(config.common.wdl.fallback_version.into())
+        .modules_config(config.modules.clone())
+        .feature_flags(config.common.wdl.feature_flags)
+        .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
 
@@ -130,7 +138,7 @@ pub async fn lock(args: Args, config: Config) -> CommandResult<()> {
         timestamp: time.to_string(),
         images: map,
     };
-    let data = toml::to_string_pretty(&lock).context("failed to serialize lock contents")?;
+    let data = toml_spanner::to_string(&lock).context("failed to serialize lock contents")?;
     std::fs::write(output_path, data).context("failed to write lock file")?;
 
     Ok(())

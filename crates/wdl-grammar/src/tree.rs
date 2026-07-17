@@ -28,6 +28,18 @@ use crate::parser::Parser;
 /// This enumeration is a union of all supported WDL tokens and nodes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, VariantArray)]
 #[repr(u16)]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(
+        module = "sprocket_bio.grammar",
+        frozen,
+        rename_all = "SCREAMING_SNAKE_CASE",
+        from_py_object,
+        eq,
+        ord,
+        hash
+    )
+)]
 pub enum SyntaxKind {
     /// The token is unknown to WDL.
     Unknown,
@@ -223,8 +235,8 @@ pub enum SyntaxKind {
     EnumDefinitionNode,
     /// Represents an enum type parameter node.
     EnumTypeParameterNode,
-    /// Represents an enum variant node.
-    EnumVariantNode,
+    /// Represents an enum choice node.
+    EnumChoiceNode,
     /// Represents a task definition node.
     TaskDefinitionNode,
     /// Represents a workflow definition node.
@@ -505,7 +517,7 @@ impl SyntaxKind {
             Self::StructDefinitionNode => "struct definition",
             Self::EnumDefinitionNode => "enum definition",
             Self::EnumTypeParameterNode => "enum type parameter",
-            Self::EnumVariantNode => "enum variant",
+            Self::EnumChoiceNode => "enum choice",
             Self::TaskDefinitionNode => "task definition",
             Self::WorkflowDefinitionNode => "workflow definition",
             Self::UnboundDeclNode => "declaration without assignment",
@@ -597,42 +609,34 @@ impl SyntaxKind {
     }
 
     /// Returns whether the [`SyntaxKind`] is a keyword.
+    ///
+    /// NOTE: This does not include types, see [`Self::is_type()`].
     pub fn is_keyword(&self) -> bool {
         matches!(
             self,
             SyntaxKind::AfterKeyword
                 | SyntaxKind::AliasKeyword
-                | SyntaxKind::ArrayTypeKeyword
                 | SyntaxKind::AsKeyword
-                | SyntaxKind::BooleanTypeKeyword
                 | SyntaxKind::CallKeyword
                 | SyntaxKind::CommandKeyword
-                | SyntaxKind::DirectoryTypeKeyword
                 | SyntaxKind::ElseKeyword
                 | SyntaxKind::EnvKeyword
                 | SyntaxKind::FalseKeyword
-                | SyntaxKind::FileTypeKeyword
-                | SyntaxKind::FloatTypeKeyword
                 | SyntaxKind::FromKeyword
                 | SyntaxKind::HintsKeyword
                 | SyntaxKind::IfKeyword
                 | SyntaxKind::ImportKeyword
                 | SyntaxKind::InKeyword
                 | SyntaxKind::InputKeyword
-                | SyntaxKind::IntTypeKeyword
-                | SyntaxKind::MapTypeKeyword
                 | SyntaxKind::MetaKeyword
                 | SyntaxKind::NoneKeyword
                 | SyntaxKind::NullKeyword
                 | SyntaxKind::ObjectKeyword
-                | SyntaxKind::ObjectTypeKeyword
                 | SyntaxKind::OutputKeyword
-                | SyntaxKind::PairTypeKeyword
                 | SyntaxKind::ParameterMetaKeyword
                 | SyntaxKind::RequirementsKeyword
                 | SyntaxKind::RuntimeKeyword
                 | SyntaxKind::ScatterKeyword
-                | SyntaxKind::StringTypeKeyword
                 | SyntaxKind::StructKeyword
                 | SyntaxKind::EnumKeyword
                 | SyntaxKind::TaskKeyword
@@ -640,6 +644,23 @@ impl SyntaxKind {
                 | SyntaxKind::TrueKeyword
                 | SyntaxKind::VersionKeyword
                 | SyntaxKind::WorkflowKeyword
+        )
+    }
+
+    /// Returns whether the [`SyntaxKind`] is a predefined type keyword.
+    pub fn is_type(&self) -> bool {
+        matches!(
+            self,
+            SyntaxKind::ArrayTypeKeyword
+                | SyntaxKind::BooleanTypeKeyword
+                | SyntaxKind::DirectoryTypeKeyword
+                | SyntaxKind::FileTypeKeyword
+                | SyntaxKind::FloatTypeKeyword
+                | SyntaxKind::IntTypeKeyword
+                | SyntaxKind::MapTypeKeyword
+                | SyntaxKind::ObjectTypeKeyword
+                | SyntaxKind::PairTypeKeyword
+                | SyntaxKind::StringTypeKeyword
         )
     }
 
@@ -665,7 +686,6 @@ impl SyntaxKind {
                 | SyntaxKind::Assignment
                 | SyntaxKind::QuestionMark
                 | SyntaxKind::Dot
-                | SyntaxKind::Colon
         )
     }
 }
@@ -891,6 +911,72 @@ impl SyntaxTokenExt for SyntaxToken {
             true
         })
         .find(|t| t.kind() == SyntaxKind::Comment)
+    }
+}
+
+/// Python-specific APIs.
+#[cfg(feature = "unstable-python")]
+mod python {
+    use pyo3::exceptions::PyValueError;
+    use pyo3::prelude::*;
+
+    use super::*;
+
+    #[pymethods]
+    impl SyntaxKind {
+        /// Returns whether the token is a symbolic `SyntaxKind`.
+        ///
+        /// Generally speaking, symbolic `SyntaxKind`s have special meanings
+        /// during parsing—they are not real elements of the grammar but rather
+        /// an implementation detail.
+        #[pyo3(name = "is_symbolic")]
+        fn py_is_symbolic(&self) -> bool {
+            self.is_symbolic()
+        }
+
+        /// Describes the syntax kind.
+        ///
+        /// # Errors
+        ///
+        /// This method will throw `ValueError` if the `SyntaxKind` is symbolic
+        /// (when `SyntaxKind.is_symbolic()` returns true).
+        #[pyo3(name = "describe")]
+        fn py_describe(&self) -> PyResult<&'static str> {
+            if self.is_symbolic() {
+                return Err(PyValueError::new_err(format!(
+                    "cannot describe symbolic syntax kind: {}",
+                    self.__pyo3__repr__()
+                )));
+            }
+
+            Ok(self.describe())
+        }
+
+        /// Returns whether the `SyntaxKind` is trivia.
+        #[pyo3(name = "is_trivia")]
+        fn py_is_trivia(&self) -> bool {
+            self.is_trivia()
+        }
+
+        /// Returns whether the `SyntaxKind` is a keyword.
+        ///
+        /// NOTE: This does not include types, see `SyntaxKind.is_type()`.
+        #[pyo3(name = "is_keyword")]
+        fn py_is_keyword(&self) -> bool {
+            self.is_keyword()
+        }
+
+        /// Returns whether the `SyntaxKind` is a predefined type keyword.
+        #[pyo3(name = "is_type")]
+        fn py_is_type(&self) -> bool {
+            self.is_type()
+        }
+
+        /// Returns whether the `SyntaxKind` is an operator.
+        #[pyo3(name = "is_operator")]
+        fn py_is_operator(&self) -> bool {
+            self.is_operator()
+        }
     }
 }
 

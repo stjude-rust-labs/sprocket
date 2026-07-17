@@ -1,25 +1,25 @@
 //! Integration tests for the `textDocument/completion` request.
 
-mod common;
+pub mod common;
 
+use async_lsp::lsp_types::CompletionContext;
+use async_lsp::lsp_types::CompletionItem;
+use async_lsp::lsp_types::CompletionItemKind;
+use async_lsp::lsp_types::CompletionParams;
+use async_lsp::lsp_types::CompletionResponse;
+use async_lsp::lsp_types::CompletionTriggerKind;
+use async_lsp::lsp_types::Position;
+use async_lsp::lsp_types::TextDocumentIdentifier;
+use async_lsp::lsp_types::TextDocumentPositionParams;
+use async_lsp::lsp_types::request::Completion;
 use common::TestContext;
 use pretty_assertions::assert_eq;
-use tower_lsp::lsp_types::CompletionContext;
-use tower_lsp::lsp_types::CompletionItem;
-use tower_lsp::lsp_types::CompletionItemKind;
-use tower_lsp::lsp_types::CompletionParams;
-use tower_lsp::lsp_types::CompletionResponse;
-use tower_lsp::lsp_types::CompletionTriggerKind;
-use tower_lsp::lsp_types::Position;
-use tower_lsp::lsp_types::TextDocumentIdentifier;
-use tower_lsp::lsp_types::TextDocumentPositionParams;
-use tower_lsp::lsp_types::request::Completion;
 
 async fn completion_request(
     ctx: &mut TestContext,
     path: &str,
     position: Position,
-) -> Option<CompletionResponse> {
+) -> async_lsp::Result<Option<CompletionResponse>> {
     ctx.request::<Completion>(CompletionParams {
         text_document_position: TextDocumentPositionParams {
             text_document: TextDocumentIdentifier {
@@ -60,7 +60,9 @@ async fn setup() -> TestContext {
 #[tokio::test]
 async fn should_complete_top_level_keywords() {
     let mut ctx = setup().await;
-    let response = completion_request(&mut ctx, "source.wdl", Position::new(1, 0)).await;
+    let response = completion_request(&mut ctx, "source.wdl", Position::new(1, 0))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -107,7 +109,9 @@ async fn should_complete_top_level_keywords() {
 #[tokio::test]
 async fn should_complete_workflow_keywords() {
     let mut ctx = setup().await;
-    let response = completion_request(&mut ctx, "source.wdl", Position::new(13, 0)).await;
+    let response = completion_request(&mut ctx, "source.wdl", Position::new(13, 0))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -154,7 +158,9 @@ async fn should_complete_workflow_keywords() {
 #[tokio::test]
 async fn should_complete_task_keywords() {
     let mut ctx = setup().await;
-    let response = completion_request(&mut ctx, "lib.wdl", Position::new(3, 0)).await;
+    let response = completion_request(&mut ctx, "lib.wdl", Position::new(3, 0))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -201,7 +207,9 @@ async fn should_complete_task_keywords() {
 #[tokio::test]
 async fn should_complete_struct_keywords() {
     let mut ctx = setup().await;
-    let response = completion_request(&mut ctx, "source.wdl", Position::new(9, 0)).await;
+    let response = completion_request(&mut ctx, "source.wdl", Position::new(9, 0))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -253,7 +261,9 @@ async fn should_complete_struct_members_access() {
     let mut ctx = setup().await;
 
     // Position of cursor `String n = my_foo.`
-    let response = completion_request(&mut ctx, "source.wdl", Position::new(21, 22)).await;
+    let response = completion_request(&mut ctx, "source.wdl", Position::new(21, 22))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -267,7 +277,9 @@ async fn should_complete_struct_members_access() {
 async fn should_complete_with_partial_word() {
     let mut ctx = setup().await;
     // Position of cursor at `Int out = qux.n`
-    let response = completion_request(&mut ctx, "partial.wdl", Position::new(13, 23)).await;
+    let response = completion_request(&mut ctx, "partial.wdl", Position::new(13, 23))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -280,7 +292,9 @@ async fn should_complete_with_partial_word() {
 async fn should_complete_namespace_members() {
     let mut ctx = setup().await;
     // Position of cursor at `call lib.`
-    let response = completion_request(&mut ctx, "namespaces.wdl", Position::new(5, 13)).await;
+    let response = completion_request(&mut ctx, "namespaces.wdl", Position::new(5, 13))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -294,7 +308,9 @@ async fn should_complete_scope_variables() {
     let mut ctx = setup().await;
 
     // Workflow scope
-    let response = completion_request(&mut ctx, "scopes.wdl", Position::new(10, 0)).await;
+    let response = completion_request(&mut ctx, "scopes.wdl", Position::new(10, 0))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -309,9 +325,14 @@ async fn should_complete_scope_variables() {
     assert_contains(&items, "lib");
     // Stdlib function
     assert_contains(&items, "floor");
-    assert_contains(&items, "min");
     assert_contains(&items, "stdout");
     assert_contains(&items, "stderr");
+    // The following standard library functions are present in WDL version 1.3 and
+    // should appear as completions.
+    assert_contains(&items, "min");
+    assert_contains(&items, "find");
+    assert_contains(&items, "chunk");
+    assert_contains(&items, "matches");
 
     // Workflow specific keywords
     assert_contains(&items, "call");
@@ -324,7 +345,9 @@ async fn should_complete_scope_variables() {
     assert_not_contains(&items, "requirements");
 
     // Task scope
-    let response = completion_request(&mut ctx, "scopes.wdl", Position::new(17, 0)).await;
+    let response = completion_request(&mut ctx, "scopes.wdl", Position::new(17, 0))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -348,11 +371,37 @@ async fn should_complete_scope_variables() {
 }
 
 #[tokio::test]
+async fn should_complete_scope_variables_v1_0_stdlib() {
+    let mut ctx = setup().await;
+
+    // Workflow scope
+    let response = completion_request(&mut ctx, "scopes_v1_0.wdl", Position::new(10, 0))
+        .await
+        .expect("request should succeed");
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    // Stdlib functions
+    assert_contains(&items, "floor");
+    assert_contains(&items, "stdout");
+    assert_contains(&items, "stderr");
+    // The following standard library functions are *not* present in WDL version 1.0
+    // and should *not* appear as completions.
+    assert_not_contains(&items, "min");
+    assert_not_contains(&items, "find");
+    assert_not_contains(&items, "chunk");
+    assert_not_contains(&items, "matches");
+}
+
+#[tokio::test]
 async fn should_complete_task_variable_members() {
     let mut ctx = setup().await;
 
     // In command section
-    let response = completion_request(&mut ctx, "taskvar.wdl", Position::new(4, 21)).await;
+    let response = completion_request(&mut ctx, "taskvar.wdl", Position::new(4, 21))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -365,7 +414,9 @@ async fn should_complete_task_variable_members() {
     assert_contains(&items, "meta");
 
     // In output section
-    let response = completion_request(&mut ctx, "taskvar.wdl", Position::new(8, 24)).await;
+    let response = completion_request(&mut ctx, "taskvar.wdl", Position::new(8, 24))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -387,7 +438,9 @@ async fn should_complete_nested_task_metadata_object_members() {
     let mut ctx = setup().await;
 
     // Position of cursor at `String child = task.meta.nested_obj.`
-    let response = completion_request(&mut ctx, "taskmeta.wdl", Position::new(19, 44)).await;
+    let response = completion_request(&mut ctx, "taskmeta.wdl", Position::new(19, 44))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -404,7 +457,9 @@ async fn should_complete_nested_task_metadata_object_members() {
 async fn should_complete_runtime_keys() {
     let mut ctx = setup().await;
 
-    let response = completion_request(&mut ctx, "sections.wdl", Position::new(4, 0)).await;
+    let response = completion_request(&mut ctx, "sections.wdl", Position::new(4, 0))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -422,7 +477,9 @@ async fn should_complete_runtime_keys() {
 async fn should_complete_requirements_keys() {
     let mut ctx = setup().await;
 
-    let response = completion_request(&mut ctx, "sections.wdl", Position::new(8, 0)).await;
+    let response = completion_request(&mut ctx, "sections.wdl", Position::new(8, 0))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -441,7 +498,9 @@ async fn should_complete_requirements_keys() {
 async fn should_complete_task_hints_keys() {
     let mut ctx = setup().await;
 
-    let response = completion_request(&mut ctx, "sections.wdl", Position::new(12, 0)).await;
+    let response = completion_request(&mut ctx, "sections.wdl", Position::new(12, 0))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -454,7 +513,9 @@ async fn should_complete_task_hints_keys() {
 async fn should_complete_workflow_hints_keys() {
     let mut ctx = setup().await;
 
-    let response = completion_request(&mut ctx, "sections.wdl", Position::new(18, 0)).await;
+    let response = completion_request(&mut ctx, "sections.wdl", Position::new(18, 0))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -466,7 +527,9 @@ async fn should_complete_workflow_hints_keys() {
 async fn should_complete_versions() {
     let mut ctx = setup().await;
 
-    let response = completion_request(&mut ctx, "version.wdl", Position::new(0, 8)).await;
+    let response = completion_request(&mut ctx, "version.wdl", Position::new(0, 8))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -480,7 +543,9 @@ async fn should_complete_versions() {
 async fn should_complete_namespaced_task_as_snippet() {
     let mut ctx = setup().await;
 
-    let response = completion_request(&mut ctx, "snippet_ns.wdl", Position::new(5, 8)).await;
+    let response = completion_request(&mut ctx, "snippet_ns.wdl", Position::new(5, 8))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -505,7 +570,9 @@ async fn should_complete_namespaced_task_as_snippet() {
 async fn should_complete_local_task_as_snippet() {
     let mut ctx = setup().await;
 
-    let response = completion_request(&mut ctx, "snippet_local.wdl", Position::new(12, 8)).await;
+    let response = completion_request(&mut ctx, "snippet_local.wdl", Position::new(12, 8))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -530,7 +597,9 @@ async fn should_complete_local_task_as_snippet() {
 async fn should_complete_struct_literal_as_snippet() {
     let mut ctx = setup().await;
 
-    let response = completion_request(&mut ctx, "snippet_struct.wdl", Position::new(8, 16)).await;
+    let response = completion_request(&mut ctx, "snippet_struct.wdl", Position::new(8, 16))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -552,10 +621,12 @@ async fn should_complete_struct_literal_as_snippet() {
 }
 
 #[tokio::test]
-async fn should_complete_enum_variants() {
+async fn should_complete_enum_choices() {
     let mut ctx = setup().await;
 
-    let response = completion_request(&mut ctx, "snippet_enum.wdl", Position::new(9, 22)).await;
+    let response = completion_request(&mut ctx, "snippet_enum.wdl", Position::new(9, 22))
+        .await
+        .expect("request should succeed");
 
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
@@ -570,7 +641,9 @@ async fn should_complete_enum_variants() {
 async fn should_complete_top_level_keyword_as_snippet() {
     let mut ctx = setup().await;
 
-    let response = completion_request(&mut ctx, "snippet_keyword.wdl", Position::new(0, 0)).await;
+    let response = completion_request(&mut ctx, "snippet_keyword.wdl", Position::new(0, 0))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };
@@ -592,8 +665,9 @@ async fn should_complete_top_level_keyword_as_snippet() {
 async fn should_not_complete_shadowed_type_names() {
     let mut ctx = setup().await;
 
-    let response =
-        completion_request(&mut ctx, "type_name_shadowing.wdl", Position::new(25, 0)).await;
+    let response = completion_request(&mut ctx, "type_name_shadowing.wdl", Position::new(25, 0))
+        .await
+        .expect("request should succeed");
     let Some(CompletionResponse::Array(items)) = response else {
         panic!("expected a response, got none");
     };

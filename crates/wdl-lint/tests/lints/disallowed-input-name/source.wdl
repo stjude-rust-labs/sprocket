@@ -1,6 +1,8 @@
+#@ except: BashSetSyntax
+
 version 1.3
 
-#@ except: RequirementsSection, SnakeCase, EmptyOutputs
+#@ except: EmptyOutputs, RequirementsSection, SnakeCase
 task foo {
     meta {
         description: "This is a test of disallowed input names"
@@ -22,7 +24,7 @@ task foo {
         String invalid  # This is OK
     }
 
-    command <<< >>>
+    command <<<>>>
 
     output {}
 

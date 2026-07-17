@@ -1,15 +1,15 @@
 error: cannot assign an empty array to a non-empty array type
-   ┌─ tests/analysis/non-empty-array/source.wdl:16:21
+   ┌─ tests/analysis/non-empty-array/source.wdl:17:21
    │
-16 │     Array[Int]+ x = []
+17 │     Array[Int]+ x = []
    │                 -   ^^ this is an empty array
    │                 │    
    │                 this expects a non-empty array
 
 error: cannot assign an empty array to a non-empty array type
-   ┌─ tests/analysis/non-empty-array/source.wdl:30:31
+   ┌─ tests/analysis/non-empty-array/source.wdl:31:31
    │
-30 │     call t as t4 { input: x = ((([]))) }
+31 │     call t as t4 { input: x = ((([]))) }
    │                           -   ^^^^^^^^ this is an empty array
    │                           │    
    │                           this expects a non-empty array

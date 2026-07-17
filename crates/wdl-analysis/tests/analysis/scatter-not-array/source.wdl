@@ -5,7 +5,5 @@ version 1.1
 workflow test {
     String a = "1"
     
-    scatter (x in a) {
-
-    }
+    scatter (x in a) {}
 }

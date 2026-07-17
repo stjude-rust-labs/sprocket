@@ -15,6 +15,7 @@ use wdl_ast::SyntaxKind;
 
 use crate::Comment;
 use crate::Config;
+use crate::Indent;
 use crate::PreToken;
 use crate::SPACE;
 use crate::Token;
@@ -90,7 +91,7 @@ impl Token for PostToken {
 
         fn write_indents(
             f: &mut std::fmt::Formatter<'_>,
-            indent: &str,
+            indent: &Indent,
             num_indents: usize,
         ) -> std::fmt::Result {
             for _ in 0usize..num_indents {
@@ -105,7 +106,7 @@ impl Token for PostToken {
                     PostToken::Space => write!(f, "{SPACE}"),
                     PostToken::Newline => write!(f, "{}", self.config.newline_style.as_str()),
                     PostToken::Indent => {
-                        write!(f, "{indent}", indent = self.config.indent.string())
+                        write!(f, "{indent}", indent = self.config.indent)
                     }
                     PostToken::TempIndent(value) => write!(f, "{value}"),
                     PostToken::Literal(value) => write!(f, "{value}"),
@@ -120,7 +121,7 @@ impl Token for PostToken {
                             write!(f, "{cur}")?;
                             if lines.peek().is_some() {
                                 write!(f, "{}", self.config.newline_style.as_str())?;
-                                write_indents(f, &self.config.indent.string(), *num_indents)?;
+                                write_indents(f, &self.config.indent, *num_indents)?;
                                 write!(f, "{prefix}")?;
                             }
                         }
@@ -136,7 +137,8 @@ impl Token for PostToken {
                                 prefix.push_str("except");
                                 prefix.push_str(DIRECTIVE_DELIMITER);
                                 prefix.push(' ');
-                                let mut rules: Vec<String> = exceptions.iter().cloned().collect();
+                                let mut rules: Vec<String> =
+                                    exceptions.iter().cloned().map(|e| e.name).collect();
                                 rules.sort();
                                 write!(f, "{prefix}")?;
                                 if let Some(max) = self.config.max_line_length.get() {
@@ -160,11 +162,7 @@ impl Token for PostToken {
                                         } else {
                                             // Current rule does not fit
                                             write!(f, "{}", self.config.newline_style.as_str())?;
-                                            write_indents(
-                                                f,
-                                                &self.config.indent.string(),
-                                                *num_indents,
-                                            )?;
+                                            write_indents(f, &self.config.indent, *num_indents)?;
                                             write!(f, "{prefix}{rule}")?;
                                             written_to_cur_line = 1;
                                             remaining = max.saturating_sub(start_width + cur_len);

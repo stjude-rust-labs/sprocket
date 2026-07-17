@@ -1,0 +1,6 @@
+failing_workflow:
+  - name: failing_workflow
+    assertions:
+      should_fail: true
+super_slow_task:
+  - name: super_slow_task

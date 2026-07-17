@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Spell Check Repo
-        uses: crate-ci/typos@v1.44.0
+        uses: crate-ci/typos@v1.47.2
 
   format:
     runs-on: ubuntu-latest
@@ -62,7 +62,17 @@ jobs:
       - name: Install clippy
         run: rustup component add clippy
       - name: Check source code for lints
-        run: cargo --locked clippy --all-features -- --deny warnings
+        run: cargo --locked clippy --workspace --tests --all-features -- --deny warnings
+
+  check-fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: true
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+      - run: cargo check -p fuzz --bins --locked
 
   test:
     runs-on: ${{ matrix.os }}
@@ -100,7 +110,7 @@ jobs:
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: Run tests
         shell: bash
-        run: cargo llvm-cov nextest --profile=ci --workspace --locked --all-targets --all-features --no-fail-fast --codecov --output-path codecov.json && cargo test --workspace --doc
+        run: cargo llvm-cov nextest --profile=ci --workspace --locked --all-targets --exclude fuzz --all-features --no-fail-fast --codecov --output-path codecov.json && cargo test --workspace --exclude fuzz --doc
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6

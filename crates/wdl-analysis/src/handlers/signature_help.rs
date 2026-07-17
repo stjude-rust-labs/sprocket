@@ -146,7 +146,12 @@ pub fn signature_help(
 
             SignatureInformation {
                 label,
-                documentation: None,
+                documentation: s.definition().map(|def| {
+                    Documentation::MarkupContent(MarkupContent {
+                        kind: MarkupKind::Markdown,
+                        value: def.to_string(),
+                    })
+                }),
                 parameters: Some(parameters),
                 active_parameter: Some(active_parameter),
             }

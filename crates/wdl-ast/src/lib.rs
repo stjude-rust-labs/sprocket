@@ -32,6 +32,7 @@
 
 use std::collections::HashSet;
 use std::fmt;
+use std::hash::Hash;
 use std::str::FromStr;
 
 pub use rowan::Direction;
@@ -250,7 +251,7 @@ pub trait AstNode<N: TreeNode>: Sized {
     ///
     /// Returns `None` if the node does not contain the open and close tokens as
     /// children.
-    fn scope_span<O, C>(&self) -> Option<Span>
+    fn scope_span<O, C>(&self, include_braces: bool) -> Option<Span>
     where
         O: AstToken<N::Token>,
         C: AstToken<N::Token>,
@@ -258,30 +259,38 @@ pub trait AstNode<N: TreeNode>: Sized {
         let open = self.token::<O>()?.span();
         let close = self.last_token::<C>()?.span();
 
-        // The span starts after the opening brace and after the closing brace
-        Some(Span::new(open.end(), close.end() - open.end()))
+        let start = if include_braces {
+            open.start()
+        } else {
+            open.end()
+        };
+        Some(Span::new(start, close.end() - start))
     }
 
     /// Gets the interior span of child opening and closing brace tokens for the
     /// node.
     ///
-    /// The span starts from immediately after the opening brace token and ends
-    /// immediately before the closing brace token.
+    /// If `include_braces` is true, the returned [`Span`] will include both the
+    /// opening and closing braces. Otherwise, the span starts from
+    /// immediately after the opening brace token and ends immediately
+    /// before the closing brace token.
     ///
     /// Returns `None` if the node does not contain child brace tokens.
-    fn braced_scope_span(&self) -> Option<Span> {
-        self.scope_span::<OpenBrace<N::Token>, CloseBrace<N::Token>>()
+    fn braced_scope_span(&self, include_braces: bool) -> Option<Span> {
+        self.scope_span::<OpenBrace<N::Token>, CloseBrace<N::Token>>(include_braces)
     }
 
     /// Gets the interior span of child opening and closing heredoc tokens for
     /// the node.
     ///
-    /// The span starts from immediately after the opening heredoc token and
-    /// ends immediately before the closing heredoc token.
+    /// If `include_braces` is true, the returned [`Span`] will include both the
+    /// opening and closing braces. Otherwise, the span starts from
+    /// immediately after the opening brace token and ends immediately
+    /// before the closing brace token.
     ///
     /// Returns `None` if the node does not contain child heredoc tokens.
-    fn heredoc_scope_span(&self) -> Option<Span> {
-        self.scope_span::<OpenHeredoc<N::Token>, CloseHeredoc<N::Token>>()
+    fn heredoc_scope_span(&self, include_braces: bool) -> Option<Span> {
+        self.scope_span::<OpenHeredoc<N::Token>, CloseHeredoc<N::Token>>(include_braces)
     }
 
     /// Gets the node descendants (including self) from this node that can be
@@ -477,6 +486,14 @@ impl<N: TreeNode> AstNode<N> for Document<N> {
     }
 }
 
+impl Documented<SyntaxNode> for Document<SyntaxNode> {
+    fn doc_comments(&self) -> Option<Vec<Comment<<SyntaxNode as TreeNode>::Token>>> {
+        let version_statement = self.child::<VersionStatement>()?;
+        let version_keyword = version_statement.keyword();
+        Some(doc_comments::<SyntaxNode>(version_keyword.inner().preceding_trivia()).collect())
+    }
+}
+
 impl Document {
     /// Parses a document from the given source.
     ///
@@ -641,23 +658,93 @@ pub const DIRECTIVE_COMMENT_PREFIX: &str = "#@";
 /// The delimiter between a directive and its contents
 pub const DIRECTIVE_DELIMITER: &str = ":";
 
+/// A single rule in an `#@ except:` comment.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ExceptRule {
+    /// The name of the rule to except.
+    pub name: String,
+    /// The span of the rule in the exception comment.
+    pub span: Span,
+}
+
+impl ExceptRule {
+    /// Find the node that this exception comment targets.
+    pub fn target_node(&self, document: &Document) -> Option<SyntaxNode> {
+        let comment = document.inner().descendants_with_tokens().find_map(|d| {
+            let token = d.into_token()?;
+            let comment = Comment::cast(token)?;
+            if comment.kind() == CommentKind::Directive(DirectiveKind::Except)
+                && self.span.within(comment.span())
+            {
+                Some(comment)
+            } else {
+                None
+            }
+        });
+
+        comment.and_then(|c| {
+            c.inner()
+                .siblings_with_tokens(Direction::Next)
+                .find_map(|sibling| {
+                    if let SyntaxElement::Node(node) = sibling {
+                        Some(node)
+                    } else {
+                        None
+                    }
+                })
+        })
+    }
+}
+
 /// A comment directive for WDL tools to respect.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Directive {
     /// Ignore any rules contained in the set.
-    Except(HashSet<String>),
+    Except(HashSet<ExceptRule>),
 }
 
-impl FromStr for Directive {
+impl Directive {
+    /// The type of this directive.
+    pub fn kind(&self) -> DirectiveKind {
+        match self {
+            Self::Except(_) => DirectiveKind::Except,
+        }
+    }
+
+    /// Consume this `Directive` and return a set of [`ExceptRule`] if it is
+    /// [`Directive::Except`].
+    pub fn into_except(self) -> Option<HashSet<ExceptRule>> {
+        match self {
+            Self::Except(rules) => Some(rules),
+        }
+    }
+}
+
+/// The type of a [`Comment`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum CommentKind {
+    /// The comment is a normal line comment
+    Line,
+    /// The comment is a [`Directive`] (starts with
+    /// [`DIRECTIVE_COMMENT_PREFIX`]).
+    Directive(DirectiveKind),
+    /// The comment is a doc comment (starts with [`DOC_COMMENT_PREFIX`]).
+    Documentation,
+}
+
+/// The type of a [`Directive`].
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub enum DirectiveKind {
+    /// The comment is an `except` directive.
+    Except,
+}
+
+impl FromStr for DirectiveKind {
     type Err = ();
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let s = s.strip_prefix(DIRECTIVE_COMMENT_PREFIX).ok_or(())?;
-        let (directive, contents) = s.trim().split_once(DIRECTIVE_DELIMITER).ok_or(())?;
-        match directive.trim_end() {
-            "except" => Ok(Self::Except(HashSet::from_iter(
-                contents.split(',').map(|id| id.trim().to_string()),
-            ))),
+        match s {
+            "except" => Ok(Self::Except),
             _ => Err(()),
         }
     }
@@ -687,20 +774,57 @@ impl<T: TreeToken> AstToken<T> for Comment<T> {
     }
 }
 
-impl Comment {
-    /// Gets whether the comment starts with DIRECTIVE_COMMENT_PREFIX.
-    pub fn is_directive(&self) -> bool {
-        self.text().starts_with(DIRECTIVE_COMMENT_PREFIX)
-    }
+/// Split a directive comment into its [`DirectiveKind`] and contents.
+///
+/// This takes the entire comment text.
+fn split_directive(comment: &str) -> Option<(DirectiveKind, &str)> {
+    let s = comment.strip_prefix(DIRECTIVE_COMMENT_PREFIX)?;
+    let (directive, contents) = s.trim().split_once(DIRECTIVE_DELIMITER)?;
+    Some((
+        DirectiveKind::from_str(directive.trim_end()).ok()?,
+        contents,
+    ))
+}
 
+impl Comment {
     /// Try to parse the comment as a directive.
     pub fn directive(&self) -> Option<Directive> {
-        self.text().parse::<Directive>().ok()
+        let text = self.text();
+        let mut offset = self.span().start();
+
+        let (kind, contents) = split_directive(text)?;
+        offset += text.len() - contents.len();
+
+        match kind {
+            DirectiveKind::Except => Some(Directive::Except(HashSet::from_iter(
+                contents.split(',').filter_map(|original_id| {
+                    let trimmed = original_id.trim();
+                    if trimmed.is_empty() {
+                        return None;
+                    }
+
+                    let name = trimmed.to_string();
+                    offset += original_id.len() - name.len();
+
+                    let span = Span::new(offset, name.len());
+                    offset += name.len() + 1; // + 1 for the comma
+
+                    Some(ExceptRule { name, span })
+                }),
+            ))),
+        }
     }
 
-    /// Gets whether comment starts with [`DOC_COMMENT_PREFIX`].
-    pub fn is_doc_comment(&self) -> bool {
-        self.text().starts_with(DOC_COMMENT_PREFIX)
+    /// The type of comment.
+    pub fn kind(&self) -> CommentKind {
+        let text = self.text();
+        if text.starts_with(DOC_COMMENT_PREFIX) {
+            return CommentKind::Documentation;
+        } else if let Some((kind, _)) = split_directive(text) {
+            return CommentKind::Directive(kind);
+        }
+
+        CommentKind::Line
     }
 
     /// Gets whether the comment is an inline comment or not.
