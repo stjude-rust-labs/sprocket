@@ -161,3 +161,57 @@ pub async fn analyzer(
     .await
     .map_err(CommandError::from)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn merges_cli_and_config_exceptions_and_lint() {
+        let mut config = Config::default();
+        config.analyzer.except = vec![String::from("MetaSections")];
+        config.analyzer.lint = false;
+
+        let cwd = std::env::current_dir().expect("should get cwd");
+        let reload = build_config_reload(
+            &config,
+            // cli_lint
+            true,
+            // cli_except
+            &[String::from("UnusedInput")],
+            &cwd,
+        )
+        .expect("should build reload");
+
+        // Both the CLI-provided exception and the config-provided exception
+        // should be present.
+        assert!(reload.exceptions.contains(&String::from("UnusedInput")));
+        assert!(reload.exceptions.contains(&String::from("MetaSections")));
+
+        // `--lint` (cli_lint=true) should be OR'd in even though
+        // `config.analyzer.lint` is false.
+        assert!(reload.lint_enabled);
+    }
+
+    #[test]
+    fn config_lint_flag_alone_enables_linting() {
+        let mut config = Config::default();
+        config.analyzer.lint = true;
+
+        let cwd = std::env::current_dir().expect("should get cwd");
+        let reload = build_config_reload(&config, /* cli_lint */ false, &[], &cwd)
+            .expect("should build reload");
+
+        assert!(reload.lint_enabled);
+    }
+
+    #[test]
+    fn no_baseline_configured_yields_no_baseline() {
+        let config = Config::default();
+
+        let cwd = std::env::current_dir().expect("should get cwd");
+        let reload = build_config_reload(&config, false, &[], &cwd).expect("should build reload");
+
+        assert!(reload.baseline.is_none());
+    }
+}
