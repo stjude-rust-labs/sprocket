@@ -282,13 +282,97 @@ fn scp_like_parts(source: &str) -> Option<(&str, &str)> {
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
+    use anyhow::Context as _;
+    use clap::Parser as _;
+    use git2::IndexAddOption;
+    use git2::Oid;
+    use git2::Repository;
+    use git2::Signature;
+
     use super::*;
     use crate::commands::module::Locator;
 
-    #[tokio::test]
-    async fn dependency_source_builder_builds_local_path() {
-        let args = Args {
-            source_or_name: "dep".to_string(),
+    struct GitFixture {
+        dir: tempfile::TempDir,
+        repo: std::path::PathBuf,
+    }
+
+    impl GitFixture {
+        fn new() -> anyhow::Result<Self> {
+            let dir = tempfile::tempdir()?;
+            let repo = dir.path().join("repo");
+            fs::create_dir(&repo)?;
+            Repository::init(&repo)?;
+            Ok(Self { dir, repo })
+        }
+
+        fn url(&self) -> anyhow::Result<url::Url> {
+            url::Url::from_file_path(&self.repo)
+                .map_err(|()| anyhow::anyhow!("fixture path is not a valid file URL"))
+        }
+
+        fn config(&self) -> Config {
+            let mut config = Config::default();
+            config.modules.cache_path = Some(self.dir.path().join("cache"));
+            config.modules.allowed_schemes = vec!["file".to_string()];
+            config
+        }
+
+        fn commit(&self, files: &[(&str, &str)]) -> anyhow::Result<Oid> {
+            for (path, contents) in files {
+                let path = self.repo.join(path);
+                if let Some(parent) = path.parent() {
+                    fs::create_dir_all(parent)?;
+                }
+                fs::write(path, contents)?;
+            }
+
+            let repository = Repository::open(&self.repo)?;
+            let mut index = repository.index()?;
+            index.add_all(["*"].iter(), IndexAddOption::DEFAULT, None)?;
+            let tree = repository.find_tree(index.write_tree()?)?;
+            let signature = Signature::now("sprocket test", "test@example.com")?;
+            let commit = match repository.head().and_then(|head| head.peel_to_commit()) {
+                Ok(parent) => repository.commit(
+                    Some("HEAD"),
+                    &signature,
+                    &signature,
+                    "fixture commit",
+                    &tree,
+                    &[&parent],
+                )?,
+                Err(_) => repository.commit(
+                    Some("HEAD"),
+                    &signature,
+                    &signature,
+                    "fixture commit",
+                    &tree,
+                    &[],
+                )?,
+            };
+            Ok(commit)
+        }
+
+        fn tag(&self, name: &str, commit: Oid) -> anyhow::Result<()> {
+            let repository = Repository::open(&self.repo)?;
+            repository.reference(&format!("refs/tags/{name}"), commit, true, "fixture tag")?;
+            Ok(())
+        }
+
+        fn default_branch(&self) -> anyhow::Result<String> {
+            Repository::open(&self.repo)?
+                .head()?
+                .shorthand()
+                .context("fixture HEAD has no branch")
+                .map(str::to_owned)
+        }
+    }
+
+    fn make_args(source: &str) -> Args {
+        Args {
+            source_or_name: source.to_string(),
             source: None,
             name: None,
             version: None,
@@ -302,13 +386,24 @@ mod tests {
             locator: Locator {
                 manifest_path: None,
             },
-        };
+        }
+    }
+
+    fn dependency_name() -> DependencyName {
+        // SAFETY: `dep` is a valid dependency name.
+        "dep".parse().unwrap()
+    }
+
+    #[tokio::test]
+    async fn dependency_source_builder_builds_local_path() {
+        let args = make_args("dep");
         let config = Config::default();
-        let name = "dep".parse().unwrap();
+        let name = dependency_name();
 
         let built = DependencySourceBuilder::new(&args, &config, &name, "./dep")
             .build()
             .await
+            // SAFETY: local source construction cannot fail for a valid path.
             .unwrap();
 
         assert!(matches!(
@@ -316,6 +411,201 @@ mod tests {
             DependencySource::LocalPath { ref path, .. } if path == std::path::Path::new("./dep")
         ));
         assert!(built.note.is_none());
+    }
+
+    #[test]
+    fn infer_source_kind_distinguishes_urls_shorthands_and_local_paths() {
+        assert_eq!(infer_source_kind("file:///repo"), SourceKind::Url);
+        assert_eq!(infer_source_kind("openwdl/wdl"), SourceKind::Shorthand);
+        assert_eq!(infer_source_kind("./openwdl/wdl"), SourceKind::LocalPath);
+    }
+
+    #[tokio::test]
+    async fn dependency_source_builder_preserves_explicit_selectors() {
+        let source = "file:///repo";
+        let config = Config::default();
+
+        let mut args = make_args(source);
+        args.tag = Some("v1.2.3".to_string());
+        let built = DependencySourceBuilder::new(&args, &config, &dependency_name(), source)
+            .build()
+            .await
+            // SAFETY: explicit tag construction does not access the repository.
+            .unwrap();
+        assert!(matches!(
+            built.source,
+            DependencySource::Git {
+                selector: GitSelector::Tag(tag),
+                ..
+            } if tag == "v1.2.3"
+        ));
+
+        let mut args = make_args(source);
+        args.branch = Some("main".to_string());
+        let built = DependencySourceBuilder::new(&args, &config, &dependency_name(), source)
+            .build()
+            .await
+            // SAFETY: explicit branch construction does not access the repository.
+            .unwrap();
+        assert!(matches!(
+            built.source,
+            DependencySource::Git {
+                selector: GitSelector::Branch(branch),
+                ..
+            } if branch == "main"
+        ));
+
+        let mut args = make_args(source);
+        args.commit = Some("0123456789012345678901234567890123456789".to_string());
+        let built = DependencySourceBuilder::new(&args, &config, &dependency_name(), source)
+            .build()
+            .await
+            // SAFETY: explicit commit construction does not access the repository.
+            .unwrap();
+        assert!(matches!(
+            built.source,
+            DependencySource::Git {
+                selector: GitSelector::Commit(_),
+                ..
+            }
+        ));
+
+        let mut args = make_args(source);
+        args.version = Some("^1.2".to_string());
+        let built = DependencySourceBuilder::new(&args, &config, &dependency_name(), source)
+            .build()
+            .await
+            // SAFETY: explicit version construction does not access the repository.
+            .unwrap();
+        assert!(matches!(
+            built.source,
+            DependencySource::Git {
+                selector: GitSelector::Version(_),
+                ..
+            }
+        ));
+    }
+
+    #[test]
+    fn selector_arguments_report_conflicts_at_the_cli_boundary() {
+        for selectors in [
+            ["--version", "^1.0", "--tag", "v1.0.0"],
+            ["--tag", "v1.0.0", "--branch", "main"],
+            [
+                "--branch",
+                "main",
+                "--commit",
+                "0123456789012345678901234567890123456789",
+            ],
+        ] {
+            let result = Args::try_parse_from(
+                ["sprocket", "file:///repo"]
+                    .into_iter()
+                    .chain(selectors)
+                    .collect::<Vec<_>>(),
+            );
+            assert!(result.is_err(), "selectors should conflict: {selectors:?}");
+        }
+    }
+
+    #[tokio::test]
+    async fn dependency_source_builder_discovers_latest_version_tag() -> anyhow::Result<()> {
+        let fixture = GitFixture::new()?;
+        let commit = fixture.commit(&[("module.json", "{}")])?;
+        fixture.tag("v1.2.3", commit)?;
+        fixture.tag("v1.4.0", commit)?;
+        let source = fixture.url()?.to_string();
+        let args = make_args(&source);
+        let config = fixture.config();
+        let built = DependencySourceBuilder::new(&args, &config, &dependency_name(), &source)
+            .build()
+            .await?;
+
+        let DependencySource::Git {
+            selector: GitSelector::Version(requirement),
+            ..
+        } = built.source
+        else {
+            anyhow::bail!("expected a discovered version selector");
+        };
+        assert_eq!(requirement.to_string(), "^1.4.0");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn dependency_source_builder_discovers_path_scoped_version_tag() -> anyhow::Result<()> {
+        let fixture = GitFixture::new()?;
+        let commit = fixture.commit(&[("pkg/module.json", "{}")])?;
+        fixture.tag("v9.0.0", commit)?;
+        fixture.tag("pkg/v1.2.3", commit)?;
+        fixture.tag("pkg/v1.4.0", commit)?;
+        let source = fixture.url()?.to_string();
+        let mut args = make_args(&source);
+        args.path = Some("pkg".to_string());
+        let config = fixture.config();
+        let built = DependencySourceBuilder::new(&args, &config, &dependency_name(), &source)
+            .build()
+            .await?;
+
+        let DependencySource::Git {
+            selector: GitSelector::Version(requirement),
+            path: Some(path),
+            ..
+        } = built.source
+        else {
+            anyhow::bail!("expected a path-scoped version selector");
+        };
+        assert_eq!(path.as_str(), "pkg");
+        assert_eq!(requirement.to_string(), "^1.4.0");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn dependency_source_builder_tracks_default_branch_without_tags() -> anyhow::Result<()> {
+        let fixture = GitFixture::new()?;
+        fixture.commit(&[("pkg/module.json", "{}")])?;
+        let branch = fixture.default_branch()?;
+        let source = fixture.url()?.to_string();
+        let mut args = make_args(&source);
+        args.path = Some("pkg".to_string());
+        let config = fixture.config();
+        let built = DependencySourceBuilder::new(&args, &config, &dependency_name(), &source)
+            .build()
+            .await?;
+
+        let DependencySource::Git {
+            selector: GitSelector::Branch(selected),
+            ..
+        } = built.source
+        else {
+            anyhow::bail!("expected a default-branch selector");
+        };
+        assert_eq!(selected, branch);
+        let expected_note =
+            format!("no path-scoped version tags found for `pkg`; tracking branch `{branch}`");
+        assert_eq!(built.note.as_deref(), Some(expected_note.as_str()));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn dependency_source_builder_reports_missing_tags_and_default_branch()
+    -> anyhow::Result<()> {
+        let fixture = GitFixture::new()?;
+        let source = fixture.url()?.to_string();
+        let args = make_args(&source);
+        let config = fixture.config();
+        let error = match DependencySourceBuilder::new(&args, &config, &dependency_name(), &source)
+            .build()
+            .await
+        {
+            Ok(_) => anyhow::bail!("an empty repository unexpectedly provided a selector"),
+            Err(error) => error,
+        };
+
+        let message = error.to_string();
+        assert!(message.contains("could not determine a default branch"));
+        assert!(message.contains("specify --tag, --branch, or --commit"));
+        Ok(())
     }
 
     #[test]
