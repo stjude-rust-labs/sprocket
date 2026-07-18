@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* `sprocket analyzer` (the LSP server) now watches `sprocket.toml` for changes and hot-reloads
+  `check.{baseline,lint}` and `analyzer` configuration without requiring a client restart
+  ([#1009](https://github.com/stjude-rust-labs/sprocket/issues/1009)).
+
+## 0.28.0 - 2026-07-15
+
+### Added
+
+* Added server-management commands under `sprocket dev server` ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
+  * `status` shows a compact one-line status for a specific run, or lists all runs with pagination and status filtering; supports `--json`.
+  * `inspect` shows detailed information about a run, including per-status task counts, the server's output directory, and (with `--detailed`) a per-task breakdown.
+  * `cancel` cancels a queued or running run.
+  * `retry` resubmits a previous run with optional input overrides using the same syntax as `submit` (`key=value`, `@file`, repeated keys append to arrays).
+* New API endpoints on the `dev server` HTTP API: `GET /api/v1/info` (server metadata), `GET /api/v1/runs/{id}/tasks` (list a run's tasks, paginated and filterable by status), `GET /api/v1/runs/{id}/tasks/counts` (per-status task counts), `GET /api/v1/tasks` (list all tasks), `GET /api/v1/tasks/{name}` (single task), and `GET /api/v1/tasks/{name}/logs` (task logs, filterable by `stdout`/`stderr`) ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
+* Added a `strongish` content digest mode (`run.task.digests = "strongish"`) that hashes file size, last modified time, and the first 10 MiB of a file's contents; this is an intermediate strategy between `weak` and `strong`, similar to Cromwell's `fingerprint` call caching strategy ([#978](https://github.com/stjude-rust-labs/sprocket/pull/978)).
+* Added `-t` (`--target`), `-f` (`--filter`), and `--exact` options to `sprocket dev test` ([#952](https://github.com/stjude-rust-labs/sprocket/pull/952)).
+* Added `sprocket dev test schema` subcommand to generate a [JSON schema](https://json-schema.org) for
+  Sprocket test definitions ([#953](https://github.com/stjude-rust-labs/sprocket/pull/953)).
+* Added `sprocket config schema` subcommand to generate a [JSON schema](https://json-schema.org) for
+  `sprocket.toml` files ([#958](https://github.com/stjude-rust-labs/sprocket/pull/958)).
+
+### Changed
+
+* Grouped the server commands under `sprocket dev server` (previously flat under `sprocket dev`): `server` and `submit` are now `sprocket dev server <subcommand>`. The `server` subcommand was renamed `start`. ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
+* `sprocket analyzer` now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
+* Replaced the `peak_alloc` global allocator with `mimalloc` and now query peak memory usage from the operating system on exit, removing per-allocation tracking overhead ([#990](https://github.com/stjude-rust-labs/sprocket/pull/990)).
+* Errors reported for a scalar input (e.g., `File`) that received multiple values now include a hint pointing to the likely cause—a repeated `key=value` on the command line or an unquoted shell glob (e.g., `key=*.txt`) that expanded to more than one value ([#998](https://github.com/stjude-rust-labs/sprocket/pull/998)).
+* The `-t` (`--include-tag`) and `-f` (`--filter-tag`) options for `sprocket dev test` have been renamed to
+  `-i` and `-e` (`--exclude-tag`), respectively ([#952](https://github.com/stjude-rust-labs/sprocket/pull/952)).
+
+### Fixed
+
+* `dev server` HTTP endpoints and CLI commands now reject non-positive `--limit` values and negative or unparsable `next_token` values (previously `limit=0` could loop pagination and `limit=-1` triggered SQLite's unbounded-fetch behavior) ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
+* The "missing version statement" parse error no longer claims all WDL documents require a version statement (untrue for draft-2); it now scopes the claim to WDL v1.0+ and adds migration guidance for draft-2 documents ([#993](https://github.com/stjude-rust-labs/sprocket/pull/993)).
+
 ## 0.28.0 - 2026-07-15
 
 ### Added

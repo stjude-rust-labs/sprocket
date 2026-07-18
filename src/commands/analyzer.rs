@@ -1,5 +1,6 @@
 //! Implementation of the language server protocol (LSP) subcommand.
 
+use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -7,6 +8,7 @@ use clap::Parser;
 use clap::builder::PossibleValuesParser;
 use wdl::lint::Baseline;
 use wdl::lint::baseline::DEFAULT_BASELINE_FILENAME;
+use wdl::lsp::ConfigReload;
 use wdl::lsp::LevelFilter;
 use wdl::lsp::LintOptions;
 use wdl::lsp::Server;
@@ -54,40 +56,92 @@ impl Args {
     }
 }
 
+/// Builds the analyzer-affecting portion of a [`ServerOptions`] /
+/// [`ConfigReload`] from a freshly loaded [`Config`], merging in the
+/// CLI-only overrides (`--lint` and `--except`) that aren't part of
+/// `sprocket.toml`.
+fn build_config_reload(
+    config: &Config,
+    cli_lint: bool,
+    cli_except: &[String],
+    cwd: &Path,
+) -> anyhow::Result<ConfigReload> {
+    let mut exceptions = cli_except.to_vec();
+    exceptions.extend(config.analyzer.except.iter().cloned());
+
+    let resolution_context = crate::analysis::resolution_context_from_paths(
+        &config.modules,
+        &config.common.wdl.feature_flags,
+        &[cwd.to_path_buf()],
+    )?;
+
+    let baseline_is_configured = config.check.baseline.is_some();
+    let baseline_path = config
+        .check
+        .baseline
+        .clone()
+        .unwrap_or_else(|| PathBuf::from(DEFAULT_BASELINE_FILENAME));
+    let baseline = Baseline::load_or_default(&baseline_path, baseline_is_configured)?;
+
+    Ok(ConfigReload {
+        exceptions,
+        feature_flags: config.common.wdl.feature_flags,
+        resolution_context,
+        baseline,
+        format: config.format,
+        lint_enabled: cli_lint || config.analyzer.lint,
+        lint_config: config.check.lint.clone(),
+    })
+}
+
 /// Runs the `analyzer` command.
 pub async fn analyzer(
     mut args: Args,
     config: Config,
     handle: FilterReloadHandle,
+    config_paths: Vec<PathBuf>,
+    skip_config_search: bool,
 ) -> CommandResult<()> {
+    // Preserve the CLI-only overrides before merging them with the initial
+    // configuration, so that a later reload (triggered by a `sprocket.toml`
+    // change) can re-merge them with the *new* on-disk configuration rather
+    // than accumulating the initial file's values forever.
+    let cli_lint = args.lint;
+    let cli_except = args.except.clone();
+
     args.apply(&config);
 
     let cwd = std::env::current_dir().map_err(anyhow::Error::from)?;
-    let resolution_context = crate::analysis::resolution_context_from_paths(
-        &config.modules,
-        &config.common.wdl.feature_flags,
-        &[cwd],
-    )?;
+
+    let reload = build_config_reload(&config, cli_lint, &cli_except, &cwd)?;
+
+    let reload_cwd = cwd.clone();
+    let reload_config: Arc<dyn Fn() -> anyhow::Result<ConfigReload> + Send + Sync> =
+        Arc::new(move || {
+            // Re-run the same configuration search/merge used at startup (user
+            // config directory, current working directory, `SPROCKET_CONFIG`,
+            // any `--config` paths, etc.) so that a change to any applicable
+            // `sprocket.toml` is picked up consistently with how the server was
+            // first launched.
+            let config = Config::new(
+                config_paths.iter().map(PathBuf::as_path),
+                skip_config_search,
+            )?;
+            build_config_reload(&config, cli_lint, &cli_except, &reload_cwd)
+        });
 
     Server::<Subscriber>::run(
         ServerOptions {
             name: "Sprocket".into(),
             version: env!("CARGO_PKG_VERSION").into(),
-            exceptions: args.except,
+            exceptions: reload.exceptions.clone(),
             ignore_filename: Some(IGNORE_FILENAME.to_string()),
-            feature_flags: config.common.wdl.feature_flags,
-            resolution_context,
-            baseline: {
-                let baseline_is_configured = config.check.baseline.is_some();
-                let path = config
-                    .check
-                    .baseline
-                    .clone()
-                    .unwrap_or_else(|| PathBuf::from(DEFAULT_BASELINE_FILENAME));
-                Baseline::load_or_default(&path, baseline_is_configured)
-                    .map_err(anyhow::Error::from)?
-            },
-            format: config.format,
+            feature_flags: reload.feature_flags,
+            resolution_context: reload.resolution_context.clone(),
+            baseline: reload.baseline.clone(),
+            format: reload.format,
+            config_filename: Some(String::from("sprocket.toml")),
+            reload_config: Some(reload_config),
         },
         UserOptions {
             log_level: LevelFilter::from(
@@ -98,8 +152,8 @@ pub async fn analyzer(
                     .unwrap_or(tracing::metadata::LevelFilter::WARN),
             ),
             lint: LintOptions {
-                enabled: args.lint,
-                config: Arc::new(config.check.lint),
+                enabled: reload.lint_enabled,
+                config: Arc::new(reload.lint_config),
             },
         },
         Some(handle),
