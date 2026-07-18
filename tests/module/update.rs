@@ -901,12 +901,12 @@ fn lock_update_signer_transition_matrix_respects_trust_mode() {
     ];
 
     for (transition, mode, expect_success, expect_prompt, expected_phrase) in cases {
-        let (fixture, consumer) = stage_update_transition(transition);
+        let scenario = SignerScenario::for_update(transition);
         let mut command = sprocket_with_config(
-            fixture.config_path(),
+            scenario.fixture.config_path(),
             &["dev", "module", "update", "--trust-mode", mode.as_arg()],
         );
-        command.current_dir(&consumer);
+        command.current_dir(&scenario.consumer);
         let output = output_with_stdin(command, "\n");
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert_eq!(
