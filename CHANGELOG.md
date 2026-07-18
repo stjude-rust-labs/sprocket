@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `sprocket analyzer` (the LSP server) now watches `sprocket.toml` for changes and hot-reloads
   `check.{baseline,lint}` and `analyzer` configuration without requiring a client restart
-  ([#1009](https://github.com/stjude-rust-labs/sprocket/issues/1009)).
+  ([#1024](https://github.com/stjude-rust-labs/sprocket/pull/1024)).
 
 ## 0.28.0 - 2026-07-15
 

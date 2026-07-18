@@ -9,11 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* `ServerOptions` gained `config_filename` and `reload_config` so that hosts
-  can be notified (via `workspace/didChangeWatchedFiles`) when a configuration
-  file such as `sprocket.toml` changes, and hot-reload the analyzer- and
-  lint-affecting configuration without restarting the server
-  ([#1009](https://github.com/stjude-rust-labs/sprocket/issues/1009)).
+* `ServerOptions` gained `config_filename` and `reload_config` so that hosts can be notified (via `workspace/didChangeWatchedFiles`) when a configuration file such as `sprocket.toml` changes, and hot-reload the analyzer- and lint-affecting configuration without restarting the server ([#1024](https://github.com/stjude-rust-labs/sprocket/pull/1024)).
 
 ## 0.21.0 - 2026-07-15
 
