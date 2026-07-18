@@ -26,3 +26,6 @@ crates/wdl-format/tests/format/newline-style/source.formatted.wdl -text
 # see - https://github.com/github-linguist/linguist/blob/1040da7115035a67fd0b8bfeb12f38b9719b16af/docs/overrides.md#using-gitattributes
 **/docs/** linguist-vendored
 **/output_docs/** linguist-vendored
+crates/wdl-analysis/tests/analysis/import-higher-minor-rejected/source.diagnostics whitespace=-trailing-space,-blank-at-eof
+crates/wdl-analysis/tests/analysis/import-incompatible-versions-fallback/source.diagnostics whitespace=-trailing-space
+tests/cli/run/help/stdout whitespace=-trailing-space
