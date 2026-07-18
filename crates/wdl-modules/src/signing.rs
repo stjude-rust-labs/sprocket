@@ -371,7 +371,7 @@ fn validate_identity(identity: Option<&SignerIdentity>) -> Result<(), SignatureF
 
 /// Encodes the domain-separated payload covered by a module signature.
 fn signature_message(digest: &ContentHash, identity: Option<&SignerIdentity>) -> Vec<u8> {
-    const DOMAIN: &[u8] = b"sprocket.module-signature.v1";
+    const DOMAIN: &[u8] = b"openwdl.module-signature.v1";
 
     let mut message = Vec::with_capacity(128);
     message.extend_from_slice(DOMAIN);
@@ -586,5 +586,59 @@ mod tests {
             err.to_string().contains("invalid `module.sig` JSON"),
             "wrong error: {err}"
         );
+    }
+
+    #[test]
+    fn signature_message_matches_openwdl_vector() {
+        let digest = ContentHash::from([0x42; 32]);
+        let identity = SignerIdentity {
+            name: Some("Jane Doe".to_string()),
+            email: Some("jane@example.com".to_string()),
+        };
+        let message = signature_message(&digest, Some(&identity));
+        assert_eq!(
+            hex::encode(&message),
+            concat!(
+                "6f70656e77646c2e6d6f64756c652d7369676e61747572652e7631",
+                "4242424242424242424242424242424242424242424242424242424242424242",
+                "0108000000000000004a616e6520446f65",
+                "0110000000000000006a616e65406578616d706c652e636f6d"
+            )
+        );
+    }
+
+    #[test]
+    fn module_signature_rejects_sprocket_domain() {
+        let signer = signing_key_from_seed(11);
+        let digest = ContentHash::from([0x42; 32]);
+        let identity = SignerIdentity {
+            name: Some("Jane Doe".to_string()),
+            email: Some("jane@example.com".to_string()),
+        };
+
+        // Construct the old-domain payload manually.
+        let mut old_payload = Vec::new();
+        old_payload.extend_from_slice(b"sprocket.module-signature.v1");
+        old_payload.extend_from_slice(digest.as_bytes());
+        append_optional_string(&mut old_payload, identity.name.as_deref());
+        append_optional_string(&mut old_payload, identity.email.as_deref());
+
+        // Sign the old-domain payload.
+        let old_sig = signer.sign_message(&old_payload);
+
+        // Build a ModuleSignature via JSON carrying the old-domain signature.
+        let json = serde_json::json!({
+            "public_key": signer.verifying_key().to_string(),
+            "identity": {
+                "name": "Jane Doe",
+                "email": "jane@example.com"
+            },
+            "signature": old_sig.to_base64()
+        });
+        // SAFETY: the JSON is well-formed and all identity fields are valid.
+        let module_sig =
+            ModuleSignature::parse(serde_json::to_vec(&json).unwrap().as_slice()).unwrap();
+
+        assert!(module_sig.verify(&digest).is_err());
     }
 }
