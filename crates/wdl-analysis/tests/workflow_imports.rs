@@ -268,26 +268,35 @@ async fn wildcard_all_kinds_exposes_task_workflow_struct_and_enum() {
 
 #[tokio::test]
 async fn selected_import_workflow_rejection_does_not_block_task_import() {
+    // Characterization/regression: verifies selected-member isolation.
+    // `alpha` occupies the workflow slot via the first selected import; a
+    // second selected import lists both `beta` (workflow) and `run_task`
+    // (task) in the same member list.  `beta` must be rejected while
+    // `run_task` is still imported.  A GREEN result is expected because the
+    // production code already processes each member independently — this test
+    // was redesigned to cover the actual isolation path rather than the
+    // local-workflow-rejection path that the previous version exercised.
     let document = analyze(&[
+        ("a.wdl", "version 1.4\n\nworkflow alpha {}\n"),
         (
-            "lib.wdl",
+            "b.wdl",
             "version 1.4\n\ntask run_task {\n    command <<<>>>\n    output { Int out = 1 \
-             }\n}\n\nworkflow run_workflow {\n    output { Int out = 2 }\n}\n",
+             }\n}\n\nworkflow beta {\n    output { Int out = 2 }\n}\n",
         ),
         (
             "source.wdl",
-            "version 1.4\n\nimport { run_workflow, run_task } from \"lib.wdl\"\n\nworkflow local \
-             {}\n",
+            "version 1.4\n\nimport { alpha } from \"a.wdl\"\nimport { beta, run_task } from \
+             \"b.wdl\"\n\nstruct Anchor { Int value }\n",
         ),
     ])
     .await;
 
-    assert!(document.workflow().is_none());
+    assert!(document.imported_workflow_by_name("alpha").is_some());
+    assert!(document.imported_workflow_by_name("beta").is_none());
     assert!(document.imported_task_by_name("run_task").is_some());
-    assert!(document.imported_workflow_by_name("run_workflow").is_some());
     assert_eq!(
         errors(&document),
-        ["cannot add workflow `local` because only one workflow may be in scope"]
+        ["cannot add workflow `beta` because only one workflow may be in scope"]
     );
 }
 
