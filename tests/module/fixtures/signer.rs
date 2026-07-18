@@ -202,7 +202,7 @@ impl CliTrustMode {
     }
 }
 
-fn stage_update_transition(transition: SignerTransition) -> (GitFixture, PathBuf) {
+pub(crate) fn stage_update_transition(transition: SignerTransition) -> (GitFixture, PathBuf) {
     let fixture = match transition {
         SignerTransition::Added => GitFixture::new(),
         SignerTransition::Changed | SignerTransition::Removed => {
@@ -251,7 +251,7 @@ fn stage_update_transition(transition: SignerTransition) -> (GitFixture, PathBuf
     (fixture, consumer)
 }
 
-fn stage_upgrade_transition(transition: SignerTransition) -> (GitFixture, PathBuf) {
+pub(crate) fn stage_upgrade_transition(transition: SignerTransition) -> (GitFixture, PathBuf) {
     let fixture = match transition {
         SignerTransition::Added => GitFixture::new(),
         SignerTransition::Changed | SignerTransition::Removed => {
