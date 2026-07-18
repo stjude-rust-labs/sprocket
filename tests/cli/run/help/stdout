@@ -99,12 +99,12 @@ Options:
 
   -s, --skip-config-search
           Skip searching for and loading configuration files.
-          
+
           Only a configuration file specified as a command line argument will be used.
 
       --show-task-stderr
           Show task stderr during execution.
-          
+
           Note that not all execution backends support this option.
 
       --suffix <SUFFIX>
