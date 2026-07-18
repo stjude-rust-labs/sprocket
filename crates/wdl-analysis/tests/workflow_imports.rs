@@ -180,3 +180,121 @@ async fn namespaced_workflows_do_not_occupy_the_local_workflow_slot() {
     assert!(document.namespace("a").is_some());
     assert!(document.namespace("b").is_some());
 }
+
+#[tokio::test]
+async fn selected_workflow_import_is_present_without_local_workflow() {
+    let document = analyze(&[
+        (
+            "lib.wdl",
+            "version 1.4\n\nworkflow run {\n    output {\n        Int out = 1\n    }\n}\n",
+        ),
+        (
+            "source.wdl",
+            "version 1.4\n\nimport { run } from \"lib.wdl\"\n\nstruct Anchor { Int value }\n",
+        ),
+    ])
+    .await;
+
+    assert!(errors(&document).is_empty());
+    assert!(document.imported_workflow_by_name("run").is_some());
+}
+
+#[tokio::test]
+async fn selected_reexport_exposes_imported_task_and_workflow() {
+    let document = analyze(&[
+        (
+            "base.wdl",
+            "version 1.4\n\ntask do_task {\n    command <<<>>>\n    output { Int out = 1 \
+             }\n}\n\nworkflow do_flow {\n    output { Int out = 2 }\n}\n",
+        ),
+        (
+            "mid.wdl",
+            "version 1.4\n\nimport * from \"base.wdl\"\n\nstruct Marker { Int value }\n",
+        ),
+        (
+            "source.wdl",
+            "version 1.4\n\nimport { do_task } from \"mid.wdl\"\nimport { do_flow } from \
+             \"mid.wdl\"\n\nstruct Anchor { Int value }\n",
+        ),
+    ])
+    .await;
+
+    assert!(errors(&document).is_empty());
+    assert!(document.imported_task_by_name("do_task").is_some());
+    assert!(document.imported_workflow_by_name("do_flow").is_some());
+}
+
+#[tokio::test]
+async fn wildcard_reexport_exposes_imported_workflow() {
+    let document = analyze(&[
+        (
+            "base.wdl",
+            "version 1.4\n\nworkflow run {\n    output { Int out = 1 }\n}\n",
+        ),
+        (
+            "mid.wdl",
+            "version 1.4\n\nimport * from \"base.wdl\"\n\nstruct Marker { Int value }\n",
+        ),
+        (
+            "source.wdl",
+            "version 1.4\n\nimport * from \"mid.wdl\"\n\nstruct Anchor { Int value }\n",
+        ),
+    ])
+    .await;
+
+    assert!(errors(&document).is_empty());
+    assert!(document.imported_workflow_by_name("run").is_some());
+}
+
+#[tokio::test]
+async fn wildcard_all_kinds_exposes_task_workflow_struct_and_enum() {
+    let document = analyze(&[
+        (
+            "lib.wdl",
+            "version 1.4\n\nstruct Record {\n    Int value\n}\n\nenum State {\n    Ready,\n    \
+             Done\n}\n\ntask run_task {\n    command <<<>>>\n    output { Int out = 1 \
+             }\n}\n\nworkflow run_workflow {\n    output { Int out = 2 }\n}\n",
+        ),
+        (
+            "source.wdl",
+            "version 1.4\n\nimport * from \"lib.wdl\"\n\ntask use_types {\n    input {\n        \
+             Record rec\n        State state\n    }\n\n    command <<<>>>\n\n    output {\n       \
+             Int out = rec.value\n        State result = state\n    }\n}\n",
+        ),
+    ])
+    .await;
+
+    assert!(errors(&document).is_empty());
+    assert!(document.imported_task_by_name("run_task").is_some());
+    assert!(document.imported_workflow_by_name("run_workflow").is_some());
+    assert!(document.struct_by_name("Record").is_some());
+    assert!(document.enum_by_name("State").is_some());
+}
+
+#[tokio::test]
+async fn selected_import_workflow_rejection_does_not_block_task_import() {
+    let document = analyze(&[
+        (
+            "lib.wdl",
+            "version 1.4\n\ntask run_task {\n    command <<<>>>\n    output { Int out = 1 \
+             }\n}\n\nworkflow run_workflow {\n    output { Int out = 2 }\n}\n",
+        ),
+        (
+            "source.wdl",
+            "version 1.4\n\nimport { run_workflow, run_task } from \"lib.wdl\"\n\nworkflow local \
+             {}\n",
+        ),
+    ])
+    .await;
+
+    assert_eq!(
+        document.workflow().map(|workflow| workflow.name()),
+        Some("local")
+    );
+    assert!(document.imported_task_by_name("run_task").is_some());
+    assert!(document.imported_workflow_by_name("run_workflow").is_none());
+    assert_eq!(
+        errors(&document),
+        ["cannot import workflow `run_workflow` because only one workflow may be in scope"]
+    );
+}
