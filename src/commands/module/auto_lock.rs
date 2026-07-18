@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use super::LockedProject;
 use super::Project;
+use super::ProjectUpdate;
 use super::load_lockfile;
 use super::relock::RelockPlanner;
 use super::signer_policy::SignerChangeMode;
@@ -67,7 +68,7 @@ pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> an
             CommandOutput::new(false),
         )
         .await?;
-    project.commit(None, Some(&outcome.lockfile))?;
+    project.commit(ProjectUpdate::Lockfile(&outcome.lockfile))?;
     Ok(())
 }
 

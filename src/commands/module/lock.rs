@@ -9,6 +9,7 @@ use super::signer_policy::signer_change_mode;
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::LockedProject;
+use crate::commands::module::ProjectUpdate;
 use crate::commands::module::discover;
 use crate::commands::module::load_lockfile;
 use crate::commands::module::trace_project;
@@ -113,7 +114,7 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
             output,
         )
         .await?;
-    project.commit(None, Some(&outcome.lockfile))?;
+    project.commit(ProjectUpdate::Lockfile(&outcome.lockfile))?;
     tracing::debug!(
         lockfile = %project.project().lockfile_path.display(),
         "wrote module lockfile"

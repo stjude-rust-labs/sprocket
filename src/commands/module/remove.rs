@@ -8,6 +8,7 @@ use super::signer_policy::signer_change_mode;
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::LockedProject;
+use crate::commands::module::ProjectUpdate;
 use crate::commands::module::discover;
 use crate::commands::module::parse_manifest_value;
 use crate::commands::module::read_manifest_value;
@@ -71,10 +72,13 @@ pub async fn remove(args: Args, config: Config, output: CommandOutput) -> Comman
         )
     };
 
-    locked.commit(
-        Some(&value),
-        relock.as_ref().map(|outcome| &outcome.lockfile),
-    )?;
+    locked.commit(match relock.as_ref() {
+        Some(outcome) => ProjectUpdate::Both {
+            manifest: &value,
+            lockfile: &outcome.lockfile,
+        },
+        None => ProjectUpdate::Manifest(&value),
+    })?;
     tracing::debug!(
         dependency = args.name,
         manifest = %project.manifest_path.display(),

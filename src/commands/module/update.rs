@@ -22,6 +22,7 @@ use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::LockedProject;
 use crate::commands::module::Project;
+use crate::commands::module::ProjectUpdate;
 use crate::commands::module::dependency_update;
 use crate::commands::module::discover;
 use crate::commands::module::load_lockfile;
@@ -78,7 +79,7 @@ pub async fn update(args: Args, config: Config, output: CommandOutput) -> Comman
         signer_change_mode(&config, args.trust_mode),
         output,
     )?;
-    project.commit(None, Some(&plan.outcome.lockfile))?;
+    project.commit(ProjectUpdate::Lockfile(&plan.outcome.lockfile))?;
     tracing::debug!(
         lockfile = %project.project().lockfile_path.display(),
         "wrote module lockfile"

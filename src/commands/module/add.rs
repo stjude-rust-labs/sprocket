@@ -15,6 +15,7 @@ use super::signer_policy::signer_change_mode;
 use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::LockedProject;
+use crate::commands::module::ProjectUpdate;
 use crate::commands::module::discover;
 use crate::commands::module::git_selector;
 use crate::commands::module::parse_manifest_value;
@@ -117,7 +118,7 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
                     output,
                 )
                 .await?;
-            locked.commit(None, Some(&outcome.lockfile))?;
+            locked.commit(ProjectUpdate::Lockfile(&outcome.lockfile))?;
             output.completed(
                 LOCK,
                 count_noun(
@@ -155,10 +156,13 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
         )
     };
 
-    locked.commit(
-        Some(&value),
-        relock.as_ref().map(|outcome| &outcome.lockfile),
-    )?;
+    locked.commit(match relock.as_ref() {
+        Some(outcome) => ProjectUpdate::Both {
+            manifest: &value,
+            lockfile: &outcome.lockfile,
+        },
+        None => ProjectUpdate::Manifest(&value),
+    })?;
     tracing::debug!(
         dependency = name.manifest(),
         manifest = %project.manifest_path.display(),

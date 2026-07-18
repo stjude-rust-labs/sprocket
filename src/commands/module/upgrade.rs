@@ -27,6 +27,7 @@ use crate::commands::CommandResult;
 use crate::commands::module::Locator;
 use crate::commands::module::LockedProject;
 use crate::commands::module::Project;
+use crate::commands::module::ProjectUpdate;
 use crate::commands::module::dependency_update;
 use crate::commands::module::discover;
 use crate::commands::module::load_lockfile;
@@ -91,10 +92,10 @@ pub async fn upgrade(args: Args, config: Config, output: CommandOutput) -> Comma
         signer_change_mode(&config, args.trust_mode),
         output,
     )?;
-    project.commit(
-        Some(&changes.manifest_value),
-        Some(&changes.outcome.lockfile),
-    )?;
+    project.commit(ProjectUpdate::Both {
+        manifest: &changes.manifest_value,
+        lockfile: &changes.outcome.lockfile,
+    })?;
     tracing::debug!(
         manifest = %project.project().manifest_path.display(),
         changed = changes.changed.len(),
