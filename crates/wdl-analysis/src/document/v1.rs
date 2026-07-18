@@ -115,7 +115,7 @@ use crate::diagnostics::unused_declaration;
 use crate::diagnostics::unused_import;
 use crate::diagnostics::unused_input;
 use crate::diagnostics::wildcard_import_conflict;
-use crate::diagnostics::workflow_import_conflict;
+use crate::diagnostics::workflow_conflict;
 use crate::document::Name;
 use crate::eval::v1::TaskGraphBuilder;
 use crate::eval::v1::TaskGraphNode;
@@ -178,15 +178,6 @@ fn sort_scopes(scopes: &mut Vec<Scope>) {
     }
 }
 
-/// A local workflow that takes precedence over scope-merging imports.
-#[derive(Clone, Debug)]
-struct LocalWorkflowReservation {
-    /// The workflow name.
-    name: String,
-    /// The workflow name span.
-    span: Span,
-}
-
 /// Creates a new document for a V1 AST.
 pub(crate) fn populate_document(
     document: &mut DocumentData,
@@ -215,19 +206,6 @@ pub(crate) fn populate_document(
             .flatten(),
     );
 
-    // Scan for a local workflow definition before processing imports; it takes
-    // precedence over any workflow brought in via scope-merging imports.
-    let local_workflow = ast.items().find_map(|item| match item {
-        DocumentItem::Workflow(workflow) => {
-            let name = workflow.name();
-            Some(LocalWorkflowReservation {
-                name: name.text().to_string(),
-                span: name.span(),
-            })
-        }
-        _ => None,
-    });
-
     // First start by processing imports, struct definitions, and enum definitions
     // This needs to be performed before processing tasks and workflows as
     // declarations might reference an imported or locally-defined struct or enum
@@ -243,10 +221,10 @@ pub(crate) fn populate_document(
                     }
                 }
                 ImportForm::Wildcard => {
-                    add_wildcard_import(document, graph, &import, index, local_workflow.as_ref());
+                    add_wildcard_import(document, graph, &import, index);
                 }
                 ImportForm::Selected => {
-                    add_selected_import(document, graph, &import, index, local_workflow.as_ref());
+                    add_selected_import(document, graph, &import, index);
                 }
             },
             DocumentItem::Struct(s) => {
@@ -560,7 +538,6 @@ fn add_wildcard_import(
     graph: &DocumentGraph,
     import: &ImportStatement,
     importer_index: NodeIndex,
-    local_workflow: Option<&LocalWorkflowReservation>,
 ) {
     let (uri, imported) = match resolve_import(graph, import, importer_index) {
         Ok(resolved) => resolved,
@@ -667,7 +644,6 @@ fn add_wildcard_import(
     if let Some(workflow) = &imported.data.workflow {
         insert_imported_workflow(
             document,
-            local_workflow,
             &workflow.name,
             ImportedWorkflow {
                 name: workflow.name.clone(),
@@ -685,7 +661,6 @@ fn add_wildcard_import(
     for (name, workflow) in &imported.data.imported_workflows {
         insert_imported_workflow(
             document,
-            local_workflow,
             name,
             ImportedWorkflow {
                 name: workflow.name.clone(),
@@ -707,7 +682,6 @@ fn add_selected_import(
     graph: &DocumentGraph,
     import: &ImportStatement,
     importer_index: NodeIndex,
-    local_workflow: Option<&LocalWorkflowReservation>,
 ) {
     let (uri, imported) = match resolve_import(graph, import, importer_index) {
         Ok(resolved) => resolved,
@@ -758,7 +732,6 @@ fn add_selected_import(
             member_span,
         ) || import_selected_workflow(
             document,
-            local_workflow,
             &imported,
             &uri,
             member_name.text(),
@@ -922,7 +895,6 @@ fn import_selected_task(
 /// when the imported module exposes a workflow by that name.
 fn import_selected_workflow(
     document: &mut DocumentData,
-    local_workflow: Option<&LocalWorkflowReservation>,
     imported: &Document,
     uri: &Arc<Url>,
     member_name: &str,
@@ -958,7 +930,6 @@ fn import_selected_workflow(
 
     insert_imported_workflow(
         document,
-        local_workflow,
         local_name,
         entry,
         member_span,
@@ -1008,16 +979,13 @@ fn insert_imported_task(
 ///
 /// 1. Same underlying declaration re-imported (diamond pattern) is silently
 ///    deduplicated; no diagnostic is emitted.
-/// 2. A local workflow definition always takes precedence; the import is
-///    rejected and `workflow_import_conflict` is emitted.
-/// 3. A distinct workflow already occupies local scope; only one workflow may
-///    be in scope at a time, so the import is rejected and
-///    `workflow_import_conflict` is emitted.
-/// 4. The local name collides with a task or other callable; the `conflict`
+/// 2. A distinct workflow already occupies local scope; only one workflow may
+///    be in scope at a time, so the import is rejected and `workflow_conflict`
+///    is emitted.
+/// 3. The local name collides with a task or other callable; the `conflict`
 ///    callback is called (preserving the import-form-specific diagnostic).
 fn insert_imported_workflow(
     document: &mut DocumentData,
-    local_workflow: Option<&LocalWorkflowReservation>,
     local_name: &str,
     entry: ImportedWorkflow,
     conflict_span: Span,
@@ -1032,24 +1000,13 @@ fn insert_imported_workflow(
         return;
     }
 
-    // A local workflow always takes precedence over an imported one.
-    if let Some(local) = local_workflow {
-        document.analysis_diagnostics.add(workflow_import_conflict(
-            &entry.name,
-            conflict_span,
-            &local.name,
-            local.span,
-        ));
-        return;
-    }
-
     // Only one distinct workflow may occupy local scope at a time.
     if let Some(existing) = document
         .imported_workflows
         .values()
         .find(|existing| existing.source != entry.source || existing.name != entry.name)
     {
-        document.analysis_diagnostics.add(workflow_import_conflict(
+        document.analysis_diagnostics.add(workflow_conflict(
             &entry.name,
             conflict_span,
             &existing.name,
@@ -1671,6 +1628,17 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
         document
             .analysis_diagnostics
             .add(duplicate_workflow(&name, prev.name_span));
+        return false;
+    }
+
+    // An imported workflow already occupies local scope; reject this definition.
+    if let Some(imported) = document.imported_workflows.values().next() {
+        document.analysis_diagnostics.add(workflow_conflict(
+            name.text(),
+            name.span(),
+            &imported.name,
+            imported.span,
+        ));
         return false;
     }
 

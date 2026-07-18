@@ -1,8 +1,9 @@
 //! Integration tests for the single-workflow local-scope import invariant.
 //!
 //! These tests enforce that at most one workflow may occupy the local scope
-//! of a document via scope-merging (wildcard or selected) imports, that a
-//! local workflow definition always takes precedence over an imported one,
+//! of a document via scope-merging (wildcard or selected) imports, that the
+//! first distinct workflow processed occupies local scope (imports run before
+//! local declarations, so an imported workflow beats a later local definition),
 //! and that re-importing the same underlying declaration is deduplicated.
 //! Namespaced imports are unrestricted and do not consume the workflow slot.
 
@@ -47,7 +48,7 @@ fn errors(document: &Document) -> Vec<String> {
 }
 
 #[tokio::test]
-async fn local_workflow_takes_precedence_over_wildcard_import() {
+async fn wildcard_imported_workflow_precedes_local_workflow() {
     let document = analyze(&[
         ("lib.wdl", "version 1.4\n\nworkflow imported {}\n"),
         (
@@ -57,19 +58,16 @@ async fn local_workflow_takes_precedence_over_wildcard_import() {
     ])
     .await;
 
-    assert_eq!(
-        document.workflow().map(|workflow| workflow.name()),
-        Some("local")
-    );
-    assert!(document.imported_workflow_by_name("imported").is_none());
+    assert!(document.workflow().is_none());
+    assert!(document.imported_workflow_by_name("imported").is_some());
     assert_eq!(
         errors(&document),
-        ["cannot import workflow `imported` because only one workflow may be in scope"]
+        ["cannot add workflow `local` because only one workflow may be in scope"]
     );
 }
 
 #[tokio::test]
-async fn local_workflow_takes_precedence_over_selected_import() {
+async fn selected_imported_workflow_precedes_local_workflow() {
     let document = analyze(&[
         ("lib.wdl", "version 1.4\n\nworkflow imported {}\n"),
         (
@@ -79,14 +77,11 @@ async fn local_workflow_takes_precedence_over_selected_import() {
     ])
     .await;
 
-    assert_eq!(
-        document.workflow().map(|workflow| workflow.name()),
-        Some("local")
-    );
-    assert!(document.imported_workflow_by_name("imported").is_none());
+    assert!(document.workflow().is_none());
+    assert!(document.imported_workflow_by_name("imported").is_some());
     assert_eq!(
         errors(&document),
-        ["cannot import workflow `imported` because only one workflow may be in scope"]
+        ["cannot add workflow `local` because only one workflow may be in scope"]
     );
 }
 
@@ -103,7 +98,7 @@ async fn assert_first_import_wins(source: &str, first: &str, second: &str) {
     assert_eq!(
         errors(&document),
         [format!(
-            "cannot import workflow `{second}` because only one workflow may be in scope"
+            "cannot add workflow `{second}` because only one workflow may be in scope"
         )]
     );
 }
@@ -287,15 +282,12 @@ async fn selected_import_workflow_rejection_does_not_block_task_import() {
     ])
     .await;
 
-    assert_eq!(
-        document.workflow().map(|workflow| workflow.name()),
-        Some("local")
-    );
+    assert!(document.workflow().is_none());
     assert!(document.imported_task_by_name("run_task").is_some());
-    assert!(document.imported_workflow_by_name("run_workflow").is_none());
+    assert!(document.imported_workflow_by_name("run_workflow").is_some());
     assert_eq!(
         errors(&document),
-        ["cannot import workflow `run_workflow` because only one workflow may be in scope"]
+        ["cannot add workflow `local` because only one workflow may be in scope"]
     );
 }
 
@@ -321,7 +313,7 @@ async fn aliased_distinct_workflows_still_conflict_retaining_first_alias() {
     );
     assert_eq!(
         errors(&document),
-        ["cannot import workflow `beta` because only one workflow may be in scope"]
+        ["cannot add workflow `beta` because only one workflow may be in scope"]
     );
 }
 
@@ -350,7 +342,7 @@ async fn same_workflow_under_two_aliases_produces_no_error_and_both_resolve() {
 }
 
 #[tokio::test]
-async fn same_name_local_workflow_takes_precedence_over_selected_import() {
+async fn same_name_selected_import_precedes_local_workflow() {
     let document = analyze(&[
         ("lib.wdl", "version 1.4\n\nworkflow foo {}\n"),
         (
@@ -360,13 +352,10 @@ async fn same_name_local_workflow_takes_precedence_over_selected_import() {
     ])
     .await;
 
-    assert_eq!(
-        document.workflow().map(|workflow| workflow.name()),
-        Some("foo")
-    );
-    assert!(document.imported_workflow_by_name("foo").is_none());
+    assert!(document.workflow().is_none());
+    assert!(document.imported_workflow_by_name("foo").is_some());
     assert_eq!(
         errors(&document),
-        ["cannot import workflow `foo` because only one workflow may be in scope"]
+        ["cannot add workflow `foo` because only one workflow may be in scope"]
     );
 }

@@ -318,18 +318,18 @@ pub fn wildcard_import_conflict(name: &str, import_span: Span, prev_span: Span) 
     .with_label("previous definition", prev_span)
 }
 
-/// Creates a diagnostic for importing a second distinct workflow into local
-/// scope.
-pub fn workflow_import_conflict(
-    imported_name: &str,
-    import_span: Span,
+/// Creates a diagnostic for attempting to add a workflow when one already
+/// occupies local scope.
+pub fn workflow_conflict(
+    rejected_name: &str,
+    rejected_span: Span,
     retained_name: &str,
     retained_span: Span,
 ) -> Diagnostic {
     Diagnostic::error(format!(
-        "cannot import workflow `{imported_name}` because only one workflow may be in scope"
+        "cannot add workflow `{rejected_name}` because only one workflow may be in scope"
     ))
-    .with_label("this workflow import is rejected", import_span)
+    .with_label("this workflow is rejected", rejected_span)
     .with_label(
         format!("workflow `{retained_name}` is retained here"),
         retained_span,
