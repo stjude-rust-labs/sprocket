@@ -27,30 +27,6 @@ pub mod update;
 pub mod upgrade;
 pub mod verify;
 
-pub(crate) use display::dependency_update;
-pub(crate) use display::git_selector;
-pub(crate) use display::resolved_source;
-pub(crate) use display::short_commit;
-pub(crate) use display::version_constraint;
-pub(crate) use manifest::align_temp_permissions;
-pub(crate) use manifest::parse_manifest_value;
-pub use manifest::read_manifest_value;
-pub use manifest::remove_dependency;
-pub use manifest::set_dependency;
-pub use manifest::write_lockfile;
-pub use manifest::write_manifest_value;
-pub(crate) use mutation::LockedProject;
-pub(crate) use mutation::ProjectUpdate;
-pub use project::Locator;
-pub use project::Project;
-pub use project::discover;
-pub use project::load_lockfile;
-pub(crate) use project::require_lockfile;
-pub(crate) use project::trace_project;
-pub use signer_policy::TrustModeArg;
-pub(crate) use signer_policy::render_signer;
-pub(crate) use trust_store::TrustStoreFile;
-
 /// Subcommands of `sprocket dev module`.
 #[derive(Subcommand, Debug)]
 #[allow(clippy::large_enum_variant)]
@@ -105,5 +81,17 @@ pub async fn run(
         ModuleCommands::Cache(args) => clean::cache(args, config, output).await,
         ModuleCommands::Sign(args) => sign::sign(args, output).await,
         ModuleCommands::Trust(args) => trust::trust(args, output).await,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn module_root_is_not_an_internal_reexport_barrel() {
+        let source = include_str!("module.rs");
+        let pub_use = ["pub", " use "].concat();
+        let pub_crate_use = ["pub(crate)", " use "].concat();
+        assert!(!source.contains(&pub_use));
+        assert!(!source.contains(&pub_crate_use));
     }
 }

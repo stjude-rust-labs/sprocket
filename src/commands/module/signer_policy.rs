@@ -29,7 +29,7 @@ const TRUST: Action = Action::new("Trusted", "trust");
 /// Command-line override for module signer trust mode.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 #[value(rename_all = "kebab-case")]
-pub enum TrustModeArg {
+pub(super) enum TrustModeArg {
     /// Prompt before trusting signer keys.
     Confirm,
     /// Trust first-seen signer keys automatically, then prompt on changes.
@@ -50,7 +50,7 @@ impl From<TrustModeArg> for TrustMode {
 
 /// How signer changes should be handled while writing a refreshed lockfile.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum SignerChangeMode {
+pub(super) enum SignerChangeMode {
     /// Refuse signer keys unless already accepted through the trust store.
     Strict,
     /// Prompt to trust new or changed signer keys. The default answer is no.
@@ -63,7 +63,7 @@ pub(crate) enum SignerChangeMode {
 
 impl SignerChangeMode {
     /// Selects the interactive lock-writing mode for module commands.
-    pub(crate) fn from_trust_mode(trust_mode: TrustMode) -> Self {
+    pub(super) fn from_trust_mode(trust_mode: TrustMode) -> Self {
         match trust_mode {
             TrustMode::Confirm => Self::Confirm,
             TrustMode::Tofu => Self::Tofu,
@@ -73,7 +73,7 @@ impl SignerChangeMode {
 }
 
 /// Resolves the signer trust mode using CLI override first, then config.
-pub(crate) fn signer_change_mode(
+pub(super) fn signer_change_mode(
     config: &Config,
     trust_mode: Option<TrustModeArg>,
 ) -> SignerChangeMode {
@@ -287,7 +287,7 @@ impl SignerDecisionPlan {
 
 /// Enforces signer-change policy for an existing and refreshed lockfile,
 /// loading and persisting through the default trust store.
-pub(crate) fn enforce_lockfile_signer_policy(
+pub(super) fn enforce_lockfile_signer_policy(
     existing: &Lockfile,
     new: &Lockfile,
     identities: &SignerIdentityMap,
@@ -300,14 +300,14 @@ pub(crate) fn enforce_lockfile_signer_policy(
 
 /// The signer-trust decision engine bound to a single change mode.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct SignerTrustPolicy {
+pub(super) struct SignerTrustPolicy {
     /// The mode governing how signer changes are handled.
     mode: SignerChangeMode,
 }
 
 impl SignerTrustPolicy {
     /// Creates a policy for the given signer change mode.
-    pub(crate) fn new(mode: SignerChangeMode) -> Self {
+    pub(super) fn new(mode: SignerChangeMode) -> Self {
         Self { mode }
     }
 
@@ -358,7 +358,7 @@ impl SignerTrustPolicy {
     /// New and changed signer keys require a trusted key or an interactive
     /// confirmation, depending on the mode. Removed signatures are handled by
     /// mode too; strict mode refuses while interactive modes can accept them.
-    pub(crate) fn enforce(
+    pub(super) fn enforce(
         &self,
         existing: &Lockfile,
         new: &Lockfile,
@@ -490,7 +490,7 @@ fn render_signer_with_trust(
 }
 
 /// Renders a signer key with its optional identity metadata.
-pub(crate) fn render_signer(key: &VerifyingKey, identity: Option<&SignerIdentity>) -> String {
+pub(super) fn render_signer(key: &VerifyingKey, identity: Option<&SignerIdentity>) -> String {
     match identity {
         Some(identity) => {
             render_identity_fields(key, identity.name.as_deref(), identity.email.as_deref())

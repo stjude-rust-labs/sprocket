@@ -31,12 +31,12 @@ fn update_message(
 }
 
 /// Formats a Git selector for user-facing output.
-pub(crate) fn git_selector(selector: &GitSelector) -> String {
+pub(super) fn git_selector(selector: &GitSelector) -> String {
     selector_detail(&selector.to_string())
 }
 
 /// Formats a resolved dependency source for tree and table output.
-pub(crate) fn resolved_source(source: &ResolvedSource) -> String {
+pub(super) fn resolved_source(source: &ResolvedSource) -> String {
     match source {
         ResolvedSource::Git {
             git,
@@ -62,7 +62,7 @@ pub(crate) fn resolved_source(source: &ResolvedSource) -> String {
 }
 
 /// Formats a dependency lockfile update without surrounding delimiters.
-pub(crate) fn dependency_update(change: &DependencyUpdate) -> String {
+pub(super) fn dependency_update(change: &DependencyUpdate) -> String {
     update_details(
         change.from_path.as_deref(),
         change.to_path.as_deref(),
@@ -74,7 +74,7 @@ pub(crate) fn dependency_update(change: &DependencyUpdate) -> String {
 }
 
 /// Formats a version constraint as a release label.
-pub(crate) fn version_constraint(requirement: &str) -> String {
+pub(super) fn version_constraint(requirement: &str) -> String {
     let version = requirement
         .trim()
         .trim_start_matches(['^', '=', '~', '>', '<'])
@@ -140,7 +140,7 @@ fn selector_detail(selector: &str) -> String {
     )
 }
 
-pub(crate) fn short_commit(commit: &str) -> &str {
+pub(super) fn short_commit(commit: &str) -> &str {
     &commit[..7.min(commit.len())]
 }
 

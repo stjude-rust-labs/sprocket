@@ -19,7 +19,7 @@ use wdl_modules::signing::VerifyingKey;
 /// The path travels with the store so callers persist their mutations back to
 /// the location they came from without threading a separate path argument.
 #[derive(Clone, Debug)]
-pub(crate) struct TrustStoreFile {
+pub(super) struct TrustStoreFile {
     /// The filesystem path backing this trust store.
     path: PathBuf,
     /// The in-memory trust store loaded from `path`.
@@ -29,7 +29,7 @@ pub(crate) struct TrustStoreFile {
 impl TrustStoreFile {
     /// Loads the trust store at `path`, defaulting to an empty store when the
     /// file does not yet exist.
-    pub(crate) fn load(path: impl Into<PathBuf>) -> anyhow::Result<Self> {
+    pub(super) fn load(path: impl Into<PathBuf>) -> anyhow::Result<Self> {
         let path = path.into();
         let store = TrustStore::load_or_default(&path)
             .with_context(|| format!("loading module trust store `{}`", path.display()))?;
@@ -42,22 +42,22 @@ impl TrustStoreFile {
     }
 
     /// Returns a shared reference to the underlying trust store.
-    pub(crate) fn store(&self) -> &TrustStore {
+    pub(super) fn store(&self) -> &TrustStore {
         &self.store
     }
 
     /// Returns a mutable reference to the underlying trust store.
-    pub(crate) fn store_mut(&mut self) -> &mut TrustStore {
+    pub(super) fn store_mut(&mut self) -> &mut TrustStore {
         &mut self.store
     }
 
     /// Consumes the file, returning the loaded trust store.
-    pub(crate) fn into_store(self) -> TrustStore {
+    pub(super) fn into_store(self) -> TrustStore {
         self.store
     }
 
     /// Persists the trust store back to its configured path.
-    pub(crate) fn save(&self) -> anyhow::Result<()> {
+    pub(super) fn save(&self) -> anyhow::Result<()> {
         self.store
             .save(&self.path)
             .with_context(|| format!("saving module trust store `{}`", self.path.display()))?;
@@ -71,7 +71,7 @@ impl TrustStoreFile {
 
     /// Trusts every signer key recorded in a lockfile and saves the store,
     /// returning the number of newly added keys.
-    pub(crate) fn accept_lockfile_signers(&mut self, lockfile: &Lockfile) -> anyhow::Result<usize> {
+    pub(super) fn accept_lockfile_signers(&mut self, lockfile: &Lockfile) -> anyhow::Result<usize> {
         let accepted = insert_lockfile_signers(&mut self.store, lockfile);
         self.save()?;
         Ok(accepted)
@@ -80,7 +80,7 @@ impl TrustStoreFile {
 
 /// Adds every signer key recorded in a lockfile to `trust`, returning the
 /// number of keys that were not already present. This performs no I/O.
-pub(crate) fn insert_lockfile_signers(trust: &mut TrustStore, lockfile: &Lockfile) -> usize {
+pub(super) fn insert_lockfile_signers(trust: &mut TrustStore, lockfile: &Lockfile) -> usize {
     let mut accepted = 0usize;
     for signer in lockfile_signers(lockfile, &SignerIdentityMap::new()) {
         if trust.insert_key(signer.key) {
@@ -92,7 +92,7 @@ pub(crate) fn insert_lockfile_signers(trust: &mut TrustStore, lockfile: &Lockfil
 }
 
 /// Records the identity metadata for `key` in the trust store when present.
-pub(crate) fn upsert_signer_identity(
+pub(super) fn upsert_signer_identity(
     trust: &mut TrustStore,
     key: VerifyingKey,
     identity: Option<SignerIdentity>,

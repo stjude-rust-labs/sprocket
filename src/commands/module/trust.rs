@@ -7,12 +7,12 @@ use wdl_modules::signing::SignerIdentity;
 use wdl_modules::signing::VerifyingKey;
 use wdl_modules::signing::parse_openssh_public_key_identity;
 
+use super::project::Locator;
+use super::project::discover;
+use super::project::require_lockfile;
+use super::project::trace_project;
+use super::trust_store::TrustStoreFile;
 use crate::commands::CommandResult;
-use crate::commands::module::Locator;
-use crate::commands::module::TrustStoreFile;
-use crate::commands::module::discover;
-use crate::commands::module::require_lockfile;
-use crate::commands::module::trace_project;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
 
@@ -57,7 +57,7 @@ pub struct AddArgs {
 pub struct AllArgs {
     /// Shared module locator.
     #[command(flatten)]
-    pub locator: Locator,
+    locator: Locator,
 }
 
 /// Arguments to `sprocket dev module trust remove`.

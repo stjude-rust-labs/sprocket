@@ -6,12 +6,12 @@ use clap::Parser;
 use wdl_modules::Lockfile;
 use wdl_modules::lockfile::DependencyMap;
 
+use super::display::resolved_source;
+use super::project::Locator;
+use super::project::discover;
+use super::project::require_lockfile;
+use super::project::trace_project;
 use crate::commands::CommandResult;
-use crate::commands::module::Locator;
-use crate::commands::module::discover;
-use crate::commands::module::require_lockfile;
-use crate::commands::module::resolved_source;
-use crate::commands::module::trace_project;
 use crate::commands::output::CommandOutput;
 
 /// Arguments to `sprocket dev module tree`.
@@ -23,7 +23,7 @@ pub struct TreeArgs {
 
     /// Shared module locator.
     #[command(flatten)]
-    pub locator: Locator,
+    locator: Locator,
 }
 
 /// Arguments to `sprocket dev module list`.
@@ -35,7 +35,7 @@ pub struct ListArgs {
 
     /// Shared module locator.
     #[command(flatten)]
-    pub locator: Locator,
+    locator: Locator,
 }
 
 /// Runs `sprocket dev module tree`.

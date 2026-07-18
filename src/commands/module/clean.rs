@@ -6,12 +6,12 @@ use clap::Subcommand;
 use wdl_modules::Lockfile;
 use wdl_modules::module::Module;
 
+use super::project::Locator;
+use super::project::discover;
+use super::project::require_lockfile;
+use super::project::trace_project;
 use super::resolver::ResolverEnvironment;
 use crate::commands::CommandResult;
-use crate::commands::module::Locator;
-use crate::commands::module::discover;
-use crate::commands::module::require_lockfile;
-use crate::commands::module::trace_project;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
 use crate::commands::output::count_noun;
@@ -35,7 +35,7 @@ pub struct Args {
 
     /// Shared module locator.
     #[command(flatten)]
-    pub locator: Locator,
+    locator: Locator,
 }
 
 /// Runs `sprocket dev module cache`.

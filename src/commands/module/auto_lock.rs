@@ -7,10 +7,10 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use super::LockedProject;
-use super::Project;
-use super::ProjectUpdate;
-use super::load_lockfile;
+use super::mutation::LockedProject;
+use super::mutation::ProjectUpdate;
+use super::project::Project;
+use super::project::load_lockfile;
 use super::relock::RelockPlanner;
 use super::signer_policy::SignerChangeMode;
 use crate::commands::output::CommandOutput;

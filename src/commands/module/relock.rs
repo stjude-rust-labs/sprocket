@@ -11,8 +11,8 @@ use wdl_modules::resolver::lock::SignerIdentityMap;
 use wdl_modules::resolver::lock::partial_relock;
 use wdl_modules::resolver::lock::signer_identity_map;
 
-use super::Project;
-use super::load_lockfile;
+use super::project::Project;
+use super::project::load_lockfile;
 use super::resolver::ResolverEnvironment;
 use super::signer_policy::SignerChangeMode;
 use super::signer_policy::enforce_lockfile_signer_policy;
@@ -21,17 +21,17 @@ use crate::config::Config;
 
 /// A resolved lockfile update plus signer metadata gathered while
 /// verifying the dependency tree.
-pub(crate) struct RelockPlan {
+pub(super) struct RelockPlan {
     /// The lockfile currently on disk, or an empty lockfile when absent.
-    pub(crate) existing: Lockfile,
+    pub(super) existing: Lockfile,
     /// The relock result that should be written after policy passes.
-    pub(crate) outcome: RelockOutcome,
+    pub(super) outcome: RelockOutcome,
     /// Signer identity metadata from freshly verified `module.sig` files.
-    pub(crate) identities: SignerIdentityMap,
+    pub(super) identities: SignerIdentityMap,
 }
 
 /// Plans partial relocks for add, remove, lock, and automatic locking.
-pub(crate) struct RelockPlanner<'a> {
+pub(super) struct RelockPlanner<'a> {
     /// Module configuration governing cache, trust, and policy.
     config: &'a Config,
     /// The project whose lockfile is being refreshed.
@@ -40,13 +40,13 @@ pub(crate) struct RelockPlanner<'a> {
 
 impl<'a> RelockPlanner<'a> {
     /// Creates a partial relock planner for a project.
-    pub(crate) fn new(config: &'a Config, project: &'a Project) -> Self {
+    pub(super) fn new(config: &'a Config, project: &'a Project) -> Self {
         Self { config, project }
     }
 
     /// Re-resolves dependencies for a manifest and merges the result with the
     /// previous lockfile without applying signer-change policy.
-    pub(crate) async fn plan(&self, manifest: Arc<Manifest>) -> anyhow::Result<RelockPlan> {
+    pub(super) async fn plan(&self, manifest: Arc<Manifest>) -> anyhow::Result<RelockPlan> {
         let module = Module::new(manifest, self.project.root.clone());
         let existing = load_lockfile(self.project)?.unwrap_or_default();
         tracing::debug!(
@@ -73,7 +73,7 @@ impl<'a> RelockPlanner<'a> {
 
     /// Re-resolves dependencies for a manifest, enforces signer-change policy,
     /// and returns the relock outcome ready to be written.
-    pub(crate) async fn plan_and_enforce(
+    pub(super) async fn plan_and_enforce(
         &self,
         manifest: Arc<Manifest>,
         mode: SignerChangeMode,

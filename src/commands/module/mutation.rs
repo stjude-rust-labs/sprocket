@@ -12,7 +12,9 @@ use anyhow::Context as _;
 use wdl_modules::Lockfile;
 
 use self::transaction::ProjectTransaction;
-use super::Project;
+use super::manifest::write_lockfile;
+use super::manifest::write_manifest_value;
+use super::project::Project;
 
 const STATE_DIRECTORY: &str = ".sprocket";
 const LOCK_FILENAME: &str = "module-mutation.lock";
@@ -22,7 +24,7 @@ const LOCK_FILENAME: &str = "module-mutation.lock";
 /// The variants are exhaustive and each carries at least one payload, so an
 /// empty update can never be constructed.
 #[derive(Clone, Copy, Debug)]
-pub(crate) enum ProjectUpdate<'a> {
+pub(super) enum ProjectUpdate<'a> {
     /// Rewrite only the manifest.
     Manifest(&'a serde_json::Value),
     /// Rewrite only the lockfile.
@@ -56,7 +58,7 @@ impl<'a> ProjectUpdate<'a> {
 
 /// A refreshed module project held under its exclusive mutation lock.
 #[derive(Debug)]
-pub(crate) struct LockedProject {
+pub(super) struct LockedProject {
     project: Project,
     mutation: ProjectMutation,
 }
@@ -64,19 +66,19 @@ pub(crate) struct LockedProject {
 impl LockedProject {
     /// Acquires the project lock, recovers interrupted work, and reloads the
     /// manifest under the lock.
-    pub(crate) fn acquire(mut project: Project) -> anyhow::Result<Self> {
+    pub(super) fn acquire(mut project: Project) -> anyhow::Result<Self> {
         let mutation = ProjectMutation::acquire(&project)?;
         project.reload()?;
         Ok(Self { project, mutation })
     }
 
     /// Returns the refreshed project snapshot protected by this lock.
-    pub(crate) fn project(&self) -> &Project {
+    pub(super) fn project(&self) -> &Project {
         &self.project
     }
 
     /// Atomically applies a non-empty manifest and/or lockfile update.
-    pub(crate) fn commit(&self, update: ProjectUpdate<'_>) -> anyhow::Result<()> {
+    pub(super) fn commit(&self, update: ProjectUpdate<'_>) -> anyhow::Result<()> {
         self.mutation.commit(&self.project, update)
     }
 }
@@ -89,7 +91,7 @@ struct ProjectMutation {
 
 impl ProjectMutation {
     /// Acquires the project lock and recovers an interrupted mutation.
-    pub(crate) fn acquire(project: &Project) -> anyhow::Result<Self> {
+    pub(super) fn acquire(project: &Project) -> anyhow::Result<Self> {
         let state = state_directory(&project.root)?;
         let lock_path = state.join(LOCK_FILENAME);
         let lock = OpenOptions::new()
@@ -123,7 +125,7 @@ impl ProjectMutation {
     }
 
     /// Atomically applies a non-empty manifest and/or lockfile update.
-    pub(crate) fn commit(
+    pub(super) fn commit(
         &self,
         project: &Project,
         update: ProjectUpdate<'_>,
@@ -132,10 +134,10 @@ impl ProjectMutation {
         let transaction = ProjectTransaction::begin(project)?;
         let result = (|| {
             if let Some(manifest) = update.manifest() {
-                super::write_manifest_value(&project.manifest_path, manifest)?;
+                write_manifest_value(&project.manifest_path, manifest)?;
             }
             if let Some(lockfile) = update.lockfile() {
-                super::write_lockfile(project, lockfile)?;
+                write_lockfile(project, lockfile)?;
             }
             transaction::sync_project_files(&project.manifest_path, &project.lockfile_path)?;
             Ok(())
@@ -184,6 +186,7 @@ fn state_directory(root: &Path) -> anyhow::Result<PathBuf> {
 mod tests {
     use std::sync::Arc;
 
+    use super::super::manifest::read_manifest_value;
     use super::*;
 
     fn test_project(root: &Path, lockfile_path: PathBuf) -> anyhow::Result<Project> {
@@ -237,10 +240,7 @@ mod tests {
             },
         )?;
 
-        assert_eq!(
-            super::super::read_manifest_value(&project.manifest_path)?,
-            manifest
-        );
+        assert_eq!(read_manifest_value(&project.manifest_path)?, manifest);
         assert!(lockfile_path.is_file());
         let state = directory.path().join(STATE_DIRECTORY);
         assert!(!state.join("module-mutation.pending").exists());

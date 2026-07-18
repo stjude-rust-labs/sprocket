@@ -2,18 +2,18 @@
 
 use clap::Parser;
 
+use super::manifest::parse_manifest_value;
+use super::manifest::read_manifest_value;
+use super::manifest::remove_dependency;
+use super::mutation::LockedProject;
+use super::mutation::ProjectUpdate;
+use super::project::Locator;
+use super::project::discover;
+use super::project::trace_project;
 use super::relock::RelockPlanner;
 use super::signer_policy::TrustModeArg;
 use super::signer_policy::signer_change_mode;
 use crate::commands::CommandResult;
-use crate::commands::module::Locator;
-use crate::commands::module::LockedProject;
-use crate::commands::module::ProjectUpdate;
-use crate::commands::module::discover;
-use crate::commands::module::parse_manifest_value;
-use crate::commands::module::read_manifest_value;
-use crate::commands::module::remove_dependency;
-use crate::commands::module::trace_project;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
 use crate::commands::output::count_noun;
@@ -33,11 +33,11 @@ pub struct Args {
 
     /// Override signer trust behavior for this command.
     #[arg(long, value_enum)]
-    pub trust_mode: Option<TrustModeArg>,
+    trust_mode: Option<TrustModeArg>,
 
     /// Shared module locator.
     #[command(flatten)]
-    pub locator: Locator,
+    locator: Locator,
 }
 
 /// Runs `sprocket dev module remove`.

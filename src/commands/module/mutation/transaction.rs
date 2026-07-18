@@ -8,7 +8,9 @@ use std::path::PathBuf;
 
 use anyhow::Context as _;
 
-use super::Project;
+use super::super::manifest::align_temp_permissions;
+use super::super::manifest::parse_manifest_value;
+use super::super::project::Project;
 use super::ProjectUpdate;
 use super::state_directory;
 
@@ -82,7 +84,7 @@ pub(super) fn rollback_error(
 /// Validates both serialized outputs before creating a recovery journal.
 pub(super) fn validate_updates(update: ProjectUpdate<'_>) -> anyhow::Result<()> {
     if let Some(manifest) = update.manifest() {
-        super::super::parse_manifest_value(manifest)?;
+        parse_manifest_value(manifest)?;
     }
     if let Some(lockfile) = update.lockfile() {
         let mut bytes = Vec::new();
@@ -211,7 +213,7 @@ fn write_bytes_atomically(path: &Path, bytes: &[u8]) -> anyhow::Result<()> {
         .with_context(|| format!("creating a temporary file in `{}`", directory.display()))?;
     std::io::Write::write_all(&mut temp, bytes)
         .with_context(|| format!("writing `{}`", temp.path().display()))?;
-    super::super::align_temp_permissions(&temp, path)?;
+    align_temp_permissions(&temp, path)?;
     temp.persist(path)
         .with_context(|| format!("restoring `{}`", path.display()))?;
     Ok(())

@@ -12,6 +12,7 @@ use serde_json::Map;
 use serde_json::Value;
 use wdl::ast::SupportedVersion;
 
+use super::manifest::align_temp_permissions;
 use crate::commands::CommandResult;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
@@ -249,7 +250,7 @@ fn write_new_manifest(path: &Path, value: &Value) -> anyhow::Result<()> {
     temp.as_file()
         .sync_all()
         .with_context(|| format!("syncing `{}`", temp.path().display()))?;
-    super::align_temp_permissions(&temp, path)?;
+    align_temp_permissions(&temp, path)?;
     temp.persist_noclobber(path)
         .with_context(|| format!("creating `{}`", path.display()))?;
     Ok(())

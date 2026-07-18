@@ -12,10 +12,10 @@ use wdl_modules::signing::SigningKey;
 use wdl_modules::signing::VerifyingKey;
 use wdl_modules::signing::parse_openssh_public_key_identity;
 
+use super::project::Locator;
+use super::project::discover;
+use super::project::trace_project;
 use crate::commands::CommandResult;
-use crate::commands::module::Locator;
-use crate::commands::module::discover;
-use crate::commands::module::trace_project;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
 
@@ -34,7 +34,7 @@ pub struct Args {
 
     /// Shared module locator.
     #[command(flatten)]
-    pub locator: Locator,
+    locator: Locator,
 }
 
 /// Runs `sprocket dev module sign`.

@@ -11,7 +11,7 @@ use wdl_modules::Manifest;
 
 /// Parsed module project context shared by porcelain subcommands.
 #[derive(Debug, Clone)]
-pub struct Project {
+pub(super) struct Project {
     /// Path to the discovered `module.json`.
     pub manifest_path: PathBuf,
     /// Root directory containing `module.json`.
@@ -24,7 +24,7 @@ pub struct Project {
 
 impl Project {
     /// Reloads the manifest while a project mutation lock is held.
-    pub(crate) fn reload(&mut self) -> anyhow::Result<()> {
+    pub(super) fn reload(&mut self) -> anyhow::Result<()> {
         let bytes = std::fs::read(&self.manifest_path)
             .with_context(|| format!("reading `{}`", self.manifest_path.display()))?;
         self.manifest = Arc::new(
@@ -37,7 +37,7 @@ impl Project {
 
 /// Locates the governing `module.json`.
 #[derive(ClapArgs, Debug, Clone)]
-pub struct Locator {
+pub(super) struct Locator {
     /// Path to the `module.json` or its directory. Defaults to an upward
     /// search from the current directory.
     #[arg(long, value_name = "PATH", global = true)]
@@ -45,7 +45,7 @@ pub struct Locator {
 }
 
 /// Discovers the governing project manifest based on the locator.
-pub fn discover(locator: &Locator) -> anyhow::Result<Project> {
+pub(super) fn discover(locator: &Locator) -> anyhow::Result<Project> {
     let start = match locator.manifest_path.as_deref() {
         Some(path) if path.is_file() => path
             .parent()
@@ -74,7 +74,7 @@ pub fn discover(locator: &Locator) -> anyhow::Result<Project> {
 }
 
 /// Traces the discovered module project for a command.
-pub(crate) fn trace_project(command: &'static str, project: &Project) {
+pub(super) fn trace_project(command: &'static str, project: &Project) {
     tracing::debug!(
         command,
         module = %project.manifest.name,
@@ -87,7 +87,7 @@ pub(crate) fn trace_project(command: &'static str, project: &Project) {
 }
 
 /// Loads `module-lock.json` when present.
-pub fn load_lockfile(project: &Project) -> anyhow::Result<Option<Lockfile>> {
+pub(super) fn load_lockfile(project: &Project) -> anyhow::Result<Option<Lockfile>> {
     if !project.lockfile_path.exists() {
         tracing::trace!(lockfile = %project.lockfile_path.display(), "module lockfile is absent");
         return Ok(None);
@@ -107,7 +107,7 @@ pub fn load_lockfile(project: &Project) -> anyhow::Result<Option<Lockfile>> {
 }
 
 /// Loads `module-lock.json`, failing when it is absent.
-pub(crate) fn require_lockfile(project: &Project) -> anyhow::Result<Lockfile> {
+pub(super) fn require_lockfile(project: &Project) -> anyhow::Result<Lockfile> {
     load_lockfile(project)?
         .ok_or_else(|| anyhow::anyhow!("no `module-lock.json`; run `sprocket dev module lock`"))
 }

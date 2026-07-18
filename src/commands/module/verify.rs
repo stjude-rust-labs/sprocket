@@ -8,13 +8,14 @@ use wdl_modules::resolver::ResolverError;
 use wdl_modules::resolver::VerifyLockedReport;
 use wdl_modules::signing::ModuleSignature;
 
+use super::project::Locator;
+use super::project::Project;
+use super::project::discover;
+use super::project::require_lockfile;
+use super::project::trace_project;
 use super::resolver::ResolverEnvironment;
+use super::signer_policy::render_signer;
 use crate::commands::CommandResult;
-use crate::commands::module::Locator;
-use crate::commands::module::discover;
-use crate::commands::module::render_signer;
-use crate::commands::module::require_lockfile;
-use crate::commands::module::trace_project;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
 use crate::commands::output::count_noun;
@@ -34,7 +35,7 @@ pub struct Args {
 
     /// Shared module locator.
     #[command(flatten)]
-    pub locator: Locator,
+    locator: Locator,
 }
 
 /// A subsystem verified by `sprocket dev module verify`.
@@ -68,7 +69,7 @@ pub async fn verify(args: Args, config: Config, output: CommandOutput) -> Comman
 }
 
 fn verify_all(
-    project: &crate::commands::module::Project,
+    project: &Project,
     config: &Config,
     output: CommandOutput,
     strict: bool,
@@ -99,10 +100,7 @@ fn verify_all(
     Ok(())
 }
 
-fn verify_signature(
-    project: &crate::commands::module::Project,
-    output: CommandOutput,
-) -> anyhow::Result<()> {
+fn verify_signature(project: &Project, output: CommandOutput) -> anyhow::Result<()> {
     let signature_path = project.root.join(wdl_modules::SIGNATURE_FILENAME);
     tracing::trace!(signature = %signature_path.display(), "reading module signature");
     let bytes = std::fs::read(&signature_path).map_err(|source| match source.kind() {
@@ -122,7 +120,7 @@ fn verify_signature(
 }
 
 fn verify_lockfile(
-    project: &crate::commands::module::Project,
+    project: &Project,
     config: &Config,
     output: CommandOutput,
     strict: bool,

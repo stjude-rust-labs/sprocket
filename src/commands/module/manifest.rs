@@ -7,11 +7,11 @@ use wdl_modules::Lockfile;
 use wdl_modules::Manifest;
 use wdl_modules::dependency::DependencySource;
 
-use super::Project;
+use super::project::Project;
 
 /// Aligns a temporary file's permissions with its destination before an
 /// atomic rename.
-pub(crate) fn align_temp_permissions(
+pub(super) fn align_temp_permissions(
     temp: &tempfile::NamedTempFile,
     path: &Path,
 ) -> anyhow::Result<()> {
@@ -34,7 +34,7 @@ pub(crate) fn align_temp_permissions(
 }
 
 /// Writes `module-lock.json` atomically.
-pub fn write_lockfile(project: &Project, lock: &Lockfile) -> anyhow::Result<()> {
+pub(super) fn write_lockfile(project: &Project, lock: &Lockfile) -> anyhow::Result<()> {
     let dir = project
         .lockfile_path
         .parent()
@@ -51,7 +51,7 @@ pub fn write_lockfile(project: &Project, lock: &Lockfile) -> anyhow::Result<()> 
 
 /// Reads `module.json` as json while validating it with strict manifest
 /// parsing.
-pub fn read_manifest_value(path: &Path) -> anyhow::Result<serde_json::Value> {
+pub(super) fn read_manifest_value(path: &Path) -> anyhow::Result<serde_json::Value> {
     let bytes = std::fs::read(path).with_context(|| format!("reading `{}`", path.display()))?;
     Manifest::parse(&bytes).with_context(|| format!("parsing `{}`", path.display()))?;
     let value = serde_json::from_slice(&bytes)
@@ -60,7 +60,7 @@ pub fn read_manifest_value(path: &Path) -> anyhow::Result<serde_json::Value> {
 }
 
 /// Writes `module.json` atomically after validating parser-accepted shape.
-pub fn write_manifest_value(path: &Path, value: &serde_json::Value) -> anyhow::Result<()> {
+pub(super) fn write_manifest_value(path: &Path, value: &serde_json::Value) -> anyhow::Result<()> {
     let mut bytes = serde_json::to_vec_pretty(value)?;
     bytes.push(b'\n');
     Manifest::parse(&bytes).with_context(|| format!("parsing `{}`", path.display()))?;
@@ -77,14 +77,14 @@ pub fn write_manifest_value(path: &Path, value: &serde_json::Value) -> anyhow::R
 }
 
 /// Parses an edited manifest json value with strict manifest validation.
-pub(crate) fn parse_manifest_value(value: &serde_json::Value) -> anyhow::Result<Manifest> {
+pub(super) fn parse_manifest_value(value: &serde_json::Value) -> anyhow::Result<Manifest> {
     let mut bytes = serde_json::to_vec_pretty(value)?;
     bytes.push(b'\n');
     Manifest::parse(&bytes).context("parsing edited `module.json`")
 }
 
 /// Inserts or replaces a dependency source in the manifest json.
-pub fn set_dependency(
+pub(super) fn set_dependency(
     value: &mut serde_json::Value,
     name: &str,
     source: &DependencySource,
@@ -112,7 +112,7 @@ pub fn set_dependency(
 }
 
 /// Removes a dependency from the manifest json.
-pub fn remove_dependency(value: &mut serde_json::Value, name: &str) -> anyhow::Result<bool> {
+pub(super) fn remove_dependency(value: &mut serde_json::Value, name: &str) -> anyhow::Result<bool> {
     let root = value
         .as_object_mut()
         .with_context(|| "`module.json` root must be an object")?;

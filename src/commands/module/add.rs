@@ -9,20 +9,21 @@ use wdl_modules::dependency::DependencyName;
 use wdl_modules::dependency::DependencySource;
 use wdl_modules::resolver::GitPlatform;
 
+use super::display::git_selector;
+use super::display::short_commit;
+use super::manifest::parse_manifest_value;
+use super::manifest::read_manifest_value;
+use super::manifest::set_dependency;
+use super::mutation::LockedProject;
+use super::mutation::ProjectUpdate;
+use super::project::Locator;
+use super::project::discover;
+use super::project::load_lockfile;
+use super::project::trace_project;
 use super::relock::RelockPlanner;
 use super::signer_policy::TrustModeArg;
 use super::signer_policy::signer_change_mode;
 use crate::commands::CommandResult;
-use crate::commands::module::Locator;
-use crate::commands::module::LockedProject;
-use crate::commands::module::ProjectUpdate;
-use crate::commands::module::discover;
-use crate::commands::module::git_selector;
-use crate::commands::module::parse_manifest_value;
-use crate::commands::module::read_manifest_value;
-use crate::commands::module::set_dependency;
-use crate::commands::module::short_commit;
-use crate::commands::module::trace_project;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
 use crate::commands::output::count_noun;
@@ -77,11 +78,11 @@ pub struct Args {
 
     /// Override signer trust behavior for this command.
     #[arg(long, value_enum)]
-    pub trust_mode: Option<TrustModeArg>,
+    trust_mode: Option<TrustModeArg>,
 
     /// Shared module locator.
     #[command(flatten)]
-    pub locator: Locator,
+    locator: Locator,
 }
 
 /// Runs `sprocket dev module add`.
@@ -106,7 +107,7 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
             dependency = name.manifest(),
             "dependency already exists with the same source"
         );
-        let lockfile = crate::commands::module::load_lockfile(project)?;
+        let lockfile = load_lockfile(project)?;
         let lock_is_current = lockfile
             .as_ref()
             .is_some_and(|lockfile| lockfile.satisfies_manifest(&project.manifest));

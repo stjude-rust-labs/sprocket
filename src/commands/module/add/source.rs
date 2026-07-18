@@ -10,8 +10,8 @@ use wdl_modules::resolver::DependencyScope;
 use wdl_modules::resolver::GitPlatform;
 use wdl_modules::version_requirement::VersionRequirement;
 
+use super::super::resolver::ResolverEnvironment;
 use super::Args;
-use crate::commands::module::resolver::ResolverEnvironment;
 use crate::config::Config;
 
 pub(super) struct BuiltSource {
@@ -291,8 +291,8 @@ mod tests {
     use git2::Repository;
     use git2::Signature;
 
+    use super::super::super::project::Locator;
     use super::*;
-    use crate::commands::module::Locator;
 
     struct GitFixture {
         dir: tempfile::TempDir,

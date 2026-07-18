@@ -7,13 +7,13 @@ use wdl_modules::resolver::GitResolver;
 use wdl_modules::resolver::ResolverPolicy;
 use wdl_modules::resolver::TrustStore;
 
-use super::TrustStoreFile;
+use super::trust_store::TrustStoreFile;
 use crate::config::Config;
 
 /// The shared cache, trust, and policy inputs used to build resolvers for
 /// module porcelain commands.
 #[derive(Clone, Debug)]
-pub(crate) struct ResolverEnvironment {
+pub(super) struct ResolverEnvironment {
     /// Root directory of the module cache.
     cache_root: PathBuf,
     /// Resolver policy derived from module configuration.
@@ -25,7 +25,7 @@ pub(crate) struct ResolverEnvironment {
 impl ResolverEnvironment {
     /// Builds the resolver environment from module configuration, loading the
     /// trust store from the default trust path.
-    pub(crate) fn from_config(config: &Config) -> anyhow::Result<Self> {
+    pub(super) fn from_config(config: &Config) -> anyhow::Result<Self> {
         let configured_cache = config.modules.cache_path.is_some();
         let cache_root = config
             .modules
@@ -55,7 +55,7 @@ impl ResolverEnvironment {
 
     /// Builds a Git resolver bound to the given lockfile with an initialized
     /// cache.
-    pub(crate) fn resolver(&self, lockfile: Lockfile) -> anyhow::Result<GitResolver> {
+    pub(super) fn resolver(&self, lockfile: Lockfile) -> anyhow::Result<GitResolver> {
         tracing::debug!(
             cache = %self.cache_root.display(),
             trusted = self.trust.keys.len(),
