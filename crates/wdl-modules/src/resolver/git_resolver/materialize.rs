@@ -1,8 +1,8 @@
 //! Git dependency materialization.
 //!
 //! Owns the sparse-checkout planning, cache materialization, manifest
-//! reading, and symbolic-path resolution that back the [`Resolver::materialize`]
-//! entry point. The public trait method delegates to
+//! reading, and symbolic-path resolution that back the
+//! [`Resolver::materialize`] entry point. The public trait method delegates to
 //! [`GitResolver::materialize_file`].
 //!
 //! [`Resolver::materialize`]: crate::resolver::Resolver::materialize
