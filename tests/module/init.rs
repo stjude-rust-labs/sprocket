@@ -214,6 +214,48 @@ fn init_cli_fields_override_configuration_independently() -> anyhow::Result<()> 
 }
 
 #[test]
+fn init_cli_email_overrides_configuration_and_git() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let repo = Repository::init(dir.path())?;
+    let mut git = repo.config()?;
+    git.set_str("user.name", "Git Author")?;
+    git.set_str("user.email", "git@example.com")?;
+    let config = dir.path().join("sprocket.toml");
+    fs::write(
+        &config,
+        "[module.init]\nemail = \"configured@example.com\"\n",
+    )?;
+
+    let output = sprocket_with_config(
+        &config,
+        &[
+            "dev",
+            "module",
+            "init",
+            "--name",
+            "demo",
+            "--email",
+            " cli@example.com ",
+        ],
+    )
+    .current_dir(dir.path())
+    .output()?;
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: serde_json::Value =
+        serde_json::from_slice(&fs::read(dir.path().join("module.json"))?)?;
+    assert_eq!(
+        value["authors"],
+        serde_json::json!(["Git Author <cli@example.com>"])
+    );
+    Ok(())
+}
+
+#[test]
 fn init_configuration_and_git_fields_resolve_independently() -> anyhow::Result<()> {
     let dir = tempfile::tempdir()?;
     let repo = Repository::init(dir.path())?;
