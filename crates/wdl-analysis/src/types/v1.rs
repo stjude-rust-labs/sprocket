@@ -198,8 +198,8 @@ pub fn previous_task_data_member_type(name: &str) -> Option<Type> {
 ///
 /// Returns a slice of types or `None` if the given name is not a requirement.
 ///
-/// Static analysis may skip type checking for requirements that are not formally typed by a
-/// particular WDL version.
+/// Static analysis may skip type checking for requirements that are not
+/// formally typed by a particular WDL version.
 pub fn task_requirement_types(version: SupportedVersion, name: &str) -> Option<&'static [Type]> {
     /// The types for the `container` requirement.
     static CONTAINER_TYPES: LazyLock<Box<[Type]>> = LazyLock::new(|| {
