@@ -16,6 +16,7 @@ use super::manifest::align_temp_permissions;
 use crate::commands::CommandResult;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
+use crate::config::ModuleInitConfig;
 
 const INITIALIZE: Action = Action::new("Initialized", "initialize");
 
@@ -37,23 +38,49 @@ pub struct Args {
     /// Skip creating scaffold files (`index.wdl`, `README.md`).
     #[arg(long)]
     pub no_scaffold: bool,
+
+    /// Module author name. Overrides Sprocket and Git configuration.
+    #[arg(long)]
+    pub author: Option<String>,
+
+    /// Module author email. Overrides Sprocket and Git configuration.
+    #[arg(long)]
+    pub email: Option<String>,
 }
 
 /// Runs `sprocket dev module init`.
-pub async fn init(args: Args, output: CommandOutput) -> CommandResult<()> {
+pub async fn init(
+    args: Args,
+    config: ModuleInitConfig,
+    output: CommandOutput,
+) -> CommandResult<()> {
     tracing::trace!(
         has_path = args.path.is_some(),
         has_name = args.name.is_some(),
         has_license = args.license.is_some(),
         no_scaffold = args.no_scaffold,
+        has_cli_author = args.author.is_some(),
+        has_cli_email = args.email.is_some(),
         "starting `sprocket dev module init`"
     );
-    run_init(args, output).map_err(Into::into)
+    run_init(args, &config, output).map_err(Into::into)
 }
 
-fn run_init(args: Args, output: CommandOutput) -> anyhow::Result<()> {
+fn run_init(args: Args, config: &ModuleInitConfig, output: CommandOutput) -> anyhow::Result<()> {
+    let Args {
+        path,
+        name,
+        license,
+        no_scaffold,
+        author,
+        email,
+    } = args;
+
+    validate_cli_identity("author", author.as_deref())?;
+    validate_cli_identity("email", email.as_deref())?;
+
     let current_dir = std::env::current_dir().context("reading current directory")?;
-    let target_dir = args.path.map_or_else(
+    let target_dir = path.map_or_else(
         || current_dir.clone(),
         |path| {
             if path.is_absolute() {
@@ -70,15 +97,13 @@ fn run_init(args: Args, output: CommandOutput) -> anyhow::Result<()> {
         "initializing module project"
     );
 
-    let name = args.name.unwrap_or_else(|| infer_name(&target_dir));
-    let license = args
-        .license
-        .unwrap_or_else(|| "Apache-2.0 OR MIT".to_string());
+    let name = name.unwrap_or_else(|| infer_name(&target_dir));
+    let license = license.unwrap_or_else(|| "Apache-2.0 OR MIT".to_string());
     validate_name_and_license(&name, &license)?;
 
     ensure_target_directory(&target_dir)?;
     ensure_new_file_path(&manifest_path, "manifest")?;
-    if !args.no_scaffold {
+    if !no_scaffold {
         ensure_scaffold_path(&target_dir.join("index.wdl"), "index.wdl")?;
         ensure_scaffold_path(&target_dir.join("README.md"), "README.md")?;
     }
@@ -92,11 +117,16 @@ fn run_init(args: Args, output: CommandOutput) -> anyhow::Result<()> {
         "description".to_string(),
         Value::String(format!("The `{name}` WDL module.")),
     );
-    if let Some(author) = infer_author(&target_dir) {
-        tracing::trace!("inferred module author from Git config");
+    let resolved_author =
+        AuthorIdentity::resolve(author.as_deref(), email.as_deref(), config, |key| {
+            git_config(&target_dir, key)
+        })
+        .manifest_entry();
+    if let Some(author_entry) = resolved_author {
+        tracing::trace!(has_author = true, "resolved module author identity");
         manifest.insert(
             "authors".to_string(),
-            Value::Array(vec![Value::String(author)]),
+            Value::Array(vec![Value::String(author_entry)]),
         );
     }
     manifest.insert("license".to_string(), Value::String(license));
@@ -107,7 +137,7 @@ fn run_init(args: Args, output: CommandOutput) -> anyhow::Result<()> {
     write_new_manifest(&manifest_path, &Value::Object(manifest))?;
     tracing::debug!(manifest = %manifest_path.display(), "wrote module manifest");
 
-    if !args.no_scaffold {
+    if !no_scaffold {
         tracing::debug!("writing module scaffold files");
         write_scaffold_file(
             &target_dir.join("index.wdl"),
@@ -125,7 +155,7 @@ fn run_init(args: Args, output: CommandOutput) -> anyhow::Result<()> {
 
     output.completed(INITIALIZE, format!("module `{name}`"));
     output.detail("Manifest", manifest_path.display());
-    if !args.no_scaffold {
+    if !no_scaffold {
         output.detail("Entrypoint", "index.wdl");
     }
 
@@ -267,24 +297,59 @@ fn validate_name_and_license(name: &str, license: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+fn validate_cli_identity(field: &str, value: Option<&str>) -> anyhow::Result<()> {
+    if value.is_some_and(|value| value.trim().is_empty()) {
+        anyhow::bail!("`--{field}` cannot be empty");
+    }
+    Ok(())
+}
+
+#[derive(Debug, PartialEq, Eq)]
+struct AuthorIdentity {
+    name: Option<String>,
+    email: Option<String>,
+}
+
+impl AuthorIdentity {
+    fn resolve(
+        cli_name: Option<&str>,
+        cli_email: Option<&str>,
+        config: &ModuleInitConfig,
+        git: impl Fn(&str) -> Option<String>,
+    ) -> Self {
+        Self {
+            name: resolve_identity_field(cli_name, config.author.as_deref(), || git("user.name")),
+            email: resolve_identity_field(cli_email, config.email.as_deref(), || git("user.email")),
+        }
+    }
+
+    fn manifest_entry(self) -> Option<String> {
+        match (self.name, self.email) {
+            (Some(name), Some(email)) => Some(format!("{name} <{email}>")),
+            (Some(name), None) => Some(name),
+            (None, Some(email)) => Some(format!("<{email}>")),
+            (None, None) => None,
+        }
+    }
+}
+
+fn resolve_identity_field(
+    cli: Option<&str>,
+    configured: Option<&str>,
+    git: impl FnOnce() -> Option<String>,
+) -> Option<String> {
+    cli.or(configured)
+        .map(str::trim)
+        .map(ToOwned::to_owned)
+        .or_else(git)
+}
+
 fn infer_name(path: &Path) -> String {
     path.file_name()
         .and_then(|name| name.to_str())
         .filter(|name| !name.is_empty())
         .map(ToOwned::to_owned)
         .unwrap_or_else(|| "module".to_string())
-}
-
-/// Infers an author entry from the local or global Git identity, formatted as
-/// `Name <email>` (or just the name when no email is configured).
-fn infer_author(dir: &Path) -> Option<String> {
-    let name = git_config(dir, "user.name");
-    let email = git_config(dir, "user.email");
-    match (name, email) {
-        (Some(name), Some(email)) => Some(format!("{name} <{email}>")),
-        (Some(name), None) => Some(name),
-        _ => None,
-    }
 }
 
 /// Reads a single Git config value, returning `None` when it is unset or Git is
@@ -409,5 +474,56 @@ mod tests {
         assert!(write_scaffold_file(&scaffold, "index.wdl", "version 1.3\n".to_string()).is_err());
         assert!(!outside.exists());
         Ok(())
+    }
+
+    #[test]
+    fn explicit_identity_fields_override_git_independently() {
+        let config = ModuleInitConfig {
+            author: Some(" Configured ".to_string()),
+            email: None,
+        };
+        let requested = std::cell::RefCell::new(Vec::new());
+        let identity = AuthorIdentity::resolve(None, Some(" cli@example.com "), &config, |key| {
+            requested.borrow_mut().push(key.to_string());
+            Some(format!("git-{key}"))
+        });
+
+        assert_eq!(
+            identity,
+            AuthorIdentity {
+                name: Some("Configured".to_string()),
+                email: Some("cli@example.com".to_string()),
+            }
+        );
+        assert!(requested.borrow().is_empty());
+    }
+
+    #[test]
+    fn missing_identity_fields_fall_back_to_git_independently() {
+        let config = ModuleInitConfig::default();
+        let identity = AuthorIdentity::resolve(None, None, &config, |key| match key {
+            "user.name" => Some("Git Author".to_string()),
+            "user.email" => Some("git@example.com".to_string()),
+            // SAFETY: only "user.name" and "user.email" are requested.
+            _ => unreachable!(),
+        });
+
+        assert_eq!(
+            identity.manifest_entry().as_deref(),
+            Some("Git Author <git@example.com>")
+        );
+    }
+
+    #[test]
+    fn email_only_identity_has_angle_brackets() {
+        let identity = AuthorIdentity {
+            name: None,
+            email: Some("only@example.com".to_string()),
+        };
+
+        assert_eq!(
+            identity.manifest_entry().as_deref(),
+            Some("<only@example.com>")
+        );
     }
 }

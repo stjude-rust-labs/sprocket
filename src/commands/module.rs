@@ -68,7 +68,7 @@ pub async fn run(
     output: CommandOutput,
 ) -> crate::commands::CommandResult<()> {
     match command {
-        ModuleCommands::Init(args) => init::init(args, output).await,
+        ModuleCommands::Init(args) => init::init(args, config.module.init, output).await,
         ModuleCommands::Add(args) => add::add(args, config, output).await,
         ModuleCommands::Remove(args) => remove::remove(args, config, output).await,
         ModuleCommands::Lock(args) => lock::lock(args, config, output).await,

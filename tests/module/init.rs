@@ -145,6 +145,161 @@ fn module_commands_reject_missing_manifest_path() {
 }
 
 #[test]
+fn init_configuration_overrides_git_identity() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let repo = Repository::init(dir.path())?;
+    let mut git = repo.config()?;
+    git.set_str("user.name", "Git Author")?;
+    git.set_str("user.email", "git@example.com")?;
+    let config = dir.path().join("sprocket.toml");
+    fs::write(
+        &config,
+        "[module.init]\nauthor = \"Configured Author\"\nemail = \"configured@example.com\"\n",
+    )?;
+
+    let output = sprocket_with_config(&config, &["dev", "module", "init", "--name", "demo"])
+        .current_dir(dir.path())
+        .output()?;
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: serde_json::Value =
+        serde_json::from_slice(&fs::read(dir.path().join("module.json"))?)?;
+    assert_eq!(
+        value["authors"],
+        serde_json::json!(["Configured Author <configured@example.com>"])
+    );
+    Ok(())
+}
+
+#[test]
+fn init_cli_fields_override_configuration_independently() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let config = dir.path().join("sprocket.toml");
+    fs::write(
+        &config,
+        "[module.init]\nauthor = \"Configured Author\"\nemail = \"configured@example.com\"\n",
+    )?;
+
+    let output = sprocket_with_config(
+        &config,
+        &[
+            "dev",
+            "module",
+            "init",
+            "--name",
+            "demo",
+            "--author",
+            " CLI Author ",
+        ],
+    )
+    .current_dir(dir.path())
+    .output()?;
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: serde_json::Value =
+        serde_json::from_slice(&fs::read(dir.path().join("module.json"))?)?;
+    assert_eq!(
+        value["authors"],
+        serde_json::json!(["CLI Author <configured@example.com>"])
+    );
+    Ok(())
+}
+
+#[test]
+fn init_configuration_and_git_fields_resolve_independently() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let repo = Repository::init(dir.path())?;
+    let mut git = repo.config()?;
+    git.set_str("user.name", "Git Author")?;
+    git.set_str("user.email", "git@example.com")?;
+    let config = dir.path().join("sprocket.toml");
+    fs::write(
+        &config,
+        "[module.init]\nemail = \"configured@example.com\"\n",
+    )?;
+
+    let output = sprocket_with_config(&config, &["dev", "module", "init", "--name", "demo"])
+        .current_dir(dir.path())
+        .output()?;
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: serde_json::Value =
+        serde_json::from_slice(&fs::read(dir.path().join("module.json"))?)?;
+    assert_eq!(
+        value["authors"],
+        serde_json::json!(["Git Author <configured@example.com>"])
+    );
+    Ok(())
+}
+
+#[test]
+fn init_writes_email_only_identity() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let empty_git_config = dir.path().join("empty-gitconfig");
+    fs::write(&empty_git_config, "")?;
+    let config = dir.path().join("sprocket.toml");
+    fs::write(&config, "[module.init]\nemail = \"only@example.com\"\n")?;
+
+    let output = sprocket_with_config(&config, &["dev", "module", "init", "--name", "demo"])
+        .env("GIT_CONFIG_NOSYSTEM", "1")
+        .env("GIT_CONFIG_GLOBAL", &empty_git_config)
+        .current_dir(dir.path())
+        .output()?;
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: serde_json::Value =
+        serde_json::from_slice(&fs::read(dir.path().join("module.json"))?)?;
+    assert_eq!(value["authors"], serde_json::json!(["<only@example.com>"]));
+    Ok(())
+}
+
+#[test]
+fn init_rejects_blank_cli_identity_before_creating_target() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let target = dir.path().join("module");
+    let target_arg = target.to_string_lossy().into_owned();
+    let output = sprocket(&["dev", "module", "init", &target_arg, "--author", "   "]).output()?;
+
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("`--author` cannot be empty"));
+    assert!(!target.exists());
+    Ok(())
+}
+
+#[test]
+fn init_rejects_blank_config_identity_before_creating_target() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let target = dir.path().join("module");
+    let target_arg = target.to_string_lossy().into_owned();
+    let config = dir.path().join("sprocket.toml");
+    fs::write(&config, "[module.init]\nemail = \"   \"\n")?;
+    let output = sprocket_with_config(&config, &["dev", "module", "init", &target_arg]).output()?;
+
+    assert!(!output.status.success());
+    assert!(
+        String::from_utf8_lossy(&output.stderr).contains("`module.init.email` cannot be empty")
+    );
+    assert!(!target.exists());
+    Ok(())
+}
+
+#[test]
 fn init_infers_git_author_and_sanitized_repository() {
     let dir = tempfile::tempdir().unwrap();
     let repo = Repository::init(dir.path()).unwrap();
