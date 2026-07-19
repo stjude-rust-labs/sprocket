@@ -1553,6 +1553,13 @@
             "string",
             "null"
           ]
+        },
+        "license": {
+          "description": "Default SPDX license expression.",
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

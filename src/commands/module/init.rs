@@ -57,7 +57,7 @@ pub async fn init(
     tracing::trace!(
         has_path = args.path.is_some(),
         has_name = args.name.is_some(),
-        has_license = args.license.is_some(),
+        has_cli_license = args.license.is_some(),
         no_scaffold = args.no_scaffold,
         has_cli_author = args.author.is_some(),
         has_cli_email = args.email.is_some(),
@@ -98,7 +98,9 @@ fn run_init(args: Args, config: &ModuleInitConfig, output: CommandOutput) -> any
     );
 
     let name = name.unwrap_or_else(|| infer_name(&target_dir));
-    let license = license.unwrap_or_else(|| "Apache-2.0 OR MIT".to_string());
+    let license = license
+        .or_else(|| config.license.clone())
+        .unwrap_or_else(|| "Apache-2.0 OR MIT".to_string());
     validate_name_and_license(&name, &license)?;
 
     ensure_target_directory(&target_dir)?;
@@ -481,6 +483,7 @@ mod tests {
         let config = ModuleInitConfig {
             author: Some(" Configured ".to_string()),
             email: None,
+            ..Default::default()
         };
         let requested = std::cell::RefCell::new(Vec::new());
         let identity = AuthorIdentity::resolve(None, Some(" cli@example.com "), &config, |key| {

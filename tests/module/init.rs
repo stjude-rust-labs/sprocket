@@ -27,6 +27,7 @@ fn init_scaffolds_a_parseable_module() {
     Manifest::parse(&manifest).expect("scaffold parses");
     let value: serde_json::Value = serde_json::from_slice(&manifest).unwrap();
     assert_eq!(value["description"], "The `demo` WDL module.");
+    assert_eq!(value["license"], "Apache-2.0 OR MIT");
     assert!(value.get("version").is_none());
     assert!(dir.path().join("index.wdl").exists());
     assert!(dir.path().join("README.md").exists());
@@ -59,6 +60,75 @@ fn init_invalid_manifest_does_not_create_target_directory() -> anyhow::Result<()
     let target = directory.path().join("invalid");
     let target_arg = target.to_string_lossy().into_owned();
     let output = sprocket(&["dev", "module", "init", &target_arg, "--license", "foo"]).output()?;
+
+    assert!(!output.status.success());
+    assert!(!target.exists());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("invalid SPDX license expression"));
+    Ok(())
+}
+
+#[test]
+fn init_uses_configured_license() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let config = dir.path().join("sprocket.toml");
+    fs::write(&config, "[module.init]\nlicense = \"MIT\"\n")?;
+
+    let output = sprocket_with_config(&config, &["dev", "module", "init", "--name", "demo"])
+        .current_dir(dir.path())
+        .output()?;
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: serde_json::Value =
+        serde_json::from_slice(&fs::read(dir.path().join("module.json"))?)?;
+    assert_eq!(value["license"], "MIT");
+    Ok(())
+}
+
+#[test]
+fn init_cli_license_overrides_configuration() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let config = dir.path().join("sprocket.toml");
+    fs::write(&config, "[module.init]\nlicense = \"Apache-2.0\"\n")?;
+
+    let output = sprocket_with_config(
+        &config,
+        &[
+            "dev",
+            "module",
+            "init",
+            "--name",
+            "demo",
+            "--license",
+            "MIT",
+        ],
+    )
+    .current_dir(dir.path())
+    .output()?;
+
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: serde_json::Value =
+        serde_json::from_slice(&fs::read(dir.path().join("module.json"))?)?;
+    assert_eq!(value["license"], "MIT");
+    Ok(())
+}
+
+#[test]
+fn init_invalid_configured_license_does_not_create_target_directory() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let target = dir.path().join("invalid");
+    let target_arg = target.to_string_lossy().into_owned();
+    let config = dir.path().join("sprocket.toml");
+    fs::write(&config, "[module.init]\nlicense = \"foo\"\n")?;
+
+    let output = sprocket_with_config(&config, &["dev", "module", "init", &target_arg]).output()?;
 
     assert!(!output.status.success());
     assert!(!target.exists());

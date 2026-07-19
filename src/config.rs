@@ -225,12 +225,18 @@ pub struct ModuleInitConfig {
     pub author: Option<String>,
     /// Default module author email.
     pub email: Option<String>,
+    /// Default SPDX license expression.
+    pub license: Option<String>,
 }
 
 impl ModuleInitConfig {
-    /// Validates that `author` and `email`, when set, are not blank.
+    /// Validates that configured module fields are not blank.
     fn validate(&self) -> Result<()> {
-        for (field, value) in [("author", &self.author), ("email", &self.email)] {
+        for (field, value) in [
+            ("author", &self.author),
+            ("email", &self.email),
+            ("license", &self.license),
+        ] {
             if value
                 .as_deref()
                 .is_some_and(|value| value.trim().is_empty())
@@ -1194,7 +1200,8 @@ mod test {
     #[test]
     fn module_init_config_parses() {
         let config = toml_spanner::from_str::<Config>(
-            "[module.init]\nauthor = \"Jane Doe\"\nemail = \"jane@example.com\"\n",
+            "[module.init]\nauthor = \"Jane Doe\"\nemail = \"jane@example.com\"\nlicense = \
+             \"MIT\"\n",
         )
         .unwrap();
 
@@ -1203,11 +1210,12 @@ mod test {
             config.module.init.email.as_deref(),
             Some("jane@example.com")
         );
+        assert_eq!(config.module.init.license.as_deref(), Some("MIT"));
     }
 
     #[test]
-    fn module_init_config_rejects_blank_identity_fields() {
-        for (field, value) in [("author", "   "), ("email", "\t")] {
+    fn module_init_config_rejects_blank_fields() {
+        for (field, value) in [("author", "   "), ("email", "\t"), ("license", "\n")] {
             let source = format!("[module.init]\n{field} = {value:?}\n");
             let mut config = toml_spanner::from_str::<Config>(&source).unwrap();
             let error = config.validate().unwrap_err();
