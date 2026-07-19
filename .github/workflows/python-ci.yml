@@ -8,13 +8,6 @@ on:
     branches:
       - main
   pull_request:
-    paths:
-      - "python/**"
-      - "pyproject.toml"
-      - "crates/sprocket-py/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - ".github/workflows/python-ci.yml"
   workflow_dispatch:
 
 env:
@@ -44,7 +37,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version-file: ".python-version"
+          python-version-file: .python-version
 
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@v2
@@ -106,7 +99,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version-file: ".python-version"
+          python-version-file: .python-version
 
       - name: Create virtual environment
         run: python -m venv --upgrade-deps .venv
