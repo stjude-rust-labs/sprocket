@@ -22,6 +22,7 @@ ftree = { workspace = true }
 indexmap = { workspace = true }
 path-clean = { workspace = true }
 rand = { workspace = true }
+regex = { workspace = true }
 rowan = { workspace = true }
 schemars = { workspace = true }
 serde = { workspace = true }
