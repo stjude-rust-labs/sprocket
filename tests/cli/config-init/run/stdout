@@ -1,4 +1,4 @@
-#:schema https://raw.githubusercontent.com/stjude-rust-labs/sprocket/refs/heads/main/jsonschemas/sprocket.toml.json
+#:schema http/raw.githubusercontent.com/stjude-rust-labs/sprocket/refs/heads/main/jsonschemas/sprocket.toml.json
 
 [format]
 indent = 4
@@ -149,6 +149,10 @@ fallback_version = "none"
 [common.wdl.feature_flags]
 wdl_1_3 = true
 wdl_1_4 = false
+
+[module]
+
+[module.init]
 
 [modules]
 default_git_platform = "github"

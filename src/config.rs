@@ -188,6 +188,10 @@ pub struct Config {
     #[toml(default, style = Header)]
     #[schemars(default)]
     pub common: CommonConfig,
+    /// Configuration for the `module` command group (`[module]` section).
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub module: ModuleConfig,
     /// Configuration for the module system (`[modules]` section).
     #[toml(default, style = Header)]
     #[schemars(default)]
@@ -198,6 +202,43 @@ impl Config {
     /// Gets a builder for the `[Config]`.
     pub fn builder() -> wdl::engine::config::ConfigBuilder<Self> {
         Default::default()
+    }
+}
+
+/// Configuration for the `sprocket dev module` command group.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ModuleConfig {
+    /// Configuration for `sprocket dev module init`.
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub init: ModuleInitConfig,
+}
+
+/// Configuration for `sprocket dev module init`.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ModuleInitConfig {
+    /// Default module author name.
+    pub author: Option<String>,
+    /// Default module author email.
+    pub email: Option<String>,
+}
+
+impl ModuleInitConfig {
+    /// Validates that `author` and `email`, when set, are not blank.
+    fn validate(&self) -> Result<()> {
+        for (field, value) in [("author", &self.author), ("email", &self.email)] {
+            if value
+                .as_deref()
+                .is_some_and(|value| value.trim().is_empty())
+            {
+                bail!("`module.init.{field}` cannot be empty");
+            }
+        }
+        Ok(())
     }
 }
 
@@ -972,6 +1013,8 @@ impl Config {
 
     /// Validate a configuration.
     pub fn validate(&mut self) -> Result<()> {
+        self.module.init.validate()?;
+
         if self.check.all_lint_rules && !self.check.only_lint_tags.is_empty() {
             bail!("`all_lint_rules` cannot be specified with `only_lint_tags`")
         }
@@ -1146,5 +1189,33 @@ mod test {
             !failed,
             "the generated schema does not match the current `sprocket.toml`!"
         );
+    }
+
+    #[test]
+    fn module_init_config_parses() {
+        let config = toml_spanner::from_str::<Config>(
+            "[module.init]\nauthor = \"Jane Doe\"\nemail = \"jane@example.com\"\n",
+        )
+        .unwrap();
+
+        assert_eq!(config.module.init.author.as_deref(), Some("Jane Doe"));
+        assert_eq!(
+            config.module.init.email.as_deref(),
+            Some("jane@example.com")
+        );
+    }
+
+    #[test]
+    fn module_init_config_rejects_blank_identity_fields() {
+        for (field, value) in [("author", "   "), ("email", "\t")] {
+            let source = format!("[module.init]\n{field} = {value:?}\n");
+            let mut config = toml_spanner::from_str::<Config>(&source).unwrap();
+            let error = config.validate().unwrap_err();
+
+            assert_eq!(
+                error.to_string(),
+                format!("`module.init.{field}` cannot be empty")
+            );
+        }
     }
 }

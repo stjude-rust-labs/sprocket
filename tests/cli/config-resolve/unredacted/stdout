@@ -175,6 +175,10 @@ fallback_version = "none"
 wdl_1_3 = true
 wdl_1_4 = false
 
+[module]
+
+[module.init]
+
 [modules]
 default_git_platform = "github"
 large_file_warning = "1.0 MiB"

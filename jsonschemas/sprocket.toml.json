@@ -36,6 +36,10 @@
       "description": "Common configuration options for all commands.",
       "$ref": "#/$defs/CommonConfig"
     },
+    "module": {
+      "description": "Configuration for the `module` command group (`[module]` section).",
+      "$ref": "#/$defs/ModuleConfig"
+    },
     "modules": {
       "description": "Configuration for the module system (`[modules]` section).",
       "$ref": "#/$defs/ModulesConfig"
@@ -1520,6 +1524,38 @@
           "default": false
         }
       }
+    },
+    "ModuleConfig": {
+      "description": "Configuration for the `sprocket dev module` command group.",
+      "type": "object",
+      "properties": {
+        "init": {
+          "description": "Configuration for `sprocket dev module init`.",
+          "$ref": "#/$defs/ModuleInitConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ModuleInitConfig": {
+      "description": "Configuration for `sprocket dev module init`.",
+      "type": "object",
+      "properties": {
+        "author": {
+          "description": "Default module author name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "email": {
+          "description": "Default module author email.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
     },
     "ModulesConfig": {
       "description": "The `[modules]` configuration section.",
