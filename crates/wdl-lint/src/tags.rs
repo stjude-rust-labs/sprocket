@@ -57,6 +57,9 @@ pub enum Tag {
     /// commands (e.g. `doc`).
     SprocketCompatibility,
 
+    /// Rules associated with the performance of a document.
+    Performance,
+
     /// Rules that may be overly strict or produce false positives.
     Pedantic,
 

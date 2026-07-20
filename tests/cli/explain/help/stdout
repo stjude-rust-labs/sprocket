@@ -81,6 +81,7 @@ Available rules:
   - HereDocCommands
   - HostPathLiterals
   - ImportPlacement
+  - InlineInstall
   - InputName
   - KnownRules
   - MatchingOutputMeta
@@ -116,6 +117,7 @@ Available tags:
   - Documentation
   - Naming
   - Pedantic
+  - Performance
   - Portability
   - Sorting
   - Spacing
