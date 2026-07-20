@@ -193,6 +193,7 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
     let args = shlex::split(&format!("--skip-config-search {args_string}"))
         .ok_or_else(|| anyhow!("failed to split command args"))?;
     let mut command = Command::new(sprocket_exe);
+    let config_root = TempDir::new().context("failed to create isolated config root")?;
 
     let env_config = resolve_env_config(test_path)?;
     if let Some(env_config) = env_config.as_ref() {
@@ -206,6 +207,7 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
     let result = command
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .env("SPROCKET_CONFIG_ROOT", config_root.path())
         .env("RUST_LOG", "none")
         .env_remove("RUST_BACKTRACE")
         .spawn()

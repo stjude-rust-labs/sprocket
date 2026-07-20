@@ -118,6 +118,10 @@ impl TestContext {
                 asset_dir.join(IMPORT_DOC_NAME),
                 include_str!("../crates/wdl-grammar/tests/parsing/enums/source.wdl"),
             )?;
+            std::fs::write(
+                asset_dir.join("bar.wdl"),
+                include_str!("../crates/wdl-grammar/tests/parsing/enums/source.wdl"),
+            )?;
         }
 
         analyzer.add_directory(asset_dir).await?;
@@ -193,7 +197,9 @@ async fn verify_examples(ctx: Arc<TestContext>, expected_rule: &str) -> Result<(
     }
 
     for result in results {
-        if result.document().path().ends_with(IMPORT_DOC_NAME) {
+        if result.document().path().ends_with(IMPORT_DOC_NAME)
+            || result.document().path().ends_with("bar.wdl")
+        {
             continue;
         }
 

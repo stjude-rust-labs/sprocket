@@ -14,6 +14,7 @@ use crate::lockfile::LockfileError;
 use crate::manifest::ManifestError;
 #[cfg(feature = "git-resolver")]
 use crate::module_walk::ModuleWalkError;
+use crate::signing::SignerIdentity;
 use crate::signing::VerifyingKey;
 #[cfg(feature = "git-resolver")]
 use crate::version_requirement::VersionRequirement;
@@ -41,15 +42,29 @@ pub enum ResolverError {
         kind: MissingFileKind,
     },
 
-    /// A path-prefixed Git tag's `module.json` declares a different
-    /// version than the tag itself.
-    #[cfg(feature = "git-resolver")]
-    #[error("tag `{tag}` points to a `module.json` declaring version `{declared}`")]
-    TagManifestMismatch {
-        /// The tag name (after stripping any path prefix).
-        tag: String,
-        /// The version declared in the tagged commit's `module.json`.
-        declared: Version,
+    /// A symbolic sub-path component matched more than one directory
+    /// entry after hyphen-to-underscore normalization.
+    #[error(
+        "symbolic path `{path}` in `{dep}` is ambiguous: it matches multiple entries ({})",
+        .entries.join(", ")
+    )]
+    AmbiguousSubPath {
+        /// The owning dependency.
+        dep: String,
+        /// The symbolic sub-path being resolved.
+        path: String,
+        /// The competing on-disk entry names.
+        entries: Vec<String>,
+    },
+
+    /// A dependency directory did not contain a `module.json`.
+    #[error(
+        "no `module.json` found at `{path}`; the dependency is not a WDL module (or the `path` is \
+         wrong)"
+    )]
+    MissingManifest {
+        /// The missing manifest path.
+        path: PathBuf,
     },
 
     /// The dependency graph contains a cycle.
@@ -64,8 +79,8 @@ pub enum ResolverError {
     /// requirement.
     #[cfg(feature = "git-resolver")]
     #[error(
-        "no version satisfies `{dep}` requirement `{requirement}` (considered: {})",
-        format_versions(.considered)
+        "{}",
+        no_satisfying_version_message(.dep, .requirement, .considered, .path.as_deref())
     )]
     NoSatisfyingVersion {
         /// The dependency name.
@@ -74,20 +89,31 @@ pub enum ResolverError {
         requirement: VersionRequirement,
         /// The versions discovered before filtering by the requirement.
         considered: Vec<Version>,
+        /// Optional path prefix used for path-scoped tags.
+        path: Option<String>,
     },
 
     /// A dependency is not present in the lockfile. Run
-    /// `sprocket module lock` to update it.
-    #[error("`{dep}` is not in `module-lock.json`; run `sprocket module lock` to update")]
+    /// `sprocket dev module lock` to update it.
+    #[error("`{dep}` is not in `module-lock.json`; run `sprocket dev module lock` to update")]
     NotInLockfile {
         /// The missing dependency.
         dep: String,
     },
 
+    /// A locked Git dependency has not been fetched into the cache yet.
+    #[cfg(feature = "git-resolver")]
+    #[error("`{dep}` is not fetched in the module cache; run `sprocket dev module fetch`")]
+    NotFetched {
+        /// The dependency that is missing from cache.
+        dep: String,
+    },
+
     /// The manifest source for a dependency does not match the
-    /// lockfile source. Run `sprocket module lock` to update.
+    /// lockfile source. Run `sprocket dev module lock` to update.
     #[error(
-        "`{dep}` manifest source differs from the lockfile; run `sprocket module lock` to update"
+        "`{dep}` manifest source differs from the lockfile; run `sprocket dev module lock` to \
+         update"
     )]
     LockfileSourceMismatch {
         /// The dependency whose source changed.
@@ -113,16 +139,48 @@ pub enum ResolverError {
     /// A cached module's signature key does not match the lockfile's
     /// recorded signer.
     #[error(
-        "signer for `{dep}` has changed since the lockfile was written (run `sprocket module \
-         trust {dep}` to accept the new key)"
+        "signer for `{dep}` has changed since the lockfile was written ({})",
+        trust_all_hint(.observed.as_ref(), None)
     )]
     SignerKeyMismatch {
         /// The owning dependency.
         dep: String,
+        /// The source URL or path to trust.
+        source_url: Option<String>,
+        /// The subdirectory module path, when present.
+        path: Option<String>,
         /// The signer key recorded in the lockfile.
         expected: Box<VerifyingKey>,
         /// The signer key observed in the cache.
         observed: Box<VerifyingKey>,
+    },
+
+    /// A locked dependency signer is not present in the trust store.
+    #[error(
+        "`{dep}` is signed by an untrusted key ({})",
+        trust_all_hint(.signer.as_ref(), .identity.as_ref())
+    )]
+    UntrustedSigner {
+        /// The owning dependency.
+        dep: String,
+        /// The signer key recorded in the lockfile.
+        signer: Box<VerifyingKey>,
+        /// Optional signer identity metadata.
+        identity: Option<SignerIdentity>,
+    },
+
+    /// A dependency was unsigned when locked but now has a signature.
+    #[error(
+        "`{dep}` gained an unexpected signature after the lockfile was written ({})",
+        trust_all_hint(.observed.as_ref(), .identity.as_ref())
+    )]
+    UnexpectedSigner {
+        /// The owning dependency.
+        dep: String,
+        /// The signer key observed in `module.sig`.
+        observed: Box<VerifyingKey>,
+        /// Authenticated signer identity metadata.
+        identity: Option<SignerIdentity>,
     },
 
     /// A dependency was signed when the lockfile was written but is now
@@ -298,15 +356,31 @@ pub enum ResolverError {
     #[error(transparent)]
     Git(#[from] crate::resolver::git::GitError),
 
-    /// A materialized file resolved through a symlink that escapes the
-    /// module root.
+    /// A materialized module contains a symbolic link, which is not
+    /// permitted anywhere in a module tree.
     #[cfg(feature = "git-resolver")]
-    #[error("`{dep}` materialized path escapes module root: `{path}`")]
-    MaterializedSymlinkEscape {
+    #[error("`{dep}` contains a symbolic link, which is not permitted in a module: `{path}`")]
+    MaterializedSymlink {
         /// The owning dependency.
         dep: String,
-        /// The escaping path as observed before canonicalization.
+        /// The offending path.
         path: PathBuf,
+    },
+
+    /// A quoted `import` inside a module resolves to a file outside the
+    /// module root, which makes the module invalid.
+    #[error(
+        "`{dep}` file `{file}` has a quoted import `{import}` that resolves outside the module \
+         root"
+    )]
+    QuotedImportEscapesRoot {
+        /// The owning dependency.
+        dep: String,
+        /// The `.wdl` file containing the offending import, relative to
+        /// the module root.
+        file: String,
+        /// The offending import target as written.
+        import: String,
     },
 
     /// An I/O error.
@@ -404,12 +478,58 @@ fn format_versions(versions: &[Version]) -> String {
         .join(", ")
 }
 
+/// Renders the `module trust all` command hint for a changed signer.
+fn trust_all_hint(observed: &VerifyingKey, identity: Option<&SignerIdentity>) -> String {
+    let key = render_signer(observed, identity);
+    format!("{key}; run `sprocket dev module trust all` to accept signer trust changes")
+}
+
+/// Renders a signer key with optional identity metadata.
+fn render_signer(key: &VerifyingKey, identity: Option<&SignerIdentity>) -> String {
+    let key = key.to_openssh();
+    if let Some(identity) = identity {
+        match (identity.name.as_deref(), identity.email.as_deref()) {
+            (Some(name), Some(email)) => format!("{key} {name} <{email}>"),
+            (Some(name), None) => format!("{key} {name}"),
+            (None, Some(email)) => format!("{key} <{email}>"),
+            (None, None) => key,
+        }
+    } else {
+        key
+    }
+}
+
+/// Renders the no-satisfying-version error with an optional path-scoped hint.
+#[cfg(feature = "git-resolver")]
+fn no_satisfying_version_message(
+    dep: &str,
+    requirement: &VersionRequirement,
+    considered: &[Version],
+    path: Option<&str>,
+) -> String {
+    let mut message = format!(
+        "no version satisfies `{dep}` requirement `{requirement}` (considered: {})",
+        format_versions(considered)
+    );
+    if let Some(path) = path {
+        message.push_str(&format!(
+            "; for a subdirectory module, Git tags must be named `{path}/v<semver>`"
+        ));
+    }
+    message
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn dep() -> String {
         "foo".to_string()
+    }
+
+    fn key(s: &str) -> Box<VerifyingKey> {
+        // The test passes complete OpenSSH Ed25519 public keys.
+        Box::new(s.parse().unwrap())
     }
 
     #[test]
@@ -433,5 +553,38 @@ mod tests {
         assert!(entry.to_string().contains("entrypoint"));
         assert!(sub.to_string().contains("not found"));
         assert!(excl.to_string().contains("excluded"));
+    }
+
+    #[cfg(feature = "git-resolver")]
+    #[test]
+    fn no_satisfying_version_includes_path_hint_when_present() {
+        let err = ResolverError::NoSatisfyingVersion {
+            dep: dep(),
+            requirement: "^2".parse().unwrap(),
+            considered: vec!["1.0.0".parse().unwrap()],
+            path: Some("tasks".to_string()),
+        };
+        assert!(err.to_string().contains("tasks/v<semver>"));
+    }
+
+    #[test]
+    fn signer_mismatch_includes_key_and_trust_all_command() {
+        let err = ResolverError::SignerKeyMismatch {
+            dep: "divination".to_string(),
+            source_url: Some("file:///spellbook".to_string()),
+            path: Some("modules/divination".to_string()),
+            expected: key(
+                "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINiRUmfYzFTjksGItM2fSm9s1eCL8NnMJGQgW724Uph1"
+            ),
+            observed: key(
+                "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIX5S41sfLWGBzdeYMeIAT8E96dtk+ymT4WqiY7oq+21"
+            ),
+        };
+
+        let message = err.to_string();
+        assert!(message.contains(
+            "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIIX5S41sfLWGBzdeYMeIAT8E96dtk+ymT4WqiY7oq+21"
+        ));
+        assert!(message.contains("sprocket dev module trust all"));
     }
 }

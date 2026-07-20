@@ -295,10 +295,8 @@ impl RunManagerSvc {
         index_on: Option<String>,
     ) -> Result<SubmitResponse, SubmitRunError> {
         let source = match validate_source(&source, &self.config)? {
-            Source::Directory(dir) => {
-                crate::analysis::resolve_module_entrypoint(&dir, self.feature_flags)
-                    .map_err(SubmitRunError::Analysis)?
-            }
+            Source::Directory(dir) => crate::analysis::resolve_module_entrypoint(&dir)
+                .map_err(SubmitRunError::Analysis)?,
             source => source,
         };
 

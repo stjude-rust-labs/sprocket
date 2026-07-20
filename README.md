@@ -119,6 +119,60 @@ nix run github:stjude-rust-labs/sprocket/v0.27.0 -- --help
 
 Omit the `/v0.27.0` tag to track the latest commit on `main`.
 
+### WDL modules
+
+The experimental `sprocket dev module` commands create, consume, lock, sign,
+and verify reusable WDL modules. A module has a `module.json` manifest and an
+entrypoint such as `index.wdl`. Its generated `module-lock.json` pins every Git
+dependency to an exact commit.
+
+Initialize a module, then add a dependency by alias and Git source:
+
+```bash
+sprocket dev module init my-workflows --license MIT
+cd my-workflows
+sprocket dev module add tasks stjude-rust-labs/example-modules --path tasks
+```
+
+When the dependency has matching version tags, `add` selects the newest
+compatible version. A module in a repository subdirectory uses tags named
+`<path>/v<semver>`, such as `tasks/v1.2.0`. If no matching tags exist, `add`
+tracks the remote's default branch. The lockfile still records the exact
+commit, so subsequent resolution remains reproducible.
+
+Use the remaining commands to manage the dependency lifecycle:
+
+```bash
+sprocket dev module lock
+sprocket dev module lock --locked
+sprocket dev module update
+sprocket dev module upgrade --dry-run
+sprocket dev module tree
+sprocket dev module fetch
+sprocket dev module verify --strict
+sprocket dev module cache clean
+```
+
+Mutation commands print one completed outcome followed by aligned details.
+Dry runs print `Would update` or `Would upgrade` and leave `module.json`,
+`module-lock.json`, and the signer trust store unchanged.
+
+Signed dependencies require explicit trust. The default `confirm` mode prompts
+before accepting a new, changed, or removed signer. Set
+`[modules] trust_mode = "tofu"` in `sprocket.toml` to accept the first signer
+for a newly added dependency while still prompting on later transitions. Use
+`"auto-accept"` only when every signer transition should be accepted and
+reported without prompting. Trusted keys are global to the user, and
+`sprocket dev module trust all` trusts the signer keys already pinned in the
+current `module-lock.json` without updating dependency commits.
+
+Create and verify a signature with:
+
+```bash
+sprocket dev module sign --key ~/.ssh/module-signing-key
+sprocket dev module verify
+```
+
 ## 🖥️ Development
 
 To bootstrap a development environment, please use the following commands.

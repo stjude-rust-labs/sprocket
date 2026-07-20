@@ -17,7 +17,7 @@ pub enum LicenseError {
     Empty,
 
     /// The expression is not a valid SPDX license expression.
-    #[error("invalid SPDX license expression: {0}")]
+    #[error("invalid SPDX license expression:\n{0}")]
     Invalid(String),
 }
 
@@ -115,6 +115,17 @@ mod tests {
     #[test]
     fn rejects_unknown_id() {
         assert!("MIT-2.0".parse::<LicenseExpression>().is_err());
+    }
+
+    #[test]
+    fn invalid_error_preserves_spdx_highlight_alignment() {
+        let err = "MIT OR foo".parse::<LicenseExpression>().unwrap_err();
+        let rendered = err.to_string();
+        assert!(rendered.starts_with("invalid SPDX license expression:\nMIT OR foo"));
+        assert!(
+            rendered.contains("\n       ^^^ unknown term"),
+            "expected parser caret highlight in output, got: {rendered}"
+        );
     }
 
     #[test]

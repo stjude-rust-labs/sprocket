@@ -14,6 +14,22 @@ use serde::Serialize;
 use serde_with::DeserializeFromStr;
 use serde_with::SerializeDisplay;
 use thiserror::Error;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::Arena;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::Context;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::Error as TomlError;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::Failed;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::FromToml;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::Item;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::ToToml;
+#[cfg(feature = "git-resolver")]
+use toml_spanner::ToTomlError;
 
 use crate::hash::ContentHash;
 
@@ -57,11 +73,21 @@ pub enum SignatureFileError {
     /// 64-byte Ed25519 signature.
     #[error(transparent)]
     Signature(#[from] SignatureError),
+
+    /// Signer identity metadata contains an invalid field.
+    #[error(
+        "invalid signer identity `{field}`; values must be at most 256 characters without control \
+         characters"
+    )]
+    InvalidIdentity {
+        /// The invalid identity field.
+        field: &'static str,
+    },
 }
 
-/// An error verifying an Ed25519 signature against a content hash.
+/// An error verifying an Ed25519 module signature.
 #[derive(Debug, Error)]
-#[error("Ed25519 signature does not match the supplied content hash")]
+#[error("signature does not match the supplied module content or signer identity")]
 pub struct VerifyError;
 
 /// An Ed25519 signing key.
@@ -88,6 +114,11 @@ impl SigningKey {
     pub fn sign(&self, digest: &ContentHash) -> Signature {
         Signature(self.0.sign(digest.as_bytes()))
     }
+
+    /// Signs an encoded module signature payload.
+    fn sign_message(&self, message: &[u8]) -> Signature {
+        Signature(self.0.sign(message))
+    }
 }
 
 /// An Ed25519 verifying key.
@@ -113,7 +144,7 @@ impl VerifyingKey {
     pub fn to_openssh(&self) -> String {
         let ed = ssh_key::public::Ed25519PublicKey(*self.0.as_bytes());
         let key = ssh_key::PublicKey::from(ssh_key::public::KeyData::Ed25519(ed));
-        // SAFETY: encoding a freshly-constructed in-memory Ed25519
+        // Encoding a freshly-constructed in-memory Ed25519
         // `PublicKey` into OpenSSH form cannot fail.
         key.to_openssh().unwrap()
     }
@@ -124,6 +155,11 @@ impl VerifyingKey {
         self.0
             .verify(digest.as_bytes(), &sig.0)
             .map_err(|_| VerifyError)
+    }
+
+    /// Verifies an encoded module signature payload.
+    fn verify_message(&self, message: &[u8], sig: &Signature) -> Result<(), VerifyError> {
+        self.0.verify(message, &sig.0).map_err(|_| VerifyError)
     }
 
     /// Returns the raw 32-byte public key.
@@ -149,6 +185,67 @@ impl FromStr for VerifyingKey {
 impl From<VerifyingKey> for String {
     fn from(key: VerifyingKey) -> Self {
         key.to_openssh()
+    }
+}
+
+/// Optional signer identity metadata.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct SignerIdentity {
+    /// Optional display name.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    /// Optional email.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub email: Option<String>,
+}
+
+/// Parses a name and email from OpenSSH public key text when present.
+pub fn parse_openssh_public_key_identity(text: &str) -> Option<SignerIdentity> {
+    let mut parts = text.split_whitespace();
+    let kind = parts.next()?;
+    let blob = parts.next()?;
+    if kind.is_empty() || blob.is_empty() {
+        return None;
+    }
+
+    let comment = parts.collect::<Vec<_>>().join(" ").trim().to_string();
+    if comment.is_empty() {
+        return None;
+    }
+
+    if let (Some(start), Some(end)) = (comment.rfind('<'), comment.rfind('>'))
+        && start < end
+    {
+        let name = comment[..start].trim();
+        let email = comment[start + 1..end].trim();
+        let name = (!name.is_empty()).then(|| name.to_string());
+        let email = (!email.is_empty()).then(|| email.to_string());
+        return Some(SignerIdentity { name, email });
+    }
+
+    Some(SignerIdentity {
+        name: Some(comment),
+        email: None,
+    })
+}
+
+#[cfg(feature = "git-resolver")]
+impl<'de> FromToml<'de> for VerifyingKey {
+    fn from_toml(ctx: &mut Context<'de>, item: &Item<'de>) -> Result<Self, Failed> {
+        if let Some(s) = item.as_str() {
+            return s
+                .parse()
+                .map_err(|e: KeyError| ctx.push_error(TomlError::custom(e, item.span())));
+        }
+
+        Err(ctx.report_expected_but_found(&"an OpenSSH public key string", item))
+    }
+}
+
+#[cfg(feature = "git-resolver")]
+impl ToToml for VerifyingKey {
+    fn to_toml<'a>(&'a self, arena: &'a Arena) -> Result<Item<'a>, ToTomlError> {
+        Ok(Item::string(arena.alloc_str(&self.to_openssh())))
     }
 }
 
@@ -200,26 +297,105 @@ impl From<Signature> for String {
 #[serde(deny_unknown_fields)]
 pub struct ModuleSignature {
     /// The signer's Ed25519 public key in OpenSSH format.
-    pub public_key: VerifyingKey,
-    /// The Ed25519 signature over the module's raw 32-byte content hash.
-    pub signature: Signature,
+    public_key: VerifyingKey,
+    /// Optional signer identity metadata.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    identity: Option<SignerIdentity>,
+    /// The Ed25519 signature over the module content and signer identity.
+    signature: Signature,
 }
 
 impl ModuleSignature {
+    /// Creates a signature over module content and signer identity metadata.
+    pub fn new(
+        signing_key: &SigningKey,
+        digest: &ContentHash,
+        identity: Option<SignerIdentity>,
+    ) -> Result<Self, SignatureFileError> {
+        validate_identity(identity.as_ref())?;
+        let signature = signing_key.sign_message(&signature_message(digest, identity.as_ref()));
+        Ok(Self {
+            public_key: signing_key.verifying_key(),
+            identity,
+            signature,
+        })
+    }
+
     /// Parses a `module.sig` JSON document.
     pub fn parse(bytes: &[u8]) -> Result<Self, SignatureFileError> {
-        Ok(crate::strict_json::from_slice(bytes)?)
+        let signature: Self = crate::strict_json::from_slice(bytes)?;
+        validate_identity(signature.identity.as_ref())?;
+        Ok(signature)
     }
 
     /// Writes the signature as JSON to `w`.
     pub fn write(&self, w: impl Write) -> io::Result<()> {
+        validate_identity(self.identity.as_ref()).map_err(io::Error::other)?;
         serde_json::to_writer_pretty(w, self).map_err(io::Error::other)
     }
 
-    /// Verifies that `signature` is a valid signature of `digest` under
-    /// `public_key`.
+    /// Returns the signer public key.
+    pub fn public_key(&self) -> VerifyingKey {
+        self.public_key
+    }
+
+    /// Returns the authenticated signer identity metadata.
+    pub fn identity(&self) -> Option<&SignerIdentity> {
+        self.identity.as_ref()
+    }
+
+    /// Verifies the module content and signer identity.
     pub fn verify(&self, digest: &ContentHash) -> Result<(), VerifyError> {
-        self.public_key.verify(digest, &self.signature)
+        self.public_key.verify_message(
+            &signature_message(digest, self.identity.as_ref()),
+            &self.signature,
+        )
+    }
+}
+
+/// Validates identity fields before signing, writing, or displaying them.
+fn validate_identity(identity: Option<&SignerIdentity>) -> Result<(), SignatureFileError> {
+    let Some(identity) = identity else {
+        return Ok(());
+    };
+    for (field, value) in [("name", &identity.name), ("email", &identity.email)] {
+        if value
+            .as_ref()
+            .is_some_and(|value| value.chars().count() > 256 || value.chars().any(char::is_control))
+        {
+            return Err(SignatureFileError::InvalidIdentity { field });
+        }
+    }
+    Ok(())
+}
+
+/// Encodes the domain-separated payload covered by a module signature.
+fn signature_message(digest: &ContentHash, identity: Option<&SignerIdentity>) -> Vec<u8> {
+    const DOMAIN: &[u8] = b"openwdl.module-signature.v1";
+
+    let mut message = Vec::with_capacity(128);
+    message.extend_from_slice(DOMAIN);
+    message.extend_from_slice(digest.as_bytes());
+    append_optional_string(
+        &mut message,
+        identity.and_then(|identity| identity.name.as_deref()),
+    );
+    append_optional_string(
+        &mut message,
+        identity.and_then(|identity| identity.email.as_deref()),
+    );
+    message
+}
+
+/// Appends an unambiguous optional UTF-8 string to a signature payload.
+fn append_optional_string(message: &mut Vec<u8>, value: Option<&str>) {
+    match value {
+        Some(value) => {
+            message.push(1);
+            message.extend_from_slice(&(value.len() as u64).to_le_bytes());
+            message.extend_from_slice(value.as_bytes());
+        }
+        None => message.push(0),
     }
 }
 
@@ -291,6 +467,17 @@ mod tests {
     }
 
     #[test]
+    fn parses_identity_from_openssh_comment() {
+        let signer = signing_key_from_seed(7);
+        let key = signer.verifying_key();
+        let identity =
+            parse_openssh_public_key_identity(&format!("{} Jane Doe <jane@example.com>", key))
+                .unwrap();
+        assert_eq!(identity.name.as_deref(), Some("Jane Doe"));
+        assert_eq!(identity.email.as_deref(), Some("jane@example.com"));
+    }
+
+    #[test]
     fn signature_round_trips_through_base64() {
         let signer = signing_key_from_seed(3);
         let digest = ContentHash::from([0x11; 32]);
@@ -304,10 +491,8 @@ mod tests {
     fn module_signature_round_trips_through_json() {
         let signer = signing_key_from_seed(4);
         let digest = ContentHash::from([0x22; 32]);
-        let module_sig = ModuleSignature {
-            public_key: signer.verifying_key(),
-            signature: signer.sign(&digest),
-        };
+        // SAFETY: `None` contains no invalid signer identity fields.
+        let module_sig = ModuleSignature::new(&signer, &digest, None).unwrap();
 
         let mut buf = Vec::new();
         module_sig.write(&mut buf).unwrap();
@@ -317,8 +502,56 @@ mod tests {
     }
 
     #[test]
-    fn module_signature_rejects_unknown_keys() {
+    fn module_signature_error_omits_algorithm_name() {
         let signer = signing_key_from_seed(5);
+        let signed_digest = ContentHash::from([0x22; 32]);
+        let checked_digest = ContentHash::from([0x33; 32]);
+        // SAFETY: `None` contains no invalid signer identity fields.
+        let module_sig = ModuleSignature::new(&signer, &signed_digest, None).unwrap();
+
+        let error = module_sig.verify(&checked_digest).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "signature does not match the supplied module content or signer identity"
+        );
+    }
+
+    #[test]
+    fn module_signature_authenticates_identity() -> Result<(), Box<dyn std::error::Error>> {
+        let signer = signing_key_from_seed(8);
+        let digest = ContentHash::from([0x55; 32]);
+        let identity = SignerIdentity {
+            name: Some("Original Signer".to_string()),
+            email: Some("original@example.com".to_string()),
+        };
+        let signature = ModuleSignature::new(&signer, &digest, Some(identity))?;
+        let mut value = serde_json::to_value(&signature)?;
+        value["identity"]["name"] = serde_json::Value::String("Impostor".to_string());
+        let bytes = serde_json::to_vec(&value)?;
+        let tampered = ModuleSignature::parse(&bytes)?;
+
+        assert!(tampered.verify(&digest).is_err());
+        Ok(())
+    }
+
+    #[test]
+    fn module_signature_rejects_identity_control_characters() {
+        let signer = signing_key_from_seed(9);
+        let digest = ContentHash::from([0x66; 32]);
+        let identity = SignerIdentity {
+            name: Some("trusted\u{1b}[2J".to_string()),
+            email: None,
+        };
+
+        assert!(matches!(
+            ModuleSignature::new(&signer, &digest, Some(identity)),
+            Err(SignatureFileError::InvalidIdentity { field: "name" })
+        ));
+    }
+
+    #[test]
+    fn module_signature_rejects_unknown_keys() {
+        let signer = signing_key_from_seed(6);
         let digest = ContentHash::from([0x33; 32]);
         let json = format!(
             r#"{{
@@ -353,5 +586,59 @@ mod tests {
             err.to_string().contains("invalid `module.sig` JSON"),
             "wrong error: {err}"
         );
+    }
+
+    #[test]
+    fn signature_message_matches_openwdl_vector() {
+        let digest = ContentHash::from([0x42; 32]);
+        let identity = SignerIdentity {
+            name: Some("Jane Doe".to_string()),
+            email: Some("jane@example.com".to_string()),
+        };
+        let message = signature_message(&digest, Some(&identity));
+        assert_eq!(
+            hex::encode(&message),
+            concat!(
+                "6f70656e77646c2e6d6f64756c652d7369676e61747572652e7631",
+                "4242424242424242424242424242424242424242424242424242424242424242",
+                "0108000000000000004a616e6520446f65",
+                "0110000000000000006a616e65406578616d706c652e636f6d"
+            )
+        );
+    }
+
+    #[test]
+    fn module_signature_rejects_sprocket_domain() {
+        let signer = signing_key_from_seed(11);
+        let digest = ContentHash::from([0x42; 32]);
+        let identity = SignerIdentity {
+            name: Some("Jane Doe".to_string()),
+            email: Some("jane@example.com".to_string()),
+        };
+
+        // Construct the old-domain payload manually.
+        let mut old_payload = Vec::new();
+        old_payload.extend_from_slice(b"sprocket.module-signature.v1");
+        old_payload.extend_from_slice(digest.as_bytes());
+        append_optional_string(&mut old_payload, identity.name.as_deref());
+        append_optional_string(&mut old_payload, identity.email.as_deref());
+
+        // Sign the old-domain payload.
+        let old_sig = signer.sign_message(&old_payload);
+
+        // Build a ModuleSignature via JSON carrying the old-domain signature.
+        let json = serde_json::json!({
+            "public_key": signer.verifying_key().to_string(),
+            "identity": {
+                "name": "Jane Doe",
+                "email": "jane@example.com"
+            },
+            "signature": old_sig.to_base64()
+        });
+        // SAFETY: the JSON is well-formed and all identity fields are valid.
+        let module_sig =
+            ModuleSignature::parse(serde_json::to_vec(&json).unwrap().as_slice()).unwrap();
+
+        assert!(module_sig.verify(&digest).is_err());
     }
 }

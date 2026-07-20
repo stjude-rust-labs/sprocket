@@ -318,6 +318,24 @@ pub fn wildcard_import_conflict(name: &str, import_span: Span, prev_span: Span) 
     .with_label("previous definition", prev_span)
 }
 
+/// Creates a diagnostic for attempting to add a workflow when one already
+/// occupies local scope.
+pub fn workflow_conflict(
+    rejected_name: &str,
+    rejected_span: Span,
+    retained_name: &str,
+    retained_span: Span,
+) -> Diagnostic {
+    Diagnostic::error(format!(
+        "cannot add workflow `{rejected_name}` because only one workflow may be in scope"
+    ))
+    .with_label("this workflow is rejected", rejected_span)
+    .with_label(
+        format!("workflow `{retained_name}` is retained here"),
+        retained_span,
+    )
+}
+
 /// Creates a diagnostic for a member not found in a selected import.
 pub fn selected_member_not_found(name: &str, span: Span) -> Diagnostic {
     Diagnostic::error(format!("`{name}` does not exist in the imported module"))

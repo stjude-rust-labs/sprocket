@@ -84,11 +84,6 @@ Options:
   -q, --quiet...
           Decrease logging verbosity
 
-      --show-task-stderr
-          Show task stderr during execution.
-          
-          Note that not all execution backends support this option.
-
       --color <COLOR>
           Controls output colorization
 
@@ -99,9 +94,6 @@ Options:
           
           [default: auto]
 
-      --suffix <SUFFIX>
-          Optional suffix to append to the run directory name
-
   -c, --config <CONFIG>
           Path to the configuration file
 
@@ -109,6 +101,14 @@ Options:
           Skip searching for and loading configuration files.
           
           Only a configuration file specified as a command line argument will be used.
+
+      --show-task-stderr
+          Show task stderr during execution.
+          
+          Note that not all execution backends support this option.
+
+      --suffix <SUFFIX>
+          Optional suffix to append to the run directory name
 
   -h, --help
           Print help (see a summary with '-h')

@@ -197,11 +197,10 @@ impl Hasher {
 
     /// Computes the [`ContentHash`] of the recorded paths.
     ///
-    /// Each file's full path is canonicalized (resolving symbolic links)
-    /// before reading; if the resolved target falls outside the module
-    /// root, the module is rejected per the spec's symlink-containment
-    /// rule. Without this check, a symbolic link inside the module could
-    /// pull bytes from elsewhere on the filesystem into the digest.
+    /// Each file's full path is canonicalized before reading; if the
+    /// resolved target falls outside the module root, the module is
+    /// rejected. The tree walk already forbids symbolic links anywhere
+    /// in a module, so this is a defensive backstop.
     pub fn finalize(self) -> Result<ContentHash, HashError> {
         crate::tree::validate_tree(self.paths())?;
 
@@ -225,9 +224,7 @@ impl Hasher {
             })?;
 
             if !canonical_abs.starts_with(&canonical_root) {
-                return Err(
-                    ModuleWalkError::SymlinkEscapesRoot(relative.as_str().to_string()).into(),
-                );
+                return Err(ModuleWalkError::Symlink(relative.as_str().to_string()).into());
             }
 
             let mut file = File::open(&canonical_abs).map_err(|source| HashError::Io {
@@ -266,7 +263,7 @@ impl Hasher {
 /// spec-mandated exclusions `module.sig` and `module-lock.json`).
 /// Directory and file names that are not module content and should
 /// be excluded from hashing, limit checks, and content walks.
-pub(crate) const NON_MODULE_CONTENT: &[&str] = &[".git"];
+pub(crate) const NON_MODULE_CONTENT: &[&str] = &[".git", ".sprocket"];
 
 /// Walks `root` and computes the deterministic content hash of the
 /// module directory, skipping non-module content and spec-defined
@@ -276,7 +273,7 @@ pub fn hash_directory(root: impl AsRef<Path>) -> Result<ContentHash, HashError> 
     let mut hasher = Hasher::new(root.to_path_buf());
 
     crate::module_walk::walk_module_tree(root, &mut |path: &Path, _size| {
-        // SAFETY: the walker only yields paths under `root`.
+        // The walker only yields paths under `root`.
         let rel_path = path.strip_prefix(root).unwrap();
         let rel = rel_path
             .to_str()
@@ -431,6 +428,29 @@ mod tests {
     }
 
     #[test]
+    fn excludes_sprocket_cache() {
+        let dir = tempdir().unwrap();
+        fs::write(dir.path().join("a.txt"), b"keep").unwrap();
+        let d_clean = hash_directory(dir.path()).unwrap();
+
+        let cached_module = dir
+            .path()
+            .join(".sprocket")
+            .join("cache")
+            .join("modules")
+            .join("github.com")
+            .join("example")
+            .join("commit")
+            .join("nested");
+        fs::create_dir_all(&cached_module).unwrap();
+        fs::write(cached_module.join(crate::MANIFEST_FILENAME), b"x").unwrap();
+
+        let d_with_cache = hash_directory(dir.path()).unwrap();
+
+        assert_eq!(d_clean, d_with_cache);
+    }
+
+    #[test]
     fn hash_directory_rejects_nested_reserved_filename() {
         let dir = tempdir().unwrap();
         fs::create_dir(dir.path().join("nested")).unwrap();
@@ -512,7 +532,7 @@ mod tests {
         let dir = tempdir().unwrap();
         fs::write(
             dir.path().join(crate::MANIFEST_FILENAME),
-            br#"{"name":"x","version":"1.0.0","license":"MIT"}"#,
+            br#"{"name":"x","license":"MIT"}"#,
         )
         .unwrap();
         fs::write(dir.path().join("index.wdl"), b"workflow w {}").unwrap();
@@ -543,7 +563,7 @@ mod tests {
         let dir = tempdir().unwrap();
         fs::write(
             dir.path().join(crate::MANIFEST_FILENAME),
-            br#"{"name":"x","version":"1.0.0","license":"MIT"}"#,
+            br#"{"name":"x","license":"MIT"}"#,
         )
         .unwrap();
         fs::create_dir(dir.path().join(".git")).unwrap();
@@ -554,25 +574,28 @@ mod tests {
         );
         let err = hash_directory(dir.path()).unwrap_err();
         assert!(
-            matches!(
-                err,
-                HashError::Walk(ModuleWalkError::SymlinkTargetsMetadata(_))
-            ),
+            matches!(err, HashError::Walk(ModuleWalkError::Symlink(_))),
             "got: {err}"
         );
     }
 
     #[test]
-    fn symlink_within_module_root_is_allowed() {
+    fn symlink_within_module_root_is_rejected() {
+        // Symbolic links are not permitted anywhere in a module, even
+        // when they point at an in-root file.
         let dir = tempdir().unwrap();
         fs::write(
             dir.path().join(crate::MANIFEST_FILENAME),
-            br#"{"name":"x","version":"1.0.0","license":"MIT"}"#,
+            br#"{"name":"x","license":"MIT"}"#,
         )
         .unwrap();
         fs::write(dir.path().join("real.wdl"), b"workflow w {}").unwrap();
         symlink_file(&dir.path().join("real.wdl"), &dir.path().join("alias.wdl"));
-        hash_directory(dir.path()).unwrap();
+        let err = hash_directory(dir.path()).unwrap_err();
+        assert!(
+            matches!(err, HashError::Walk(ModuleWalkError::Symlink(_))),
+            "got: {err}"
+        );
     }
 
     #[test]
@@ -590,11 +613,8 @@ mod tests {
         );
         let err = hash_directory(dir.path()).unwrap_err();
         assert!(
-            matches!(
-                err,
-                HashError::Walk(ModuleWalkError::SymlinkTargetsMetadata(_))
-            ),
-            "expected metadata symlink rejection, got: {err}"
+            matches!(err, HashError::Walk(ModuleWalkError::Symlink(_))),
+            "expected symlink rejection, got: {err}"
         );
     }
 
@@ -628,7 +648,7 @@ mod tests {
     #[test]
     fn directory_symlink_cycle_is_rejected() {
         let dir = tempdir().unwrap();
-        fs::write(dir.path().join("real.wdl"), b"version 1.2\n").unwrap();
+        fs::write(dir.path().join("real.wdl"), b"version 1.3\n").unwrap();
         fs::create_dir(dir.path().join("sub")).unwrap();
         #[cfg(unix)]
         std::os::unix::fs::symlink("..", dir.path().join("sub").join("loop")).unwrap();
@@ -636,15 +656,8 @@ mod tests {
         std::os::windows::fs::symlink_dir("..", dir.path().join("sub").join("loop")).unwrap();
         let err = hash_directory(dir.path()).unwrap_err();
         assert!(
-            matches!(
-                err,
-                HashError::Walk(
-                    ModuleWalkError::DirectorySymlink(_)
-                        | ModuleWalkError::SymlinkEscapesRoot(_)
-                        | ModuleWalkError::SymlinkTargetsMetadata(_)
-                )
-            ),
-            "directory symlink cycles must be rejected, got: {err}"
+            matches!(err, HashError::Walk(ModuleWalkError::Symlink(_))),
+            "directory symlinks must be rejected, got: {err}"
         );
     }
 }

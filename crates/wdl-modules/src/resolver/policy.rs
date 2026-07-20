@@ -185,26 +185,22 @@ impl ResolverPolicy {
         }
     }
 
-    /// Returns the credential mode for a Git operation against `host`.
+    /// Returns the credential mode for a Git operation against `url`.
     ///
     /// Top-level dependencies always present credentials, since the user
     /// declared their URLs directly. Transitive dependencies present
     /// credentials only for hosts named explicitly in
     /// `allowed_transitive_hosts`, so a transitive manifest cannot direct
     /// the user's credentials at a host the user has not vouched for.
-    pub(crate) fn credential_mode(
-        &self,
-        scope: DependencyScope,
-        host: Option<&str>,
-    ) -> CredentialMode {
+    pub(crate) fn credential_mode(&self, scope: DependencyScope, url: &Url) -> CredentialMode {
         if !self.credentials_enabled {
             return CredentialMode::Disabled;
         }
 
         match scope {
             DependencyScope::TopLevel => CredentialMode::Enabled,
-            DependencyScope::Transitive => match host {
-                Some(host) if self.transitive.host_policy.explicitly_allows(host) => {
+            DependencyScope::Transitive => match normalized_host(url) {
+                Some(host) if self.transitive.host_policy.explicitly_allows(&host) => {
                     CredentialMode::Enabled
                 }
                 _ => CredentialMode::Disabled,
@@ -231,79 +227,133 @@ impl ResolverPolicy {
                 scheme: url.scheme().to_string(),
             });
         }
-        if let Some(host) = url.host_str() {
-            if self
-                .denied_hosts
-                .iter()
-                .any(|h| h.eq_ignore_ascii_case(host))
-            {
-                return Err(ResolverError::GitHostPolicyViolation {
-                    dep: name.manifest().to_string(),
-                    url: url.to_string(),
-                    host: host.to_string(),
-                });
-            }
-            if super::config::is_non_public_ip(host) {
-                return Err(ResolverError::GitHostPolicyViolation {
-                    dep: name.manifest().to_string(),
-                    url: url.to_string(),
-                    host: host.to_string(),
-                });
-            }
-            if !net.host_policy.allows(host) {
-                return Err(ResolverError::GitHostNotAllowed {
-                    dep: name.manifest().to_string(),
-                    url: url.to_string(),
-                    host: host.to_string(),
-                    config_key: match scope {
-                        DependencyScope::TopLevel => "allowed_hosts",
-                        DependencyScope::Transitive => "allowed_transitive_hosts",
-                    },
-                });
-            }
-            // Resolve the hostname to IP addresses and reject if any
-            // resolved address is non-public.
-            //
-            // Port 0 is passed only because `to_socket_addrs` requires a
-            // port; the value is insignificant for the address lookup and
-            // the DNS result is identical for any port. The policy does not
-            // restrict which port the URL itself uses; that is left to the
-            // caller's URL.
-            //
-            // Both DNS failure and empty results are treated as rejection
-            // (fail-closed). libgit2 re-resolves during connect/clone, so
-            // a DNS rebinding attack between this check and the fetch
-            // remains possible; fully preventing it would require
-            // peer-IP validation in a custom transport.
-            if host.parse::<std::net::IpAddr>().is_err() && url.scheme() != "file" {
-                let addrs: Vec<std::net::SocketAddr> =
-                    match std::net::ToSocketAddrs::to_socket_addrs(&(host, 0)) {
-                        Ok(iter) => iter.collect(),
-                        Err(_) => {
-                            return Err(ResolverError::GitHostResolutionFailed {
-                                dep: name.manifest().to_string(),
-                                url: url.to_string(),
-                                host: host.to_string(),
-                            });
-                        }
-                    };
-                if let Err(bad_ip) = validate_resolved_addresses(&addrs) {
-                    return match bad_ip {
-                        Some(ip) => Err(ResolverError::GitHostPolicyViolation {
-                            dep: name.manifest().to_string(),
-                            url: url.to_string(),
-                            host: format!("{host} (resolves to {ip})"),
-                        }),
-                        None => Err(ResolverError::GitHostResolutionFailed {
+        let config_key = match scope {
+            DependencyScope::TopLevel => "allowed_hosts",
+            DependencyScope::Transitive => "allowed_transitive_hosts",
+        };
+        if let Some(host) = url.host() {
+            match host {
+                url::Host::Domain(host) => {
+                    if self
+                        .denied_hosts
+                        .iter()
+                        .any(|h| h.eq_ignore_ascii_case(host))
+                    {
+                        return Err(ResolverError::GitHostPolicyViolation {
                             dep: name.manifest().to_string(),
                             url: url.to_string(),
                             host: host.to_string(),
-                        }),
-                    };
+                        });
+                    }
+                    if !net.host_policy.allows(host) {
+                        return Err(ResolverError::GitHostNotAllowed {
+                            dep: name.manifest().to_string(),
+                            url: url.to_string(),
+                            host: host.to_string(),
+                            config_key,
+                        });
+                    }
+                    // Resolve the hostname to IP addresses and reject if any
+                    // resolved address is non-public.
+                    //
+                    // Port 0 is passed only because `to_socket_addrs` requires a
+                    // port; the value is insignificant for the address lookup and
+                    // the DNS result is identical for any port. The policy does not
+                    // restrict which port the URL itself uses; that is left to the
+                    // caller's URL.
+                    //
+                    // Both DNS failure and empty results are treated as rejection
+                    // (fail-closed). libgit2 re-resolves during connect/clone, so
+                    // a DNS rebinding attack between this check and the fetch
+                    // remains possible; fully preventing it would require
+                    // peer-IP validation in a custom transport.
+                    if url.scheme() != "file" {
+                        let addrs: Vec<std::net::SocketAddr> =
+                            match std::net::ToSocketAddrs::to_socket_addrs(&(host, 0)) {
+                                Ok(iter) => iter.collect(),
+                                Err(_) => {
+                                    return Err(ResolverError::GitHostResolutionFailed {
+                                        dep: name.manifest().to_string(),
+                                        url: url.to_string(),
+                                        host: host.to_string(),
+                                    });
+                                }
+                            };
+                        if let Err(bad_ip) = validate_resolved_addresses(&addrs) {
+                            return match bad_ip {
+                                Some(ip) => Err(ResolverError::GitHostPolicyViolation {
+                                    dep: name.manifest().to_string(),
+                                    url: url.to_string(),
+                                    host: format!("{host} (resolves to {ip})"),
+                                }),
+                                None => Err(ResolverError::GitHostResolutionFailed {
+                                    dep: name.manifest().to_string(),
+                                    url: url.to_string(),
+                                    host: host.to_string(),
+                                }),
+                            };
+                        }
+                    }
+                }
+                url::Host::Ipv4(host) => {
+                    let host = host.to_string();
+                    if self
+                        .denied_hosts
+                        .iter()
+                        .any(|denied| denied.eq_ignore_ascii_case(&host))
+                        || super::config::is_non_public_ip(&host)
+                    {
+                        return Err(ResolverError::GitHostPolicyViolation {
+                            dep: name.manifest().to_string(),
+                            url: url.to_string(),
+                            host,
+                        });
+                    }
+                    if !net.host_policy.allows(&host) {
+                        return Err(ResolverError::GitHostNotAllowed {
+                            dep: name.manifest().to_string(),
+                            url: url.to_string(),
+                            host,
+                            config_key,
+                        });
+                    }
+                }
+                url::Host::Ipv6(host) => {
+                    let host = host.to_string();
+                    let display = format!("[{host}]");
+                    if self
+                        .denied_hosts
+                        .iter()
+                        .any(|denied| denied.eq_ignore_ascii_case(&host))
+                        || super::config::is_non_public_ip(&host)
+                    {
+                        return Err(ResolverError::GitHostPolicyViolation {
+                            dep: name.manifest().to_string(),
+                            url: url.to_string(),
+                            host: display,
+                        });
+                    }
+                    if !net.host_policy.allows(&host) {
+                        return Err(ResolverError::GitHostNotAllowed {
+                            dep: name.manifest().to_string(),
+                            url: url.to_string(),
+                            host: display,
+                            config_key,
+                        });
+                    }
                 }
             }
         }
         Ok(())
+    }
+}
+
+/// Returns the URL host in the form used by host policies.
+fn normalized_host(url: &Url) -> Option<String> {
+    match url.host()? {
+        url::Host::Domain(host) => Some(host.to_string()),
+        url::Host::Ipv4(host) => Some(host.to_string()),
+        url::Host::Ipv6(host) => Some(host.to_string()),
     }
 }
 
@@ -326,14 +376,23 @@ fn validate_resolved_addresses(addrs: &[std::net::SocketAddr]) -> Result<(), Opt
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::dependency::DependencyName;
     use crate::resolver::config::ModulesConfig;
     use crate::resolver::error::ResolverError;
+
+    fn dependency() -> DependencyName {
+        "dep".parse().unwrap()
+    }
+
+    fn url(source: &str) -> Url {
+        source.parse().unwrap()
+    }
 
     #[test]
     fn blocks_file_scheme() {
         let policy = ResolverPolicy::default();
-        let dep = "foo".parse().unwrap();
-        let url: url::Url = "file:///tmp/repo".parse().unwrap();
+        let dep = dependency();
+        let url = url("file:///repo");
         let err = policy
             .check_git_url(&dep, &url, DependencyScope::TopLevel)
             .unwrap_err();
@@ -346,8 +405,8 @@ mod tests {
     #[test]
     fn allows_ssh_top_level_blocks_transitive() {
         let policy = ResolverPolicy::default();
-        let dep = "foo".parse().unwrap();
-        let url: url::Url = "ssh://git@github.com/x/y".parse().unwrap();
+        let dep = dependency();
+        let url = url("ssh://git@github.com/x/y");
         policy
             .check_git_url(&dep, &url, DependencyScope::TopLevel)
             .unwrap();
@@ -360,8 +419,8 @@ mod tests {
     #[test]
     fn allows_https_by_default() {
         let policy = ResolverPolicy::default();
-        let dep = "foo".parse().unwrap();
-        let url: url::Url = "https://github.com/x/y".parse().unwrap();
+        let dep = dependency();
+        let url = url("https://github.com/x/y");
         policy
             .check_git_url(&dep, &url, DependencyScope::TopLevel)
             .unwrap();
@@ -374,15 +433,24 @@ mod tests {
     fn transitive_credentials_require_host_allowlist() {
         let default_policy = ResolverPolicy::default();
         assert_eq!(
-            default_policy.credential_mode(DependencyScope::Transitive, Some("github.com")),
+            default_policy.credential_mode(
+                DependencyScope::Transitive,
+                &url("https://github.com/org/repository.git")
+            ),
             CredentialMode::Enabled
         );
         assert_eq!(
-            default_policy.credential_mode(DependencyScope::Transitive, Some("bitbucket.org")),
+            default_policy.credential_mode(
+                DependencyScope::Transitive,
+                &url("https://bitbucket.org/org/repository.git")
+            ),
             CredentialMode::Disabled
         );
         assert_eq!(
-            default_policy.credential_mode(DependencyScope::TopLevel, Some("bitbucket.org")),
+            default_policy.credential_mode(
+                DependencyScope::TopLevel,
+                &url("https://bitbucket.org/org/repository.git")
+            ),
             CredentialMode::Enabled
         );
 
@@ -392,8 +460,206 @@ mod tests {
         })
         .unwrap();
         assert_eq!(
-            open.credential_mode(DependencyScope::Transitive, Some("github.com")),
+            open.credential_mode(
+                DependencyScope::Transitive,
+                &url("https://github.com/org/repository.git")
+            ),
             CredentialMode::Disabled
+        );
+    }
+
+    #[test]
+    fn rejects_loopback_and_private_hosts_through_public_policy_boundary() {
+        let policy = ResolverPolicy::default();
+        let dep = dependency();
+        for (scope, source) in [
+            (
+                DependencyScope::TopLevel,
+                "https://localhost/repository.git",
+            ),
+            (
+                DependencyScope::Transitive,
+                "https://127.0.0.1/repository.git",
+            ),
+            (DependencyScope::TopLevel, "https://0.0.0.0/repository.git"),
+        ] {
+            let error = policy
+                .check_git_url(&dep, &url(source), scope)
+                .expect_err("loopback and private hosts must be rejected");
+            assert!(
+                matches!(error, ResolverError::GitHostPolicyViolation { .. }),
+                "got: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn default_policy_denies_all_non_public_literal_hosts() {
+        let policy = ResolverPolicy::default();
+        let dep = dependency();
+        let denied = [
+            "https://169.254.169.254/repository.git",
+            "https://10.0.0.1/repository.git",
+            "https://192.168.1.1/repository.git",
+            "https://172.16.0.1/repository.git",
+            "https://100.64.0.1/repository.git",
+            "https://127.0.0.1/repository.git",
+            "https://0.0.0.0/repository.git",
+            "https://255.255.255.255/repository.git",
+            "https://224.0.0.1/repository.git",
+            "https://[::1]/repository.git",
+            "https://[::]/repository.git",
+            "https://[fe80::1]/repository.git",
+            "https://[fc00::1]/repository.git",
+            "https://[ff02::1]/repository.git",
+            "https://[::ffff:127.0.0.1]/repository.git",
+            "https://[::ffff:169.254.169.254]/repository.git",
+            "https://[::ffff:10.0.0.1]/repository.git",
+            "https://[::ffff:192.168.1.1]/repository.git",
+        ];
+        for source in denied {
+            for scope in [DependencyScope::TopLevel, DependencyScope::Transitive] {
+                let error = policy
+                    .check_git_url(&dep, &url(source), scope)
+                    .expect_err("non-public literal hosts must be rejected");
+                assert!(
+                    matches!(error, ResolverError::GitHostPolicyViolation { .. }),
+                    "`{source}` should be rejected by host policy; got: {error}"
+                );
+                assert!(
+                    !error.to_string().contains("configured allow list"),
+                    "non-public literal errors must not suggest allowlisting: {error}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn default_policy_allows_public_literal_hosts() {
+        let policy = ResolverPolicy::default();
+        let dep = dependency();
+        for source in [
+            "https://140.82.121.3/repository.git",
+            "https://[2606:4700:4700::1111]/repository.git",
+            "https://[::ffff:140.82.121.3]/repository.git",
+        ] {
+            policy
+                .check_git_url(&dep, &url(source), DependencyScope::TopLevel)
+                .expect("public literal hosts should be allowed");
+        }
+    }
+
+    #[test]
+    fn rejects_non_public_ipv6_literal_hosts_before_dns() {
+        let policy = ResolverPolicy::default();
+        let dep = dependency();
+        for source in [
+            "https://[::1]/repository.git",
+            "https://[::]/repository.git",
+            "https://[fd00::1]/repository.git",
+            "https://[::ffff:127.0.0.1]/repository.git",
+            "https://[::ffff:169.254.169.254]/repository.git",
+            "https://[::ffff:10.0.0.1]/repository.git",
+        ] {
+            let error = policy
+                .check_git_url(&dep, &url(source), DependencyScope::TopLevel)
+                .expect_err("non-public IPv6 literal hosts must be rejected");
+            assert!(
+                matches!(error, ResolverError::GitHostPolicyViolation { .. }),
+                "got: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn allows_public_ipv4_mapped_ipv6_host() {
+        let policy = ResolverPolicy::default();
+        let dep = dependency();
+        policy
+            .check_git_url(
+                &dep,
+                &url("https://[::ffff:140.82.121.3]/repository.git"),
+                DependencyScope::TopLevel,
+            )
+            .expect("configured public host should be allowed");
+    }
+
+    #[test]
+    fn allows_public_ipv4_host() {
+        let policy = ResolverPolicy::default();
+        let dep = dependency();
+        policy
+            .check_git_url(
+                &dep,
+                &url("https://140.82.121.3/repository.git"),
+                DependencyScope::TopLevel,
+            )
+            .expect("configured public host should be allowed");
+    }
+
+    #[test]
+    fn allowlists_apply_per_scope_for_complete_urls() {
+        let policy = ResolverPolicy::try_from(&ModulesConfig {
+            allowed_hosts: vec!["github.com".into()],
+            allowed_transitive_hosts: vec!["gitlab.com".into()],
+            ..ModulesConfig::default()
+        })
+        .unwrap();
+        let dep = dependency();
+
+        policy
+            .check_git_url(
+                &dep,
+                &url("https://github.com/org/repository.git"),
+                DependencyScope::TopLevel,
+            )
+            .expect("configured host should be allowed");
+        policy
+            .check_git_url(
+                &dep,
+                &url("https://gitlab.com/org/repository.git"),
+                DependencyScope::Transitive,
+            )
+            .expect("configured host should be allowed");
+
+        let error = policy
+            .check_git_url(
+                &dep,
+                &url("https://github.com/org/repository.git"),
+                DependencyScope::Transitive,
+            )
+            .expect_err("top-level allowlist should not apply to transitive dependencies");
+        assert!(
+            matches!(
+                error,
+                ResolverError::GitHostNotAllowed {
+                    config_key: "allowed_transitive_hosts",
+                    ..
+                }
+            ),
+            "got: {error}"
+        );
+
+        let error = policy
+            .check_git_url(
+                &dep,
+                &url("https://gitlab.com/org/repository.git"),
+                DependencyScope::TopLevel,
+            )
+            .expect_err("transitive allowlist should not apply to top-level dependencies");
+        assert!(
+            matches!(
+                error,
+                ResolverError::GitHostNotAllowed {
+                    config_key: "allowed_hosts",
+                    ..
+                }
+            ),
+            "got: {error}"
+        );
+        assert!(
+            error.to_string().contains("to allow it, add"),
+            "ordinary denied hosts should retain config guidance: {error}"
         );
     }
 
@@ -401,12 +667,37 @@ mod tests {
     fn credentials_can_be_disabled_for_every_scope() {
         let policy = ResolverPolicy::default().without_credentials();
         assert_eq!(
-            policy.credential_mode(DependencyScope::TopLevel, Some("github.com")),
+            policy.credential_mode(
+                DependencyScope::TopLevel,
+                &url("https://github.com/org/repository.git")
+            ),
             CredentialMode::Disabled
         );
         assert_eq!(
-            policy.credential_mode(DependencyScope::Transitive, Some("github.com")),
+            policy.credential_mode(
+                DependencyScope::Transitive,
+                &url("https://github.com/org/repository.git")
+            ),
             CredentialMode::Disabled
+        );
+    }
+
+    #[test]
+    fn transitive_ipv6_literal_credentials_use_normalized_host() {
+        let policy = ResolverPolicy::try_from(&ModulesConfig {
+            allowed_transitive_hosts: vec!["2606:4700:4700::1111".into()],
+            ..ModulesConfig::default()
+        })
+        .unwrap();
+        let dep = dependency();
+        let url = url("https://[2606:4700:4700::1111]/repository.git");
+
+        policy
+            .check_git_url(&dep, &url, DependencyScope::Transitive)
+            .expect("allowlisted IPv6 literal should pass host policy");
+        assert_eq!(
+            policy.credential_mode(DependencyScope::Transitive, &url),
+            CredentialMode::Enabled
         );
     }
 
@@ -432,10 +723,8 @@ mod tests {
     #[test]
     fn dns_failure_rejects_url() {
         let policy = ResolverPolicy::default();
-        let dep = "foo".parse().unwrap();
-        let url: url::Url = "https://this-host-does-not-exist-xyzzy.invalid/x/y"
-            .parse()
-            .unwrap();
+        let dep = dependency();
+        let url = url("https://this-host-does-not-exist-xyzzy.invalid/x/y");
         let err = policy
             .check_git_url(&dep, &url, DependencyScope::TopLevel)
             .unwrap_err();

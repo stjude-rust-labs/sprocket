@@ -1,0 +1,9 @@
+error: imported document has incompatible version
+  ┌─ tests/analysis/import-higher-minor-rejected/source.wdl:6:8
+  │
+4 │ version 1.1
+  │         --- the importing document is version `1.1`
+5 │ 
+6 │ import "foo.wdl"
+  │        ^^^^^^^^^ the imported document is version `1.2`
+

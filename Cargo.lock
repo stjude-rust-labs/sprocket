@@ -4982,6 +4982,7 @@ dependencies = [
  "async-trait",
  "axum",
  "bon",
+ "bytesize",
  "chrono",
  "clap",
  "clap-verbosity-flag",
@@ -4994,6 +4995,7 @@ dependencies = [
  "dirs",
  "futures",
  "git-testament",
+ "git2",
  "http-body-util",
  "indexmap 2.14.0",
  "indicatif",
@@ -5019,6 +5021,7 @@ dependencies = [
  "shlex 1.3.0",
  "similar",
  "sqlx",
+ "ssh-key",
  "strum",
  "tempfile",
  "thiserror",
@@ -5032,6 +5035,7 @@ dependencies = [
  "tracing",
  "tracing-indicatif",
  "tracing-subscriber",
+ "tracing-test",
  "url",
  "utoipa",
  "utoipa-swagger-ui",
@@ -5259,6 +5263,7 @@ version = "0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3b86f5297f0f04d08cabaa0f6bff7cb6aec4d9c3b49d87990d63da9d9156a8c3"
 dependencies = [
+ "ed25519-dalek",
  "p256",
  "p384",
  "p521",
@@ -6712,6 +6717,7 @@ dependencies = [
  "tracing",
  "unicode-normalization",
  "url",
+ "wdl-ast",
  "wdl-grammar",
 ]
 

@@ -68,6 +68,21 @@ const SPARSE_META_EXT: &str = ".sparse.json";
 /// form the per-leaf advisory lock path.
 const LOCK_EXT: &str = ".lock";
 
+/// Filename that marks a directory as an owned WDL module cache.
+pub(crate) const CACHE_MARKER_FILENAME: &str = ".sprocket-wdl-module-cache";
+
+/// Versioned contents of the WDL module cache ownership marker.
+const CACHE_MARKER_CONTENT: &[u8] = b"sprocket-wdl-module-cache-v1\n";
+
+/// Root and leaf paths participating in one cache operation.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct CacheLocation<'a> {
+    /// Owned WDL module cache root.
+    pub root: &'a Path,
+    /// Commit-specific cache leaf.
+    pub leaf: &'a Path,
+}
+
 /// The module folders currently materialized in a sparse-checkout cache
 /// leaf.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
@@ -115,6 +130,15 @@ pub enum GitError {
     #[error("cache leaf path `{0}` has no parent directory")]
     RootLeaf(PathBuf),
 
+    /// A cache root is unsafe to initialize or remove.
+    #[error("unsafe WDL module cache root `{path}`; {reason}")]
+    UnsafeCacheRoot {
+        /// The unsafe cache root.
+        path: PathBuf,
+        /// The reason the root is unsafe.
+        reason: &'static str,
+    },
+
     /// A remote advertised more refs than the configured limit.
     #[error("remote at `{url}` advertised {count} refs, exceeding the limit of {limit}")]
     RefLimitExceeded {
@@ -145,6 +169,279 @@ pub enum GitError {
         /// The configured byte limit.
         max_bytes: Option<u64>,
     },
+
+    /// The remote did not advertise a default branch.
+    #[error("remote at `{url}` did not advertise a default branch")]
+    NoDefaultBranch {
+        /// The remote URL.
+        url: String,
+    },
+
+    /// The remote default branch name was not valid UTF-8.
+    #[error("remote at `{url}` advertised a non-UTF-8 default branch name")]
+    DefaultBranchUtf8 {
+        /// The remote URL.
+        url: String,
+        /// The underlying UTF-8 error.
+        #[source]
+        source: std::str::Utf8Error,
+    },
+
+    /// A commit-SHA prefix could not be resolved to a single commit in
+    /// the repository (no match, or an ambiguous match).
+    #[error("commit prefix `{prefix}` in `{url}` did not resolve to a unique commit")]
+    CommitPrefix {
+        /// The remote URL.
+        url: String,
+        /// The prefix that failed to resolve.
+        prefix: String,
+    },
+}
+
+/// Initializes an empty cache root or validates its ownership marker.
+pub(crate) fn initialize_cache_root(root: &Path) -> Result<(), GitError> {
+    let _lock = lock_cache_root_unchecked(root)?;
+    initialize_cache_root_locked(root)
+}
+
+/// Acquires a shared cache-root lock for a materialization or scoped cleanup.
+pub(crate) fn lock_cache_root_shared(root: &Path) -> Result<File, GitError> {
+    initialize_cache_root(root)?;
+    let lock_path = cache_root_lock_path(root)?;
+    let file = open_cache_root_lock(root)?;
+    file.lock_shared().map_err(|source| GitError::Io {
+        path: lock_path,
+        source,
+    })?;
+    validate_cache_marker(root)?;
+    Ok(file)
+}
+
+/// Acquires an exclusive cache-root lock for a full cleanup.
+pub(crate) fn lock_cache_root_exclusive(root: &Path) -> Result<File, GitError> {
+    initialize_cache_root(root)?;
+    let file = lock_cache_root_unchecked(root)?;
+    validate_cache_marker(root)?;
+    Ok(file)
+}
+
+/// Removes one cache leaf while holding its advisory lock.
+pub(crate) fn remove_cache_leaf(leaf: &Path) -> Result<bool, GitError> {
+    let _lock = lock_cache_leaf(leaf)?;
+    if !leaf.exists() {
+        return Ok(false);
+    }
+    std::fs::remove_dir_all(leaf).map_err(|source| GitError::Io {
+        path: leaf.to_path_buf(),
+        source,
+    })?;
+    let sparse_meta = sparse_meta_path(leaf);
+    match std::fs::remove_file(&sparse_meta) {
+        Ok(()) => {}
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => {}
+        Err(source) => {
+            return Err(GitError::Io {
+                path: sparse_meta,
+                source,
+            });
+        }
+    }
+    Ok(true)
+}
+
+/// Removes every owned cache entry while holding the root lock exclusively.
+pub(crate) fn remove_cache_root(root: &Path) -> Result<(usize, u64), GitError> {
+    let _lock = lock_cache_root_exclusive(root)?;
+    let stats = cache_tree_stats(root)?;
+    std::fs::remove_dir_all(root).map_err(|source| GitError::Io {
+        path: root.to_path_buf(),
+        source,
+    })?;
+    Ok(stats)
+}
+
+/// Removes selected leaves while excluding concurrent full-cache cleanup.
+pub(crate) fn remove_cache_leaves(
+    root: &Path,
+    leaves: &[PathBuf],
+) -> Result<(usize, u64), GitError> {
+    let _root_lock = lock_cache_root_shared(root)?;
+    let mut modules = 0usize;
+    let mut bytes = 0u64;
+    for leaf in leaves {
+        if !leaf.starts_with(root) {
+            return Err(GitError::UnsafeCacheRoot {
+                path: leaf.clone(),
+                reason: "a cache leaf escaped its cache root",
+            });
+        }
+        if !leaf.exists() {
+            continue;
+        }
+        bytes = bytes.saturating_add(cache_tree_stats(leaf)?.1);
+        modules += usize::from(remove_cache_leaf(leaf)?);
+    }
+    Ok((modules, bytes))
+}
+
+/// Opens and exclusively locks the cache-root advisory lock.
+fn lock_cache_root_unchecked(root: &Path) -> Result<File, GitError> {
+    let path = cache_root_lock_path(root)?;
+    let file = File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&path)
+        .map_err(|source| GitError::Io {
+            path: path.clone(),
+            source,
+        })?;
+    file.lock()
+        .map_err(|source| GitError::Io { path, source })?;
+    Ok(file)
+}
+
+/// Opens the cache-root advisory lock without acquiring it.
+fn open_cache_root_lock(root: &Path) -> Result<File, GitError> {
+    let path = cache_root_lock_path(root)?;
+    File::options()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(&path)
+        .map_err(|source| GitError::Io { path, source })
+}
+
+/// Returns the advisory lock path placed next to a cache root.
+fn cache_root_lock_path(root: &Path) -> Result<PathBuf, GitError> {
+    let Some(name) = root.file_name().filter(|name| !name.is_empty()) else {
+        return Err(GitError::UnsafeCacheRoot {
+            path: root.to_path_buf(),
+            reason: "the path has no final directory component",
+        });
+    };
+    let parent = root
+        .parent()
+        .filter(|parent| !parent.as_os_str().is_empty())
+        .unwrap_or_else(|| Path::new("."));
+    std::fs::create_dir_all(parent).map_err(|source| GitError::Io {
+        path: parent.to_path_buf(),
+        source,
+    })?;
+    Ok(parent.join(format!(".{}.lock", name.to_string_lossy())))
+}
+
+/// Creates an ownership marker only when the cache root is empty.
+fn initialize_cache_root_locked(root: &Path) -> Result<(), GitError> {
+    if root.exists() {
+        let metadata = std::fs::symlink_metadata(root).map_err(|source| GitError::Io {
+            path: root.to_path_buf(),
+            source,
+        })?;
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return Err(GitError::UnsafeCacheRoot {
+                path: root.to_path_buf(),
+                reason: "the path is not a regular directory",
+            });
+        }
+        let marker = root.join(CACHE_MARKER_FILENAME);
+        if marker.exists() {
+            return validate_cache_marker(root);
+        }
+        let mut entries = std::fs::read_dir(root).map_err(|source| GitError::Io {
+            path: root.to_path_buf(),
+            source,
+        })?;
+        if entries.next().is_some() {
+            return Err(GitError::UnsafeCacheRoot {
+                path: root.to_path_buf(),
+                reason: "the directory is non-empty and has no ownership marker",
+            });
+        }
+    } else {
+        std::fs::create_dir_all(root).map_err(|source| GitError::Io {
+            path: root.to_path_buf(),
+            source,
+        })?;
+    }
+
+    let marker = root.join(CACHE_MARKER_FILENAME);
+    std::fs::write(&marker, CACHE_MARKER_CONTENT).map_err(|source| GitError::Io {
+        path: marker,
+        source,
+    })
+}
+
+/// Validates the cache-root ownership marker without following symlinks.
+fn validate_cache_marker(root: &Path) -> Result<(), GitError> {
+    let marker = root.join(CACHE_MARKER_FILENAME);
+    let metadata = std::fs::symlink_metadata(&marker).map_err(|source| GitError::Io {
+        path: marker.clone(),
+        source,
+    })?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(GitError::UnsafeCacheRoot {
+            path: root.to_path_buf(),
+            reason: "the ownership marker is not a regular file",
+        });
+    }
+    let contents = std::fs::read(&marker).map_err(|source| GitError::Io {
+        path: marker,
+        source,
+    })?;
+    if contents != CACHE_MARKER_CONTENT {
+        return Err(GitError::UnsafeCacheRoot {
+            path: root.to_path_buf(),
+            reason: "the ownership marker has unexpected contents",
+        });
+    }
+    Ok(())
+}
+
+/// Counts commit directories and regular-file bytes without following symlinks.
+fn cache_tree_stats(path: &Path) -> Result<(usize, u64), GitError> {
+    let mut modules = 0usize;
+    let mut bytes = 0u64;
+    let entries = std::fs::read_dir(path).map_err(|source| GitError::Io {
+        path: path.to_path_buf(),
+        source,
+    })?;
+    for entry in entries {
+        let entry = entry.map_err(|source| GitError::Io {
+            path: path.to_path_buf(),
+            source,
+        })?;
+        let child = entry.path();
+        let metadata = std::fs::symlink_metadata(&child).map_err(|source| GitError::Io {
+            path: child.clone(),
+            source,
+        })?;
+        if metadata.is_dir() {
+            if is_commit_directory(&child) {
+                modules += 1;
+            }
+            let (nested_modules, nested_bytes) = cache_tree_stats(&child)?;
+            modules = modules.saturating_add(nested_modules);
+            bytes = bytes.saturating_add(nested_bytes);
+        } else if metadata.is_file() {
+            bytes = bytes.saturating_add(metadata.len());
+        }
+    }
+    Ok((modules, bytes))
+}
+
+/// Returns whether a path names a full Git commit cache directory.
+fn is_commit_directory(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| {
+            name.len() == 40
+                && name
+                    .bytes()
+                    .all(|byte| byte.is_ascii_hexdigit() && !byte.is_ascii_uppercase())
+        })
 }
 
 /// Default credential resolver. Tries the user's configured Git
@@ -243,6 +540,113 @@ pub(crate) fn list_advertised_refs(
     Ok(pairs)
 }
 
+/// Connects to the remote and returns its default branch name without the
+/// `refs/heads/` prefix. Rejects remotes advertising more than `max_refs`
+/// entries and remotes with no advertised default branch.
+pub(crate) fn discover_default_branch(
+    url: &Url,
+    mode: CredentialMode,
+    max_refs: usize,
+) -> Result<String, GitError> {
+    let mut remote = connect_remote(url, git2::Direction::Fetch, mode)?;
+    let advertised = remote.list().map_err(GitError::Git)?;
+    if advertised.len() > max_refs {
+        let count = advertised.len();
+        disconnect_remote(&mut remote);
+        return Err(GitError::RefLimitExceeded {
+            url: url.to_string(),
+            count,
+            limit: max_refs,
+        });
+    }
+
+    let branch = match remote.default_branch() {
+        Ok(branch) => {
+            let name = std::str::from_utf8(branch.as_ref()).map_err(|source| {
+                GitError::DefaultBranchUtf8 {
+                    url: url.to_string(),
+                    source,
+                }
+            })?;
+            name.strip_prefix("refs/heads/")
+                .filter(|name| !name.is_empty())
+                .map(str::to_string)
+                .ok_or_else(|| GitError::NoDefaultBranch {
+                    url: url.to_string(),
+                })
+        }
+        Err(_) => Err(GitError::NoDefaultBranch {
+            url: url.to_string(),
+        }),
+    };
+    disconnect_remote(&mut remote);
+    branch
+}
+
+/// Returns the full SHA that a commit prefix uniquely matches among a
+/// set of advertised `(ref, sha)` pairs, or `None` when no ref matches
+/// or when two distinct SHAs share the prefix (an ambiguous match).
+///
+/// The same SHA advertised under several refs is not ambiguous.
+pub(crate) fn unique_ref_prefix_match<'a>(
+    refs: &'a [(String, String)],
+    prefix: &str,
+) -> Option<&'a str> {
+    let mut matched: Option<&str> = None;
+    for (_, sha) in refs {
+        if sha.starts_with(prefix) {
+            if matched.is_some_and(|m| m != sha.as_str()) {
+                return None;
+            }
+            matched = Some(sha);
+        }
+    }
+    matched
+}
+
+/// Expands a commit-SHA prefix to the full 40-character SHA by cloning.
+///
+/// This is the fallback for a prefix that does not name a ref tip (see
+/// [`GitFetcher::resolve_commit_prefix`](super::fetch::GitFetcher::resolve_commit_prefix),
+/// which tries `ls-remote` first). The Git wire protocol has no
+/// prefix-expansion operation, so the objects must be fetched locally
+/// and resolved with `git rev-parse` semantics. `git2`/libgit2 does not
+/// support partial-clone filters, so this is a full bare clone of the
+/// repository into `work_dir`; a prefix matching no commit or more than
+/// one commit is rejected. `work_dir` must not already exist; the caller
+/// removes it afterward.
+pub(crate) fn resolve_commit_prefix(
+    work_dir: &Path,
+    url: &Url,
+    prefix: &str,
+    mode: CredentialMode,
+) -> Result<String, GitError> {
+    let mut fetch_opts = default_fetch_options(mode);
+    fetch_opts.download_tags(git2::AutotagOption::All);
+    let mut builder = git2::build::RepoBuilder::new();
+    builder.bare(true).fetch_options(fetch_opts);
+    let repo = builder
+        .clone(url.as_str(), work_dir)
+        .map_err(GitError::Git)?;
+
+    // `revparse_single` on a hex prefix disambiguates against the object
+    // database; peel to a commit so a prefix that resolves to a tag or
+    // tree is rejected rather than silently accepted.
+    match repo.revparse_single(prefix) {
+        Ok(obj) => {
+            let commit = obj.peel_to_commit().map_err(|_| GitError::CommitPrefix {
+                url: url.to_string(),
+                prefix: prefix.to_string(),
+            })?;
+            Ok(commit.id().to_string())
+        }
+        Err(_) => Err(GitError::CommitPrefix {
+            url: url.to_string(),
+            prefix: prefix.to_string(),
+        }),
+    }
+}
+
 /// Inspects a subtree at `path` within the commit identified by `oid`,
 /// counting blob entries and summing their sizes without materializing
 /// any content to disk.
@@ -321,7 +725,18 @@ fn apply_sparse_checkout(repo: &Repository, paths: &[String]) -> Result<(), GitE
     let tree = head_commit.tree().map_err(GitError::Git)?;
 
     let mut checkout = git2::build::CheckoutBuilder::new();
-    checkout.force().recreate_missing(true);
+    // Disable all libgit2 filters (CRLF/LF conversion, `ident`, clean/smudge)
+    // so the checked-out bytes are identical to the stored blob bytes on every
+    // platform. Module content addressing hashes the on-disk files, so a
+    // filter that rewrote line endings (e.g. a Windows `core.autocrlf=true`, or
+    // a repo `.gitattributes` demanding `eol=crlf`) would produce a different
+    // digest per platform and break signature/lock verification. This is the
+    // sole checkout site that materializes module content, so it is the only
+    // place the guarantee must be enforced.
+    checkout
+        .disable_filters(true)
+        .force()
+        .recreate_missing(true);
     for p in paths {
         // Match every entry under the given module folder.
         checkout.path(format!("{p}/**"));
@@ -488,9 +903,90 @@ where
         enforce_tree_limits(&repo, head_oid, &new_paths, max_files, max_bytes)?;
     }
     let all_owned: Vec<String> = all.into_iter().collect();
+    clear_sparse_paths(leaf, &all_owned)?;
     apply_sparse_checkout(&repo, &all_owned)?;
     save_sparse_meta(leaf, &all_owned)?;
     Ok(())
+}
+
+/// Removes materialized sparse paths before restoring them from Git objects.
+fn clear_sparse_paths(leaf: &Path, paths: &[String]) -> Result<(), GitError> {
+    for path in paths {
+        if path == "." {
+            let entries = std::fs::read_dir(leaf).map_err(|source| GitError::Io {
+                path: leaf.to_path_buf(),
+                source,
+            })?;
+            for entry in entries {
+                let entry = entry.map_err(|source| GitError::Io {
+                    path: leaf.to_path_buf(),
+                    source,
+                })?;
+                if entry.file_name() == ".git" {
+                    continue;
+                }
+                remove_worktree_path(&entry.path())?;
+            }
+        } else {
+            remove_worktree_path(&leaf.join(path))?;
+        }
+    }
+    Ok(())
+}
+
+/// Removes a worktree path without following symbolic links.
+fn remove_worktree_path(path: &Path) -> Result<(), GitError> {
+    let metadata = match std::fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+        Err(source) => {
+            return Err(GitError::Io {
+                path: path.to_path_buf(),
+                source,
+            });
+        }
+    };
+    let result = if metadata.is_dir() {
+        std::fs::remove_dir_all(path)
+    } else {
+        std::fs::remove_file(path)
+    };
+    result.map_err(|source| GitError::Io {
+        path: path.to_path_buf(),
+        source,
+    })
+}
+
+/// Returns whether an existing cache leaf is pinned to `commit`.
+fn cache_leaf_matches_commit(leaf: &Path, commit: &str) -> Result<bool, GitError> {
+    let repo = Repository::open(leaf).map_err(GitError::Git)?;
+    let observed = repo
+        .head()
+        .map_err(GitError::Git)?
+        .peel_to_commit()
+        .map_err(GitError::Git)?
+        .id();
+    let expected = git2::Oid::from_str(commit).map_err(GitError::Git)?;
+    Ok(observed == expected)
+}
+
+/// Removes a cache leaf and its sparse metadata while its lock is held.
+fn clear_cache_leaf(leaf: &Path) -> Result<(), GitError> {
+    if leaf.exists() {
+        std::fs::remove_dir_all(leaf).map_err(|source| GitError::Io {
+            path: leaf.to_path_buf(),
+            source,
+        })?;
+    }
+    let sparse_meta = sparse_meta_path(leaf);
+    match std::fs::remove_file(&sparse_meta) {
+        Ok(()) => Ok(()),
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(source) => Err(GitError::Io {
+            path: sparse_meta,
+            source,
+        }),
+    }
 }
 
 /// Acquires an exclusive file lock for a cache leaf directory.
@@ -501,13 +997,14 @@ where
 /// dropped; the lock file remains on disk to avoid delete-after-unlock
 /// races.
 fn lock_cache_leaf(leaf: &Path) -> Result<File, GitError> {
-    // SAFETY: cache leaves are always `<parent>/<commit_sha>`, so
-    // both `parent()` and `file_name()` are always `Some`.
+    // SAFETY: Cache leaves are always `<parent>/<commit_sha>`, so `parent`
+    // and `file_name` are always present.
     let parent = leaf.parent().unwrap();
     std::fs::create_dir_all(parent).map_err(|source| GitError::Io {
         path: parent.to_path_buf(),
         source,
     })?;
+    // SAFETY: Cache leaves are always `<parent>/<commit_sha>`.
     let name = leaf.file_name().unwrap().to_string_lossy();
     let lock_path = parent.join(format!(".{name}{LOCK_EXT}"));
     let file = File::create(&lock_path).map_err(|source| GitError::Io {
@@ -542,29 +1039,57 @@ fn lock_cache_leaf(leaf: &Path) -> Result<File, GitError> {
 /// covering at least `paths`. Clones if `leaf` does not yet exist;
 /// otherwise extends the existing leaf's sparse-checkout set.
 ///
-/// Cached leaves are keyed by `(url, commit)` upstream, so an existing
-/// leaf already corresponds to the requested commit; this helper does
-/// not re-validate that.
-///
 /// If the initial clone fails, the partially-written leaf is removed so a
 /// corrupt checkout does not persist.
 pub(crate) fn ensure_materialized<I, S>(
-    leaf: &Path,
+    cache: CacheLocation<'_>,
     url: &Url,
     commit: &str,
     paths: I,
     mode: CredentialMode,
     max_files: Option<usize>,
     max_bytes: Option<u64>,
-) -> Result<(), GitError>
+) -> Result<bool, GitError>
 where
     I: IntoIterator<Item = S>,
     S: AsRef<str>,
 {
+    let _cache_lock = lock_cache_root_shared(cache.root)?;
+    let leaf = cache.leaf;
+    let existed = leaf.exists();
+    tracing::debug!(
+        cache_leaf = %leaf.display(),
+        url = %url,
+        commit,
+        exists = existed,
+        "preparing module cache leaf"
+    );
+    tracing::trace!(cache_leaf = %leaf.display(), "acquiring module cache leaf lock");
     let _lock = lock_cache_leaf(leaf)?;
+    tracing::trace!(cache_leaf = %leaf.display(), "acquired module cache leaf lock");
+    if leaf.exists() && !cache_leaf_matches_commit(leaf, commit)? {
+        tracing::warn!(
+            cache_leaf = %leaf.display(),
+            commit,
+            "evicting module cache leaf with an unexpected Git HEAD"
+        );
+        clear_cache_leaf(leaf)?;
+    }
     if leaf.exists() {
-        extend_sparse_checkout(leaf, paths, max_files, max_bytes)
+        tracing::debug!(
+            cache_leaf = %leaf.display(),
+            commit,
+            "using cached module checkout"
+        );
+        extend_sparse_checkout(leaf, paths, max_files, max_bytes)?;
+        Ok(false)
     } else {
+        tracing::info!(
+            cache_leaf = %leaf.display(),
+            url = %url,
+            commit,
+            "fetching module into cache"
+        );
         let result =
             clone_with_sparse_checkout(url, commit, leaf, paths, mode, max_files, max_bytes);
         if result.is_err()
@@ -577,7 +1102,7 @@ where
                 "failed to clean up cache leaf after a failed clone",
             );
         }
-        result
+        result.map(|()| true)
     }
 }
 
@@ -620,12 +1145,12 @@ mod tests {
         let (upstream, sha) = build_upstream(&[
             (
                 "csvkit/module.json",
-                br#"{"name":"csvkit","version":"1.0.0","license":"MIT"}"#,
+                br#"{"name":"csvkit","license":"MIT"}"#,
             ),
             ("csvkit/index.wdl", b"workflow w {}"),
             (
                 "spellbook/module.json",
-                br#"{"name":"spellbook","version":"1.0.0","license":"MIT"}"#,
+                br#"{"name":"spellbook","license":"MIT"}"#,
             ),
             ("spellbook/index.wdl", b"workflow w {}"),
         ]);
@@ -657,10 +1182,8 @@ mod tests {
 
     #[test]
     fn ref_count_limit_is_enforced() {
-        let (upstream, _sha) = build_upstream(&[(
-            "module.json",
-            br#"{"name":"x","version":"1.0.0","license":"MIT"}"#,
-        )]);
+        let (upstream, _sha) =
+            build_upstream(&[("module.json", br#"{"name":"x","license":"MIT"}"#)]);
         let url = Url::from_directory_path(upstream.path()).unwrap();
         let err = list_advertised_refs(&url, 0, CredentialMode::Enabled).unwrap_err();
         assert!(
@@ -670,16 +1193,32 @@ mod tests {
     }
 
     #[test]
+    fn discovers_default_branch_for_file_url() {
+        let (upstream, _sha) =
+            build_upstream(&[("module.json", br#"{"name":"x","license":"MIT"}"#)]);
+        let repo = Repository::open(upstream.path()).unwrap();
+        let expected = repo
+            .head()
+            .unwrap()
+            .shorthand()
+            .expect("HEAD should resolve to a branch")
+            .to_string();
+        let url = Url::from_file_path(upstream.path()).unwrap();
+        let observed = discover_default_branch(&url, CredentialMode::Enabled, 1024).unwrap();
+        assert_eq!(observed, expected);
+    }
+
+    #[test]
     fn ensure_materialized_clones_then_extends() {
         let (upstream, sha) = build_upstream(&[
             (
                 "csvkit/module.json",
-                br#"{"name":"csvkit","version":"1.0.0","license":"MIT"}"#,
+                br#"{"name":"csvkit","license":"MIT"}"#,
             ),
             ("csvkit/index.wdl", b"workflow w {}"),
             (
                 "spellbook/module.json",
-                br#"{"name":"spellbook","version":"1.0.0","license":"MIT"}"#,
+                br#"{"name":"spellbook","license":"MIT"}"#,
             ),
             ("spellbook/index.wdl", b"workflow w {}"),
         ]);
@@ -688,8 +1227,11 @@ mod tests {
         let leaf = dest.path().join("leaf");
         let url = Url::from_directory_path(upstream.path()).unwrap();
 
-        ensure_materialized(
-            &leaf,
+        let fetched = ensure_materialized(
+            CacheLocation {
+                root: dest.path(),
+                leaf: &leaf,
+            },
             &url,
             &sha,
             ["csvkit"],
@@ -698,11 +1240,17 @@ mod tests {
             None,
         )
         .unwrap();
+        assert!(fetched);
         assert!(leaf.join("csvkit").join("module.json").exists());
         assert!(!leaf.join("spellbook").exists());
+        std::fs::write(leaf.join("csvkit").join("index.wdl"), b"tampered").unwrap();
+        std::fs::write(leaf.join("csvkit").join("untracked.wdl"), b"untracked").unwrap();
 
-        ensure_materialized(
-            &leaf,
+        let fetched = ensure_materialized(
+            CacheLocation {
+                root: dest.path(),
+                leaf: &leaf,
+            },
             &url,
             &sha,
             ["spellbook"],
@@ -711,8 +1259,51 @@ mod tests {
             None,
         )
         .unwrap();
+        assert!(!fetched);
         assert!(leaf.join("csvkit").join("module.json").exists());
+        assert_eq!(
+            std::fs::read(leaf.join("csvkit").join("index.wdl")).unwrap(),
+            b"workflow w {}"
+        );
+        assert!(!leaf.join("csvkit").join("untracked.wdl").exists());
         assert!(leaf.join("spellbook").join("module.json").exists());
+
+        {
+            let cached = Repository::open(&leaf).unwrap();
+            let head = cached.head().unwrap().peel_to_commit().unwrap();
+            let tree = head.tree().unwrap();
+            let signature = Signature::now("test", "test@example.com").unwrap();
+            cached
+                .commit(
+                    Some("HEAD"),
+                    &signature,
+                    &signature,
+                    "unexpected cache commit",
+                    &tree,
+                    &[&head],
+                )
+                .unwrap();
+        }
+
+        let fetched = ensure_materialized(
+            CacheLocation {
+                root: dest.path(),
+                leaf: &leaf,
+            },
+            &url,
+            &sha,
+            ["csvkit"],
+            CredentialMode::Enabled,
+            None,
+            None,
+        )
+        .unwrap();
+        assert!(fetched);
+        let cached = Repository::open(&leaf).unwrap();
+        assert_eq!(
+            cached.head().unwrap().peel_to_commit().unwrap().id(),
+            git2::Oid::from_str(&sha).unwrap()
+        );
     }
 
     #[test]
@@ -720,12 +1311,12 @@ mod tests {
         let (upstream, sha) = build_upstream(&[
             (
                 "csvkit/module.json",
-                br#"{"name":"csvkit","version":"1.0.0","license":"MIT"}"#,
+                br#"{"name":"csvkit","license":"MIT"}"#,
             ),
             ("csvkit/index.wdl", b"workflow w {}"),
             (
                 "spellbook/module.json",
-                br#"{"name":"spellbook","version":"1.0.0","license":"MIT"}"#,
+                br#"{"name":"spellbook","license":"MIT"}"#,
             ),
             ("spellbook/index.wdl", b"workflow w {}"),
         ]);
@@ -942,6 +1533,65 @@ mod tests {
         assert!(
             leaf_path.join("mod_b").join("b.txt").exists(),
             "checkout should contain the file from the non-default branch"
+        );
+    }
+
+    #[test]
+    fn resolve_commit_prefix_expands_unique_prefix() {
+        let (upstream, sha) = build_upstream(&[("index.wdl", b"workflow w {}")]);
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+        let dest = tempdir().unwrap();
+
+        let prefix = &sha[..8];
+        let full = resolve_commit_prefix(
+            &dest.path().join("expand"),
+            &url,
+            prefix,
+            CredentialMode::Enabled,
+        )
+        .unwrap();
+        assert_eq!(full, sha);
+    }
+
+    #[test]
+    fn unique_ref_prefix_match_handles_ambiguity_and_aliases() {
+        let refs = vec![
+            ("refs/heads/main".to_string(), "a".repeat(40)),
+            ("refs/tags/v1".to_string(), "a".repeat(40)), // same SHA, another ref
+            ("refs/heads/dev".to_string(), format!("b{}", "0".repeat(39))),
+        ];
+        // Unique prefix that also happens to be advertised under two refs.
+        assert_eq!(
+            unique_ref_prefix_match(&refs, "aaaa"),
+            Some("a".repeat(40).as_str())
+        );
+        // A prefix shared by two distinct SHAs is ambiguous.
+        let ambiguous = vec![
+            ("refs/heads/x".to_string(), format!("ab{}", "0".repeat(38))),
+            ("refs/heads/y".to_string(), format!("ab{}", "1".repeat(38))),
+        ];
+        assert_eq!(unique_ref_prefix_match(&ambiguous, "ab"), None);
+        // No ref matches.
+        assert_eq!(unique_ref_prefix_match(&refs, "cccc"), None);
+    }
+
+    #[test]
+    fn resolve_commit_prefix_rejects_unknown_prefix() {
+        let (upstream, _sha) = build_upstream(&[("index.wdl", b"workflow w {}")]);
+        let url = Url::from_directory_path(upstream.path()).unwrap();
+        let dest = tempdir().unwrap();
+
+        // A prefix that matches no commit in the repository.
+        let err = resolve_commit_prefix(
+            &dest.path().join("expand"),
+            &url,
+            "0123456",
+            CredentialMode::Enabled,
+        )
+        .unwrap_err();
+        assert!(
+            matches!(err, GitError::CommitPrefix { .. }),
+            "expected `CommitPrefix`, got: {err}"
         );
     }
 }
