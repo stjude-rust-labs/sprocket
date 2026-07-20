@@ -15,12 +15,14 @@ documentation = "https://docs.rs/wdl-ast"
 #
 # This feature is not subject to `wdl-ast`'s semver guarantees. There may be breaking changes
 # across patch versions. Use at your own risk.
-unstable-python = ["wdl-grammar/unstable-python"]
+unstable-python = ["dep:pyo3", "dep:sprocket-py-macros", "wdl-grammar/unstable-python"]
 
 [dependencies]
 macropol = { workspace = true }
 paste = { workspace = true }
+pyo3 = { workspace = true, optional = true }
 rowan = { workspace = true }
+sprocket-py-macros = { path = "../sprocket-py-macros", version = "0.1.0", optional = true }
 url = { workspace = true }
 urlencoding = { workspace = true }
 wdl-grammar = { path = "../wdl-grammar", version = "0.25.0" }
