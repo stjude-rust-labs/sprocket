@@ -1,11 +1,11 @@
 [build-system]
-requires = ["maturin>=1.13,<2.0"]
+requires = ["maturin>=1.14.1,<2.0"]
 build-backend = "maturin"
 
 [project]
 name = "sprocket_bio"
 readme = "python/README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.14.6"
 classifiers = [
     "Intended Audience :: Science/Research",
     "Operating System :: OS Independent",
