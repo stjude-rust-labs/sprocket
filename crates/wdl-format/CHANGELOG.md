@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.19.0 - 2026-06-26
 
-### Changed
+#### Changed
 
 * Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
 * Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.18.0 - 2026-05-14
 
-### Added
+#### Added
 
 * Added configurable newline style (`auto`, `unix`, `windows`) to formatting configuration ([#795](https://github.com/stjude-rust-labs/sprocket/pull/795)).
 * Formatting for the WDL 1.4 import forms. The namespace and wildcard
@@ -44,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.16.0 - 2026-03-12
 
-### Added
+#### Added
 
 * Added logic for tandem line breaks on matching tokens (e.g. open and close brackets) ([#641](https://github.com/stjude-rust-labs/sprocket/pull/641) [#678](https://github.com/stjude-rust-labs/sprocket/pull/678)).
 * Added configuration for input section formatting (off by default) ([#640](https://github.com/stjude-rust-labs/sprocket/pull/640)).
@@ -63,13 +63,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.15.1 - 2026-02-12
 
-### Dependencies
+#### Dependencies
 
 * Bumps dependencies.
 
 ## 0.15.0 - 02-11-2026
 
-### Added
+#### Added
 
 * Split long `#@ except:` lint directives across multiple lines when they exceed the configured maximum line length.
 
@@ -79,20 +79,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.14.0 - 01-12-2026
 
-### Added
+#### Added
 
 * Added sorting of `#@ except` directive rule names ([#505](https://github.com/stjude-rust-labs/sprocket/pull/505)).
 
 ## 0.13.0 - 11-21-2025
 
-### Added
+#### Added
 
 * Added formatting support for WDL enumerations in preparation for WDL v1.3 ([#445](https://github.com/stjude-rust-labs/sprocket/pull/445)).
 * Added support for `else if` and `else` clauses in conditional statements (in support of WDL v1.3) ([#411](https://github.com/stjude-rust-labs/sprocket/pull/411)).
 
 ## 0.12.0 - 10-14-2025
 
-### Changed
+#### Changed
 
 * Always format call statement `input`s across multiple lines instead of trying to put single inputs on the same line as the `call` ([#377](https://github.com/stjude-rust-labs/sprocket/pull/377/)).
 
@@ -110,7 +110,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## 0.9.1 - 07-31-2025
 
-### Dependencies
+#### Dependencies
 
 * Bumps dependencies.
 
@@ -120,7 +120,7 @@ Mistaken release, please use `0.9.1`
 
 ## 0.8.0 - 07-09-2025
 
-### Added
+#### Added
 
 * Added panic documentation to functions which may panic ([#498](https://github.com/stjude-rust-labs/wdl/pull/498)).
 * Added documentation to places which needed more clarity ([#498](https://github.com/stjude-rust-labs/wdl/pull/498)).
@@ -135,7 +135,7 @@ Mistaken release, please use `0.9.1`
 
 ## 0.7.0 - 05-27-2025
 
-### Dependencies
+#### Dependencies
 
 * Bumps dependencies.
 
@@ -145,20 +145,20 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.6.0 - 05-01-2025
 
-### Dependencies
+#### Dependencies
 
 * Bumps dependencies.
 
 ## 0.5.0 - 04-01-2025
 
-### Changed
+#### Changed
 
 * Updated to use new `wdl-ast` API ([#355](https://github.com/stjude-rust-labs/wdl/pull/355)).
 * Updated to Rust 2024 edition ([#353](https://github.com/stjude-rust-labs/wdl/pull/353)).
 
 ## 0.4.0 - 01-17-2025
 
-### Added
+#### Added
 
 * Leading whitespace in command text is now normalized ([#240](https://github.com/stjude-rust-labs/wdl/pull/240)).
 * Line breaks are now added in order to keep lines under the max line width (default 90 characters) ([#242](https://github.com/stjude-rust-labs/wdl/pull/242)).
@@ -171,18 +171,18 @@ _A patch bump was required because an error was made during the release of `wdl`
 
 ## 0.3.0 - 10-22-2024
 
-### Fixed
+#### Fixed
 
 * Fix panic on multiline strings in WDL 1.2 ([#227](https://github.com/stjude-rust-labs/wdl/pull/227)).
 
 ## 0.2.1 - 10-16-2024
 
-### Fixed
+#### Fixed
 
 * Don't panic on certain optional types ([#224](https://github.com/stjude-rust-labs/wdl/pull/224))
 
 ## 0.2.0 - 10-16-2024
 
-### Added
+#### Added
 
 * Adds the initial version of the crate.
