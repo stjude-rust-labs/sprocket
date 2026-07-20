@@ -157,8 +157,7 @@ workflow hello {
     # the TextMate language that it's a custom struct.
     }
 
-    call a_task {
-    }
+    call a_task
 
     scatter (name in name_array) {
         call say_task {
@@ -167,8 +166,7 @@ workflow hello {
     }
 
     if (some_condition_task) {
-        call a_task as task_two {
-        }
+        call a_task as task_two
     }
 
     output

@@ -58,42 +58,24 @@ pub fn format_import_statement(
 /// Short lists render inline as `{ a, b, c }`. Lists whose inline width would
 /// exceed the configured `max_line_length` render multiline, with each member
 /// on its own line indented one level deeper than the surrounding statement.
-/// A trailing comma before the closing brace is dropped in the inline form
-/// and added in the multiline form.
+/// If a comment is detected anywhere within the [`ImportMembers`], the
+/// multiline format will be used.
 pub fn format_import_members(
     element: &FormatElement,
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    let children: Vec<_> = element
-        .children()
-        .expect("import members children")
-        .collect();
-
     let overflows = config
         .max_line_length
         .get()
         .map(|max| canonical_import_width(element) > max)
         .unwrap_or(false);
-    let has_inner_comment = contains_comment(element);
 
-    if overflows || has_inner_comment {
-        format_import_members_multiline(&children, stream, config);
+    if overflows || element.has_comment() {
+        format_import_members_multiline(element, stream, config);
     } else {
-        format_import_members_inline(&children, stream, config);
+        format_import_members_inline(element, stream, config);
     }
-}
-
-/// Returns `true` if the underlying syntax for `element` contains a comment
-/// token. `FormatElement` collation drops trivia, so the inline-vs-multiline
-/// decision peeks at the raw syntax instead.
-fn contains_comment(element: &FormatElement) -> bool {
-    let Some(node) = element.element().as_node() else {
-        return false;
-    };
-    node.inner()
-        .children_with_tokens()
-        .any(|c| c.kind() == SyntaxKind::Comment)
 }
 
 /// Computes the canonical inline width of the enclosing `ImportStatement`
@@ -154,83 +136,110 @@ fn import_member_width(member: &ImportMember) -> usize {
 
 /// Emits the inline `{ a, b, c }` form.
 fn format_import_members_inline(
-    children: &[&FormatElement],
+    element: &FormatElement,
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for (i, child) in children.iter().enumerate() {
-        let kind = child.element().kind();
-        match kind {
-            SyntaxKind::OpenBrace => {
-                child.write(stream, config);
-                stream.end_word();
-            }
+    let mut children = element.children().expect("import members children");
+
+    let open_brace = children.next().expect("import member open brace");
+    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    (open_brace).write(stream, config);
+
+    let mut items = Vec::new();
+    let mut commas = Vec::new();
+    let mut close_brace = None;
+
+    for child in children {
+        match child.element().kind() {
             SyntaxKind::CloseBrace => {
-                stream.end_word();
-                child.write(stream, config);
+                close_brace = Some(child.to_owned());
             }
             SyntaxKind::Comma => {
-                let next_kind = children
-                    .iter()
-                    .skip(i + 1)
-                    .find(|c| !c.element().kind().is_trivia())
-                    .map(|c| c.element().kind());
-                if next_kind == Some(SyntaxKind::CloseBrace) {
-                    continue;
-                }
-                child.write(stream, config);
-                stream.end_word();
+                commas.push(child.to_owned());
             }
             _ => {
-                child.write(stream, config);
+                items.push(child.to_owned());
             }
         }
     }
+
+    let empty = items.is_empty();
+    if !empty {
+        stream.end_word();
+    }
+    let mut items = items.iter().peekable();
+    let mut commas = commas.iter();
+    while let Some(item) = items.next() {
+        (&item).write(stream, config);
+        if let Some(comma) = commas.next() {
+            // check if this comma can be dropped. Comma can be dropped iff this is the last
+            // item and the comma does not have a comment.
+            if items.peek().is_some() || comma.has_comment() {
+                (comma).write(stream, config);
+            }
+        }
+        stream.end_word();
+    }
+
+    (&close_brace.expect("import members close brace")).write(stream, config);
 }
 
 /// Emits the multiline form, with each member on its own indented line.
 fn format_import_members_multiline(
-    children: &[&FormatElement],
+    element: &FormatElement,
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
-    for (i, child) in children.iter().enumerate() {
-        let kind = child.element().kind();
-        match kind {
-            SyntaxKind::OpenBrace => {
-                child.write(stream, config);
-                stream.increment_indent();
-            }
+    let mut children = element.children().expect("import members children");
+
+    let open_brace = children.next().expect("import member open brace");
+    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    (open_brace).write(stream, config);
+
+    let mut items = Vec::new();
+    let mut commas = Vec::new();
+    let mut close_brace = None;
+
+    for child in children {
+        match child.element().kind() {
             SyntaxKind::CloseBrace => {
-                stream.decrement_indent();
-                child.write(stream, config);
+                close_brace = Some(child.to_owned());
             }
             SyntaxKind::Comma => {
-                let next_kind = children
-                    .iter()
-                    .skip(i + 1)
-                    .find(|c| !c.element().kind().is_trivia())
-                    .map(|c| c.element().kind());
-                child.write(stream, config);
-                if next_kind != Some(SyntaxKind::CloseBrace) {
-                    stream.end_line();
-                }
+                commas.push(child.to_owned());
             }
-            k if k.is_trivia() => {}
             _ => {
-                child.write(stream, config);
-                let next_kind = children
-                    .iter()
-                    .skip(i + 1)
-                    .find(|c| !c.element().kind().is_trivia())
-                    .map(|c| c.element().kind());
-                if next_kind == Some(SyntaxKind::CloseBrace) {
-                    stream.push_literal(",".to_string(), SyntaxKind::Comma);
-                    stream.end_line();
-                }
+                items.push(child.to_owned());
             }
         }
     }
+
+    let empty = items.is_empty();
+    if !empty {
+        stream.increment_indent();
+    }
+    let mut items = items.iter().peekable();
+    let mut commas = commas.iter();
+    while let Some(item) = items.next() {
+        (&item).write(stream, config);
+        if let Some(comma) = commas.next() {
+            // check if this comma can be dropped when trailing commas are disabled. Comma
+            // can be dropped iff this is the last item and the comma does not
+            // have a comment.
+            if config.trailing_commas || items.peek().is_some() || comma.has_comment() {
+                (comma).write(stream, config);
+            }
+        } else if config.trailing_commas {
+            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+        }
+        stream.end_line();
+    }
+
+    if !empty {
+        stream.decrement_indent();
+    }
+    (&close_brace.expect("import members close brace")).write(stream, config);
 }
 
 /// Formats an [`ImportMember`].
@@ -262,14 +271,25 @@ pub fn format_import_member(
 pub fn format_symbolic_module_path(
     element: &FormatElement,
     stream: &mut TokenStream<PreToken>,
-    _config: &Config,
+    config: &Config,
 ) {
-    let text = element
-        .element()
-        .inner()
-        .as_node()
-        .expect("symbolic module path should be a node")
-        .text()
-        .to_string();
-    stream.push_literal(text, SyntaxKind::Ident);
+    for child in element.children().expect("symbolic module path children") {
+        match child.element().kind() {
+            SyntaxKind::Ident => {
+                (&child).write(stream, config);
+            }
+            SyntaxKind::Slash => {
+                // `SyntaxKind::Slash` is a "linebreakable" token, but we don't want module
+                // paths to get line broken; so we push this token as a
+                // `LiteralStringText` to prevent that.
+                stream.push_ast_token_as(
+                    child.element().as_token().expect("slash should be token"),
+                    SyntaxKind::LiteralStringText,
+                );
+            }
+            _ => {
+                unreachable!("unexpected symbolic module path child");
+            }
+        }
+    }
 }

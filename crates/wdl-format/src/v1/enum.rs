@@ -62,11 +62,17 @@ pub fn format_enum_definition(
         }
     }
 
+    let mut choices = choices.iter().peekable();
     let mut commas = commas.iter();
-    for choice in choices {
+    while let Some(choice) = choices.next() {
         (&choice).write(stream, config);
         if let Some(comma) = commas.next() {
-            (comma).write(stream, config);
+            // check if this comma can be dropped when trailing commas are disabled. Comma
+            // can be dropped iff this is the last item and the comma does not
+            // have a comment.
+            if config.trailing_commas || choices.peek().is_some() || comma.has_comment() {
+                (comma).write(stream, config);
+            }
         } else if config.trailing_commas {
             stream.push_literal(",".to_string(), SyntaxKind::Comma);
         }

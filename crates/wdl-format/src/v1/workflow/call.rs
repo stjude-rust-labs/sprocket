@@ -84,6 +84,10 @@ pub fn format_call_input_item(
 
 /// Formats a [`CallStatement`](wdl_ast::v1::CallStatement).
 ///
+/// The call statement's input clause (braced `{...}` content) will be dropped
+/// if possible. Dropping is possible when there are no inputs specified and
+/// there are no comments attached to anything within the braces.
+///
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
@@ -92,6 +96,8 @@ pub fn format_call_statement(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
+    let mut drop_input_clause = true;
+
     let mut children = element.children().expect("call statement children");
 
     let call_keyword = children.next().expect("call keyword");
@@ -122,21 +128,26 @@ pub fn format_call_statement(
             }
             SyntaxKind::OpenBrace => {
                 open_brace = Some(child.clone());
+                drop_input_clause &= !child.has_comment();
             }
             SyntaxKind::InputKeyword => {
                 input_keyword = Some(child.clone());
+                drop_input_clause &= !child.has_comment();
             }
             SyntaxKind::Colon => {
                 colon = Some(child.clone());
+                drop_input_clause &= !child.has_comment();
             }
             SyntaxKind::CallInputItemNode => {
                 inputs.push(child.clone());
+                drop_input_clause = false;
             }
             SyntaxKind::Comma => {
                 commas.push(child.clone());
             }
             SyntaxKind::CloseBrace => {
                 close_brace = Some(child.clone());
+                drop_input_clause &= !child.has_comment();
             }
             _ => {
                 unreachable!(
@@ -157,6 +168,11 @@ pub fn format_call_statement(
         stream.end_word();
     }
 
+    if drop_input_clause {
+        stream.end_line();
+        return;
+    }
+
     if let Some(open_brace) = open_brace {
         (&open_brace).write(stream, config);
         stream.end_word();
@@ -169,12 +185,18 @@ pub fn format_call_statement(
 
         stream.increment_indent();
 
+        let mut inputs = inputs.iter().peekable();
         let mut commas = commas.iter();
-        for input in inputs {
+        while let Some(input) = inputs.next() {
             (&input).write(stream, config);
 
             if let Some(comma) = commas.next() {
-                (comma).write(stream, config);
+                // check if this comma can be dropped when trailing commas are disabled. Comma
+                // can be dropped iff this is the last item and the comma does
+                // not have a comment.
+                if config.trailing_commas || inputs.peek().is_some() || comma.has_comment() {
+                    (comma).write(stream, config);
+                }
             } else if config.trailing_commas {
                 stream.push_literal(",".to_string(), SyntaxKind::Comma);
             }
@@ -184,6 +206,6 @@ pub fn format_call_statement(
 
         stream.decrement_indent();
         (&close_brace.expect("close brace")).write(stream, config);
-        stream.end_line();
     }
+    stream.end_line();
 }

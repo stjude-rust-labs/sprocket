@@ -279,6 +279,24 @@ impl TokenStream<PreToken> {
         self.push_inline_trivia(token);
     }
 
+    /// Pushes an AST token into the stream as another [`SyntaxKind`].
+    ///
+    /// This will also push any preceding or inline trivia into the stream.
+    /// Any token may have preceding or inline trivia, unless that token is
+    /// itself trivia (i.e. trivia cannot have trivia).
+    ///
+    /// # Panics
+    ///
+    /// This will panic if the provided token is trivia.
+    pub fn push_ast_token_as(&mut self, token: &wdl_ast::Token, kind: SyntaxKind) {
+        self.push_preceding_trivia(token);
+        self.0.push(PreToken::Literal(
+            Rc::new(token.inner().text().to_owned()),
+            kind,
+        ));
+        self.push_inline_trivia(token);
+    }
+
     /// Pushes a literal string into the stream in place of an AST token.
     ///
     /// This will insert any trivia that would have been inserted with the AST
