@@ -1,0 +1,6 @@
+version = 1
+generation_time = "_GENERATION_TIME_"
+images = {}
+
+[sif_files]
+"images/tool.sif" = "sha256:3ad7e453ff1503906dd791c6023c4fa94fee59688437a3acfad27bd8b40acd6c"

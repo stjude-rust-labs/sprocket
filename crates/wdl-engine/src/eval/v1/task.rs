@@ -1181,7 +1181,7 @@ impl<'a> State<'a> {
         };
 
         // Get the execution constraints
-        let constraints = self
+        let mut constraints = self
             .evaluator
             .backend
             .constraints(inputs, &requirements, &hints)
@@ -1191,6 +1191,17 @@ impl<'a> State<'a> {
                     task = self.task.name()
                 )
             })?;
+
+        if let Some(lock) = &self.evaluator.config.container_lock
+            && let Some(containers) = constraints.container.as_mut()
+        {
+            *containers = lock.preflight(containers).await.with_context(|| {
+                format!(
+                    "failed to apply container lock to task `{task}`",
+                    task = self.task.name()
+                )
+            })?;
+        }
 
         // Now that those are evaluated, insert a [`TaskPostEvaluation`] for
         // `task` which includes those calculated requirements before the

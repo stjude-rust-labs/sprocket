@@ -69,6 +69,7 @@ use crate::SYSTEM;
 use crate::Value;
 use crate::backend::ExecuteTaskRequest;
 use crate::backend::TaskExecutionBackend;
+use crate::container_lock::ContainerLock;
 use crate::convert_unit_string;
 use crate::diagnostics::unknown_enum_choice;
 use crate::http::Transferer;
@@ -456,6 +457,10 @@ pub struct Config {
     #[toml(default, rename = "fail")]
     #[schemars(default, rename = "fail")]
     pub failure_mode: FailureMode,
+    /// An optional runtime container lock policy.
+    #[toml(skip)]
+    #[schemars(skip)]
+    pub container_lock: Option<Arc<ContainerLock>>,
 }
 
 impl Default for Config {
@@ -470,6 +475,7 @@ impl Default for Config {
             suppress_env_specific_output: Default::default(),
             experimental_features_enabled: Default::default(),
             failure_mode: Default::default(),
+            container_lock: None,
         }
     }
 }

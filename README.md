@@ -39,6 +39,7 @@
 - **`sprocket config`** prints configuration values.
 - **`sprocket dev`** subcommand containing developmental and experimental commands:
   - **`sprocket dev doc`** generates documentation for a WDL workspace.
+  - **`sprocket dev lock`** writes a `sprocket.lock` file for task containers.
   - **`sprocket dev server`** runs an HTTP API server for workflow execution.
   - **`sprocket dev test`** runs unit tests for a WDL workspace.
 - **`sprocket explain`** explains validation and lint rules supported by Sprocket.
@@ -118,6 +119,41 @@ nix run github:stjude-rust-labs/sprocket/v0.27.0 -- --help
 ```
 
 Omit the `/v0.27.0` tag to track the latest commit on `main`.
+
+### Container locks
+
+`sprocket dev lock` writes a `sprocket.lock` file that pins task containers for later `sprocket run` executions. It scans the source document and its imports for task `container` or `docker` requirements, resolves mutable Docker and ORAS image references to immutable digest references, hashes local SIF files, and writes the lock to the current directory or the directory passed with `--output`.
+
+`sprocket run` automatically looks for the nearest `sprocket.lock` at or above the WDL source without crossing a `.git` directory. When a lock exists, `run` enforces it strictly before creating containers and also copies the exact lock bytes into the run directory for provenance. Runs without a lock keep the existing behavior and resolve containers normally. There is no command-line opt-out for a discovered lock; remove or move the lock file when a run should not use it.
+
+`sprocket dev server` and `sprocket dev server submit` do not discover project `sprocket.lock` files. Use direct `sprocket run` when you want automatic lock discovery and enforcement.
+
+Version `1` locks use TOML:
+
+```toml
+version = 1
+generation_time = "2026-07-17T20:00:00Z"
+
+[images]
+"docker://docker.io/library/ubuntu:24.04" = "docker://docker.io/library/ubuntu@sha256:..."
+"oras://ghcr.io/example/tool:1.0" = "oras://ghcr.io/example/tool@sha256:..."
+
+[sif_files]
+"images/tool.sif" = "sha256:3ad7e453ff1503906dd791c6023c4fa94fee59688437a3acfad27bd8b40acd6c"
+```
+
+The top-level `[images]` table maps each canonical mutable image reference to the immutable reference that Sprocket must use. For Docker and ORAS registries, `dev lock` records the top-level manifest digest returned by the registry; multi-architecture tags may therefore lock to an image-index digest rather than a platform-specific child manifest digest. `dev lock` reads Docker configuration and credential helpers for authenticated registry requests, but it does not contact the Docker daemon or require Docker to be running.
+
+SIF entries are path based. Relative `file://` container paths are stored relative to the lock file directory, and `run` verifies the SIF file's `sha256` checksum before execution. Absolute SIF paths remain absolute. Unsupported mutable container schemes, including `library://` and unknown schemes, fail under lock generation or enforcement rather than falling back to unlocked behavior.
+
+Lock generation only supports static container declarations: string literals and arrays of string literals. A missing container requirement and a wildcard `container: "*"` use the configured default task container, and each static array member gets locked or enforced. Dynamic container expressions cannot be fully generated into a lock because their values depend on runtime inputs; with a discovered lock, runtime-resolved container values still have to match the lock policy.
+
+Older lock files without a `version` field still load as legacy locks. New `dev lock` runs always write version `1`, including `generation_time`, `[images]`, and `[sif_files]`. Regenerate a lock after changing task containers, the default task container, SIF bytes, or intended registry pins:
+
+```bash
+sprocket dev lock workflow.wdl --output .
+sprocket run workflow.wdl -t task_name
+```
 
 ## 🖥️ Development
 

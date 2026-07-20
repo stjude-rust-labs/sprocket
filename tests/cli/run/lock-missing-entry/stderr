@@ -1,0 +1,1 @@
+error: failed to preflight container in task `hello` in `source.wdl`; run `sprocket dev lock --output _TEMP_DIR_` to regenerate it: container `docker://docker.io/library/ubuntu:24.04` is not present in `_TEMP_DIR_/sprocket.lock`

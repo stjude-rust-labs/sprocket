@@ -18,6 +18,8 @@ use wdl_ast::TreeNode;
 mod backend;
 mod cache;
 pub mod config;
+/// Canonical registry reference helpers.
+pub mod container_lock;
 mod diagnostics;
 mod digest;
 mod eval;
@@ -31,6 +33,7 @@ mod units;
 mod value;
 
 pub use config::Config;
+pub use container_lock::ContainerLock;
 pub use eval::*;
 pub use inputs::*;
 pub use outputs::*;

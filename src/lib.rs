@@ -53,6 +53,8 @@ pub mod analysis;
 #[doc(hidden)]
 pub mod commands;
 mod config;
+#[doc(hidden)]
+pub mod container_lock;
 mod eval;
 mod inputs;
 pub mod server;

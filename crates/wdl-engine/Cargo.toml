@@ -28,6 +28,7 @@ itertools = { workspace = true }
 libc = { workspace = true }
 nonempty = { workspace = true }
 num_enum = { workspace = true }
+oci-spec = { workspace = true }
 ordered-float = { workspace = true }
 path-clean = { workspace = true }
 petgraph = { workspace = true }
@@ -40,6 +41,7 @@ secrecy = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml_ng = { workspace = true }
+sha2 = { workspace = true }
 shellexpand = { workspace = true }
 sysinfo = { workspace = true }
 tempfile = { workspace = true }

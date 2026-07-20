@@ -139,7 +139,7 @@ pub enum Commands {
 pub enum DevCommands {
     /// Document a workspace.
     Doc(doc::Args),
-    /// Locks Docker images to a sha256 digest.
+    /// Generates a `sprocket.lock` container lock file.
     Lock(lock::Args),
     /// Run-management server commands (start, submit, status, inspect, cancel,
     /// retry).

@@ -46,6 +46,12 @@ use walkdir::WalkDir;
 static TIMESTAMP_PATTERN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\d{4}-\d{2}-\d{2}_\d{12,}").unwrap());
 
+/// Regex pattern for RFC 3339 timestamps generated in lock files.
+static RFC3339_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+    // SAFETY: the fixture normalization regex is a tested constant.
+    Regex::new(r#"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z"#).unwrap()
+});
+
 /// Regex pattern for UUIDs.
 static UUID_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
@@ -267,13 +273,15 @@ fn normalize_string(input: &str, temp_dir: &Path) -> String {
         .replace("\r\n", "\n")
         .replace("\\r\\n", "\\n")
         .replace("sprocket.exe", "sprocket")
-        .replace("\\", "/")
-        .replace("//", "/");
+        .replace("\\", "/");
+    let s = collapse_path_slashes(&s);
 
     // Strip Windows drive prefixes (e.g., `C:`) from absolute paths.
-    static DRIVE_PREFIX: std::sync::LazyLock<regex::Regex> =
-        std::sync::LazyLock::new(|| regex::Regex::new(r"[A-Za-z]:(/\S)").unwrap());
-    let s = DRIVE_PREFIX.replace_all(&s, "$1");
+    static DRIVE_PREFIX: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        // SAFETY: the fixture normalization regex is a tested constant.
+        regex::Regex::new(r#"(^|[^A-Za-z0-9_/])([A-Za-z]):/+"#).unwrap()
+    });
+    let s = DRIVE_PREFIX.replace_all(&s, "$1/");
 
     // Normalize Windows OS error messages to their Unix equivalents.
     const WINDOWS_TO_UNIX_ERRORS: &[(&str, &str)] = &[
@@ -298,7 +306,65 @@ fn normalize_string(input: &str, temp_dir: &Path) -> String {
 
     let s = UUID_PATTERN.replace_all(&s, "_UUID_");
     let s = TIMESTAMP_PATTERN.replace_all(&s, "_TIMESTAMP_");
+    let s = RFC3339_PATTERN.replace_all(&s, "_GENERATION_TIME_");
     s.to_string()
+}
+
+/// Collapses repeated `/` characters outside URI schemes to a single slash.
+fn collapse_path_slashes(input: &str) -> String {
+    static URI_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+        // SAFETY: the fixture normalization regex is a tested constant.
+        Regex::new(r##"[A-Za-z][A-Za-z0-9+.-]*://[^\s"'`<>)]*"##).unwrap()
+    });
+
+    let mut normalized = String::with_capacity(input.len());
+    let mut last = 0;
+    for uri in URI_PATTERN.find_iter(input) {
+        collapse_slashes_into(&input[last..uri.start()], &mut normalized);
+        normalized.push_str(uri.as_str());
+        last = uri.end();
+    }
+    collapse_slashes_into(&input[last..], &mut normalized);
+    normalized
+}
+
+/// Appends `input` to `output` after collapsing consecutive `/` runs.
+fn collapse_slashes_into(input: &str, output: &mut String) {
+    static SLASH_RUN_PATTERN: LazyLock<Regex> = LazyLock::new(|| {
+        // SAFETY: the fixture normalization regex is a tested constant.
+        Regex::new(r"/{2,}").unwrap()
+    });
+
+    output.push_str(&SLASH_RUN_PATTERN.replace_all(input, "/"));
+}
+
+/// Checks fixture normalization for lock files and Windows paths.
+fn normalizes_lock_generation_times_impl() {
+    // SAFETY: this test only needs any writable temporary directory.
+    let temp = tempfile::tempdir().unwrap();
+    assert_eq!(
+        normalize_string("generation_time = \"2026-07-17T20:00:00Z\"\n", temp.path(),),
+        "generation_time = \"_GENERATION_TIME_\"\n"
+    );
+    assert_eq!(
+        normalize_string("container = \"file://images/tool.sif\"\n", temp.path(),),
+        "container = \"file://images/tool.sif\"\n"
+    );
+    assert_eq!(
+        normalize_string(
+            "container = \"docker://docker.io/library/ubuntu:24.04\"\n",
+            temp.path(),
+        ),
+        "container = \"docker://docker.io/library/ubuntu:24.04\"\n"
+    );
+    assert_eq!(
+        normalize_string("path = \"C:\\Users\\runner\\work\"\n", temp.path(),),
+        "path = \"/Users/runner/work\"\n"
+    );
+    assert_eq!(
+        normalize_string("path = \"/var//folders//runner\"\n", temp.path(),),
+        "path = \"/var/folders/runner\"\n"
+    );
 }
 
 /// Normalizes a path by replacing dynamic components (timestamps) with
@@ -649,15 +715,17 @@ fn main() {
     let test_root = Path::new("tests/cli");
     let tests = find_tests(test_root);
 
-    let trials = tests
-        .into_iter()
-        .map(|test| {
-            let name = get_test_name(&test, test_root);
-            Trial::test(name.clone(), move || {
-                run_test(&test, name).map_err(Into::into)
-            })
+    let mut trials = vec![Trial::test("normalizes_lock_generation_times", || {
+        normalizes_lock_generation_times_impl();
+        Ok(())
+    })];
+
+    trials.extend(tests.into_iter().map(|test| {
+        let name = get_test_name(&test, test_root);
+        Trial::test(name.clone(), move || {
+            run_test(&test, name).map_err(Into::into)
         })
-        .collect();
+    }));
 
     libtest_mimic::run(&args, trials).exit();
 }
