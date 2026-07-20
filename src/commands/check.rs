@@ -53,7 +53,7 @@ pub struct Common {
     /// Excepts (ignores) a lint rule or tag from running if it would have been
     /// included otherwise.
     ///
-    /// Repeat the flag multiple times to except multiple rules. This is
+    /// Repeat the flag multiple times to except multiple rules or tags. This is
     /// additive with exceptions found in config files.
     #[clap(short, long, value_name = "RULE",
         value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter().chain(ALL_TAG_NAMES.iter())),
