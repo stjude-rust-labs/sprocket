@@ -60,9 +60,6 @@ pub enum Tag {
     /// Rules associated with the performance of a document.
     Performance,
 
-    /// Rules that may be overly strict or produce false positives.
-    Pedantic,
-
     // NOTE: This **must** be the last variant. It gets special treatment in `TagSet`.
     /// Rules from all tags.
     All,
