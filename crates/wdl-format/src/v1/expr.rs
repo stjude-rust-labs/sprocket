@@ -398,9 +398,6 @@ pub fn format_literal_array(
     while let Some(item) = items.next() {
         (item).write(stream, config);
         if let Some(comma) = commas.next() {
-            // check if this comma can be dropped when trailing commas are disabled. Comma
-            // can be dropped iff this is the last item and the comma does not
-            // have a comment.
             if config.trailing_commas || items.peek().is_some() || comma.has_comment() {
                 (comma).write(stream, config);
             }
@@ -480,9 +477,6 @@ pub fn format_literal_map(
     while let Some(item) = items.next() {
         (item).write(stream, config);
         if let Some(comma) = commas.next() {
-            // check if this comma can be dropped when trailing commas are disabled. Comma
-            // can be dropped iff this is the last item and the comma does not
-            // have a comment.
             if config.trailing_commas || items.peek().is_some() || comma.has_comment() {
                 (comma).write(stream, config);
             }
@@ -567,9 +561,6 @@ pub fn format_literal_object(
     while let Some(item) = items.next() {
         (item).write(stream, config);
         if let Some(comma) = commas.next() {
-            // check if this comma can be dropped when trailing commas are disabled. Comma
-            // can be dropped iff this is the last item and the comma does not
-            // have a comment.
             if config.trailing_commas || items.peek().is_some() || comma.has_comment() {
                 (comma).write(stream, config);
             }

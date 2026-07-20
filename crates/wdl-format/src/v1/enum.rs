@@ -67,9 +67,6 @@ pub fn format_enum_definition(
     while let Some(choice) = choices.next() {
         (&choice).write(stream, config);
         if let Some(comma) = commas.next() {
-            // check if this comma can be dropped when trailing commas are disabled. Comma
-            // can be dropped iff this is the last item and the comma does not
-            // have a comment.
             if config.trailing_commas || choices.peek().is_some() || comma.has_comment() {
                 (comma).write(stream, config);
             }

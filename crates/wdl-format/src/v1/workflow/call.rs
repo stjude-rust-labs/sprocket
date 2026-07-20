@@ -86,7 +86,7 @@ pub fn format_call_input_item(
 ///
 /// The call statement's input clause (braced `{...}` content) will be dropped
 /// if possible. Dropping is possible when there are no inputs specified and
-/// there are no comments attached to the braces.
+/// there are no comments attached to or within the braces.
 ///
 /// # Panics
 ///
@@ -191,9 +191,6 @@ pub fn format_call_statement(
             (&input).write(stream, config);
 
             if let Some(comma) = commas.next() {
-                // check if this comma can be dropped when trailing commas are disabled. Comma
-                // can be dropped iff this is the last item and the comma does
-                // not have a comment.
                 if config.trailing_commas || inputs.peek().is_some() || comma.has_comment() {
                     (comma).write(stream, config);
                 }

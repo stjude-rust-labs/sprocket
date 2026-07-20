@@ -281,9 +281,8 @@ impl TokenStream<PreToken> {
 
     /// Pushes an AST token into the stream as another [`SyntaxKind`].
     ///
-    /// This will also push any preceding or inline trivia into the stream.
-    /// Any token may have preceding or inline trivia, unless that token is
-    /// itself trivia (i.e. trivia cannot have trivia).
+    /// This will insert any trivia that would have been inserted with the AST
+    /// token.
     ///
     /// # Panics
     ///

@@ -171,12 +171,10 @@ fn format_import_members_inline(
     let mut commas = commas.iter();
     while let Some(item) = items.next() {
         (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
-            // check if this comma can be dropped. Comma can be dropped iff this is the last
-            // item and the comma does not have a comment.
-            if items.peek().is_some() || comma.has_comment() {
-                (comma).write(stream, config);
-            }
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
+            (comma).write(stream, config);
         }
         stream.end_word();
     }
@@ -223,9 +221,6 @@ fn format_import_members_multiline(
     while let Some(item) = items.next() {
         (&item).write(stream, config);
         if let Some(comma) = commas.next() {
-            // check if this comma can be dropped when trailing commas are disabled. Comma
-            // can be dropped iff this is the last item and the comma does not
-            // have a comment.
             if config.trailing_commas || items.peek().is_some() || comma.has_comment() {
                 (comma).write(stream, config);
             }
