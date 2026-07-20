@@ -164,8 +164,7 @@ fn format_import_members_inline(
         }
     }
 
-    let empty = items.is_empty();
-    if !empty {
+    if !items.is_empty() {
         stream.end_word();
     }
     let mut items = items.iter().peekable();
@@ -265,9 +264,6 @@ pub fn format_import_member(
 }
 
 /// Formats a [`SymbolicModulePath`](wdl_ast::v1::SymbolicModulePath).
-///
-/// The path is emitted as a single literal so the post-processor's line-break
-/// algorithm never breaks it at the `/` separators.
 pub fn format_symbolic_module_path(
     element: &FormatElement,
     stream: &mut TokenStream<PreToken>,

@@ -86,7 +86,7 @@ pub fn format_call_input_item(
 ///
 /// The call statement's input clause (braced `{...}` content) will be dropped
 /// if possible. Dropping is possible when there are no inputs specified and
-/// there are no comments attached to anything within the braces.
+/// there are no comments attached to the braces.
 ///
 /// # Panics
 ///
