@@ -691,6 +691,13 @@
               "format": "uint32",
               "minimum": 0
             },
+            "job_accounting": {
+              "description": "Whether to gather LSF accounting information for a task's job via\n`bjobs` once the job reaches a terminal state, writing it to\n`bjobs.json` in the task's attempt directory.\n\nThis is best-effort: failures gathering this information are logged\nbut never affect the task's own result.\n\nDefaults to `true`.",
+              "type": [
+                "boolean",
+                "null"
+              ]
+            },
             "default_lsf_queue": {
               "description": "Which queue, if any, to specify when submitting normal jobs to LSF.\n\nThis may be superseded by\n[`short_task_lsf_queue`][Self::short_task_lsf_queue],\n[`gpu_lsf_queue`][Self::gpu_lsf_queue], or\n[`fpga_lsf_queue`][Self::fpga_lsf_queue] for corresponding tasks.",
               "anyOf": [
@@ -780,6 +787,13 @@
               ],
               "format": "uint32",
               "minimum": 0
+            },
+            "job_accounting": {
+              "description": "Whether to gather Slurm accounting information for a task's job via\n`sacct` once the job reaches a terminal state, writing it to\n`sacct.json` in the task's attempt directory.\n\nThis is best-effort: failures gathering this information are logged\nbut never affect the task's own result.\n\nDefaults to `true`.",
+              "type": [
+                "boolean",
+                "null"
+              ]
             },
             "default_slurm_partition": {
               "description": "Which partition, if any, to specify when submitting normal jobs to\nSlurm.\n\nThis may be superseded by\n[`short_task_slurm_partition`][Self::short_task_slurm_partition],\n[`gpu_slurm_partition`][Self::gpu_slurm_partition], or\n[`fpga_slurm_partition`][Self::fpga_slurm_partition] for corresponding\ntasks.",

@@ -2327,6 +2327,15 @@ pub struct LsfApptainerBackendConfig {
     ///
     /// Defaults to 10 concurrent operations.
     pub max_concurrency: Option<u32>,
+    /// Whether to gather LSF accounting information for a task's job via
+    /// `bjobs` once the job reaches a terminal state, writing it to
+    /// `bjobs.json` in the task's attempt directory.
+    ///
+    /// This is best-effort: failures gathering this information are logged
+    /// but never affect the task's own result.
+    ///
+    /// Defaults to `true`.
+    pub job_accounting: Option<bool>,
     /// Which queue, if any, to specify when submitting normal jobs to LSF.
     ///
     /// This may be superseded by
@@ -2555,6 +2564,15 @@ pub struct SlurmApptainerBackendConfig {
     ///
     /// Defaults to 10 concurrent operations.
     pub max_concurrency: Option<u32>,
+    /// Whether to gather Slurm accounting information for a task's job via
+    /// `sacct` once the job reaches a terminal state, writing it to
+    /// `sacct.json` in the task's attempt directory.
+    ///
+    /// This is best-effort: failures gathering this information are logged
+    /// but never affect the task's own result.
+    ///
+    /// Defaults to `true`.
+    pub job_accounting: Option<bool>,
     /// Which partition, if any, to specify when submitting normal jobs to
     /// Slurm.
     ///
