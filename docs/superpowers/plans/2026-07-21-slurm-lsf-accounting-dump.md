@@ -243,23 +243,37 @@ Replace with (adding two free functions between the closing `}` of `impl Monitor
 /// [`ACCOUNTING_FIELDS`]) into one JSON object per line returned — i.e., the
 /// job itself plus any job steps — keyed by field name. Values are kept as
 /// the raw strings `sacct` emits; no unit or duration parsing is performed.
+///
+/// Errors if any line has a different number of fields than
+/// [`ACCOUNTING_FIELDS`] requested, rather than silently truncating or
+/// misaligning field names with values.
 fn parse_accounting_output(output: &[u8]) -> Result<Vec<serde_json::Value>> {
     let output = str::from_utf8(output).context("`sacct` output was not UTF-8")?;
+    let expected_fields: Vec<&str> = ACCOUNTING_FIELDS.split(',').collect();
 
-    Ok(output
+    output
         .lines()
         .filter(|line| !line.trim().is_empty())
         .map(|line| {
-            let fields: serde_json::Map<String, serde_json::Value> = ACCOUNTING_FIELDS
-                .split(',')
-                .zip(line.split('|'))
+            let values: Vec<&str> = line.split('|').collect();
+            if values.len() != expected_fields.len() {
+                bail!(
+                    "`sacct` line has {actual} field(s), expected {expected}: `{line}`",
+                    actual = values.len(),
+                    expected = expected_fields.len()
+                );
+            }
+
+            let fields: serde_json::Map<String, serde_json::Value> = expected_fields
+                .iter()
+                .zip(values)
                 .map(|(name, value)| {
-                    (name.to_string(), serde_json::Value::String(value.to_string()))
+                    ((*name).to_string(), serde_json::Value::String(value.to_string()))
                 })
                 .collect();
-            serde_json::Value::Object(fields)
+            Ok(serde_json::Value::Object(fields))
         })
-        .collect())
+        .collect()
 }
 
 /// Returns `true` if the output of an accounting `sacct` query contains no
@@ -308,13 +322,15 @@ Replace with:
             let child = command
                 .spawn()
                 .context("failed to spawn `sacct` command")
-                .map_err(RetryError::transient)?;
+                // If the system can't spawn `sacct` at all (e.g. missing binary), retrying
+                // won't help — fail fast, matching apptainer.rs's try_pull_image.
+                .map_err(RetryError::permanent)?;
 
             let output = child
                 .wait_with_output()
                 .await
                 .context("failed to wait for `sacct` to exit")
-                .map_err(RetryError::transient)?;
+                .map_err(RetryError::permanent)?;
             if !output.status.success() {
                 return Err(RetryError::transient(anyhow!(
                     "`sacct` failed: {status}: {stderr}",
@@ -417,13 +433,20 @@ mod tests {
         let line = accounting_line(&[("JobID", "1"), ("State", "COMPLETED")]);
         assert!(!accounting_output_is_empty(format!("{line}\n").as_bytes()));
     }
+
+    #[test]
+    fn mismatched_field_count_is_an_error() {
+        // Far fewer fields than ACCOUNTING_FIELDS expects.
+        let output = b"12345|myjob\n";
+        assert!(parse_accounting_output(output).is_err());
+    }
 }
 ```
 
 - [ ] **Step 6: Run the tests to verify they pass**
 
 Run: `cargo test -p wdl-engine --lib backend::slurm_apptainer::tests`
-Expected: 4 tests PASS (`parses_accounting_output_into_one_record_per_line`, `blank_lines_are_ignored`, `empty_output_is_retryable`, `populated_output_is_not_retryable`).
+Expected: 5 tests PASS (`parses_accounting_output_into_one_record_per_line`, `blank_lines_are_ignored`, `empty_output_is_retryable`, `populated_output_is_not_retryable`, `mismatched_field_count_is_an_error`).
 
 - [ ] **Step 7: Run fmt, and check (not full clippy) for compilation**
 
@@ -752,13 +775,15 @@ Replace with:
             let child = command
                 .spawn()
                 .context("failed to spawn `bjobs` command")
-                .map_err(RetryError::transient)?;
+                // If the system can't spawn `bjobs` at all (e.g. missing binary), retrying
+                // won't help — fail fast, matching apptainer.rs's try_pull_image.
+                .map_err(RetryError::permanent)?;
 
             let output = child
                 .wait_with_output()
                 .await
                 .context("failed to wait for `bjobs` to exit")
-                .map_err(RetryError::transient)?;
+                .map_err(RetryError::permanent)?;
             if !output.status.success() {
                 return Err(RetryError::transient(anyhow!(
                     "`bjobs` failed: {status}: {stderr}",
