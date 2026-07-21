@@ -45,6 +45,9 @@ use tokio::select;
 use tokio::sync::Semaphore;
 use tokio::sync::oneshot;
 use tokio::time::MissedTickBehavior;
+use tokio_retry2::Retry;
+use tokio_retry2::RetryError;
+use tokio_retry2::strategy::ExponentialBackoff;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::error;
@@ -86,6 +89,34 @@ const DEFAULT_MAX_CONCURRENCY: u32 = 10;
 
 /// The length, in bytes, of the generated monitor tag.
 const MONITOR_TAG_LENGTH: usize = 10;
+
+/// The name of the file where a job's final accounting information (from
+/// `bjobs`) is written.
+const ACCOUNTING_FILE_NAME: &str = "bjobs.json";
+
+/// The fields requested from `bjobs` when gathering final accounting
+/// information for a single terminated job.
+///
+/// This is a superset of the fields used for state-polling (`bjobs -json -o
+/// "jobid stat exit_code max_mem avg_mem cpu_used ru_utime ru_stime"`,
+/// `lsf_apptainer.rs:633`), since this query is only made once per job (on
+/// termination) rather than on every monitor tick.
+///
+/// LSF has no reliably version-stable GPU/generic-resource equivalent to
+/// Slurm's `TRES` fields, so none is requested here.
+const ACCOUNTING_FIELDS: &str = "jobid stat exit_code max_mem avg_mem cpu_used ru_utime \
+     ru_stime submit_time start_time finish_time exec_host queue job_name";
+
+/// The initial delay, in milliseconds, before retrying a failed or
+/// incomplete accounting query.
+const ACCOUNTING_RETRY_INITIAL_DELAY_MS: u64 = 500;
+
+/// The maximum delay, in milliseconds, between accounting query retries.
+const ACCOUNTING_RETRY_MAX_DELAY_MS: u64 = 5_000;
+
+/// The maximum number of attempts made to gather a job's accounting
+/// information before giving up.
+const ACCOUNTING_RETRY_ATTEMPTS: usize = 5;
 
 /// Truncates an LSF job name if the size of the job name exceeds the maximum.
 ///
@@ -613,6 +644,71 @@ impl Monitor {
         debug!("LSF task monitor has shut down");
     }
 
+    /// Reads final accounting information for a single terminated job using
+    /// `bjobs`, retrying briefly since LSF's accounting data can lag behind
+    /// job termination.
+    async fn read_job_accounting(job_id: u64) -> Result<Vec<serde_json::Value>> {
+        async fn try_read(
+            job_id: u64,
+        ) -> Result<Vec<serde_json::Value>, RetryError<anyhow::Error>> {
+            let mut command = Command::new("bjobs");
+            let command = command
+                .arg("-a")
+                .arg("-json")
+                .arg("-o")
+                .arg(ACCOUNTING_FIELDS)
+                .arg(job_id.to_string())
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped());
+
+            trace!(?command, "spawning `bjobs` to gather job accounting information");
+
+            let child = command
+                .spawn()
+                .context("failed to spawn `bjobs` command")
+                // If the system can't spawn `bjobs` at all (e.g. missing binary), retrying
+                // won't help — fail fast, matching apptainer.rs's try_pull_image.
+                .map_err(RetryError::permanent)?;
+
+            let output = child
+                .wait_with_output()
+                .await
+                .context("failed to wait for `bjobs` to exit")
+                .map_err(RetryError::permanent)?;
+            if !output.status.success() {
+                return Err(RetryError::transient(anyhow!(
+                    "`bjobs` failed: {status}: {stderr}",
+                    status = output.status,
+                    stderr = str::from_utf8(&output.stderr)
+                        .unwrap_or("<output not UTF-8>")
+                        .trim()
+                )));
+            }
+
+            let records =
+                parse_accounting_output(&output.stdout).map_err(RetryError::transient)?;
+            if records.is_empty() {
+                return Err(RetryError::transient(anyhow!(
+                    "`bjobs` returned no accounting records for LSF job `{job_id}`"
+                )));
+            }
+
+            Ok(records)
+        }
+
+        Retry::spawn_notify(
+            ExponentialBackoff::from_millis(ACCOUNTING_RETRY_INITIAL_DELAY_MS)
+                .max_delay_millis(ACCOUNTING_RETRY_MAX_DELAY_MS)
+                .take(ACCOUNTING_RETRY_ATTEMPTS),
+            || try_read(job_id),
+            move |e: &anyhow::Error, _| {
+                warn!(e = %e, "retrying `bjobs` accounting query for LSF job `{job_id}`");
+            },
+        )
+        .await
+    }
+
     /// Reads the current job records using `bjobs`.
     async fn read_job_records(search_prefix: &str) -> Result<Vec<JobRecord>> {
         /// The expected output of `bjobs`.
@@ -659,6 +755,26 @@ impl Monitor {
         .context("failed to deserialize `bjobs` output")?
         .records)
     }
+}
+
+/// Deserializes the JSON output of a `bjobs -json` accounting query (using
+/// [`ACCOUNTING_FIELDS`]) into the job's accounting records.
+///
+/// Kept separate from [`Monitor::read_job_records`] since that one is typed
+/// to the polling-specific `JobRecord` shape, while this is used only for
+/// the best-effort `bjobs.json` accounting dump and keeps each record as a
+/// generic JSON value.
+fn parse_accounting_output(output: &[u8]) -> Result<Vec<serde_json::Value>> {
+    #[derive(Deserialize)]
+    struct Output {
+        /// The output records.
+        #[serde(rename = "RECORDS")]
+        records: Vec<serde_json::Value>,
+    }
+
+    Ok(serde_json::from_slice::<Output>(output)
+        .context("failed to deserialize `bjobs` output")?
+        .records)
 }
 
 /// The experimental LSF + Apptainer backend.
@@ -1048,5 +1164,26 @@ mod tests {
         assert_eq!(name.len(), 8188);
         let name = truncate_job_name(&name);
         assert!(name.len() < LSF_JOB_NAME_MAX_LENGTH);
+    }
+
+    #[test]
+    fn parses_accounting_records() {
+        let output = br#"{"RECORDS":[{"JOBID":"12345","STAT":"DONE","MAX_MEM":"512M"}]}"#;
+        let records = parse_accounting_output(output).unwrap();
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0]["JOBID"], "12345");
+        assert_eq!(records[0]["MAX_MEM"], "512M");
+    }
+
+    #[test]
+    fn empty_records_array_parses_to_empty_vec() {
+        let output = br#"{"RECORDS":[]}"#;
+        let records = parse_accounting_output(output).unwrap();
+        assert!(records.is_empty());
+    }
+
+    #[test]
+    fn invalid_json_is_an_error() {
+        assert!(parse_accounting_output(b"not json").is_err());
     }
 }
