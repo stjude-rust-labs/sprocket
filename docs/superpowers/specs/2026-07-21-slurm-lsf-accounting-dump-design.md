@@ -38,11 +38,19 @@ whether or not the sprocket binary's DB is even in play.
 
 ## Configuration
 
-Each backend's config struct gets a new `job_accounting: bool` field,
-opt-out, defaulting to `true`, following the existing `cleanup` field on
-`DockerBackendConfig` (`config.rs:1516-1529`) as the pattern: a
-`default_*_job_accounting() -> bool { true }` function referenced via
-`#[toml(default = ...)]` / `#[schemars(default = "...")]`.
+Each backend's config struct gets a new `job_accounting: Option<bool>` field,
+opt-out, defaulting to `true` when absent. Both `SlurmApptainerBackendConfig`
+(`config.rs:2545`) and `LsfApptainerBackendConfig` (`config.rs:2317`) derive
+`Default`, so a plain `bool` field with a `#[toml(default = ...)]` attribute
+(the pattern `DockerBackendConfig.cleanup` uses, `config.rs:1516-1529`) would
+be inconsistent: TOML deserialization would default it to `true`, but a bare
+`Default::default()` call would give `false`, since `DockerBackendConfig`
+doesn't derive `Default` at all and doesn't hit that conflict. These two
+structs already have an established convention for exactly this situation —
+`interval: Option<u64>` and `max_concurrency: Option<u32>`, both defaulted at
+the call site via `.unwrap_or(DEFAULT_CONST)` (`slurm_apptainer.rs:802`,
+`809`) — so `job_accounting` follows that instead: `Option<bool>`, resolved
+via `backend_config.job_accounting.unwrap_or(true)` where it's read.
 
 ```toml
 [backend.slurm_apptainer]
@@ -52,10 +60,8 @@ job_accounting = false  # opt out; defaults to true
 job_accounting = false  # opt out; defaults to true
 ```
 
-Added to `SlurmApptainerBackendConfig` (`config.rs:2545`) and
-`LsfApptainerBackendConfig` (`config.rs:2317`). When `false`, the backend
-skips the extra `sacct`/`bjobs` call and the JSON file entirely — no
-behavior change beyond that from today.
+When `false`, the backend skips the extra `sacct`/`bjobs` call and the JSON
+file entirely — no behavior change beyond that from today.
 
 ## Trigger point
 
