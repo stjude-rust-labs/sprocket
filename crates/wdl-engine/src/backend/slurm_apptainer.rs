@@ -40,6 +40,9 @@ use tokio::select;
 use tokio::sync::Semaphore;
 use tokio::sync::oneshot;
 use tokio::time::MissedTickBehavior;
+use tokio_retry2::Retry;
+use tokio_retry2::RetryError;
+use tokio_retry2::strategy::ExponentialBackoff;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::error;
@@ -73,6 +76,34 @@ const DEFAULT_MONITOR_INTERVAL: u64 = 30;
 
 /// The default maximum concurrency for `sbatch` and `scancel` operations.
 const DEFAULT_MAX_CONCURRENCY: u32 = 10;
+
+/// The name of the file where a job's final accounting information (from
+/// `sacct`) is written.
+const ACCOUNTING_FILE_NAME: &str = "sacct.json";
+
+/// The fields requested from `sacct` when gathering final accounting
+/// information for a single terminated job.
+///
+/// This is a superset of [`JobRecord::fields`], since this query is only
+/// made once per job (on termination) rather than on every monitor tick for
+/// all currently-tracked jobs at once. Job-step lines (e.g. `.batch`,
+/// `.extern`) are intentionally not filtered out here, unlike in
+/// [`MonitorState::update_jobs`]: Slurm frequently only reports memory/IO
+/// statistics on those step lines rather than the parent job line.
+const ACCOUNTING_FIELDS: &str = "JobID,JobName,Partition,State,ExitCode,NodeList,Submit,Start,\
+     End,Elapsed,AllocCPUS,ReqMem,ReqTRES,AllocTRES,MaxRSS,MaxVMSize,AveRSS,AveVMSize,TotalCPU,\
+     UserCPU,SystemCPU,MaxDiskRead,MaxDiskWrite";
+
+/// The initial delay, in milliseconds, before retrying a failed or
+/// incomplete accounting query.
+const ACCOUNTING_RETRY_INITIAL_DELAY_MS: u64 = 500;
+
+/// The maximum delay, in milliseconds, between accounting query retries.
+const ACCOUNTING_RETRY_MAX_DELAY_MS: u64 = 5_000;
+
+/// The maximum number of attempts made to gather a job's accounting
+/// information before giving up.
+const ACCOUNTING_RETRY_ATTEMPTS: usize = 5;
 
 /// Represents a Slurm job state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -727,6 +758,71 @@ impl Monitor {
         debug!("Slurm task monitor has shut down");
     }
 
+    /// Reads final accounting information for a single terminated job using
+    /// `sacct`, retrying briefly since Slurm's accounting database can lag
+    /// behind job termination.
+    ///
+    /// Returns the raw (pipe-delimited) stdout of `sacct`.
+    async fn read_job_accounting(job_id: u64) -> Result<Vec<u8>> {
+        async fn try_read(job_id: u64) -> Result<Vec<u8>, RetryError<anyhow::Error>> {
+            let mut command = Command::new("sacct");
+            let command = command
+                .arg("-P")
+                .arg("-n")
+                .arg("--format")
+                .arg(ACCOUNTING_FIELDS)
+                .arg("-j")
+                .arg(job_id.to_string())
+                .stdin(Stdio::null())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped());
+
+            trace!(
+                ?command,
+                "spawning `sacct` to gather job accounting information"
+            );
+
+            let child = command
+                .spawn()
+                .context("failed to spawn `sacct` command")
+                .map_err(RetryError::transient)?;
+
+            let output = child
+                .wait_with_output()
+                .await
+                .context("failed to wait for `sacct` to exit")
+                .map_err(RetryError::transient)?;
+            if !output.status.success() {
+                return Err(RetryError::transient(anyhow!(
+                    "`sacct` failed: {status}: {stderr}",
+                    status = output.status,
+                    stderr = str::from_utf8(&output.stderr)
+                        .unwrap_or("<output not UTF-8>")
+                        .trim()
+                )));
+            }
+
+            if accounting_output_is_empty(&output.stdout) {
+                return Err(RetryError::transient(anyhow!(
+                    "`sacct` returned no accounting records for Slurm job `{job_id}`"
+                )));
+            }
+
+            Ok(output.stdout)
+        }
+
+        Retry::spawn_notify(
+            ExponentialBackoff::from_millis(ACCOUNTING_RETRY_INITIAL_DELAY_MS)
+                .max_delay_millis(ACCOUNTING_RETRY_MAX_DELAY_MS)
+                .take(ACCOUNTING_RETRY_ATTEMPTS),
+            || try_read(job_id),
+            move |e: &anyhow::Error, _| {
+                warn!(e = %e, "retrying `sacct` accounting query for Slurm job `{job_id}`");
+            },
+        )
+        .await
+    }
+
     /// Reads the current jobs using `sacct`.
     ///
     /// Returns the stdout of `sacct`.
@@ -763,6 +859,39 @@ impl Monitor {
 
         Ok(output.stdout)
     }
+}
+
+/// Parses the pipe-delimited output of an accounting `sacct` query (using
+/// [`ACCOUNTING_FIELDS`]) into one JSON object per line returned — i.e., the
+/// job itself plus any job steps — keyed by field name. Values are kept as
+/// the raw strings `sacct` emits; no unit or duration parsing is performed.
+fn parse_accounting_output(output: &[u8]) -> Result<Vec<serde_json::Value>> {
+    let output = str::from_utf8(output).context("`sacct` output was not UTF-8")?;
+
+    Ok(output
+        .lines()
+        .filter(|line| !line.trim().is_empty())
+        .map(|line| {
+            let fields: serde_json::Map<String, serde_json::Value> = ACCOUNTING_FIELDS
+                .split(',')
+                .zip(line.split('|'))
+                .map(|(name, value)| {
+                    (
+                        name.to_string(),
+                        serde_json::Value::String(value.to_string()),
+                    )
+                })
+                .collect();
+            serde_json::Value::Object(fields)
+        })
+        .collect())
+}
+
+/// Returns `true` if the output of an accounting `sacct` query contains no
+/// records, which signals that Slurm's accounting database (`slurmdbd`)
+/// hasn't yet caught up with the job's termination.
+fn accounting_output_is_empty(output: &[u8]) -> bool {
+    output.iter().all(u8::is_ascii_whitespace)
 }
 
 /// The experimental Slurm + Apptainer backend.
@@ -1131,5 +1260,67 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             }))
         }
         .boxed()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Builds a single `sacct`-style pipe-delimited line for [`ACCOUNTING_FIELDS`],
+    /// with all fields empty except the ones given in `overrides`.
+    fn accounting_line(overrides: &[(&str, &str)]) -> String {
+        let names: Vec<&str> = ACCOUNTING_FIELDS.split(',').collect();
+        let mut values = vec![String::new(); names.len()];
+        for (name, value) in overrides {
+            let idx = names
+                .iter()
+                .position(|n| n == name)
+                .unwrap_or_else(|| panic!("unknown accounting field `{name}`"));
+            values[idx] = (*value).to_string();
+        }
+        values.join("|")
+    }
+
+    #[test]
+    fn parses_accounting_output_into_one_record_per_line() {
+        let job_line = accounting_line(&[
+            ("JobID", "12345"),
+            ("State", "COMPLETED"),
+            ("Partition", "gpu"),
+        ]);
+        let batch_line = accounting_line(&[
+            ("JobID", "12345.batch"),
+            ("State", "COMPLETED"),
+            ("MaxRSS", "1000000K"),
+        ]);
+        let output = format!("{job_line}\n{batch_line}\n");
+
+        let records = parse_accounting_output(output.as_bytes()).unwrap();
+        assert_eq!(records.len(), 2);
+        assert_eq!(records[0]["JobID"], "12345");
+        assert_eq!(records[0]["Partition"], "gpu");
+        assert_eq!(records[1]["JobID"], "12345.batch");
+        assert_eq!(records[1]["MaxRSS"], "1000000K");
+    }
+
+    #[test]
+    fn blank_lines_are_ignored() {
+        let line = accounting_line(&[("JobID", "1"), ("State", "COMPLETED")]);
+        let output = format!("\n{line}\n\n");
+        let records = parse_accounting_output(output.as_bytes()).unwrap();
+        assert_eq!(records.len(), 1);
+    }
+
+    #[test]
+    fn empty_output_is_retryable() {
+        assert!(accounting_output_is_empty(b""));
+        assert!(accounting_output_is_empty(b"\n  \n"));
+    }
+
+    #[test]
+    fn populated_output_is_not_retryable() {
+        let line = accounting_line(&[("JobID", "1"), ("State", "COMPLETED")]);
+        assert!(!accounting_output_is_empty(format!("{line}\n").as_bytes()));
     }
 }
