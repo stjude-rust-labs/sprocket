@@ -123,12 +123,36 @@ LSF has no reliably version-stable GPU/generic-resource equivalent to
 Slurm's `TRES` fields, so none is included — this is a known gap, not a
 silent mismatch with the Slurm side.
 
+## Retrying on accounting lag
+
+Slurm's `slurmdbd` (and LSF's accounting backend) can take a few seconds to
+catch up after a job terminates, particularly for the `.batch` step's
+memory/IO stats. Rather than write a bespoke retry loop, reuse
+`tokio_retry2`, already a workspace dependency and already used for exactly
+this shape of problem in `backend/apptainer.rs:327-345` (`Retry::spawn_notify`
+with an `ExponentialBackoff` strategy, logging a `warn!` on each failed
+attempt via the notify callback).
+
+The accounting fetch is retried when:
+- the `sacct`/`bjobs` invocation itself fails (spawn error, non-zero exit,
+  non-UTF8 output), or
+- the invocation succeeds but returns zero matching records for the job
+  (the signal that the accounting DB hasn't caught up yet).
+
+Backoff parameters are intentionally much shorter than the image-pull retry
+(which budgets up to 60s for registry flakiness) since this is short-lived DB
+propagation lag, not network flakiness: `ExponentialBackoff::from_millis(500)
+.max_delay_millis(5_000).take(5)` — a handful of attempts capped at a few
+seconds each, a few seconds of total worst-case added latency after job
+completion.
+
 ## Error handling
 
 - If `job_accounting` is `false`, skip the extra call and file write
   entirely — not treated as an error, just a no-op.
-- Spawn failure, non-zero exit, or non-UTF8 output from the extra
-  `sacct`/`bjobs` call: log `warn!` with the error, skip writing the file.
+- If all retries are exhausted (command keeps failing, or the accounting DB
+  never returns records within the retry budget): log a `warn!`, skip
+  writing the file.
 - Parse/deserialize failure on otherwise-successful output: same — `warn!`
   and skip.
 - None of the above ever change the `TaskExecutionResult` or cause the task
@@ -141,4 +165,7 @@ docs say "tested by hand"; `lsf_apptainer.rs:1041-1052` has exactly one
 plain `#[test]` unit test as the only existing precedent). Add unit tests
 that feed canned `sacct`/`bjobs` output text through the new parsing
 function and assert the resulting JSON shape, following that same pattern.
-No mocking framework, no integration harness.
+Also unit test the "should this be retried" predicate (empty output vs. a
+populated record set) directly, since that's the one piece of new decision
+logic; the retry/backoff mechanics themselves come from `tokio_retry2` and
+don't need re-testing. No mocking framework, no integration harness.
