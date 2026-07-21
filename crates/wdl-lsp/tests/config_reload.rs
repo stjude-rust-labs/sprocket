@@ -20,6 +20,7 @@ use async_lsp::lsp_types::notification::DidChangeWatchedFiles;
 use wdl_lint::Baseline;
 use wdl_lint::BaselineEntry;
 use wdl_lsp::ConfigReload;
+use wdl_lsp::LintOptions;
 use wdl_lsp::ServerOptions;
 
 use crate::common::TestContext;
@@ -63,13 +64,11 @@ fn notify_file_changed(ctx: &mut TestContext, name: &str, typ: FileChangeType) {
 /// these tests.
 fn default_reload() -> ConfigReload {
     ConfigReload {
-        exceptions: Vec::new(),
-        feature_flags: Default::default(),
-        resolution_context: Default::default(),
-        baseline: None,
-        format: Default::default(),
-        lint_enabled: true,
-        lint_config: Default::default(),
+        lint: LintOptions {
+            enabled: true,
+            ..Default::default()
+        },
+        ..Default::default()
     }
 }
 

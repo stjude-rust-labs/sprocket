@@ -288,6 +288,8 @@ pub struct ServerOptions {
     /// set) is invoked to recompute the server's analyzer-affecting
     /// configuration without requiring a full server restart.
     ///
+    /// This field has no effect if [`Self::reload_config`] is `None`.
+    ///
     /// Defaults to `sprocket.toml`.
     pub config_filename: Option<String>,
 
@@ -355,7 +357,7 @@ impl Default for ServerOptions {
 /// the server, so they aren't part of this struct; `common.wdl.feature_flags`
 /// is included since `ServerOptions::feature_flags` is already threaded
 /// through to the analyzer.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ConfigReload {
     /// Analysis or lint rule IDs to except (ignore); corresponds to the
     /// `analyzer.except` field (merged with any CLI-provided exceptions).
@@ -368,11 +370,9 @@ pub struct ConfigReload {
     pub baseline: Option<wdl_lint::Baseline>,
     /// Corresponds to `format`.
     pub format: FormatConfig,
-    /// Whether linting is enabled; corresponds to `analyzer.lint` (merged
+    /// Corresponds to `check.lint` and `analyzer.lint` (the latter merged
     /// with any CLI-provided `--lint` flag).
-    pub lint_enabled: bool,
-    /// Corresponds to `check.lint`.
-    pub lint_config: wdl_lint::Config,
+    pub lint: LintOptions,
 }
 
 /// User-controlled options for the server.
@@ -502,8 +502,7 @@ impl<S> ServerState<S> {
             baseline: reload.baseline,
             format: reload.format,
         };
-        self.config.options.lint.enabled = reload.lint_enabled;
-        self.config.options.lint.config = Arc::new(reload.lint_config);
+        self.config.options.lint = reload.lint;
         self.rebuild_analyzer(client, options).await;
     }
 
@@ -1716,6 +1715,14 @@ impl<S: 'static> Server<S> {
 
         /// Returns whether the given URI's file name matches the configured
         /// Sprocket configuration file basename (e.g. `sprocket.toml`).
+        ///
+        /// This intentionally matches by basename alone, so a `sprocket.toml`
+        /// anywhere in a watched workspace folder will trigger a reload — even
+        /// one that isn't actually consulted by the current search path. This
+        /// is safe because [`ServerOptions::reload_config`] re-runs the
+        /// full configuration search/merge from scratch rather than
+        /// reading the triggering file directly, so an irrelevant match
+        /// just costs a redundant (but correct) re-resolution.
         fn is_config_file(uri: &Url, config_filename: Option<&str>) -> bool {
             let Some(name) = config_filename else {
                 return false;
@@ -1732,11 +1739,7 @@ impl<S: 'static> Server<S> {
         for mut event in params.changes {
             normalize_uri_path(&mut event.uri);
 
-            if matches!(
-                event.typ,
-                FileChangeType::CREATED | FileChangeType::CHANGED | FileChangeType::DELETED
-            ) && is_config_file(&event.uri, options.config_filename.as_deref())
-            {
+            if is_config_file(&event.uri, options.config_filename.as_deref()) {
                 debug!(
                     "configuration file `{uri}` has changed on disk",
                     uri = event.uri

@@ -89,8 +89,10 @@ fn build_config_reload(
         resolution_context,
         baseline,
         format: config.format,
-        lint_enabled: cli_lint || config.analyzer.lint,
-        lint_config: config.check.lint.clone(),
+        lint: LintOptions {
+            enabled: cli_lint || config.analyzer.lint,
+            config: Arc::new(config.check.lint.clone()),
+        },
     })
 }
 
@@ -151,10 +153,7 @@ pub async fn analyzer(
                     .max_level_hint()
                     .unwrap_or(tracing::metadata::LevelFilter::WARN),
             ),
-            lint: LintOptions {
-                enabled: reload.lint_enabled,
-                config: Arc::new(reload.lint_config),
-            },
+            lint: reload.lint,
         },
         Some(handle),
     )
@@ -190,7 +189,7 @@ mod tests {
 
         // `--lint` (cli_lint=true) should be OR'd in even though
         // `config.analyzer.lint` is false.
-        assert!(reload.lint_enabled);
+        assert!(reload.lint.enabled);
     }
 
     #[test]
@@ -202,7 +201,7 @@ mod tests {
         let reload = build_config_reload(&config, /* cli_lint */ false, &[], &cwd)
             .expect("should build reload");
 
-        assert!(reload.lint_enabled);
+        assert!(reload.lint.enabled);
     }
 
     #[test]
