@@ -3,7 +3,9 @@
 use wdl_ast::SyntaxKind;
 
 use crate::Config;
+use crate::FitOrSplitEndingLiterals;
 use crate::PreToken;
+use crate::SplitAlternative;
 use crate::TokenStream;
 use crate::Writable as _;
 use crate::element::FormatElement;
@@ -390,25 +392,41 @@ pub fn format_literal_array(
 
     let empty = items.is_empty();
     if !empty {
-        stream.increment_indent();
+        stream.fit_or_split_start();
     }
 
     let mut items = items.iter().peekable();
     let mut commas = commas.iter();
+    let mut trailing_comma_inserted = false;
+    let mut last_item;
     while let Some(item) = items.next() {
         (item).write(stream, config);
         if let Some(comma) = commas.next() {
-            if config.trailing_commas || items.peek().is_some() || comma.has_comment() {
+            last_item = items.peek().is_none();
+            if !last_item || comma.has_comment() {
                 (comma).write(stream, config);
+                if last_item {
+                    trailing_comma_inserted = true;
+                }
             }
-        } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+        } else {
+            last_item = true;
         }
-        stream.end_line();
+        if !last_item {
+            stream.potential_split(SplitAlternative::Space);
+        }
     }
 
     if !empty {
-        stream.decrement_indent();
+        let trailing_literals = FitOrSplitEndingLiterals {
+            fit: "".to_string().into(),
+            split: if config.trailing_commas && !trailing_comma_inserted {
+                ",".to_string().into()
+            } else {
+                "".to_string().into()
+            },
+        };
+        stream.fit_or_split_end(trailing_literals);
     }
     (&close_bracket.expect("literal array close bracket")).write(stream, config);
 }

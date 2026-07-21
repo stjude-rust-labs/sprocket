@@ -23,11 +23,7 @@ workflow test {
         }
     }
 
-    Array[String] names = [
-        "James",
-        "Jimmy",
-        "John"
-    ]
+    Array[String] names = ["James", "Jimmy", "John"]
     Map[String, Int] ages = {
         "James": 34,
         "Jimmy": 55,
@@ -53,10 +49,7 @@ workflow test {
         age: 55
     }
 
-    call test2 {
-        foo = "foo",
-        bar = "bar"
-    }
+    call test2 { foo = "foo", bar = "bar" }
 
     hints {
         foo: [

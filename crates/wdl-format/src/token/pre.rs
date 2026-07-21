@@ -15,6 +15,18 @@ use crate::TokenStream;
 use crate::Trivia;
 use crate::TriviaBlankLineSpacingPolicy;
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SplitAlternative {
+    Empty,
+    Space,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FitOrSplitEndingLiterals {
+    pub fit: Rc<String>,
+    pub split: Rc<String>,
+}
+
 /// A token that can be written by elements.
 ///
 /// These are tokens that are intended to be written directly by elements to a
@@ -63,6 +75,12 @@ pub enum PreToken {
     ///
     /// See [`PreToken::TempIndentStart`] for more information.
     TempIndentEnd,
+
+    FitOrSplitStart,
+
+    PotentialSplit(SplitAlternative),
+
+    FitOrSplitEnd(FitOrSplitEndingLiterals),
 }
 
 impl std::fmt::Display for PreToken {
@@ -100,6 +118,9 @@ impl std::fmt::Display for PreToken {
             },
             PreToken::TempIndentStart(value) => write!(f, "<TempIndentStart@{value}>"),
             PreToken::TempIndentEnd => write!(f, "<TempIndentEnd>"),
+            PreToken::FitOrSplitStart => write!(f, "<FitOrSplitStart>"),
+            PreToken::PotentialSplit(value) => write!(f, "<PotentialSplit@{value:?}>"),
+            PreToken::FitOrSplitEnd(value) => write!(f, "<FitOrSplitEnd@{value:?}>"),
         }
     }
 }
@@ -318,5 +339,17 @@ impl TokenStream<PreToken> {
     /// This will not insert any trivia.
     pub fn push_literal(&mut self, value: String, kind: SyntaxKind) {
         self.0.push(PreToken::Literal(Rc::new(value), kind));
+    }
+
+    pub fn fit_or_split_start(&mut self) {
+        self.0.push(PreToken::FitOrSplitStart);
+    }
+
+    pub fn potential_split(&mut self, alternative: SplitAlternative) {
+        self.0.push(PreToken::PotentialSplit(alternative));
+    }
+
+    pub fn fit_or_split_end(&mut self, trailing_literals: FitOrSplitEndingLiterals) {
+        self.0.push(PreToken::FitOrSplitEnd(trailing_literals));
     }
 }

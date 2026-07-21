@@ -18,6 +18,7 @@ use crate::Config;
 use crate::Indent;
 use crate::PreToken;
 use crate::SPACE;
+use crate::SplitAlternative;
 use crate::Token;
 use crate::TokenStream;
 use crate::Trivia;
@@ -327,6 +328,12 @@ struct TandemBreak {
     pub depth: usize,
 }
 
+struct FitOrSplitSpan {
+    pub start: usize,
+    pub end: usize,
+    pub fits: bool,
+}
+
 /// Current position in a line.
 #[derive(Default, Eq, PartialEq)]
 enum LinePosition {
@@ -355,6 +362,8 @@ pub struct Postprocessor {
 
     /// Temporary indentation to add.
     temp_indent: Option<Rc<String>>,
+
+    linebreak_splits: bool,
 }
 
 impl Postprocessor {
@@ -519,6 +528,31 @@ impl Postprocessor {
             PreToken::TempIndentEnd => {
                 self.temp_indent = None;
             }
+            PreToken::PotentialSplit(alt) => {
+                if self.linebreak_splits {
+                    self.end_line(stream);
+                } else {
+                    match alt {
+                        SplitAlternative::Space => stream.push(PostToken::Space),
+                        SplitAlternative::Empty => {}
+                    }
+                }
+            }
+            PreToken::FitOrSplitStart => {
+                if self.linebreak_splits {
+                    self.indent_level += 1;
+                    self.end_line(stream);
+                }
+            }
+            PreToken::FitOrSplitEnd(trailing_literals) => {
+                if self.linebreak_splits {
+                    stream.push(PostToken::Literal(trailing_literals.split));
+                    self.indent_level = self.indent_level.saturating_sub(1);
+                    self.end_line(stream);
+                } else {
+                    stream.push(PostToken::Literal(trailing_literals.fit));
+                }
+            }
         }
     }
 
@@ -531,53 +565,93 @@ impl Postprocessor {
     ) {
         assert!(!self.interrupted);
         assert!(self.position == LinePosition::StartOfLine);
-        let mut post_buffer = TokenStream::<PostToken>::default();
-        let mut pre_buffer = in_stream.iter().peekable();
-        let starting_indent = self.indent_level;
-        let starting_temp_indent = self.temp_indent.clone();
-        while let Some(token) = pre_buffer.next() {
-            let next = pre_buffer.peek().copied();
-            self.step(token.clone(), next, &mut post_buffer);
-        }
 
-        // If all lines are short enough, we can just add the post_buffer to the
-        // out_stream and be done.
-        if config.max_line_length.get().is_none()
-            || post_buffer.max_width(config) <= config.max_line_length.get().unwrap()
-        {
-            out_stream.extend(post_buffer);
-            return;
-        }
+        let mut pre_buffer = in_stream.iter().enumerate().peekable();
 
-        // At least one line in the post_buffer is too long.
-        // We iterate through the in_stream to find potential line breaks,
-        // and then we iterate through the in_stream again to actually insert
-        // them in the proper places.
-
-        let max_length = config.max_line_length.get().unwrap();
-
+        // PERF: TODO
+        let max_length = config.max_line_length.get();
         let mut potential_line_breaks: HashMap<usize, SyntaxKind> = HashMap::new();
-        for (i, token) in in_stream.iter().enumerate() {
-            if let PreToken::Literal(_, kind) = token {
-                match can_be_line_broken(*kind) {
-                    Some(LineBreak::Before) => {
-                        potential_line_breaks.insert(i, *kind);
+        let mut split_spans = Vec::new();
+        let mut span_start = None;
+        let mut found_end = false;
+        let mut newline_this_span = false;
+
+        while let Some((i, token)) = pre_buffer.next() {
+            match token {
+                PreToken::Literal(_, kind) if max_length.is_some() => {
+                    match can_be_line_broken(*kind) {
+                        Some(LineBreak::Before) => {
+                            potential_line_breaks.insert(i, *kind);
+                        }
+                        Some(LineBreak::After) => {
+                            potential_line_breaks.insert(i + 1, *kind);
+                        }
+                        None => {}
                     }
-                    Some(LineBreak::After) => {
-                        potential_line_breaks.insert(i + 1, *kind);
-                    }
-                    None => {}
                 }
+                PreToken::FitOrSplitStart => {
+                    // always overwrite start so that only the innermost span is
+                    // considered for fitting on one line (outer spans should always get split)
+                    span_start = Some(i);
+                    found_end = false;
+                    newline_this_span = false;
+                }
+                PreToken::FitOrSplitEnd(_) => {
+                    if span_start.is_some() && !found_end {
+                        split_spans.push(FitOrSplitSpan {
+                            start: span_start.unwrap(),
+                            end: i + 1,
+                            fits: !newline_this_span,
+                        });
+                        span_start = None;
+                        found_end = true;
+                    } else {
+                        span_start = None;
+                        found_end = false;
+                        newline_this_span = false;
+                    }
+                }
+                _ => {}
+            }
+            if matches!(token, &PreToken::LineEnd) {
+                newline_this_span = true;
             }
         }
 
-        if potential_line_breaks.is_empty() {
-            // There are no potential line breaks, so we can't do anything.
+        let mut post_buffer = TokenStream::<PostToken>::default();
+        let mut pre_buffer = in_stream.iter().enumerate().peekable();
+        let starting_indent = self.indent_level;
+        let starting_temp_indent = self.temp_indent.clone();
+
+        let mut split_spans = split_spans.iter();
+        let mut cur_span = split_spans.next();
+        self.linebreak_splits = true;
+
+        while let Some((i, token)) = pre_buffer.next() {
+            if let Some(span) = cur_span {
+                if i == span.start {
+                    self.linebreak_splits = !span.fits;
+                }
+                if i == span.end {
+                    cur_span = split_spans.next();
+                    self.linebreak_splits = true;
+                }
+            }
+            let next = pre_buffer.peek().copied().map(|(_, n)| n);
+            self.step(token.clone(), next, &mut post_buffer);
+        }
+
+        // check the line lengths to see if we're done yet
+        if max_length.is_none() || post_buffer.max_width(config) <= max_length.unwrap() {
             out_stream.extend(post_buffer);
             return;
         }
+        let max_length = max_length.unwrap();
 
-        // Set up the buffers for the second pass.
+        // The fit-or-split iteration left some lines that are too long. Iterate through one last
+        // time to attempt the remaining potential breaks found.
+
+        // Set up the buffers for the next iteration.
         post_buffer.clear();
         let mut pre_buffer = in_stream.iter().enumerate().peekable();
 
@@ -586,10 +660,21 @@ impl Postprocessor {
         self.position = LinePosition::StartOfLine;
         self.temp_indent = starting_temp_indent;
         self.indent_level = starting_indent;
+        self.linebreak_splits = true;
 
         let mut break_stack: Vec<TandemBreak> = Vec::new();
 
         while let Some((i, token)) = pre_buffer.next() {
+            if let Some(span) = cur_span {
+                if i == span.start {
+                    self.linebreak_splits = !span.fits;
+                }
+                if i == span.end {
+                    cur_span = split_spans.next();
+                    self.linebreak_splits = true;
+                }
+            }
+
             let mut cache = None;
             if let Some(break_kind) = potential_line_breaks.get(&i) {
                 // Check if we need a break to match a prior tandem break
@@ -613,7 +698,7 @@ impl Postprocessor {
 
             self.step(
                 token.clone(),
-                pre_buffer.peek().map(|(_, v)| &**v),
+                pre_buffer.peek().copied().map(|(_, n)| n),
                 &mut post_buffer,
             );
 
@@ -627,7 +712,7 @@ impl Postprocessor {
                 self.end_line(&mut post_buffer);
                 self.step(
                     token.clone(),
-                    pre_buffer.peek().map(|(_, v)| &**v),
+                    pre_buffer.peek().copied().map(|(_, n)| n),
                     &mut post_buffer,
                 );
 
