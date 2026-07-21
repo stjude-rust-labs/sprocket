@@ -36,6 +36,27 @@ and `slurm_apptainer.rs:1013-1021`). Writing one more file there follows the
 existing pattern exactly, needs no schema migration, and works identically
 whether or not the sprocket binary's DB is even in play.
 
+## Configuration
+
+Each backend's config struct gets a new `job_accounting: bool` field,
+opt-out, defaulting to `true`, following the existing `cleanup` field on
+`DockerBackendConfig` (`config.rs:1516-1529`) as the pattern: a
+`default_*_job_accounting() -> bool { true }` function referenced via
+`#[toml(default = ...)]` / `#[schemars(default = "...")]`.
+
+```toml
+[backend.slurm_apptainer]
+job_accounting = false  # opt out; defaults to true
+
+[backend.lsf_apptainer]
+job_accounting = false  # opt out; defaults to true
+```
+
+Added to `SlurmApptainerBackendConfig` (`config.rs:2545`) and
+`LsfApptainerBackendConfig` (`config.rs:2317`). When `false`, the backend
+skips the extra `sacct`/`bjobs` call and the JSON file entirely — no
+behavior change beyond that from today.
+
 ## Trigger point
 
 Both backends have the same `execute()` shape: after submitting the job, they
@@ -104,6 +125,8 @@ silent mismatch with the Slurm side.
 
 ## Error handling
 
+- If `job_accounting` is `false`, skip the extra call and file write
+  entirely — not treated as an error, just a no-op.
 - Spawn failure, non-zero exit, or non-UTF8 output from the extra
   `sacct`/`bjobs` call: log `warn!` with the error, skip writing the file.
 - Parse/deserialize failure on otherwise-successful output: same — `warn!`
