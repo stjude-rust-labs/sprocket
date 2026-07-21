@@ -825,6 +825,46 @@ impl Monitor {
         .await
     }
 
+    /// Best-effort: gathers final accounting information for a terminated job
+    /// and writes it to [`ACCOUNTING_FILE_NAME`] in the task's attempt
+    /// directory.
+    ///
+    /// Failures are logged and otherwise ignored; this must never affect the
+    /// task's own result.
+    async fn write_job_accounting(job_id: u64, attempt_dir: &Path) {
+        let output = match Self::read_job_accounting(job_id).await {
+            Ok(output) => output,
+            Err(e) => {
+                warn!("failed to gather Slurm accounting information for job `{job_id}`: {e:#}");
+                return;
+            }
+        };
+
+        let records = match parse_accounting_output(&output) {
+            Ok(records) => records,
+            Err(e) => {
+                warn!("failed to parse Slurm accounting information for job `{job_id}`: {e:#}");
+                return;
+            }
+        };
+
+        let contents = match serde_json::to_vec_pretty(&records) {
+            Ok(contents) => contents,
+            Err(e) => {
+                warn!("failed to serialize Slurm accounting information for job `{job_id}`: {e:#}");
+                return;
+            }
+        };
+
+        let path = attempt_dir.join(ACCOUNTING_FILE_NAME);
+        if let Err(e) = fs::write(&path, contents).await {
+            warn!(
+                path = %path.display(),
+                "failed to write Slurm accounting information for job `{job_id}`: {e:#}"
+            );
+        }
+    }
+
     /// Reads the current jobs using `sacct`.
     ///
     /// Returns the stdout of `sacct`.
@@ -1183,7 +1223,16 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                 .await
                 .context("failed to acquire permit for submitting job")?;
 
-            let job = self.monitor.submit_job(backend_config, &request, crankshaft_id, &apptainer_command_path, transferer.as_ref()).await?;
+            let job = self
+                .monitor
+                .submit_job(
+                    backend_config,
+                    &request,
+                    crankshaft_id,
+                    &apptainer_command_path,
+                    transferer.as_ref(),
+                )
+                .await?;
             drop(permit);
 
             let name = job.task_name;
@@ -1227,7 +1276,12 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
 
                     return Ok(None);
                 }
-                result = job.completed => match result.context("failed to wait for task to complete")? {
+                result = job.completed => {
+                    if backend_config.job_accounting.unwrap_or(true) {
+                        Monitor::write_job_accounting(job_id, request.attempt_dir).await;
+                    }
+
+                    match result.context("failed to wait for task to complete")? {
                     Ok(exit_code) => {
                         let exit_status = exit_code.into_exit_status();
 
@@ -1252,6 +1306,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
 
                         return Err(e);
                     }
+                }
                 }
             };
 
