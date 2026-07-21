@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added a `job_accounting` configuration option (defaults to `true`) to the Slurm and LSF Apptainer backends: once a task's job reaches a terminal state, the backend gathers accounting information via `sacct`/`bjobs` and writes it to `sacct.json`/`bjobs.json` in the task's attempt directory. This is best-effort and never affects the task's own result.
+
 ## 0.17.0 - 2026-07-15
 
 #### Added
