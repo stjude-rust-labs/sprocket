@@ -425,10 +425,19 @@ mod tests {
 Run: `cargo test -p wdl-engine --lib backend::slurm_apptainer::tests`
 Expected: 4 tests PASS (`parses_accounting_output_into_one_record_per_line`, `blank_lines_are_ignored`, `empty_output_is_retryable`, `populated_output_is_not_retryable`).
 
-- [ ] **Step 7: Run fmt and clippy**
+- [ ] **Step 7: Run fmt, and check (not full clippy) for compilation**
 
-Run: `cargo --locked fmt -- --check && cargo --locked clippy -p wdl-engine --tests --all-features -- --deny warnings`
-Expected: no diffs, no warnings.
+Run: `cargo --locked fmt -- --check && cargo check -p wdl-engine --tests`
+Expected: no diffs, no errors.
+
+Note: `cargo clippy --deny warnings` is expected to FAIL at this point with
+8 `dead_code` errors — every item this task adds (`ACCOUNTING_FILE_NAME`,
+`ACCOUNTING_FIELDS`, the three retry constants, `read_job_accounting`,
+`parse_accounting_output`, `accounting_output_is_empty`) has no caller
+outside the new tests until Task 3 wires `Monitor::read_job_accounting`
+and `parse_accounting_output` into `execute()`. This is expected and
+temporary — do not add `#[allow(dead_code)]`. The full clippy gate is
+Task 3's Step 5, once the caller exists.
 
 - [ ] **Step 8: Commit**
 
@@ -849,10 +858,18 @@ mod tests {
 Run: `cargo test -p wdl-engine --lib backend::lsf_apptainer::tests`
 Expected: 4 tests PASS (`job_name_truncates`, `parses_accounting_records`, `empty_records_array_parses_to_empty_vec`, `invalid_json_is_an_error`).
 
-- [ ] **Step 7: Run fmt and clippy**
+- [ ] **Step 7: Run fmt, and check (not full clippy) for compilation**
 
-Run: `cargo --locked fmt -- --check && cargo --locked clippy -p wdl-engine --tests --all-features -- --deny warnings`
-Expected: no diffs, no warnings.
+Run: `cargo --locked fmt -- --check && cargo check -p wdl-engine --tests`
+Expected: no diffs, no errors.
+
+Note: `cargo clippy --deny warnings` is expected to FAIL at this point with
+dead_code errors on the items this task adds (`ACCOUNTING_FILE_NAME`,
+`ACCOUNTING_FIELDS`, the three retry constants, `read_job_accounting`) —
+they have no caller outside the new tests until Task 5 wires
+`Monitor::read_job_accounting` into `execute()`. This is expected and
+temporary — do not add `#[allow(dead_code)]`. The full clippy gate is
+Task 5's Step 6, once the caller exists.
 
 - [ ] **Step 8: Commit**
 
