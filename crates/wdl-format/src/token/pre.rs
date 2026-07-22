@@ -15,15 +15,25 @@ use crate::TokenStream;
 use crate::Trivia;
 use crate::TriviaBlankLineSpacingPolicy;
 
+/// The alternative string to push to the [`TokenStream`] in case a split (AKA
+/// newline) is not pushed.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SplitAlternative {
+    /// "Push" the empty string; i.e. do not push anything.
     Empty,
+    /// Push a [`crate::PostToken::Space`].
     Space,
 }
 
+/// The literal strings to push to the stream when ending a "fit-or-split"
+/// block.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FitOrSplitEndingLiterals {
+    /// The literal string to push when the block is fit/collapsed into a single
+    /// line.
     pub fit: Option<Rc<String>>,
+    /// The literal string to push when the block is split into a multiline
+    /// form.
     pub split: Option<Rc<String>>,
 }
 
@@ -76,10 +86,13 @@ pub enum PreToken {
     /// See [`PreToken::TempIndentStart`] for more information.
     TempIndentEnd,
 
+    /// The start of a "fit-or-split" block.
     FitOrSplitStart(SplitAlternative),
 
+    /// A position in the stream that may or may not have a newline.
     PotentialSplit(SplitAlternative),
 
+    /// The end of a "fit-or-split" block.
     FitOrSplitEnd(FitOrSplitEndingLiterals),
 }
 
@@ -340,14 +353,17 @@ impl TokenStream<PreToken> {
         self.0.push(PreToken::Literal(Rc::new(value), kind));
     }
 
+    /// Pushes the start of a "fit-or-split" block into the stream.
     pub fn fit_or_split_start(&mut self, alternative: SplitAlternative) {
         self.0.push(PreToken::FitOrSplitStart(alternative));
     }
 
+    /// Pushes a potential linebreak into the stream.
     pub fn potential_split(&mut self, alternative: SplitAlternative) {
         self.0.push(PreToken::PotentialSplit(alternative));
     }
 
+    /// Pushes the end of a "fit-or-split" block into the stream.
     pub fn fit_or_split_end(&mut self, trailing_literals: FitOrSplitEndingLiterals) {
         self.0.push(PreToken::FitOrSplitEnd(trailing_literals));
     }

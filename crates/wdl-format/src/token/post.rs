@@ -328,9 +328,14 @@ struct TandemBreak {
     pub depth: usize,
 }
 
+/// Tracks a span that may "fit" on one line or be "split" across multiple
+/// lines.
 struct FitOrSplitSpan {
+    /// The start position of the span.
     pub start: usize,
+    /// The end position of the span.
     pub end: usize,
+    /// Whether the span can or cannot be collapsed into one line.
     pub fits: bool,
 }
 
@@ -363,6 +368,7 @@ pub struct Postprocessor {
     /// Temporary indentation to add.
     temp_indent: Option<Rc<String>>,
 
+    /// Whether to linebreak when encountering [`PreToken::PotentialSplit`].
     linebreak_potential_splits: bool,
 }
 
@@ -582,7 +588,7 @@ impl Postprocessor {
         assert!(!self.interrupted);
         assert!(self.position == LinePosition::StartOfLine);
 
-        let mut pre_buffer = in_stream.iter().enumerate().peekable();
+        let pre_buffer = in_stream.iter().enumerate().peekable();
 
         // PERF: TODO
         let max_length = config.max_line_length.get();
@@ -592,7 +598,7 @@ impl Postprocessor {
         let mut found_end = false;
         let mut newline_this_span = false;
 
-        while let Some((i, token)) = pre_buffer.next() {
+        for (i, token) in pre_buffer {
             if matches!(token, &PreToken::LineEnd | &PreToken::Trivia(_)) {
                 newline_this_span = true;
             }
@@ -664,8 +670,8 @@ impl Postprocessor {
         }
         let max_length = max_length.unwrap();
 
-        // The fit-or-split iteration left some lines that are too long. Iterate through one last
-        // time to attempt the remaining potential breaks found.
+        // The fit-or-split iteration left some lines that are too long. Iterate through
+        // one last time to attempt the remaining potential breaks found.
 
         // Set up the buffers for the next iteration.
         post_buffer.clear();

@@ -189,23 +189,19 @@ pub fn format_call_statement(
         let mut inputs = inputs.iter().peekable();
         let mut commas = commas.iter();
         let mut trailing_comma_inserted = false;
-        let mut last_input;
         while let Some(input) = inputs.next() {
             (&input).write(stream, config);
 
-            if let Some(comma) = commas.next() {
-                last_input = inputs.peek().is_none();
-                if !last_input || comma.has_comment() {
-                    (comma).write(stream, config);
-                    if last_input {
-                        trailing_comma_inserted = true;
-                    }
+            if let Some(comma) = commas.next()
+                && (inputs.peek().is_some() || comma.has_comment())
+            {
+                (comma).write(stream, config);
+                if inputs.peek().is_none() {
+                    trailing_comma_inserted = true;
                 }
-            } else {
-                last_input = true;
             }
 
-            if !last_input {
+            if inputs.peek().is_some() {
                 stream.potential_split(SplitAlternative::Space);
             }
         }
