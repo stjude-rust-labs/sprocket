@@ -15,7 +15,6 @@ use super::signer_policy::signer_change_mode;
 use crate::commands::CommandResult;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
-use crate::commands::output::count_noun;
 use crate::config::Config;
 
 const LOCK: Action = Action::new("Locked", "lock");
@@ -85,14 +84,21 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
         let changes = relock_change_count(&plan.outcome.stats);
         output.planned(
             LOCK,
-            count_noun(changes, "dependency change", "dependency changes"),
+            format!(
+                "{changes} dependency {}",
+                if changes == 1 { "change" } else { "changes" }
+            ),
         );
+        let dependencies = plan.outcome.lockfile.dependencies.len();
         output.detail(
             "Lockfile",
-            count_noun(
-                plan.outcome.lockfile.dependencies.len(),
-                "dependency",
-                "dependencies",
+            format!(
+                "{dependencies} {}",
+                if dependencies == 1 {
+                    "dependency"
+                } else {
+                    "dependencies"
+                }
             ),
         );
         return Ok(());
@@ -119,17 +125,31 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
         lockfile = %project.project().lockfile_path.display(),
         "wrote module lockfile"
     );
+    let dependencies = outcome.lockfile.dependencies.len();
     output.completed(
         LOCK,
-        count_noun(
-            outcome.lockfile.dependencies.len(),
-            "dependency",
-            "dependencies",
+        format!(
+            "{dependencies} {}",
+            if dependencies == 1 {
+                "dependency"
+            } else {
+                "dependencies"
+            }
         ),
     );
     let changes = relock_change_count(&outcome.stats);
     if changes > 0 {
-        output.detail("Changed", count_noun(changes, "dependency", "dependencies"));
+        output.detail(
+            "Changed",
+            format!(
+                "{changes} {}",
+                if changes == 1 {
+                    "dependency"
+                } else {
+                    "dependencies"
+                }
+            ),
+        );
     }
     Ok(())
 }

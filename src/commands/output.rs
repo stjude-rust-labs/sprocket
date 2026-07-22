@@ -83,9 +83,3 @@ impl CommandOutput {
         self.printer.confirm(prompt)
     }
 }
-
-/// Formats a count with a singular or plural noun.
-pub(crate) fn count_noun(count: usize, singular: &str, plural: &str) -> String {
-    let noun = if count == 1 { singular } else { plural };
-    format!("{count} {noun}")
-}

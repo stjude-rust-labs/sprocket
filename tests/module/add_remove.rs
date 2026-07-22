@@ -239,7 +239,7 @@ fn add_git_path_infers_dependency_name() {
         "add",
         "stjudecloud/workflows",
         "--path",
-        "modules/alchemy",
+        "modules/foobar",
         "--branch",
         "main",
         "--no-lock",
@@ -256,12 +256,12 @@ fn add_git_path_infers_dependency_name() {
     );
     let manifest = fs::read(fixture.consumer().join("module.json")).unwrap();
     let value: serde_json::Value = serde_json::from_slice(&manifest).unwrap();
-    let dep = &value["dependencies"]["alchemy"];
+    let dep = &value["dependencies"]["foobar"];
     assert_eq!(
         dep["git"].as_str(),
         Some("https://github.com/stjudecloud/workflows.git")
     );
-    assert_eq!(dep["path"].as_str(), Some("modules/alchemy"));
+    assert_eq!(dep["path"].as_str(), Some("modules/foobar"));
     assert_eq!(dep["branch"].as_str(), Some("main"));
 }
 

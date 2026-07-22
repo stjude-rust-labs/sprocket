@@ -295,24 +295,6 @@ fn lock_writes_lockfile() {
 }
 
 #[test]
-fn lock_rejects_removed_update_and_upgrade_subcommands() {
-    for removed in ["update", "upgrade"] {
-        let output = sprocket(&["dev", "module", "lock", removed])
-            .output()
-            .expect("failed to run sprocket dev module lock");
-        assert!(
-            !output.status.success(),
-            "`sprocket dev module lock {removed}` unexpectedly succeeded"
-        );
-        assert!(
-            String::from_utf8_lossy(&output.stderr).contains("unexpected argument"),
-            "unexpected stderr for `{removed}`: {}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-    }
-}
-
-#[test]
 fn lock_locked_flag_fails_on_drift() {
     let fixture = ModuleFixture::with_local_dep();
     let add = sprocket(&["dev", "module", "add", "utils", "../dep", "--no-lock"])

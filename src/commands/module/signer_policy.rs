@@ -20,7 +20,6 @@ use super::trust_store::TrustStoreFile;
 use super::trust_store::upsert_signer_identity;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
-use crate::commands::output::count_noun;
 use crate::config::Config;
 
 const ACCEPT: Action = Action::new("Accepted", "accept");
@@ -526,15 +525,29 @@ fn render_identity_fields(
 
 /// Prints a summary action line for accepted signer trust changes.
 fn print_trust_change_summary(accepted: &[SignerChange], trusted: usize, output: CommandOutput) {
+    let accepted_count = accepted.len();
     output.completed(
         ACCEPT,
-        count_noun(accepted.len(), "signer change", "signer changes"),
+        format!(
+            "{accepted_count} signer {}",
+            if accepted_count == 1 {
+                "change"
+            } else {
+                "changes"
+            }
+        ),
     );
     for change in accepted {
         output.detail("Signer", change.accepted_summary());
     }
     if trusted > 0 {
-        output.completed(TRUST, count_noun(trusted, "signer key", "signer keys"));
+        output.completed(
+            TRUST,
+            format!(
+                "{trusted} signer {}",
+                if trusted == 1 { "key" } else { "keys" }
+            ),
+        );
     }
 }
 

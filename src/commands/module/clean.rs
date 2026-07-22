@@ -14,7 +14,6 @@ use super::resolver::ResolverEnvironment;
 use crate::commands::CommandResult;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
-use crate::commands::output::count_noun;
 use crate::config::Config;
 
 const CLEAN: Action = Action::new("Cleaned", "clean");
@@ -102,7 +101,10 @@ pub async fn clean(args: Args, config: Config, output: CommandOutput) -> Command
 fn print_removed_summary(modules: usize, bytes: u64, output: CommandOutput) {
     output.completed(
         CLEAN,
-        count_noun(modules, "cached module", "cached modules"),
+        format!(
+            "{modules} cached {}",
+            if modules == 1 { "module" } else { "modules" }
+        ),
     );
     output.detail("Reclaimed", ByteSize::b(bytes).display().iec());
 }

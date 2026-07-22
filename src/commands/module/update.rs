@@ -29,7 +29,6 @@ use super::signer_policy::signer_change_mode;
 use crate::commands::CommandResult;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
-use crate::commands::output::count_noun;
 use crate::config::Config;
 
 const UPDATE: Action = Action::new("Updated", "update");
@@ -151,7 +150,15 @@ fn print_update_outcome(output: CommandOutput, stats: &RelockStats, dry_run: boo
         return;
     }
 
-    let count = count_noun(stats.updated.len(), "dependency", "dependencies");
+    let count = stats.updated.len();
+    let count = format!(
+        "{count} {}",
+        if count == 1 {
+            "dependency"
+        } else {
+            "dependencies"
+        }
+    );
     if dry_run {
         output.planned(UPDATE, count);
     } else {

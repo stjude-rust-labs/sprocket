@@ -26,7 +26,6 @@ use super::signer_policy::signer_change_mode;
 use crate::commands::CommandResult;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
-use crate::commands::output::count_noun;
 use crate::config::Config;
 
 mod source;
@@ -120,12 +119,16 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
                 )
                 .await?;
             locked.commit(ProjectUpdate::Lockfile(&outcome.lockfile))?;
+            let dependencies = outcome.lockfile.dependencies.len();
             output.completed(
                 LOCK,
-                count_noun(
-                    outcome.lockfile.dependencies.len(),
-                    "dependency",
-                    "dependencies",
+                format!(
+                    "{dependencies} {}",
+                    if dependencies == 1 {
+                        "dependency"
+                    } else {
+                        "dependencies"
+                    }
                 ),
             );
         } else {
@@ -183,12 +186,16 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
         {
             output.detail("Resolved", short_commit(commit));
         }
+        let dependencies = outcome.lockfile.dependencies.len();
         output.detail(
             "Lockfile",
-            count_noun(
-                outcome.lockfile.dependencies.len(),
-                "dependency",
-                "dependencies",
+            format!(
+                "{dependencies} {}",
+                if dependencies == 1 {
+                    "dependency"
+                } else {
+                    "dependencies"
+                }
             ),
         );
     } else {

@@ -16,7 +16,6 @@ use super::signer_policy::signer_change_mode;
 use crate::commands::CommandResult;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
-use crate::commands::output::count_noun;
 use crate::config::Config;
 
 const REMOVE: Action = Action::new("Removed", "remove");
@@ -88,12 +87,16 @@ pub async fn remove(args: Args, config: Config, output: CommandOutput) -> Comman
     if let Some(outcome) = relock {
         tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
         output.completed(REMOVE, format!("`{}`", args.name));
+        let dependencies = outcome.lockfile.dependencies.len();
         output.detail(
             "Lockfile",
-            count_noun(
-                outcome.lockfile.dependencies.len(),
-                "dependency",
-                "dependencies",
+            format!(
+                "{dependencies} {}",
+                if dependencies == 1 {
+                    "dependency"
+                } else {
+                    "dependencies"
+                }
             ),
         );
     } else {

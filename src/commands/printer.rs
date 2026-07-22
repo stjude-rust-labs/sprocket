@@ -1,4 +1,4 @@
-//! Cargo-style status output shared by CLI subcommands.
+//! Status output shared by CLI subcommands.
 
 use std::fmt;
 use std::io;
@@ -7,7 +7,7 @@ use std::io::Write as _;
 use anyhow::Context as _;
 use colored::Colorize as _;
 
-/// A console printer for cargo-style status lines.
+/// A console printer for command status lines.
 ///
 /// Owns the colorization decision so subcommands don't thread a bare
 /// `bool` through every call. Cheap to copy; construct it once from the

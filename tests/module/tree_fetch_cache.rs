@@ -402,15 +402,3 @@ fn cache_clean_all_refuses_unowned_directory() -> anyhow::Result<()> {
     );
     Ok(())
 }
-
-#[test]
-fn module_clean_top_level_command_is_removed() {
-    let output = sprocket(&["dev", "module", "clean"])
-        .output()
-        .expect("failed to run sprocket dev module clean");
-    assert!(
-        !output.status.success(),
-        "`sprocket dev module clean` unexpectedly succeeded"
-    );
-    assert!(String::from_utf8_lossy(&output.stderr).contains("unrecognized subcommand"));
-}

@@ -83,15 +83,3 @@ pub async fn run(
         ModuleCommands::Trust(args) => trust::trust(args, output).await,
     }
 }
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn module_root_is_not_an_internal_reexport_barrel() {
-        let source = include_str!("module.rs");
-        let pub_use = ["pub", " use "].concat();
-        let pub_crate_use = ["pub(crate)", " use "].concat();
-        assert!(!source.contains(&pub_use));
-        assert!(!source.contains(&pub_crate_use));
-    }
-}

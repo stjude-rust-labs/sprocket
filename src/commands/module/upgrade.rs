@@ -37,7 +37,6 @@ use super::signer_policy::signer_change_mode;
 use crate::commands::CommandResult;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
-use crate::commands::output::count_noun;
 use crate::config::Config;
 
 const UPGRADE: Action = Action::new("Upgraded", "upgrade");
@@ -105,9 +104,17 @@ pub async fn upgrade(args: Args, config: Config, output: CommandOutput) -> Comma
         lockfile = %project.project().lockfile_path.display(),
         "wrote module lockfile"
     );
+    let count = changes.changed.len();
     output.completed(
         UPGRADE,
-        count_noun(changes.changed.len(), "dependency", "dependencies"),
+        format!(
+            "{count} {}",
+            if count == 1 {
+                "dependency"
+            } else {
+                "dependencies"
+            }
+        ),
     );
     print_upgrade_details(output, &changes.changed);
     print_lockfile_change_details(output, &changes.outcome.stats);
@@ -259,9 +266,17 @@ fn print_upgrade_plan(output: CommandOutput, plan: UpgradePlan) {
         }
         UpgradePlan::Current => output.current("all version constraints"),
         UpgradePlan::Changes(changes) => {
+            let count = changes.changed.len();
             output.planned(
                 UPGRADE,
-                count_noun(changes.changed.len(), "dependency", "dependencies"),
+                format!(
+                    "{count} {}",
+                    if count == 1 {
+                        "dependency"
+                    } else {
+                        "dependencies"
+                    }
+                ),
             );
             print_upgrade_details(output, &changes.changed);
             print_lockfile_change_details(output, &changes.outcome.stats);

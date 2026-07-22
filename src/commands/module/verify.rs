@@ -18,7 +18,6 @@ use super::signer_policy::render_signer;
 use crate::commands::CommandResult;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
-use crate::commands::output::count_noun;
 use crate::config::Config;
 
 const VERIFY: Action = Action::new("Verified", "verify");
@@ -184,7 +183,17 @@ fn verify_lockfile(
         ));
     }
 
-    output.completed(VERIFY, count_noun(verified, "dependency", "dependencies"));
+    output.completed(
+        VERIFY,
+        format!(
+            "{verified} {}",
+            if verified == 1 {
+                "dependency"
+            } else {
+                "dependencies"
+            }
+        ),
+    );
     Ok(unsigned)
 }
 

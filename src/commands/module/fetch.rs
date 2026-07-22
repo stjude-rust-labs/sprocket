@@ -11,7 +11,6 @@ use super::resolver::ResolverEnvironment;
 use crate::commands::CommandResult;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
-use crate::commands::output::count_noun;
 use crate::config::Config;
 
 const FETCH: Action = Action::new("Fetched", "fetch");
@@ -46,7 +45,17 @@ pub async fn fetch(args: Args, config: Config, output: CommandOutput) -> Command
     if fetched == 0 {
         output.current("module cache");
     } else {
-        output.completed(FETCH, count_noun(fetched, "dependency", "dependencies"));
+        output.completed(
+            FETCH,
+            format!(
+                "{fetched} {}",
+                if fetched == 1 {
+                    "dependency"
+                } else {
+                    "dependencies"
+                }
+            ),
+        );
     }
     Ok(())
 }
