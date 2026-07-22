@@ -19,12 +19,14 @@ use crate::resolver::cache::CacheKey;
 use crate::resolver::scope::DependencyScope;
 use crate::resolver::scope::ResolutionMode;
 
+/// Builds a deterministic content hash by repeating one byte.
 fn hash_from_byte(byte: u8) -> crate::hash::ContentHash {
     format!("sha256:{}", hex::encode([byte; 32]))
         .parse()
         .unwrap()
 }
 
+/// Builds a resolver with one named locked Git dependency.
 fn locked_git_resolver(
     cache: &tempfile::TempDir,
     dep: &str,

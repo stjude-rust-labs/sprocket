@@ -154,6 +154,7 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
     Ok(())
 }
 
+/// Counts all dependency additions, removals, and updates in a relock.
 fn relock_change_count(stats: &RelockStats) -> usize {
     stats.added.len() + stats.removed.len() + stats.updated.len()
 }

@@ -86,6 +86,7 @@ pub async fn list(args: ListArgs, output: CommandOutput) -> CommandResult<()> {
     Ok(())
 }
 
+/// Recursively prints a dependency subtree up to the requested depth.
 fn print_tree_level(
     entries: &DependencyMap,
     prefix: &str,
@@ -126,10 +127,12 @@ fn print_tree_level(
     }
 }
 
+/// Collects every dependency in a lockfile into sorted display rows.
 fn collect_all_rows(lock: &Lockfile, rows: &mut BTreeSet<(String, String)>) {
     collect_rows_from_map(&lock.dependencies, rows);
 }
 
+/// Recursively collects dependency names and resolved sources.
 fn collect_rows_from_map(entries: &DependencyMap, rows: &mut BTreeSet<(String, String)>) {
     for (name, entry) in entries {
         rows.insert((name.manifest().to_string(), resolved_source(&entry.source)));
@@ -137,6 +140,7 @@ fn collect_rows_from_map(entries: &DependencyMap, rows: &mut BTreeSet<(String, S
     }
 }
 
+/// Prints dependency rows as an aligned table.
 fn print_rows(rows: Vec<(String, String)>, output: CommandOutput) {
     let alias_header = "name";
     let source_header = "source";

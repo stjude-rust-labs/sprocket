@@ -29,6 +29,7 @@ pub(super) fn module(manifest: Manifest, root: &Path) -> Module {
     Module::new(Arc::new(manifest), root.to_path_buf())
 }
 
+/// Returns a deterministic content hash for lockfile fixtures.
 pub(super) fn checksum() -> crate::hash::ContentHash {
     // SAFETY: the literal is a valid SHA-256 content hash.
     "sha256:0000000000000000000000000000000000000000000000000000000000000000"
@@ -60,10 +61,12 @@ pub(super) fn write_manifest(dir: &Path, name: &str, version: &str, deps: &[(&st
     fs::write(dir.join(crate::MANIFEST_FILENAME), body).unwrap();
 }
 
+/// Builds a resolver with an empty lockfile and the supplied cache root.
 pub(super) fn resolver(cache: &TempDir) -> GitResolver {
     resolver_with_lockfile(cache, Lockfile::default())
 }
 
+/// Builds a resolver with the supplied cache root and lockfile.
 pub(super) fn resolver_with_lockfile(cache: &TempDir, lockfile: Lockfile) -> GitResolver {
     GitResolver::builder()
         .cache_root(cache.path())
@@ -86,6 +89,8 @@ pub(super) async fn resolve_and_lock(
     .await
 }
 
+/// Resolves and locks a fixture, then configures the locked resolver's policy
+/// and trust.
 pub(super) async fn resolve_and_lock_with_config(
     cache: &TempDir,
     consumer: &Module,
@@ -108,6 +113,7 @@ pub(super) async fn resolve_and_lock_with_config(
     (locked, outcome.lockfile)
 }
 
+/// Builds a locked Git fixture entry with the standard URL and commit.
 pub(super) fn locked_git_entry(selector: GitSelector) -> DependencyEntry {
     locked_git_entry_with(
         "https://github.com/openwdl/tasks",
@@ -116,6 +122,7 @@ pub(super) fn locked_git_entry(selector: GitSelector) -> DependencyEntry {
     )
 }
 
+/// Builds a locked Git fixture entry with explicit source data.
 pub(super) fn locked_git_entry_with(
     url: &str,
     sha: &str,
@@ -140,6 +147,7 @@ pub(super) fn locked_git_entry_with(
 
 #[test]
 fn git_resolver_facade_exposes_only_command_api() {
+    /// Asserts that a facade type is safe to share between resolver tasks.
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<GitResolver>();
     assert_send_sync::<GitResolverBuilder>();

@@ -82,6 +82,7 @@ pub(super) fn version_constraint(requirement: &str) -> String {
     format!("v{version}")
 }
 
+/// Formats selector, path, and commit changes for one dependency update.
 fn update_details(
     from_path: Option<&str>,
     to_path: Option<&str>,
@@ -133,6 +134,7 @@ fn update_details(
     details.join(", ")
 }
 
+/// Formats a serialized selector for command output.
 fn selector_detail(selector: &str) -> String {
     selector.split_once(' ').map_or_else(
         || format!("`{selector}`"),
@@ -140,6 +142,7 @@ fn selector_detail(selector: &str) -> String {
     )
 }
 
+/// Shortens a commit identifier to at most seven characters.
 pub(super) fn short_commit(commit: &str) -> &str {
     &commit[..7.min(commit.len())]
 }

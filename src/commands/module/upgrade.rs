@@ -121,12 +121,17 @@ pub async fn upgrade(args: Args, config: Config, output: CommandOutput) -> Comma
     Ok(())
 }
 
+/// The result of checking version-based dependencies for newer constraints.
 enum UpgradePlan {
+    /// No selected dependency uses a version selector.
     NoEligible,
+    /// Every selected version constraint is current.
     Current,
+    /// One or more version constraints and lockfile entries need changes.
     Changes(Box<UpgradeChanges>),
 }
 
+/// Manifest, lockfile, and trust changes prepared by an upgrade.
 struct UpgradeChanges {
     existing: Lockfile,
     manifest_value: serde_json::Value,
@@ -135,6 +140,7 @@ struct UpgradeChanges {
     identities: SignerIdentityMap,
 }
 
+/// Discovers newer versions and prepares the resulting project changes.
 async fn plan_upgrade(
     args: &Args,
     config: &Config,
@@ -259,6 +265,7 @@ async fn plan_upgrade(
     })))
 }
 
+/// Prints the result of a dry-run upgrade plan.
 fn print_upgrade_plan(output: CommandOutput, plan: UpgradePlan) {
     match plan {
         UpgradePlan::NoEligible => {
@@ -288,12 +295,14 @@ fn print_upgrade_plan(output: CommandOutput, plan: UpgradePlan) {
     }
 }
 
+/// Prints dependency changes produced while refreshing the lockfile.
 fn print_lockfile_change_details(output: CommandOutput, stats: &RelockStats) {
     for change in &stats.updated {
         output.detail(change.name.manifest(), dependency_update(change));
     }
 }
 
+/// Prints old and new version constraints for upgraded dependencies.
 fn print_upgrade_details(output: CommandOutput, changed: &[(DependencyName, String, String)]) {
     for (name, old_req, new_req) in changed {
         output.detail(
@@ -307,6 +316,7 @@ fn print_upgrade_details(output: CommandOutput, changed: &[(DependencyName, Stri
     }
 }
 
+/// Clones a Git dependency source with a wildcard version selector.
 fn wildcard_version_source(source: &DependencySource) -> anyhow::Result<DependencySource> {
     let wildcard = GitSelector::Version("*".parse()?);
     match source {
@@ -324,6 +334,7 @@ fn wildcard_version_source(source: &DependencySource) -> anyhow::Result<Dependen
     }
 }
 
+/// Replaces one dependency's version selector in a manifest value.
 fn set_version_selector(
     manifest: &mut serde_json::Value,
     name: &str,

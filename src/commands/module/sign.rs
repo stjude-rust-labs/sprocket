@@ -69,6 +69,7 @@ pub async fn sign(args: Args, output: CommandOutput) -> CommandResult<()> {
     Ok(())
 }
 
+/// Resolves a signing key from the CLI, Git configuration, or the default path.
 fn signing_key_path(explicit: Option<PathBuf>, working_dir: &Path) -> anyhow::Result<PathBuf> {
     if let Some(path) = explicit {
         tracing::trace!("using explicit signing key path");
@@ -94,6 +95,7 @@ fn signing_key_path(explicit: Option<PathBuf>, working_dir: &Path) -> anyhow::Re
     Ok(path)
 }
 
+/// Returns the private signing key path configured by Git when it exists.
 fn git_signing_key_path(working_dir: &Path) -> Option<PathBuf> {
     let output = Command::new("git")
         .args(["config", "--get", "user.signingkey"])
@@ -132,6 +134,7 @@ fn git_signing_key_path(working_dir: &Path) -> Option<PathBuf> {
     None
 }
 
+/// Returns the conventional Ed25519 private key path below a home directory.
 fn default_ed25519_key_path(home: &Path) -> PathBuf {
     home.join(".ssh").join("id_ed25519")
 }
@@ -155,6 +158,7 @@ fn home_dir() -> Option<PathBuf> {
     dirs::home_dir()
 }
 
+/// Reads identity metadata from the matching OpenSSH public key.
 fn signer_identity_for_key_path(path: &Path, expected: VerifyingKey) -> Option<SignerIdentity> {
     let pub_path = if path.extension().and_then(|ext| ext.to_str()) == Some("pub") {
         path.to_path_buf()
@@ -175,6 +179,7 @@ fn signer_identity_for_key_path(path: &Path, expected: VerifyingKey) -> Option<S
     parse_openssh_public_key_identity(&key_text)
 }
 
+/// Writes a module signature through a temporary sibling file.
 fn write_signature_atomically(path: &Path, signature: &ModuleSignature) -> anyhow::Result<()> {
     let file_name = path
         .file_name()

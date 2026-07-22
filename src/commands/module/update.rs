@@ -87,12 +87,14 @@ pub async fn update(args: Args, config: Config, output: CommandOutput) -> Comman
     Ok(())
 }
 
+/// The existing state and relock result prepared by an update.
 struct UpdatePlan {
     existing: Lockfile,
     outcome: RelockOutcome,
     identities: SignerIdentityMap,
 }
 
+/// Resolves selected dependencies and prepares their lockfile update.
 async fn plan_update(
     args: &Args,
     config: &Config,
@@ -144,6 +146,7 @@ async fn plan_update(
     })
 }
 
+/// Prints an update summary and each changed dependency.
 fn print_update_outcome(output: CommandOutput, stats: &RelockStats, dry_run: bool) {
     if stats.updated.is_empty() {
         output.current("module lockfile is up to date");

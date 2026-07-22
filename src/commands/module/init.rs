@@ -66,6 +66,7 @@ pub async fn init(
     run_init(args, &config, output).map_err(Into::into)
 }
 
+/// Validates the target and writes the module manifest and optional scaffold.
 fn run_init(args: Args, config: &ModuleInitConfig, output: CommandOutput) -> anyhow::Result<()> {
     let Args {
         path,
@@ -299,6 +300,7 @@ fn validate_name_and_license(name: &str, license: &str) -> anyhow::Result<()> {
     Ok(())
 }
 
+/// Rejects an explicitly supplied author identity field when it is empty.
 fn validate_cli_identity(field: &str, value: Option<&str>) -> anyhow::Result<()> {
     if value.is_some_and(|value| value.trim().is_empty()) {
         anyhow::bail!("`--{field}` cannot be empty");
@@ -307,12 +309,14 @@ fn validate_cli_identity(field: &str, value: Option<&str>) -> anyhow::Result<()>
 }
 
 #[derive(Debug, PartialEq, Eq)]
+/// An author name and email resolved from CLI, Sprocket, or Git configuration.
 struct AuthorIdentity {
     name: Option<String>,
     email: Option<String>,
 }
 
 impl AuthorIdentity {
+    /// Resolves each identity field using CLI, Sprocket, then Git precedence.
     fn resolve(
         cli_name: Option<&str>,
         cli_email: Option<&str>,
@@ -325,6 +329,7 @@ impl AuthorIdentity {
         }
     }
 
+    /// Formats the resolved identity for the manifest's `authors` array.
     fn manifest_entry(self) -> Option<String> {
         match (self.name, self.email) {
             (Some(name), Some(email)) => Some(format!("{name} <{email}>")),
@@ -335,6 +340,7 @@ impl AuthorIdentity {
     }
 }
 
+/// Resolves one identity field from CLI, Sprocket, then Git configuration.
 fn resolve_identity_field(
     cli: Option<&str>,
     configured: Option<&str>,
@@ -346,6 +352,7 @@ fn resolve_identity_field(
         .or_else(git)
 }
 
+/// Infers a module name from the target directory.
 fn infer_name(path: &Path) -> String {
     path.file_name()
         .and_then(|name| name.to_str())
@@ -372,6 +379,7 @@ fn git_config(dir: &Path, key: &str) -> Option<String> {
     (!value.is_empty()).then(|| value.to_string())
 }
 
+/// Infers and sanitizes the repository URL from the Git `origin` remote.
 fn infer_repository(path: &Path) -> Option<String> {
     let output = Command::new("git")
         .arg("remote")

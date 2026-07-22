@@ -38,6 +38,7 @@ pub(super) enum TrustModeArg {
 }
 
 impl From<TrustModeArg> for TrustMode {
+    /// Converts the CLI trust mode into its resolver representation.
     fn from(value: TrustModeArg) -> Self {
         match value {
             TrustModeArg::Confirm => TrustMode::Confirm,
@@ -592,10 +593,12 @@ mod tests {
         }
     }
 
+    /// Builds a deterministic verifying key for a test seed.
     fn vkey(seed: u64) -> wdl_modules::signing::VerifyingKey {
         wdl_modules::signing::test_utils::signing_key_from_seed(seed).verifying_key()
     }
 
+    /// Builds a trust store containing one key.
     fn trust_for(key: wdl_modules::signing::VerifyingKey) -> TrustStore {
         let mut store = TrustStore::default();
         store.insert_key(key);
@@ -621,6 +624,7 @@ mod tests {
         (dir, file)
     }
 
+    /// Applies signer policy to fixture lockfiles and a trust store.
     fn enforce(
         existing: &Lockfile,
         new: &Lockfile,

@@ -169,6 +169,7 @@ mod tests {
 
     use super::*;
 
+    /// Builds a deterministic verifying key for a test seed.
     fn vkey(seed: u64) -> VerifyingKey {
         wdl_modules::signing::test_utils::signing_key_from_seed(seed).verifying_key()
     }

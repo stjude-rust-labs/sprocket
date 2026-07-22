@@ -23,6 +23,7 @@ use crate::resolver::cache::CacheKey;
 use crate::resolver::git::CACHE_MARKER_FILENAME;
 use crate::resolver::git::GitError;
 
+/// Writes and loads a consumer module fixture at the supplied root.
 fn consumer(root: &Path) -> Module {
     write_manifest(root, "consumer", "0.1.0", &[]);
     let manifest =
@@ -30,12 +31,14 @@ fn consumer(root: &Path) -> Module {
     module(manifest, root)
 }
 
+/// Returns the cache leaf for a Git URL and commit.
 fn cache_leaf(cache: &TempDir, url: &str, sha: &str) -> PathBuf {
     let url = url.parse().unwrap();
     let sha: GitCommit = sha.parse().unwrap();
     CacheKey::from_git_url(&url, &sha).absolute_path(cache.path())
 }
 
+/// Writes a minimal module into a cache leaf.
 fn write_cache_leaf(leaf: &Path, name: &str) {
     fs::create_dir_all(leaf).unwrap();
     write_manifest(leaf, name, "1.0.0", &[]);

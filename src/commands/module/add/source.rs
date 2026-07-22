@@ -14,11 +14,15 @@ use super::super::resolver::ResolverEnvironment;
 use super::Args;
 use crate::config::Config;
 
+/// A dependency source and optional discovery note ready for manifest output.
 pub(super) struct BuiltSource {
+    /// The normalized dependency source.
     pub(super) source: DependencySource,
+    /// A note describing an automatically selected fallback.
     pub(super) note: Option<String>,
 }
 
+/// Builds a dependency source from the `module add` arguments.
 pub(super) struct DependencySourceBuilder<'a> {
     args: &'a Args,
     config: &'a Config,
@@ -27,6 +31,7 @@ pub(super) struct DependencySourceBuilder<'a> {
 }
 
 impl<'a> DependencySourceBuilder<'a> {
+    /// Creates a dependency source builder for one dependency.
     pub(super) fn new(
         args: &'a Args,
         config: &'a Config,
@@ -41,6 +46,7 @@ impl<'a> DependencySourceBuilder<'a> {
         }
     }
 
+    /// Builds a local or Git dependency source from the supplied arguments.
     pub(super) async fn build(self) -> anyhow::Result<BuiltSource> {
         let Some(url) = resolve_git_url(self.source_arg, self.args.git_platform, self.config)?
         else {
@@ -109,6 +115,7 @@ impl<'a> DependencySourceBuilder<'a> {
         })
     }
 
+    /// Selects the newest version tag or falls back to the default branch.
     async fn discover_latest_selector(
         &self,
         url: &url::Url,
@@ -156,13 +163,19 @@ impl<'a> DependencySourceBuilder<'a> {
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// The syntax inferred from a dependency source argument.
 enum SourceKind {
+    /// An absolute URL.
     Url,
+    /// A hosted Git repository shorthand.
     Shorthand,
+    /// An unsupported scp-like Git location.
     ScpLike,
+    /// A local filesystem path.
     LocalPath,
 }
 
+/// Classifies a source argument without accessing the filesystem or network.
 fn infer_source_kind(raw: &str) -> SourceKind {
     if url::Url::parse(raw).is_ok() {
         SourceKind::Url
@@ -175,6 +188,7 @@ fn infer_source_kind(raw: &str) -> SourceKind {
     }
 }
 
+/// Builds a temporary Git source that matches every semantic version.
 fn wildcard_version_source(url: url::Url, path: Option<GitModulePath>) -> DependencySource {
     DependencySource::Git {
         url,
@@ -184,6 +198,7 @@ fn wildcard_version_source(url: url::Url, path: Option<GitModulePath>) -> Depend
     }
 }
 
+/// Joins an optional module subpath onto a local dependency path.
 fn local_dependency_path(source: &str, module_path: Option<&str>) -> anyhow::Result<PathBuf> {
     let mut path = PathBuf::from(source);
     if let Some(module_path) = module_path {
@@ -193,6 +208,8 @@ fn local_dependency_path(source: &str, module_path: Option<&str>) -> anyhow::Res
     Ok(path)
 }
 
+/// Resolves URL and hosted shorthand sources while leaving local paths
+/// unresolved.
 fn resolve_git_url(
     source: &str,
     platform: Option<GitPlatform>,
@@ -244,6 +261,7 @@ fn resolve_git_url(
     }
 }
 
+/// Returns a stable diagnostic label for a Git selector.
 fn git_selector_kind(selector: &GitSelector) -> &'static str {
     match selector {
         GitSelector::Version(_) => "version",
@@ -253,6 +271,7 @@ fn git_selector_kind(selector: &GitSelector) -> &'static str {
     }
 }
 
+/// Returns a stable diagnostic label for the requested selector.
 pub(super) fn selector_arg_kind(args: &Args) -> &'static str {
     if args.commit.is_some() {
         "commit"
@@ -294,12 +313,14 @@ mod tests {
     use super::super::super::project::Locator;
     use super::*;
 
+    /// A temporary Git repository used for source-discovery tests.
     struct GitFixture {
         dir: tempfile::TempDir,
         repo: std::path::PathBuf,
     }
 
     impl GitFixture {
+        /// Creates an empty Git repository and isolated module cache.
         fn new() -> anyhow::Result<Self> {
             let dir = tempfile::tempdir()?;
             let repo = dir.path().join("repo");
@@ -308,11 +329,13 @@ mod tests {
             Ok(Self { dir, repo })
         }
 
+        /// Returns the repository as a `file` URL.
         fn url(&self) -> anyhow::Result<url::Url> {
             url::Url::from_file_path(&self.repo)
                 .map_err(|()| anyhow::anyhow!("fixture path is not a valid file URL"))
         }
 
+        /// Builds configuration that permits the fixture's `file` URL.
         fn config(&self) -> Config {
             let mut config = Config::default();
             config.modules.cache_path = Some(self.dir.path().join("cache"));
@@ -320,6 +343,7 @@ mod tests {
             config
         }
 
+        /// Writes files and commits the resulting repository state.
         fn commit(&self, files: &[(&str, &str)]) -> anyhow::Result<Oid> {
             for (path, contents) in files {
                 let path = self.repo.join(path);
@@ -355,12 +379,14 @@ mod tests {
             Ok(commit)
         }
 
+        /// Creates a lightweight tag at a fixture commit.
         fn tag(&self, name: &str, commit: Oid) -> anyhow::Result<()> {
             let repository = Repository::open(&self.repo)?;
             repository.reference(&format!("refs/tags/{name}"), commit, true, "fixture tag")?;
             Ok(())
         }
 
+        /// Returns the branch referenced by the fixture's `HEAD`.
         fn default_branch(&self) -> anyhow::Result<String> {
             Repository::open(&self.repo)?
                 .head()?
@@ -370,6 +396,7 @@ mod tests {
         }
     }
 
+    /// Builds default `module add` arguments for a source.
     fn make_args(source: &str) -> Args {
         Args {
             source_or_name: source.to_string(),
@@ -389,6 +416,7 @@ mod tests {
         }
     }
 
+    /// Returns the standard dependency name used by source tests.
     fn dependency_name() -> DependencyName {
         // SAFETY: `dep` is a valid dependency name.
         "dep".parse().unwrap()

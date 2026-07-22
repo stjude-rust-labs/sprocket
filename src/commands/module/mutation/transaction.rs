@@ -289,6 +289,7 @@ mod tests {
     use super::super::STATE_DIRECTORY;
     use super::*;
 
+    /// Builds a minimal project rooted in a test directory.
     fn test_project(root: &Path, lockfile_path: PathBuf) -> anyhow::Result<Project> {
         let manifest_path = root.join(wdl_modules::MANIFEST_FILENAME);
         std::fs::write(&manifest_path, br#"{"name":"test","license":"MIT"}"#)?;

@@ -67,6 +67,7 @@ pub async fn verify(args: Args, config: Config, output: CommandOutput) -> Comman
     Ok(())
 }
 
+/// Verifies every signature and lockfile available for the current module.
 fn verify_all(
     project: &Project,
     config: &Config,
@@ -99,6 +100,7 @@ fn verify_all(
     Ok(())
 }
 
+/// Verifies the current module's signature against its content digest.
 fn verify_signature(project: &Project, output: CommandOutput) -> anyhow::Result<()> {
     let signature_path = project.root.join(wdl_modules::SIGNATURE_FILENAME);
     tracing::trace!(signature = %signature_path.display(), "reading module signature");
@@ -118,6 +120,7 @@ fn verify_signature(project: &Project, output: CommandOutput) -> anyhow::Result<
     Ok(())
 }
 
+/// Verifies locked dependency contents and reports unsigned dependencies.
 fn verify_lockfile(
     project: &Project,
     config: &Config,
@@ -197,6 +200,7 @@ fn verify_lockfile(
     Ok(unsigned)
 }
 
+/// Reports that the current module has no signature.
 fn print_unsigned_current_summary(output: CommandOutput, strict: bool) {
     print_unsigned_summary(
         output,
@@ -205,6 +209,7 @@ fn print_unsigned_current_summary(output: CommandOutput, strict: bool) {
     );
 }
 
+/// Reports the number of locked dependencies without signatures.
 fn print_unsigned_dependency_summary(unsigned: usize, output: CommandOutput, strict: bool) {
     print_unsigned_summary(output, strict, unsigned_dependency_summary(unsigned));
 }
@@ -219,6 +224,7 @@ fn print_unsigned_summary(output: CommandOutput, strict: bool, rest: impl std::f
     }
 }
 
+/// Formats an unsigned dependency count for verification output.
 fn unsigned_dependency_summary(unsigned: usize) -> String {
     match unsigned {
         1 => "signature verification for 1 dependency without a signature".to_string(),
@@ -226,6 +232,8 @@ fn unsigned_dependency_summary(unsigned: usize) -> String {
     }
 }
 
+/// Rejects unsigned modules and dependencies when strict verification is
+/// active.
 fn fail_if_strict_unsigned(
     current: Option<&str>,
     dependencies: &[DependencyName],

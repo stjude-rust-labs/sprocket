@@ -211,6 +211,7 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
     Ok(())
 }
 
+/// Prints the dependency source, selector, and optional module path.
 fn print_source_details(output: CommandOutput, source: &DependencySource) {
     match source {
         DependencySource::LocalPath { path, .. } => output.detail("Source", path.display()),
@@ -229,6 +230,7 @@ fn print_source_details(output: CommandOutput, source: &DependencySource) {
     }
 }
 
+/// Resolves the dependency name and source from positional and named arguments.
 fn dependency_name_and_source(args: &Args) -> anyhow::Result<(DependencyName, String)> {
     let (name, source) = if let Some(source) = &args.source {
         if args.name.is_some() {
@@ -264,6 +266,8 @@ fn dependency_name_and_source(args: &Args) -> anyhow::Result<(DependencyName, St
     Ok((parsed, source))
 }
 
+/// Infers a dependency name from its module path, shorthand, URL, or local
+/// path.
 fn infer_dependency_name(source: &str, module_path: Option<&str>) -> anyhow::Result<String> {
     if let Some(path) = module_path
         && let Some(name) = path.split('/').rev().find(|segment| !segment.is_empty())
@@ -316,6 +320,7 @@ fn infer_dependency_name(source: &str, module_path: Option<&str>) -> anyhow::Res
     anyhow::bail!("could not infer a dependency name from `{source}`; specify `--name`")
 }
 
+/// Removes a trailing `.git` suffix from an inferred dependency name.
 fn strip_git_suffix(name: &str) -> &str {
     name.strip_suffix(".git").unwrap_or(name)
 }

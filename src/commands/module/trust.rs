@@ -263,6 +263,7 @@ pub async fn destroy(output: CommandOutput) -> CommandResult<()> {
     Ok(())
 }
 
+/// Formats optional trusted signer identity metadata for display.
 fn format_identity(identity: &wdl_modules::resolver::TrustedIdentity) -> String {
     if let Some(comment) = identity.comment.as_deref() {
         return format!(" ({comment})");

@@ -20,6 +20,7 @@ use crate::resolver::MissingFileKind;
 use crate::resolver::Resolver;
 use crate::resolver::ResolverError;
 
+/// Parses a fixture-relative path.
 fn rel(s: &str) -> crate::relative_path::RelativePath {
     s.parse().unwrap()
 }
