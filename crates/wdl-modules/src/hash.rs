@@ -273,7 +273,7 @@ pub fn hash_directory(root: impl AsRef<Path>) -> Result<ContentHash, HashError> 
     let mut hasher = Hasher::new(root.to_path_buf());
 
     crate::module_walk::walk_module_tree(root, &mut |path: &Path, _size| {
-        // The walker only yields paths under `root`.
+        // SAFETY: the walker only yields paths under `root`.
         let rel_path = path.strip_prefix(root).unwrap();
         let rel = rel_path
             .to_str()

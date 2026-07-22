@@ -51,7 +51,7 @@ impl GitResolver {
         let url = url.clone();
         tokio::task::spawn_blocking(move || fetcher.default_branch(&url, scope))
             .await
-            // The closure performs pure libgit2 work and does
+            // SAFETY: the closure performs pure libgit2 work and does
             // not panic; `JoinError` only occurs on runtime shutdown.
             .unwrap()
     }
@@ -121,7 +121,7 @@ impl GitResolver {
                     ))
                 })
                 .await
-                // The spawned closure performs pure libgit2 work
+                // SAFETY: the spawned closure performs pure libgit2 work
                 // and does not panic; a `JoinError` would only fire on
                 // runtime shutdown, in which case re-panicking is fine.
                 .unwrap()
@@ -132,8 +132,8 @@ impl GitResolver {
 
     /// Recursively resolves a dependency map for `resolve_tree`.
     ///
-    /// Each iteration: policy check, materialize, read manifest, cycle
-    /// check, verify, recurse into transitive deps, assemble result.
+    /// Each iteration checks policy, materializes and verifies the module,
+    /// resolves transitive dependencies, and assembles the result.
     fn resolve_dependencies<'a>(
         &'a self,
         deps: &'a BTreeMap<DependencyName, DependencySource>,
@@ -258,6 +258,8 @@ impl GitResolver {
                 // module root so that relative `LocalPath` entries in its
                 // own manifest resolve against the right directory.
                 let child_root = module_root.module_root();
+                // Keep the current dependency in the chain while resolving
+                // descendants so cycle errors can report the complete path.
                 chain.push((name.clone(), resolved_source.clone()));
                 let inner = self
                     .resolve_dependencies(
@@ -268,6 +270,8 @@ impl GitResolver {
                     )
                     .await
                     .inspect_err(|_| {
+                        // Restore the caller's chain before propagating an
+                        // error from a descendant.
                         chain.pop();
                     })?;
                 chain.pop();
@@ -311,7 +315,7 @@ impl GitResolver {
                 let path_prefix_owned = path_prefix.map(str::to_string);
                 let refs = tokio::task::spawn_blocking(move || fetcher.list_tags(&url, scope))
                     .await
-                    // The closure performs only Git work; a
+                    // SAFETY: the closure performs only Git work; a
                     // `JoinError` would only fire on runtime shutdown.
                     .unwrap()?;
                 let (version, commit) = crate::resolver::versions::resolve_version_to_commit(
@@ -337,7 +341,7 @@ impl GitResolver {
                 let fetcher = self.fetcher();
                 let refs = tokio::task::spawn_blocking(move || fetcher.list_tags(&url, scope))
                     .await
-                    // The closure does not panic.
+                    // SAFETY: the closure performs only Git work and does not panic.
                     .unwrap()?;
                 let commit =
                     refs.get(tag)
@@ -354,7 +358,7 @@ impl GitResolver {
                 let fetcher = self.fetcher();
                 let refs = tokio::task::spawn_blocking(move || fetcher.list_branches(&url, scope))
                     .await
-                    // The closure does not panic.
+                    // SAFETY: the closure performs only Git work and does not panic.
                     .unwrap()?;
                 let commit =
                     refs.get(branch)
@@ -371,10 +375,9 @@ impl GitResolver {
                 // full SHA by cloning the repository into a temporary
                 // directory under the cache root and running rev-parse.
                 if commit.is_full() {
-                    let full = GitCommit::try_from(commit.as_str().to_string())
-                        // `is_full` guarantees exactly 40 lowercase
-                        // hex characters, which `GitCommit` accepts.
-                        .expect("a full commit-ish is a valid commit SHA");
+                    // SAFETY: `is_full` guarantees exactly 40 lowercase hex
+                    // characters, which `GitCommit` accepts.
+                    let full = GitCommit::try_from(commit.as_str().to_string()).unwrap();
                     return Ok((None, full));
                 }
                 let url = url.clone();
@@ -387,13 +390,13 @@ impl GitResolver {
                     fetcher.resolve_commit_prefix(&url, &prefix, scope, &expand_dir)
                 })
                 .await
-                // The closure performs only Git work and does not panic.
+                // SAFETY: the closure performs only Git work and does not panic.
                 .unwrap();
                 let _ = std::fs::remove_dir_all(&work_dir);
                 let full = full?;
-                // A resolved Git OID is always 40 lowercase hex characters.
-                let commit =
-                    GitCommit::try_from(full).expect("a resolved Git OID is a valid commit SHA");
+                // SAFETY: a resolved Git OID is always 40 lowercase hex
+                // characters, which `GitCommit` accepts.
+                let commit = GitCommit::try_from(full).unwrap();
                 Ok((None, commit))
             }
         }

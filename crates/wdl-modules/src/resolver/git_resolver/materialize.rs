@@ -270,7 +270,7 @@ impl GitResolver {
             )
         })
         .await
-        // The closure performs only libgit2 work and
+        // SAFETY: the closure performs only libgit2 work and
         // does not panic; a `JoinError` would only fire on
         // runtime shutdown.
         .unwrap();
@@ -514,6 +514,7 @@ pub(super) fn resolve_normalized_subpath(
             }
             1 => {
                 current.push(&matches[0]);
+                // SAFETY: this branch runs only when `matches` has one item.
                 parts.push(matches.pop().unwrap());
             }
             _ => {
@@ -559,7 +560,7 @@ pub(super) fn exclude_set(
         builder.add(compile(s)?);
         builder.add(compile(&format!("{}/**", s.trim_end_matches('/')))?);
     }
-    // `GlobSetBuilder::build` only consolidates already-compiled
+    // SAFETY: `GlobSetBuilder::build` only consolidates already-compiled
     // globs; `GlobBuilder::build` above is the validating step, so by the
     // time we reach this call there is nothing left for `build` to reject.
     Ok(builder.build().unwrap())

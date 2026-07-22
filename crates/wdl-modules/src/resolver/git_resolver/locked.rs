@@ -132,7 +132,7 @@ impl GitResolver {
     }
 
     /// Verifies every locked dependency reachable from `consumer` without
-    /// fetching.
+    /// fetching and returns the first failure encountered.
     pub fn verify_locked(&self, consumer: &Module) -> Result<usize, ResolverError> {
         let report = self.verify_locked_report(consumer)?;
         if let Some((_, err)) = report.errors.into_iter().next() {

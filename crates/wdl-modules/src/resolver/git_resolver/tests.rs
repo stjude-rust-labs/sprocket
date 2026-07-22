@@ -30,6 +30,7 @@ pub(super) fn module(manifest: Manifest, root: &Path) -> Module {
 }
 
 pub(super) fn checksum() -> crate::hash::ContentHash {
+    // SAFETY: the literal is a valid SHA-256 content hash.
     "sha256:0000000000000000000000000000000000000000000000000000000000000000"
         .parse()
         .unwrap()
@@ -45,6 +46,7 @@ pub(super) fn json_path(path: &Path) -> String {
 /// optional `dependencies` map (each value is the JSON-encoded
 /// dependency source).
 pub(super) fn write_manifest(dir: &Path, name: &str, version: &str, deps: &[(&str, &str)]) {
+    // SAFETY: test fixture directories are writable temporary directories.
     fs::create_dir_all(dir).unwrap();
     let deps_obj = if deps.is_empty() {
         String::new()
@@ -54,6 +56,7 @@ pub(super) fn write_manifest(dir: &Path, name: &str, version: &str, deps: &[(&st
     };
     let body =
         format!("{{\"name\":\"{name}\",\"version\":\"{version}\",\"license\":\"MIT\"{deps_obj}}}");
+    // SAFETY: the fixture directory exists and is writable.
     fs::write(dir.join(crate::MANIFEST_FILENAME), body).unwrap();
 }
 
@@ -90,7 +93,9 @@ pub(super) async fn resolve_and_lock_with_config(
     trust: TrustStore,
 ) -> (GitResolver, Lockfile) {
     let r = resolver(cache);
+    // SAFETY: callers construct resolvable test fixtures.
     let tree = r.resolve_tree(consumer).await.unwrap();
+    // SAFETY: the resolved tree contains every declared fixture dependency.
     let outcome =
         crate::resolver::lock::partial_relock(&consumer.manifest, &Lockfile::default(), &tree)
             .unwrap();
@@ -116,10 +121,14 @@ pub(super) fn locked_git_entry_with(
     sha: &str,
     selector: GitSelector,
 ) -> DependencyEntry {
+    // SAFETY: fixture callers provide valid Git URLs.
+    let git = url.parse().unwrap();
+    // SAFETY: fixture callers provide full 40-character commit SHAs.
+    let sha = sha.parse().unwrap();
     DependencyEntry {
         source: ResolvedSource::Git {
-            git: url.parse().unwrap(),
-            sha: sha.parse().unwrap(),
+            git,
+            sha,
             path: None,
             selector,
         },
@@ -140,6 +149,7 @@ fn git_resolver_facade_exposes_only_command_api() {
 
 #[test]
 fn builds_with_explicit_paths() {
+    // SAFETY: the operating system can create a temporary test directory.
     let cache = tempdir().unwrap();
     let r = GitResolver::builder()
         .cache_root(cache.path())

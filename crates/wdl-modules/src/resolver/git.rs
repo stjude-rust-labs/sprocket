@@ -997,14 +997,14 @@ fn clear_cache_leaf(leaf: &Path) -> Result<(), GitError> {
 /// dropped; the lock file remains on disk to avoid delete-after-unlock
 /// races.
 fn lock_cache_leaf(leaf: &Path) -> Result<File, GitError> {
-    // SAFETY: Cache leaves are always `<parent>/<commit_sha>`, so `parent`
+    // SAFETY: cache leaves are always `<parent>/<commit_sha>`, so `parent`
     // and `file_name` are always present.
     let parent = leaf.parent().unwrap();
     std::fs::create_dir_all(parent).map_err(|source| GitError::Io {
         path: parent.to_path_buf(),
         source,
     })?;
-    // SAFETY: Cache leaves are always `<parent>/<commit_sha>`.
+    // SAFETY: cache leaves are always `<parent>/<commit_sha>`.
     let name = leaf.file_name().unwrap().to_string_lossy();
     let lock_path = parent.join(format!(".{name}{LOCK_EXT}"));
     let file = File::create(&lock_path).map_err(|source| GitError::Io {
@@ -1038,6 +1038,9 @@ fn lock_cache_leaf(leaf: &Path) -> Result<File, GitError> {
 /// Ensures `leaf` contains a sparse checkout of `url` at `commit`
 /// covering at least `paths`. Clones if `leaf` does not yet exist;
 /// otherwise extends the existing leaf's sparse-checkout set.
+///
+/// Returns `true` when a new cache leaf is cloned and `false` when an
+/// existing leaf is reused.
 ///
 /// If the initial clone fails, the partially-written leaf is removed so a
 /// corrupt checkout does not persist.

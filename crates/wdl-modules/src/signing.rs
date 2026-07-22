@@ -144,7 +144,7 @@ impl VerifyingKey {
     pub fn to_openssh(&self) -> String {
         let ed = ssh_key::public::Ed25519PublicKey(*self.0.as_bytes());
         let key = ssh_key::PublicKey::from(ssh_key::public::KeyData::Ed25519(ed));
-        // Encoding a freshly-constructed in-memory Ed25519
+        // SAFETY: encoding a freshly-constructed in-memory Ed25519
         // `PublicKey` into OpenSSH form cannot fail.
         key.to_openssh().unwrap()
     }
@@ -477,6 +477,7 @@ mod tests {
         let digest = ContentHash::from([0xAB; 32]);
 
         let sig = signer.sign(&digest);
+        // SAFETY: the signature was created for this key and digest.
         verifier.verify(&digest, &sig).unwrap();
     }
 
@@ -497,6 +498,7 @@ mod tests {
         let key = signer.verifying_key();
         let openssh = key.to_openssh();
         assert!(openssh.starts_with("ssh-ed25519 "));
+        // SAFETY: `to_openssh` emits a valid Ed25519 public key.
         let parsed = VerifyingKey::from_openssh(&openssh).unwrap();
         assert_eq!(parsed.as_bytes(), key.as_bytes());
     }
@@ -506,6 +508,7 @@ mod tests {
         let signer = signing_key_from_seed(2);
         let key = signer.verifying_key();
         let with_comment = format!("{} user@example.com", key.to_openssh());
+        // SAFETY: appending a comment does not change the valid key fields.
         let parsed = VerifyingKey::from_openssh(&with_comment).unwrap();
         assert_eq!(parsed.as_bytes(), key.as_bytes());
     }
@@ -514,6 +517,7 @@ mod tests {
     fn parses_identity_from_openssh_comment() {
         let signer = signing_key_from_seed(7);
         let key = signer.verifying_key();
+        // SAFETY: the public key text includes a non-empty comment.
         let identity =
             parse_openssh_public_key_identity(&format!("{} Jane Doe <jane@example.com>", key))
                 .unwrap();
@@ -558,6 +562,7 @@ mod tests {
         let digest = ContentHash::from([0x11; 32]);
         let sig = signer.sign(&digest);
         let b64 = sig.to_base64();
+        // SAFETY: `to_base64` emits a valid encoded signature.
         let parsed = Signature::from_base64(&b64).unwrap();
         assert_eq!(parsed, sig);
     }
@@ -566,13 +571,16 @@ mod tests {
     fn module_signature_round_trips_through_json() {
         let signer = signing_key_from_seed(4);
         let digest = ContentHash::from([0x22; 32]);
-        // SAFETY: `None` contains no invalid signer identity fields.
+        // SAFETY: absent identity metadata contains no invalid fields.
         let module_sig = ModuleSignature::new(&signer, &digest, None).unwrap();
 
         let mut buf = Vec::new();
+        // SAFETY: writing valid signature data to an in-memory buffer cannot fail.
         module_sig.write(&mut buf).unwrap();
+        // SAFETY: `write` emitted a valid module signature document.
         let parsed = ModuleSignature::parse(&buf).unwrap();
         assert_eq!(parsed, module_sig);
+        // SAFETY: the parsed signature was created for this digest.
         parsed.verify(&digest).unwrap();
     }
 
@@ -581,7 +589,7 @@ mod tests {
         let signer = signing_key_from_seed(5);
         let signed_digest = ContentHash::from([0x22; 32]);
         let checked_digest = ContentHash::from([0x33; 32]);
-        // SAFETY: `None` contains no invalid signer identity fields.
+        // SAFETY: absent identity metadata contains no invalid fields.
         let module_sig = ModuleSignature::new(&signer, &signed_digest, None).unwrap();
 
         let error = module_sig.verify(&checked_digest).unwrap_err();
@@ -646,14 +654,17 @@ mod tests {
     fn module_signature_rejects_unknown_keys() {
         let signer = signing_key_from_seed(6);
         let digest = ContentHash::from([0x33; 32]);
+        // SAFETY: verifying keys always serialize as JSON strings.
+        let public_key = serde_json::to_string(&signer.verifying_key()).unwrap();
+        // SAFETY: signatures always serialize as JSON strings.
+        let signature = serde_json::to_string(&signer.sign(&digest)).unwrap();
         let json = format!(
             r#"{{
                 "public_key": {},
                 "signature": {},
                 "unexpected": true
             }}"#,
-            serde_json::to_string(&signer.verifying_key()).unwrap(),
-            serde_json::to_string(&signer.sign(&digest)).unwrap()
+            public_key, signature
         );
 
         assert!(ModuleSignature::parse(json.as_bytes()).is_err());
@@ -663,15 +674,17 @@ mod tests {
     fn module_signature_rejects_duplicate_keys() {
         let signer = signing_key_from_seed(6);
         let digest = ContentHash::from([0x44; 32]);
+        // SAFETY: verifying keys always serialize as JSON strings.
+        let public_key = serde_json::to_string(&signer.verifying_key()).unwrap();
+        // SAFETY: signatures always serialize as JSON strings.
+        let signature = serde_json::to_string(&signer.sign(&digest)).unwrap();
         let json = format!(
             r#"{{
                 "public_key": {},
                 "public_key": {},
                 "signature": {}
             }}"#,
-            serde_json::to_string(&signer.verifying_key()).unwrap(),
-            serde_json::to_string(&signer.verifying_key()).unwrap(),
-            serde_json::to_string(&signer.sign(&digest)).unwrap()
+            public_key, public_key, signature
         );
 
         let err = ModuleSignature::parse(json.as_bytes()).unwrap_err();
@@ -749,9 +762,10 @@ mod tests {
             },
             "signature": old_sig.to_base64()
         });
+        // SAFETY: the JSON value contains only serializable strings.
+        let bytes = serde_json::to_vec(&json).unwrap();
         // SAFETY: the JSON is well-formed and all identity fields are valid.
-        let module_sig =
-            ModuleSignature::parse(serde_json::to_vec(&json).unwrap().as_slice()).unwrap();
+        let module_sig = ModuleSignature::parse(&bytes).unwrap();
 
         assert!(module_sig.verify(&digest).is_err());
     }
