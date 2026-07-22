@@ -16,15 +16,13 @@ pub type SignerIdentityMap = BTreeMap<Vec<DependencyName>, SignerIdentity>;
 /// The diff between an existing lockfile and a freshly-computed one.
 ///
 /// CLI commands that write a lockfile (`lock`, `add`, `update`, etc.)
-/// inspect this to enforce explicit signer trust:
+/// inspect this to enforce signer trust policy:
 ///
 /// - [`new_signers`](Self::new_signers): a brand-new signed dependency.
 /// - [`changed_signers`](Self::changed_signers): a dependency whose recorded
-///   signer key changed. Must be refused until the new key is explicitly
-///   trusted (spec trust-model rule 3).
+///   signer key changed.
 /// - [`removed_signers`](Self::removed_signers): a previously signed dependency
-///   that now resolves unsigned. Must be refused until explicitly accepted
-///   (rule 5).
+///   that now resolves unsigned.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct LockfileDiff {
     /// Signed modules whose signer key is being introduced for the first
@@ -137,8 +135,8 @@ impl LockfileDiff {
     }
 
     /// Returns true if the diff changes or removes a previously recorded
-    /// signer. These are security-relevant transitions that must be
-    /// refused until explicitly accepted, regardless of `trust_mode`.
+    /// signer. The configured trust mode determines whether these
+    /// security-relevant transitions are refused, prompted, or accepted.
     pub fn has_signer_changes(&self) -> bool {
         !self.changed_signers.is_empty() || !self.removed_signers.is_empty()
     }

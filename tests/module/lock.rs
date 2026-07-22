@@ -173,6 +173,10 @@ fn lock_tofu_trusts_new_signer_key_without_prompting() {
         stderr = String::from_utf8_lossy(&lock.stderr)
     );
     assert!(!String::from_utf8_lossy(&lock.stderr).contains("[y/N]"));
+    let stdout = String::from_utf8_lossy(&lock.stdout);
+    assert!(stdout.contains("Accepted 1 signer change"), "{stdout}");
+    assert!(stdout.contains("signer added"), "{stdout}");
+    assert!(stdout.contains("Trusted 1 signer key"), "{stdout}");
 }
 
 #[test]

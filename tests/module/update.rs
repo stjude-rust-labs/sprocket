@@ -770,6 +770,10 @@ fn update_unknown_name_errors() {
         "command unexpectedly succeeded: {}",
         String::from_utf8_lossy(&output.stdout)
     );
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("dependency `nope` not found in `module.json`")
+    );
 }
 
 #[test]
