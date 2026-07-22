@@ -363,7 +363,7 @@ pub struct Postprocessor {
     /// Temporary indentation to add.
     temp_indent: Option<Rc<String>>,
 
-    linebreak_splits: bool,
+    linebreak_potential_splits: bool,
 }
 
 impl Postprocessor {
@@ -373,19 +373,17 @@ impl Postprocessor {
         let mut buffer = TokenStream::<PreToken>::default();
 
         for token in input {
-            match token {
-                PreToken::LineEnd => {
-                    self.flush(&buffer, &mut output, config);
-                    self.trim_whitespace(&mut output);
-                    output.push(PostToken::Newline);
+            if matches!(token, PreToken::LineEnd) {
+                buffer.push(token);
+                self.flush(&buffer, &mut output, config);
+                self.trim_whitespace(&mut output);
+                output.push(PostToken::Newline);
 
-                    buffer.clear();
-                    self.interrupted = false;
-                    self.position = LinePosition::StartOfLine;
-                }
-                _ => {
-                    buffer.push(token);
-                }
+                buffer.clear();
+                self.interrupted = false;
+                self.position = LinePosition::StartOfLine;
+            } else {
+                buffer.push(token);
             }
         }
 
@@ -487,7 +485,7 @@ impl Postprocessor {
                         Comment::Inline(value) => {
                             assert!(self.position == LinePosition::MiddleOfLine);
                             if let Some(next) = next
-                                && next != &PreToken::LineEnd
+                                && !matches!(next, &PreToken::LineEnd | &PreToken::FitOrSplitEnd(_))
                             {
                                 self.interrupted = true;
                             }
@@ -528,29 +526,47 @@ impl Postprocessor {
             PreToken::TempIndentEnd => {
                 self.temp_indent = None;
             }
-            PreToken::PotentialSplit(alt) => {
-                if self.linebreak_splits {
+            PreToken::FitOrSplitStart(alt) => {
+                if self.linebreak_potential_splits {
+                    self.indent_level += 1;
+                    self.interrupted = false;
                     self.end_line(stream);
                 } else {
                     match alt {
-                        SplitAlternative::Space => stream.push(PostToken::Space),
+                        SplitAlternative::Space => {
+                            stream.trim_end(&PostToken::Space);
+                            stream.push(PostToken::Space);
+                        }
                         SplitAlternative::Empty => {}
                     }
                 }
             }
-            PreToken::FitOrSplitStart => {
-                if self.linebreak_splits {
-                    self.indent_level += 1;
+            PreToken::PotentialSplit(alt) => {
+                if self.linebreak_potential_splits {
+                    self.interrupted = false;
                     self.end_line(stream);
+                } else {
+                    match alt {
+                        SplitAlternative::Space => {
+                            stream.trim_end(&PostToken::Space);
+                            stream.push(PostToken::Space);
+                        }
+                        SplitAlternative::Empty => {}
+                    }
                 }
             }
             PreToken::FitOrSplitEnd(trailing_literals) => {
-                if self.linebreak_splits {
-                    stream.push(PostToken::Literal(trailing_literals.split));
+                if self.linebreak_potential_splits {
                     self.indent_level = self.indent_level.saturating_sub(1);
+                    self.interrupted = false;
+                    if let Some(literal) = trailing_literals.split.clone() {
+                        stream.push(PostToken::Literal(literal));
+                    }
                     self.end_line(stream);
                 } else {
-                    stream.push(PostToken::Literal(trailing_literals.fit));
+                    if let Some(literal) = trailing_literals.fit.clone() {
+                        stream.push(PostToken::Literal(literal));
+                    }
                 }
             }
         }
@@ -577,6 +593,9 @@ impl Postprocessor {
         let mut newline_this_span = false;
 
         while let Some((i, token)) = pre_buffer.next() {
+            if matches!(token, &PreToken::LineEnd | &PreToken::Trivia(_)) {
+                newline_this_span = true;
+            }
             match token {
                 PreToken::Literal(_, kind) if max_length.is_some() => {
                     match can_be_line_broken(*kind) {
@@ -589,7 +608,7 @@ impl Postprocessor {
                         None => {}
                     }
                 }
-                PreToken::FitOrSplitStart => {
+                PreToken::FitOrSplitStart(_) => {
                     // always overwrite start so that only the innermost span is
                     // considered for fitting on one line (outer spans should always get split)
                     span_start = Some(i);
@@ -613,9 +632,6 @@ impl Postprocessor {
                 }
                 _ => {}
             }
-            if matches!(token, &PreToken::LineEnd) {
-                newline_this_span = true;
-            }
         }
 
         let mut post_buffer = TokenStream::<PostToken>::default();
@@ -625,16 +641,16 @@ impl Postprocessor {
 
         let mut split_spans = split_spans.iter();
         let mut cur_span = split_spans.next();
-        self.linebreak_splits = true;
+        self.linebreak_potential_splits = true;
 
         while let Some((i, token)) = pre_buffer.next() {
             if let Some(span) = cur_span {
                 if i == span.start {
-                    self.linebreak_splits = !span.fits;
+                    self.linebreak_potential_splits = !span.fits;
                 }
                 if i == span.end {
                     cur_span = split_spans.next();
-                    self.linebreak_splits = true;
+                    self.linebreak_potential_splits = true;
                 }
             }
             let next = pre_buffer.peek().copied().map(|(_, n)| n);
@@ -660,18 +676,18 @@ impl Postprocessor {
         self.position = LinePosition::StartOfLine;
         self.temp_indent = starting_temp_indent;
         self.indent_level = starting_indent;
-        self.linebreak_splits = true;
+        self.linebreak_potential_splits = true;
 
         let mut break_stack: Vec<TandemBreak> = Vec::new();
 
         while let Some((i, token)) = pre_buffer.next() {
             if let Some(span) = cur_span {
                 if i == span.start {
-                    self.linebreak_splits = !span.fits;
+                    self.linebreak_potential_splits = !span.fits;
                 }
                 if i == span.end {
                     cur_span = split_spans.next();
-                    self.linebreak_splits = true;
+                    self.linebreak_potential_splits = true;
                 }
             }
 
@@ -684,7 +700,6 @@ impl Postprocessor {
                             top_of_stack.depth -= 1;
                         } else {
                             break_stack.pop();
-                            self.indent_level -= 1;
                             self.end_line(&mut post_buffer);
                         }
                     } else if *break_kind == top_of_stack.open {
@@ -708,7 +723,9 @@ impl Postprocessor {
                 // The line is too long after the next step. Revert to the
                 // cached state and insert a line break.
                 post_buffer = cache;
-                self.interrupted = true;
+                self.interrupted = pre_buffer.peek().is_some_and(|(_, t)| {
+                    !matches!(t, &PreToken::LineEnd | &PreToken::FitOrSplitEnd(_))
+                });
                 self.end_line(&mut post_buffer);
                 self.step(
                     token.clone(),
@@ -726,15 +743,10 @@ impl Postprocessor {
                         depth: 0,
                     };
                     break_stack.push(tandem_break);
-                    self.indent_level += 1;
                 }
             }
         }
 
-        // reduce indent for breaks never added
-        for _ in break_stack {
-            self.indent_level = self.indent_level.saturating_sub(1);
-        }
         out_stream.extend(post_buffer);
     }
 

@@ -392,7 +392,7 @@ pub fn format_literal_array(
 
     let empty = items.is_empty();
     if !empty {
-        stream.fit_or_split_start();
+        stream.fit_or_split_start(SplitAlternative::Empty);
     }
 
     let mut items = items.iter().peekable();
@@ -419,11 +419,11 @@ pub fn format_literal_array(
 
     if !empty {
         let trailing_literals = FitOrSplitEndingLiterals {
-            fit: "".to_string().into(),
+            fit: None,
             split: if config.trailing_commas && !trailing_comma_inserted {
-                ",".to_string().into()
+                Some(",".to_string().into())
             } else {
-                "".to_string().into()
+                None
             },
         };
         stream.fit_or_split_end(trailing_literals);
@@ -1006,25 +1006,32 @@ pub fn format_if_expr(
         result
     };
 
-    for child in element.children().expect("if expr children") {
+    let mut children = element.children().expect("if expr children").peekable();
+    while let Some(child) = children.next() {
         match child.element().kind() {
             SyntaxKind::ThenKeyword => {
                 if !in_chain {
-                    stream.increment_indent();
+                    stream.fit_or_split_start(SplitAlternative::Space);
                 } else {
                     stream.end_line();
                 }
             }
             SyntaxKind::ElseKeyword => {
-                stream.end_line();
+                stream.potential_split(SplitAlternative::Space);
             }
             _ => {}
         }
-        (&child).write(stream, config);
-        stream.end_word();
+        (child).write(stream, config);
+        if children.peek().is_some() {
+            stream.end_word();
+        }
     }
 
     if !in_chain {
-        stream.decrement_indent();
+        let trailing_literals = FitOrSplitEndingLiterals {
+            fit: None,
+            split: None,
+        };
+        stream.fit_or_split_end(trailing_literals);
     }
 }

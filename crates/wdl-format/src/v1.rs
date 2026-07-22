@@ -95,6 +95,8 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>, c
         if trailing_comments.is_none() {
             trailing_comments = find_trailing_comments(&last_token_of_element(import));
         }
+
+        stream.end_line();
     }
 
     stream.blank_line();

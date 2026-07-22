@@ -23,8 +23,8 @@ pub enum SplitAlternative {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FitOrSplitEndingLiterals {
-    pub fit: Rc<String>,
-    pub split: Rc<String>,
+    pub fit: Option<Rc<String>>,
+    pub split: Option<Rc<String>>,
 }
 
 /// A token that can be written by elements.
@@ -76,7 +76,7 @@ pub enum PreToken {
     /// See [`PreToken::TempIndentStart`] for more information.
     TempIndentEnd,
 
-    FitOrSplitStart,
+    FitOrSplitStart(SplitAlternative),
 
     PotentialSplit(SplitAlternative),
 
@@ -118,7 +118,7 @@ impl std::fmt::Display for PreToken {
             },
             PreToken::TempIndentStart(value) => write!(f, "<TempIndentStart@{value}>"),
             PreToken::TempIndentEnd => write!(f, "<TempIndentEnd>"),
-            PreToken::FitOrSplitStart => write!(f, "<FitOrSplitStart>"),
+            PreToken::FitOrSplitStart(value) => write!(f, "<FitOrSplitStart@{value:?}>"),
             PreToken::PotentialSplit(value) => write!(f, "<PotentialSplit@{value:?}>"),
             PreToken::FitOrSplitEnd(value) => write!(f, "<FitOrSplitEnd@{value:?}>"),
         }
@@ -238,9 +238,8 @@ impl TokenStream<PreToken> {
         if let Some(PreToken::Trivia(Trivia::BlankLine)) = trivia.peek() {
             self.0.push(trivia.next().unwrap());
         }
-        let mut docs_present = false;
-        if !documentation.is_empty() {
-            docs_present = true;
+        let docs_present = !documentation.is_empty();
+        if docs_present {
             let comment = PreToken::Trivia(Trivia::Comment(Comment::Documentation(Rc::new(
                 documentation,
             ))));
@@ -341,8 +340,8 @@ impl TokenStream<PreToken> {
         self.0.push(PreToken::Literal(Rc::new(value), kind));
     }
 
-    pub fn fit_or_split_start(&mut self) {
-        self.0.push(PreToken::FitOrSplitStart);
+    pub fn fit_or_split_start(&mut self, alternative: SplitAlternative) {
+        self.0.push(PreToken::FitOrSplitStart(alternative));
     }
 
     pub fn potential_split(&mut self, alternative: SplitAlternative) {

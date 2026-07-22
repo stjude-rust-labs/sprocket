@@ -176,7 +176,6 @@ pub fn format_call_statement(
     }
 
     if let Some(open_brace) = open_brace {
-        stream.fit_or_split_start();
         (&open_brace).write(stream, config);
         stream.end_word();
 
@@ -185,6 +184,7 @@ pub fn format_call_statement(
             (&colon.expect("colon")).write(stream, config);
             stream.end_word();
         }
+        stream.fit_or_split_start(SplitAlternative::Empty);
 
         let mut inputs = inputs.iter().peekable();
         let mut commas = commas.iter();
@@ -211,11 +211,11 @@ pub fn format_call_statement(
         }
 
         let trailing_literals = FitOrSplitEndingLiterals {
-            fit: " ".to_string().into(),
+            fit: Some(" ".to_string().into()),
             split: if config.trailing_commas && !trailing_comma_inserted {
-                ",".to_string().into()
+                Some(",".to_string().into())
             } else {
-                "".to_string().into()
+                None
             },
         };
         stream.fit_or_split_end(trailing_literals);
