@@ -12,7 +12,7 @@ struct AStruct {
 
 task a_task {
     meta
-        # Here is a comment between `meta` and the open brace.
+    # Here is a comment between `meta` and the open brace.
     {
         # Here is a comment within `meta`.
         an_escaped_string: "bar \\ \n \t ' \" \~ \$ \000 \xFF \uFFFF \UFFFFFFFF"
@@ -35,7 +35,7 @@ task a_task {
     }
 
     parameter_meta
-        # Here is a comment between `parameter_meta` and the open brace.
+    # Here is a comment between `parameter_meta` and the open brace.
     {
         # Here is a comment within `parameter_meta`.
         an_escaped_string: "bar \\ \n \t ' \" \~ \$ \000 \xFF \uFFFF \UFFFFFFFF"
@@ -58,7 +58,7 @@ task a_task {
     }
 
     input
-        # Here is a comment between `input` and the open brace.
+    # Here is a comment between `input` and the open brace.
     {
         Object an_object
         String a_string
@@ -73,7 +73,7 @@ task a_task {
     >>>
 
     output
-        # Here is a comment between `output` and the open brace.
+    # Here is a comment between `output` and the open brace.
     {
         Object some_other_object = {
         }
@@ -88,7 +88,7 @@ task a_task {
     }
 
     requirements
-        # This is a comment between `requirements` and the open brace.
+    # This is a comment between `requirements` and the open brace.
     {
         container: "ubuntu:latest"
     }
@@ -102,7 +102,7 @@ task a_task {
 ## blah blah blah.
 workflow hello {
     meta
-        # Here is a comment between `meta` and the open brace.
+    # Here is a comment between `meta` and the open brace.
     {
         # Here is a comment within `meta`.
         an_escaped_string: "bar \\ \n \t ' \" \~ \$ \000 \xFF \uFFFF \UFFFFFFFF"
@@ -125,7 +125,7 @@ workflow hello {
     }
 
     parameter_meta
-        # Here is a comment between `parameter_meta` and the open brace.
+    # Here is a comment between `parameter_meta` and the open brace.
     {
         # Here is a comment within `parameter_meta`.
         an_escaped_string: "bar \\ \n \t ' \" \~ \$ \000 \xFF \uFFFF \UFFFFFFFF"
@@ -172,7 +172,7 @@ workflow hello {
     }
 
     output
-        # Here is a comment before the output.
+    # Here is a comment before the output.
     {
         Object some_other_object = {
         }

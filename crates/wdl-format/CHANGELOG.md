@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Better handling of "interrupting" comments so that common comment placements don't result in awkward whitespace ([#1033](https://github.com/stjude-rust-labs/sprocket/pull/1033)).
+
 ## 0.20.0 - 2026-07-15
 
 ## 0.19.0 - 2026-06-26
