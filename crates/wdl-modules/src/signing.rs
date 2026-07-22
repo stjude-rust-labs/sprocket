@@ -417,7 +417,7 @@ fn validate_identity_field(field: &'static str, value: &str) -> Result<(), Signa
 
 /// Encodes the domain-separated payload covered by a module signature.
 fn signature_message(digest: &ContentHash, identity: Option<&SignerIdentity>) -> Vec<u8> {
-    const DOMAIN: &[u8] = b"openwdl.module-signature.v2";
+    const DOMAIN: &[u8] = b"openwdl.module-signature.v1";
 
     let mut message = Vec::with_capacity(128);
     message.extend_from_slice(DOMAIN);
@@ -705,7 +705,7 @@ mod tests {
         assert_eq!(
             hex::encode(&message),
             concat!(
-                "6f70656e77646c2e6d6f64756c652d7369676e61747572652e7632",
+                "6f70656e77646c2e6d6f64756c652d7369676e61747572652e7631",
                 "4242424242424242424242424242424242424242424242424242424242424242",
                 "0108000000000000004a616e6520446f65",
                 "10000000000000006a616e65406578616d706c652e636f6d"
@@ -728,7 +728,7 @@ mod tests {
         assert_eq!(
             hex::encode(&message),
             concat!(
-                "6f70656e77646c2e6d6f64756c652d7369676e61747572652e7632",
+                "6f70656e77646c2e6d6f64756c652d7369676e61747572652e7631",
                 "4242424242424242424242424242424242424242424242424242424242424242",
                 "020e0000000000000072656c65617365207369676e6572"
             )
@@ -736,31 +736,31 @@ mod tests {
     }
 
     #[test]
-    fn module_signature_rejects_sprocket_domain() {
+    fn module_signature_rejects_wrong_openwdl_version() {
         let signer = signing_key_from_seed(11);
         let digest = ContentHash::from([0x42; 32]);
         let name = "Jane Doe";
         let email = "jane@example.com";
 
-        // Construct the old-domain payload manually.
-        let mut old_payload = Vec::new();
-        old_payload.extend_from_slice(b"sprocket.module-signature.v2");
-        old_payload.extend_from_slice(digest.as_bytes());
-        old_payload.push(1);
-        append_string(&mut old_payload, name);
-        append_string(&mut old_payload, email);
+        // Construct a payload for the wrong OpenWDL protocol version.
+        let mut wrong_payload = Vec::new();
+        wrong_payload.extend_from_slice(b"openwdl.module-signature.v2");
+        wrong_payload.extend_from_slice(digest.as_bytes());
+        wrong_payload.push(1);
+        append_string(&mut wrong_payload, name);
+        append_string(&mut wrong_payload, email);
 
-        // Sign the old-domain payload.
-        let old_sig = signer.sign_message(&old_payload);
+        // Sign the wrong-version payload.
+        let wrong_signature = signer.sign_message(&wrong_payload);
 
-        // Build a ModuleSignature via JSON carrying the old-domain signature.
+        // Build a `ModuleSignature` carrying the wrong-version signature.
         let json = serde_json::json!({
             "public_key": signer.verifying_key().to_string(),
             "identity": {
                 "name": "Jane Doe",
                 "email": "jane@example.com"
             },
-            "signature": old_sig.to_base64()
+            "signature": wrong_signature.to_base64()
         });
         // SAFETY: the JSON value contains only serializable strings.
         let bytes = serde_json::to_vec(&json).unwrap();
