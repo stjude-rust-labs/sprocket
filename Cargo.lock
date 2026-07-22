@@ -5049,6 +5049,7 @@ name = "sprocket-py"
 version = "0.1.0"
 dependencies = [
  "pyo3",
+ "wdl-ast",
  "wdl-diagnostics",
  "wdl-grammar",
 ]

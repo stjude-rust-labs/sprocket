@@ -35,6 +35,9 @@ use std::fmt;
 use std::hash::Hash;
 use std::str::FromStr;
 
+pub use element::*;
+#[cfg(feature = "unstable-python")]
+pub use python::PyAstNode;
 pub use rowan::Direction;
 use rowan::NodeOrToken;
 use v1::CloseBrace;
@@ -60,8 +63,6 @@ mod element;
 #[cfg(feature = "unstable-python")]
 pub(crate) mod python;
 pub mod v1;
-
-pub use element::*;
 
 /// An [`AstNode`] that may have documentation comments attached to it.
 pub trait Documented<N: TreeNode>: AstNode<N> {

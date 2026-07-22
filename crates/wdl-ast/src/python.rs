@@ -1,5 +1,6 @@
 //! Python-specific APIs.
 
+use pyo3::prelude::pyclass;
 use rowan::GreenNode;
 use rowan::SyntaxNode;
 use rowan::ast::SyntaxNodePtr;
@@ -29,6 +30,11 @@ impl From<ThreadSafeSyntaxNode> for SyntaxNode<WorkflowDescriptionLanguage> {
         node.node_ptr.to_node(&SyntaxNode::new_root(node.root))
     }
 }
+
+/// A trait implemented by AST nodes.
+#[pyclass(module = "sprocket_bio.ast", name = "AstNode", subclass, frozen)]
+#[expect(missing_debug_implementations)]
+pub struct PyAstNode;
 
 #[cfg(test)]
 mod tests {
