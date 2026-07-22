@@ -22,6 +22,12 @@ use crate::resolver::config::ModulesConfig;
 use crate::resolver::error::ResolverError;
 use crate::resolver::git::CredentialMode;
 
+/// Configuration key for top-level dependency hosts.
+const ALLOWED_HOSTS_CONFIG_KEY: &str = "allowed_hosts";
+
+/// Configuration key for transitive dependency hosts.
+const ALLOWED_TRANSITIVE_HOSTS_CONFIG_KEY: &str = "allowed_transitive_hosts";
+
 /// An error parsing a [`DependencyName`].
 #[derive(Debug, Error, PartialEq, Eq)]
 pub enum ResolverPolicyError {
@@ -228,8 +234,8 @@ impl ResolverPolicy {
             });
         }
         let config_key = match scope {
-            DependencyScope::TopLevel => "allowed_hosts",
-            DependencyScope::Transitive => "allowed_transitive_hosts",
+            DependencyScope::TopLevel => ALLOWED_HOSTS_CONFIG_KEY,
+            DependencyScope::Transitive => ALLOWED_TRANSITIVE_HOSTS_CONFIG_KEY,
         };
         if let Some(host) = url.host() {
             match host {
@@ -263,10 +269,10 @@ impl ResolverPolicy {
                     // caller's URL.
                     //
                     // Both DNS failure and empty results are treated as rejection
-                    // (fail-closed). libgit2 re-resolves during connect/clone, so
-                    // a DNS rebinding attack between this check and the fetch
-                    // remains possible; fully preventing it would require
-                    // peer-IP validation in a custom transport.
+                    // (fail-closed). This preflight check cannot bind libgit2's
+                    // later connection to the validated addresses, so preventing
+                    // DNS rebinding requires peer-IP validation in a custom
+                    // transport.
                     if url.scheme() != "file" {
                         let addrs: Vec<std::net::SocketAddr> =
                             match std::net::ToSocketAddrs::to_socket_addrs(&(host, 0)) {

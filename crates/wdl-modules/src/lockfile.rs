@@ -167,6 +167,29 @@ pub struct DependencyEntry {
     pub dependencies: DependencyMap,
 }
 
+impl DependencyEntry {
+    /// Returns the sub-path within the source.
+    pub fn source_path(&self) -> Option<&str> {
+        self.source.source_path()
+    }
+
+    /// Returns the resolved Git commit.
+    pub fn git_sha(&self) -> Option<&GitCommit> {
+        match &self.source {
+            ResolvedSource::Git { sha, .. } => Some(sha),
+            ResolvedSource::Path { .. } => None,
+        }
+    }
+
+    /// Returns the Git selector.
+    pub fn git_selector(&self) -> Option<&GitSelector> {
+        match &self.source {
+            ResolvedSource::Git { selector, .. } => Some(selector),
+            ResolvedSource::Path { .. } => None,
+        }
+    }
+}
+
 /// The resolved source of a dependency.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged, deny_unknown_fields)]
@@ -213,22 +236,6 @@ impl ResolvedSource {
         match self {
             Self::Git { path: Some(p), .. } => Some(p.as_str()),
             _ => None,
-        }
-    }
-
-    /// Returns the resolved Git commit, or `None` for a local path.
-    pub fn git_sha(&self) -> Option<&GitCommit> {
-        match self {
-            Self::Git { sha, .. } => Some(sha),
-            Self::Path { .. } => None,
-        }
-    }
-
-    /// Returns the Git selector, or `None` for a local path.
-    pub fn git_selector(&self) -> Option<&GitSelector> {
-        match self {
-            Self::Git { selector, .. } => Some(selector),
-            Self::Path { .. } => None,
         }
     }
 

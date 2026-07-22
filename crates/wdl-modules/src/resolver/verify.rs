@@ -106,10 +106,8 @@ pub(crate) struct VerifiedSigner {
 /// short-circuits on failure.
 pub(crate) fn verify(
     policy: &ResolverPolicy,
-    _trust: &TrustStore,
     name: &DependencyName,
     module_root: &Path,
-    _source_id: Option<(&str, Option<&str>)>,
 ) -> Result<VerifiedModule, ResolverError> {
     check_materialized_tree(policy, name, module_root)?;
     check_quoted_imports(name, module_root)?;
@@ -304,7 +302,7 @@ pub(crate) fn verify_against_lockfile(
             return Err(ResolverError::SignerKeyMismatch {
                 dep: name.manifest().to_string(),
                 source_url: Some(locked_entry.source.source_url()),
-                path: locked_entry.source.source_path().map(ToString::to_string),
+                path: locked_entry.source_path().map(ToString::to_string),
                 expected: Box::new(expected),
                 observed: Box::new(*observed),
             });
@@ -377,8 +375,7 @@ mod tests {
         let dir = tempdir().unwrap();
         write_module(dir.path(), "version 1.3\n");
         let policy = ResolverPolicy::default();
-        let trust = TrustStore::default();
-        let result = verify(&policy, &trust, &test_dep(), dir.path(), None);
+        let result = verify(&policy, &test_dep(), dir.path());
         assert!(result.is_ok(), "unsigned module should verify: {result:?}");
         assert!(result.unwrap().signer.is_none());
     }
@@ -412,8 +409,7 @@ mod tests {
         )
         .unwrap();
         let policy = ResolverPolicy::default();
-        let trust = TrustStore::default();
-        let err = verify(&policy, &trust, &test_dep(), dir.path(), None).unwrap_err();
+        let err = verify(&policy, &test_dep(), dir.path()).unwrap_err();
         assert!(
             matches!(err, ResolverError::QuotedImportEscapesRoot { .. }),
             "expected `QuotedImportEscapesRoot`, got: {err}"
@@ -429,8 +425,7 @@ mod tests {
         )
         .unwrap();
         let policy = ResolverPolicy::default();
-        let trust = TrustStore::default();
-        let err = verify(&policy, &trust, &test_dep(), dir.path(), None).unwrap_err();
+        let err = verify(&policy, &test_dep(), dir.path()).unwrap_err();
         assert!(
             matches!(err, ResolverError::QuotedImportEscapesRoot { .. }),
             "expected `QuotedImportEscapesRoot`, got: {err}"
@@ -448,8 +443,7 @@ mod tests {
         )
         .unwrap();
         let policy = ResolverPolicy::default();
-        let trust = TrustStore::default();
-        assert!(verify(&policy, &trust, &test_dep(), dir.path(), None).is_ok());
+        assert!(verify(&policy, &test_dep(), dir.path()).is_ok());
     }
 
     #[test]
@@ -457,8 +451,7 @@ mod tests {
         let dir = tempdir().unwrap();
         write_signed_module(dir.path(), "version 1.3\n", 0xAB);
         let policy = ResolverPolicy::default();
-        let trust = TrustStore::default();
-        let result = verify(&policy, &trust, &test_dep(), dir.path(), None);
+        let result = verify(&policy, &test_dep(), dir.path());
         assert!(result.is_ok(), "signed module should verify: {result:?}");
         let verified = result.unwrap();
         assert!(verified.signer.is_some());
@@ -477,8 +470,7 @@ mod tests {
             ..Default::default()
         };
         let policy = ResolverPolicy::try_from(&config).unwrap();
-        let trust = TrustStore::default();
-        let err = verify(&policy, &trust, &test_dep(), dir.path(), None).unwrap_err();
+        let err = verify(&policy, &test_dep(), dir.path()).unwrap_err();
         assert!(
             matches!(err, ResolverError::RequireSignedViolation { .. }),
             "expected `RequireSignedViolation`, got: {err}"
@@ -721,8 +713,7 @@ mod tests {
             ..Default::default()
         };
         let policy = ResolverPolicy::try_from(&config).unwrap();
-        let trust = TrustStore::default();
-        let err = verify(&policy, &trust, &test_dep(), dir.path(), None).unwrap_err();
+        let err = verify(&policy, &test_dep(), dir.path()).unwrap_err();
         assert!(
             matches!(err, ResolverError::MaterializedTreeLimitExceeded { .. }),
             "expected `MaterializedTreeLimitExceeded`, got: {err}"
@@ -738,8 +729,7 @@ mod tests {
             ..Default::default()
         };
         let policy = ResolverPolicy::try_from(&config).unwrap();
-        let trust = TrustStore::default();
-        let err = verify(&policy, &trust, &test_dep(), dir.path(), None).unwrap_err();
+        let err = verify(&policy, &test_dep(), dir.path()).unwrap_err();
         assert!(
             matches!(err, ResolverError::MaterializedTreeLimitExceeded { .. }),
             "expected `MaterializedTreeLimitExceeded`, got: {err}"
@@ -765,16 +755,5 @@ mod tests {
             matches!(err, ResolverError::NotInLockfile { .. }),
             "expected `NotInLockfile`, got: {err}"
         );
-    }
-
-    #[test]
-    fn trust_store_does_not_pin_sources() {
-        let dir = tempdir().unwrap();
-        write_signed_module(dir.path(), "version 1.3\n", 0xAB);
-
-        let trust = TrustStore::default();
-        let policy = ResolverPolicy::default();
-        let verified = verify(&policy, &trust, &test_dep(), dir.path(), None).unwrap();
-        assert!(verified.signer.is_some());
     }
 }

@@ -156,15 +156,7 @@ impl GitResolver {
                 crate::resolver::verify::verify_structure(&self.policy, name, root_path)?;
             }
             ResolvedSource::Git { .. } => {
-                let source_url = resolved_source.source_url();
-                let source_path = resolved_source.source_path();
-                let verified = crate::resolver::verify::verify(
-                    &self.policy,
-                    &self.trust,
-                    name,
-                    root_path,
-                    Some((&source_url, source_path)),
-                )?;
+                let verified = crate::resolver::verify::verify(&self.policy, name, root_path)?;
 
                 crate::resolver::verify::verify_against_lockfile(
                     &self.lockfile,
@@ -346,12 +338,7 @@ impl GitResolver {
                     };
                 if url != locked_url
                     || path != locked_path
-                    || !locked_selector_satisfies(
-                        locked_entry,
-                        selector,
-                        locked_commit,
-                        locked_selector,
-                    )
+                    || !locked_selector_satisfies(selector, locked_commit, locked_selector)
                 {
                     return Err(ResolverError::LockfileSourceMismatch {
                         dep: name.manifest().to_string(),
@@ -466,6 +453,8 @@ pub(super) fn read_manifest(dir: &Path) -> Result<Manifest, ResolverError> {
 /// matches, resolution fails with [`ResolverError::AmbiguousSubPath`]. A
 /// component with no match yields a `NotFound` I/O error that the caller
 /// maps to a missing-file error.
+///
+/// The returned [`RelativePath`] always uses `/` separators.
 pub(super) fn resolve_normalized_subpath(
     root: &Path,
     sub: &str,

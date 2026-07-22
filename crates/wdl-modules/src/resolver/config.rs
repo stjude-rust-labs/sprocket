@@ -224,7 +224,13 @@ impl GitPlatform {
     /// Returns the inferred dependency name for an `owner/repo` shorthand.
     pub fn shorthand_repo_name(source: &str) -> Option<String> {
         let shorthand = source.parse::<HostedGitShorthand>().ok()?;
-        Some(strip_git_suffix(&shorthand.repo).to_string())
+        Some(
+            shorthand
+                .repo
+                .strip_suffix(".git")
+                .unwrap_or(&shorthand.repo)
+                .to_string(),
+        )
     }
 
     /// Builds the hosted Git URL for an owner and repository.
@@ -232,7 +238,7 @@ impl GitPlatform {
         let url = format!(
             "https://{host}/{owner}/{repo}.git",
             host = self.host(),
-            repo = strip_git_suffix(repo)
+            repo = repo.strip_suffix(".git").unwrap_or(repo)
         );
         url.parse()
     }
@@ -302,11 +308,6 @@ impl FromStr for HostedGitShorthand {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 /// An error parsing a hosted Git shorthand.
 struct HostedGitShorthandError;
-
-/// Removes a trailing `.git` suffix from a repository name.
-fn strip_git_suffix(name: &str) -> &str {
-    name.strip_suffix(".git").unwrap_or(name)
-}
 
 /// Dummy type used to generate the JSON schema for [`bytesize::ByteSize`]s.
 #[derive(Debug, JsonSchema)]

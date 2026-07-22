@@ -189,15 +189,8 @@ impl GitResolver {
                 None => leaf,
             };
 
-            let source_url = source.source_url();
-            let source_path = source.source_path();
-            let verified = match crate::resolver::verify::verify(
-                &self.policy,
-                &self.trust,
-                &name,
-                &module_root,
-                Some((&source_url, source_path)),
-            ) {
+            let verified = match crate::resolver::verify::verify(&self.policy, &name, &module_root)
+            {
                 Ok(verified) => verified,
                 Err(err) => {
                     report.errors.push((name, err));

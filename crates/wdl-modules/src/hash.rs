@@ -428,26 +428,22 @@ mod tests {
     }
 
     #[test]
-    fn excludes_sprocket_cache() {
+    fn excludes_sprocket_state() {
         let dir = tempdir().unwrap();
         fs::write(dir.path().join("a.txt"), b"keep").unwrap();
         let d_clean = hash_directory(dir.path()).unwrap();
 
-        let cached_module = dir
+        let state_directory = dir
             .path()
             .join(".sprocket")
-            .join("cache")
-            .join("modules")
-            .join("github.com")
-            .join("example")
-            .join("commit")
+            .join("module-mutation")
             .join("nested");
-        fs::create_dir_all(&cached_module).unwrap();
-        fs::write(cached_module.join(crate::MANIFEST_FILENAME), b"x").unwrap();
+        fs::create_dir_all(&state_directory).unwrap();
+        fs::write(state_directory.join(crate::MANIFEST_FILENAME), b"x").unwrap();
 
-        let d_with_cache = hash_directory(dir.path()).unwrap();
+        let d_with_state = hash_directory(dir.path()).unwrap();
 
-        assert_eq!(d_clean, d_with_cache);
+        assert_eq!(d_clean, d_with_state);
     }
 
     #[test]

@@ -136,10 +136,24 @@ pub fn update_relock(
         };
         let new_entry = resolved_to_lockfile_entry(resolved);
         match existing_entry {
-            Some(prev) if refreshed_entry_is_current(prev, &new_entry) => {
-                stats.skipped.push((name, &new_entry).into());
+            Some(prev) => {
+                let is_current = match (&prev.source, &new_entry.source) {
+                    (
+                        ResolvedSource::Git {
+                            sha: prev_commit, ..
+                        },
+                        ResolvedSource::Git {
+                            sha: next_commit, ..
+                        },
+                    ) => prev_commit == next_commit,
+                    _ => prev == &new_entry,
+                };
+                if is_current {
+                    stats.skipped.push((name, &new_entry).into());
+                } else {
+                    stats.updated.push((name, prev, &new_entry).into());
+                }
             }
-            Some(prev) => stats.updated.push((name, prev, &new_entry).into()),
             None => stats.added.push((name, &new_entry).into()),
         }
         lockfile.dependencies.insert(name.clone(), new_entry);
@@ -152,21 +166,6 @@ pub fn update_relock(
     }
 
     Ok(RelockOutcome { lockfile, stats })
-}
-
-/// Returns true when a refreshed entry did not advance the resolved source.
-fn refreshed_entry_is_current(prev: &DependencyEntry, next: &DependencyEntry) -> bool {
-    match (&prev.source, &next.source) {
-        (
-            ResolvedSource::Git {
-                sha: prev_commit, ..
-            },
-            ResolvedSource::Git {
-                sha: next_commit, ..
-            },
-        ) => prev_commit == next_commit,
-        _ => prev == next,
-    }
 }
 
 /// Returns true if the existing lockfile entry still satisfies the
@@ -258,7 +257,7 @@ mod tests {
         }
     }
 
-    fn entry(_version: &str, signer: Option<VerifyingKey>) -> DependencyEntry {
+    fn entry(signer: Option<VerifyingKey>) -> DependencyEntry {
         DependencyEntry {
             source: git_source(),
             checksum: Some(checksum()),
@@ -525,9 +524,7 @@ mod tests {
     fn relock_drops_removed_deps_and_records_them() {
         let consumer = manifest("consumer", "");
         let mut existing = Lockfile::default();
-        existing
-            .dependencies
-            .insert(dn("removed"), entry("1.0.0", None));
+        existing.dependencies.insert(dn("removed"), entry(None));
         let outcome = partial_relock(&consumer, &existing, &ResolvedTree::default()).unwrap();
         assert!(outcome.lockfile.dependencies.is_empty());
         assert_eq!(outcome.stats.removed.len(), 1);

@@ -26,7 +26,6 @@ use crate::dependency::DependencyName;
 use crate::dependency::DependencySource;
 use crate::dependency::GitModulePath;
 use crate::dependency::GitSelector;
-use crate::lockfile::DependencyEntry;
 use crate::lockfile::GitCommit;
 use crate::lockfile::ResolvedSource;
 use crate::module::Module;
@@ -239,14 +238,10 @@ impl GitResolver {
                         (None, None, None)
                     }
                     ResolvedSource::Git { .. } => {
-                        let source_url = resolved_source.source_url();
-                        let source_path = resolved_source.source_path();
                         let VerifiedModule { checksum, signer } = crate::resolver::verify::verify(
                             &self.policy,
-                            &self.trust,
                             name,
                             module_root.module_root(),
-                            Some((&source_url, source_path)),
                         )?;
                         let signer_key = signer.as_ref().map(|signer| signer.key);
                         let signer_identity = signer.and_then(|signer| signer.identity);
@@ -382,7 +377,7 @@ impl GitResolver {
                 }
                 let url = url.clone();
                 let prefix = commit.as_str().to_string();
-                let work_dir = self.commit_expand_dir(&url, &prefix);
+                let work_dir = self.commit_expand_dir(&prefix);
                 let _ = std::fs::remove_dir_all(&work_dir);
                 let fetcher = self.fetcher();
                 let expand_dir = work_dir.clone();
@@ -404,7 +399,7 @@ impl GitResolver {
 
     /// Returns a unique temporary directory under the cache root used to
     /// clone a repository while expanding a commit-SHA prefix.
-    fn commit_expand_dir(&self, _url: &url::Url, prefix: &str) -> PathBuf {
+    fn commit_expand_dir(&self, prefix: &str) -> PathBuf {
         let ts = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_nanos())
@@ -418,7 +413,6 @@ impl GitResolver {
 /// Returns true when a lockfile entry can satisfy the current Git
 /// selector in `module.json`.
 pub(super) fn locked_selector_satisfies(
-    _entry: &DependencyEntry,
     selector: &GitSelector,
     locked_commit: &GitCommit,
     locked_selector: &GitSelector,

@@ -147,7 +147,6 @@ fn locked_git_materialization_rejects_version_selector_mismatch() {
     };
 
     assert!(!locked_selector_satisfies(
-        &entry,
         &GitSelector::Version("^2".parse().unwrap()),
         sha,
         locked_selector,
@@ -167,7 +166,6 @@ fn locked_git_materialization_rejects_commit_selector_mismatch() {
     };
 
     assert!(!locked_selector_satisfies(
-        &entry,
         &GitSelector::Commit("0000000000000000000000000000000000000002".parse().unwrap()),
         sha,
         locked_selector,
@@ -187,7 +185,6 @@ fn locked_git_materialization_rejects_tag_selector_mismatch() {
     };
 
     assert!(!locked_selector_satisfies(
-        &entry,
         &GitSelector::Tag("v2.0.0".to_string()),
         sha,
         locked_selector,
@@ -629,4 +626,57 @@ async fn discover_versions_returns_matching_tags() {
         vec![semver::Version::parse("1.0.0").unwrap()],
         "should discover `v1.0.0` tag"
     );
+}
+
+#[tokio::test]
+async fn discovers_all_matching_path_scoped_tags() -> Result<(), Box<dyn std::error::Error>> {
+    let upstream = tempdir()?;
+    let repo = git2::Repository::init(upstream.path())?;
+    let sig = git2::Signature::now("test", "test@example.com")?;
+
+    write_manifest(upstream.path(), "dep", "1.0.0", &[]);
+    let mut index = repo.index()?;
+    index.add_all(["*"].iter(), git2::IndexAddOption::DEFAULT, None)?;
+    index.write()?;
+    let tree = repo.find_tree(index.write_tree()?)?;
+    let oid = repo.commit(Some("HEAD"), &sig, &sig, "versions", &tree, &[])?;
+    let object = repo.find_object(oid, None)?;
+    for tag in [
+        "v9.0.0",
+        "modules/other/v2.0.0",
+        "modules/tasks/v1.0.0",
+        "modules/tasks/v1.2.0",
+    ] {
+        repo.tag_lightweight(tag, &object, false)?;
+    }
+
+    let source = DependencySource::Git {
+        // SAFETY: temporary directory paths always convert to file URLs.
+        url: url::Url::from_file_path(upstream.path()).unwrap(),
+        selector: GitSelector::Version("^1".parse()?),
+        path: Some("modules/tasks".parse()?),
+        extra: Default::default(),
+    };
+    let cache = tempdir()?;
+    let resolver = crate::resolver::GitResolver::builder()
+        .cache_root(cache.path())
+        .trust(crate::resolver::TrustStore::default())
+        .lockfile(crate::Lockfile::default())
+        .policy(ResolverPolicy::try_from(&ModulesConfig {
+            allowed_schemes: vec!["https".into(), "ssh".into(), "file".into()],
+            ..ModulesConfig::default()
+        })?)
+        .build();
+    let dependency = "tasks".parse()?;
+
+    assert_eq!(
+        resolver
+            .discover_versions(&dependency, &source, DependencyScope::TopLevel)
+            .await?,
+        [
+            semver::Version::parse("1.2.0")?,
+            semver::Version::parse("1.0.0")?,
+        ]
+    );
+    Ok(())
 }

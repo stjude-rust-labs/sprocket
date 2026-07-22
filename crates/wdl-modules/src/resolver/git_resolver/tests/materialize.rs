@@ -46,6 +46,7 @@ fn resolve_normalized_subpath_matches_hyphen_variant() {
 
     let resolved = resolve_normalized_subpath(dir.path(), "my_tasks/do_thing", &dep).unwrap();
     assert_eq!(resolved.as_path(), Path::new("my-tasks/do-thing.wdl"));
+    assert_eq!(resolved.as_str(), "my-tasks/do-thing.wdl");
 }
 
 #[test]

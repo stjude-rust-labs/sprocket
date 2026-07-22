@@ -239,9 +239,9 @@ impl From<(&DependencyName, &DependencyEntry)> for DependencyChange {
     fn from((name, entry): (&DependencyName, &DependencyEntry)) -> Self {
         Self {
             name: name.clone(),
-            path: entry.source.source_path().map(str::to_string),
-            selector: entry.source.git_selector().map(ToString::to_string),
-            commit: entry.source.git_sha().map(ToString::to_string),
+            path: entry.source_path().map(str::to_string),
+            selector: entry.git_selector().map(ToString::to_string),
+            commit: entry.git_sha().map(ToString::to_string),
         }
     }
 }
@@ -269,12 +269,12 @@ impl From<(&DependencyName, &DependencyEntry, &DependencyEntry)> for DependencyU
     fn from((name, previous, next): (&DependencyName, &DependencyEntry, &DependencyEntry)) -> Self {
         Self {
             name: name.clone(),
-            from_path: previous.source.source_path().map(str::to_string),
-            from_selector: previous.source.git_selector().map(ToString::to_string),
-            from_commit: previous.source.git_sha().map(ToString::to_string),
-            to_path: next.source.source_path().map(str::to_string),
-            to_selector: next.source.git_selector().map(ToString::to_string),
-            to_commit: next.source.git_sha().map(ToString::to_string),
+            from_path: previous.source_path().map(str::to_string),
+            from_selector: previous.git_selector().map(ToString::to_string),
+            from_commit: previous.git_sha().map(ToString::to_string),
+            to_path: next.source_path().map(str::to_string),
+            to_selector: next.git_selector().map(ToString::to_string),
+            to_commit: next.git_sha().map(ToString::to_string),
         }
     }
 }
@@ -308,7 +308,7 @@ mod tests {
         }
     }
 
-    fn entry(_version: &str, signer: Option<VerifyingKey>) -> DependencyEntry {
+    fn entry(signer: Option<VerifyingKey>) -> DependencyEntry {
         DependencyEntry {
             source: git_source(),
             checksum: Some(checksum()),
@@ -324,8 +324,7 @@ mod tests {
     #[test]
     fn empty_diff_for_identical_lockfiles() {
         let mut lock = Lockfile::default();
-        lock.dependencies
-            .insert(dn("openwdl"), entry("1.0.0", None));
+        lock.dependencies.insert(dn("openwdl"), entry(None));
         let diff = LockfileDiff::compute(&lock, &lock);
         assert!(diff.new_signers.is_empty());
         assert_eq!(diff.unsigned_added, 0);
@@ -337,8 +336,7 @@ mod tests {
     fn lists_added_signer() {
         let prev = Lockfile::default();
         let mut new = Lockfile::default();
-        new.dependencies
-            .insert(dn("openwdl"), entry("1.0.0", Some(key(7))));
+        new.dependencies.insert(dn("openwdl"), entry(Some(key(7))));
 
         let diff = LockfileDiff::compute(&prev, &new);
         assert_eq!(diff.new_signers.len(), 1);
@@ -350,11 +348,9 @@ mod tests {
     #[test]
     fn lists_changed_signer() {
         let mut prev = Lockfile::default();
-        prev.dependencies
-            .insert(dn("openwdl"), entry("1.0.0", Some(key(7))));
+        prev.dependencies.insert(dn("openwdl"), entry(Some(key(7))));
         let mut new = Lockfile::default();
-        new.dependencies
-            .insert(dn("openwdl"), entry("1.0.0", Some(key(99))));
+        new.dependencies.insert(dn("openwdl"), entry(Some(key(99))));
 
         let diff = LockfileDiff::compute(&prev, &new);
         // A changed key is a signer change, not a new signer.
@@ -367,7 +363,7 @@ mod tests {
 
     #[test]
     fn unchanged_signer_does_not_appear() {
-        let signed = entry("1.0.0", Some(key(7)));
+        let signed = entry(Some(key(7)));
         let mut prev = Lockfile::default();
         prev.dependencies.insert(dn("openwdl"), signed.clone());
         let mut new = Lockfile::default();
@@ -381,11 +377,9 @@ mod tests {
     #[test]
     fn unsigned_to_signed_is_signer_change() {
         let mut prev = Lockfile::default();
-        prev.dependencies
-            .insert(dn("openwdl"), entry("1.0.0", None));
+        prev.dependencies.insert(dn("openwdl"), entry(None));
         let mut new = Lockfile::default();
-        new.dependencies
-            .insert(dn("openwdl"), entry("1.0.0", Some(key(7))));
+        new.dependencies.insert(dn("openwdl"), entry(Some(key(7))));
 
         let diff = LockfileDiff::compute(&prev, &new);
         assert!(diff.new_signers.is_empty());
@@ -401,10 +395,9 @@ mod tests {
         // A previously signed dependency that resolves without a
         // signature is a downgrade requiring explicit acceptance (rule 5).
         let mut prev = Lockfile::default();
-        prev.dependencies
-            .insert(dn("openwdl"), entry("1.0.0", Some(key(7))));
+        prev.dependencies.insert(dn("openwdl"), entry(Some(key(7))));
         let mut new = Lockfile::default();
-        new.dependencies.insert(dn("openwdl"), entry("1.0.0", None));
+        new.dependencies.insert(dn("openwdl"), entry(None));
 
         let diff = LockfileDiff::compute(&prev, &new);
         assert_eq!(diff.removed_signers.len(), 1);
@@ -432,7 +425,7 @@ mod tests {
         prev.dependencies.insert(dn("foo"), prev_outer);
 
         // The nested dependency loses its signature.
-        let new_nested = entry("1.0.0", None);
+        let new_nested = entry(None);
         let new_outer = DependencyEntry {
             source: git_source(),
             checksum: Some(checksum()),
@@ -479,10 +472,10 @@ mod tests {
     #[test]
     fn counts_unsigned_additions_only_for_new_entries() {
         let mut prev = Lockfile::default();
-        prev.dependencies.insert(dn("kept"), entry("1.0.0", None));
+        prev.dependencies.insert(dn("kept"), entry(None));
         let mut new = Lockfile::default();
-        new.dependencies.insert(dn("kept"), entry("1.0.0", None));
-        new.dependencies.insert(dn("added"), entry("1.0.0", None));
+        new.dependencies.insert(dn("kept"), entry(None));
+        new.dependencies.insert(dn("added"), entry(None));
 
         let diff = LockfileDiff::compute(&prev, &new);
         assert_eq!(diff.unsigned_added, 1);

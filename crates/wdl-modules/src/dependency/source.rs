@@ -19,6 +19,12 @@ use crate::relative_path::RelativePathError;
 use crate::version_requirement::VersionRequirement;
 use crate::version_requirement::VersionRequirementError;
 
+/// Characters with special meaning in Git pathspecs.
+const GIT_PATHSPEC_CHARACTERS: [char; 5] = ['*', '?', '[', ']', '\\'];
+
+/// Leading characters with special meaning in Git pathspecs.
+const GIT_PATHSPEC_PREFIXES: [char; 3] = [':', '!', '^'];
+
 /// An error constructing a [`GitModulePath`].
 #[derive(Clone, Debug, Eq, Error, PartialEq)]
 pub enum GitModulePathError {
@@ -108,10 +114,12 @@ impl FromStr for GitModulePath {
         }
         if let Some(character) = s
             .chars()
-            .find(|character| matches!(character, '*' | '?' | '[' | ']' | '\\'))
+            .find(|character| GIT_PATHSPEC_CHARACTERS.contains(character))
             .or_else(|| {
-                s.starts_with([':', '!', '^'])
-                    .then(|| s.chars().next().expect("path is not empty"))
+                GIT_PATHSPEC_PREFIXES
+                    .iter()
+                    .copied()
+                    .find(|prefix| s.starts_with(*prefix))
             })
         {
             return Err(GitModulePathError::Pathspec(character));
@@ -624,18 +632,18 @@ mod git_module_path_tests {
 
     #[test]
     fn rejects_git_pathspec_syntax() {
-        for path in [
-            "*",
-            "modules/[ab]",
-            "modules/?",
-            ":/modules",
-            "!modules",
-            "^modules",
+        for (path, expected) in [
+            ("*", '*'),
+            ("modules/[ab]", '['),
+            ("modules/?", '?'),
+            (":/modules", ':'),
+            ("!modules", '!'),
+            ("^modules", '^'),
         ] {
-            let result = GitModulePath::from_str(path);
-            assert!(
-                matches!(result, Err(GitModulePathError::Pathspec(_))),
-                "expected `{path}` to reject Git pathspec syntax"
+            assert_eq!(
+                GitModulePath::from_str(path),
+                Err(GitModulePathError::Pathspec(expected)),
+                "expected `{path}` to report its first Git pathspec character"
             );
         }
     }
