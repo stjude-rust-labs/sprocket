@@ -97,8 +97,14 @@ pub(super) fn upsert_signer_identity(
     key: VerifyingKey,
     identity: Option<SignerIdentity>,
 ) {
-    if let Some(identity) = identity {
-        trust.upsert_identity(key, identity.name, identity.email);
+    match identity {
+        Some(SignerIdentity::Signer { name, email }) => {
+            trust.upsert_identity(key, Some(name), Some(email), None);
+        }
+        Some(SignerIdentity::Comment { comment }) => {
+            trust.upsert_identity(key, None, None, Some(comment));
+        }
+        None => {}
     }
 }
 

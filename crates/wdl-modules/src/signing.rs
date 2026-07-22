@@ -76,8 +76,8 @@ pub enum SignatureFileError {
 
     /// Signer identity metadata contains an invalid field.
     #[error(
-        "invalid signer identity `{field}`; values must be at most 256 characters without control \
-         characters"
+        "invalid signer identity `{field}`; values must be non-empty and at most 256 characters \
+         without control characters"
     )]
     InvalidIdentity {
         /// The invalid identity field.
@@ -188,45 +188,84 @@ impl From<VerifyingKey> for String {
     }
 }
 
-/// Optional signer identity metadata.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct SignerIdentity {
-    /// Optional display name.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-    /// Optional email.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
+/// Authenticated human-readable metadata associated with a signing key.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(untagged, deny_unknown_fields)]
+pub enum SignerIdentity {
+    /// A parsed signer name and email address.
+    Signer {
+        /// The signer's display name.
+        name: String,
+        /// The signer's email address.
+        email: String,
+    },
+    /// An unstructured OpenSSH public key comment.
+    Comment {
+        /// The complete public key comment.
+        comment: String,
+    },
 }
 
-/// Parses a name and email from OpenSSH public key text when present.
-pub fn parse_openssh_public_key_identity(text: &str) -> Option<SignerIdentity> {
-    let mut parts = text.split_whitespace();
-    let kind = parts.next()?;
-    let blob = parts.next()?;
-    if kind.is_empty() || blob.is_empty() {
-        return None;
+impl SignerIdentity {
+    /// Returns the parsed signer name when this identity is structured.
+    pub fn name(&self) -> Option<&str> {
+        match self {
+            Self::Signer { name, .. } => Some(name),
+            Self::Comment { .. } => None,
+        }
     }
 
-    let comment = parts.collect::<Vec<_>>().join(" ").trim().to_string();
+    /// Returns the parsed signer email when this identity is structured.
+    pub fn email(&self) -> Option<&str> {
+        match self {
+            Self::Signer { email, .. } => Some(email),
+            Self::Comment { .. } => None,
+        }
+    }
+
+    /// Returns the complete comment when this identity is unstructured.
+    pub fn comment(&self) -> Option<&str> {
+        match self {
+            Self::Signer { .. } => None,
+            Self::Comment { comment } => Some(comment),
+        }
+    }
+}
+
+/// Parses identity metadata from an OpenSSH public key comment.
+pub fn parse_openssh_public_key_identity(text: &str) -> Option<SignerIdentity> {
+    let (kind, rest) = split_openssh_field(text)?;
+    let (blob, comment) = split_openssh_field(rest)?;
+    let comment = comment.trim().to_string();
+    debug_assert!(!kind.is_empty() && !blob.is_empty());
     if comment.is_empty() {
         return None;
     }
 
-    if let (Some(start), Some(end)) = (comment.rfind('<'), comment.rfind('>'))
-        && start < end
+    if let Some(without_end) = comment.strip_suffix('>')
+        && let Some((name, email)) = without_end.rsplit_once('<')
     {
-        let name = comment[..start].trim();
-        let email = comment[start + 1..end].trim();
-        let name = (!name.is_empty()).then(|| name.to_string());
-        let email = (!email.is_empty()).then(|| email.to_string());
-        return Some(SignerIdentity { name, email });
+        let name = name.trim();
+        let email = email.trim();
+        if !name.is_empty() && !email.is_empty() {
+            return Some(SignerIdentity::Signer {
+                name: name.to_string(),
+                email: email.to_string(),
+            });
+        }
     }
 
-    Some(SignerIdentity {
-        name: Some(comment),
-        email: None,
-    })
+    Some(SignerIdentity::Comment { comment })
+}
+
+/// Splits the first whitespace-delimited OpenSSH field from the remainder.
+fn split_openssh_field(text: &str) -> Option<(&str, &str)> {
+    let text = text.trim_start();
+    if text.is_empty() {
+        return None;
+    }
+    let end = text.find(char::is_whitespace).unwrap_or(text.len());
+    Some((&text[..end], text[end..].trim_start()))
 }
 
 #[cfg(feature = "git-resolver")]
@@ -358,45 +397,50 @@ fn validate_identity(identity: Option<&SignerIdentity>) -> Result<(), SignatureF
     let Some(identity) = identity else {
         return Ok(());
     };
-    for (field, value) in [("name", &identity.name), ("email", &identity.email)] {
-        if value
-            .as_ref()
-            .is_some_and(|value| value.chars().count() > 256 || value.chars().any(char::is_control))
-        {
-            return Err(SignatureFileError::InvalidIdentity { field });
+    match identity {
+        SignerIdentity::Signer { name, email } => {
+            validate_identity_field("name", name)?;
+            validate_identity_field("email", email)?;
         }
+        SignerIdentity::Comment { comment } => validate_identity_field("comment", comment)?,
+    }
+    Ok(())
+}
+
+/// Validates one signer identity string.
+fn validate_identity_field(field: &'static str, value: &str) -> Result<(), SignatureFileError> {
+    if value.is_empty() || value.chars().count() > 256 || value.chars().any(char::is_control) {
+        return Err(SignatureFileError::InvalidIdentity { field });
     }
     Ok(())
 }
 
 /// Encodes the domain-separated payload covered by a module signature.
 fn signature_message(digest: &ContentHash, identity: Option<&SignerIdentity>) -> Vec<u8> {
-    const DOMAIN: &[u8] = b"openwdl.module-signature.v1";
+    const DOMAIN: &[u8] = b"openwdl.module-signature.v2";
 
     let mut message = Vec::with_capacity(128);
     message.extend_from_slice(DOMAIN);
     message.extend_from_slice(digest.as_bytes());
-    append_optional_string(
-        &mut message,
-        identity.and_then(|identity| identity.name.as_deref()),
-    );
-    append_optional_string(
-        &mut message,
-        identity.and_then(|identity| identity.email.as_deref()),
-    );
+    match identity {
+        None => message.push(0),
+        Some(SignerIdentity::Signer { name, email }) => {
+            message.push(1);
+            append_string(&mut message, name);
+            append_string(&mut message, email);
+        }
+        Some(SignerIdentity::Comment { comment }) => {
+            message.push(2);
+            append_string(&mut message, comment);
+        }
+    }
     message
 }
 
-/// Appends an unambiguous optional UTF-8 string to a signature payload.
-fn append_optional_string(message: &mut Vec<u8>, value: Option<&str>) {
-    match value {
-        Some(value) => {
-            message.push(1);
-            message.extend_from_slice(&(value.len() as u64).to_le_bytes());
-            message.extend_from_slice(value.as_bytes());
-        }
-        None => message.push(0),
-    }
+/// Appends a length-framed UTF-8 string to a signature payload.
+fn append_string(message: &mut Vec<u8>, value: &str) {
+    message.extend_from_slice(&(value.len() as u64).to_le_bytes());
+    message.extend_from_slice(value.as_bytes());
 }
 
 /// Helpers for tests.
@@ -473,8 +517,39 @@ mod tests {
         let identity =
             parse_openssh_public_key_identity(&format!("{} Jane Doe <jane@example.com>", key))
                 .unwrap();
-        assert_eq!(identity.name.as_deref(), Some("Jane Doe"));
-        assert_eq!(identity.email.as_deref(), Some("jane@example.com"));
+        assert_eq!(identity.name(), Some("Jane Doe"));
+        assert_eq!(identity.email(), Some("jane@example.com"));
+    }
+
+    #[test]
+    fn preserves_unstructured_openssh_comment() {
+        let signer = signing_key_from_seed(7);
+        let key = signer.verifying_key();
+        // SAFETY: the public key text includes a non-empty comment.
+        let identity =
+            parse_openssh_public_key_identity(&format!("{key} release   signer")).unwrap();
+        // SAFETY: signer identities contain only serializable strings.
+        let value = serde_json::to_value(identity).unwrap();
+
+        assert_eq!(value, serde_json::json!({ "comment": "release   signer" }));
+    }
+
+    #[test]
+    fn preserves_signer_like_comment_with_trailing_text() {
+        let signer = signing_key_from_seed(7);
+        let key = signer.verifying_key();
+        // SAFETY: the public key text includes a non-empty comment.
+        let identity = parse_openssh_public_key_identity(&format!(
+            "{key} Jane Doe <jane@example.com> trailing"
+        ))
+        .unwrap();
+        // SAFETY: signer identities contain only serializable strings.
+        let value = serde_json::to_value(identity).unwrap();
+
+        assert_eq!(
+            value,
+            serde_json::json!({ "comment": "Jane Doe <jane@example.com> trailing" })
+        );
     }
 
     #[test]
@@ -520,9 +595,9 @@ mod tests {
     fn module_signature_authenticates_identity() -> Result<(), Box<dyn std::error::Error>> {
         let signer = signing_key_from_seed(8);
         let digest = ContentHash::from([0x55; 32]);
-        let identity = SignerIdentity {
-            name: Some("Original Signer".to_string()),
-            email: Some("original@example.com".to_string()),
+        let identity = SignerIdentity::Signer {
+            name: "Original Signer".to_string(),
+            email: "original@example.com".to_string(),
         };
         let signature = ModuleSignature::new(&signer, &digest, Some(identity))?;
         let mut value = serde_json::to_value(&signature)?;
@@ -535,17 +610,35 @@ mod tests {
     }
 
     #[test]
+    fn module_signature_rejects_mixed_identity_fields() -> Result<(), Box<dyn std::error::Error>> {
+        let signer = signing_key_from_seed(8);
+        let digest = ContentHash::from([0x55; 32]);
+        let identity = SignerIdentity::Signer {
+            name: "Original Signer".to_string(),
+            email: "original@example.com".to_string(),
+        };
+        let signature = ModuleSignature::new(&signer, &digest, Some(identity))?;
+        let mut value = serde_json::to_value(&signature)?;
+        value["identity"]["comment"] = serde_json::Value::String("unexpected comment".to_string());
+
+        assert!(ModuleSignature::parse(&serde_json::to_vec(&value)?).is_err());
+        Ok(())
+    }
+
+    #[test]
     fn module_signature_rejects_identity_control_characters() {
         let signer = signing_key_from_seed(9);
         let digest = ContentHash::from([0x66; 32]);
-        let identity = SignerIdentity {
-            name: Some("trusted\u{1b}[2J".to_string()),
-            email: None,
-        };
+        // SAFETY: the public key text includes a non-empty comment.
+        let identity = parse_openssh_public_key_identity(&format!(
+            "{} trusted\u{1b}[2J",
+            signer.verifying_key()
+        ))
+        .unwrap();
 
         assert!(matches!(
             ModuleSignature::new(&signer, &digest, Some(identity)),
-            Err(SignatureFileError::InvalidIdentity { field: "name" })
+            Err(SignatureFileError::InvalidIdentity { field: "comment" })
         ));
     }
 
@@ -589,20 +682,42 @@ mod tests {
     }
 
     #[test]
-    fn signature_message_matches_openwdl_vector() {
+    fn signer_signature_message_matches_openwdl_vector() {
         let digest = ContentHash::from([0x42; 32]);
-        let identity = SignerIdentity {
-            name: Some("Jane Doe".to_string()),
-            email: Some("jane@example.com".to_string()),
+        let identity = SignerIdentity::Signer {
+            name: "Jane Doe".to_string(),
+            email: "jane@example.com".to_string(),
         };
         let message = signature_message(&digest, Some(&identity));
         assert_eq!(
             hex::encode(&message),
             concat!(
-                "6f70656e77646c2e6d6f64756c652d7369676e61747572652e7631",
+                "6f70656e77646c2e6d6f64756c652d7369676e61747572652e7632",
                 "4242424242424242424242424242424242424242424242424242424242424242",
                 "0108000000000000004a616e6520446f65",
-                "0110000000000000006a616e65406578616d706c652e636f6d"
+                "10000000000000006a616e65406578616d706c652e636f6d"
+            )
+        );
+    }
+
+    #[test]
+    fn comment_signature_message_matches_openwdl_vector() {
+        let signer = signing_key_from_seed(7);
+        let digest = ContentHash::from([0x42; 32]);
+        // SAFETY: the public key text includes a non-empty comment.
+        let identity = parse_openssh_public_key_identity(&format!(
+            "{} release signer",
+            signer.verifying_key()
+        ))
+        .unwrap();
+        let message = signature_message(&digest, Some(&identity));
+
+        assert_eq!(
+            hex::encode(&message),
+            concat!(
+                "6f70656e77646c2e6d6f64756c652d7369676e61747572652e7632",
+                "4242424242424242424242424242424242424242424242424242424242424242",
+                "020e0000000000000072656c65617365207369676e6572"
             )
         );
     }
@@ -611,17 +726,16 @@ mod tests {
     fn module_signature_rejects_sprocket_domain() {
         let signer = signing_key_from_seed(11);
         let digest = ContentHash::from([0x42; 32]);
-        let identity = SignerIdentity {
-            name: Some("Jane Doe".to_string()),
-            email: Some("jane@example.com".to_string()),
-        };
+        let name = "Jane Doe";
+        let email = "jane@example.com";
 
         // Construct the old-domain payload manually.
         let mut old_payload = Vec::new();
-        old_payload.extend_from_slice(b"sprocket.module-signature.v1");
+        old_payload.extend_from_slice(b"sprocket.module-signature.v2");
         old_payload.extend_from_slice(digest.as_bytes());
-        append_optional_string(&mut old_payload, identity.name.as_deref());
-        append_optional_string(&mut old_payload, identity.email.as_deref());
+        old_payload.push(1);
+        append_string(&mut old_payload, name);
+        append_string(&mut old_payload, email);
 
         // Sign the old-domain payload.
         let old_sig = signer.sign_message(&old_payload);

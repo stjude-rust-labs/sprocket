@@ -143,6 +143,9 @@ pub async fn add(args: AddArgs, output: CommandOutput) -> CommandResult<()> {
             if args.email.is_some() {
                 parsed_key.email = args.email.clone();
             }
+            if args.name.is_some() || args.email.is_some() {
+                parsed_key.comment = None;
+            }
         }
 
         let key = parsed_key.key;
@@ -151,7 +154,7 @@ pub async fn add(args: AddArgs, output: CommandOutput) -> CommandResult<()> {
         } else {
             tracing::debug!("trusted module key already exists");
         }
-        store.upsert_identity(key, parsed_key.name, parsed_key.email);
+        store.upsert_identity(key, parsed_key.name, parsed_key.email, parsed_key.comment);
         output.completed(TRUST, key.to_openssh());
     }
 
@@ -167,32 +170,54 @@ struct ParsedTrustKey {
     name: Option<String>,
     /// Optional signer email.
     email: Option<String>,
+    /// Optional unstructured public key comment.
+    comment: Option<String>,
+}
+
+impl ParsedTrustKey {
+    /// Builds a parsed trust key from authenticated or public key metadata.
+    fn new(key: VerifyingKey, identity: Option<SignerIdentity>) -> Self {
+        match identity {
+            Some(SignerIdentity::Signer { name, email }) => Self {
+                key,
+                name: Some(name),
+                email: Some(email),
+                comment: None,
+            },
+            Some(SignerIdentity::Comment { comment }) => Self {
+                key,
+                name: None,
+                email: None,
+                comment: Some(comment),
+            },
+            None => Self {
+                key,
+                name: None,
+                email: None,
+                comment: None,
+            },
+        }
+    }
 }
 
 /// Parses a trust key argument as an inline OpenSSH key or a key file path.
 fn parse_key_arg(key: &str) -> anyhow::Result<ParsedTrustKey> {
     if let Ok(parsed) = VerifyingKey::from_openssh(key.trim()) {
         tracing::trace!("parsed inline trust key");
-        let SignerIdentity { name, email } =
-            parse_openssh_public_key_identity(key).unwrap_or_default();
-        return Ok(ParsedTrustKey {
-            key: parsed,
-            name,
-            email,
-        });
+        return Ok(ParsedTrustKey::new(
+            parsed,
+            parse_openssh_public_key_identity(key),
+        ));
     }
 
     let key_text =
         std::fs::read_to_string(key).with_context(|| format!("reading public key from `{key}`"))?;
     let parsed = VerifyingKey::from_openssh(key_text.trim())
         .with_context(|| format!("parsing OpenSSH public key from `{key}`"))?;
-    let SignerIdentity { name, email } =
-        parse_openssh_public_key_identity(&key_text).unwrap_or_default();
-    Ok(ParsedTrustKey {
-        key: parsed,
-        name,
-        email,
-    })
+    Ok(ParsedTrustKey::new(
+        parsed,
+        parse_openssh_public_key_identity(&key_text),
+    ))
 }
 
 /// Runs `sprocket dev module trust remove`.
@@ -239,6 +264,9 @@ pub async fn destroy(output: CommandOutput) -> CommandResult<()> {
 }
 
 fn format_identity(identity: &wdl_modules::resolver::TrustedIdentity) -> String {
+    if let Some(comment) = identity.comment.as_deref() {
+        return format!(" ({comment})");
+    }
     match (identity.name.as_deref(), identity.email.as_deref()) {
         (Some(name), Some(email)) => format!(" ({name} <{email}>)"),
         (Some(name), None) => format!(" ({name})"),

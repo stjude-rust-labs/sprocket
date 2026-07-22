@@ -6,6 +6,7 @@ use std::fs;
 use wdl_modules::dependency::DependencyName;
 use wdl_modules::hash::hash_directory;
 use wdl_modules::signing::ModuleSignature;
+use wdl_modules::signing::SigningKey;
 
 use crate::fixtures::*;
 
@@ -329,6 +330,38 @@ fn sign_writes_verifiable_signature() {
         stderr = String::from_utf8_lossy(&verify_all.stderr)
     );
     assert!(String::from_utf8_lossy(&verify_all.stdout).contains("Verified module signature"));
+}
+
+#[test]
+fn sign_preserves_unstructured_public_key_comment() -> anyhow::Result<()> {
+    let fixture = ModuleFixture::with_local_dep();
+    let key_path = fixture.dir.path().join("id_ed25519");
+    let public_key_path = fixture.dir.path().join("id_ed25519.pub");
+    let private_key = generate_openssh_ed25519_private_key();
+    let signing_key = SigningKey::from_openssh(&private_key)?;
+    fs::write(&key_path, private_key)?;
+    fs::write(
+        &public_key_path,
+        format!("{} release signer\n", signing_key.verifying_key()),
+    )?;
+
+    let key_path_arg = key_path.to_string_lossy().into_owned();
+    let sign = sprocket(&["dev", "module", "sign", "--key", &key_path_arg])
+        .current_dir(fixture.consumer())
+        .output()?;
+    assert!(
+        sign.status.success(),
+        "command failed {status}: {stderr}",
+        status = sign.status,
+        stderr = String::from_utf8_lossy(&sign.stderr)
+    );
+
+    let signature = ModuleSignature::parse(&fs::read(fixture.consumer().join("module.sig"))?)?;
+    assert_eq!(
+        signature.identity().and_then(|identity| identity.comment()),
+        Some("release signer")
+    );
+    Ok(())
 }
 
 #[test]

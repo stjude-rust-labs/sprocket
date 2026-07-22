@@ -251,8 +251,8 @@ mod tests {
                 .parse()?;
         let identity = signer_identity_for_key_path(&private, expected)
             .ok_or_else(|| anyhow::anyhow!("expected signer identity"))?;
-        assert_eq!(identity.name.as_deref(), Some("Jane Doe"));
-        assert_eq!(identity.email.as_deref(), Some("jane@example.com"));
+        assert_eq!(identity.name(), Some("Jane Doe"));
+        assert_eq!(identity.email(), Some("jane@example.com"));
         Ok(())
     }
 }

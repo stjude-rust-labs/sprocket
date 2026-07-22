@@ -481,9 +481,12 @@ fn render_signer_with_trust(
     match identity {
         Some(identity) => render_signer(key, Some(identity)),
         None => match trust.identity(key) {
-            Some(identity) => {
-                render_identity_fields(key, identity.name.as_deref(), identity.email.as_deref())
-            }
+            Some(identity) => render_identity_fields(
+                key,
+                identity.name.as_deref(),
+                identity.email.as_deref(),
+                identity.comment.as_deref(),
+            ),
             None => render_signer(key, None),
         },
     }
@@ -492,16 +495,27 @@ fn render_signer_with_trust(
 /// Renders a signer key with its optional identity metadata.
 pub(super) fn render_signer(key: &VerifyingKey, identity: Option<&SignerIdentity>) -> String {
     match identity {
-        Some(identity) => {
-            render_identity_fields(key, identity.name.as_deref(), identity.email.as_deref())
+        Some(SignerIdentity::Signer { name, email }) => {
+            render_identity_fields(key, Some(name), Some(email), None)
+        }
+        Some(SignerIdentity::Comment { comment }) => {
+            render_identity_fields(key, None, None, Some(comment))
         }
         None => key.to_openssh(),
     }
 }
 
 /// Renders a signer key annotated with any available name and email.
-fn render_identity_fields(key: &VerifyingKey, name: Option<&str>, email: Option<&str>) -> String {
+fn render_identity_fields(
+    key: &VerifyingKey,
+    name: Option<&str>,
+    email: Option<&str>,
+    comment: Option<&str>,
+) -> String {
     let key = key.to_openssh();
+    if let Some(comment) = comment {
+        return format!("{key} {comment}");
+    }
     match (name, email) {
         (Some(name), Some(email)) => format!("{key} {name} <{email}>"),
         (Some(name), None) => format!("{key} {name}"),
@@ -618,9 +632,9 @@ mod tests {
                 Ok(key) => key,
                 Err(err) => panic!("failed to parse key: {err}"),
             };
-        let identity = SignerIdentity {
-            name: Some("Spellbook Maintainer".to_string()),
-            email: Some("spellbook-fixture@example.com".to_string()),
+        let identity = SignerIdentity::Signer {
+            name: "Spellbook Maintainer".to_string(),
+            email: "spellbook-fixture@example.com".to_string(),
         };
         assert_eq!(
             render_signer(&key, Some(&identity)),
@@ -749,9 +763,9 @@ mod tests {
         //   * `apply` returns an error, so the caller never writes the proposed
         //     lockfile.
         let auto_key = vkey(41);
-        let auto_identity = SignerIdentity {
-            name: Some("Auto Trusted".to_string()),
-            email: Some("auto-trusted@example.com".to_string()),
+        let auto_identity = SignerIdentity::Signer {
+            name: "Auto Trusted".to_string(),
+            email: "auto-trusted@example.com".to_string(),
         };
         let refused_key = vkey(42);
 
@@ -836,9 +850,9 @@ mod tests {
         let accepted = SignerChange::Added(NewSigner {
             dep_chain: vec!["accepted-dep".parse().unwrap()],
             key: auto_key,
-            identity: Some(SignerIdentity {
-                name: Some("Auto Trusted".to_string()),
-                email: Some("auto-trusted@example.com".to_string()),
+            identity: Some(SignerIdentity::Signer {
+                name: "Auto Trusted".to_string(),
+                email: "auto-trusted@example.com".to_string(),
             }),
         });
 

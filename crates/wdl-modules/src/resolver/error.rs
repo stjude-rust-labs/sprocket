@@ -488,11 +488,9 @@ fn trust_all_hint(observed: &VerifyingKey, identity: Option<&SignerIdentity>) ->
 fn render_signer(key: &VerifyingKey, identity: Option<&SignerIdentity>) -> String {
     let key = key.to_openssh();
     if let Some(identity) = identity {
-        match (identity.name.as_deref(), identity.email.as_deref()) {
-            (Some(name), Some(email)) => format!("{key} {name} <{email}>"),
-            (Some(name), None) => format!("{key} {name}"),
-            (None, Some(email)) => format!("{key} <{email}>"),
-            (None, None) => key,
+        match identity {
+            SignerIdentity::Signer { name, email } => format!("{key} {name} <{email}>"),
+            SignerIdentity::Comment { comment } => format!("{key} {comment}"),
         }
     } else {
         key

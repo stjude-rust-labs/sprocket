@@ -93,6 +93,36 @@ fn trust_add_then_list_shows_entry() {
 }
 
 #[test]
+fn trust_add_preserves_unstructured_public_key_comment() -> anyhow::Result<()> {
+    let dir = tempfile::tempdir()?;
+    let pub_key = format!("{} release signer", generate_openssh_ed25519_public_key());
+
+    let mut add_command = sprocket(&["dev", "module", "trust", "add", &pub_key]);
+    add_command.current_dir(dir.path());
+    use_home(&mut add_command, dir.path());
+    let add = add_command.output()?;
+    assert!(
+        add.status.success(),
+        "command failed {status}: {stderr}",
+        status = add.status,
+        stderr = String::from_utf8_lossy(&add.stderr)
+    );
+
+    let mut list_command = sprocket(&["dev", "module", "trust", "list"]);
+    list_command.current_dir(dir.path());
+    use_home(&mut list_command, dir.path());
+    let list = list_command.output()?;
+    assert!(
+        list.status.success(),
+        "command failed {status}: {stderr}",
+        status = list.status,
+        stderr = String::from_utf8_lossy(&list.stderr)
+    );
+    assert!(String::from_utf8_lossy(&list.stdout).contains("release signer"));
+    Ok(())
+}
+
+#[test]
 fn trust_remove_drops_entry() {
     let dir = tempfile::tempdir().unwrap();
 

@@ -72,6 +72,9 @@ pub struct TrustedIdentity {
     /// Optional email for the key owner.
     #[toml(default, skip_if = Option::is_none)]
     pub email: Option<String>,
+    /// Optional unstructured OpenSSH public key comment.
+    #[toml(default, skip_if = Option::is_none)]
+    pub comment: Option<String>,
 }
 
 impl TrustStore {
@@ -175,8 +178,9 @@ impl TrustStore {
         key: VerifyingKey,
         name: Option<String>,
         email: Option<String>,
+        comment: Option<String>,
     ) {
-        if name.is_none() && email.is_none() {
+        if name.is_none() && email.is_none() && comment.is_none() {
             return;
         }
 
@@ -185,6 +189,13 @@ impl TrustStore {
             .iter_mut()
             .find(|identity| identity.key == key)
         {
+            if let Some(comment) = comment {
+                existing.name = None;
+                existing.email = None;
+                existing.comment = Some(comment);
+                return;
+            }
+            existing.comment = None;
             if let Some(name) = name {
                 existing.name = Some(name);
             }
@@ -194,7 +205,17 @@ impl TrustStore {
             return;
         }
 
-        self.identities.push(TrustedIdentity { key, name, email });
+        let (name, email) = if comment.is_some() {
+            (None, None)
+        } else {
+            (name, email)
+        };
+        self.identities.push(TrustedIdentity {
+            key,
+            name,
+            email,
+            comment,
+        });
         self.identities
             .sort_by_key(|identity| identity.key.to_openssh());
     }
@@ -277,13 +298,47 @@ mod tests {
         let key = test_key();
         let mut store = TrustStore::default();
         store.insert_key(key);
-        store.upsert_identity(key, Some("Alice".to_string()), None);
+        store.upsert_identity(key, Some("Alice".to_string()), None, None);
         store.clear();
         assert!(store.keys.is_empty());
         assert!(
             store.identities.is_empty(),
             "clearing the store must not orphan identity metadata"
         );
+    }
+
+    #[test]
+    fn comment_identity_round_trips() {
+        let key = test_key();
+        let mut store = TrustStore::default();
+        store.insert_key(key);
+        store.upsert_identity(key, None, None, Some("release signer".to_string()));
+        // SAFETY: the in-memory trust store contains only serializable values.
+        let encoded = toml_spanner::to_string(&store).unwrap();
+        // SAFETY: `encoded` was produced from a valid trust store.
+        let decoded: TrustStore = toml_spanner::from_str(&encoded).unwrap();
+        // SAFETY: the identity was inserted above and survives serialization.
+        let identity = decoded.identity(&key).unwrap();
+
+        assert_eq!(identity.comment.as_deref(), Some("release signer"));
+        assert!(identity.name.is_none());
+        assert!(identity.email.is_none());
+    }
+
+    #[test]
+    fn loads_legacy_partial_identity() -> Result<(), Box<dyn std::error::Error>> {
+        let key = test_key();
+        let source =
+            format!("trust = [\"{key}\"]\n\n[[identity]]\nkey = \"{key}\"\nname = \"Alice\"\n");
+        let store: TrustStore = toml_spanner::from_str(&source)?;
+        let identity = store
+            .identity(&key)
+            .ok_or("expected legacy identity metadata")?;
+
+        assert_eq!(identity.name.as_deref(), Some("Alice"));
+        assert!(identity.email.is_none());
+        assert!(identity.comment.is_none());
+        Ok(())
     }
 
     #[test]
