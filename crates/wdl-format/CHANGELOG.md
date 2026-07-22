@@ -7,15 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-#### Added
-
-* When `trailing_commas = false`, extraneous commas will be dropped when possible (i.e. they do not have a comment attached to them) ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
-* When an input clause of a workflow call is empty (and has no inner comments), it will be dropped from the formatted source ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
-* Added `FormatElement::has_comment()` and `TokenStream<PreToken>::push_ast_token_as()` methods ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
-
 #### Fixed
 
-* Fixed edge cases in import clause formatting which would drop some comments ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
+* Better handling of "interrupting" comments so that common comment placements don't result in awkward whitespace ([#1033](https://github.com/stjude-rust-labs/sprocket/pull/1033)).
 
 ## 0.20.0 - 2026-07-15
 

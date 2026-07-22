@@ -297,9 +297,11 @@ fn tandem_line_break(kind: SyntaxKind) -> Option<SyntaxKind> {
     }
 }
 
-/// Tokens that should have a single indent popped from the
-/// stream if they are being added at the start of a line.
-fn should_deindent(kind: SyntaxKind) -> bool {
+/// Tokens that should be allowed to be interrupted.
+///
+/// If one of these tokens comes after an interruption, the typical extra level
+/// of indentation that appears after interrupts won't be inserted.
+fn allow_interruption(kind: SyntaxKind) -> bool {
     matches!(
         kind,
         SyntaxKind::OpenBrace
@@ -310,6 +312,8 @@ fn should_deindent(kind: SyntaxKind) -> bool {
             | SyntaxKind::CloseBracket
             | SyntaxKind::CloseParen
             | SyntaxKind::CloseHeredoc
+            | SyntaxKind::IfKeyword
+            | SyntaxKind::ElseKeyword
     )
 }
 
@@ -448,21 +452,8 @@ impl Postprocessor {
                     self.trim_last_line(stream);
                 }
 
-                if self.interrupted
-                    && should_deindent(kind)
-                    && matches!(
-                        stream.0.last(),
-                        Some(&PostToken::Indent) | Some(&PostToken::TempIndent(_))
-                    )
-                {
-                    let popped = stream.0.pop().unwrap();
-                    // We don't actually want to pop the TempIndent token,
-                    // but rather a regular Indent token before the temp indent.
-                    if matches!(popped, PostToken::TempIndent(_)) {
-                        stream.0.pop_if(|t| matches!(t, PostToken::Indent));
-                        // Restore the popped TempIndent
-                        stream.0.push(popped);
-                    }
+                if self.interrupted && allow_interruption(kind) {
+                    self.pop_indent(stream);
                 }
 
                 stream.push(PostToken::Literal(value));
@@ -485,6 +476,11 @@ impl Postprocessor {
                             if self.position == LinePosition::MiddleOfLine {
                                 self.interrupted = true;
                                 self.end_line(stream);
+                                if let Some(PreToken::Literal(_, next_kind)) = next
+                                    && allow_interruption(*next_kind)
+                                {
+                                    self.pop_indent(stream);
+                                }
                             }
                             stream.push(PostToken::Literal(value));
                         }
@@ -828,5 +824,25 @@ impl Postprocessor {
         stream.push(PostToken::Newline);
         self.position = LinePosition::StartOfLine;
         self.indent(stream);
+    }
+
+    /// Pop exactly one indent off the end of the stream.
+    ///
+    /// If the last token is not [`PostToken::Indent`] or
+    /// [`PostToken::TempIndent`], this is a no-op.
+    fn pop_indent(&mut self, stream: &mut TokenStream<PostToken>) {
+        if matches!(
+            stream.0.last(),
+            Some(&PostToken::Indent) | Some(&PostToken::TempIndent(_))
+        ) {
+            let popped = stream.0.pop().unwrap();
+            // We don't actually want to pop the TempIndent token,
+            // but rather a regular Indent token before the temp indent.
+            if matches!(popped, PostToken::TempIndent(_)) {
+                stream.0.pop_if(|t| matches!(t, PostToken::Indent));
+                // Restore the popped TempIndent
+                stream.0.push(popped);
+            }
+        }
     }
 }
