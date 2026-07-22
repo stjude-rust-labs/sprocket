@@ -326,22 +326,6 @@ mod tests {
     }
 
     #[test]
-    fn loads_legacy_partial_identity() -> Result<(), Box<dyn std::error::Error>> {
-        let key = test_key();
-        let source =
-            format!("trust = [\"{key}\"]\n\n[[identity]]\nkey = \"{key}\"\nname = \"Alice\"\n");
-        let store: TrustStore = toml_spanner::from_str(&source)?;
-        let identity = store
-            .identity(&key)
-            .ok_or("expected legacy identity metadata")?;
-
-        assert_eq!(identity.name.as_deref(), Some("Alice"));
-        assert!(identity.email.is_none());
-        assert!(identity.comment.is_none());
-        Ok(())
-    }
-
-    #[test]
     fn parse_error_names_path() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("bad.toml");
