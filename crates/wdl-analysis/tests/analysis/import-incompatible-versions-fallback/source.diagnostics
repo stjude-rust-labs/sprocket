@@ -9,7 +9,6 @@ error: imported document has incompatible version
   │
 6 │ version 1.0
   │         --- the importing document is version `1.0`
-7 │ 
+7 │
 8 │ import "foo.wdl"
   │        ^^^^^^^^^ the imported document is version `1.2`
-

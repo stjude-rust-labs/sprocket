@@ -9,21 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-* Added the `sprocket dev module` command group, including `sprocket dev module init` for bootstrapping new module manifests and scaffolding.
-* Added `sprocket dev module add` and `sprocket dev module remove` to manage dependencies in `module.json` and refresh `module-lock.json`.
-* Added `sprocket dev module lock` with `--locked` and `--dry-run` flows for CI gating and lockfile refreshes.
-* Added `sprocket dev module update` to refresh locked versions within existing manifest constraints, with optional targeted updates.
-* Added `sprocket dev module upgrade` to raise Git version constraints in `module.json` and relock to the newest matching versions.
-* `sprocket dev module add` now tracks a Git remote's default branch when no matching version tags are discoverable.
-* `sprocket dev module add` now accepts `owner/repo` Git shorthand, infers dependency names from the source, and supports `--name` for custom aliases.
-* Added `[modules] default_git_platform` and `sprocket dev module add --git-platform` for selecting the hosted Git platform used by `owner/repo` shorthand.
+* Added the experimental `sprocket dev module` command group:
+  * `sprocket dev module init` bootstraps module manifests and scaffolding.
+  * `sprocket dev module add` adds dependencies to `module.json`, accepts `owner/repo` Git shorthand, infers dependency names, and supports `--name` and `--git-platform`. It tracks the remote's default branch when no matching version tags are discoverable.
+  * `sprocket dev module remove` removes dependencies from `module.json` and refreshes `module-lock.json`.
+  * `sprocket dev module lock` refreshes the lockfile and provides `--locked` and `--dry-run` flows for CI.
+  * `sprocket dev module update` refreshes locked versions within existing manifest constraints, with optional targeted updates.
+  * `sprocket dev module upgrade` raises Git version constraints and relocks to the newest matching versions.
+  * `sprocket dev module tree` displays locked dependencies as a tree.
+  * `sprocket dev module list` displays locked dependencies as a flat table.
+  * `sprocket dev module verify` validates locked dependencies from cache without network access; `--strict` requires signatures for the current module and every locked dependency.
+  * `sprocket dev module fetch` pre-populates the module cache from `module-lock.json`.
+  * `sprocket dev module cache clean` removes cached modules.
+  * `sprocket dev module sign` creates a verifiable `module.sig` for module contents.
+  * `sprocket dev module trust` manages trusted signing keys and accepts pending signer changes through its `list`, `add`, `all`, `remove`, and `destroy` subcommands.
+* Added `[modules] default_git_platform` for selecting the hosted Git platform used by `owner/repo` shorthand.
 * Resolver errors are now clearer when a dependency path is missing `module.json`, explaining that the target is not a WDL module (or the `path` is wrong).
-* Added `sprocket dev module tree` and `sprocket dev module list` for viewing locked dependencies as a tree or flat table.
-* Added `sprocket dev module verify` to validate locked dependencies from cache without network access.
-* Added `sprocket dev module verify --strict` to require signatures for the current module and all locked dependencies, reporting each unsigned package by name.
-* Added `sprocket dev module fetch` to pre-populate the module cache from `module-lock.json` and `sprocket dev module cache clean` to remove cached modules.
-* Added `sprocket dev module sign` to create and write verifiable `module.sig` signatures for module contents.
-* Added `sprocket dev module trust` (`list`/`add`/`all`/`remove`/`destroy`) to manage trusted module signing keys and accept pending signer changes.
 * Analysis now warns when a discovered `module-lock.json` is out of date with its `module.json`, pointing to `sprocket dev module lock`.
 
 ### Changed

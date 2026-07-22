@@ -300,7 +300,22 @@ fn normalize_string(input: &str, temp_dir: &Path) -> String {
 
     let s = UUID_PATTERN.replace_all(&s, "_UUID_");
     let s = TIMESTAMP_PATTERN.replace_all(&s, "_TIMESTAMP_");
-    s.to_string()
+    trim_trailing_whitespace(&s)
+}
+
+/// Removes trailing horizontal whitespace and excess blank lines.
+fn trim_trailing_whitespace(s: &str) -> String {
+    let terminated = s.ends_with('\n') || s.ends_with('\r');
+    let mut lines = s.lines().map(str::trim_end).collect::<Vec<_>>();
+    while lines.last().is_some_and(|line| line.is_empty()) {
+        lines.pop();
+    }
+
+    let mut normalized = lines.join("\n");
+    if terminated {
+        normalized.push('\n');
+    }
+    normalized
 }
 
 /// Normalizes a path by replacing dynamic components (timestamps) with

@@ -7,18 +7,38 @@ use std::str::FromStr;
 
 use serde_with::DeserializeFromStr;
 use serde_with::SerializeDisplay;
-use thiserror::Error;
 
 /// An error parsing a [`LicenseExpression`].
-#[derive(Debug, Error)]
+#[derive(Debug)]
 pub enum LicenseError {
     /// The expression is empty.
-    #[error("license expression cannot be empty")]
     Empty,
 
     /// The expression is not a valid SPDX license expression.
-    #[error("invalid SPDX license expression:\n{0}")]
     Invalid(String),
+}
+
+impl std::error::Error for LicenseError {}
+
+impl fmt::Display for LicenseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        const PREFIX: &str = "invalid SPDX license expression: ";
+
+        match self {
+            Self::Empty => f.write_str("license expression cannot be empty"),
+            Self::Invalid(message) => {
+                f.write_str(PREFIX)?;
+                let mut lines = message.lines();
+                if let Some(first) = lines.next() {
+                    f.write_str(first)?;
+                }
+                for line in lines {
+                    write!(f, "\n{:width$}{line}", "", width = PREFIX.len())?;
+                }
+                Ok(())
+            }
+        }
+    }
 }
 
 /// A validated SPDX license expression.
@@ -121,9 +141,9 @@ mod tests {
     fn invalid_error_preserves_spdx_highlight_alignment() {
         let err = "MIT OR foo".parse::<LicenseExpression>().unwrap_err();
         let rendered = err.to_string();
-        assert!(rendered.starts_with("invalid SPDX license expression:\nMIT OR foo"));
+        assert!(rendered.starts_with("invalid SPDX license expression: MIT OR foo"));
         assert!(
-            rendered.contains("\n       ^^^ unknown term"),
+            rendered.contains("\n                                        ^^^ unknown term"),
             "expected parser caret highlight in output, got: {rendered}"
         );
     }
