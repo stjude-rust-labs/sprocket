@@ -1,7 +1,8 @@
 //! TODO
 
 use proc_macro::TokenStream;
-use syn::{Item, parse_macro_input};
+use syn::Item;
+use syn::parse_macro_input;
 
 /// TODO
 #[proc_macro_attribute]

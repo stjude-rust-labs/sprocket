@@ -56,9 +56,10 @@ pub use wdl_grammar::WorkflowDescriptionLanguage;
 pub use wdl_grammar::lexer;
 pub use wdl_grammar::version;
 
-pub mod v1;
-
 mod element;
+#[cfg(feature = "unstable-python")]
+pub(crate) mod python;
+pub mod v1;
 
 pub use element::*;
 
