@@ -11,9 +11,11 @@ repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/spro
 
 [dependencies]
 # Parses token streams into syntax trees
-syn = { version = "3.0.2", features = ["full"] } # TODO: simplify features
+syn = { version = "3.0.2", features = ["full", "extra-traits"] } # TODO: simplify features
 # Generate token streams from code
 quote = "1.0.47"
+# Proc-macro interoperability
+proc-macro2 = "1.0.107"
 
 [lints]
 workspace = true

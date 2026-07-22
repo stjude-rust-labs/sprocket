@@ -1,21 +1,32 @@
 //! TODO
 
+mod ast;
+
 use proc_macro::TokenStream;
+use quote::quote;
 use syn::Item;
+use syn::parse::Nothing;
 use syn::parse_macro_input;
 
 /// TODO
 #[proc_macro_attribute]
-pub fn ast(_args: TokenStream, item: TokenStream) -> TokenStream {
+pub fn ast(args: TokenStream, item: TokenStream) -> TokenStream {
+    parse_macro_input!(args as Nothing);
     let item = parse_macro_input!(item as Item);
 
-    match item {
-        Item::Struct(struct_) => todo!(),
-        Item::Enum(enum_) => todo!(),
-        unsupported => {
-            syn::Error::new_spanned(unsupported, "#[ast] only supports structs and enums")
-                .into_compile_error()
-                .into()
-        }
+    let expanded = match &item {
+        Item::Struct(struct_) => ast::struct_::build(struct_),
+        Item::Enum(_enum_) => todo!(),
+        unsupported => Err(syn::Error::new_spanned(
+            unsupported,
+            "`#[ast]` only supports structs and enums",
+        )),
     }
+    .unwrap_or_else(syn::Error::into_compile_error);
+
+    quote! {
+        #item
+        #expanded
+    }
+    .into()
 }
