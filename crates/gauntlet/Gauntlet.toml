@@ -32,7 +32,7 @@ commit_hash = "30f0226d2c404b5c39f9a11704196da955c804d5"
 
 [repositories."getwilds/wilds-wdl-library"]
 identifier = "getwilds/wilds-wdl-library"
-commit_hash = "404b3b6b4138b43ba33d08edbde6510a39be5a27"
+commit_hash = "659d5802cc65695b211ae9b72d9095524b33734b"
 
 [repositories."stjudecloud/workflows"]
 identifier = "stjudecloud/workflows"
@@ -7665,232 +7665,237 @@ permalink = "https://github.com/chanzuckerberg/czid-workflows/blob/30f0226d2c404
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
 message = "ww-bcftools.wdl:144:17: warning[UnusedInput]: unused input `vcf_indices`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-bcftools/ww-bcftools.wdl/#L144"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bcftools/ww-bcftools.wdl/#L144"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
 message = "ww-bcftools.wdl:46:10: warning[UnusedInput]: unused input `reference_fasta_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-bcftools/ww-bcftools.wdl/#L46"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bcftools/ww-bcftools.wdl/#L46"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bcftools/ww-bcftools.wdl"
 message = "ww-bcftools.wdl:48:10: warning[UnusedInput]: unused input `bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-bcftools/ww-bcftools.wdl/#L48"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bcftools/ww-bcftools.wdl/#L48"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
 message = "ww-bedtools.wdl:165:10: warning[UnusedInput]: unused input `reference_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-bedtools/ww-bedtools.wdl/#L165"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedtools/ww-bedtools.wdl/#L165"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-bedtools/ww-bedtools.wdl"
 message = "ww-bedtools.wdl:167:10: warning[UnusedInput]: unused input `bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-bedtools/ww-bedtools.wdl/#L167"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-bedtools/ww-bedtools.wdl/#L167"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-clair3/ww-clair3.wdl"
 message = "ww-clair3.wdl:55:10: warning[UnusedInput]: unused input `input_bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-clair3/ww-clair3.wdl/#L55"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-clair3/ww-clair3.wdl/#L55"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-clair3/ww-clair3.wdl"
 message = "ww-clair3.wdl:57:10: warning[UnusedInput]: unused input `ref_fasta_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-clair3/ww-clair3.wdl/#L57"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-clair3/ww-clair3.wdl/#L57"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:154:10: warning[UnusedInput]: unused input `tumor_bai`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-cnvkit/ww-cnvkit.wdl/#L154"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L154"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-cnvkit/ww-cnvkit.wdl"
 message = "ww-cnvkit.wdl:156:11: warning[UnusedInput]: unused input `normal_bai`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-cnvkit/ww-cnvkit.wdl/#L156"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-cnvkit/ww-cnvkit.wdl/#L156"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
 message = "ww-deeptools.wdl:133:10: warning[UnusedInput]: unused input `treatment_bai`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-deeptools/ww-deeptools.wdl/#L133"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L133"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
 message = "ww-deeptools.wdl:135:10: warning[UnusedInput]: unused input `control_bai`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-deeptools/ww-deeptools.wdl/#L135"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L135"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
 message = "ww-deeptools.wdl:418:17: warning[UnusedInput]: unused input `bai_files`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-deeptools/ww-deeptools.wdl/#L418"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L418"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
 message = "ww-deeptools.wdl:49:10: warning[UnusedInput]: unused input `bai`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-deeptools/ww-deeptools.wdl/#L49"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L49"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deeptools/ww-deeptools.wdl"
 message = "ww-deeptools.wdl:623:17: warning[UnusedInput]: unused input `bai_files`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-deeptools/ww-deeptools.wdl/#L623"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deeptools/ww-deeptools.wdl/#L623"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deepvariant/ww-deepvariant.wdl"
 message = "ww-deepvariant.wdl:49:10: warning[UnusedInput]: unused input `input_bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-deepvariant/ww-deepvariant.wdl/#L49"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deepvariant/ww-deepvariant.wdl/#L49"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-deepvariant/ww-deepvariant.wdl"
 message = "ww-deepvariant.wdl:51:10: warning[UnusedInput]: unused input `ref_fasta_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-deepvariant/ww-deepvariant.wdl/#L51"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-deepvariant/ww-deepvariant.wdl/#L51"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/ww-delly.wdl"
 message = "ww-delly.wdl:44:10: warning[UnusedInput]: unused input `aligned_bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-delly/ww-delly.wdl/#L44"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-delly/ww-delly.wdl/#L44"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-delly/ww-delly.wdl"
 message = "ww-delly.wdl:46:10: warning[UnusedInput]: unused input `reference_fasta_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-delly/ww-delly.wdl/#L46"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-delly/ww-delly.wdl/#L46"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1028:10: warning[UnusedInput]: unused input `bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-gatk/ww-gatk.wdl/#L1028"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1028"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1154:10: warning[UnusedInput]: unused input `bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-gatk/ww-gatk.wdl/#L1154"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1154"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1462:10: warning[UnusedInput]: unused input `bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-gatk/ww-gatk.wdl/#L1462"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1462"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:1550:17: warning[UnusedInput]: unused input `normal_vcf_indices`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-gatk/ww-gatk.wdl/#L1550"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L1550"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:169:10: warning[UnusedInput]: unused input `bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-gatk/ww-gatk.wdl/#L169"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L169"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:279:10: warning[UnusedInput]: unused input `bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-gatk/ww-gatk.wdl/#L279"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L279"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:281:10: warning[UnusedInput]: unused input `reference_fasta_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-gatk/ww-gatk.wdl/#L281"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L281"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:362:10: warning[UnusedInput]: unused input `bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-gatk/ww-gatk.wdl/#L362"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L362"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:617:10: warning[UnusedInput]: unused input `bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-gatk/ww-gatk.wdl/#L617"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L617"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:714:10: warning[UnusedInput]: unused input `bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-gatk/ww-gatk.wdl/#L714"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L714"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:805:10: warning[UnusedInput]: unused input `bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-gatk/ww-gatk.wdl/#L805"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L805"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:903:17: warning[UnusedInput]: unused input `vcf_indices`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-gatk/ww-gatk.wdl/#L903"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L903"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-gatk/ww-gatk.wdl"
 message = "ww-gatk.wdl:97:10: warning[UnusedInput]: unused input `bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-gatk/ww-gatk.wdl/#L97"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-gatk/ww-gatk.wdl/#L97"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/ww-ichorcna.wdl"
 message = "ww-ichorcna.wdl:40:10: warning[UnusedInput]: unused input `bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-ichorcna/ww-ichorcna.wdl/#L40"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-ichorcna/ww-ichorcna.wdl/#L40"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/ww-manta.wdl"
 message = "ww-manta.wdl:44:10: warning[UnusedInput]: unused input `reference_fasta_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-manta/ww-manta.wdl/#L44"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-manta/ww-manta.wdl/#L44"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/ww-manta.wdl"
 message = "ww-manta.wdl:46:10: warning[UnusedInput]: unused input `aligned_bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-manta/ww-manta.wdl/#L46"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-manta/ww-manta.wdl/#L46"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-manta/ww-manta.wdl"
 message = "ww-manta.wdl:49:11: warning[UnusedInput]: unused input `call_regions_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-manta/ww-manta.wdl/#L49"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-manta/ww-manta.wdl/#L49"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-mosdepth/ww-mosdepth.wdl"
+message = "ww-mosdepth.wdl:45:10: warning[UnusedInput]: unused input `input_bam_index`"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-mosdepth/ww-mosdepth.wdl/#L45"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-rseqc/ww-rseqc.wdl"
 message = "ww-rseqc.wdl:46:10: warning[UnusedInput]: unused input `bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-rseqc/ww-rseqc.wdl/#L46"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-rseqc/ww-rseqc.wdl/#L46"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
 message = "ww-smoove.wdl:44:10: warning[UnusedInput]: unused input `aligned_bam_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-smoove/ww-smoove.wdl/#L44"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/ww-smoove.wdl/#L44"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-smoove/ww-smoove.wdl"
 message = "ww-smoove.wdl:46:10: warning[UnusedInput]: unused input `reference_fasta_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-smoove/ww-smoove.wdl/#L46"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-smoove/ww-smoove.wdl/#L46"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
 message = "ww-strelka.wdl:151:10: warning[UnusedInput]: unused input `tumor_bai`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-strelka/ww-strelka.wdl/#L151"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L151"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
 message = "ww-strelka.wdl:154:10: warning[UnusedInput]: unused input `normal_bai`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-strelka/ww-strelka.wdl/#L154"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L154"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
 message = "ww-strelka.wdl:156:10: warning[UnusedInput]: unused input `ref_fasta_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-strelka/ww-strelka.wdl/#L156"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L156"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
 message = "ww-strelka.wdl:44:10: warning[UnusedInput]: unused input `bai`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-strelka/ww-strelka.wdl/#L44"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L44"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-strelka/ww-strelka.wdl"
 message = "ww-strelka.wdl:46:10: warning[UnusedInput]: unused input `ref_fasta_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-strelka/ww-strelka.wdl/#L46"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-strelka/ww-strelka.wdl/#L46"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-testdata/ww-testdata.wdl"
 message = "ww-testdata.wdl:516:10: warning[UnusedInput]: unused input `input_bai`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-testdata/ww-testdata.wdl/#L516"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-testdata/ww-testdata.wdl/#L516"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
 message = "ww-tritonnp.wdl:46:10: warning[UnusedInput]: unused input `bam_index_path`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-tritonnp/ww-tritonnp.wdl/#L46"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L46"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-tritonnp/ww-tritonnp.wdl"
 message = "ww-tritonnp.wdl:50:10: warning[UnusedInput]: unused input `reference_genome_index`"
-permalink = "https://github.com/getwilds/wilds-wdl-library/blob/404b3b6b4138b43ba33d08edbde6510a39be5a27/modules/ww-tritonnp/ww-tritonnp.wdl/#L50"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-tritonnp/ww-tritonnp.wdl/#L50"
 
 [[diagnostics]]
 document = "stjudecloud/workflows:/tools/arriba.wdl"
