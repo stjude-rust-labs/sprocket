@@ -427,6 +427,10 @@ struct DiagnosticContext {
     diagnostics: IndexSet<Diagnostic>,
     /// Whether the parser has reached the end of the input.
     eof: bool,
+    /// Stack of open delimiters and their spans.
+    open_delimiters: Vec<(Span, &'static str)>,
+    /// Spans of matching (Open, Close) braces.
+    matching_block_spans: Vec<(Span, Span)>,
     /// Whether the parser has encountered a fatal error.
     halt: bool,
 }
@@ -610,14 +614,14 @@ where
 
     /// Consumes the next token only if it matches the given token.
     ///
-    /// Returns `true` if the token was consumed, `false` if otherwise.
-    pub fn next_if(&mut self, token: T) -> bool {
+    /// Returns the span of the token if it was consumed, `None` if otherwise.
+    pub fn next_if(&mut self, token: T) -> Option<Span> {
         match self.peek() {
-            Some((t, _)) if t == token => {
+            Some((t, span)) if t == token => {
                 self.next();
-                true
+                Some(span)
             }
-            _ => false,
+            _ => None,
         }
     }
 
@@ -635,25 +639,61 @@ where
     where
         F: FnOnce(&mut Self, Span) -> Result<(), ParseDiagnostic>,
     {
-        let open_span = self.expect(open)?;
-
-        // Check to see if the close token is immediately following the opening
-        if allow_empty {
-            match self.peek() {
-                Some((t, _)) if t == close => {
-                    self.next();
-                    return Ok(());
+        fn inner<'a, T, F>(
+            parser: &mut Parser<'a, T>,
+            open: T,
+            open_span: Span,
+            close: T,
+            allow_empty: bool,
+            cb: F,
+        ) -> Result<(), ParseDiagnostic>
+        where
+            T: ParserToken<'a>,
+            F: FnOnce(&mut Parser<'a, T>, Span) -> Result<(), ParseDiagnostic>,
+        {
+            // Check to see if the close token is immediately following the opening
+            if allow_empty {
+                match parser.peek() {
+                    Some((t, span)) if t == close => {
+                        parser.next();
+                        parser
+                            .diagnostic_context
+                            .matching_block_spans
+                            .push((open_span, span));
+                        parser.diagnostic_context.open_delimiters.pop();
+                        return Ok(());
+                    }
+                    _ => {}
                 }
-                _ => {}
+            }
+
+            cb(parser, open_span)?;
+
+            match parser.next() {
+                Some((token, span)) if token == close => {
+                    parser
+                        .diagnostic_context
+                        .matching_block_spans
+                        .push((open_span, span));
+                    Ok(())
+                }
+                found => Err(parser.mismatched_delim_err(
+                    open.describe(),
+                    open_span,
+                    close.describe(),
+                    found,
+                )),
             }
         }
 
-        cb(self, open_span)?;
+        let open_span = self.expect(open)?;
 
-        match self.next() {
-            Some((token, _)) if token == close => Ok(()),
-            found => Err(self.unmatched(open.describe(), open_span, close.describe(), found)),
-        }
+        self.push_open_delimiter(open_span, open);
+
+        let ret = inner(self, open, open_span, close, allow_empty, cb);
+
+        self.pop_open_delimiter();
+        ret
     }
 
     /// Parses a matching token pair that surround a delimited list of items.
@@ -681,9 +721,167 @@ where
         F: FnMut(&mut Self, Marker) -> Result<(), (Marker, ParseDiagnostic)>,
     {
         let open_span = self.expect(open)?;
+        self.diagnostic_context
+            .open_delimiters
+            .push((open_span, open.describe()));
+
         self.delimited(close, termination, delimiter, recovery, cb);
         self.consume_close_token(open, open_span, close);
+
+        self.diagnostic_context.open_delimiters.pop();
         Ok(())
+    }
+
+    /// Records an opening delimiter for EOF diagnostics.
+    pub fn push_open_delimiter(&mut self, open_span: Span, open: T) {
+        self.diagnostic_context
+            .open_delimiters
+            .push((open_span, open.describe()));
+    }
+
+    /// Removes the most recently-recorded opening delimiter.
+    pub fn pop_open_delimiter(&mut self) {
+        self.diagnostic_context.open_delimiters.pop();
+    }
+
+    /// Create a new "unmatched opening delimiter" diagnostic.
+    fn mismatched_delim_err(
+        &mut self,
+        open: &str,
+        open_span: Span,
+        close: &str,
+        found: Option<(T, Span)>,
+    ) -> ParseDiagnostic {
+        let mut diagnostic = self.unexpected(close, found);
+        diagnostic.inner = diagnostic
+            .inner
+            .with_label(format!("this {open} is not matched"), open_span);
+        self.report_suspicious_mismatch_block(diagnostic)
+    }
+
+    /// Extend a [`Self::unexpected()`] diagnostic with information about the
+    /// closest closing brace.
+    fn report_suspicious_mismatch_block(&self, mut diagnostic: ParseDiagnostic) -> ParseDiagnostic {
+        /// Calculates the indentation level of the line containing the start of
+        /// the given span.
+        fn indentation_level<'a, T>(parser: &Parser<'a, T>, span: Span) -> usize
+        where
+            T: ParserToken<'a>,
+        {
+            let prefix = parser.source(Span::new(0, span.start()));
+            let line_start = prefix.rfind('\n').map(|i| i + 1).unwrap_or(0);
+
+            prefix[line_start..]
+                .chars()
+                .take_while(|c| c.is_whitespace())
+                .count()
+        }
+
+        let mut matched_spans: Vec<(Span, bool)> = self
+            .diagnostic_context
+            .matching_block_spans
+            .iter()
+            .map(|&(open, close)| {
+                let same_indent = indentation_level(self, open) == indentation_level(self, close);
+                (
+                    Span::new(open.start(), close.start() - open.start()),
+                    same_indent,
+                )
+            })
+            .collect();
+
+        // Sort by `start` position, working outside-in
+        matched_spans.sort_by_key(|(open, ..)| open.start());
+
+        for i in 0..matched_spans.len() {
+            let (outer_span, same_indent) = matched_spans[i];
+            if !same_indent {
+                continue;
+            }
+
+            for (inner_span, same_indent) in matched_spans.iter_mut().skip(i + 1) {
+                if outer_span.contains(inner_span.start()) && outer_span.contains(inner_span.end())
+                {
+                    *same_indent = true;
+                }
+            }
+        }
+
+        // Find the innermost span candidate that still has a mismatched indentation
+        let candidate_span = matched_spans
+            .into_iter()
+            .rev()
+            .find(|&(_, same_indent)| !same_indent);
+
+        if let Some((block_span, _)) = candidate_span {
+            diagnostic.inner = diagnostic
+                .inner
+                .with_label(
+                    "this delimiter might not be properly closed...",
+                    Span::new(block_span.start(), 1),
+                )
+                .with_label(
+                    "...as it matches this but it has different indentation",
+                    Span::new(block_span.end(), 1),
+                );
+        } else if let Some(&(parent_open, parent_close)) =
+            self.diagnostic_context.matching_block_spans.last()
+        {
+            // Optional fallback if we don't have a specific candidate
+            diagnostic.inner = diagnostic
+                .inner
+                .with_label("this opening delimiter...", parent_open)
+                .with_label("...matches this closing delimiter", parent_close);
+        }
+
+        diagnostic
+    }
+
+    /// Create a diagnostic reporting all unclosed delimiters up to EOF.
+    fn eof_err(&mut self, close: T) {
+        if self.diagnostic_context.eof {
+            return;
+        }
+
+        const UNCLOSED_DELIMITER_SHOW_LIMIT: usize = 3;
+        let mut diagnostic = self.unexpected_inner(close.describe(), None, false);
+
+        let unclosed_delimiter_count = self.diagnostic_context.open_delimiters.len();
+        let summarize_delimiters = unclosed_delimiter_count >= UNCLOSED_DELIMITER_SHOW_LIMIT + 2;
+        let delimiters_shown = if summarize_delimiters {
+            UNCLOSED_DELIMITER_SHOW_LIMIT
+        } else {
+            unclosed_delimiter_count
+        };
+
+        for (span, _) in &self.diagnostic_context.open_delimiters[..delimiters_shown] {
+            diagnostic.inner = diagnostic.inner.with_label("unclosed delimiter", *span);
+        }
+
+        // Summarize the rest
+        if let Some((span, _)) = self
+            .diagnostic_context
+            .open_delimiters
+            .get(delimiters_shown)
+            && summarize_delimiters
+        {
+            diagnostic.inner = diagnostic.inner.with_label(
+                format!(
+                    "another {} unclosed delimiters begin from here",
+                    unclosed_delimiter_count - delimiters_shown
+                ),
+                *span,
+            );
+        }
+
+        if self.diagnostic_context.open_delimiters.last().is_some() {
+            diagnostic = self.report_suspicious_mismatch_block(diagnostic);
+        }
+
+        self.diagnostic(diagnostic);
+
+        // Prevent duplicate EOF diagnostics
+        self.diagnostic_context.eof = true;
     }
 
     /// Consumes a close token if it is the next token to be parsed.
@@ -691,13 +889,21 @@ where
     /// Otherwise, emits an "unmatched" diagnostic and synthesizes the close
     /// token into the parser's list of events.
     pub fn consume_close_token(&mut self, open: T, open_span: Span, close: T) {
-        if self.next_if(close) {
+        if let Some(span) = self.next_if(close) {
+            self.diagnostic_context
+                .matching_block_spans
+                .push((open_span, span));
             return;
         }
 
         let found = self.peek();
-        let diagnostic = self.unmatched(open.describe(), open_span, close.describe(), found);
-        self.diagnostic(diagnostic);
+        if found.is_some() {
+            let diagnostic =
+                self.mismatched_delim_err(open.describe(), open_span, close.describe(), found);
+            self.diagnostic(diagnostic);
+        } else {
+            self.eof_err(close);
+        }
 
         // Synthesize a close token event of zero width
         let span = found.map(|(_, s)| s).unwrap_or_else(|| self.span());
@@ -970,15 +1176,26 @@ where
         expected: &str,
         found: Option<(T, Span)>,
     ) -> ParseDiagnostic {
+        self.unexpected_inner(expected, found, true)
+    }
+
+    /// [`Self::unexpected()`] with the ability to toggle the label on the
+    /// `found` token.
+    fn unexpected_inner(
+        &mut self,
+        expected: &str,
+        found: Option<(T, Span)>,
+        label_found: bool,
+    ) -> ParseDiagnostic {
         let (found, span, eof) = self.maybe_eof_diagnostic(found);
 
         let found = found.unwrap_or("end of input");
-        let diagnostic: ParseDiagnostic =
-            Diagnostic::error(format!("expected {expected}, but found {found}"))
-                .with_label(format!("unexpected {found}"), span)
-                .into();
+        let mut diagnostic = Diagnostic::error(format!("expected {expected}, but found {found}"));
+        if label_found {
+            diagnostic = diagnostic.with_label(format!("unexpected {found}"), span)
+        }
 
-        diagnostic.with_eof(eof)
+        Into::<ParseDiagnostic>::into(diagnostic).with_eof(eof)
     }
 
     /// Creates an "expected one of, but found" diagnostic error.

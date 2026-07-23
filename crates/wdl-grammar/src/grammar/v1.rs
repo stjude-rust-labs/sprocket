@@ -710,7 +710,7 @@ fn import_statement(
     // Form 1 suffix: optional `as <alias>` and zero-or-more `alias` clauses.
     // Forms 2 and 3 do not accept either.
     if !has_selection {
-        if parser.next_if(Token::AsKeyword) {
+        if parser.next_if(Token::AsKeyword).is_some() {
             ident!(parser, marker, "import namespace");
         }
 
@@ -749,7 +749,7 @@ fn import_member(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker,
     expected_in!(parser, marker, ANY_IDENT, "selected member");
     parser.update_last_token_kind(SyntaxKind::Ident);
 
-    if parser.next_if(Token::AsKeyword) {
+    if parser.next_if(Token::AsKeyword).is_some() {
         expected_in!(parser, marker, ANY_IDENT, "member alias");
         parser.update_last_token_kind(SyntaxKind::Ident);
     }
@@ -769,7 +769,7 @@ fn symbolic_module_path(
     expected_in!(parser, marker, ANY_IDENT, "symbolic module path");
     parser.update_last_token_kind(SyntaxKind::Ident);
 
-    while parser.next_if(Token::Slash) {
+    while parser.next_if(Token::Slash).is_some() {
         expected_in!(parser, marker, ANY_IDENT, "symbolic module path component");
         parser.update_last_token_kind(SyntaxKind::Ident);
     }
@@ -1109,7 +1109,7 @@ fn input_item(
     expected_fn!(parser, marker, ty);
     ident!(parser, marker, "input name");
 
-    let kind = if parser.next_if(Token::Assignment) {
+    let kind = if parser.next_if(Token::Assignment).is_some() {
         expected_fn!(parser, marker, expr);
         SyntaxKind::BoundDeclNode
     } else {
@@ -2136,7 +2136,7 @@ fn conditional_else_if_clause(
     marker: Marker,
 ) -> Result<(), (Marker, ParseDiagnostic)> {
     parser.require(Token::ElseKeyword);
-    if parser.next_if(Token::IfKeyword) {
+    if parser.next_if(Token::IfKeyword).is_some() {
         paren!(parser, marker, |parser, _| {
             expected_fn!(parser, expr);
             Ok(())
@@ -2209,8 +2209,9 @@ fn call_statement(
         // Given the optional `input:` that we need to parse after the open brace, we
         // unfortunately can't use `Parser::matching_delimited` here
         let open_span = parser.require(Token::OpenBrace);
+        parser.push_open_delimiter(open_span, Token::OpenBrace);
 
-        if parser.next_if(Token::InputKeyword) {
+        if parser.next_if(Token::InputKeyword).is_some() {
             expected!(parser, marker, Token::Colon);
         }
 
@@ -2223,6 +2224,7 @@ fn call_statement(
         );
 
         parser.consume_close_token(Token::OpenBrace, open_span, Token::CloseBrace);
+        parser.pop_open_delimiter();
     }
 
     marker.complete(parser, SyntaxKind::CallStatementNode);
@@ -2233,7 +2235,7 @@ fn call_statement(
 fn call_target(parser: &mut Parser<'_>, marker: Marker) -> Result<(), (Marker, ParseDiagnostic)> {
     ident!(parser, marker, "call target name");
 
-    while parser.next_if(Token::Dot) {
+    while parser.next_if(Token::Dot).is_some() {
         ident!(parser, marker, "call target name");
     }
 
@@ -2268,7 +2270,7 @@ fn call_input_item(
     ident!(parser, marker, "call input key");
     parser.update_last_token_kind(SyntaxKind::Ident);
 
-    if parser.next_if(Token::Assignment) {
+    if parser.next_if(Token::Assignment).is_some() {
         expected_fn!(parser, marker, expr);
     }
 
@@ -2479,7 +2481,7 @@ fn pair_or_paren_expr(
 
     expected_fn!(parser, marker, expr);
 
-    if parser.next_if(Token::CloseParen) {
+    if parser.next_if(Token::CloseParen).is_some() {
         // This was actually a parenthesized expression.
         return Ok(marker.complete(parser, SyntaxKind::ParenthesizedExprNode));
     }
@@ -2637,7 +2639,7 @@ fn literal_input_item(
 ) -> Result<(), (Marker, ParseDiagnostic)> {
     ident!(parser, marker, "input key");
 
-    while parser.next_if(Token::Dot) {
+    while parser.next_if(Token::Dot).is_some() {
         ident!(parser, marker, "struct member name");
     }
 
@@ -2670,7 +2672,7 @@ fn literal_output_item(
 ) -> Result<(), (Marker, ParseDiagnostic)> {
     ident!(parser, marker, "output key");
 
-    while parser.next_if(Token::Dot) {
+    while parser.next_if(Token::Dot).is_some() {
         ident!(parser, marker, "struct member name");
     }
 
