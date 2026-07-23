@@ -33,17 +33,13 @@ workflow test {
         name: "James",
         age: 34,
     }
-    Array[Person] people = [
-        james,
-        Person {
-            name: "Jimmy",
-            age: 55,
-        },
-        Person {
-            name: "John",
-            age: 26,
-        },
-    ]
+    Array[Person] people = [james, Person {
+        name: "Jimmy",
+        age: 55,
+    }, Person {
+        name: "John",
+        age: 26,
+    }]
     Object person = object {
         name: "Jimmy",
         age: 55,
