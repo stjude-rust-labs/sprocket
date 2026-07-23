@@ -1,7 +1,5 @@
 //! Integration tests for the `textDocument/completion` request.
 
-pub mod common;
-
 use core::panic;
 
 use async_lsp::lsp_types::Hover;
@@ -12,7 +10,9 @@ use async_lsp::lsp_types::Position;
 use async_lsp::lsp_types::TextDocumentIdentifier;
 use async_lsp::lsp_types::TextDocumentPositionParams;
 use async_lsp::lsp_types::request::HoverRequest;
-use common::TestContext;
+
+use crate::common::TestContext;
+use crate::common::TestContextBuilder;
 
 async fn hover_request(
     ctx: &mut TestContext,
@@ -55,7 +55,7 @@ fn assert_no_hover(hover: &Option<Hover>) {
 }
 
 async fn setup() -> TestContext {
-    let mut ctx = TestContext::new("hover");
+    let mut ctx = TestContextBuilder::new("hover").build();
     ctx.initialize().await;
     ctx
 }

@@ -11,6 +11,8 @@ use async_lsp::lsp_types::TextDocumentIdentifier;
 use async_lsp::lsp_types::request::CodeLensRequest;
 use common::TestContext;
 
+use crate::common::TestContextBuilder;
+
 async fn code_lens_request(
     ctx: &mut TestContext,
     path: &str,
@@ -26,7 +28,7 @@ async fn code_lens_request(
 }
 
 async fn setup() -> TestContext {
-    let mut ctx = TestContext::new("code_lens");
+    let mut ctx = TestContextBuilder::new("code_lens").build();
     ctx.initialize().await;
     ctx
 }

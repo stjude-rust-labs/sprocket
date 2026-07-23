@@ -346,7 +346,7 @@ pub struct LintOptions {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Deserialize)]
 #[serde(transparent)]
 pub struct LevelFilter(
-    #[serde(deserialize_with = "deserialize_level_filter")] tracing::metadata::LevelFilter,
+    #[serde(deserialize_with = "deserialize_level_filter")] pub tracing::metadata::LevelFilter,
 );
 
 impl From<tracing::metadata::LevelFilter> for LevelFilter {
@@ -398,25 +398,26 @@ struct ServerState<S> {
 
 impl<S> ServerState<S> {
     /// Patch the config with the new values from the client.
-    fn apply_config_patch(
-        &mut self,
-        client: ClientSocket,
-        options: &ServerOptions,
-        patch: UserOptionsPatch,
-    ) {
+    async fn apply_config_patch(&mut self, options: &ServerOptions, patch: UserOptionsPatch) {
         if let Some(log_level) = patch.log_level
             && let Some(reload_handle) = self.log_handle.as_ref()
             && let Err(e) = reload_handle.modify(|filter| {
-                let current_directives = filter.to_string();
-                *filter = EnvFilter::builder()
-                    .parse_lossy(format!("{},{}", current_directives, log_level.0));
+                *filter = filter.clone().add_directive(log_level.0.into());
             })
         {
             error!("failed to set log level: {e:?}");
         }
 
         self.config.options.apply(patch);
-        self.config.analyzer = options.analyzer(client.clone(), &self.config.options.lint);
+
+        if let Err(e) = self
+            .config
+            .analyzer
+            .swap_validator(validator(options, &self.config.options.lint))
+            .await
+        {
+            error!("failed to update analyzer validator: {e}");
+        }
     }
 }
 
@@ -446,6 +447,33 @@ struct ServerConfig {
     analyzer: Analyzer<ProgressToken>,
 }
 
+/// Create an [`Analyzer`] validator for the current LSP configuration.
+fn validator(
+    options: &ServerOptions,
+    lint_options: &LintOptions,
+) -> impl Fn() -> Validator + Send + Sync + 'static {
+    let exceptions = options.exceptions.clone();
+    let linting_enabled = lint_options.enabled;
+    let lint_config = lint_options.config.clone();
+
+    move || {
+        let mut validator = Validator::default();
+        if linting_enabled {
+            validator.add_visitor(Linter::new(
+                wdl_lint::rules(&lint_config)
+                    .into_iter()
+                    .filter(|r| !exceptions.contains(&r.id().into()))
+                    .map(|r| r as Box<dyn Rule>),
+            ));
+        }
+
+        // Even if linting isn't enabled, we need to make the validator aware of
+        // `wdl-lint` rules for `KnownRules`.
+        validator.extend_known_rules(wdl_lint::ALL_RULE_IDS.iter().cloned());
+        validator
+    }
+}
+
 impl ServerOptions {
     /// Create an [`Analyzer`] based on this config.
     fn analyzer(
@@ -453,7 +481,6 @@ impl ServerOptions {
         client: ClientSocket,
         lint_options: &LintOptions,
     ) -> Analyzer<ProgressToken> {
-        let linting_enabled = lint_options.enabled;
         let exceptions = self.exceptions.clone();
         let ignore_name = self.ignore_filename.clone();
         let analyzer_client = client.clone();
@@ -480,7 +507,6 @@ impl ServerOptions {
             .with_feature_flags(self.feature_flags)
             .with_format_config(self.format);
 
-        let wdl_lint_config = lint_options.config.clone();
         Analyzer::<ProgressToken>::new_with_validator_and_resolution(
             analyzer_config,
             self.resolution_context.clone(),
@@ -495,22 +521,7 @@ impl ServerOptions {
                     let _ = token.update(&client, message, percentage);
                 }
             },
-            move || {
-                let mut validator = Validator::default();
-                if linting_enabled {
-                    validator.add_visitor(Linter::new(
-                        wdl_lint::rules(&wdl_lint_config)
-                            .into_iter()
-                            .filter(|r| !exceptions.contains(&r.id().into()))
-                            .map(|r| r as Box<dyn Rule>),
-                    ));
-                }
-
-                // Even if linting isn't enabled, we need to make the validator aware of
-                // `wdl-lint` rules for `KnownRules`.
-                validator.extend_known_rules(wdl_lint::ALL_RULE_IDS.iter().cloned());
-                validator
-            },
+            validator(self, lint_options),
         )
     }
 }
@@ -1461,7 +1472,7 @@ impl<S: 'static> Server<S> {
             && let Err(e) = state
                 .config
                 .analyzer
-                .remove_documents(
+                .unroot_documents(
                     params
                         .event
                         .removed
@@ -1516,7 +1527,7 @@ impl<S: 'static> Server<S> {
         match workspace_configs {
             Ok(mut configs) if !configs.is_empty() => {
                 match serde_json::from_value::<UserOptionsPatch>(configs.remove(0)) {
-                    Ok(patch) => state.apply_config_patch(client, options, patch),
+                    Ok(patch) => state.apply_config_patch(options, patch).await,
                     Err(e) => error!("failed to deserialize `UserOptionsPatch`: {e:?}"),
                 }
             }
@@ -1527,8 +1538,8 @@ impl<S: 'static> Server<S> {
 
     /// `workspace/didChangeWatchedFiles` notification handler.
     async fn did_change_watched_files(params: DidChangeWatchedFilesParams, state: &ServerState<S>) {
-        /// Converts a URI into a WDL file path.
-        fn to_wdl_file_path(uri: &Url) -> Option<PathBuf> {
+        /// Converts a URI into an existing WDL file path.
+        fn to_existing_wdl_file_path(uri: &Url) -> Option<PathBuf> {
             if let Ok(path) = uri.to_file_path()
                 && path.is_file()
                 && path.extension().and_then(OsStr::to_str) == Some("wdl")
@@ -1546,7 +1557,7 @@ impl<S: 'static> Server<S> {
 
             match event.typ {
                 FileChangeType::CREATED => {
-                    let Some(path) = to_wdl_file_path(&event.uri) else {
+                    let Some(path) = to_existing_wdl_file_path(&event.uri) else {
                         continue;
                     };
 
@@ -1554,7 +1565,7 @@ impl<S: 'static> Server<S> {
                     added.push(path_to_uri(&path).expect("should convert to uri"));
                 }
                 FileChangeType::CHANGED => {
-                    if to_wdl_file_path(&event.uri).is_some() {
+                    if to_existing_wdl_file_path(&event.uri).is_some() {
                         debug!("document `{uri}` has been changed", uri = event.uri);
                         if let Err(e) = state.config.analyzer.notify_change(event.uri, false) {
                             error!("failed to notify change: {e}");
@@ -1562,11 +1573,7 @@ impl<S: 'static> Server<S> {
                     }
                 }
                 FileChangeType::DELETED => {
-                    if to_wdl_file_path(&event.uri).is_none() {
-                        continue;
-                    }
-
-                    debug!("document `{uri}` has been deleted", uri = event.uri);
+                    debug!("`{uri}` has been deleted", uri = event.uri);
                     deleted.push(event.uri);
                 }
                 _ => {}
@@ -1582,7 +1589,7 @@ impl<S: 'static> Server<S> {
         }
 
         if !deleted.is_empty()
-            && let Err(e) = state.config.analyzer.remove_documents(deleted).await
+            && let Err(e) = state.config.analyzer.delete_documents(deleted).await
         {
             error!("failed to remove documents from analyzer: {e}");
         }

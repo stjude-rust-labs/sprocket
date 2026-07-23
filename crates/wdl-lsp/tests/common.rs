@@ -39,14 +39,15 @@ use tempfile::TempDir;
 use tokio::io::duplex;
 use tokio_util::compat::TokioAsyncReadCompatExt;
 use tower::ServiceBuilder;
+use tracing_subscriber::FmtSubscriber;
 use url::Url;
-use wdl_lsp::LintOptions;
+use wdl_lsp::FilterReloadHandle;
 use wdl_lsp::Server;
 use wdl_lsp::ServerOptions;
 use wdl_lsp::UserOptions;
 
 /// Gets a test workspace directory path
-fn get_workspace_path(name: &str) -> PathBuf {
+pub fn get_workspace_path(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("workspace")
@@ -58,7 +59,7 @@ fn get_workspace_path(name: &str) -> PathBuf {
 /// This client doesn't do anything, it's only used to spawn a client loop
 /// to get a handle to the server.
 #[derive(Debug)]
-struct DummyClient;
+pub struct DummyClient;
 
 impl LanguageClient for DummyClient {
     type Error = ResponseError;
@@ -70,6 +71,7 @@ impl LanguageClient for DummyClient {
 /// This sets up a temporary workspace, starts a server instance, and provides
 /// methods for simulating a client interacting with the server.
 #[derive(Debug)]
+#[allow(unused)]
 pub struct TestContext {
     /// The join handle for the running server task.
     pub _server_handle: tokio::task::JoinHandle<()>,
@@ -84,50 +86,89 @@ pub struct TestContext {
 }
 
 const MAX_BUF_SIZE: usize = 4096;
+/// Name of the test workspace folder.
+pub const WORKSPACE_FOLDER_NAME: &str = "wdl-lsp-workspace";
 
-impl TestContext {
-    /// Creates a new test context.
-    ///
-    /// The `base` parameter is the name of a subdirectory in `tests/workspace`
-    /// which contains the WDL files for the test. These files are copied
-    /// into a temporary workspace directory.
+/// Builder for [`TestContext`]s
+#[derive(Debug)]
+pub struct TestContextBuilder<C> {
+    workspace: PathBuf,
+    client: C,
+    log_handle: Option<FilterReloadHandle<FmtSubscriber>>,
+    server_options: ServerOptions,
+    user_options: UserOptions,
+}
+
+impl TestContextBuilder<DummyClient> {
+    /// Create a new `TestContextBuilder` for the given workspace.
     pub fn new(base: &str) -> Self {
-        Self::with_options(
-            base,
-            ServerOptions::default(),
-            UserOptions {
-                lint: LintOptions {
-                    enabled: true,
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-        )
+        Self {
+            workspace: get_workspace_path(base),
+            client: DummyClient,
+            log_handle: None,
+            server_options: Default::default(),
+            user_options: Default::default(),
+        }
     }
+}
 
-    /// Creates a new test context with custom server options.
-    pub fn with_options(
-        base: &str,
-        server_options: ServerOptions,
-        user_options: UserOptions,
-    ) -> Self {
-        Self::with_options_fn(base, |_| (server_options, user_options))
-    }
-
-    /// Creates a new test context with server options computed from the
-    /// temporary workspace's filesystem path.
+#[allow(unused)]
+impl<C> TestContextBuilder<C>
+where
+    C: LanguageClient<NotifyResult = ControlFlow<async_lsp::Result<()>>, Error = ResponseError>
+        + Send
+        + 'static,
+{
+    /// Set the LSP client implementation.
     ///
-    /// This is useful for tests that need to configure the server with
-    /// options whose value depends on the workspace location (e.g., a
-    /// `Baseline` whose `base_dir` must point at the workspace root).
-    pub fn with_options_fn(
-        base: &str,
-        make_options: impl FnOnce(&Path) -> (ServerOptions, UserOptions),
-    ) -> Self {
+    /// By default, the context uses a [`DummyClient`].
+    pub fn client<C2>(self, client: C2) -> TestContextBuilder<C2>
+    where
+        C2: LanguageClient<NotifyResult = ControlFlow<async_lsp::Result<()>>, Error = ResponseError>
+            + Send
+            + 'static,
+    {
+        TestContextBuilder {
+            workspace: self.workspace,
+            client,
+            log_handle: self.log_handle,
+            server_options: self.server_options,
+            user_options: self.user_options,
+        }
+    }
+
+    /// Set the log handle.
+    pub fn log_handle(mut self, handle: FilterReloadHandle<FmtSubscriber>) -> Self {
+        self.log_handle = Some(handle);
+        self
+    }
+
+    /// Set the [`ServerOptions`].
+    pub fn server_options(mut self, options: ServerOptions) -> Self {
+        self.server_options = options;
+        self
+    }
+
+    /// Set the [`UserOptions`].
+    pub fn user_options(mut self, options: UserOptions) -> Self {
+        self.user_options = options;
+        self
+    }
+
+    /// Spawn the client and server tasks and create a new [`TestContext`].
+    pub fn build(self) -> TestContext {
+        self.build_with_options_fn(|_, _, _| {})
+    }
+
+    /// Same as [`Self::build()`], but allows the options to be modified with
+    /// the newly created workspace directory.
+    pub fn build_with_options_fn(
+        mut self,
+        make_options: impl FnOnce(&Path, &mut ServerOptions, &mut UserOptions),
+    ) -> TestContext {
         let workspace = TempDir::new().unwrap();
-        let workspace_path = get_workspace_path(base);
-        if workspace_path.exists() {
-            let items: Vec<_> = fs::read_dir(&workspace_path)
+        if self.workspace.exists() {
+            let items: Vec<_> = fs::read_dir(&self.workspace)
                 .unwrap()
                 .map(|e| e.unwrap().path())
                 .collect();
@@ -135,18 +176,24 @@ impl TestContext {
             copy_items(&items, workspace.path(), &copy_options).unwrap();
         }
 
-        let (server_options, user_options) = make_options(workspace.path());
+        make_options(
+            workspace.path(),
+            &mut self.server_options,
+            &mut self.user_options,
+        );
         let (server_loop, client_socket) = MainLoop::new_server(|client| {
-            ServiceBuilder::new().service(Router::from_language_server(Server::<()>::new(
-                client,
-                server_options,
-                user_options,
-                None,
-            )))
+            ServiceBuilder::new().service(Router::from_language_server(
+                Server::<FmtSubscriber>::new(
+                    client,
+                    self.server_options,
+                    self.user_options,
+                    self.log_handle,
+                ),
+            ))
         });
 
         let (client_loop, server_socket) = MainLoop::new_client(|_server| {
-            ServiceBuilder::new().service(Router::from_language_client(DummyClient))
+            ServiceBuilder::new().service(Router::from_language_client(self.client))
         });
 
         // Wire up a loopback channel between the server and the client.
@@ -171,7 +218,7 @@ impl TestContext {
             );
         });
 
-        Self {
+        TestContext {
             _server_handle: server_handle,
             _client_handle: client_handle,
             client: client_socket,
@@ -179,20 +226,30 @@ impl TestContext {
             workspace,
         }
     }
+}
 
+impl TestContext {
     /// Creates a file URI for a path within the temporary workspace.
-    #[allow(unused)]
     pub fn doc_uri(&self, path: &str) -> Url {
-        Url::from_file_path(self.workspace.path().join(path)).unwrap()
+        Url::from_file_path(self.doc_path(path)).unwrap()
+    }
+
+    /// Gets the path to a file within the temporary workspace.
+    pub fn doc_path(&self, path: &str) -> PathBuf {
+        self.workspace.path().join(path)
+    }
+
+    /// Creates a file URI for the temporary workspace.
+    pub fn workspace_uri(&self) -> Url {
+        Url::from_file_path(self.workspace.path()).unwrap()
     }
 
     /// Performs the LSP initialization handshake and returns the initial
     /// workspace diagnostic report alongside the initialization result.
-    #[allow(unused)]
     pub async fn initialize(
         &mut self,
     ) -> (lsp_types::InitializeResult, WorkspaceDiagnosticReportResult) {
-        let workspace_url = Url::from_file_path(self.workspace.path()).unwrap();
+        let workspace_url = self.workspace_uri();
         let capabilities = ClientCapabilities {
             text_document: Some(lsp_types::TextDocumentClientCapabilities {
                 synchronization: Some(lsp_types::TextDocumentSyncClientCapabilities {
@@ -222,14 +279,13 @@ impl TestContext {
             ..Default::default()
         };
 
-        #[allow(deprecated)]
         let params = InitializeParams {
             process_id: None,
             initialization_options: None,
             capabilities,
             trace: None,
             workspace_folders: Some(vec![WorkspaceFolder {
-                name: "wdl-lsp-workspace".to_owned(),
+                name: WORKSPACE_FOLDER_NAME.to_owned(),
                 uri: workspace_url,
             }]),
             client_info: None,

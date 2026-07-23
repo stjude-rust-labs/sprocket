@@ -19,8 +19,7 @@ use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_MODIFIERS;
 use wdl_analysis::handlers::WDL_SEMANTIC_TOKEN_TYPES;
 
 use crate::common::TestContext;
-
-pub mod common;
+use crate::common::TestContextBuilder;
 
 async fn semantic_tokens_full_request(
     ctx: &mut TestContext,
@@ -67,7 +66,7 @@ async fn semantic_tokens_range_request(
 }
 
 async fn setup() -> TestContext {
-    let mut ctx = TestContext::new("semantic_tokens");
+    let mut ctx = TestContextBuilder::new("semantic_tokens").build();
     ctx.initialize().await;
     ctx
 }

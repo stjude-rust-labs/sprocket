@@ -1,7 +1,5 @@
 //! Integration tests for the `textDocument/documentSymbol` request.
 
-pub mod common;
-
 use async_lsp::lsp_types::DocumentSymbol;
 use async_lsp::lsp_types::DocumentSymbolParams;
 use async_lsp::lsp_types::DocumentSymbolResponse;
@@ -12,7 +10,9 @@ use async_lsp::lsp_types::WorkspaceSymbolParams;
 use async_lsp::lsp_types::WorkspaceSymbolResponse;
 use async_lsp::lsp_types::request::DocumentSymbolRequest;
 use async_lsp::lsp_types::request::WorkspaceSymbolRequest;
-use common::TestContext;
+
+use crate::common::TestContext;
+use crate::common::TestContextBuilder;
 
 async fn document_symbol_request(
     ctx: &mut TestContext,
@@ -58,7 +58,7 @@ fn assert_symbol_found(symbols: &[SymbolInformation], name: &str) {
 }
 
 async fn setup() -> TestContext {
-    let mut ctx = TestContext::new("symbols");
+    let mut ctx = TestContextBuilder::new("symbols").build();
     ctx.initialize().await;
     ctx
 }
