@@ -1414,4 +1414,40 @@ mod test {
             "Expected key change when non-excluded input is modified"
         );
     }
+
+    #[tokio::test]
+    async fn backend_in_cache_key() {
+        let ctx = TestContext::new().await;
+
+        // Compute the cache key with the original backend
+        let request = ctx.task.key_request();
+        let original_key = ctx.cache.key(request).await.unwrap();
+
+        // Verify the original entry is cacheable (cache hit)
+        assert!(
+            ctx.cache.get(&original_key).await.is_ok(),
+            "Expected cache hit with original backend"
+        );
+
+        // Compute a key with a different backend
+        let key = ctx
+            .cache
+            .key(KeyRequest {
+                backend: "different",
+                ..request
+            })
+            .await
+            .unwrap();
+
+        assert_ne!(
+            original_key.key, key.key,
+            "Expected different cache keys for different backends"
+        );
+
+        // Verify the different backend yields a cache miss (key doesn't exist)
+        assert!(
+            ctx.cache.get(&key).await.unwrap().is_none(),
+            "Expected no cache entry for different backend"
+        );
+    }
 }
