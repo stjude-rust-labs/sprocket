@@ -854,6 +854,10 @@ impl SlurmApptainerBackend {
 }
 
 impl TaskExecutionBackend for SlurmApptainerBackend {
+    fn name(&self) -> &'static str {
+        "slurm_apptainer"
+    }
+
     fn constraints(
         &self,
         inputs: &TaskInputs,

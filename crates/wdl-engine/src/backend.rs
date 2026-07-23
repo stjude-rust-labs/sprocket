@@ -269,6 +269,9 @@ pub struct TaskExecutionResult {
 
 /// Represents a task execution backend.
 pub(crate) trait TaskExecutionBackend: Send + Sync {
+    /// The unique name of the backend.
+    fn name(&self) -> &'static str;
+
     /// Gets the execution constraints given a task's inputs, requirements, and
     /// hints.
     ///

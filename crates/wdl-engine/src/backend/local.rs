@@ -285,6 +285,10 @@ impl LocalBackend {
 }
 
 impl TaskExecutionBackend for LocalBackend {
+    fn name(&self) -> &'static str {
+        "local"
+    }
+
     fn constraints(
         &self,
         inputs: &TaskInputs,
