@@ -162,6 +162,7 @@ workflow seaseq {
     ### ------------ S E C T I O N 1 ----------- ###
     ### ------ Pre-process Analysis Files ------ ###
     ### ---------------------------------------- ###
+
     # Process SRRs
     if (defined(sample_sraid)) {
         # Download sample file(s) from SRA database
@@ -259,6 +260,7 @@ workflow seaseq {
     ### ---------------- S E C T I O N 1 ---------------- ###
     ### ----------- B: remove Spike-IN reads ------------ ###
     ### ------------------------------------------------- ###
+
     # if multiple fastqfiles are provided
     Boolean multi_fastq = if length(original_fastqfiles) > 1 then true else false
     Boolean one_fastq = if length(original_fastqfiles) == 1 then true else false
@@ -295,6 +297,7 @@ workflow seaseq {
     ### ---------------- S E C T I O N 2 ---------------- ###
     ### ---- A: analysis if multiple FASTQs provided ---- ###
     ### ------------------------------------------------- ###
+
     if (multi_fastq) {
         scatter (eachfastq in fastqfiles) {
             # Execute analysis on each fastq file provided
@@ -436,6 +439,7 @@ workflow seaseq {
     ### ------------ S E C T I O N 2 ----------- ###
     ### -- B: analysis if one FASTQ provided --- ###
     ### ---------------------------------------- ###
+
     # if only one fastqfile is provided
     if (one_fastq) {
         # Execute analysis on each fastq file provided
@@ -492,6 +496,7 @@ workflow seaseq {
     ### ------------ S E C T I O N 3 ----------- ###
     ### ----------- ChIP-seq analysis ---------- ###
     ### ---------------------------------------- ###
+
     # ChIP-seq and downstream analysis
     # Execute analysis on merge bam file
     # Analysis executed:
@@ -687,6 +692,7 @@ workflow seaseq {
     ### ------------ S E C T I O N 4 ----------- ###
     ### ---------- Summary Statistics ---------- ###
     ### ---------------------------------------- ###
+
     String string_qual = ""  #buffer to allow for optionality in if statement
 
     #SUMMARY STATISTICS
