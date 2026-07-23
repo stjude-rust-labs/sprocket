@@ -133,6 +133,12 @@ impl Diagnostics {
         self.diagnostics.is_empty()
     }
 
+    /// Returns whether any diagnostics have a severity of [`Severity::Error`].
+    pub fn has_errors(&self) -> bool {
+        self.iter()
+            .any(|diagnostic| diagnostic.severity() == Severity::Error)
+    }
+
     /// Sorts the diagnostics in the collection.
     pub fn sort(&mut self) {
         self.diagnostics.sort();

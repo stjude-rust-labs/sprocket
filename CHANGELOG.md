@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Sprocket test definitions ([#953](https://github.com/stjude-rust-labs/sprocket/pull/953)).
 * Added `sprocket config schema` subcommand to generate a [JSON schema](https://json-schema.org) for
   `sprocket.toml` files ([#958](https://github.com/stjude-rust-labs/sprocket/pull/958)).
+* `sprocket dev test` now produces spanned diagnostics for YAML files ([#982](https://github.com/stjude-rust-labs/sprocket/pull/982)).
 
 ### Changed
 

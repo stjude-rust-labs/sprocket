@@ -1,0 +1,27 @@
+error: uneven length for group `two`
+  ┌─ foo/foo.yml:5:9
+  │
+5 │         one:
+  │         ^^^ `one` has 1 entries
+6 │           - foo
+7 │         two:
+  │         --- `two` has 2 entries
+  │
+  = help: all sequences in a group must have the same length, with the first group setting the precedent
+
+error: the key `one` is defined multiple times
+   ┌─ foo/foo.yml:15:9
+   │
+15 │         one:
+   │         ^^^ first definition here
+   ·
+21 │       one:
+   │       --- `one` redefined here
+
+error: expected a sequence of values in field `one`
+   ┌─ foo/foo.yml:25:7
+   │
+25 │       one: this is wrong
+   │       ^^^
+
+error: failing due to 3 errors

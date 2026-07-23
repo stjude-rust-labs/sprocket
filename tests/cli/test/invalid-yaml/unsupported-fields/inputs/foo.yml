@@ -1,0 +1,8 @@
+say_hello:
+  - name: says_hello
+    assertions:
+      exit_code: 0
+      stdout:
+        - "This means nothing for workflows!"
+      stderr:
+        - "This also means nothing for workflows!"
