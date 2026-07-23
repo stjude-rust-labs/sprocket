@@ -522,10 +522,7 @@ workflow seaseq {
         bedfile = forsicerbed.bedfile,
         chromsizes = samtools_faidx.chromsizes,
         genome_fraction = egs.genomefraction,
-        fragmentlength = select_first([
-            uno_bfs.readlength,
-            mergebam.avg_readlength,
-        ]),
+        fragmentlength = select_first([uno_bfs.readlength, mergebam.avg_readlength]),
         default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS/BROAD_peaks",
         coverage_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/COVERAGE_files/BROAD_peaks",
     }
@@ -533,10 +530,7 @@ workflow seaseq {
     call rose.rose { input:
         gtffile = gtf,
         bamfile = select_first([merge_markdup.mkdupbam, mapping.mkdup_bam]),
-        bamindex = select_first([
-            merge_mkdup.indexbam,
-            mapping.mkdup_index,
-        ]),
+        bamindex = select_first([merge_mkdup.indexbam, mapping.mkdup_index]),
         bedfile_auto = macs.peakbedfile,
         bedfile_all = all.peakbedfile,
         default_location = sub(basename(sample_bam), ".sorted.b.*$", "") + "/PEAKS/STITCHED_peaks",
@@ -644,10 +638,7 @@ workflow seaseq {
             fastq_type = "SEAseq Sample FASTQ",
             bambed = finalbed.bedfile,
             sppfile = runspp.spp_out,
-            fastqczip = select_first([
-                uno_bamfqc.zipfile,
-                string_qual,
-            ]),
+            fastqczip = select_first([uno_bamfqc.zipfile, string_qual]),
             bamflag = mapping.bam_stats,
             rmdupflag = mapping.mkdup_stats,
             bkflag = mapping.bklist_stats,
@@ -672,10 +663,7 @@ workflow seaseq {
             fastq_type = "SEAseq Comprehensive",
             bambed = finalbed.bedfile,
             sppfile = runspp.spp_out,
-            fastqczip = select_first([
-                mergebamfqc.zipfile,
-                string_qual,
-            ]),
+            fastqczip = select_first([mergebamfqc.zipfile, string_qual]),
             bamflag = mergeindexstats.flagstats,
             rmdupflag = merge_mkdup.flagstats,
             bkflag = merge_bklist.flagstats,

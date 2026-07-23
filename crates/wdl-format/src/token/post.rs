@@ -600,9 +600,10 @@ impl Postprocessor {
         // information needed for determining appropriate linebreaks if any
         // lines in the post buffer are too long.
         //
-        // If we encounter any fit-or-split blocks or potential line breaks, we won't add the buffer to the
-        // out stream until a 2nd pass is completed. The second pass is needed as we
-        // want to look-ahead from the start of fit-or-split spans and potential line breaks.
+        // If we encounter any fit-or-split blocks or potential line breaks, we won't
+        // add the buffer to the out stream until a 2nd pass is completed. The
+        // second pass is needed as we want to look-ahead from the start of
+        // fit-or-split spans and potential line breaks.
         let mut buffer_usable = true;
         while let Some((i, token)) = pre_buffer.next() {
             // gather info needed for a second pass
@@ -629,10 +630,13 @@ impl Postprocessor {
                 }
                 PreToken::FitOrSplitEnd(_) => {
                     if let Some(start) = span_start {
+                        let too_long =
+                            max_length.is_some_and(|max| post_buffer.last_line_width(config) > max);
+
                         split_spans.push(FitOrSplitSpan {
                             start,
                             end: i + 1,
-                            fits: can_fit,
+                            fits: can_fit && !too_long,
                         });
                         span_start = None;
                         can_fit = true;
@@ -652,13 +656,7 @@ impl Postprocessor {
             if let Some(max) = max_length
                 && post_buffer.last_line_width(config) > max
             {
-                if span_start.is_some() {
-                    can_fit = false;
-                } else if let Some(earlier_span) = split_spans.last_mut()
-                    && earlier_span.start < max
-                {
-                    earlier_span.fits = false;
-                }
+                can_fit = false;
             }
         }
 
