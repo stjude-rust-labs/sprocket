@@ -14,9 +14,7 @@ deny_warnings = false
 deny_notes = false
 hide_notes = false
 hide_warnings = false
-all_lint_rules = false
-only_lint_tags = []
-filter_lint_tags = []
+tags = []
 
 [check.lint]
 allowed_runtime_keys = []

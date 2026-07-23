@@ -363,6 +363,10 @@ pub fn collect_all_tags() -> HashMap<WdlLintTag, Tag> {
                 .entry(tag)
                 .and_modify(|v| v.applicable_lints.push(rule.id()));
         }
+
+        // Special case for `Tag::All`
+        tags.entry(WdlLintTag::All)
+            .and_modify(|v| v.applicable_lints.push(rule.id()));
     }
 
     for tag in tags.values_mut() {

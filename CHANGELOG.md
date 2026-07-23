@@ -7,11 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* `sprocket check --tag` to append a lint tag to the default set.
+
+### Changed
+
+* `sprocket check --except` now accepts lint tag names (e.g., `--except documentation`).
+
 ### Fixed
 
 * WDL 1.0 `runtime` resource requirements such as `cpu` are again passed to
   execution backends instead of being treated as hints
   ([#1026](https://github.com/stjude-rust-labs/sprocket/issues/1026)).
+
+### Removed
+
+* `sprocket check --all-lint-rules`, use `sprocket check --tag all` instead.
+* `sprocket check --filter-lint-tag`, tag names can now be used in the `--except` option instead.
+* `sprocket check --only-lint-tag`
 
 ## 0.28.0 - 2026-07-15
 

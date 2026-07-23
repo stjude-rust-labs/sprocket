@@ -135,7 +135,7 @@
       "type": "object",
       "properties": {
         "except": {
-          "description": "Rule IDs to except from running.",
+          "description": "Rule IDs or tags to except from running.",
           "type": "array",
           "items": {
             "type": "string"
@@ -162,21 +162,8 @@
           "type": "boolean",
           "default": false
         },
-        "all_lint_rules": {
-          "description": "Enable all lint rules, even those outside the default set.\n\nThis cannot be `true` while `only_lint_tags` is populated.",
-          "type": "boolean",
-          "default": false
-        },
-        "only_lint_tags": {
+        "tags": {
           "description": "Set of lint tags to opt into. Leave this empty to use the default set of\ntags.",
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "default": []
-        },
-        "filter_lint_tags": {
-          "description": "Set of lint tags to filter out of the enabled lint rules.",
           "type": "array",
           "items": {
             "type": "string"
