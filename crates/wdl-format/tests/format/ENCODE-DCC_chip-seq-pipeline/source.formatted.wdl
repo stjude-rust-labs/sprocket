@@ -1211,7 +1211,8 @@ workflow chip {
             runtime_environment = runtime_environment,
         }
     }
-    if ((num_rep_fastq > 0 || num_ctl_fastq > 0) && aligner_ != "bwa" && aligner_ != "bowtie2" && aligner_ != "custom") {
+    if ((num_rep_fastq > 0 || num_ctl_fastq > 0) && aligner_ != "bwa" && aligner_ != "bowtie2"
+        && aligner_ != "custom") {
         call raise_exception as error_wrong_aligner { input:
             msg = "Choose chip.aligner to align your fastqs. Choices: bwa, bowtie2, custom.",
             runtime_environment = runtime_environment,
@@ -1226,14 +1227,18 @@ workflow chip {
             = "To use chip.use_bowtie2_local_mode, choose bowtie2 for chip.aligner.", runtime_environment
             = runtime_environment }
     }
-    if (aligner_ == "custom" && (!defined(custom_align_py) || !defined(custom_aligner_idx_tar))) {
+    if (aligner_ == "custom" && (!defined(custom_align_py) || !defined(
+        custom_aligner_idx_tar
+    ))) {
         call raise_exception as error_custom_aligner { input:
             msg = "To use a custom aligner, define chip.custom_align_py and chip.custom_aligner_idx_tar.",
             runtime_environment = runtime_environment,
         }
     }
 
-    if ((ctl_depth_limit > 0 || exp_ctl_depth_ratio_limit > 0) && num_ctl > 1 && length(ctl_paired_ends) > 1) {
+    if ((ctl_depth_limit > 0 || exp_ctl_depth_ratio_limit > 0) && num_ctl > 1 && length(
+        ctl_paired_ends
+    ) > 1) {
         call raise_exception as error_subsample_pooled_control_with_mixed_endedness { input:
             msg = "Cannot use automatic control subsampling (\"chip.ctl_depth_limit\">0 and \"chip.exp_ctl_depth_limit\">0) for "
                 + "multiple controls with mixed endedness (e.g. SE ctl-rep1 and PE ctl-rep2). "
@@ -1350,7 +1355,8 @@ workflow chip {
                 = spr_disk_factor, runtime_environment = runtime_environment }
         }
 
-        Boolean has_input_of_count_signal_track = has_output_of_bam2ta || defined(bam2ta.ta)
+        Boolean has_input_of_count_signal_track = has_output_of_bam2ta || defined(bam2ta.ta
+        )
         if (has_input_of_count_signal_track && enable_count_signal_track_) {
             # generate count signal track
             call count_signal_track { input: ta = ta_, chrsz = chrsz_, runtime_environment
@@ -1427,7 +1433,8 @@ workflow chip {
         }
 
         # special trimming/mapping for xcor (when starting from BAMs)
-        Boolean has_input_of_bam2ta_no_dedup = (has_output_of_align || defined(align.bam)) && !defined(bam2ta_no_dedup_R1.ta)
+        Boolean has_input_of_bam2ta_no_dedup = (has_output_of_align || defined(align.bam))
+            && !defined(bam2ta_no_dedup_R1.ta)
         if (has_input_of_bam2ta_no_dedup) {
             call filter as filter_no_dedup { input:
                 bam = bam_,
@@ -1496,7 +1503,9 @@ workflow chip {
             then ctl_paired_ends[i]
             else select_first([ctl_paired_end, paired_end])
 
-        Boolean has_input_of_align_ctl = i < length(ctl_fastqs_R1) && length(ctl_fastqs_R1[i]) > 0
+        Boolean has_input_of_align_ctl = i < length(ctl_fastqs_R1) && length(ctl_fastqs_R1[
+            i
+        ]) > 0
         Boolean has_output_of_align_ctl = i < length(ctl_bams)
         if (has_input_of_align_ctl && !has_output_of_align_ctl) {
             call align as align_ctl { input:
@@ -1531,7 +1540,8 @@ workflow chip {
         }
         File? ctl_bam_ = if has_output_of_align_ctl then ctl_bams[i] else align_ctl.bam
 
-        Boolean has_input_of_filter_ctl = has_output_of_align_ctl || defined(align_ctl.bam)
+        Boolean has_input_of_filter_ctl = has_output_of_align_ctl || defined(align_ctl.bam
+        )
         Boolean has_output_of_filter_ctl = i < length(ctl_nodup_bams)
         # skip if we already have output of this step
         if (has_input_of_filter_ctl && !has_output_of_filter_ctl) {
@@ -1557,7 +1567,8 @@ workflow chip {
         }
         File? ctl_nodup_bam_ = if has_output_of_filter_ctl then ctl_nodup_bams[i] else filter_ctl.nodup_bam
 
-        Boolean has_input_of_bam2ta_ctl = has_output_of_filter_ctl || defined(filter_ctl.nodup_bam)
+        Boolean has_input_of_bam2ta_ctl = has_output_of_filter_ctl || defined(filter_ctl.nodup_bam
+        )
         Boolean has_output_of_bam2ta_ctl = i < length(ctl_tas)
         if (has_input_of_bam2ta_ctl && !has_output_of_bam2ta_ctl) {
             call bam2ta as bam2ta_ctl { input:
@@ -1609,7 +1620,8 @@ workflow chip {
     }
 
     Boolean has_input_of_count_signal_track_pooled = defined(pool_ta.ta_pooled)
-    if (has_input_of_count_signal_track_pooled && enable_count_signal_track_ && num_rep > 1) {
+    if (has_input_of_count_signal_track_pooled && enable_count_signal_track_ && num_rep > 1
+    ) {
         call count_signal_track as count_signal_track_pooled { input: ta = pool_ta.ta_pooled,
              chrsz = chrsz_, runtime_environment = runtime_environment }
     }
@@ -1631,7 +1643,9 @@ workflow chip {
         }
     }
 
-    Boolean has_all_input_of_choose_ctl = length(select_all(ta_)) == num_rep && length(select_all(ctl_ta_)) == num_ctl && num_ctl > 0
+    Boolean has_all_input_of_choose_ctl = length(select_all(ta_)) == num_rep && length(
+        select_all(ctl_ta_)
+    ) == num_ctl && num_ctl > 0
     if (has_all_input_of_choose_ctl && !align_only_) {
         # choose appropriate control for each exp IP replicate
         # outputs:
@@ -1843,7 +1857,8 @@ workflow chip {
 
     Boolean has_input_of_call_peak_pooled = defined(pool_ta.ta_pooled)
     Boolean has_output_of_call_peak_pooled = defined(peak_pooled)
-    if (has_input_of_call_peak_pooled && !has_output_of_call_peak_pooled && !align_only_ && num_rep > 1) {
+    if (has_input_of_call_peak_pooled && !has_output_of_call_peak_pooled && !align_only_
+        && num_rep > 1) {
         # call peaks on pooled replicate
         # always call peaks for pooled replicate to get signal tracks
         call call_peak as call_peak_pooled { input:
@@ -1896,7 +1911,8 @@ workflow chip {
 
     Boolean has_input_of_call_peak_ppr1 = defined(pool_ta_pr1.ta_pooled)
     Boolean has_output_of_call_peak_ppr1 = defined(peak_ppr1)
-    if (has_input_of_call_peak_ppr1 && !has_output_of_call_peak_ppr1 && !align_only_ && !true_rep_only && num_rep > 1) {
+    if (has_input_of_call_peak_ppr1 && !has_output_of_call_peak_ppr1 && !align_only_ && !true_rep_only
+        && num_rep > 1) {
         # call peaks on 1st pooled pseudo replicates
         call call_peak as call_peak_ppr1 { input:
             peak_caller = peak_caller_,
@@ -1929,7 +1945,8 @@ workflow chip {
 
     Boolean has_input_of_call_peak_ppr2 = defined(pool_ta_pr2.ta_pooled)
     Boolean has_output_of_call_peak_ppr2 = defined(peak_ppr2)
-    if (has_input_of_call_peak_ppr2 && !has_output_of_call_peak_ppr2 && !align_only_ && !true_rep_only && num_rep > 1) {
+    if (has_input_of_call_peak_ppr2 && !has_output_of_call_peak_ppr2 && !align_only_ && !true_rep_only
+        && num_rep > 1) {
         # call peaks on 2nd pooled pseudo replicates
         call call_peak as call_peak_ppr2 { input:
             peak_caller = peak_caller_,
@@ -2919,7 +2936,8 @@ task overlap {
         File bfilt_overlap_peak_bb = glob("*.bfilt." + peak_type + ".bb")[0]
         File bfilt_overlap_peak_starch = glob("*.bfilt." + peak_type + ".starch")[0]
         File bfilt_overlap_peak_hammock = glob("*.bfilt." + peak_type + ".hammock.gz*")[0]
-        File bfilt_overlap_peak_hammock_tbi = glob("*.bfilt." + peak_type + ".hammock.gz*")[1]
+        File bfilt_overlap_peak_hammock_tbi = glob("*.bfilt." + peak_type + ".hammock.gz*"
+        )[1]
         File frip_qc = if defined(ta) then glob("*.frip.qc")[0] else glob("null")[0]
     }
 

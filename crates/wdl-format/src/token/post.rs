@@ -600,10 +600,9 @@ impl Postprocessor {
         // information needed for determining appropriate linebreaks if any
         // lines in the post buffer are too long.
         //
-        // If we encounter _any_ "fit-or-split" blocks, we won't add the buffer to the
+        // If we encounter any fit-or-split blocks or potential line breaks, we won't add the buffer to the
         // out stream until a 2nd pass is completed. The second pass is needed as we
-        // want to look-ahead from the start of a fit-or-split span to the end for
-        // adequate formatting.
+        // want to look-ahead from the start of fit-or-split spans and potential line breaks.
         let mut buffer_usable = true;
         while let Some((i, token)) = pre_buffer.next() {
             // gather info needed for a second pass
@@ -611,9 +610,11 @@ impl Postprocessor {
                 PreToken::Literal(_, kind) if max_length.is_some() => {
                     match can_be_line_broken(*kind) {
                         Some(LineBreak::Before) => {
+                            buffer_usable = false;
                             potential_line_breaks.insert(i, *kind);
                         }
                         Some(LineBreak::After) => {
+                            buffer_usable = false;
                             potential_line_breaks.insert(i + 1, *kind);
                         }
                         None => {}
@@ -631,15 +632,15 @@ impl Postprocessor {
                         split_spans.push(FitOrSplitSpan {
                             start,
                             end: i + 1,
-                            fits: can_fit
-                                && max_length
-                                    .is_none_or(|max| post_buffer.last_line_width(config) < max),
+                            fits: can_fit,
                         });
                         span_start = None;
                         can_fit = true;
                     }
                 }
                 PreToken::LineEnd | PreToken::Trivia(_) => {
+                    // if a newline appears anywhere in the middle of a fit-or-split block we can't
+                    // fit it on one line
                     can_fit = false;
                 }
                 _ => {}
@@ -661,7 +662,7 @@ impl Postprocessor {
             }
         }
 
-        if buffer_usable && max_length.is_none_or(|max| post_buffer.max_width(config) > max) {
+        if buffer_usable && max_length.is_none_or(|max| post_buffer.max_width(config) < max) {
             out_stream.extend(post_buffer);
             return;
         }
