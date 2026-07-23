@@ -1,6 +1,6 @@
 [package]
 name = "wdl-modules"
-version = "0.3.0"
+version = "0.3.1"
 description = "Implementation of the WDL module specification"
 authors.workspace = true
 rust-version.workspace = true
