@@ -584,20 +584,29 @@ impl Postprocessor {
         assert!(!self.interrupted);
         assert!(self.position == LinePosition::StartOfLine);
 
-        let pre_buffer = in_stream.iter().enumerate().peekable();
+        let mut pre_buffer = in_stream.iter().enumerate().peekable();
+        let mut post_buffer = TokenStream::<PostToken>::default();
 
-        // PERF: TODO
+        let starting_indent = self.indent_level;
+        let starting_temp_indent = self.temp_indent.clone();
+
         let max_length = config.max_line_length.get();
         let mut potential_line_breaks: HashMap<usize, SyntaxKind> = HashMap::new();
         let mut split_spans = Vec::new();
         let mut span_start = None;
-        let mut found_end = false;
-        let mut newline_this_span = false;
+        let mut can_fit = true;
 
-        for (i, token) in pre_buffer {
-            if matches!(token, &PreToken::LineEnd | &PreToken::Trivia(_)) {
-                newline_this_span = true;
-            }
+        // First pass through the pre buffer. While iterating, we also gather
+        // information needed for determining appropriate linebreaks if any
+        // lines in the post buffer are too long.
+        //
+        // If we encounter _any_ "fit-or-split" blocks, we won't add the buffer to the
+        // out stream until a 2nd pass is completed. The second pass is needed as we
+        // want to look-ahead from the start of a fit-or-split span to the end for
+        // adequate formatting.
+        let mut buffer_usable = true;
+        while let Some((i, token)) = pre_buffer.next() {
+            // gather info needed for a second pass
             match token {
                 PreToken::Literal(_, kind) if max_length.is_some() => {
                     match can_be_line_broken(*kind) {
@@ -611,76 +620,68 @@ impl Postprocessor {
                     }
                 }
                 PreToken::FitOrSplitStart(_) => {
+                    buffer_usable = false;
                     // always overwrite start so that only the innermost span is
                     // considered for fitting on one line (outer spans should always get split)
                     span_start = Some(i);
-                    found_end = false;
-                    newline_this_span = false;
+                    can_fit = true;
                 }
                 PreToken::FitOrSplitEnd(_) => {
-                    if span_start.is_some() && !found_end {
+                    if let Some(start) = span_start {
                         split_spans.push(FitOrSplitSpan {
-                            start: span_start.unwrap(),
+                            start,
                             end: i + 1,
-                            fits: !newline_this_span,
+                            fits: can_fit
+                                && max_length
+                                    .is_none_or(|max| post_buffer.last_line_width(config) < max),
                         });
                         span_start = None;
-                        found_end = true;
-                    } else {
-                        span_start = None;
-                        found_end = false;
-                        newline_this_span = false;
+                        can_fit = true;
                     }
+                }
+                PreToken::LineEnd | PreToken::Trivia(_) => {
+                    can_fit = false;
                 }
                 _ => {}
             }
-        }
 
-        let mut post_buffer = TokenStream::<PostToken>::default();
-        let mut pre_buffer = in_stream.iter().enumerate().peekable();
-        let starting_indent = self.indent_level;
-        let starting_temp_indent = self.temp_indent.clone();
-
-        let mut split_spans = split_spans.iter();
-        let mut cur_span = split_spans.next();
-        self.linebreak_potential_splits = true;
-
-        while let Some((i, token)) = pre_buffer.next() {
-            if let Some(span) = cur_span {
-                if i == span.start {
-                    self.linebreak_potential_splits = !span.fits;
-                }
-                if i == span.end {
-                    cur_span = split_spans.next();
-                    self.linebreak_potential_splits = true;
-                }
-            }
             let next = pre_buffer.peek().copied().map(|(_, n)| n);
             self.step(token.clone(), next, &mut post_buffer);
+
+            if let Some(max) = max_length
+                && post_buffer.last_line_width(config) > max
+            {
+                if span_start.is_some() {
+                    can_fit = false;
+                } else if let Some(earlier_span) = split_spans.last_mut()
+                    && earlier_span.start < max
+                {
+                    earlier_span.fits = false;
+                }
+            }
         }
 
-        // check the line lengths to see if we're done yet
-        if max_length.is_none() || post_buffer.max_width(config) <= max_length.unwrap() {
+        if buffer_usable && max_length.is_none_or(|max| post_buffer.max_width(config) > max) {
             out_stream.extend(post_buffer);
             return;
         }
-        let max_length = max_length.unwrap();
 
-        // The fit-or-split iteration left some lines that are too long. Iterate through
-        // one last time to attempt the remaining potential breaks found.
-
-        // Set up the buffers for the next iteration.
-        post_buffer.clear();
+        // setup for next pass through the pre buffer
         let mut pre_buffer = in_stream.iter().enumerate().peekable();
+        post_buffer.clear();
 
-        // Reset self.
+        // reset self
         self.interrupted = false;
         self.position = LinePosition::StartOfLine;
         self.temp_indent = starting_temp_indent;
         self.indent_level = starting_indent;
         self.linebreak_potential_splits = true;
 
+        let mut split_spans = split_spans.iter();
+        let mut cur_span = split_spans.next();
+
         let mut break_stack: Vec<TandemBreak> = Vec::new();
+        let mut cache = None;
 
         while let Some((i, token)) = pre_buffer.next() {
             if let Some(span) = cur_span {
@@ -693,8 +694,9 @@ impl Postprocessor {
                 }
             }
 
-            let mut cache = None;
-            if let Some(break_kind) = potential_line_breaks.get(&i) {
+            if max_length.is_some()
+                && let Some(break_kind) = potential_line_breaks.get(&i)
+            {
                 // Check if we need a break to match a prior tandem break
                 if let Some(top_of_stack) = break_stack.last_mut() {
                     if *break_kind == top_of_stack.close {
@@ -713,14 +715,11 @@ impl Postprocessor {
                 cache = Some(post_buffer.clone());
             }
 
-            self.step(
-                token.clone(),
-                pre_buffer.peek().copied().map(|(_, n)| n),
-                &mut post_buffer,
-            );
+            let next = pre_buffer.peek().copied().map(|(_, n)| n);
+            self.step(token.clone(), next, &mut post_buffer);
 
-            if let Some(cache) = cache
-                && post_buffer.last_line_width(config) > max_length
+            if let Some(cache) = cache.take()
+                && max_length.is_some_and(|max| post_buffer.last_line_width(config) > max)
             {
                 // The line is too long after the next step. Revert to the
                 // cached state and insert a line break.

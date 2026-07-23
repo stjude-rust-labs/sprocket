@@ -1038,37 +1038,24 @@ workflow chip {
 
     # read genome data and paths
     if (defined(genome_tsv)) {
-        call read_genome_tsv { input:
-            genome_tsv = genome_tsv,
-            runtime_environment = runtime_environment,
+        call read_genome_tsv { input: genome_tsv = genome_tsv, runtime_environment = runtime_environment 
         }
     }
     File ref_fa_ = select_first([ref_fa, read_genome_tsv.ref_fa])
-    File? bwa_idx_tar_ = if defined(bwa_idx_tar)
-        then bwa_idx_tar
-        else read_genome_tsv.bwa_idx_tar
-    File bowtie2_idx_tar_ = select_first([
-        bowtie2_idx_tar,
-        read_genome_tsv.bowtie2_idx_tar,
+    File? bwa_idx_tar_ = if defined(bwa_idx_tar) then bwa_idx_tar else read_genome_tsv.bwa_idx_tar
+    File bowtie2_idx_tar_ = select_first([bowtie2_idx_tar, read_genome_tsv.bowtie2_idx_tar
     ])
     File chrsz_ = select_first([chrsz, read_genome_tsv.chrsz])
     String gensz_ = select_first([gensz, read_genome_tsv.gensz])
-    File? blacklist1_ = if defined(blacklist)
-        then blacklist
-        else read_genome_tsv.blacklist
-    File? blacklist2_ = if defined(blacklist2)
-        then blacklist2
-        else read_genome_tsv.blacklist2
+    File? blacklist1_ = if defined(blacklist) then blacklist else read_genome_tsv.blacklist
+    File? blacklist2_ = if defined(blacklist2) then blacklist2 else read_genome_tsv.blacklist2
     # merge multiple blacklists
     # two blacklists can have different number of columns (3 vs 6)
     # so we limit merged blacklist's columns to 3
     Array[File] blacklists = select_all([blacklist1_, blacklist2_])
     if (length(blacklists) > 1) {
-        call pool_ta as pool_blacklist { input:
-            tas = blacklists,
-            col = 3,
-            runtime_environment = runtime_environment,
-        }
+        call pool_ta as pool_blacklist { input: tas = blacklists, col = 3, runtime_environment
+            = runtime_environment }
     }
     File? blacklist_ = if length(blacklists) > 1
         then pool_blacklist.ta_pooled
@@ -1076,15 +1063,11 @@ workflow chip {
         then blacklists[0]
         else blacklist2_
     String mito_chr_name_ = select_first([mito_chr_name, read_genome_tsv.mito_chr_name])
-    String regex_bfilt_peak_chr_name_ = select_first([
-        regex_bfilt_peak_chr_name,
-        read_genome_tsv.regex_bfilt_peak_chr_name,
+    String regex_bfilt_peak_chr_name_ = select_first([regex_bfilt_peak_chr_name, read_genome_tsv.regex_bfilt_peak_chr_name
     ])
-    String genome_name_ = select_first([
-        genome_name,
-        read_genome_tsv.genome_name,
-        basename(chrsz_),
-    ])
+    String genome_name_ = select_first([genome_name, read_genome_tsv.genome_name, basename(
+        chrsz_
+    )])
 
     ### temp vars (do not define these)
     String aligner_ = if defined(custom_align_py) then "custom" else aligner
@@ -1105,89 +1088,38 @@ workflow chip {
         else select_first([cap_num_peak, cap_num_peak_macs2])
     Int mapq_thresh_ = mapq_thresh
     Boolean enable_xcor_ = if pipeline_type == "control" then false else true
-    Boolean enable_count_signal_track_ = if pipeline_type == "control"
-        then false
-        else enable_count_signal_track
+    Boolean enable_count_signal_track_ = if pipeline_type == "control" then false else enable_count_signal_track
     Boolean enable_jsd_ = if pipeline_type == "control" then false else enable_jsd
     Boolean enable_gc_bias_ = if pipeline_type == "control" then false else enable_gc_bias
     Boolean align_only_ = if pipeline_type == "control" then true else align_only
 
-    Float align_mem_factor_ = if aligner_ == "bowtie2"
-        then align_bowtie2_mem_factor
-        else align_bwa_mem_factor
-    Float align_disk_factor_ = if aligner_ == "bowtie2"
-        then align_bowtie2_disk_factor
-        else align_bwa_disk_factor
-    Float call_peak_mem_factor_ = if peak_caller_ == "spp"
-        then call_peak_spp_mem_factor
-        else call_peak_macs2_mem_factor
-    Float call_peak_disk_factor_ = if peak_caller_ == "spp"
-        then call_peak_spp_disk_factor
-        else call_peak_macs2_disk_factor
+    Float align_mem_factor_ = if aligner_ == "bowtie2" then align_bowtie2_mem_factor else align_bwa_mem_factor
+    Float align_disk_factor_ = if aligner_ == "bowtie2" then align_bowtie2_disk_factor
+    else align_bwa_disk_factor
+    Float call_peak_mem_factor_ = if peak_caller_ == "spp" then call_peak_spp_mem_factor
+    else call_peak_macs2_mem_factor
+    Float call_peak_disk_factor_ = if peak_caller_ == "spp" then call_peak_spp_disk_factor
+    else call_peak_macs2_disk_factor
 
     # temporary 2-dim fastqs array [rep_id][merge_id]
     Array[Array[File]] fastqs_R1 = if length(fastqs_rep10_R1) > 0
-        then [
-            fastqs_rep1_R1,
-            fastqs_rep2_R1,
-            fastqs_rep3_R1,
-            fastqs_rep4_R1,
-            fastqs_rep5_R1,
-            fastqs_rep6_R1,
-            fastqs_rep7_R1,
-            fastqs_rep8_R1,
-            fastqs_rep9_R1,
-            fastqs_rep10_R1,
+        then [fastqs_rep1_R1, fastqs_rep2_R1, fastqs_rep3_R1, fastqs_rep4_R1, fastqs_rep5_R1,
+             fastqs_rep6_R1, fastqs_rep7_R1, fastqs_rep8_R1, fastqs_rep9_R1, fastqs_rep10_R1
         ]
         else if length(fastqs_rep9_R1) > 0
-        then [
-            fastqs_rep1_R1,
-            fastqs_rep2_R1,
-            fastqs_rep3_R1,
-            fastqs_rep4_R1,
-            fastqs_rep5_R1,
-            fastqs_rep6_R1,
-            fastqs_rep7_R1,
-            fastqs_rep8_R1,
-            fastqs_rep9_R1,
-        ]
+        then [fastqs_rep1_R1, fastqs_rep2_R1, fastqs_rep3_R1, fastqs_rep4_R1, fastqs_rep5_R1,
+             fastqs_rep6_R1, fastqs_rep7_R1, fastqs_rep8_R1, fastqs_rep9_R1]
         else if length(fastqs_rep8_R1) > 0
-        then [
-            fastqs_rep1_R1,
-            fastqs_rep2_R1,
-            fastqs_rep3_R1,
-            fastqs_rep4_R1,
-            fastqs_rep5_R1,
-            fastqs_rep6_R1,
-            fastqs_rep7_R1,
-            fastqs_rep8_R1,
-        ]
+        then [fastqs_rep1_R1, fastqs_rep2_R1, fastqs_rep3_R1, fastqs_rep4_R1, fastqs_rep5_R1,
+             fastqs_rep6_R1, fastqs_rep7_R1, fastqs_rep8_R1]
         else if length(fastqs_rep7_R1) > 0
-        then [
-            fastqs_rep1_R1,
-            fastqs_rep2_R1,
-            fastqs_rep3_R1,
-            fastqs_rep4_R1,
-            fastqs_rep5_R1,
-            fastqs_rep6_R1,
-            fastqs_rep7_R1,
-        ]
+        then [fastqs_rep1_R1, fastqs_rep2_R1, fastqs_rep3_R1, fastqs_rep4_R1, fastqs_rep5_R1,
+             fastqs_rep6_R1, fastqs_rep7_R1]
         else if length(fastqs_rep6_R1) > 0
-        then [
-            fastqs_rep1_R1,
-            fastqs_rep2_R1,
-            fastqs_rep3_R1,
-            fastqs_rep4_R1,
-            fastqs_rep5_R1,
-            fastqs_rep6_R1,
-        ]
+        then [fastqs_rep1_R1, fastqs_rep2_R1, fastqs_rep3_R1, fastqs_rep4_R1, fastqs_rep5_R1,
+             fastqs_rep6_R1]
         else if length(fastqs_rep5_R1) > 0
-        then [
-            fastqs_rep1_R1,
-            fastqs_rep2_R1,
-            fastqs_rep3_R1,
-            fastqs_rep4_R1,
-            fastqs_rep5_R1,
+        then [fastqs_rep1_R1, fastqs_rep2_R1, fastqs_rep3_R1, fastqs_rep4_R1, fastqs_rep5_R1
         ]
         else if length(fastqs_rep4_R1) > 0
         then [fastqs_rep1_R1, fastqs_rep2_R1, fastqs_rep3_R1, fastqs_rep4_R1]
@@ -1199,89 +1131,34 @@ workflow chip {
         then [fastqs_rep1_R1]
         else []
     # no need to do that for R2 (R1 array will be used to determine presense of fastq for each rep)
-    Array[Array[File]] fastqs_R2 = [
-        fastqs_rep1_R2,
-        fastqs_rep2_R2,
-        fastqs_rep3_R2,
-        fastqs_rep4_R2,
-        fastqs_rep5_R2,
-        fastqs_rep6_R2,
-        fastqs_rep7_R2,
-        fastqs_rep8_R2,
-        fastqs_rep9_R2,
-        fastqs_rep10_R2,
+    Array[Array[File]] fastqs_R2 = [fastqs_rep1_R2, fastqs_rep2_R2, fastqs_rep3_R2, fastqs_rep4_R2,
+         fastqs_rep5_R2, fastqs_rep6_R2, fastqs_rep7_R2, fastqs_rep8_R2, fastqs_rep9_R2, fastqs_rep10_R2
     ]
 
     # temporary 2-dim ctl fastqs array [rep_id][merge_id]
     Array[Array[File]] ctl_fastqs_R1 = if length(ctl_fastqs_rep10_R1) > 0
-        then [
-            ctl_fastqs_rep1_R1,
-            ctl_fastqs_rep2_R1,
-            ctl_fastqs_rep3_R1,
-            ctl_fastqs_rep4_R1,
-            ctl_fastqs_rep5_R1,
-            ctl_fastqs_rep6_R1,
-            ctl_fastqs_rep7_R1,
-            ctl_fastqs_rep8_R1,
-            ctl_fastqs_rep9_R1,
-            ctl_fastqs_rep10_R1,
-        ]
+        then [ctl_fastqs_rep1_R1, ctl_fastqs_rep2_R1, ctl_fastqs_rep3_R1, ctl_fastqs_rep4_R1,
+             ctl_fastqs_rep5_R1, ctl_fastqs_rep6_R1, ctl_fastqs_rep7_R1, ctl_fastqs_rep8_R1,
+             ctl_fastqs_rep9_R1, ctl_fastqs_rep10_R1]
         else if length(ctl_fastqs_rep9_R1) > 0
-        then [
-            ctl_fastqs_rep1_R1,
-            ctl_fastqs_rep2_R1,
-            ctl_fastqs_rep3_R1,
-            ctl_fastqs_rep4_R1,
-            ctl_fastqs_rep5_R1,
-            ctl_fastqs_rep6_R1,
-            ctl_fastqs_rep7_R1,
-            ctl_fastqs_rep8_R1,
-            ctl_fastqs_rep9_R1,
-        ]
+        then [ctl_fastqs_rep1_R1, ctl_fastqs_rep2_R1, ctl_fastqs_rep3_R1, ctl_fastqs_rep4_R1,
+             ctl_fastqs_rep5_R1, ctl_fastqs_rep6_R1, ctl_fastqs_rep7_R1, ctl_fastqs_rep8_R1,
+             ctl_fastqs_rep9_R1]
         else if length(ctl_fastqs_rep8_R1) > 0
-        then [
-            ctl_fastqs_rep1_R1,
-            ctl_fastqs_rep2_R1,
-            ctl_fastqs_rep3_R1,
-            ctl_fastqs_rep4_R1,
-            ctl_fastqs_rep5_R1,
-            ctl_fastqs_rep6_R1,
-            ctl_fastqs_rep7_R1,
-            ctl_fastqs_rep8_R1,
+        then [ctl_fastqs_rep1_R1, ctl_fastqs_rep2_R1, ctl_fastqs_rep3_R1, ctl_fastqs_rep4_R1,
+             ctl_fastqs_rep5_R1, ctl_fastqs_rep6_R1, ctl_fastqs_rep7_R1, ctl_fastqs_rep8_R1
         ]
         else if length(ctl_fastqs_rep7_R1) > 0
-        then [
-            ctl_fastqs_rep1_R1,
-            ctl_fastqs_rep2_R1,
-            ctl_fastqs_rep3_R1,
-            ctl_fastqs_rep4_R1,
-            ctl_fastqs_rep5_R1,
-            ctl_fastqs_rep6_R1,
-            ctl_fastqs_rep7_R1,
-        ]
+        then [ctl_fastqs_rep1_R1, ctl_fastqs_rep2_R1, ctl_fastqs_rep3_R1, ctl_fastqs_rep4_R1,
+             ctl_fastqs_rep5_R1, ctl_fastqs_rep6_R1, ctl_fastqs_rep7_R1]
         else if length(ctl_fastqs_rep6_R1) > 0
-        then [
-            ctl_fastqs_rep1_R1,
-            ctl_fastqs_rep2_R1,
-            ctl_fastqs_rep3_R1,
-            ctl_fastqs_rep4_R1,
-            ctl_fastqs_rep5_R1,
-            ctl_fastqs_rep6_R1,
-        ]
+        then [ctl_fastqs_rep1_R1, ctl_fastqs_rep2_R1, ctl_fastqs_rep3_R1, ctl_fastqs_rep4_R1,
+             ctl_fastqs_rep5_R1, ctl_fastqs_rep6_R1]
         else if length(ctl_fastqs_rep5_R1) > 0
-        then [
-            ctl_fastqs_rep1_R1,
-            ctl_fastqs_rep2_R1,
-            ctl_fastqs_rep3_R1,
-            ctl_fastqs_rep4_R1,
-            ctl_fastqs_rep5_R1,
-        ]
+        then [ctl_fastqs_rep1_R1, ctl_fastqs_rep2_R1, ctl_fastqs_rep3_R1, ctl_fastqs_rep4_R1,
+             ctl_fastqs_rep5_R1]
         else if length(ctl_fastqs_rep4_R1) > 0
-        then [
-            ctl_fastqs_rep1_R1,
-            ctl_fastqs_rep2_R1,
-            ctl_fastqs_rep3_R1,
-            ctl_fastqs_rep4_R1,
+        then [ctl_fastqs_rep1_R1, ctl_fastqs_rep2_R1, ctl_fastqs_rep3_R1, ctl_fastqs_rep4_R1
         ]
         else if length(ctl_fastqs_rep3_R1) > 0
         then [ctl_fastqs_rep1_R1, ctl_fastqs_rep2_R1, ctl_fastqs_rep3_R1]
@@ -1291,43 +1168,34 @@ workflow chip {
         then [ctl_fastqs_rep1_R1]
         else []
     # no need to do that for R2 (R1 array will be used to determine presense of fastq for each rep)
-    Array[Array[File]] ctl_fastqs_R2 = [
-        ctl_fastqs_rep1_R2,
-        ctl_fastqs_rep2_R2,
-        ctl_fastqs_rep3_R2,
-        ctl_fastqs_rep4_R2,
-        ctl_fastqs_rep5_R2,
-        ctl_fastqs_rep6_R2,
-        ctl_fastqs_rep7_R2,
-        ctl_fastqs_rep8_R2,
-        ctl_fastqs_rep9_R2,
-        ctl_fastqs_rep10_R2,
-    ]
+    Array[Array[File]] ctl_fastqs_R2 = [ctl_fastqs_rep1_R2, ctl_fastqs_rep2_R2, ctl_fastqs_rep3_R2,
+         ctl_fastqs_rep4_R2, ctl_fastqs_rep5_R2, ctl_fastqs_rep6_R2, ctl_fastqs_rep7_R2, ctl_fastqs_rep8_R2,
+         ctl_fastqs_rep9_R2, ctl_fastqs_rep10_R2]
 
     # temporary variables to get number of replicates
     #     WDLic implementation of max(A,B,C,...)
     Int num_rep_fastq = length(fastqs_R1)
     Int num_rep_bam = if length(bams) < num_rep_fastq then num_rep_fastq else length(bams)
-    Int num_rep_nodup_bam = if length(nodup_bams) < num_rep_bam
-        then num_rep_bam
-        else length(nodup_bams)
-    Int num_rep_ta = if length(tas) < num_rep_nodup_bam
-        then num_rep_nodup_bam
-        else length(tas)
+    Int num_rep_nodup_bam = if length(nodup_bams) < num_rep_bam then num_rep_bam else length(
+        nodup_bams
+    )
+    Int num_rep_ta = if length(tas) < num_rep_nodup_bam then num_rep_nodup_bam else length(
+        tas
+    )
     Int num_rep_peak = if length(peaks) < num_rep_ta then num_rep_ta else length(peaks)
     Int num_rep = num_rep_peak
 
     # temporary variables to get number of controls
     Int num_ctl_fastq = length(ctl_fastqs_R1)
-    Int num_ctl_bam = if length(ctl_bams) < num_ctl_fastq
-        then num_ctl_fastq
-        else length(ctl_bams)
-    Int num_ctl_nodup_bam = if length(ctl_nodup_bams) < num_ctl_bam
-        then num_ctl_bam
-        else length(ctl_nodup_bams)
-    Int num_ctl_ta = if length(ctl_tas) < num_ctl_nodup_bam
-        then num_ctl_nodup_bam
-        else length(ctl_tas)
+    Int num_ctl_bam = if length(ctl_bams) < num_ctl_fastq then num_ctl_fastq else length(
+        ctl_bams
+    )
+    Int num_ctl_nodup_bam = if length(ctl_nodup_bams) < num_ctl_bam then num_ctl_bam else length(
+        ctl_nodup_bams
+    )
+    Int num_ctl_ta = if length(ctl_tas) < num_ctl_nodup_bam then num_ctl_nodup_bam else length(
+        ctl_tas
+    )
     Int num_ctl = num_ctl_ta
 
     # sanity check for inputs
@@ -1343,37 +1211,29 @@ workflow chip {
             runtime_environment = runtime_environment,
         }
     }
-    if ((num_rep_fastq > 0 || num_ctl_fastq > 0) && aligner_ != "bwa" && aligner_ != "bowtie2"
-        && aligner_ != "custom") {
+    if ((num_rep_fastq > 0 || num_ctl_fastq > 0) && aligner_ != "bwa" && aligner_ != "bowtie2" && aligner_ != "custom") {
         call raise_exception as error_wrong_aligner { input:
             msg = "Choose chip.aligner to align your fastqs. Choices: bwa, bowtie2, custom.",
             runtime_environment = runtime_environment,
         }
     }
     if (aligner_ != "bwa" && use_bwa_mem_for_pe) {
-        call raise_exception as error_use_bwa_mem_for_non_bwa { input:
-            msg = "To use chip.use_bwa_mem_for_pe, choose bwa for chip.aligner.",
-            runtime_environment = runtime_environment,
-        }
+        call raise_exception as error_use_bwa_mem_for_non_bwa { input: msg = "To use chip.use_bwa_mem_for_pe, choose bwa for chip.aligner.",
+             runtime_environment = runtime_environment }
     }
     if (aligner_ != "bowtie2" && use_bowtie2_local_mode) {
-        call raise_exception as error_use_bowtie2_local_mode_for_non_bowtie2 { input:
-            msg = "To use chip.use_bowtie2_local_mode, choose bowtie2 for chip.aligner.",
-            runtime_environment = runtime_environment,
-        }
+        call raise_exception as error_use_bowtie2_local_mode_for_non_bowtie2 { input: msg
+            = "To use chip.use_bowtie2_local_mode, choose bowtie2 for chip.aligner.", runtime_environment
+            = runtime_environment }
     }
-    if (aligner_ == "custom" && (!defined(custom_align_py) || !defined(
-        custom_aligner_idx_tar
-    ))) {
+    if (aligner_ == "custom" && (!defined(custom_align_py) || !defined(custom_aligner_idx_tar))) {
         call raise_exception as error_custom_aligner { input:
             msg = "To use a custom aligner, define chip.custom_align_py and chip.custom_aligner_idx_tar.",
             runtime_environment = runtime_environment,
         }
     }
 
-    if ((ctl_depth_limit > 0 || exp_ctl_depth_ratio_limit > 0) && num_ctl > 1 && length(
-        ctl_paired_ends
-    ) > 1) {
+    if ((ctl_depth_limit > 0 || exp_ctl_depth_ratio_limit > 0) && num_ctl > 1 && length(ctl_paired_ends) > 1) {
         call raise_exception as error_subsample_pooled_control_with_mixed_endedness { input:
             msg = "Cannot use automatic control subsampling (\"chip.ctl_depth_limit\">0 and \"chip.exp_ctl_depth_limit\">0) for "
                 + "multiple controls with mixed endedness (e.g. SE ctl-rep1 and PE ctl-rep2). "
@@ -1463,9 +1323,7 @@ workflow chip {
                 runtime_environment = runtime_environment,
             }
         }
-        File? nodup_bam_ = if has_output_of_filter
-            then nodup_bams[i]
-            else filter.nodup_bam
+        File? nodup_bam_ = if has_output_of_filter then nodup_bams[i] else filter.nodup_bam
 
         Boolean has_input_of_bam2ta = has_output_of_filter || defined(filter.nodup_bam)
         Boolean has_output_of_bam2ta = i < length(tas)
@@ -1487,34 +1345,21 @@ workflow chip {
 
         Boolean has_input_of_spr = has_output_of_bam2ta || defined(bam2ta.ta)
         if (has_input_of_spr && !align_only_ && !true_rep_only) {
-            call spr { input:
-                ta = ta_,
-                paired_end = paired_end_,
-                pseudoreplication_random_seed = pseudoreplication_random_seed,
-                mem_factor = spr_mem_factor,
-                disk_factor = spr_disk_factor,
-                runtime_environment = runtime_environment,
-            }
+            call spr { input: ta = ta_, paired_end = paired_end_, pseudoreplication_random_seed
+                = pseudoreplication_random_seed, mem_factor = spr_mem_factor, disk_factor
+                = spr_disk_factor, runtime_environment = runtime_environment }
         }
 
-        Boolean has_input_of_count_signal_track = has_output_of_bam2ta || defined(bam2ta.ta
-        )
+        Boolean has_input_of_count_signal_track = has_output_of_bam2ta || defined(bam2ta.ta)
         if (has_input_of_count_signal_track && enable_count_signal_track_) {
             # generate count signal track
-            call count_signal_track { input:
-                ta = ta_,
-                chrsz = chrsz_,
-                runtime_environment = runtime_environment,
-            }
+            call count_signal_track { input: ta = ta_, chrsz = chrsz_, runtime_environment
+                = runtime_environment }
         }
 
         if (enable_gc_bias_ && defined(nodup_bam_) && defined(ref_fa_)) {
-            call gc_bias { input:
-                nodup_bam = nodup_bam_,
-                ref_fa = ref_fa_,
-                picard_java_heap = gc_bias_picard_java_heap,
-                runtime_environment = runtime_environment,
-            }
+            call gc_bias { input: nodup_bam = nodup_bam_, ref_fa = ref_fa_, picard_java_heap
+                = gc_bias_picard_java_heap, runtime_environment = runtime_environment }
         }
 
         # special trimming/mapping for xcor (when starting from FASTQs)
@@ -1582,8 +1427,7 @@ workflow chip {
         }
 
         # special trimming/mapping for xcor (when starting from BAMs)
-        Boolean has_input_of_bam2ta_no_dedup = (has_output_of_align || defined(align.bam))
-            && !defined(bam2ta_no_dedup_R1.ta)
+        Boolean has_input_of_bam2ta_no_dedup = (has_output_of_align || defined(align.bam)) && !defined(bam2ta_no_dedup_R1.ta)
         if (has_input_of_bam2ta_no_dedup) {
             call filter as filter_no_dedup { input:
                 bam = bam_,
@@ -1626,26 +1470,15 @@ workflow chip {
             else if defined(bam2ta_no_dedup.ta)
             then bam2ta_no_dedup.ta
             else ta_
-        Boolean paired_end_xcor = if defined(bam2ta_no_dedup_R1.ta)
-            then false
-            else paired_end_
+        Boolean paired_end_xcor = if defined(bam2ta_no_dedup_R1.ta) then false else paired_end_
 
         Boolean has_input_of_xcor = defined(ta_xcor)
         if (has_input_of_xcor && enable_xcor_) {
-            call xcor { input:
-                ta = ta_xcor,
-                paired_end = paired_end_xcor,
-                subsample = xcor_subsample_reads,
-                mito_chr_name = mito_chr_name_,
-                chip_seq_type = pipeline_type,
-                exclusion_range_min = xcor_exclusion_range_min,
-                exclusion_range_max = xcor_exclusion_range_max,
-                cpu = xcor_cpu,
-                mem_factor = xcor_mem_factor,
-                time_hr = xcor_time_hr,
-                disk_factor = xcor_disk_factor,
-                runtime_environment = runtime_environment_spp,
-            }
+            call xcor { input: ta = ta_xcor, paired_end = paired_end_xcor, subsample = xcor_subsample_reads,
+                 mito_chr_name = mito_chr_name_, chip_seq_type = pipeline_type, exclusion_range_min
+                = xcor_exclusion_range_min, exclusion_range_max = xcor_exclusion_range_max,
+                 cpu = xcor_cpu, mem_factor = xcor_mem_factor, time_hr = xcor_time_hr, disk_factor
+                = xcor_disk_factor, runtime_environment = runtime_environment_spp }
         }
 
         # before peak calling, get fragment length from xcor analysis or given input
@@ -1661,14 +1494,9 @@ workflow chip {
             ctl_paired_ends
         )
             then ctl_paired_ends[i]
-            else select_first([
-                ctl_paired_end,
-                paired_end,
-            ])
+            else select_first([ctl_paired_end, paired_end])
 
-        Boolean has_input_of_align_ctl = i < length(ctl_fastqs_R1) && length(ctl_fastqs_R1[
-            i
-        ]) > 0
+        Boolean has_input_of_align_ctl = i < length(ctl_fastqs_R1) && length(ctl_fastqs_R1[i]) > 0
         Boolean has_output_of_align_ctl = i < length(ctl_bams)
         if (has_input_of_align_ctl && !has_output_of_align_ctl) {
             call align as align_ctl { input:
@@ -1703,8 +1531,7 @@ workflow chip {
         }
         File? ctl_bam_ = if has_output_of_align_ctl then ctl_bams[i] else align_ctl.bam
 
-        Boolean has_input_of_filter_ctl = has_output_of_align_ctl || defined(align_ctl.bam
-        )
+        Boolean has_input_of_filter_ctl = has_output_of_align_ctl || defined(align_ctl.bam)
         Boolean has_output_of_filter_ctl = i < length(ctl_nodup_bams)
         # skip if we already have output of this step
         if (has_input_of_filter_ctl && !has_output_of_filter_ctl) {
@@ -1728,12 +1555,9 @@ workflow chip {
                 runtime_environment = runtime_environment,
             }
         }
-        File? ctl_nodup_bam_ = if has_output_of_filter_ctl
-            then ctl_nodup_bams[i]
-            else filter_ctl.nodup_bam
+        File? ctl_nodup_bam_ = if has_output_of_filter_ctl then ctl_nodup_bams[i] else filter_ctl.nodup_bam
 
-        Boolean has_input_of_bam2ta_ctl = has_output_of_filter_ctl || defined(filter_ctl.nodup_bam
-        )
+        Boolean has_input_of_bam2ta_ctl = has_output_of_filter_ctl || defined(filter_ctl.nodup_bam)
         Boolean has_output_of_bam2ta_ctl = i < length(ctl_tas)
         if (has_input_of_bam2ta_ctl && !has_output_of_bam2ta_ctl) {
             call bam2ta as bam2ta_ctl { input:
@@ -1756,10 +1580,7 @@ workflow chip {
     Boolean has_all_inputs_of_pool_ta = length(select_all(ta_)) == num_rep
     if (has_all_inputs_of_pool_ta && num_rep > 1) {
         # pool tagaligns from true replicates
-        call pool_ta { input:
-            tas = ta_,
-            prefix = "rep",
-            runtime_environment = runtime_environment,
+        call pool_ta { input: tas = ta_, prefix = "rep", runtime_environment = runtime_environment 
         }
     }
 
@@ -1767,43 +1588,30 @@ workflow chip {
     Boolean has_all_inputs_of_pool_ta_pr1 = length(select_all(spr.ta_pr1)) == num_rep
     if (has_all_inputs_of_pool_ta_pr1 && num_rep > 1 && !align_only_ && !true_rep_only) {
         # pool tagaligns from pseudo replicate 1
-        call pool_ta as pool_ta_pr1 { input:
-            tas = spr.ta_pr1,
-            prefix = "rep-pr1",
-            runtime_environment = runtime_environment,
-        }
+        call pool_ta as pool_ta_pr1 { input: tas = spr.ta_pr1, prefix = "rep-pr1", runtime_environment
+            = runtime_environment }
     }
 
     # if there are pr2 TAs for ALL replicates then pool them
     Boolean has_all_inputs_of_pool_ta_pr2 = length(select_all(spr.ta_pr2)) == num_rep
     if (has_all_inputs_of_pool_ta_pr1 && num_rep > 1 && !align_only_ && !true_rep_only) {
         # pool tagaligns from pseudo replicate 2
-        call pool_ta as pool_ta_pr2 { input:
-            tas = spr.ta_pr2,
-            prefix = "rep-pr2",
-            runtime_environment = runtime_environment,
-        }
+        call pool_ta as pool_ta_pr2 { input: tas = spr.ta_pr2, prefix = "rep-pr2", runtime_environment
+            = runtime_environment }
     }
 
     # if there are CTL TAs for ALL replicates then pool them
     Boolean has_all_inputs_of_pool_ta_ctl = length(select_all(ctl_ta_)) == num_ctl
     if (has_all_inputs_of_pool_ta_ctl && num_ctl > 1) {
         # pool tagaligns from true replicates
-        call pool_ta as pool_ta_ctl { input:
-            tas = ctl_ta_,
-            prefix = "ctl",
-            runtime_environment = runtime_environment,
-        }
+        call pool_ta as pool_ta_ctl { input: tas = ctl_ta_, prefix = "ctl", runtime_environment
+            = runtime_environment }
     }
 
     Boolean has_input_of_count_signal_track_pooled = defined(pool_ta.ta_pooled)
-    if (has_input_of_count_signal_track_pooled && enable_count_signal_track_ && num_rep > 1
-    ) {
-        call count_signal_track as count_signal_track_pooled { input:
-            ta = pool_ta.ta_pooled,
-            chrsz = chrsz_,
-            runtime_environment = runtime_environment,
-        }
+    if (has_input_of_count_signal_track_pooled && enable_count_signal_track_ && num_rep > 1) {
+        call count_signal_track as count_signal_track_pooled { input: ta = pool_ta.ta_pooled,
+             chrsz = chrsz_, runtime_environment = runtime_environment }
     }
 
     Boolean has_input_of_jsd = defined(blacklist_) && length(select_all(nodup_bam_)) == num_rep
@@ -1823,25 +1631,16 @@ workflow chip {
         }
     }
 
-    Boolean has_all_input_of_choose_ctl = length(select_all(ta_)) == num_rep && length(
-        select_all(ctl_ta_)
-    ) == num_ctl && num_ctl > 0
+    Boolean has_all_input_of_choose_ctl = length(select_all(ta_)) == num_rep && length(select_all(ctl_ta_)) == num_ctl && num_ctl > 0
     if (has_all_input_of_choose_ctl && !align_only_) {
         # choose appropriate control for each exp IP replicate
         # outputs:
         #     choose_ctl.idx : control replicate index for each exp replicate
         #                    -1 means pooled ctl replicate
-        call choose_ctl { input:
-            tas = ta_,
-            ctl_tas = ctl_ta_,
-            ta_pooled = pool_ta.ta_pooled,
-            ctl_ta_pooled = pool_ta_ctl.ta_pooled,
-            always_use_pooled_ctl = always_use_pooled_ctl,
-            ctl_depth_ratio = ctl_depth_ratio,
-            ctl_depth_limit = ctl_depth_limit,
-            exp_ctl_depth_ratio_limit = exp_ctl_depth_ratio_limit,
-            runtime_environment = runtime_environment,
-        }
+        call choose_ctl { input: tas = ta_, ctl_tas = ctl_ta_, ta_pooled = pool_ta.ta_pooled,
+             ctl_ta_pooled = pool_ta_ctl.ta_pooled, always_use_pooled_ctl = always_use_pooled_ctl,
+             ctl_depth_ratio = ctl_depth_ratio, ctl_depth_limit = ctl_depth_limit, exp_ctl_depth_ratio_limit
+            = exp_ctl_depth_ratio_limit, runtime_environment = runtime_environment }
     }
 
     scatter (i in range(num_rep)) {
@@ -1864,10 +1663,9 @@ workflow chip {
 
         if (chosen_ctl_ta_id > -2 && chosen_ctl_ta_subsample > 0) {
             call subsample_ctl { input:
-                ta = if chosen_ctl_ta_id == -1
-                    then pool_ta_ctl.ta_pooled
-                    else ctl_ta_[chosen_ctl_ta_id]
-                ,
+                ta = if chosen_ctl_ta_id == -1 then pool_ta_ctl.ta_pooled else ctl_ta_[
+                    chosen_ctl_ta_id
+                ],
                 subsample = chosen_ctl_ta_subsample,
                 paired_end = chosen_ctl_paired_end,
                 mem_factor = subsample_ctl_mem_factor,
@@ -1980,9 +1778,7 @@ workflow chip {
                     else runtime_environment
                 ,            }
         }
-        File? peak_pr1_ = if has_output_of_call_peak_pr1
-            then peaks_pr1[i]
-            else call_peak_pr1.peak
+        File? peak_pr1_ = if has_output_of_call_peak_pr1 then peaks_pr1[i] else call_peak_pr1.peak
 
         # call peaks on 2nd pseudo replicated tagalign
         Boolean has_input_of_call_peak_pr2 = defined(spr.ta_pr2[i])
@@ -2015,18 +1811,14 @@ workflow chip {
                     else runtime_environment
                 ,            }
         }
-        File? peak_pr2_ = if has_output_of_call_peak_pr2
-            then peaks_pr2[i]
-            else call_peak_pr2.peak
+        File? peak_pr2_ = if has_output_of_call_peak_pr2 then peaks_pr2[i] else call_peak_pr2.peak
     }
 
     # if ( !align_only_ && num_rep > 1 ) {
     # rounded mean of fragment length, which will be used for
     #  1) calling peaks for pooled true/pseudo replicates
     #  2) calculating FRiP
-    call rounded_mean as fraglen_mean { input:
-        ints = fraglen_tmp,
-        runtime_environment = runtime_environment,
+    call rounded_mean as fraglen_mean { input: ints = fraglen_tmp, runtime_environment = runtime_environment 
     }
     # }
 
@@ -2051,8 +1843,7 @@ workflow chip {
 
     Boolean has_input_of_call_peak_pooled = defined(pool_ta.ta_pooled)
     Boolean has_output_of_call_peak_pooled = defined(peak_pooled)
-    if (has_input_of_call_peak_pooled && !has_output_of_call_peak_pooled && !align_only_
-        && num_rep > 1) {
+    if (has_input_of_call_peak_pooled && !has_output_of_call_peak_pooled && !align_only_ && num_rep > 1) {
         # call peaks on pooled replicate
         # always call peaks for pooled replicate to get signal tracks
         call call_peak as call_peak_pooled { input:
@@ -2082,9 +1873,7 @@ workflow chip {
                 else runtime_environment
             ,        }
     }
-    File? peak_pooled_ = if has_output_of_call_peak_pooled
-        then peak_pooled
-        else call_peak_pooled.peak
+    File? peak_pooled_ = if has_output_of_call_peak_pooled then peak_pooled else call_peak_pooled.peak
 
     # macs2 signal track for pooled rep
     if (has_input_of_call_peak_pooled && !align_only_ && num_rep > 1) {
@@ -2107,8 +1896,7 @@ workflow chip {
 
     Boolean has_input_of_call_peak_ppr1 = defined(pool_ta_pr1.ta_pooled)
     Boolean has_output_of_call_peak_ppr1 = defined(peak_ppr1)
-    if (has_input_of_call_peak_ppr1 && !has_output_of_call_peak_ppr1 && !align_only_ && !true_rep_only
-        && num_rep > 1) {
+    if (has_input_of_call_peak_ppr1 && !has_output_of_call_peak_ppr1 && !align_only_ && !true_rep_only && num_rep > 1) {
         # call peaks on 1st pooled pseudo replicates
         call call_peak as call_peak_ppr1 { input:
             peak_caller = peak_caller_,
@@ -2137,14 +1925,11 @@ workflow chip {
                 else runtime_environment
             ,        }
     }
-    File? peak_ppr1_ = if has_output_of_call_peak_ppr1
-        then peak_ppr1
-        else call_peak_ppr1.peak
+    File? peak_ppr1_ = if has_output_of_call_peak_ppr1 then peak_ppr1 else call_peak_ppr1.peak
 
     Boolean has_input_of_call_peak_ppr2 = defined(pool_ta_pr2.ta_pooled)
     Boolean has_output_of_call_peak_ppr2 = defined(peak_ppr2)
-    if (has_input_of_call_peak_ppr2 && !has_output_of_call_peak_ppr2 && !align_only_ && !true_rep_only
-        && num_rep > 1) {
+    if (has_input_of_call_peak_ppr2 && !has_output_of_call_peak_ppr2 && !align_only_ && !true_rep_only && num_rep > 1) {
         # call peaks on 2nd pooled pseudo replicates
         call call_peak as call_peak_ppr2 { input:
             peak_caller = peak_caller_,
@@ -2173,9 +1958,7 @@ workflow chip {
                 else runtime_environment
             ,        }
     }
-    File? peak_ppr2_ = if has_output_of_call_peak_ppr2
-        then peak_ppr2
-        else call_peak_ppr2.peak
+    File? peak_ppr2_ = if has_output_of_call_peak_ppr2 then peak_ppr2 else call_peak_ppr2.peak
 
     # do IDR/overlap on all pairs of two replicates (i,j)
     #     where i and j are zero-based indices and 0 <= i < j < num_rep
@@ -2186,114 +1969,64 @@ workflow chip {
         File? peak2_ = peak_[pair.right]
         if (!align_only_ && pair.left < pair.right) {
             # Naive overlap on every pair of true replicates
-            call overlap { input:
-                prefix = "rep" + (pair.left + 1) + "_vs_rep" + (pair.right + 1),
-                peak1 = peak1_,
-                peak2 = peak2_,
-                peak_pooled = peak_pooled_,
-                fraglen = fraglen_mean.rounded_mean,
-                peak_type = peak_type_,
-                blacklist = blacklist_,
-                chrsz = chrsz_,
-                regex_bfilt_peak_chr_name = regex_bfilt_peak_chr_name_,
-                ta = pool_ta.ta_pooled,
-                runtime_environment = runtime_environment,
-            }
+            call overlap { input: prefix = "rep" + (pair.left + 1) + "_vs_rep" + (pair.right
+                + 1), peak1 = peak1_, peak2 = peak2_, peak_pooled = peak_pooled_, fraglen
+                = fraglen_mean.rounded_mean, peak_type = peak_type_, blacklist = blacklist_,
+                 chrsz = chrsz_, regex_bfilt_peak_chr_name = regex_bfilt_peak_chr_name_, ta
+                = pool_ta.ta_pooled, runtime_environment = runtime_environment }
         }
         if (enable_idr && !align_only_ && pair.left < pair.right) {
             # IDR on every pair of true replicates
-            call idr { input:
-                prefix = "rep" + (pair.left + 1) + "_vs_rep" + (pair.right + 1),
-                peak1 = peak1_,
-                peak2 = peak2_,
-                peak_pooled = peak_pooled_,
-                fraglen = fraglen_mean.rounded_mean,
-                idr_thresh = idr_thresh,
-                peak_type = peak_type_,
-                rank = idr_rank_,
-                blacklist = blacklist_,
-                chrsz = chrsz_,
-                regex_bfilt_peak_chr_name = regex_bfilt_peak_chr_name_,
-                ta = pool_ta.ta_pooled,
-                runtime_environment = runtime_environment,
-            }
+            call idr { input: prefix = "rep" + (pair.left + 1) + "_vs_rep" + (pair.right + 1
+            ), peak1 = peak1_, peak2 = peak2_, peak_pooled = peak_pooled_, fraglen = fraglen_mean.rounded_mean,
+                 idr_thresh = idr_thresh, peak_type = peak_type_, rank = idr_rank_, blacklist
+                = blacklist_, chrsz = chrsz_, regex_bfilt_peak_chr_name = regex_bfilt_peak_chr_name_,
+                 ta = pool_ta.ta_pooled, runtime_environment = runtime_environment }
         }
     }
 
     # overlap on pseudo-replicates (pr1, pr2) for each true replicate
     if (!align_only_ && !true_rep_only) {
         scatter (i in range(num_rep)) {
-            call overlap as overlap_pr { input:
-                prefix = "rep" + (i + 1) + "-pr1_vs_rep" + (i + 1) + "-pr2",
-                peak1 = peak_pr1_[i],
-                peak2 = peak_pr2_[i],
-                peak_pooled = peak_[i],
-                fraglen = fraglen_[i],
-                peak_type = peak_type_,
-                blacklist = blacklist_,
-                chrsz = chrsz_,
-                regex_bfilt_peak_chr_name = regex_bfilt_peak_chr_name_,
-                ta = ta_[i],
-                runtime_environment = runtime_environment,
-            }
+            call overlap as overlap_pr { input: prefix = "rep" + (i + 1) + "-pr1_vs_rep" + (
+                i + 1
+            ) + "-pr2", peak1 = peak_pr1_[i], peak2 = peak_pr2_[i], peak_pooled = peak_[i],
+                 fraglen = fraglen_[i], peak_type = peak_type_, blacklist = blacklist_, chrsz
+                = chrsz_, regex_bfilt_peak_chr_name = regex_bfilt_peak_chr_name_, ta = ta_[
+                i
+            ], runtime_environment = runtime_environment }
         }
     }
 
     if (!align_only_ && !true_rep_only && enable_idr) {
         scatter (i in range(num_rep)) {
             # IDR on pseduo replicates
-            call idr as idr_pr { input:
-                prefix = "rep" + (i + 1) + "-pr1_vs_rep" + (i + 1) + "-pr2",
-                peak1 = peak_pr1_[i],
-                peak2 = peak_pr2_[i],
-                peak_pooled = peak_[i],
-                fraglen = fraglen_[i],
-                idr_thresh = idr_thresh,
-                peak_type = peak_type_,
-                rank = idr_rank_,
-                blacklist = blacklist_,
-                chrsz = chrsz_,
-                regex_bfilt_peak_chr_name = regex_bfilt_peak_chr_name_,
-                ta = ta_[i],
-                runtime_environment = runtime_environment,
+            call idr as idr_pr { input: prefix = "rep" + (i + 1) + "-pr1_vs_rep" + (i + 1)
+                + "-pr2", peak1 = peak_pr1_[i], peak2 = peak_pr2_[i], peak_pooled = peak_[
+                i
+            ], fraglen = fraglen_[i], idr_thresh = idr_thresh, peak_type = peak_type_, rank
+                = idr_rank_, blacklist = blacklist_, chrsz = chrsz_, regex_bfilt_peak_chr_name
+                = regex_bfilt_peak_chr_name_, ta = ta_[i], runtime_environment = runtime_environment 
             }
         }
     }
 
     if (!align_only_ && !true_rep_only && num_rep > 1) {
         # Naive overlap on pooled pseudo replicates
-        call overlap as overlap_ppr { input:
-            prefix = "pooled-pr1_vs_pooled-pr2",
-            peak1 = peak_ppr1_,
-            peak2 = peak_ppr2_,
-            peak_pooled = peak_pooled_,
-            peak_type = peak_type_,
-            fraglen = fraglen_mean.rounded_mean,
-            blacklist = blacklist_,
-            chrsz = chrsz_,
-            regex_bfilt_peak_chr_name = regex_bfilt_peak_chr_name_,
-            ta = pool_ta.ta_pooled,
-            runtime_environment = runtime_environment,
+        call overlap as overlap_ppr { input: prefix = "pooled-pr1_vs_pooled-pr2", peak1 = peak_ppr1_,
+             peak2 = peak_ppr2_, peak_pooled = peak_pooled_, peak_type = peak_type_, fraglen
+            = fraglen_mean.rounded_mean, blacklist = blacklist_, chrsz = chrsz_, regex_bfilt_peak_chr_name
+            = regex_bfilt_peak_chr_name_, ta = pool_ta.ta_pooled, runtime_environment = runtime_environment 
         }
     }
 
     if (!align_only_ && !true_rep_only && num_rep > 1 && enable_idr) {
         # IDR on pooled pseduo replicates
-        call idr as idr_ppr { input:
-            prefix = "pooled-pr1_vs_pooled-pr2",
-            peak1 = peak_ppr1_,
-            peak2 = peak_ppr2_,
-            peak_pooled = peak_pooled_,
-            idr_thresh = idr_thresh,
-            peak_type = peak_type_,
-            fraglen = fraglen_mean.rounded_mean,
-            rank = idr_rank_,
-            blacklist = blacklist_,
-            chrsz = chrsz_,
-            regex_bfilt_peak_chr_name = regex_bfilt_peak_chr_name_,
-            ta = pool_ta.ta_pooled,
-            runtime_environment = runtime_environment,
-        }
+        call idr as idr_ppr { input: prefix = "pooled-pr1_vs_pooled-pr2", peak1 = peak_ppr1_,
+             peak2 = peak_ppr2_, peak_pooled = peak_pooled_, idr_thresh = idr_thresh, peak_type
+            = peak_type_, fraglen = fraglen_mean.rounded_mean, rank = idr_rank_, blacklist
+            = blacklist_, chrsz = chrsz_, regex_bfilt_peak_chr_name = regex_bfilt_peak_chr_name_,
+             ta = pool_ta.ta_pooled, runtime_environment = runtime_environment }
     }
 
     # reproducibility QC for overlap/IDR peaks
@@ -2495,10 +2228,8 @@ task align {
                 ~{"--phred-score-format " + trimmomatic_phred_score_format} \
                 --out-dir-R1 R1$NEW_SUFFIX \
                 ~{if paired_end then "--out-dir-R2 R2$NEW_SUFFIX" else ""} \
-                ~{"--trimmomatic-java-heap " + if defined(trimmomatic_java_heap)
-                    then trimmomatic_java_heap
-                    else (round(mem_gb * trimmomatic_java_heap_factor) + "G")
-                } \
+                ~{"--trimmomatic-java-heap " + if defined(trimmomatic_java_heap) then trimmomatic_java_heap
+                else (round(mem_gb * trimmomatic_java_heap_factor) + "G")} \
                 ~{"--nth " + cpu}
             SUFFIX=$NEW_SUFFIX
         fi
@@ -2602,10 +2333,8 @@ task filter {
             ~{"--mito-chr-name " + mito_chr_name} \
             ~{"--mem-gb " + samtools_mem_gb} \
             ~{"--nth " + cpu} \
-            ~{"--picard-java-heap " + if defined(picard_java_heap)
-                then picard_java_heap
-                else (round(mem_gb * picard_java_heap_factor) + "G")
-            }
+            ~{"--picard-java-heap " + if defined(picard_java_heap) then picard_java_heap
+            else (round(mem_gb * picard_java_heap_factor) + "G")}
 
         if [ '~{redact_nodup_bam}' == 'true' ]; then
             python3 $(which encode_task_bam_to_pbam.py) \
@@ -2825,10 +2554,7 @@ task jsd {
         set -e
         python3 $(which encode_task_jsd.py) \
             ~{sep=" " select_all(nodup_bams)} \
-            ~{if length(ctl_bams) > 0
-                then "--ctl-bam " + select_first(ctl_bams)
-                else ""
-            } \
+            ~{if length(ctl_bams) > 0 then "--ctl-bam " + select_first(ctl_bams) else ""} \
             ~{"--mapq-thresh " + mapq_thresh} \
             ~{"--blacklist " + blacklist} \
             ~{"--nth " + cpu}
@@ -3193,8 +2919,7 @@ task overlap {
         File bfilt_overlap_peak_bb = glob("*.bfilt." + peak_type + ".bb")[0]
         File bfilt_overlap_peak_starch = glob("*.bfilt." + peak_type + ".starch")[0]
         File bfilt_overlap_peak_hammock = glob("*.bfilt." + peak_type + ".hammock.gz*")[0]
-        File bfilt_overlap_peak_hammock_tbi = glob("*.bfilt." + peak_type + ".hammock.gz*"
-        )[1]
+        File bfilt_overlap_peak_hammock_tbi = glob("*.bfilt." + peak_type + ".hammock.gz*")[1]
         File frip_qc = if defined(ta) then glob("*.frip.qc")[0] else glob("null")[0]
     }
 
@@ -3281,10 +3006,8 @@ task gc_bias {
         python3 $(which encode_task_gc_bias.py) \
             ~{"--nodup-bam " + nodup_bam} \
             ~{"--ref-fa " + ref_fa} \
-            ~{"--picard-java-heap " + if defined(picard_java_heap)
-                then picard_java_heap
-                else (round(mem_gb * picard_java_heap_factor) + "G")
-            }
+            ~{"--picard-java-heap " + if defined(picard_java_heap) then picard_java_heap
+            else (round(mem_gb * picard_java_heap_factor) + "G")}
     >>>
 
     output {
@@ -3478,26 +3201,22 @@ task read_genome_tsv {
     output {
         String? genome_name = read_string("genome_name")
         String? ref_fa = if size("ref_fa") == 0 then null_s else read_string("ref_fa")
-        String? bwa_idx_tar = if size("bwa_idx_tar") == 0
-            then null_s
-            else read_string("bwa_idx_tar")
-        String? bowtie2_idx_tar = if size("bowtie2_idx_tar") == 0
-            then null_s
-            else read_string("bowtie2_idx_tar")
+        String? bwa_idx_tar = if size("bwa_idx_tar") == 0 then null_s else read_string("bwa_idx_tar"
+        )
+        String? bowtie2_idx_tar = if size("bowtie2_idx_tar") == 0 then null_s else read_string(
+            "bowtie2_idx_tar"
+        )
         String? chrsz = if size("chrsz") == 0 then null_s else read_string("chrsz")
         String? gensz = if size("gensz") == 0 then null_s else read_string("gensz")
-        String? blacklist = if size("blacklist") == 0
-            then null_s
-            else read_string("blacklist")
-        String? blacklist2 = if size("blacklist2") == 0
-            then null_s
-            else read_string("blacklist2")
-        String? mito_chr_name = if size("mito_chr_name") == 0
-            then null_s
-            else read_string("mito_chr_name")
-        String? regex_bfilt_peak_chr_name = if size("regex_bfilt_peak_chr_name") == 0
-            then "chr[\\dXY]+"
-            else read_string("regex_bfilt_peak_chr_name")
+        String? blacklist = if size("blacklist") == 0 then null_s else read_string("blacklist"
+        )
+        String? blacklist2 = if size("blacklist2") == 0 then null_s else read_string("blacklist2"
+        )
+        String? mito_chr_name = if size("mito_chr_name") == 0 then null_s else read_string(
+            "mito_chr_name"
+        )
+        String? regex_bfilt_peak_chr_name = if size("regex_bfilt_peak_chr_name") == 0 then "chr[\\dXY]+"
+        else read_string("regex_bfilt_peak_chr_name")
     }
 
     runtime {
