@@ -728,35 +728,117 @@ impl Postprocessor {
             return;
         }
 
-        // // setup for next pass through the pre-buffer
-        // let mut pre_buffer = in_stream.iter().enumerate().peekable();
-        // post_buffer.clear();
-        //
-        // // reset self
-        // self.interrupted = false;
-        // self.position = LinePosition::StartOfLine;
-        // self.temp_indent = starting_temp_indent;
-        // self.indent_level = starting_indent;
-        // self.linebreak_potential_splits = true;
-        //
-        // let mut spans_to_be_split = spans_to_be_split.iter();
-        // let mut cur_span = spans_to_be_split.next();
-        //
-        // while let Some((i, token)) = pre_buffer.next() {
-        //     if let Some(span) = cur_span {
-        //         if i == span.start {
-        //             self.linebreak_potential_splits = false;
-        //         }
-        //         if i == span.end {
-        //             cur_span = spans_to_be_split.next();
-        //             self.linebreak_potential_splits = true;
-        //         }
-        //     }
-        //
-        //     let next = pre_buffer.peek().copied().map(|(_, n)| n);
-        //     self.step(token.clone(), next, &mut post_buffer);
-        // }
-        //
+        // setup for next pass through the pre-buffer
+        let mut pre_buffer = in_stream.iter().enumerate().peekable();
+        post_buffer.clear();
+
+        // reset self
+        self.interrupted = false;
+        self.position = LinePosition::StartOfLine;
+        self.temp_indent = starting_temp_indent;
+        self.indent_level = starting_indent;
+        self.linebreak_potential_splits = true;
+
+        let mut spans_to_be_split = spans_to_be_split.iter();
+        let mut cur_span = spans_to_be_split.next();
+
+        while let Some((i, token)) = pre_buffer.next() {
+            if let Some(span) = cur_span {
+                if i == span.start {
+                    self.linebreak_potential_splits = false;
+                }
+                if i == span.end {
+                    cur_span = spans_to_be_split.next();
+                    self.linebreak_potential_splits = true;
+                }
+            }
+
+            let mut line_ended = false;
+            let break_will_interrupt = pre_buffer.peek().is_some_and(|(_, t)| {
+                !matches!(t, &PreToken::LineEnd | &PreToken::FitOrSplitEnd(_)) // TODO
+            });
+
+            if max_length.is_some()
+                && let PreToken::Literal(_, kind) = token
+            {
+                let max = max_length.unwrap();
+                if let Some(LineBreak::Before) = can_be_line_broken(*kind) {
+                    if let Some(top_of_stack) = break_stack.last()
+                        && kind == &top_of_stack.close
+                    {
+                        // we match the close of the last tandem break
+                        break_stack.pop();
+                        self.interrupted = break_will_interrupt;
+                        self.end_line(&mut post_buffer);
+                        line_ended = true;
+                    } else if post_buffer.last_line_width(config) > max {
+                        // the line is already too long
+                        self.interrupted = break_will_interrupt;
+                        self.end_line(&mut post_buffer);
+                        line_ended = true;
+                    } else {
+                        // cache the current state so we can revert to it if
+                        // the line is too long after the next step.
+                        cache = Some(post_buffer.clone());
+                    }
+                }
+            }
+
+            let next = pre_buffer.peek().copied().map(|(_, n)| n);
+            self.step(token.clone(), next, &mut post_buffer);
+
+            let too_long = max_length.is_some_and(|max| post_buffer.last_line_width(config) > max);
+
+            // If we cached before the step and the line is now too long, revert, line
+            // break, then repeat the step we just took.
+            if let Some(cache) = cache.take()
+                && too_long
+            {
+                // revert
+                post_buffer = cache;
+
+                // line break
+                self.interrupted = break_will_interrupt;
+                self.end_line(&mut post_buffer);
+                line_ended = true;
+
+                // repeat step
+                let next = pre_buffer.peek().copied().map(|(_, n)| n);
+                self.step(token.clone(), next, &mut post_buffer);
+            }
+
+            if let Some(max) = max_length
+                && let PreToken::Literal(_, kind) = token
+                && let Some(LineBreak::After) = can_be_line_broken(*kind)
+            {
+                if let Some(top_of_stack) = break_stack.last()
+                    && kind == &top_of_stack.close
+                {
+                    // we match the close of the last tandem break
+                    break_stack.pop();
+                    self.interrupted = break_will_interrupt;
+                    self.end_line(&mut post_buffer);
+                    line_ended = true;
+                } else if post_buffer.last_line_width(config) > max {
+                    // the line is too long
+                    self.interrupted = break_will_interrupt;
+                    self.end_line(&mut post_buffer);
+                    line_ended = true;
+                }
+            }
+
+            // check if we should add to the tandem break stack
+            if line_ended
+                && let PreToken::Literal(_, kind) = token
+                && let Some(also_break_on) = tandem_line_break(*kind)
+            {
+                let tandem_break = TandemBreak {
+                    close: also_break_on,
+                };
+                break_stack.push(tandem_break);
+            }
+        }
+
         out_stream.extend(post_buffer);
     }
 

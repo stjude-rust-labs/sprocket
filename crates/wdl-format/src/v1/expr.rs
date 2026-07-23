@@ -1000,7 +1000,9 @@ pub fn format_if_expr(
             if cur.kind().is_trivia() {
                 continue;
             }
-            result = cur.kind() == SyntaxKind::ElseKeyword;
+            // only match on `else`; `then` could be considered for "chaining" but that makes it
+            // harder to read IMO (a-frantz).
+            result = matches!(cur.kind(), SyntaxKind::ElseKeyword);
             break;
         }
         result

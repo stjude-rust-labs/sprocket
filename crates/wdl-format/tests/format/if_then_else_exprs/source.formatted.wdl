@@ -13,8 +13,13 @@ workflow if_then_else_exprs {
 
     Int d = if (a < b) then a else b
 
-    Int qaz = if foo then if bar then c else if c == d
-    then c - d else b else c + d
+    Int qaz = if foo
+        then if bar
+            then c
+            else if c == d
+            then c - d
+            else b
+        else c + d
 
     output {
         Int result = c
