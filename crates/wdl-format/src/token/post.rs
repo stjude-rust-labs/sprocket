@@ -339,8 +339,6 @@ struct FitOrSplitSpan {
     pub start: usize,
     /// The end position of the span.
     pub end: usize,
-    /// Whether the span can or cannot be collapsed into one line.
-    pub fits: bool,
 }
 
 /// Current position in a line.
@@ -592,19 +590,21 @@ impl Postprocessor {
 
         let max_length = config.max_line_length.get();
         let mut potential_line_breaks: HashMap<usize, SyntaxKind> = HashMap::new();
-        let mut split_spans = Vec::new();
+        let mut spans_to_be_split = Vec::new();
         let mut span_start = None;
         let mut can_fit = true;
 
         // First pass through the pre buffer. While iterating, we also gather
         // information needed for determining appropriate linebreaks if any
         // lines in the post buffer are too long.
-        //
+
         // If we encounter any fit-or-split blocks or potential line breaks, we won't
         // add the buffer to the out stream until a 2nd pass is completed. The
         // second pass is needed as we want to look-ahead from the start of
         // fit-or-split spans and potential line breaks.
         let mut buffer_usable = true;
+        // We do not split on any potential splits this iteration in order to test for line length.
+        self.linebreak_potential_splits = false;
         while let Some((i, token)) = pre_buffer.next() {
             // gather info needed for a second pass
             match token {
@@ -623,26 +623,29 @@ impl Postprocessor {
                 }
                 PreToken::FitOrSplitStart(_) => {
                     buffer_usable = false;
-                    // always overwrite start so that only the innermost span is
-                    // considered for fitting on one line (outer spans should always get split)
+
+                    // Always reset on a start so that only the innermost span is
+                    // considered for fitting on one line (outer spans should always get split).
                     span_start = Some(i);
                     can_fit = true;
                 }
                 PreToken::FitOrSplitEnd(_) => {
-                    if let Some(start) = span_start {
-                        let too_long =
-                            max_length.is_some_and(|max| post_buffer.last_line_width(config) > max);
+                    if let Some(start) = span_start
+                        && can_fit
+                    {
+                        spans_to_be_split.push(FitOrSplitSpan { start, end: i + 1 });
 
-                        split_spans.push(FitOrSplitSpan {
-                            start,
-                            end: i + 1,
-                            fits: can_fit && !too_long,
-                        });
+                        // reset
                         span_start = None;
                         can_fit = true;
                     }
                 }
-                PreToken::LineEnd | PreToken::Trivia(_) => {
+                PreToken::LineEnd
+                | PreToken::Trivia(_)
+                | PreToken::IndentStart
+                | PreToken::IndentEnd
+                | PreToken::TempIndentStart(_)
+                | PreToken::TempIndentEnd => {
                     // if a newline appears anywhere in the middle of a fit-or-split block we can't
                     // fit it on one line
                     can_fit = false;
@@ -676,8 +679,8 @@ impl Postprocessor {
         self.indent_level = starting_indent;
         self.linebreak_potential_splits = true;
 
-        let mut split_spans = split_spans.iter();
-        let mut cur_span = split_spans.next();
+        let mut spans_to_be_split = spans_to_be_split.iter();
+        let mut cur_span = spans_to_be_split.next();
 
         let mut break_stack: Vec<TandemBreak> = Vec::new();
         let mut cache = None;
@@ -685,10 +688,10 @@ impl Postprocessor {
         while let Some((i, token)) = pre_buffer.next() {
             if let Some(span) = cur_span {
                 if i == span.start {
-                    self.linebreak_potential_splits = !span.fits;
+                    self.linebreak_potential_splits = false;
                 }
                 if i == span.end {
-                    cur_span = split_spans.next();
+                    cur_span = spans_to_be_split.next();
                     self.linebreak_potential_splits = true;
                 }
             }
