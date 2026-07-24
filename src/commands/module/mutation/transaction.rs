@@ -12,6 +12,7 @@ use super::super::manifest::align_temp_permissions;
 use super::super::manifest::parse_manifest_value;
 use super::super::project::Project;
 use super::ProjectUpdate;
+use super::cleanup_state_directory;
 use super::create_state_directory;
 
 const ACTIVE_DIRECTORY: &str = "module-mutation";
@@ -53,7 +54,9 @@ impl ProjectTransaction {
     /// Commits the mutation by removing its recovery journal.
     pub(super) fn finish(self) -> anyhow::Result<()> {
         remove_path_if_present(&self.active)?;
-        sync_directory(&self.state_root)
+        sync_directory(&self.state_root)?;
+        cleanup_state_directory(&self.state_root);
+        Ok(())
     }
 
     /// Restores both project files from the recovery journal.
@@ -62,7 +65,9 @@ impl ProjectTransaction {
         restore_snapshot(&self.active, "lockfile", &self.lockfile_path)?;
         sync_project_files(&self.manifest_path, &self.lockfile_path)?;
         remove_path_if_present(&self.active)?;
-        sync_directory(&self.state_root)
+        sync_directory(&self.state_root)?;
+        cleanup_state_directory(&self.state_root);
+        Ok(())
     }
 }
 
@@ -203,7 +208,9 @@ pub(super) fn recover_active_mutation(project: &Project, state: &Path) -> anyhow
     );
     restore_snapshot(&active, "manifest", &project.manifest_path)?;
     restore_snapshot(&active, "lockfile", &project.lockfile_path)?;
-    remove_path_if_present(&active)
+    sync_project_files(&project.manifest_path, &project.lockfile_path)?;
+    remove_path_if_present(&active)?;
+    sync_directory(state)
 }
 
 /// Replaces a file with recovery bytes using an atomic rename.
@@ -335,6 +342,7 @@ mod tests {
             ProjectMutation::acquire_in(&project, &directory.path().join("global-locks"))?;
         assert_eq!(std::fs::read(&manifest_path)?, original);
         assert!(!lockfile_path.exists());
+        assert!(!directory.path().join(STATE_DIRECTORY).exists());
         Ok(())
     }
 
@@ -342,7 +350,7 @@ mod tests {
     fn rolls_back_manifest_when_lockfile_write_fails() -> anyhow::Result<()> {
         let directory = tempfile::tempdir()?;
         let lockfile_path = directory.path().join("missing").join("module-lock.json");
-        let project = test_project(directory.path(), lockfile_path)?;
+        let project = test_project(directory.path(), lockfile_path.clone())?;
         let original_manifest = std::fs::read(&project.manifest_path)?;
         let manifest = serde_json::json!({"name": "updated", "license": "MIT"});
         let lockfile = Lockfile::default();
@@ -361,9 +369,73 @@ mod tests {
 
         assert!(error.to_string().contains("temporary file"));
         assert_eq!(std::fs::read(&project.manifest_path)?, original_manifest);
+        assert!(!lockfile_path.exists());
+        assert!(!directory.path().join(STATE_DIRECTORY).exists());
+        Ok(())
+    }
+
+    #[test]
+    fn commit_preserves_unrelated_project_state() -> anyhow::Result<()> {
+        let directory = tempfile::tempdir()?;
         let state = directory.path().join(STATE_DIRECTORY);
-        assert!(!state.join(PENDING_DIRECTORY).exists());
+        std::fs::create_dir(&state)?;
+        std::fs::write(state.join("user-state"), b"keep")?;
+        let project = test_project(
+            directory.path(),
+            directory.path().join(wdl_modules::LOCKFILE_FILENAME),
+        )?;
+        let mutation =
+            ProjectMutation::acquire_in(&project, &directory.path().join("global-locks"))?;
+        let manifest = serde_json::json!({"name": "updated", "license": "MIT"});
+
+        mutation.commit(&project, ProjectUpdate::Manifest(&manifest))?;
+
+        assert_eq!(std::fs::read(state.join("user-state"))?, b"keep");
+        assert!(state.is_dir());
         assert!(!state.join(ACTIVE_DIRECTORY).exists());
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symlinked_active_journal() -> anyhow::Result<()> {
+        let directory = tempfile::tempdir()?;
+        let state = directory.path().join(STATE_DIRECTORY);
+        let outside = directory.path().join("outside");
+        std::fs::create_dir(&state)?;
+        std::fs::create_dir(&outside)?;
+        std::os::unix::fs::symlink(&outside, state.join(ACTIVE_DIRECTORY))?;
+        let project = test_project(
+            directory.path(),
+            directory.path().join(wdl_modules::LOCKFILE_FILENAME),
+        )?;
+
+        let error = ProjectMutation::acquire_in(&project, &directory.path().join("global-locks"))
+            .expect_err("a symlinked active journal should fail");
+
+        assert!(error.to_string().contains("is not a regular directory"));
+        assert!(outside.is_dir());
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symlinked_recovery_snapshot() -> anyhow::Result<()> {
+        let directory = tempfile::tempdir()?;
+        let state = directory.path().join(STATE_DIRECTORY);
+        let active = state.join(ACTIVE_DIRECTORY);
+        std::fs::create_dir_all(&active)?;
+        let project = test_project(
+            directory.path(),
+            directory.path().join(wdl_modules::LOCKFILE_FILENAME),
+        )?;
+        std::os::unix::fs::symlink(&project.manifest_path, active.join("manifest.before"))?;
+        std::fs::write(active.join("lockfile.absent"), b"")?;
+
+        let error = ProjectMutation::acquire_in(&project, &directory.path().join("global-locks"))
+            .expect_err("a symlinked recovery snapshot should fail");
+
+        assert!(error.to_string().contains("is not a regular file"));
         Ok(())
     }
 

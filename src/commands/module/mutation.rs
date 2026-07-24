@@ -378,9 +378,7 @@ mod tests {
 
         assert_eq!(read_manifest_value(&project.manifest_path)?, manifest);
         assert!(lockfile_path.is_file());
-        let state = directory.path().join(STATE_DIRECTORY);
-        assert!(!state.join("module-mutation.pending").exists());
-        assert!(!state.join("module-mutation").exists());
+        assert!(!directory.path().join(STATE_DIRECTORY).exists());
         Ok(())
     }
 
