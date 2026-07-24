@@ -1,4 +1,5 @@
 ## This is a test of leading whitespace stripping and normalization in command blocks.
+
 version 1.3
 
 task no_whitespace {
@@ -40,12 +41,8 @@ task multiple_placeholders_per_line {
             then clip_3p_n_bases.right
             else None
         )} \
-        --clip3pAfterAdapterNbases ~{clip_3p_after_adapter_n_bases.left} ~{(if (length(
-            read_twos
-        ) != 0)
-            then clip_3p_after_adapter_n_bases.right
-            else None
-        )} \
+        --clip3pAfterAdapterNbases ~{clip_3p_after_adapter_n_bases.left} ~{(if (length(read_twos
+        ) != 0) then clip_3p_after_adapter_n_bases.right else None)} \
         --clip5pNbases ~{clip_5p_n_bases.left} ~{(if (length(read_twos) != 0)
             then clip_5p_n_bases.right
             else None
@@ -76,29 +73,20 @@ task idempotent {
                 align_sj_stitch_mismatch_n_max.AT_AC_and_GT_AT_motif,
             ]))} \
             --clip3pAdapterSeq "~{clip_3p_adapter_seq.left}" ~{(if (length(read_twos) != 0
-            )
-                then "'" + clip_3p_adapter_seq.right + "'"
-                else ""
-            )} \
+            ) then "'" + clip_3p_adapter_seq.right + "'" else "")} \
             --clip3pAdapterMMp ~{clip_3p_adapter_mmp.left} ~{(if (length(read_twos) != 0)
                 then clip_3p_adapter_mmp.right
                 else None
             )} \
             --alignEndsProtrude ~{align_ends_protrude.left} "~{(if (length(read_twos) != 0
-            )
-                then align_ends_protrude.right
-                else None
-            )}" \
+            ) then align_ends_protrude.right else None)}" \
             --clip3pNbases ~{clip_3p_n_bases.left} ~{(if (length(read_twos) != 0)
                 then clip_3p_n_bases.right
                 else None
             )} \
             --clip3pAfterAdapterNbases ~{clip_3p_after_adapter_n_bases.left} ~{(if (length(
                 read_twos
-            ) != 0)
-                then clip_3p_after_adapter_n_bases.right
-                else None
-            )} \
+            ) != 0) then clip_3p_after_adapter_n_bases.right else None)} \
             --clip5pNbases ~{clip_5p_n_bases.left} ~{(if (length(read_twos) != 0)
                 then clip_5p_n_bases.right
                 else None

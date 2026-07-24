@@ -4,7 +4,6 @@ use std::collections::HashSet;
 use std::rc::Rc;
 
 use wdl_ast::AstToken;
-use wdl_ast::DOC_COMMENT_PREFIX;
 use wdl_ast::Directive;
 use wdl_ast::SyntaxKind;
 use wdl_ast::SyntaxTokenExt;
@@ -14,6 +13,28 @@ use crate::Token;
 use crate::TokenStream;
 use crate::Trivia;
 use crate::TriviaBlankLineSpacingPolicy;
+
+/// The alternative string to push to the [`TokenStream`] in case a split (AKA
+/// newline) is not pushed.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SplitAlternative {
+    /// "Push" the empty string; i.e. do not push anything.
+    Empty,
+    /// Push a [`crate::PostToken::Space`].
+    Space,
+}
+
+/// The literal strings to push to the stream when ending a "fit-or-split"
+/// block.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FitOrSplitEndingLiterals {
+    /// The literal string to push when the block is fit/collapsed into a single
+    /// line.
+    pub fit: Option<Rc<String>>,
+    /// The literal string to push when the block is split into a multiline
+    /// form.
+    pub split: Option<Rc<String>>,
+}
 
 /// A token that can be written by elements.
 ///
@@ -63,6 +84,15 @@ pub enum PreToken {
     ///
     /// See [`PreToken::TempIndentStart`] for more information.
     TempIndentEnd,
+
+    /// The start of a "fit-or-split" block.
+    FitOrSplitStart(SplitAlternative),
+
+    /// A position in the stream that may or may not have a newline.
+    PotentialSplit(SplitAlternative),
+
+    /// The end of a "fit-or-split" block.
+    FitOrSplitEnd(FitOrSplitEndingLiterals),
 }
 
 impl std::fmt::Display for PreToken {
@@ -100,6 +130,9 @@ impl std::fmt::Display for PreToken {
             },
             PreToken::TempIndentStart(value) => write!(f, "<TempIndentStart@{value}>"),
             PreToken::TempIndentEnd => write!(f, "<TempIndentEnd>"),
+            PreToken::FitOrSplitStart(value) => write!(f, "<FitOrSplitStart@{value:?}>"),
+            PreToken::PotentialSplit(value) => write!(f, "<PotentialSplit@{value:?}>"),
+            PreToken::FitOrSplitEnd(value) => write!(f, "<FitOrSplitEnd@{value:?}>"),
         }
     }
 }
@@ -167,7 +200,7 @@ impl TokenStream<PreToken> {
 
     /// Inserts any preceding trivia into the stream.
     ///
-    /// This will consolidate all doc comments and directive comments which
+    /// This will consolidate directive comments which
     /// precede this token.
     ///
     /// # Panics
@@ -177,7 +210,6 @@ impl TokenStream<PreToken> {
     fn push_preceding_trivia(&mut self, token: &wdl_ast::Token) {
         assert!(!token.inner().kind().is_trivia());
         let preceding_trivia = token.inner().preceding_trivia();
-        let mut documentation = String::new();
         let mut trivia = Vec::new();
         let mut exceptions = HashSet::new();
         for token in preceding_trivia {
@@ -190,12 +222,7 @@ impl TokenStream<PreToken> {
                     }
                 }
                 SyntaxKind::Comment => {
-                    if let Some(t) = token.text().strip_prefix(DOC_COMMENT_PREFIX) {
-                        // do not `trim()` the token as the whitespace may
-                        // have syntactical meaning in markdown
-                        documentation.push_str(t);
-                        documentation.push('\n');
-                    } else if let Some(comment) = wdl_ast::Comment::cast(token.clone())
+                    if let Some(comment) = wdl_ast::Comment::cast(token.clone())
                         && let Some(directive) = comment.directive()
                     {
                         match directive {
@@ -212,31 +239,10 @@ impl TokenStream<PreToken> {
             };
         }
 
-        let mut trivia = trivia.into_iter().peekable();
-        // Preserve any leading blank lines
-        if let Some(PreToken::Trivia(Trivia::BlankLine)) = trivia.peek() {
-            self.0.push(trivia.next().unwrap());
-        }
-        let mut docs_present = false;
-        if !documentation.is_empty() {
-            docs_present = true;
-            let comment = PreToken::Trivia(Trivia::Comment(Comment::Documentation(Rc::new(
-                documentation,
-            ))));
-            self.0.push(comment);
-
-            // don't allow documentation to "float" above the item being documented
-            if let Some(PreToken::Trivia(Trivia::BlankLine)) = trivia.peek() {
-                let _ = trivia.next();
-            }
-        }
         for token in trivia {
             self.0.push(token);
         }
-        if docs_present && let Some(PreToken::Trivia(Trivia::BlankLine)) = self.0.last() {
-            // don't allow documentation to "float" above the item being documented
-            self.0.pop();
-        }
+
         if !exceptions.is_empty() {
             let comment = PreToken::Trivia(Trivia::Comment(Comment::Directive(Rc::new(
                 Directive::Except(exceptions),
@@ -279,6 +285,23 @@ impl TokenStream<PreToken> {
         self.push_inline_trivia(token);
     }
 
+    /// Pushes an AST token into the stream as another [`SyntaxKind`].
+    ///
+    /// This will insert any trivia that would have been inserted with the AST
+    /// token.
+    ///
+    /// # Panics
+    ///
+    /// This will panic if the provided token is trivia.
+    pub fn push_ast_token_as(&mut self, token: &wdl_ast::Token, kind: SyntaxKind) {
+        self.push_preceding_trivia(token);
+        self.0.push(PreToken::Literal(
+            Rc::new(token.inner().text().to_owned()),
+            kind,
+        ));
+        self.push_inline_trivia(token);
+    }
+
     /// Pushes a literal string into the stream in place of an AST token.
     ///
     /// This will insert any trivia that would have been inserted with the AST
@@ -301,5 +324,20 @@ impl TokenStream<PreToken> {
     /// This will not insert any trivia.
     pub fn push_literal(&mut self, value: String, kind: SyntaxKind) {
         self.0.push(PreToken::Literal(Rc::new(value), kind));
+    }
+
+    /// Pushes the start of a "fit-or-split" block into the stream.
+    pub fn fit_or_split_start(&mut self, alternative: SplitAlternative) {
+        self.0.push(PreToken::FitOrSplitStart(alternative));
+    }
+
+    /// Pushes a potential linebreak into the stream.
+    pub fn potential_split(&mut self, alternative: SplitAlternative) {
+        self.0.push(PreToken::PotentialSplit(alternative));
+    }
+
+    /// Pushes the end of a "fit-or-split" block into the stream.
+    pub fn fit_or_split_end(&mut self, trailing_literals: FitOrSplitEndingLiterals) {
+        self.0.push(PreToken::FitOrSplitEnd(trailing_literals));
     }
 }

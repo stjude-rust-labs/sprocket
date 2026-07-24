@@ -9,14 +9,9 @@ workflow if_then_else_exprs {
         Bool bar
     }
 
-    Int c = (if (a < b)
-        then a
-        else b
-    )
+    Int c = (if (a < b) then a else b)
 
-    Int d = if (a < b)
-        then a
-        else b
+    Int d = if (a < b) then a else b
 
     Int qaz = if foo
         then if bar

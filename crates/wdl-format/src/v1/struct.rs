@@ -155,11 +155,14 @@ pub fn format_literal_struct(
         }
     }
 
+    let mut items = members.iter().peekable();
     let mut commas = commas.iter();
-    for member in members {
-        (&member).write(stream, config);
+    while let Some(item) = items.next() {
+        (item).write(stream, config);
         if let Some(comma) = commas.next() {
-            (comma).write(stream, config);
+            if config.trailing_commas || items.peek().is_some() || comma.has_comment() {
+                (comma).write(stream, config);
+            }
         } else if config.trailing_commas {
             stream.push_literal(",".to_string(), SyntaxKind::Comma);
         }

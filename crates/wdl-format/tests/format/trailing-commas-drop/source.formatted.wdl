@@ -7,19 +7,19 @@ struct Person {
 
 enum Status {
     Active,
-    Suspended,
+    Suspended
 }
 
 workflow test {
     meta {
         foo: [
             "bar",
-            "baz",
+            "baz",  # comment prevents comma from dropping
         ]
         bar: {
             baz: "qux",
             qux: "quux",
-            quux: "corge",
+            quux: "corge"
         }
     }
 
@@ -27,26 +27,26 @@ workflow test {
     Map[String, Int] ages = {
         "James": 34,
         "Jimmy": 55,
-        "John": 26,
+        "John": 26,  # comment prevents comma from dropping
     }
     Person james = Person {
         name: "James",
-        age: 34,
+        age: 34
     }
     Array[Person] people = [
         james,
         Person {
             name: "Jimmy",
-            age: 55,
+            age: 55
         },
         Person {
             name: "John",
-            age: 26,
-        },
+            age: 26
+        }
     ]
     Object person = object {
         name: "Jimmy",
-        age: 55,
+        age: 55
     }
 
     call test2 { foo = "foo", bar = "bar" }
@@ -55,7 +55,7 @@ workflow test {
         foo: [
             1,
             2,
-            3,
+            3
         ]
     }
 }
@@ -78,20 +78,20 @@ task test2 {
         inputs: input {
             foo: hints {
                 min_length: 3,
-                max_length: 15,
+                max_length: 15
             },
             bar: hints {
-                min_length: 2,
-            },
+                min_length: 2
+            }
         }
         outputs: output {
             baz: hints {
                 min_length: 3,
-                max_length: 15,
+                max_length: 15
             },
             qux: hints {
-                min_length: 2,
-            },
+                min_length: 2
+            }
         }
     }
 }

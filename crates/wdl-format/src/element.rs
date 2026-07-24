@@ -5,6 +5,7 @@ use std::iter::Peekable;
 use nonempty::NonEmpty;
 use wdl_ast::Element;
 use wdl_ast::Node;
+use wdl_ast::SyntaxTokenExt;
 
 pub mod node;
 
@@ -73,6 +74,23 @@ impl FormatElement {
             // that no children are ever forgotten to be formatted (they must be
             // explicitly consumed and dropped).
             .map(|children| AssertConsumedIter::new(children.iter().map(|c| c.as_ref())))
+    }
+
+    /// Returns `true` if the underlying syntax for `element` contains a comment
+    /// token.
+    ///
+    /// `FormatElement` collation drops trivia, so this peeks at the raw syntax
+    /// instead.
+    pub fn has_comment(&self) -> bool {
+        if let Some(node) = self.element().as_node() {
+            return node
+                .inner()
+                .children_with_tokens()
+                .any(|c| c.kind() == wdl_ast::SyntaxKind::Comment);
+        };
+        let token = self.element().as_token().expect("must be node or token");
+        token.inner().inline_comment().is_some()
+            || token.inner().preceding_trivia().next().is_some()
     }
 }
 

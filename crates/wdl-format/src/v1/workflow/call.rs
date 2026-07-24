@@ -3,7 +3,9 @@
 use wdl_ast::SyntaxKind;
 
 use crate::Config;
+use crate::FitOrSplitEndingLiterals;
 use crate::PreToken;
+use crate::SplitAlternative;
 use crate::TokenStream;
 use crate::Writable as _;
 use crate::element::FormatElement;
@@ -84,6 +86,10 @@ pub fn format_call_input_item(
 
 /// Formats a [`CallStatement`](wdl_ast::v1::CallStatement).
 ///
+/// The call statement's input clause (braced `{...}` content) will be dropped
+/// if possible. Dropping is possible when there are no inputs specified and
+/// there are no comments attached to or within the braces.
+///
 /// # Panics
 ///
 /// This will panic if the element does not have the expected children.
@@ -92,6 +98,8 @@ pub fn format_call_statement(
     stream: &mut TokenStream<PreToken>,
     config: &Config,
 ) {
+    let mut drop_input_clause = true;
+
     let mut children = element.children().expect("call statement children");
 
     let call_keyword = children.next().expect("call keyword");
@@ -122,21 +130,26 @@ pub fn format_call_statement(
             }
             SyntaxKind::OpenBrace => {
                 open_brace = Some(child.clone());
+                drop_input_clause &= !child.has_comment();
             }
             SyntaxKind::InputKeyword => {
                 input_keyword = Some(child.clone());
+                drop_input_clause &= !child.has_comment();
             }
             SyntaxKind::Colon => {
                 colon = Some(child.clone());
+                drop_input_clause &= !child.has_comment();
             }
             SyntaxKind::CallInputItemNode => {
                 inputs.push(child.clone());
+                drop_input_clause = false;
             }
             SyntaxKind::Comma => {
                 commas.push(child.clone());
             }
             SyntaxKind::CloseBrace => {
                 close_brace = Some(child.clone());
+                drop_input_clause &= !child.has_comment();
             }
             _ => {
                 unreachable!(
@@ -157,33 +170,51 @@ pub fn format_call_statement(
         stream.end_word();
     }
 
+    if drop_input_clause {
+        stream.end_line();
+        return;
+    }
+
     if let Some(open_brace) = open_brace {
         (&open_brace).write(stream, config);
-        stream.end_word();
 
         if let Some(input_keyword) = input_keyword {
+            stream.end_word();
             (&input_keyword).write(stream, config);
             (&colon.expect("colon")).write(stream, config);
-            stream.end_word();
         }
+        stream.fit_or_split_start(SplitAlternative::Space);
 
-        stream.increment_indent();
-
+        let mut inputs = inputs.iter().peekable();
         let mut commas = commas.iter();
-        for input in inputs {
+        let mut trailing_comma_inserted = false;
+        while let Some(input) = inputs.next() {
             (&input).write(stream, config);
 
-            if let Some(comma) = commas.next() {
+            if let Some(comma) = commas.next()
+                && (inputs.peek().is_some() || comma.has_comment())
+            {
                 (comma).write(stream, config);
-            } else if config.trailing_commas {
-                stream.push_literal(",".to_string(), SyntaxKind::Comma);
+                if inputs.peek().is_none() {
+                    trailing_comma_inserted = true;
+                }
             }
 
-            stream.end_line();
+            if inputs.peek().is_some() {
+                stream.potential_split(SplitAlternative::Space);
+            }
         }
 
-        stream.decrement_indent();
+        let trailing_literals = FitOrSplitEndingLiterals {
+            fit: Some(" ".to_string().into()),
+            split: if config.trailing_commas && !trailing_comma_inserted {
+                Some(",".to_string().into())
+            } else {
+                None
+            },
+        };
+        stream.fit_or_split_end(trailing_literals);
         (&close_brace.expect("close brace")).write(stream, config);
-        stream.end_line();
     }
+    stream.end_line();
 }

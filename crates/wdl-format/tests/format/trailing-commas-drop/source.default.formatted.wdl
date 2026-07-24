@@ -14,7 +14,7 @@ workflow test {
     meta {
         foo: [
             "bar",
-            "baz",
+            "baz",  # comment prevents comma from dropping
         ]
         bar: {
             baz: "qux",
@@ -27,7 +27,7 @@ workflow test {
     Map[String, Int] ages = {
         "James": 34,
         "Jimmy": 55,
-        "John": 26,
+        "John": 26,  # comment prevents comma from dropping
     }
     Person james = Person {
         name: "James",

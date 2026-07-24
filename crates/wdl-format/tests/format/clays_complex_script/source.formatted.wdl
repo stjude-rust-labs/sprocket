@@ -1,6 +1,7 @@
 ## # Header
-## part of preamble
 # regular comment
+
+## part of preamble
 #@ except: CommentWhitespace, DeprecatedObject, MatchingOutputMeta, MetaDescription
 #@ except: ParameterMetaMatched
 version 1.3
@@ -157,18 +158,14 @@ workflow hello {
     # the TextMate language that it's a custom struct.
     }
 
-    call a_task {
-    }
+    call a_task
 
     scatter (name in name_array) {
-        call say_task {
-            greeting = greeting,
-        }
+        call say_task { greeting = greeting }
     }
 
     if (some_condition_task) {
-        call a_task as task_two {
-        }
+        call a_task as task_two
     }
 
     output
