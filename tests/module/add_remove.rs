@@ -127,6 +127,10 @@ fn add_git_dep_without_tags_tracks_default_branch_and_locks() {
     assert!(dep.get("version").is_none());
 
     assert!(consumer.join("module-lock.json").exists());
+    assert!(
+        !consumer.join(".sprocket").exists(),
+        "a successful module mutation should leave no project-local state"
+    );
 
     let stdout = String::from_utf8_lossy(&output.stdout);
     assert!(stdout.contains("no path-scoped version tags found for `tasks`"));
