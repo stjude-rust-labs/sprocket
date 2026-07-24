@@ -343,7 +343,7 @@ enum LinePosition {
 }
 
 /// A postprocessor of [tokens](PreToken).
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Postprocessor {
     /// The current position in the line.
     position: LinePosition,
@@ -575,15 +575,13 @@ impl Postprocessor {
         let mut pre_buffer = in_stream.iter().enumerate().peekable();
         let mut post_buffer = TokenStream::<PostToken>::default();
 
-        let starting_indent = self.indent_level;
-        let starting_temp_indent = self.temp_indent.clone();
+        let self_at_start = self.clone();
 
         let max_length = config.max_line_length.get();
 
         let mut break_stack: Vec<TandemBreak> = Vec::new();
         let mut cache = None;
-        let mut prior_position = self.position;
-        let mut prior_indent = self.indent_level;
+        let mut cached_self = None;
 
         let mut spans_to_be_split = Vec::new();
         let mut span_start = None;
@@ -627,8 +625,7 @@ impl Postprocessor {
                             // cache the current state so we can revert to it if
                             // the line is too long after the next step.
                             cache = Some(post_buffer.clone());
-                            prior_position = self.position;
-                            prior_indent = self.indent_level;
+                            cached_self = Some(self.clone());
                         }
                     }
                 }
@@ -677,12 +674,15 @@ impl Postprocessor {
             // If we cached before the step and the line is now too long, revert, line
             // break, then repeat the step we just took.
             if let Some(cache) = cache.take()
+                && let Some(cached_self) = cached_self.take()
                 && too_long
             {
                 // revert
                 post_buffer = cache;
-                self.position = prior_position;
-                self.indent_level = prior_indent;
+                // reset self
+                self.position = cached_self.position;
+                self.temp_indent = cached_self.temp_indent;
+                self.indent_level = cached_self.indent_level;
 
                 // line break
                 self.interrupted = break_will_interrupt;
@@ -739,10 +739,10 @@ impl Postprocessor {
         post_buffer.clear();
 
         // reset self
-        self.interrupted = false;
-        self.position = LinePosition::StartOfLine;
-        self.temp_indent = starting_temp_indent;
-        self.indent_level = starting_indent;
+        self.interrupted = self_at_start.interrupted;
+        self.position = self_at_start.position;
+        self.temp_indent = self_at_start.temp_indent;
+        self.indent_level = self_at_start.indent_level;
         self.linebreak_potential_splits = true;
 
         let mut spans_to_be_split = spans_to_be_split.iter();
@@ -786,8 +786,7 @@ impl Postprocessor {
                         // cache the current state so we can revert to it if
                         // the line is too long after the next step.
                         cache = Some(post_buffer.clone());
-                        prior_position = self.position;
-                        prior_indent = self.indent_level;
+                        cached_self = Some(self.clone());
                     }
                 }
             }
@@ -800,12 +799,15 @@ impl Postprocessor {
             // If we cached before the step and the line is now too long, revert, line
             // break, then repeat the step we just took.
             if let Some(cache) = cache.take()
+                && let Some(cached_self) = cached_self.take()
                 && too_long
             {
                 // revert
                 post_buffer = cache;
-                self.position = prior_position;
-                self.indent_level = prior_indent;
+                // reset self
+                self.position = cached_self.position;
+                self.temp_indent = cached_self.temp_indent;
+                self.indent_level = cached_self.indent_level;
 
                 // line break
                 self.interrupted = break_will_interrupt;
