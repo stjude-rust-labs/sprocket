@@ -12,7 +12,7 @@ use super::super::manifest::align_temp_permissions;
 use super::super::manifest::parse_manifest_value;
 use super::super::project::Project;
 use super::ProjectUpdate;
-use super::state_directory;
+use super::create_state_directory;
 
 const ACTIVE_DIRECTORY: &str = "module-mutation";
 const PENDING_DIRECTORY: &str = "module-mutation.pending";
@@ -29,7 +29,7 @@ pub(super) struct ProjectTransaction {
 impl ProjectTransaction {
     /// Snapshots both project files before a mutation begins.
     pub(super) fn begin(project: &Project) -> anyhow::Result<Self> {
-        let root = state_directory(&project.root)?;
+        let root = create_state_directory(&project.root)?;
         let pending = root.join(PENDING_DIRECTORY);
         let active = root.join(ACTIVE_DIRECTORY);
         remove_path_if_present(&pending)?;
@@ -324,13 +324,15 @@ mod tests {
         };
 
         {
-            let _mutation = ProjectMutation::acquire(&project)?;
+            let _mutation =
+                ProjectMutation::acquire_in(&project, &directory.path().join("global-locks"))?;
             let _interrupted = ProjectTransaction::begin(&project)?;
             std::fs::write(&manifest_path, b"changed")?;
             std::fs::write(&lockfile_path, b"changed")?;
         }
 
-        let _recovered = ProjectMutation::acquire(&project)?;
+        let _recovered =
+            ProjectMutation::acquire_in(&project, &directory.path().join("global-locks"))?;
         assert_eq!(std::fs::read(&manifest_path)?, original);
         assert!(!lockfile_path.exists());
         Ok(())
@@ -344,7 +346,8 @@ mod tests {
         let original_manifest = std::fs::read(&project.manifest_path)?;
         let manifest = serde_json::json!({"name": "updated", "license": "MIT"});
         let lockfile = Lockfile::default();
-        let mutation = ProjectMutation::acquire(&project)?;
+        let mutation =
+            ProjectMutation::acquire_in(&project, &directory.path().join("global-locks"))?;
 
         let error = mutation
             .commit(
