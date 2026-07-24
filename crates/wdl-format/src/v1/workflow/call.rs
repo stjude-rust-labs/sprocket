@@ -177,14 +177,13 @@ pub fn format_call_statement(
 
     if let Some(open_brace) = open_brace {
         (&open_brace).write(stream, config);
-        stream.end_word();
 
         if let Some(input_keyword) = input_keyword {
+            stream.end_word();
             (&input_keyword).write(stream, config);
             (&colon.expect("colon")).write(stream, config);
-            stream.end_word();
         }
-        stream.fit_or_split_start(SplitAlternative::Empty);
+        stream.fit_or_split_start(SplitAlternative::Space);
 
         let mut inputs = inputs.iter().peekable();
         let mut commas = commas.iter();

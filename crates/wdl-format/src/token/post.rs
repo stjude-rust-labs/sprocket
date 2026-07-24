@@ -332,7 +332,7 @@ struct FitOrSplitSpan {
 }
 
 /// Current position in a line.
-#[derive(Default, Eq, PartialEq)]
+#[derive(Copy, Clone, Default, Eq, PartialEq)]
 enum LinePosition {
     /// The start of a line.
     #[default]
@@ -582,6 +582,8 @@ impl Postprocessor {
 
         let mut break_stack: Vec<TandemBreak> = Vec::new();
         let mut cache = None;
+        let mut prior_position = self.position;
+        let mut prior_indent = self.indent_level;
 
         let mut spans_to_be_split = Vec::new();
         let mut span_start = None;
@@ -625,6 +627,8 @@ impl Postprocessor {
                             // cache the current state so we can revert to it if
                             // the line is too long after the next step.
                             cache = Some(post_buffer.clone());
+                            prior_position = self.position;
+                            prior_indent = self.indent_level;
                         }
                     }
                 }
@@ -677,6 +681,8 @@ impl Postprocessor {
             {
                 // revert
                 post_buffer = cache;
+                self.position = prior_position;
+                self.indent_level = prior_indent;
 
                 // line break
                 self.interrupted = break_will_interrupt;
@@ -780,6 +786,8 @@ impl Postprocessor {
                         // cache the current state so we can revert to it if
                         // the line is too long after the next step.
                         cache = Some(post_buffer.clone());
+                        prior_position = self.position;
+                        prior_indent = self.indent_level;
                     }
                 }
             }
@@ -796,6 +804,8 @@ impl Postprocessor {
             {
                 // revert
                 post_buffer = cache;
+                self.position = prior_position;
+                self.indent_level = prior_indent;
 
                 // line break
                 self.interrupted = break_will_interrupt;

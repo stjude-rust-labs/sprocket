@@ -33,7 +33,6 @@ pub fn format_sep_option(
     let sep_value = children.next().expect("sep value");
     assert!(sep_value.element().kind() == SyntaxKind::LiteralStringNode);
     (&sep_value).write(stream, config);
-    stream.end_word();
 }
 
 /// Formats a [`DefaultOption`](wdl_ast::v1::DefaultOption).
@@ -58,7 +57,6 @@ pub fn format_default_option(
 
     let default_value = children.next().expect("default value");
     (&default_value).write(stream, config);
-    stream.end_word();
 }
 
 /// Formats a [`TrueFalseOption`](wdl_ast::v1::TrueFalseOption).
@@ -116,7 +114,6 @@ pub fn format_true_false_option(
         (&first_equals).write(stream, config);
         (&first_value).write(stream, config);
     }
-    stream.end_word();
 }
 
 /// Formats a [`Placeholder`](wdl_ast::v1::Placeholder).
@@ -150,7 +147,13 @@ pub fn format_placeholder(
         }
     }
 
+    if let Some(first) = children.next() {
+        (&first).write(stream, config);
+    }
     for child in children {
+        if child.element().inner().kind() != SyntaxKind::CloseBrace {
+            stream.end_word();
+        }
         (&child).write(stream, config);
     }
 }
@@ -531,7 +534,6 @@ pub fn format_literal_object_item(
 
     let value = children.next().expect("literal object item value");
     (&value).write(stream, config);
-    assert!(children.next().is_none());
 }
 
 /// Formats a [`LiteralObject`](wdl_ast::v1::LiteralObject).
@@ -1000,8 +1002,8 @@ pub fn format_if_expr(
             if cur.kind().is_trivia() {
                 continue;
             }
-            // only match on `else`; `then` could be considered for "chaining" but that makes it
-            // harder to read IMO (a-frantz).
+            // only match on `else`; `then` could be considered for "chaining" but that
+            // makes it harder to read IMO (a-frantz).
             result = matches!(cur.kind(), SyntaxKind::ElseKeyword);
             break;
         }
