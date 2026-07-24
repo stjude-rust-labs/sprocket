@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 * `sprocket dev test` now isolates each invocation in a unique run directory,
-  preventing Docker Desktop bind-mount failures when repeated tests recreate the same paths.
+  preventing Docker Desktop bind-mount failures when repeated tests recreate the same paths
+  ([#1041](https://github.com/stjude-rust-labs/sprocket/pull/1041)).
 * WDL 1.0 `runtime` resource requirements such as `cpu` are again passed to
   execution backends instead of being treated as hints
   ([#1026](https://github.com/stjude-rust-labs/sprocket/issues/1026)).
