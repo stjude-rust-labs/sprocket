@@ -9,21 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* Added default-branch discovery, signer identity metadata, locked-cache
-  verification, and scoped cache cleanup to the `git-resolver` APIs.
+* Added `GitPlatform`, `TrustedIdentity`, `VerifyLockedReport`, and
+  `CacheCleanStats`, along with `GitResolver::discover_default_branch`, to the
+  resolver APIs
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* Added `GitSelector::kind` for stable selector-kind labels
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 
 #### Changed
 
 * `Manifest` no longer has a `version` field, and `Tool` now uses `url` and
-  `ids` instead of `homepage`, `doi`, and `biotools`.
+  `ids` instead of `homepage`, `doi`, and `biotools`
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 * `DependencyEntry` no longer records a version. Git entries use `sha` instead
-  of `commit`, while local path entries no longer carry a checksum or signer.
+  of `commit`, while local path entries no longer carry a checksum or signer
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 * `ModuleSignature` now authenticates signer identity in its signed payload and
-  exposes validated construction and accessor methods instead of public fields.
+  exposes validated construction and accessor methods instead of public fields
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 * `TrustMode::Auto` is now `TrustMode::AutoAccept` and serializes as
-  `"auto-accept"`.
+  `"auto-accept"`
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 * Git cache reuse now verifies the requested commit and restores modified or
-  untracked materialized content before resolution.
+  untracked materialized content before resolution
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* Moved specialized lockfile diff and relock APIs from
+  `wdl_modules::resolver` to `wdl_modules::resolver::lock`; primary resolver
+  construction and policy types remain available from `wdl_modules::resolver`
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 
 ## 0.3.0 - 2026-07-15
 
