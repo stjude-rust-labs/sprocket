@@ -9,16 +9,16 @@ edition.workspace = true
 homepage.workspace = true
 repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/sprocket-py-macros"
 
+[lib]
+proc-macro = true
+
 [dependencies]
-# Parses token streams into syntax trees
-syn = { version = "3.0.2", features = ["full", "extra-traits"] } # TODO: simplify features
-# Generate token streams from code
-quote = "1.0.47"
 # Proc-macro interoperability
 proc-macro2 = "1.0.107"
+# Generate token streams from code
+quote = "1.0.47"
+# Parses token streams into syntax trees
+syn = { version = "3.0.2", features = ["full", "extra-traits"] } # TODO: simplify features
 
 [lints]
 workspace = true
-
-[lib]
-proc-macro = true
