@@ -85,6 +85,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `module-lock.json` before executing, rather than only warning
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 
+### Fixed
+
+* WDL 1.0 `runtime` resource requirements such as `cpu` are again passed to
+  execution backends instead of being treated as hints
+  ([#1026](https://github.com/stjude-rust-labs/sprocket/issues/1026)).
+
 ## 0.28.0 - 2026-07-15
 
 ### Added

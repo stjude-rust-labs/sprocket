@@ -32,6 +32,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Unknown unqualified calls are no longer reported when a wildcard import
   fails to resolve, since the call may have originated from the missing import
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* Supported WDL 1.0 `runtime` resource requirements remain available to
+  execution consumers while static type diagnostics remain version-aware
+  ([#1026](https://github.com/stjude-rust-labs/sprocket/issues/1026)).
+* LSP hover and completion for standard library functions are now version-aware:
+  functions and polymorphic signatures whose minimum WDL version exceeds the
+  document's declared version are no longer offered in completion or shown on
+  hover ([#1005](https://github.com/stjude-rust-labs/sprocket/pull/1005)).
 
 ## 0.23.0 - 2026-07-15
 

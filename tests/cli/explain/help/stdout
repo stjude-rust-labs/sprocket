@@ -81,6 +81,7 @@ Available rules:
   - HereDocCommands
   - HostPathLiterals
   - ImportPlacement
+  - InlineInstall
   - InputName
   - KnownRules
   - MatchingOutputMeta
@@ -114,6 +115,7 @@ Available tags:
   - Deprecated
   - Documentation
   - Naming
+  - Performance
   - Portability
   - Sorting
   - Spacing

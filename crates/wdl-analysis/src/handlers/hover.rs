@@ -37,6 +37,7 @@ use wdl_ast::v1::MetadataObject;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::ParameterMetadataSection;
 use wdl_ast::v1::StructDefinition;
+use wdl_grammar::SupportedVersion;
 use wdl_grammar::SyntaxElement;
 
 use crate::Document;
@@ -462,8 +463,11 @@ fn resolve_hover_by_context(
             }
 
             if let Some(func) = STDLIB.function(call_expr.target().text()) {
-                let content = get_function_hover_content(call_expr.target().text(), func);
-                return Ok(Some(content));
+                return Ok(get_function_hover_content(
+                    document.version(),
+                    call_expr.target().text(),
+                    func,
+                ));
             }
         }
 
@@ -522,9 +526,22 @@ fn find_global_hover_in_doc(document: &Document, token: &SyntaxToken) -> Result<
 
 /// Generates markdown content for a standard library function's hover info.
 ///
-/// This includes all overloaded signatures and the documentation from the WDL
-/// specification.
-fn get_function_hover_content(name: &str, func: &Function) -> String {
+/// This includes all overloaded signatures appropriate for the specified
+/// `version` and the documentation from the WDL specification.
+///
+/// Returns `None` if the document has no supported version or the function is
+/// unavailable in that version.
+fn get_function_hover_content(
+    version: Option<SupportedVersion>,
+    name: &str,
+    func: &Function,
+) -> Option<String> {
+    let v = version?;
+
+    if func.minimum_version() > v {
+        return None;
+    }
+
     let (detail, docs) = match func {
         Function::Monomorphic(m) => {
             let sig = m.signature();
@@ -537,6 +554,7 @@ fn get_function_hover_content(name: &str, func: &Function) -> String {
             let detail = p
                 .signatures()
                 .iter()
+                .filter(|s| s.minimum_version() <= v)
                 .map(|s| {
                     let params = TypeParameters::new(s.type_parameters());
                     format!("```wdl\n{}{}\n```", name, s.display(&params))
@@ -546,13 +564,14 @@ fn get_function_hover_content(name: &str, func: &Function) -> String {
 
             let docs = p
                 .signatures()
-                .first()
+                .iter()
+                .find(|s| s.minimum_version() <= v)
                 .and_then(|s| s.definition())
                 .unwrap_or("");
             (detail, docs)
         }
     };
-    format!("{detail}\n\n{docs}")
+    Some(format!("{detail}\n\n{docs}"))
 }
 
 /// Finds documentation for a variable declaration.

@@ -325,9 +325,14 @@ async fn should_complete_scope_variables() {
     assert_contains(&items, "lib");
     // Stdlib function
     assert_contains(&items, "floor");
-    assert_contains(&items, "min");
     assert_contains(&items, "stdout");
     assert_contains(&items, "stderr");
+    // The following standard library functions are present in WDL version 1.3 and
+    // should appear as completions.
+    assert_contains(&items, "min");
+    assert_contains(&items, "find");
+    assert_contains(&items, "chunk");
+    assert_contains(&items, "matches");
 
     // Workflow specific keywords
     assert_contains(&items, "call");
@@ -363,6 +368,30 @@ async fn should_complete_scope_variables() {
     assert_contains(&items, "runtime");
     assert_contains(&items, "requirements");
     assert_not_contains(&items, "call");
+}
+
+#[tokio::test]
+async fn should_complete_scope_variables_v1_0_stdlib() {
+    let mut ctx = setup().await;
+
+    // Workflow scope
+    let response = completion_request(&mut ctx, "scopes_v1_0.wdl", Position::new(10, 0))
+        .await
+        .expect("request should succeed");
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    // Stdlib functions
+    assert_contains(&items, "floor");
+    assert_contains(&items, "stdout");
+    assert_contains(&items, "stderr");
+    // The following standard library functions are *not* present in WDL version 1.0
+    // and should *not* appear as completions.
+    assert_not_contains(&items, "min");
+    assert_not_contains(&items, "find");
+    assert_not_contains(&items, "chunk");
+    assert_not_contains(&items, "matches");
 }
 
 #[tokio::test]

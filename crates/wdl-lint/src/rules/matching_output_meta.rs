@@ -135,7 +135,7 @@ impl Rule for MatchingOutputMetaRule<'_> {
 task generate_greeting {
     meta {
         outputs: {
-            # Missing `greeting`
+        # Missing `greeting`
         }
     }
 
