@@ -215,8 +215,8 @@ fn upgrade_dry_run_prints_changes_without_writing() {
         "dry run should print the planned change, got: {stdout}"
     );
     assert!(
-        stdout.contains("commit:"),
-        "dry run should include the resolved lockfile change, got: {stdout}"
+        !stdout.contains("commit:"),
+        "dry run should omit resolved lockfile details, got: {stdout}"
     );
 
     assert_eq!(
@@ -272,8 +272,8 @@ fn upgrade_relocks_non_version_dependencies_too() {
         stderr = String::from_utf8_lossy(&upgrade.stderr)
     );
     let stdout = String::from_utf8_lossy(&upgrade.stdout);
-    assert!(stdout.contains("branched"));
-    assert!(stdout.contains("commit:"));
+    assert!(!stdout.contains("branched"));
+    assert!(!stdout.contains("commit:"));
 
     let lock_after = read_lockfile(&consumer);
     assert_ne!(branched_before, latest);

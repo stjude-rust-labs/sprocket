@@ -1,3 +1,5 @@
+//! Dependency source parsing and automatic Git selector discovery.
+
 use std::path::PathBuf;
 
 use wdl_modules::Lockfile;
@@ -24,9 +26,13 @@ pub(super) struct BuiltSource {
 
 /// Builds a dependency source from the `module add` arguments.
 pub(super) struct DependencySourceBuilder<'a> {
+    /// The command arguments that select and refine the source.
     args: &'a Args,
+    /// The configuration used for Git platform and resolver policy.
     config: &'a Config,
+    /// The dependency alias being added.
     name: &'a DependencyName,
+    /// The source argument supplied by the user.
     source_arg: &'a str,
 }
 
@@ -99,7 +105,7 @@ impl<'a> DependencySourceBuilder<'a> {
         };
         tracing::trace!(
             dependency = self.name.manifest(),
-            selector = git_selector_kind(&selector),
+            selector = selector.kind(),
             has_path = path.is_some(),
             "built Git dependency source"
         );
@@ -123,7 +129,12 @@ impl<'a> DependencySourceBuilder<'a> {
     ) -> anyhow::Result<(GitSelector, Option<String>)> {
         let environment = ResolverEnvironment::from_config(self.config)?;
         let resolver = environment.resolver(Lockfile::default())?;
-        let temp_source = wildcard_version_source(url.clone(), path.cloned());
+        let temp_source = DependencySource::Git {
+            url: url.clone(),
+            selector: GitSelector::Version("*".parse()?),
+            path: path.cloned(),
+            extra: serde_json::Map::new(),
+        };
         let versions = resolver
             .discover_versions(self.name, &temp_source, DependencyScope::TopLevel)
             .await?;
@@ -165,13 +176,14 @@ impl<'a> DependencySourceBuilder<'a> {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 /// The syntax inferred from a dependency source argument.
 enum SourceKind {
-    /// An absolute URL.
+    /// An absolute URL such as `https://example.com/repo.git`.
     Url,
-    /// A hosted Git repository shorthand.
+    /// A hosted Git repository shorthand such as `openwdl/wdl`.
     Shorthand,
-    /// An unsupported scp-like Git location.
+    /// An unsupported scp-like Git location such as
+    /// `git@example.com:org/repo.git`.
     ScpLike,
-    /// A local filesystem path.
+    /// A local filesystem path such as `../modules/tasks`.
     LocalPath,
 }
 
@@ -185,16 +197,6 @@ fn infer_source_kind(raw: &str) -> SourceKind {
         SourceKind::Shorthand
     } else {
         SourceKind::LocalPath
-    }
-}
-
-/// Builds a temporary Git source that matches every semantic version.
-fn wildcard_version_source(url: url::Url, path: Option<GitModulePath>) -> DependencySource {
-    DependencySource::Git {
-        url,
-        selector: GitSelector::Version("*".parse().expect("wildcard is a valid requirement")),
-        path,
-        extra: serde_json::Map::new(),
     }
 }
 
@@ -258,16 +260,6 @@ fn resolve_git_url(
             );
             Ok(None)
         }
-    }
-}
-
-/// Returns a stable diagnostic label for a Git selector.
-fn git_selector_kind(selector: &GitSelector) -> &'static str {
-    match selector {
-        GitSelector::Version(_) => "version",
-        GitSelector::Tag(_) => "tag",
-        GitSelector::Branch(_) => "branch",
-        GitSelector::Commit(_) => "commit",
     }
 }
 
@@ -445,6 +437,10 @@ mod tests {
     fn infer_source_kind_distinguishes_urls_shorthands_and_local_paths() {
         assert_eq!(infer_source_kind("file:///repo"), SourceKind::Url);
         assert_eq!(infer_source_kind("openwdl/wdl"), SourceKind::Shorthand);
+        assert_eq!(
+            infer_source_kind("git@github.com:org/repo.git"),
+            SourceKind::ScpLike
+        );
         assert_eq!(infer_source_kind("./openwdl/wdl"), SourceKind::LocalPath);
     }
 
@@ -646,13 +642,5 @@ mod tests {
         assert_eq!(scp_like_parts("C:\\repos\\module"), None);
         assert_eq!(scp_like_parts("https://example.com/repo"), None);
         assert_eq!(scp_like_parts("org/repo"), None);
-    }
-
-    #[test]
-    fn infer_source_kind_preserves_scp_like_detection() {
-        assert_eq!(
-            infer_source_kind("git@github.com:org/repo.git"),
-            SourceKind::ScpLike
-        );
     }
 }

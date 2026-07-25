@@ -65,11 +65,11 @@ fn verify_succeeds_after_lock() {
 }
 
 #[test]
-fn verify_strict_requires_all_packages_to_be_signed() {
+fn verify_require_signatures_requires_all_packages_to_be_signed() {
     let fixture = GitFixture::new();
     let repo_url = fixture.repo_url();
     let consumer = fixture.write_consumer(
-        "consumer-verify-strict",
+        "consumer-verify-require-signatures",
         &format!(r#"    "tasks": {{ "git": "{repo_url}", "version": "^1.0", "path": "tasks" }}"#),
     );
 
@@ -86,7 +86,7 @@ fn verify_strict_requires_all_packages_to_be_signed() {
 
     let verify = sprocket_with_config(
         fixture.config_path(),
-        &["dev", "module", "verify", "--strict"],
+        &["dev", "module", "verify", "--require-signatures"],
     )
     .current_dir(&consumer)
     .output()
@@ -99,16 +99,17 @@ fn verify_strict_requires_all_packages_to_be_signed() {
     let stdout = String::from_utf8_lossy(&verify.stdout);
     assert!(stdout.contains("Failed signature verification for current module (no `module.sig`)"));
     assert!(stdout.contains("Failed signature verification for 1 dependency without a signature"));
-    assert!(!stdout.contains("Failed strict signature verification"));
     let stderr = String::from_utf8_lossy(&verify.stderr);
-    assert!(stderr.contains("strict verification requires signatures for every package"));
+    assert!(stderr.contains(
+        "verification with `--require-signatures` requires signatures for every package"
+    ));
     assert!(stderr.contains("`consumer` (current module) has no `module.sig`"));
     assert!(stderr.contains("dependency `tasks` has no `module.sig`"));
 
     let config_path = fixture.config_path().to_string_lossy().into_owned();
     let colored = sprocket_with_global_args(
         &["--config", &config_path, "--color", "always"],
-        &["dev", "module", "verify", "--strict"],
+        &["dev", "module", "verify", "--require-signatures"],
     )
     .current_dir(&consumer)
     .output()

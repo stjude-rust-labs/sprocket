@@ -38,6 +38,8 @@ pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> an
         lockfile_path,
     };
 
+    // Avoid acquiring the mutation lock when the current lockfile already
+    // satisfies the manifest.
     let existing = load_lockfile(&project)?;
     if existing
         .as_ref()
@@ -47,6 +49,8 @@ pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> an
     }
 
     let project = LockedProject::acquire(project)?;
+    // Another process may have regenerated the lockfile between the optimistic
+    // check above and this lock acquisition.
     let existing = load_lockfile(project.project())?;
     if existing
         .as_ref()

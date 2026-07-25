@@ -287,6 +287,18 @@ pub enum GitSelector {
     Commit(GitCommitish),
 }
 
+impl GitSelector {
+    /// Returns the selector kind used in diagnostics and command output.
+    pub fn kind(&self) -> &'static str {
+        match self {
+            Self::Version(_) => "version",
+            Self::Tag(_) => "tag",
+            Self::Branch(_) => "branch",
+            Self::Commit(_) => "commit",
+        }
+    }
+}
+
 impl fmt::Display for GitSelector {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -418,6 +430,19 @@ mod tests {
             } => assert_eq!(commit.as_str(), "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"),
             _ => panic!("expected `Commit` selector"),
         }
+    }
+
+    #[test]
+    fn git_selector_reports_its_kind() {
+        // SAFETY: `*` is a valid version requirement.
+        let version = GitSelector::Version("*".parse().unwrap());
+        // SAFETY: this is a valid abbreviated Git commit.
+        let commit = GitSelector::Commit("a1b2c3d".parse().unwrap());
+
+        assert_eq!(version.kind(), "version");
+        assert_eq!(GitSelector::Tag("v1.0.0".to_string()).kind(), "tag");
+        assert_eq!(GitSelector::Branch("main".to_string()).kind(), "branch");
+        assert_eq!(commit.kind(), "commit");
     }
 
     #[test]

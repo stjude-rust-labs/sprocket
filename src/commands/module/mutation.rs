@@ -94,7 +94,9 @@ impl<'a> ProjectUpdate<'a> {
 /// A refreshed module project held under its exclusive mutation lock.
 #[derive(Debug)]
 pub(super) struct LockedProject {
+    /// Project reloaded after the mutation lock is acquired.
     project: Project,
+    /// Exclusive mutation guard held for this value's lifetime.
     mutation: ProjectMutation,
 }
 

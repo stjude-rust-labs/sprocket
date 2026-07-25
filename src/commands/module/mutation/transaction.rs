@@ -15,15 +15,21 @@ use super::ProjectUpdate;
 use super::cleanup_state_directory;
 use super::create_state_directory;
 
+/// Name of the active recovery journal directory.
 const ACTIVE_DIRECTORY: &str = "module-mutation";
+/// Name used while a recovery journal is being created.
 const PENDING_DIRECTORY: &str = "module-mutation.pending";
 
 /// On-disk snapshots used to recover a project mutation.
 #[derive(Debug)]
 pub(super) struct ProjectTransaction {
+    /// Directory containing the transient mutation journal.
     state_root: PathBuf,
+    /// Active journal containing the durable project snapshots.
     active: PathBuf,
+    /// Manifest restored if the mutation rolls back.
     manifest_path: PathBuf,
+    /// Lockfile restored if the mutation rolls back.
     lockfile_path: PathBuf,
 }
 

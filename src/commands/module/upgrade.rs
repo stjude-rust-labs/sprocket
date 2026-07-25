@@ -14,12 +14,10 @@ use wdl_modules::dependency::GitSelector;
 use wdl_modules::module::Module;
 use wdl_modules::resolver::DependencyScope;
 use wdl_modules::resolver::lock::RelockOutcome;
-use wdl_modules::resolver::lock::RelockStats;
 use wdl_modules::resolver::lock::SignerIdentityMap;
 use wdl_modules::resolver::lock::signer_identity_map;
 use wdl_modules::resolver::lock::update_relock;
 
-use super::display::dependency_update;
 use super::display::version_constraint;
 use super::manifest::parse_manifest_value;
 use super::manifest::read_manifest_value;
@@ -117,7 +115,6 @@ pub async fn upgrade(args: Args, config: Config, output: CommandOutput) -> Comma
         ),
     );
     print_upgrade_details(output, &changes.changed);
-    print_lockfile_change_details(output, &changes.outcome.stats);
     Ok(())
 }
 
@@ -286,19 +283,11 @@ fn print_upgrade_plan(output: CommandOutput, plan: UpgradePlan) {
                 ),
             );
             print_upgrade_details(output, &changes.changed);
-            print_lockfile_change_details(output, &changes.outcome.stats);
             tracing::debug!(
                 changed = changes.changed.len(),
                 "dry run completed without writing manifest, lockfile, or trust store"
             );
         }
-    }
-}
-
-/// Prints dependency changes produced while refreshing the lockfile.
-fn print_lockfile_change_details(output: CommandOutput, stats: &RelockStats) {
-    for change in &stats.updated {
-        output.detail(change.name.manifest(), dependency_update(change));
     }
 }
 

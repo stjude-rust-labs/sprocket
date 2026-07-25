@@ -19,6 +19,12 @@ use crate::commands::output::CommandOutput;
 use crate::config::ModuleInitConfig;
 
 const INITIALIZE: Action = Action::new("Initialized", "initialize");
+const DEFAULT_LICENSE: &str = "Apache-2.0 OR MIT";
+const NAME_KEY: &str = "name";
+const DESCRIPTION_KEY: &str = "description";
+const AUTHORS_KEY: &str = "authors";
+const LICENSE_KEY: &str = "license";
+const REPOSITORY_KEY: &str = "repository";
 
 /// Arguments to `sprocket dev module init`.
 #[derive(Parser, Debug)]
@@ -101,7 +107,7 @@ fn run_init(args: Args, config: &ModuleInitConfig, output: CommandOutput) -> any
     let name = name.unwrap_or_else(|| infer_name(&target_dir));
     let license = license
         .or_else(|| config.license.clone())
-        .unwrap_or_else(|| "Apache-2.0 OR MIT".to_string());
+        .unwrap_or_else(|| DEFAULT_LICENSE.to_string());
     validate_name_and_license(&name, &license)?;
 
     ensure_target_directory(&target_dir)?;
@@ -115,9 +121,9 @@ fn run_init(args: Args, config: &ModuleInitConfig, output: CommandOutput) -> any
     // defaults to `index.wdl`, which is exactly what the scaffold writes.
     // `authors` and `repository` are included only when they can be inferred.
     let mut manifest = Map::new();
-    manifest.insert("name".to_string(), Value::String(name.clone()));
+    manifest.insert(NAME_KEY.to_string(), Value::String(name.clone()));
     manifest.insert(
-        "description".to_string(),
+        DESCRIPTION_KEY.to_string(),
         Value::String(format!("The `{name}` WDL module.")),
     );
     let resolved_author =
@@ -128,14 +134,14 @@ fn run_init(args: Args, config: &ModuleInitConfig, output: CommandOutput) -> any
     if let Some(author_entry) = resolved_author {
         tracing::trace!(has_author = true, "resolved module author identity");
         manifest.insert(
-            "authors".to_string(),
+            AUTHORS_KEY.to_string(),
             Value::Array(vec![Value::String(author_entry)]),
         );
     }
-    manifest.insert("license".to_string(), Value::String(license));
+    manifest.insert(LICENSE_KEY.to_string(), Value::String(license));
     if let Some(repository) = infer_repository(&target_dir) {
         tracing::trace!("inferred module repository from Git config");
-        manifest.insert("repository".to_string(), Value::String(repository));
+        manifest.insert(REPOSITORY_KEY.to_string(), Value::String(repository));
     }
     write_new_manifest(&manifest_path, &Value::Object(manifest))?;
     tracing::debug!(manifest = %manifest_path.display(), "wrote module manifest");
@@ -292,8 +298,8 @@ fn write_new_manifest(path: &Path, value: &Value) -> anyhow::Result<()> {
 /// Validates user-controlled manifest fields before creating a target.
 fn validate_name_and_license(name: &str, license: &str) -> anyhow::Result<()> {
     let value = serde_json::json!({
-        "name": name,
-        "license": license,
+        (NAME_KEY): name,
+        (LICENSE_KEY): license,
     });
     let bytes = serde_json::to_vec(&value)?;
     wdl_modules::Manifest::parse(&bytes).context("validating generated manifest")?;
@@ -311,7 +317,9 @@ fn validate_cli_identity(field: &str, value: Option<&str>) -> anyhow::Result<()>
 #[derive(Debug, PartialEq, Eq)]
 /// An author name and email resolved from CLI, Sprocket, or Git configuration.
 struct AuthorIdentity {
+    /// Resolved author name.
     name: Option<String>,
+    /// Resolved author email address.
     email: Option<String>,
 }
 

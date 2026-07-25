@@ -89,8 +89,11 @@ pub async fn update(args: Args, config: Config, output: CommandOutput) -> Comman
 
 /// The existing state and relock result prepared by an update.
 struct UpdatePlan {
+    /// Lockfile state used to evaluate signer changes.
     existing: Lockfile,
+    /// Relock result for the selected dependencies.
     outcome: RelockOutcome,
+    /// Signer identities discovered while resolving dependencies.
     identities: SignerIdentityMap,
 }
 
@@ -102,25 +105,24 @@ async fn plan_update(
 ) -> anyhow::Result<UpdatePlan> {
     let existing = load_lockfile(project)?.unwrap_or_default();
     let mut names = BTreeSet::new();
-    for raw in &args.names {
-        let name: DependencyName = raw
-            .parse()
-            .with_context(|| format!("invalid dependency name `{raw}`"))?;
-        if !project.manifest.dependencies.contains_key(&name) {
-            return Err(anyhow::anyhow!(
-                "dependency `{}` not found in `module.json`",
-                raw
-            ));
+    if args.names.is_empty() {
+        names.extend(project.manifest.dependencies.keys().cloned());
+    } else {
+        for raw in &args.names {
+            let name: DependencyName = raw
+                .parse()
+                .with_context(|| format!("invalid dependency name `{raw}`"))?;
+            if !project.manifest.dependencies.contains_key(&name) {
+                return Err(anyhow::anyhow!(
+                    "dependency `{raw}` not found in `module.json`"
+                ));
+            }
+            names.insert(name);
         }
-        names.insert(name);
     }
     tracing::debug!(
-        selected = if names.is_empty() {
-            project.manifest.dependencies.len()
-        } else {
-            names.len()
-        },
-        explicit = !names.is_empty(),
+        selected = names.len(),
+        explicit = !args.names.is_empty(),
         "selected dependencies for update"
     );
 

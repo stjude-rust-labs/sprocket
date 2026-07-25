@@ -30,7 +30,7 @@ pub struct Args {
 
     /// Require every package in scope to have a cryptographic signature.
     #[arg(long)]
-    pub strict: bool,
+    pub require_signatures: bool,
 
     /// Shared module locator.
     #[command(flatten)]
@@ -50,7 +50,7 @@ pub enum VerifyTarget {
 pub async fn verify(args: Args, config: Config, output: CommandOutput) -> CommandResult<()> {
     tracing::trace!(
         target = ?args.target,
-        strict = args.strict,
+        require_signatures = args.require_signatures,
         "starting `sprocket dev module verify`"
     );
     let project = discover(&args.locator)?;
@@ -58,10 +58,10 @@ pub async fn verify(args: Args, config: Config, output: CommandOutput) -> Comman
     match args.target {
         Some(VerifyTarget::Signature) => verify_signature(&project, output)?,
         Some(VerifyTarget::Lockfile) => {
-            let unsigned = verify_lockfile(&project, &config, output, args.strict)?;
-            fail_if_strict_unsigned(None, &unsigned, args.strict)?;
+            let unsigned = verify_lockfile(&project, &config, output, args.require_signatures)?;
+            fail_if_required_signatures_missing(None, &unsigned, args.require_signatures)?;
         }
-        None => verify_all(&project, &config, output, args.strict)?,
+        None => verify_all(&project, &config, output, args.require_signatures)?,
     }
 
     Ok(())
@@ -72,7 +72,7 @@ fn verify_all(
     project: &Project,
     config: &Config,
     output: CommandOutput,
-    strict: bool,
+    require_signatures: bool,
 ) -> anyhow::Result<()> {
     let mut checked = 0usize;
     let mut unsigned_current = None;
@@ -83,14 +83,18 @@ fn verify_all(
         checked += 1;
     } else {
         unsigned_current = Some(project.manifest.name.as_str().to_string());
-        print_unsigned_current_summary(output, strict);
+        print_unsigned_current_summary(output, require_signatures);
     }
     if project.lockfile_path.exists() {
         tracing::debug!("verifying lockfile as part of full verification");
-        unsigned_dependencies = verify_lockfile(project, config, output, strict)?;
+        unsigned_dependencies = verify_lockfile(project, config, output, require_signatures)?;
         checked += 1;
     }
-    fail_if_strict_unsigned(unsigned_current.as_deref(), &unsigned_dependencies, strict)?;
+    fail_if_required_signatures_missing(
+        unsigned_current.as_deref(),
+        &unsigned_dependencies,
+        require_signatures,
+    )?;
     if checked == 0 {
         tracing::debug!("full verification found no signature or lockfile");
         anyhow::bail!(
@@ -125,7 +129,7 @@ fn verify_lockfile(
     project: &Project,
     config: &Config,
     output: CommandOutput,
-    strict: bool,
+    require_signatures: bool,
 ) -> anyhow::Result<Vec<DependencyName>> {
     tracing::trace!(lockfile = %project.lockfile_path.display(), "reading module lockfile");
     let lock = require_lockfile(project)?;
@@ -144,7 +148,7 @@ fn verify_lockfile(
         .map_err(anyhow::Error::from)?;
 
     if !unsigned.is_empty() {
-        print_unsigned_dependency_summary(unsigned.len(), output, strict);
+        print_unsigned_dependency_summary(unsigned.len(), output, require_signatures);
     }
 
     if !errors.is_empty() {
@@ -201,23 +205,35 @@ fn verify_lockfile(
 }
 
 /// Reports that the current module has no signature.
-fn print_unsigned_current_summary(output: CommandOutput, strict: bool) {
+fn print_unsigned_current_summary(output: CommandOutput, require_signatures: bool) {
     print_unsigned_summary(
         output,
-        strict,
+        require_signatures,
         "signature verification for current module (no `module.sig`)",
     );
 }
 
 /// Reports the number of locked dependencies without signatures.
-fn print_unsigned_dependency_summary(unsigned: usize, output: CommandOutput, strict: bool) {
-    print_unsigned_summary(output, strict, unsigned_dependency_summary(unsigned));
+fn print_unsigned_dependency_summary(
+    unsigned: usize,
+    output: CommandOutput,
+    require_signatures: bool,
+) {
+    print_unsigned_summary(
+        output,
+        require_signatures,
+        unsigned_dependency_summary(unsigned),
+    );
 }
 
-/// Prints an unsigned-package summary line: a red `Failed` under strict
-/// verification, a cyan `Skipped` otherwise.
-fn print_unsigned_summary(output: CommandOutput, strict: bool, rest: impl std::fmt::Display) {
-    if strict {
+/// Prints a red `Failed` when signatures are required and a cyan `Skipped`
+/// otherwise.
+fn print_unsigned_summary(
+    output: CommandOutput,
+    require_signatures: bool,
+    rest: impl std::fmt::Display,
+) {
+    if require_signatures {
         output.failed(rest);
     } else {
         output.skipped(rest);
@@ -232,14 +248,13 @@ fn unsigned_dependency_summary(unsigned: usize) -> String {
     }
 }
 
-/// Rejects unsigned modules and dependencies when strict verification is
-/// active.
-fn fail_if_strict_unsigned(
+/// Rejects unsigned modules and dependencies when signatures are required.
+fn fail_if_required_signatures_missing(
     current: Option<&str>,
     dependencies: &[DependencyName],
-    strict: bool,
+    require_signatures: bool,
 ) -> anyhow::Result<()> {
-    if !strict {
+    if !require_signatures {
         return Ok(());
     }
 
@@ -257,7 +272,7 @@ fn fail_if_strict_unsigned(
         Ok(())
     } else {
         anyhow::bail!(
-            "strict verification requires signatures for every package:\n  {}",
+            "verification with `--require-signatures` requires signatures for every package:\n  {}",
             problems.join("\n  ")
         );
     }
