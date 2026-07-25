@@ -64,19 +64,21 @@ pub(crate) fn build(original: &mut ItemImpl) -> syn::Result<TokenStream> {
             }
         }
 
-        // If the method isn't annotated with `#[method]` or `#[staticmethod]`, do not retain it.
+        // If the method isn't annotated with `#[method]` or `#[staticmethod]`, do not
+        // retain it.
         if !is_py_method {
             return false;
         }
 
-        // Add `#[pyo3(name = "foo")]`. This makes the method in Python have its original Rust
-        // name, before we add the "py_" prefix.
+        // Add `#[pyo3(name = "foo")]`. This makes the method in Python have its
+        // original Rust name, before we add the "py_" prefix.
         fn_.attrs.push({
             let name = LitStr::new(&fn_.sig.ident.to_string(), fn_.sig.ident.span());
             parse_quote!(#[pyo3(name = #name)])
         });
 
-        // Prefix function name with "py_" (`fn foo(&self) -> Bar<N>` into `fn py_foo(&self) -> Bar<N>`).
+        // Prefix function name with "py_" (`fn foo(&self) -> Bar<N>` into `fn
+        // py_foo(&self) -> Bar<N>`).
         fn_.sig.ident = format_ident!("py_{}", fn_.sig.ident);
 
         // TODO

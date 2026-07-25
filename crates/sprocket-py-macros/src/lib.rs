@@ -1,4 +1,9 @@
-//! TODO
+//! Macros that assist with generating [Sprocket's Python
+//! bindings](https://github.com/stjude-rust-labs/sprocket/tree/main/python).
+//!
+//! This crate is unstable and is not intended to be consumed outside of
+//! Sprocket's WDL crates. While it will follow [Semantic Versioning](https://semver.org/),
+//! use at your own risk.
 
 mod ast;
 
