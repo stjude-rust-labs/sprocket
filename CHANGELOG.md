@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* `sprocket dev doc` now honors WDL feature flags configured in
+  `sprocket.toml`.
 * WDL 1.0 `runtime` resource requirements such as `cpu` are again passed to
   execution backends instead of being treated as hints
   ([#1026](https://github.com/stjude-rust-labs/sprocket/issues/1026)).
