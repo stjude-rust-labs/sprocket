@@ -14,7 +14,68 @@ use syn::ItemImpl;
 use syn::parse::Nothing;
 use syn::parse_macro_input;
 
-/// TODO
+/// Creates the Python equivalent of an AST node.
+///
+/// Given an AST node named `Foo` annotated with this macro, it will generate a
+/// new struct named `PyFoo`. This new struct will contain a
+/// `wdl_ast::python::ThreadSafeSyntaxNode` and be annotated with
+/// `pyo3::pyclass`, allowing it to be used in Python bindings. [`From`]
+/// implementations will be created to allow easy conversion between `Foo` and
+/// `PyFoo`. The doc comments from `Foo` will be copied over to `PyFoo`.
+///
+/// Additionally, this macro will implement `pyo3::conversion::IntoPyObject` for
+/// the original `Foo` struct, letting it be returned directly from Python
+/// methods without first being converted to `PyFoo`.
+///
+/// # Arguments
+///
+/// This attribute accepts no argument.
+///
+/// # Requirements
+///
+/// - This attribute can only be applied to tuple structs with a single
+///   `wdl_grammar::SyntaxNode` field.
+///   - The field may be a generic as long as it defaults to `SyntaxNode`, such
+///     as `N: TreeNode = SyntaxNode`.
+/// - The struct must implement [`PartialEq`].
+/// - This attribute can only be used within the `wdl-ast` crate.
+/// - `pyo3` must be available for import with the `macros` feature enabled.
+///
+/// # Examples
+///
+/// ```no_run
+/// # use sprocket_py_macros::ast;
+/// #
+/// /// Some documentation...
+/// #[ast]
+/// #[derive(PartialEq)]
+/// struct Ast<N: TreeNode = SyntaxNode>(N);
+/// ```
+///
+/// The above code roughly expands to:
+///
+/// ```no_run
+/// /// Some documentation...
+/// #[derive(PartialEq)]
+/// struct Ast<N: TreeNode = SyntaxNode>(N);
+///
+/// /// Some documentation...
+/// #[pyclass(module = "sprocket_bio.ast.v1", name = "Ast", extends = PyAstNode, frozen, skip_from_py_object, eq)]
+/// #[derive(Clone, PartialEq)]
+/// struct PyAst(ThreadSafeSyntaxNode);
+///
+/// impl IntoPyObject for Ast {
+///     // ...
+/// }
+///
+/// impl From<Ast> for PyAst {
+///     // ...
+/// }
+///
+/// impl From<PyAst> for Ast {
+///     // ...
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn ast(args: TokenStream, item: TokenStream) -> TokenStream {
     parse_macro_input!(args as Nothing);
