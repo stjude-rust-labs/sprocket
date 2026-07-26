@@ -235,6 +235,58 @@
   .left-sidebar__size-button.left-sidebar__size-button--active {
     @apply text-slate-100 bg-slate-700 opacity-100;
   }
+  .left-sidebar__module-version {
+    @apply ml-1 shrink-0 rounded-full bg-slate-800 px-1.5 py-0.5 text-[0.65rem] leading-none text-slate-400;
+  }
+
+  /**
+   * Module overview
+   */
+  .module-overview {
+    @apply flex flex-col gap-4 pb-8;
+  }
+  .module-overview__eyebrow {
+    @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+  .module-overview__title {
+    @apply text-2xl font-bold text-slate-50;
+  }
+  .module-overview__description {
+    @apply text-slate-300;
+  }
+  .module-overview__metadata {
+    @apply flex flex-row flex-wrap items-center gap-3;
+  }
+  .module-overview__metadata-item {
+    @apply flex flex-row items-center gap-2 rounded-md border border-slate-800 bg-slate-900 px-3 py-1.5 text-sm;
+  }
+  .module-overview__metadata-label {
+    @apply text-slate-400;
+  }
+  .module-overview__metadata-value {
+    @apply font-mono text-sm text-slate-200;
+  }
+  .module-overview__dependencies {
+    @apply flex flex-col gap-2;
+  }
+  .module-overview__dependencies-header {
+    @apply text-sm font-semibold text-slate-400;
+  }
+  .module-overview__dependencies-list {
+    @apply flex flex-row flex-wrap gap-3;
+  }
+  .module-overview__dependency-card {
+    @apply flex min-w-40 flex-col gap-1 rounded-md border border-slate-800 bg-slate-900 p-3;
+  }
+  .module-overview__dependency-name {
+    @apply text-sm font-semibold text-slate-50;
+  }
+  .module-overview__dependency-version {
+    @apply text-xs text-slate-500;
+  }
+  .module-overview__dependency-description {
+    @apply text-sm text-slate-300;
+  }
 
   /**
    * Right Sidebar
