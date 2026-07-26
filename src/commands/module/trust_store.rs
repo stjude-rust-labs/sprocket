@@ -1,18 +1,13 @@
 //! Path-aware persistence for the module trust store.
 //!
-//! This module owns loading, saving, and lockfile signer collection for the
-//! user trust store. Signer-change policy, prompting, and rendering live in
-//! [`super::signer_policy`].
+//! This module owns loading and saving for the user trust store. Signer-change
+//! policy, prompting, and rendering live in [`super::signer_policy`].
 
 use std::path::PathBuf;
 
 use anyhow::Context as _;
 use wdl_modules::Lockfile;
-use wdl_modules::lockfile::DependencyMap;
 use wdl_modules::resolver::TrustStore;
-use wdl_modules::resolver::lock::SignerIdentityMap;
-use wdl_modules::signing::SignerIdentity;
-use wdl_modules::signing::VerifyingKey;
 
 /// A trust store bound to the filesystem path it was loaded from.
 ///
@@ -72,100 +67,16 @@ impl TrustStoreFile {
     /// Trusts every signer key recorded in a lockfile and saves the store,
     /// returning the number of newly added keys.
     pub(super) fn accept_lockfile_signers(&mut self, lockfile: &Lockfile) -> anyhow::Result<usize> {
-        let accepted = insert_lockfile_signers(&mut self.store, lockfile);
+        let accepted = self.store.trust_lockfile_signers(lockfile);
         self.save()?;
         Ok(accepted)
     }
 }
 
-/// Adds every signer key recorded in a lockfile to `trust`, returning the
-/// number of keys that were not already present. This performs no I/O.
-pub(super) fn insert_lockfile_signers(trust: &mut TrustStore, lockfile: &Lockfile) -> usize {
-    let mut accepted = 0usize;
-    for signer in lockfile_signers(lockfile, &SignerIdentityMap::new()) {
-        if trust.insert_key(signer.key) {
-            accepted += 1;
-        }
-        upsert_signer_identity(trust, signer.key, signer.identity);
-    }
-    accepted
-}
-
-/// Records the identity metadata for `key` in the trust store when present.
-pub(super) fn upsert_signer_identity(
-    trust: &mut TrustStore,
-    key: VerifyingKey,
-    identity: Option<SignerIdentity>,
-) {
-    match identity {
-        Some(SignerIdentity::Signer { name, email }) => {
-            trust.upsert_identity(key, Some(name), Some(email), None);
-        }
-        Some(SignerIdentity::Comment { comment }) => {
-            trust.upsert_identity(key, None, None, Some(comment));
-        }
-        None => {}
-    }
-}
-
-/// A signer key and optional identity queued for a trust-store insertion.
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct SignerTrustHint {
-    /// The signer key to be added to the trust store.
-    key: VerifyingKey,
-    /// Identity metadata recorded alongside the key, when known.
-    identity: Option<SignerIdentity>,
-}
-
-/// Collects the unique signers recorded across a lockfile's dependency tree.
-fn lockfile_signers(lockfile: &Lockfile, identities: &SignerIdentityMap) -> Vec<SignerTrustHint> {
-    let mut signers = Vec::new();
-    collect_lockfile_signers(
-        &lockfile.dependencies,
-        &mut Vec::new(),
-        identities,
-        &mut signers,
-    );
-    signers
-}
-
-/// Recursively gathers signers from a dependency map into `signers`,
-/// tracking the dependency `chain` to resolve identity metadata.
-fn collect_lockfile_signers(
-    deps: &DependencyMap,
-    chain: &mut Vec<wdl_modules::dependency::DependencyName>,
-    identities: &SignerIdentityMap,
-    signers: &mut Vec<SignerTrustHint>,
-) {
-    for (name, entry) in deps {
-        chain.push(name.clone());
-        if let Some(key) = entry.signer {
-            push_unique_signer(signers, key, identities.get(chain).cloned());
-        }
-        collect_lockfile_signers(&entry.dependencies, chain, identities, signers);
-        chain.pop();
-    }
-}
-
-/// Appends a signer to `signers`, deduplicating by key and backfilling any
-/// missing identity metadata onto an existing entry.
-fn push_unique_signer(
-    signers: &mut Vec<SignerTrustHint>,
-    key: VerifyingKey,
-    identity: Option<SignerIdentity>,
-) {
-    if let Some(existing) = signers.iter_mut().find(|signer| signer.key == key) {
-        if existing.identity.is_none() {
-            existing.identity = identity;
-        }
-        return;
-    }
-    signers.push(SignerTrustHint { key, identity });
-}
-
 #[cfg(test)]
 mod tests {
     use wdl_modules::resolver::TrustStore;
+    use wdl_modules::signing::VerifyingKey;
 
     use super::*;
 
@@ -221,15 +132,17 @@ mod tests {
     }
 
     #[test]
-    fn insert_lockfile_signers_counts_only_new_keys() {
+    fn accept_lockfile_signers_counts_only_new_keys() {
         let url = "https://example.com/repo";
         let lockfile = signed_lockfile("dep", url, Some(vkey(1)));
 
-        let mut store = TrustStore::default();
-        assert_eq!(insert_lockfile_signers(&mut store, &lockfile), 1);
-        assert!(store.contains_key(&vkey(1)));
-        // A second insertion of the same key adds nothing.
-        assert_eq!(insert_lockfile_signers(&mut store, &lockfile), 0);
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("trust.toml");
+        let mut file = TrustStoreFile::load(path).unwrap();
+
+        assert_eq!(file.accept_lockfile_signers(&lockfile).unwrap(), 1);
+        assert!(file.store().contains_key(&vkey(1)));
+        assert_eq!(file.accept_lockfile_signers(&lockfile).unwrap(), 0);
     }
 
     #[test]

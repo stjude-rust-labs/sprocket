@@ -8,6 +8,9 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 use toml_spanner::Toml;
 
+use crate::lockfile::DependencyMap;
+use crate::lockfile::Lockfile;
+use crate::signing::SignerIdentity;
 use crate::signing::VerifyingKey;
 
 /// An error reading or writing the trust store.
@@ -153,6 +156,22 @@ impl TrustStore {
         true
     }
 
+    /// Adds signer trust for `key` and records authenticated identity metadata
+    /// when present.
+    pub fn trust_signer(&mut self, key: VerifyingKey, identity: Option<SignerIdentity>) -> bool {
+        let inserted = self.insert_key(key);
+        match identity {
+            Some(SignerIdentity::Signer { name, email }) => {
+                self.upsert_identity(key, Some(name), Some(email), None);
+            }
+            Some(SignerIdentity::Comment { comment }) => {
+                self.upsert_identity(key, None, None, Some(comment));
+            }
+            None => {}
+        }
+        inserted
+    }
+
     /// Removes `key` from the trust store.
     pub fn remove_key(&mut self, key: &VerifyingKey) -> bool {
         let before = self.keys.len();
@@ -224,10 +243,35 @@ impl TrustStore {
     pub fn identity(&self, key: &VerifyingKey) -> Option<&TrustedIdentity> {
         self.identities.iter().find(|identity| &identity.key == key)
     }
+
+    /// Trusts signer keys recorded across a lockfile dependency tree and
+    /// returns the number of newly inserted keys.
+    pub fn trust_lockfile_signers(&mut self, lockfile: &Lockfile) -> usize {
+        fn visit(store: &mut TrustStore, dependencies: &DependencyMap) -> usize {
+            dependencies
+                .values()
+                .map(|dependency| {
+                    usize::from(
+                        dependency
+                            .signer
+                            .is_some_and(|key| store.trust_signer(key, None)),
+                    ) + visit(store, &dependency.dependencies)
+                })
+                .sum()
+        }
+
+        visit(self, &lockfile.dependencies)
+    }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::lockfile::DependencyEntry;
+    use crate::lockfile::DependencyMap;
+    use crate::lockfile::Lockfile;
+    use crate::lockfile::ResolvedSource;
+    use crate::signing::SignerIdentity;
+
     use std::fs;
 
     use tempfile::tempdir;
@@ -236,6 +280,48 @@ mod tests {
 
     fn test_key() -> VerifyingKey {
         crate::signing::test_utils::signing_key_from_seed(0xA7).verifying_key()
+    }
+
+    fn signed_lockfile_with_nested_duplicate(key: VerifyingKey) -> Lockfile {
+        let nested = DependencyEntry {
+            source: ResolvedSource::Git {
+                git: "https://example.com/nested".parse().unwrap(),
+                sha: "0000000000000000000000000000000000000000".parse().unwrap(),
+                selector: crate::dependency::GitSelector::Version("^1".parse().unwrap()),
+                path: None,
+            },
+            checksum: Some(
+                "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+                    .parse()
+                    .unwrap(),
+            ),
+            signer: Some(key),
+            dependencies: DependencyMap::new(),
+        };
+
+        let mut dependencies = DependencyMap::new();
+        dependencies.insert(
+            "root".parse().unwrap(),
+            DependencyEntry {
+                source: ResolvedSource::Git {
+                    git: "https://example.com/root".parse().unwrap(),
+                    sha: "1111111111111111111111111111111111111111".parse().unwrap(),
+                    selector: crate::dependency::GitSelector::Version("^1".parse().unwrap()),
+                    path: None,
+                },
+                checksum: Some(
+                    "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                        .parse()
+                        .unwrap(),
+                ),
+                signer: Some(key),
+                dependencies: DependencyMap::from([("nested".parse().unwrap(), nested)]),
+            },
+        );
+        Lockfile {
+            version: crate::lockfile::LOCKFILE_VERSION,
+            dependencies,
+        }
     }
 
     #[test]
@@ -323,6 +409,36 @@ mod tests {
         assert_eq!(identity.comment.as_deref(), Some("release signer"));
         assert!(identity.name.is_none());
         assert!(identity.email.is_none());
+    }
+
+    #[test]
+    fn trust_signer_adds_key_and_identity() {
+        let key = test_key();
+        let mut store = TrustStore::default();
+
+        assert!(store.trust_signer(
+            key,
+            Some(SignerIdentity::Signer {
+                name: "Ada".to_string(),
+                email: "ada@example.com".to_string(),
+            }),
+        ));
+        assert!(!store.trust_signer(key, None));
+        // SAFETY: `trust_signer` inserted the key and structured identity above.
+        let identity = store.identity(&key).unwrap();
+        assert_eq!(identity.name.as_deref(), Some("Ada"));
+        assert_eq!(identity.email.as_deref(), Some("ada@example.com"));
+    }
+
+    #[test]
+    fn trust_lockfile_signers_recurses_and_deduplicates() {
+        let key = test_key();
+        let lockfile = signed_lockfile_with_nested_duplicate(key);
+        let mut store = TrustStore::default();
+
+        assert_eq!(store.trust_lockfile_signers(&lockfile), 1);
+        assert_eq!(store.trust_lockfile_signers(&lockfile), 0);
+        assert!(store.contains_key(&key));
     }
 
     #[test]

@@ -17,7 +17,6 @@ use wdl_modules::signing::SignerIdentity;
 use wdl_modules::signing::VerifyingKey;
 
 use super::trust_store::TrustStoreFile;
-use super::trust_store::upsert_signer_identity;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
 use crate::config::Config;
@@ -271,8 +270,8 @@ impl SignerDecisionPlan {
             let trust = trust_file.store_mut();
             for change in &self.accepted {
                 if change.adds_trust() {
-                    trusted_keys += usize::from(trust.insert_key(change.key()));
-                    upsert_signer_identity(trust, change.key(), change.identity());
+                    trusted_keys +=
+                        usize::from(trust.trust_signer(change.key(), change.identity()));
                     trust_dirty = true;
                 }
             }
