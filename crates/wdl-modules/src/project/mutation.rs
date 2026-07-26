@@ -137,9 +137,10 @@ impl LockedModuleProject {
         })?;
         let journals_dir = state_root.join("journals");
         transaction::ensure_managed_directory(&journals_dir)?;
-        transaction::ensure_managed_directory(&journal_root)?;
-        transaction::remove_pending_directory(&journal_root)?;
-        transaction::recover_active_mutation(&project, &journal_root)?;
+        if transaction::inspect_journal_root(&journal_root)? {
+            transaction::remove_pending_directory(&journal_root)?;
+            transaction::recover_active_mutation(&project, &journal_root)?;
+        }
         project.reload()?;
         Ok(Self {
             project,
@@ -259,6 +260,27 @@ mod tests {
         assert_eq!(
             project_key(project.root()).unwrap(),
             project_key(alias_project.root()).unwrap()
+        );
+    }
+
+    #[test]
+    fn lock_only_acquire_leaves_no_per_project_journal_directory() {
+        let directory = tempfile::tempdir().unwrap();
+        let project_root = directory.path().join("project");
+        let state_root = directory.path().join("state");
+        let project = project(&project_root);
+        let key = project_key(project.root()).unwrap();
+        let journal = journal_root(&state_root, &key);
+
+        let _locked = LockedModuleProject::acquire(project, &state_root).unwrap();
+
+        assert!(
+            state_root.join("locks").is_dir(),
+            "global lock namespace must exist after acquire"
+        );
+        assert!(
+            !journal.exists(),
+            "per-project journal directory must not be created by acquire alone"
         );
     }
 

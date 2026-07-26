@@ -112,6 +112,20 @@ pub(super) fn commit(
     }
 }
 
+/// Rejects a metadata result that is a symlink or not a directory.
+fn validate_directory_metadata(
+    path: &Path,
+    metadata: &std::fs::Metadata,
+) -> Result<(), ProjectMutationError> {
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(ProjectMutationError::InvalidPath {
+            path: path.to_path_buf(),
+            expected: "directory",
+        });
+    }
+    Ok(())
+}
+
 /// Ensures `path` is a non-symlink directory owned by this process, creating
 /// it if absent.
 ///
@@ -126,12 +140,7 @@ pub(super) fn ensure_managed_directory(path: &Path) -> Result<(), ProjectMutatio
     loop {
         match std::fs::symlink_metadata(path) {
             Ok(metadata) => {
-                if metadata.file_type().is_symlink() || !metadata.is_dir() {
-                    return Err(ProjectMutationError::InvalidPath {
-                        path: path.to_path_buf(),
-                        expected: "directory",
-                    });
-                }
+                validate_directory_metadata(path, &metadata)?;
                 return Ok(());
             }
             Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
@@ -155,6 +164,27 @@ pub(super) fn ensure_managed_directory(path: &Path) -> Result<(), ProjectMutatio
                 });
             }
         }
+    }
+}
+
+/// Inspects a per-project journal root without creating it.
+///
+/// Returns `true` when `path` is an existing real directory; recovery and
+/// cleanup should proceed. Returns `false` when `path` is absent; no journal
+/// exists and nothing needs to be done. Rejects symlinks and non-directory
+/// entries with `InvalidPath`.
+pub(super) fn inspect_journal_root(path: &Path) -> Result<bool, ProjectMutationError> {
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) => {
+            validate_directory_metadata(path, &metadata)?;
+            Ok(true)
+        }
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(source) => Err(ProjectMutationError::Io {
+            operation: "inspecting per-project journal root",
+            path: path.to_path_buf(),
+            source,
+        }),
     }
 }
 
