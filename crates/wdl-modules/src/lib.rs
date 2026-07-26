@@ -35,6 +35,7 @@ pub mod lockfile;
 pub mod manifest;
 pub mod module;
 pub mod module_walk;
+pub mod project;
 pub mod relative_path;
 pub mod resolver;
 pub mod signing;
