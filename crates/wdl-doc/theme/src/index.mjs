@@ -66,13 +66,19 @@ Alpine.store('search', {
 window.Alpine = Alpine;
 
 // Build the "on this page" navigation from the headings that are actually
-// rendered in the page content, preserving their order.
+// rendered in the page content, preserving their order and visible nesting.
+//
+// `h2` headings become top-level section links; consecutive `h3` headings are
+// grouped into an indented `.right-sidebar__section-items` container beneath the
+// preceding `h2`, mirroring the static right-rail markup so the DOM-generated
+// rail keeps the same nesting and indentation.
 function buildPageSections() {
     const container = document.querySelector('[data-page-sections]');
     if (!container) return;
 
     container.replaceChildren();
     const used = new Set();
+    let currentGroup = null;
     for (const heading of document.querySelectorAll(
         '.layout__main-center-content h2, .layout__main-center-content h3'
     )) {
@@ -90,15 +96,39 @@ function buildPageSections() {
         const link = document.createElement('a');
         link.href = `#${id}`;
         link.textContent = heading.textContent.trim();
-        link.className = heading.tagName === 'H3'
-            ? 'right-sidebar__section-item'
-            : 'right-sidebar__section-header';
-        container.append(link);
+
+        if (heading.tagName === 'H3') {
+            link.className = 'right-sidebar__section-item';
+            // Nest consecutive sub-headings under an indented group beneath the
+            // most recent top-level heading.
+            if (!currentGroup) {
+                currentGroup = document.createElement('div');
+                currentGroup.className = 'right-sidebar__section-items';
+                container.append(currentGroup);
+            }
+            currentGroup.append(link);
+        } else {
+            link.className = 'right-sidebar__section-header';
+            container.append(link);
+            currentGroup = null;
+        }
+    }
+}
+
+// Show only the keyboard shortcut hint that applies to the visitor's platform:
+// `⌘ K` on macOS, `Ctrl K` elsewhere. Both variants are always rendered so the
+// static markup stays platform-neutral.
+function applyPlatformShortcutHint() {
+    const platform = navigator.userAgentData?.platform || navigator.platform || '';
+    const isMac = /mac|iphone|ipad|ipod/i.test(platform);
+    for (const el of document.querySelectorAll('[data-shortcut]')) {
+        el.hidden = el.dataset.shortcut !== (isMac ? 'mac' : 'other');
     }
 }
 
 Alpine.start();
 requestAnimationFrame(buildPageSections);
+applyPlatformShortcutHint();
 
 // Highlight Markdown fenced code blocks and give them the same copy, expand,
 // and line-number controls as the generated `<sprocket-code>` blocks. These

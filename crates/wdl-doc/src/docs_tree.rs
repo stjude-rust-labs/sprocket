@@ -1414,11 +1414,11 @@ impl DocsTree {
     /// Render the header nav.
     fn render_header(&self, assets: &Path, path: &Path) -> Markup {
         fn external_urls(assets: &Path, external_urls: &ExternalUrls) -> Markup {
-            fn button(assets: &Path, url: &Url, icon_name: &str) -> Markup {
+            fn button(assets: &Path, url: &Url, icon_name: &str, label: &str) -> Markup {
                 html! {
-                    a class="header__button" target="_blank" rel="noopener noreferrer" href=(url) {
-                        img src=(assets.join(format!("{icon_name}.svg")).to_string_lossy()) class="size-6 block light:hidden" alt=(format!("{icon_name} icon"));
-                        img src=(assets.join(format!("{icon_name}.light.svg")).to_string_lossy()) class="size-6 hidden light:block" alt=(format!("{icon_name} icon"));
+                    a class="header__button" target="_blank" rel="noopener noreferrer" href=(url) aria-label=(label) {
+                        img src=(assets.join(format!("{icon_name}.svg")).to_string_lossy()) class="size-6 block light:hidden" alt="";
+                        img src=(assets.join(format!("{icon_name}.light.svg")).to_string_lossy()) class="size-6 hidden light:block" alt="";
                     }
                 }
             }
@@ -1433,10 +1433,10 @@ impl DocsTree {
                     div class="w-px h-[80%] border-l border-slate-800 self-center pr-6" {}
                     div class="flex flex-row gap-4 items-center" {
                         @if let Some(github) = github {
-                            (button(assets, github, "github"))
+                            (button(assets, github, "github", "GitHub repository"))
                         }
                         @if let Some(homepage) = homepage {
-                            (button(assets, homepage, "link-chain"))
+                            (button(assets, homepage, "link-chain", "Project homepage"))
                         }
                     }
                 }
@@ -1447,28 +1447,33 @@ impl DocsTree {
         html! {
             div
                 class="layout__header"
-                "@keydown.window.slash"="
-                if (!['INPUT', 'TEXTAREA'].includes($event.target.tagName)) {
+                "@keydown.window.meta.k"="
+                if (!['INPUT', 'TEXTAREA'].includes($event.target.tagName) && !$event.target.isContentEditable) {
+                    $event.preventDefault();
+                    $refs.searchBox.focus();
+                }"
+                "@keydown.window.ctrl.k"="
+                if (!['INPUT', 'TEXTAREA'].includes($event.target.tagName) && !$event.target.isContentEditable) {
                     $event.preventDefault();
                     $refs.searchBox.focus();
                 }"
             {
-                div class="w-full grid grid-cols-3 items-center h-12 px-6" {
+                div class="w-full grid grid-cols-3 items-center h-16 px-6" {
                     a
                         href=(self.root_index_relative_to(base).to_string_lossy())
                         id="logo"
-                        class="flex items-center justify-start w-32 h-12"
+                        class="flex items-center justify-start w-40 h-16"
                     {
                         img src=(self.get_asset(base, LOGO_FILE_NAME)) class="max-w-full max-h-full w-auto h-auto object-contain p-1 block light:hidden" alt="Logo";
                         img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="max-w-full max-h-full w-auto h-auto object-contain p-1 hidden light:block" alt="Logo";
                     }
-                    div id="search" class="w-sm h-10 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" {
+                    div id="search" class="w-[35rem] max-w-[calc(100vw-14rem)] h-11 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" {
                         input id="searchbox" "x-ref"="searchBox" "x-model.debounce"="$store.search.query" type="text" placeholder="Search...";
                         img src=(assets.join("search.svg").to_string_lossy()) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none block light:hidden" alt="Search icon";
                         img src=(assets.join("search.light.svg").to_string_lossy()) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none hidden light:block" alt="Search icon";
                         img src=(assets.join("x-mark.svg").to_string_lossy()) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer block light:hidden" alt="Clear icon" x-show="$store.search.query !== ''" x-on:click="$store.search.query = ''";
                         img src=(assets.join("x-mark.light.svg").to_string_lossy()) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer hidden light:block" alt="Clear icon" x-show="$store.search.query !== ''" x-on:click="$store.search.query = ''";
-                        div id="search-shortcut-hint" x-show="$store.search.query === ''" { "/" }
+                        (render_search_shortcut_hint())
                     }
                     div class="flex flex-row-reverse items-start justify-between col-start-3 justify-self-end" x-data="{ showTooltip: false }" {
                         div class="relative" {
@@ -1482,6 +1487,7 @@ impl DocsTree {
                             "@focusin"="showTooltip = true"
                             "@focusout"="showTooltip = false"
                             id="theme-toggle"
+                            aria-label="Switch theme"
                             class="header__button" {
                                 img src=(assets.join("moon.light.svg").to_string_lossy()) class="size-6 hidden light:block";
                                 img src=(assets.join("sun.svg").to_string_lossy()) class="size-6 block light:hidden";
@@ -1692,6 +1698,26 @@ fn sort_workflow_categories(categories: HashSet<String>) -> Vec<String> {
     sorted_categories
 }
 
+/// Renders the platform-aware search keyboard shortcut hint.
+///
+/// Both the macOS (`⌘ K`) and other-platform (`Ctrl K`) variants are always
+/// rendered; the inapplicable variant is hidden at runtime by the theme
+/// JavaScript based on the visitor's platform.
+fn render_search_shortcut_hint() -> Markup {
+    html! {
+        div id="search-shortcut-hint" x-show="$store.search.query === ''" aria-hidden="true" {
+            span class="search-shortcut" data-shortcut="mac" {
+                kbd class="search-shortcut__key" { "⌘" }
+                kbd class="search-shortcut__key" { "K" }
+            }
+            span class="search-shortcut" data-shortcut="other" hidden {
+                kbd class="search-shortcut__key search-shortcut__key--wide" { "Ctrl" }
+                kbd class="search-shortcut__key" { "K" }
+            }
+        }
+    }
+}
+
 /// Converts a kebab-case or snake_case module manifest name into a
 /// human-friendly title by replacing separators with spaces and
 /// capitalizing each word (e.g. `genomics-showcase` becomes `Genomics
@@ -1718,6 +1744,36 @@ mod tests {
 
     use super::*;
     use crate::workspace::WorkspaceMetadata;
+
+    #[test]
+    fn search_shortcut_hint_renders_platform_variants() {
+        let html = render_search_shortcut_hint().into_string();
+        assert!(
+            html.contains("data-shortcut=\"mac\""),
+            "expected a macOS shortcut variant, got: {html}"
+        );
+        assert!(
+            html.contains("data-shortcut=\"other\""),
+            "expected a non-macOS shortcut variant, got: {html}"
+        );
+        assert!(
+            html.contains('⌘'),
+            "expected the macOS `⌘` key in the hint, got: {html}"
+        );
+        assert!(
+            html.contains("Ctrl"),
+            "expected the `Ctrl` key in the hint, got: {html}"
+        );
+        assert!(
+            html.contains('K'),
+            "expected the `K` key in the hint, got: {html}"
+        );
+        // The hint must present the `⌘ K` / `Ctrl K` shortcut, not the old `/`.
+        assert!(
+            !html.contains(">/<"),
+            "expected the `/` shortcut hint to be replaced, got: {html}"
+        );
+    }
 
     /// The minimal module-workspace fixture checked into the repository,
     /// reused here as a realistic fixture for module-aware navigation

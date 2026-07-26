@@ -97,7 +97,7 @@ impl<'a> DeclarationHero<'a> {
                 }
                 @if let Some(path) = self.source_path {
                     div class="source-card" {
-                        span class="source-card__icon" { "▱" }
+                        span class="source-card__icon" aria-hidden="true" { "▱" }
                         code class="source-card__path" { (path.to_string_lossy()) }
                         button
                             type="button"

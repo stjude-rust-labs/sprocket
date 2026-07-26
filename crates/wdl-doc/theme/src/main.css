@@ -12,7 +12,35 @@
    * Layout
    */
   .layout__header {
-    @apply fixed flex flex-row top-0 right-0 left-0 w-screen z-50 border-b border-slate-900 bg-slate-950 transition-all;
+    @apply fixed flex flex-row top-0 right-0 left-0 w-screen h-16 z-50 border-b border-slate-900 bg-slate-950 transition-all;
+  }
+  /**
+   * Layout - Target desktop proportions
+   *
+   * These override the shared web-common defaults for the `wdl-doc` theme to
+   * match the target layout: a wider left rail, a bounded and padded content
+   * column, and a separated sticky right rail.
+   */
+  .layout__container {
+    @apply md:pl-[23.5rem];
+  }
+  .layout__sidebar-left {
+    @apply w-[23.5rem];
+  }
+  .layout__main-center-content {
+    @apply max-w-[70rem] px-6 py-10 md:px-12 md:py-14;
+  }
+  .layout__sidebar-right {
+    @apply w-64 border-l border-slate-800 md:block max-md:hidden;
+  }
+  .markdown-body {
+    @apply text-lg leading-8;
+  }
+  .main__section {
+    @apply mt-12;
+  }
+  .main__section-header {
+    @apply text-3xl leading-10;
   }
   /**
    * Layout - Alternative Layouts
@@ -30,17 +58,17 @@
   }
   
   .layout__container--alt-layout.layout__container--left-lg .layout__sidebar-left {
-    @apply w-96;
+    @apply w-[35.25rem];
   }
   .layout__container--alt-layout.layout__container--left-lg {
-    @apply pl-0 md:pl-96;
+    @apply pl-0 md:pl-[35.25rem];
   }
   
   .layout__container--alt-layout.layout__container--left-xl .layout__sidebar-left {
-    @apply w-full md:w-144;
+    @apply w-full md:w-[47rem];
   }
   .layout__container--alt-layout.layout__container--left-xl {
-    @apply pl-0 md:pl-144;
+    @apply pl-0 md:pl-[47rem];
   }
 
   .layout__container--alt-layout.layout__container--right-hidden .layout__sidebar-right {
@@ -289,6 +317,45 @@
   }
 
   /**
+   * Declaration hero
+   *
+   * The rich header shown at the top of struct, enum, task, and workflow
+   * pages: a small accent kind label, a large sans-serif title, an authored
+   * summary, badges, and a source card.
+   */
+  .declaration-hero {
+    @apply flex flex-col gap-4 pb-2;
+  }
+  .declaration-hero__kind {
+    @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
+  }
+  .declaration-hero__title {
+    @apply text-5xl leading-tight font-sans font-medium text-slate-50;
+  }
+  .declaration-hero__summary {
+    @apply text-slate-300;
+  }
+
+  /**
+   * Source card
+   *
+   * A full-width card showing the workspace-relative path to the generating
+   * WDL document, with a keyboard-accessible copy action.
+   */
+  .source-card {
+    @apply flex flex-row items-center gap-3 rounded-lg border border-slate-800 bg-slate-900 px-4 py-3;
+  }
+  .source-card__icon {
+    @apply shrink-0 text-lg leading-none text-slate-500;
+  }
+  code.source-card__path {
+    @apply flex-1 min-w-0 border-0 bg-transparent p-0 font-mono text-sm text-slate-300 overflow-x-hidden text-ellipsis whitespace-nowrap;
+  }
+  .source-card__copy {
+    @apply flex shrink-0 items-center justify-center gap-1 rounded-md border border-slate-700 px-2.5 py-1 text-xs text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-50 cursor-pointer;
+  }
+
+  /**
    * Right Sidebar
    */
   .right-sidebar__container {
@@ -331,13 +398,22 @@
     @apply flex text-slate-400 w-full h-full px-8 outline-none bg-transparent items-center rounded-md border border-slate-700 transition-colors focus:border-slate-400 placeholder:text-slate-400;
   }
   #search-shortcut-hint {
-    @apply absolute right-2 top-1/2 -translate-y-1/2 size-6 border border-slate-700 rounded-sm text-slate-400 font-bold flex items-center justify-center;
+    @apply absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1;
+  }
+  .search-shortcut {
+    @apply flex items-center gap-1;
+  }
+  .search-shortcut__key {
+    @apply flex items-center justify-center min-w-6 h-6 px-1 rounded-sm border border-slate-700 text-slate-400 text-xs font-sans font-medium leading-none;
 
     background: linear-gradient(
       to top,
       var(--color-slate-800) 0%,
       oklch(from var(--color-slate-800) l c h / 0) 100%
     );
+  }
+  .search-shortcut__key--wide {
+    @apply px-1.5;
   }
   .search-result {
     @apply py-4 flex flex-col gap-2 border-b border-b-slate-800;
@@ -347,6 +423,31 @@
   }
   .search-result-excerpt mark {
     @apply text-slate-950 bg-cyan-400 rounded;
+  }
+
+  /**
+   * Focus-visible states
+   *
+   * Keyboard focus indicators for links, sidebar rows, the header/search
+   * controls, and the source card copy action. The generated code controls
+   * carry their own focus ring inside the `<sprocket-code>` shadow root.
+   */
+  .main__container a:focus-visible,
+  .markdown-body a:focus-visible,
+  .header__button:focus-visible,
+  .source-card__copy:focus-visible,
+  #searchbox:focus-visible {
+    outline: 2px solid var(--color-slate-400);
+    outline-offset: 2px;
+    border-radius: 0.375rem;
+  }
+  .left-sidebar__row:focus-visible,
+  .left-sidebar__size-button:focus-visible,
+  .right-sidebar__section-header:focus-visible,
+  .right-sidebar__section-item:focus-visible,
+  .right-sidebar__back-to-top:focus-visible {
+    outline: 2px solid var(--color-slate-400);
+    outline-offset: -2px;
   }
 }
 
