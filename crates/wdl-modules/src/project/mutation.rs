@@ -134,6 +134,13 @@ impl LockedModuleProject {
             path: lock_path,
             source,
         })?;
+        let journals_dir = state_root.join("journals");
+        std::fs::create_dir_all(&journals_dir).map_err(|source| ProjectMutationError::Io {
+            operation: "creating mutation journals directory",
+            path: journals_dir,
+            source,
+        })?;
+        transaction::ensure_journal_root(&journal_root)?;
         transaction::remove_pending_directory(&journal_root)?;
         transaction::recover_active_mutation(&project, &journal_root)?;
         project.reload()?;

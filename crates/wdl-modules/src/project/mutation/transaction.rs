@@ -33,11 +33,7 @@ impl ProjectTransaction {
         project: &ModuleProject,
         journal_root: &Path,
     ) -> Result<Self, ProjectMutationError> {
-        std::fs::create_dir_all(journal_root).map_err(|source| ProjectMutationError::Io {
-            operation: "creating mutation journal directory",
-            path: journal_root.to_path_buf(),
-            source,
-        })?;
+        ensure_journal_root(journal_root)?;
         let pending = journal_root.join(PENDING_DIRECTORY);
         let active = journal_root.join(ACTIVE_DIRECTORY);
         remove_path_if_present(&pending)?;
@@ -113,6 +109,48 @@ pub(super) fn commit(
                 rollback: Box::new(rollback),
             }),
         },
+    }
+}
+
+/// Ensures `path` is a non-symlink directory owned by this process, creating
+/// it if absent.
+///
+/// Accepts an existing real directory or a freshly created one. Rejects
+/// symlinks and non-directory entries with `InvalidPath`. Handles creation
+/// races by re-inspecting after `AlreadyExists`.
+pub(super) fn ensure_journal_root(path: &Path) -> Result<(), ProjectMutationError> {
+    loop {
+        match std::fs::symlink_metadata(path) {
+            Ok(metadata) => {
+                if metadata.file_type().is_symlink() || !metadata.is_dir() {
+                    return Err(ProjectMutationError::InvalidPath {
+                        path: path.to_path_buf(),
+                        expected: "directory",
+                    });
+                }
+                return Ok(());
+            }
+            Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
+                match std::fs::create_dir(path) {
+                    Ok(()) => return Ok(()),
+                    Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                    Err(source) => {
+                        return Err(ProjectMutationError::Io {
+                            operation: "creating mutation journal directory",
+                            path: path.to_path_buf(),
+                            source,
+                        });
+                    }
+                }
+            }
+            Err(source) => {
+                return Err(ProjectMutationError::Io {
+                    operation: "inspecting mutation journal directory",
+                    path: path.to_path_buf(),
+                    source,
+                });
+            }
+        }
     }
 }
 
@@ -736,6 +774,37 @@ mod tests {
 
         assert!(error.to_string().contains("is not a regular"));
         assert!(outside.is_dir());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symlinked_journal_root() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("project");
+        let state = directory.path().join("state");
+        let project = test_project(&root);
+        let outside = directory.path().join("outside");
+        std::fs::create_dir(&outside).unwrap();
+        let journals_dir = state.join("journals");
+        std::fs::create_dir_all(&journals_dir).unwrap();
+        std::os::unix::fs::symlink(
+            &outside,
+            journals_dir.join(project_key(project.root()).unwrap()),
+        )
+        .unwrap();
+
+        let error = LockedModuleProject::acquire(project, &state)
+            .expect_err("a symlinked journal root should fail");
+
+        assert!(
+            error.to_string().contains("is not a regular directory"),
+            "unexpected error: {error}"
+        );
+        assert_eq!(
+            std::fs::read_dir(&outside).unwrap().count(),
+            0,
+            "outside directory should be untouched"
+        );
     }
 
     #[cfg(unix)]
