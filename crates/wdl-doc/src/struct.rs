@@ -180,7 +180,7 @@ impl Struct {
                 (body)
             }
             div class="main__section" {
-                sprocket-code language="wdl" {
+                sprocket-code language="wdl" copyable expandable line-numbers {
                     (self.definition)
                 }
             }

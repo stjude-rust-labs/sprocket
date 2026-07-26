@@ -157,7 +157,7 @@ impl Task {
                 html! {
                     div class="main__section" {
                         h2 id="command" class="main__section-header" { "Command" }
-                        sprocket-code language="wdl" class="pt-8" {
+                        sprocket-code language="wdl" class="pt-8" copyable expandable line-numbers {
                             (command_section.script())
                         }
                     }

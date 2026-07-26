@@ -266,8 +266,13 @@ impl<T: AsRef<str>> Render for Markdown<T> {
         options.insert(Options::ENABLE_DEFINITION_LIST);
         let parser = Parser::new_ext(self.0.as_ref(), options);
         pulldown_cmark::html::push_html(&mut unsafe_html, parser);
-        // Sanitize it with ammonia
-        let safe_html = ammonia::clean(&unsafe_html);
+        // Sanitize it with ammonia, preserving the `class` attribute on fenced
+        // code blocks so the theme's manual highlighter can detect the
+        // `language-*` hint that `pulldown-cmark` emits.
+        let safe_html = ammonia::Builder::default()
+            .add_tag_attributes("code", ["class"])
+            .clean(&unsafe_html)
+            .to_string();
 
         // Remove the outer `<p>` tag that `pulldown_cmark` wraps single lines in
         let safe_html = if safe_html.starts_with("<p>") && safe_html.ends_with("</p>\n") {
@@ -659,6 +664,17 @@ mod tests {
         assert_eq!(
             description.into_string(),
             "A simple description should not render with p tags"
+        );
+    }
+
+    #[test]
+    fn fenced_code_retains_language_class() {
+        // The theme's manual highlighter keys off the `language-*` class that
+        // `pulldown-cmark` emits, so sanitization must preserve it.
+        let rendered = Markdown("```json\n{\"a\": 1}\n```").render().into_string();
+        assert!(
+            rendered.contains("class=\"language-json\""),
+            "expected the fenced code block to keep its language class, got: {rendered}"
         );
     }
 }

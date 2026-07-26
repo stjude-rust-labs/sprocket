@@ -1,4 +1,4 @@
-import "common.js";
+import { initManualHighlighting } from "common.js";
 import Alpine from 'alpinejs';
 import persist from '@alpinejs/persist';
 
@@ -99,3 +99,9 @@ function buildPageSections() {
 
 Alpine.start();
 requestAnimationFrame(buildPageSections);
+
+// Highlight Markdown fenced code blocks and give them the same copy, expand,
+// and line-number controls as the generated `<sprocket-code>` blocks. These
+// controls are opt-in, so enabling them here keeps other web-common consumers
+// unaffected.
+initManualHighlighting([], { copyable: true, expandable: true, lineNumbers: true });

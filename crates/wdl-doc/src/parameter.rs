@@ -143,7 +143,7 @@ impl Parameter {
             };
 
             return html! {
-                sprocket-code language="wdl" {
+                sprocket-code language="wdl" copyable expandable {
                     (full_expr)
                 }
             };

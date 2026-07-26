@@ -138,7 +138,7 @@ impl Enum {
                 (body)
             }
             div class="main__section" {
-                sprocket-code language="wdl" {
+                sprocket-code language="wdl" copyable expandable line-numbers {
                     (definition)
                 }
             }
