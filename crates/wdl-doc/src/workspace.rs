@@ -139,11 +139,7 @@ impl WorkspaceMetadata {
                 };
 
                 let dependency_root = module.resolve_local_path(path);
-                let Ok(dependency_root_canonical) = dependency_root.canonicalize() else {
-                    // The dependency does not exist on disk; skip it rather
-                    // than failing the whole workspace load.
-                    continue;
-                };
+                let dependency_root_canonical = dependency_root.canonicalize()?;
 
                 let Ok(relative_root) =
                     dependency_root_canonical.strip_prefix(&workspace_root_canonical)
@@ -224,6 +220,12 @@ mod tests {
 
     use super::*;
 
+    /// Writes a module manifest to `root`.
+    fn write_manifest(root: &Path, manifest: &str) {
+        fs::create_dir_all(root).unwrap();
+        fs::write(root.join(wdl_modules::MANIFEST_FILENAME), manifest).unwrap();
+    }
+
     /// The showcase workspace checked into the repository, reused here as a
     /// realistic fixture for module metadata tests.
     fn showcase_root() -> PathBuf {
@@ -289,5 +291,71 @@ mod tests {
             metadata.documentation_path(Path::new("main.wdl")),
             PathBuf::from("main")
         );
+    }
+
+    #[test]
+    fn errors_for_missing_local_dependency() {
+        let dir = tempfile::tempdir().unwrap();
+        write_manifest(
+            dir.path(),
+            r#"{
+                "name": "root",
+                "version": "1.0.0",
+                "license": "MIT",
+                "dependencies": {
+                    "missing": { "path": "missing" }
+                }
+            }"#,
+        );
+
+        assert!(WorkspaceMetadata::load(dir.path()).is_err());
+    }
+
+    #[test]
+    fn errors_for_malformed_dependency_manifest() {
+        let dir = tempfile::tempdir().unwrap();
+        write_manifest(
+            dir.path(),
+            r#"{
+                "name": "root",
+                "version": "1.0.0",
+                "license": "MIT",
+                "dependencies": {
+                    "broken": { "path": "broken" }
+                }
+            }"#,
+        );
+        write_manifest(&dir.path().join("broken"), "{");
+
+        assert!(WorkspaceMetadata::load(dir.path()).is_err());
+    }
+
+    #[test]
+    fn skips_local_dependency_outside_workspace() {
+        let parent = tempfile::tempdir().unwrap();
+        let workspace = parent.path().join("workspace");
+        let dependency = parent.path().join("dependency");
+        write_manifest(
+            &workspace,
+            r#"{
+                "name": "root",
+                "version": "1.0.0",
+                "license": "MIT",
+                "dependencies": {
+                    "external": { "path": "../dependency" }
+                }
+            }"#,
+        );
+        write_manifest(
+            &dependency,
+            r#"{
+                "name": "external",
+                "version": "1.0.0",
+                "license": "MIT"
+            }"#,
+        );
+
+        let metadata = WorkspaceMetadata::load(&workspace).unwrap().unwrap();
+        assert_eq!(metadata.modules.len(), 1);
     }
 }
