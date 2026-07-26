@@ -264,6 +264,8 @@ impl TrustStore {
     /// model, inserts any new keys into the in-memory user-level store, and
     /// returns the number of newly inserted keys. It does not modify the
     /// project manifest or lockfile.
+    ///
+    /// Call [Self::save] to persist the user-level trust file.
     pub fn trust_lockfile_signers(&mut self, lockfile: &Lockfile) -> usize {
         fn visit(store: &mut TrustStore, dependencies: &DependencyMap) -> usize {
             dependencies

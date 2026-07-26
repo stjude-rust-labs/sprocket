@@ -51,17 +51,25 @@ pub(super) fn trace_project(command: &'static str, project: &Project) {
 
 /// Loads `module-lock.json` when present.
 pub(super) fn load_lockfile(project: &Project) -> anyhow::Result<Option<Lockfile>> {
-    tracing::trace!(
-        lockfile = %project.lockfile_path().display(),
-        "reading module lockfile"
-    );
     let lockfile = project.load_lockfile()?;
-    if let Some(lockfile) = &lockfile {
-        tracing::debug!(
-            lockfile = %project.lockfile_path().display(),
-            dependencies = lockfile.dependencies.len(),
-            "loaded module lockfile"
-        );
+    match &lockfile {
+        Some(lockfile) => {
+            tracing::trace!(
+                lockfile = %project.lockfile_path().display(),
+                "reading module lockfile"
+            );
+            tracing::debug!(
+                lockfile = %project.lockfile_path().display(),
+                dependencies = lockfile.dependencies.len(),
+                "loaded module lockfile"
+            );
+        }
+        None => {
+            tracing::trace!(
+                lockfile = %project.lockfile_path().display(),
+                "module lockfile is absent"
+            );
+        }
     }
     Ok(lockfile)
 }
