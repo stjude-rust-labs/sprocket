@@ -1,6 +1,7 @@
 //! Create HTML documentation for WDL enums.
 
 use std::path::Path;
+use std::path::PathBuf;
 
 use maud::Markup;
 use maud::html;
@@ -18,6 +19,7 @@ use crate::meta::MetaMap;
 use crate::meta::MetaMapExt;
 use crate::meta::doc_comments;
 use crate::meta::main_container;
+use crate::page::DeclarationHero;
 
 /// An [`EnumChoice`] with an associated [`MetaMap`].
 #[derive(Debug)]
@@ -47,6 +49,11 @@ pub(crate) struct Enum {
     version: VersionBadge,
     /// Whether the enum lives outside the workspace.
     external: bool,
+    /// The path from the root of the WDL workspace to the WDL document which
+    /// contains this enum.
+    ///
+    /// Used to render the source card.
+    wdl_path: Option<PathBuf>,
 }
 
 impl DefinitionMeta for Enum {
@@ -61,6 +68,7 @@ impl Enum {
         definition: EnumDefinition,
         version: SupportedVersion,
         external: bool,
+        wdl_path: Option<PathBuf>,
         enable_doc_comments: bool,
     ) -> Self {
         let (meta, choices) = parse_meta(&definition, enable_doc_comments);
@@ -71,6 +79,7 @@ impl Enum {
             definition,
             version: VersionBadge::new(version),
             external,
+            wdl_path,
         }
     }
 
@@ -111,18 +120,22 @@ impl Enum {
 
         let meta_markup = self
             .meta
-            .render_remaining(&[DESCRIPTION_KEY], assets)
+            .render_remaining(&[DESCRIPTION_KEY])
             .map_or_else(|| html! {}, |markup| html! { (markup) });
 
         let definition = self.definition.display(None);
+        let mut hero = DeclarationHero::new("Enum", name, self.meta.render_description(false))
+            .kind_class("text-brand-lime-300")
+            .pagefind_type("enum")
+            .badge(self.version.render());
+        if let Some(path) = self.wdl_path.as_deref() {
+            hero = hero.source_path(path);
+        }
+
         let markup = html! {
-            p class="text-brand-lime-300" data-pagefind-filter="type:enum" { "Enum" }
-            h1 id="title" class="main__title" data-pagefind-meta="title" { code { (name) } }
-            div class="markdown-body mb-4" {
-                (self.meta.render_description(false))
-            }
-            div class="main__badge-container" {
-                (self.version.render())
+            (hero.render())
+            @if let Some(body) = self.meta.render_authored_body(assets) {
+                (body)
             }
             div class="main__section" {
                 sprocket-code language="wdl" {
@@ -202,7 +215,7 @@ mod tests {
         let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
         let ast_enum = doc_item.into_enum_definition().unwrap();
 
-        let enum_def = Enum::new(ast_enum, SupportedVersion::V1(V1::Three), false, true);
+        let enum_def = Enum::new(ast_enum, SupportedVersion::V1(V1::Three), false, None, true);
         assert_eq!(
             enum_def.meta.full_description().as_deref(),
             Some(

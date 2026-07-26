@@ -1,6 +1,7 @@
 //! Create HTML documentation for WDL structs.
 
 use std::path::Path;
+use std::path::PathBuf;
 
 use maud::Markup;
 use maud::html;
@@ -21,6 +22,7 @@ use crate::meta::MetaMapValueSource;
 use crate::meta::doc_comments;
 use crate::meta::main_container;
 use crate::meta::parse_metadata_items;
+use crate::page::DeclarationHero;
 
 /// A member in a struct.
 #[derive(Debug)]
@@ -57,6 +59,11 @@ pub struct Struct {
     version: VersionBadge,
     /// Whether the struct lives outside the workspace.
     external: bool,
+    /// The path from the root of the WDL workspace to the WDL document which
+    /// contains this struct.
+    ///
+    /// Used to render the source card.
+    wdl_path: Option<PathBuf>,
 }
 
 impl DefinitionMeta for Struct {
@@ -71,6 +78,7 @@ impl Struct {
         definition: StructDefinition,
         version: SupportedVersion,
         external: bool,
+        wdl_path: Option<PathBuf>,
         enable_doc_comments: bool,
     ) -> Self {
         let mut meta = definition
@@ -101,6 +109,7 @@ impl Struct {
             definition,
             version: VersionBadge::new(version),
             external,
+            wdl_path,
         }
     }
 
@@ -145,17 +154,21 @@ impl Struct {
 
         let meta_markup = self
             .meta
-            .render_remaining(&[DESCRIPTION_KEY], assets)
+            .render_remaining(&[DESCRIPTION_KEY])
             .map_or_else(|| html! {}, |markup| html! { (markup) });
 
+        let mut hero = DeclarationHero::new("Struct", name, self.meta.render_description(false))
+            .kind_class("text-brand-pink-400")
+            .pagefind_type("struct")
+            .badge(self.version.render());
+        if let Some(path) = self.wdl_path.as_deref() {
+            hero = hero.source_path(path);
+        }
+
         let markup = html! {
-            p class="text-brand-pink-400" data-pagefind-filter="type:struct" { "Struct" }
-            h1 id="title" class="main__title" data-pagefind-meta="title" { code { (name) } }
-            div class="markdown-body mb-4" {
-                (self.meta.render_description(false))
-            }
-            div class="main__badge-container" {
-                (self.version.render())
+            (hero.render())
+            @if let Some(body) = self.meta.render_authored_body(assets) {
+                (body)
             }
             div class="main__section" {
                 sprocket-code language="wdl" {

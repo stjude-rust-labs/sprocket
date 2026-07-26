@@ -190,11 +190,25 @@ impl Parameter {
 
     /// Render any remaining metadata as HTML.
     ///
-    /// This will render all metadata key-value pairs except for `description`
-    /// and `group`.
+    /// This renders the authored documentation body (`help`, `external_help`,
+    /// and `warning`) followed by all other metadata key-value pairs except for
+    /// `description` and `group`.
     pub fn render_remaining_meta(&self, assets: &Path) -> Option<Markup> {
-        self.meta()
-            .render_remaining(&[DESCRIPTION_KEY, "group"], assets)
+        let authored = self.meta().render_authored_body(assets);
+        let remaining = self.meta().render_remaining(&[DESCRIPTION_KEY, "group"]);
+
+        if authored.is_none() && remaining.is_none() {
+            return None;
+        }
+
+        Some(html! {
+            @if let Some(authored) = authored {
+                (authored)
+            }
+            @if let Some(remaining) = remaining {
+                (remaining)
+            }
+        })
     }
 
     /// Render the parameter as HTML.

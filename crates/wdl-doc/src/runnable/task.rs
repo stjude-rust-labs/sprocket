@@ -18,6 +18,7 @@ use crate::docs_tree::PageSections;
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::main_container;
 use crate::meta::parse_metadata_items;
+use crate::page::DeclarationHero;
 use crate::parameter::Parameter;
 
 /// A task in a WDL document.
@@ -101,9 +102,8 @@ impl Task {
     ///
     /// This will render all metadata key-value pairs except for `description`
     /// and `outputs`.
-    pub fn render_meta(&self, assets: &Path) -> Option<Markup> {
-        self.meta()
-            .render_remaining(&[DESCRIPTION_KEY, "outputs"], assets)
+    pub fn render_meta(&self, _assets: &Path) -> Option<Markup> {
+        self.meta().render_remaining(&[DESCRIPTION_KEY, "outputs"])
     }
 
     /// Render the runtime section of the task as HTML.
@@ -176,14 +176,18 @@ impl Task {
         let (input_markup, inner_headers) = self.render_inputs(assets);
         headers.extend(inner_headers);
 
+        let mut hero = DeclarationHero::new("Task", self.name(), self.render_description(false))
+            .kind_class("text-brand-violet-400")
+            .pagefind_type("task")
+            .badge(self.render_version());
+        if let Some(path) = self.wdl_path.as_deref() {
+            hero = hero.source_path(path);
+        }
+
         let markup = html! {
-            span class="text-brand-violet-400" data-pagefind-filter="type:task" { "Task" }
-            h1 id="title" class="main__title" data-pagefind-meta="title" { code { (self.name()) } }
-            div class="markdown-body mb-4" {
-                (self.render_description(false))
-            }
-            div class="main__badge-container" {
-                (self.render_version())
+            (hero.render())
+            @if let Some(body) = self.meta().render_authored_body(assets) {
+                (body)
             }
             (self.render_run_with(assets))
             @if let Some(meta) = self.render_meta(assets) {

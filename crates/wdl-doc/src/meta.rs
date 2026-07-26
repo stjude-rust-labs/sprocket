@@ -111,7 +111,16 @@ pub(crate) trait MetaMapExt {
     fn render_full_description(&self, summarize: bool) -> Markup;
     /// Returns the rendered [`Markup`] of the remaining metadata keys,
     /// excluding the keys specified in `filter_keys`.
-    fn render_remaining(&self, filter_keys: &[&str], assets: &Path) -> Option<Markup>;
+    ///
+    /// The `help`, `warning`, and `external_help` keys are never rendered here;
+    /// they are rendered by [`Self::render_authored_body`].
+    fn render_remaining(&self, filter_keys: &[&str]) -> Option<Markup>;
+    /// Returns the rendered authored documentation body.
+    ///
+    /// This renders the `help`, `external_help`, and `warning` keys inside a
+    /// `declaration-docs markdown-body` container. Returns `None` when none of
+    /// those keys are present.
+    fn render_authored_body(&self, assets: &Path) -> Option<Markup>;
 }
 
 /// Render `text` as Markdown, optionally summarizing it.
@@ -172,7 +181,7 @@ impl MetaMapExt for MetaMap {
         maybe_summarize_text(desc, summarize)
     }
 
-    fn render_remaining(&self, filter_keys: &[&str], assets: &Path) -> Option<Markup> {
+    fn render_remaining(&self, filter_keys: &[&str]) -> Option<Markup> {
         let custom_keys = &[HELP_KEY, EXTERNAL_HELP_KEY, WARNING_KEY];
         let filtered_items = self
             .iter()
@@ -181,15 +190,28 @@ impl MetaMapExt for MetaMap {
             })
             .collect::<Vec<_>>();
 
+        if filtered_items.is_empty() {
+            return None;
+        }
+
+        Some(html! {
+            div class="main__grid-nested-container" {
+                // No header row, just the items
+                @for (key, value) in filtered_items {
+                    @if let MetaMapValueSource::MetaValue(value) = value {
+                        (render_key_value(key, value))
+                    }
+                }
+            }
+        })
+    }
+
+    fn render_authored_body(&self, assets: &Path) -> Option<Markup> {
         let help_item = self.get(HELP_KEY);
         let external_help_item = self.get(EXTERNAL_HELP_KEY);
         let warning_item = self.get(WARNING_KEY);
 
-        let any_additional_items = !filtered_items.is_empty();
-        let custom_key_present =
-            help_item.is_some() || external_help_item.is_some() || warning_item.is_some();
-
-        if !(any_additional_items || custom_key_present) {
+        if help_item.is_none() && external_help_item.is_none() && warning_item.is_none() {
             return None;
         }
 
@@ -208,32 +230,22 @@ impl MetaMapExt for MetaMap {
             };
 
         Some(html! {
-            @if let Some(help) = help_item {
-                div class="markdown-body" {
+            div class="declaration-docs markdown-body" {
+                @if let Some(help) = help_item {
                     (render_value(help))
                 }
-            }
-            @if let Some(on_click) = external_link_on_click {
-                button type="button" class="main__button" x-on:click=(on_click) {
-                    b { "Go to External Documentation" }
-                    img src=(assets.join("link.svg").to_string_lossy()) alt="External Documentation Icon" class="size-5 block light:hidden";
-                    img src=(assets.join("link.light.svg").to_string_lossy()) alt="External Documentation Icon" class="size-5 hidden light:block";
+                @if let Some(on_click) = external_link_on_click {
+                    button type="button" class="main__button" x-on:click=(on_click) {
+                        b { "Go to External Documentation" }
+                        img src=(assets.join("link.svg").to_string_lossy()) alt="External Documentation Icon" class="size-5 block light:hidden";
+                        img src=(assets.join("link.light.svg").to_string_lossy()) alt="External Documentation Icon" class="size-5 hidden light:block";
+                    }
                 }
-            }
-            @if let Some(warning) = warning_item {
-                div class="metadata__warning" {
-                    img src=(assets.join("information-circle.svg").to_string_lossy()) alt="Warning Icon" class="size-5 block light:hidden";
-                    img src=(assets.join("information-circle.light.svg").to_string_lossy()) alt="Warning Icon" class="size-5 hidden light:block";
-                    p { (render_value(warning)) }
-                }
-            }
-            @if any_additional_items {
-                div class="main__grid-nested-container" {
-                    // No header row, just the items
-                    @for (key, value) in filtered_items {
-                        @if let MetaMapValueSource::MetaValue(value) = value {
-                            (render_key_value(key, value))
-                        }
+                @if let Some(warning) = warning_item {
+                    div class="metadata__warning" {
+                        img src=(assets.join("information-circle.svg").to_string_lossy()) alt="Warning Icon" class="size-5 block light:hidden";
+                        img src=(assets.join("information-circle.light.svg").to_string_lossy()) alt="Warning Icon" class="size-5 hidden light:block";
+                        p { (render_value(warning)) }
                     }
                 }
             }
@@ -543,5 +555,47 @@ pub fn main_container(item_type: &str, external: bool, children: Markup) -> Mark
         {
             (children)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    use wdl_ast::Document;
+    use wdl_ast::Documented;
+
+    use super::MetaMapExt;
+    use super::doc_comments;
+
+    #[test]
+    fn render_authored_body_excludes_description() {
+        let (doc, _) = Document::parse(
+            r#"
+            version 1.2
+
+            ## Summary.
+            ##
+            ## A detailed explanation of the struct.
+            ##
+            ## ### Example Input JSON
+            struct Sample {
+                String id
+            }
+            "#,
+            None,
+        );
+
+        let item = doc.ast().into_v1().unwrap().items().next().unwrap();
+        let def = item.into_struct_definition().unwrap();
+        let meta = doc_comments(def.doc_comments().unwrap());
+
+        assert_eq!(meta.description().as_deref(), Some("Summary."));
+        let body = meta
+            .render_authored_body(Path::new("assets"))
+            .unwrap()
+            .into_string();
+        assert!(body.contains("Example Input JSON"));
+        assert!(!body.contains("Summary."));
     }
 }
