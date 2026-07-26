@@ -1,0 +1,10 @@
+{
+  "name": "genomics-showcase",
+  "version": "1.0.0",
+  "license": "MIT",
+  "entrypoint": "main.wdl",
+  "dependencies": {
+    "qc": { "path": "modules/qc" },
+    "alignment": { "path": "modules/alignment" }
+  }
+}

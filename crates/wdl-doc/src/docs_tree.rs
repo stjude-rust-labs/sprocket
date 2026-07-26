@@ -1678,19 +1678,23 @@ mod tests {
     use super::*;
     use crate::workspace::WorkspaceMetadata;
 
-    /// The showcase workspace checked into the repository, reused here as a
-    /// realistic fixture for module-aware navigation tests.
-    fn showcase_root() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../wdl-doc-showcase")
+    /// The minimal module-workspace fixture checked into the repository,
+    /// reused here as a realistic fixture for module-aware navigation
+    /// tests. Unlike the local `wdl-doc-showcase/` demo (which is untracked
+    /// and not guaranteed to exist in a fresh clone), this fixture is
+    /// committed under `tests/fixtures/` specifically so these tests are
+    /// self-contained.
+    fn fixture_root() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/module-workspace")
     }
 
-    /// Builds a `TempDir` containing copies of the showcase's `module.json`
+    /// Builds a `TempDir` containing copies of the fixture's `module.json`
     /// manifests, mirroring its on-disk module layout (root plus the local
     /// `qc` and `alignment` dependencies the root manifest declares) without
     /// copying the WDL source files. Suitable for tests that only need
     /// `WorkspaceMetadata`, not a fully documentable workspace.
     fn manifest_only_workspace() -> TempDir {
-        let showcase = showcase_root();
+        let fixture = fixture_root();
         let dir = tempfile::tempdir().unwrap();
 
         for relative_manifest in [
@@ -1698,7 +1702,7 @@ mod tests {
             "modules/qc/module.json",
             "modules/alignment/module.json",
         ] {
-            let src = showcase.join(relative_manifest);
+            let src = fixture.join(relative_manifest);
             let dst = dir.path().join(relative_manifest);
             // SAFETY: `relative_manifest` always has a parent component
             // (`modules/qc` and friends, or the workspace root itself).
@@ -1709,11 +1713,11 @@ mod tests {
         dir
     }
 
-    /// Builds a `TempDir` containing a full copy of the showcase workspace
+    /// Builds a `TempDir` containing a full copy of the fixture workspace
     /// (manifests and WDL sources), suitable for actually generating
     /// documentation end-to-end.
     fn full_module_workspace() -> TempDir {
-        let showcase = showcase_root();
+        let fixture = fixture_root();
         let dir = tempfile::tempdir().unwrap();
 
         for relative_file in [
@@ -1724,7 +1728,7 @@ mod tests {
             "modules/alignment/module.json",
             "modules/alignment/alignment.wdl",
         ] {
-            let src = showcase.join(relative_file);
+            let src = fixture.join(relative_file);
             let dst = dir.path().join(relative_file);
             // SAFETY: `relative_file` always has a parent component
             // (`modules/qc` and friends, or the workspace root itself).

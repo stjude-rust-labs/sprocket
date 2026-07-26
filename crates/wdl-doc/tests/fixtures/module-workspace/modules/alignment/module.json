@@ -1,0 +1,6 @@
+{
+  "name": "alignment",
+  "version": "1.0.0",
+  "license": "MIT",
+  "entrypoint": "alignment.wdl"
+}
