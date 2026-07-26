@@ -46,9 +46,9 @@ pub async fn sign(args: Args, output: CommandOutput) -> CommandResult<()> {
     );
     let project = discover(&args.locator)?;
     trace_project("module sign", &project);
-    let digest = wdl_modules::hash::hash_directory(&project.root).map_err(anyhow::Error::from)?;
+    let digest = wdl_modules::hash::hash_directory(project.root()).map_err(anyhow::Error::from)?;
     tracing::debug!(digest = %digest, "hashed module content for signing");
-    let key = signing_key_path(args.key, &project.root)?;
+    let key = signing_key_path(args.key, project.root())?;
     tracing::debug!(key = %key.display(), "selected signing key");
     let key_text =
         std::fs::read_to_string(&key).with_context(|| format!("reading `{}`", key.display()))?;
@@ -59,11 +59,11 @@ pub async fn sign(args: Args, output: CommandOutput) -> CommandResult<()> {
 
     let signature_path = args
         .output
-        .unwrap_or_else(|| project.root.join(wdl_modules::SIGNATURE_FILENAME));
+        .unwrap_or_else(|| project.root().join(wdl_modules::SIGNATURE_FILENAME));
     write_signature_atomically(&signature_path, &module_signature)?;
     tracing::debug!(signature = %signature_path.display(), "wrote module signature");
 
-    output.completed(SIGN, format!("module `{}`", project.manifest.name));
+    output.completed(SIGN, format!("module `{}`", project.manifest().name));
     output.detail("Digest", digest);
     output.detail("Signature", signature_path.display());
     Ok(())

@@ -2,9 +2,6 @@
 
 use clap::Parser;
 
-use super::manifest::parse_manifest_value;
-use super::manifest::read_manifest_value;
-use super::manifest::remove_dependency;
 use super::mutation::LockedProject;
 use super::mutation::ProjectUpdate;
 use super::project::Locator;
@@ -48,8 +45,11 @@ pub async fn remove(args: Args, config: Config, output: CommandOutput) -> Comman
     let locked = LockedProject::acquire(discover(&args.locator)?)?;
     let project = locked.project();
     trace_project("module remove", project);
-    let mut value = read_manifest_value(&project.manifest_path)?;
-    if !remove_dependency(&mut value, &args.name)? {
+    let mut document = project.document().clone();
+    if !document
+        .remove_dependency(&args.name)
+        .map_err(anyhow::Error::from)?
+    {
         tracing::debug!(dependency = args.name, "dependency was not present");
         return Err(anyhow::anyhow!("dependency `{}` not found", args.name).into());
     }
@@ -59,11 +59,10 @@ pub async fn remove(args: Args, config: Config, output: CommandOutput) -> Comman
     let relock = if args.no_lock {
         None
     } else {
-        let pending_manifest = parse_manifest_value(&value)?;
         Some(
             RelockPlanner::new(&config, project)
                 .plan_and_enforce(
-                    std::sync::Arc::new(pending_manifest),
+                    std::sync::Arc::new(document.manifest().clone()),
                     signer_change_mode(&config, args.trust_mode),
                     output,
                 )
@@ -73,19 +72,19 @@ pub async fn remove(args: Args, config: Config, output: CommandOutput) -> Comman
 
     locked.commit(match relock.as_ref() {
         Some(outcome) => ProjectUpdate::Both {
-            manifest: &value,
+            manifest: &document,
             lockfile: &outcome.lockfile,
         },
-        None => ProjectUpdate::Manifest(&value),
+        None => ProjectUpdate::Manifest(&document),
     })?;
     tracing::debug!(
         dependency = args.name,
-        manifest = %project.manifest_path.display(),
+        manifest = %project.manifest_path().display(),
         "removed dependency from manifest"
     );
 
     if let Some(outcome) = relock {
-        tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
+        tracing::debug!(lockfile = %project.lockfile_path().display(), "wrote module lockfile");
         output.completed(REMOVE, format!("`{}`", args.name));
         let dependencies = outcome.lockfile.dependencies.len();
         output.detail(

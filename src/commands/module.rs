@@ -12,7 +12,6 @@ mod display;
 pub mod fetch;
 pub mod init;
 pub mod lock;
-mod manifest;
 mod mutation;
 mod project;
 mod relock;

@@ -188,7 +188,6 @@ windows-sys = { workspace = true, features = [
 anyhow.workspace = true
 async-trait.workspace = true
 axum.workspace = true
-blake3.workspace = true
 bon.workspace = true
 bytesize.workspace = true
 chrono.workspace = true

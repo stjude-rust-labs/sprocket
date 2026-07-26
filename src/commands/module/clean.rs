@@ -80,7 +80,10 @@ pub async fn clean(args: Args, config: Config, output: CommandOutput) -> Command
     let project = discover(&args.locator)?;
     trace_project("module cache clean", &project);
     let lock = require_lockfile(&project)?;
-    let module = Module::new(project.manifest.clone(), project.root.clone());
+    let module = Module::new(
+        std::sync::Arc::new(project.manifest().clone()),
+        project.root().to_path_buf(),
+    );
     let environment = ResolverEnvironment::from_config(&config)?;
     let resolver = environment.resolver(lock)?;
     let stats = resolver

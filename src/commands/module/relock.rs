@@ -47,7 +47,7 @@ impl<'a> RelockPlanner<'a> {
     /// Re-resolves dependencies for a manifest and merges the result with the
     /// previous lockfile without applying signer-change policy.
     pub(super) async fn plan(&self, manifest: Arc<Manifest>) -> anyhow::Result<RelockPlan> {
-        let module = Module::new(manifest, self.project.root.clone());
+        let module = Module::new(manifest, self.project.root().to_path_buf());
         let existing = load_lockfile(self.project)?.unwrap_or_default();
         tracing::debug!(
             existing = existing.dependencies.len(),
@@ -116,20 +116,13 @@ mod tests {
         )
         .unwrap();
 
-        let manifest = Arc::new(Manifest::parse(&std::fs::read(&manifest_path).unwrap()).unwrap());
-        let lockfile_path = manifest_path.with_file_name(wdl_modules::LOCKFILE_FILENAME);
-        let project = Project {
-            manifest_path,
-            root: consumer_dir,
-            manifest: manifest.clone(),
-            lockfile_path,
-        };
+        let project = Project::load(&manifest_path).unwrap();
 
         let mut config = Config::default();
         config.modules.cache_path = Some(work.path().join("cache"));
 
         let plan = RelockPlanner::new(&config, &project)
-            .plan(project.manifest.clone())
+            .plan(std::sync::Arc::new(project.manifest().clone()))
             .await
             .unwrap();
         assert_eq!(plan.outcome.lockfile.dependencies.len(), 1);

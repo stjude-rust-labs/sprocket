@@ -33,7 +33,10 @@ pub async fn fetch(args: Args, config: Config, output: CommandOutput) -> Command
         dependencies = lock.dependencies.len(),
         "loaded module lockfile for fetch"
     );
-    let module = Module::new(project.manifest.clone(), project.root.clone());
+    let module = Module::new(
+        std::sync::Arc::new(project.manifest().clone()),
+        project.root().to_path_buf(),
+    );
     let environment = ResolverEnvironment::from_config(&config)?;
     let resolver = environment.resolver(lock)?;
     let fetched = resolver

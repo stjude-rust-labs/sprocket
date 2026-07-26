@@ -336,30 +336,6 @@ pub(crate) fn discover_manifest(
     Ok(Some((manifest_path, manifest)))
 }
 
-/// Discovers a `module.json` at `start` or an ancestor directory, walking
-/// upward but never past the enclosing repository root.
-///
-/// Returns the first manifest found, or `Ok(None)` if none exists at or below
-/// the enclosing repository root. The walk stops after examining the first
-/// directory that contains a `.git` entry so discovery never reaches an
-/// unrelated `module.json` outside the project. Returns an error if a manifest
-/// exists but cannot be read or parsed.
-pub(crate) fn discover_manifest_upward(
-    start: &Path,
-) -> anyhow::Result<Option<(PathBuf, wdl_modules::Manifest)>> {
-    for dir in start.ancestors() {
-        if let Some(found) = discover_manifest(dir)? {
-            return Ok(Some(found));
-        }
-
-        if dir.join(".git").exists() {
-            break;
-        }
-    }
-
-    Ok(None)
-}
-
 /// Constructs a [`GitResolver`](wdl_modules::resolver::GitResolver) from the
 /// given `[modules]` config and a discovered `module.json` path.
 ///
@@ -465,8 +441,10 @@ pub(crate) fn resolution_context_from_paths(
         if !walked.insert(start.clone()) {
             continue;
         }
-        if let Some((path, manifest)) = discover_manifest_upward(start)? {
-            manifests.entry(path).or_insert(manifest);
+        if let Some(project) = wdl_modules::project::ModuleProject::discover(start)? {
+            manifests
+                .entry(project.manifest_path().to_path_buf())
+                .or_insert_with(|| project.manifest().clone());
         }
     }
 
@@ -600,7 +578,6 @@ mod tests {
     use super::Source;
     use super::default_cache_root;
     use super::default_trust_path;
-    use super::discover_manifest_upward;
     use super::resolution_context_from_paths;
 
     /// Minimal valid `module.json` contents for discovery tests.
@@ -650,40 +627,6 @@ mod tests {
                 result.display()
             );
         }
-    }
-
-    #[test]
-    fn discover_manifest_upward_finds_ancestor() {
-        let root = tempfile::TempDir::new().unwrap();
-        std::fs::write(root.path().join(wdl_modules::MANIFEST_FILENAME), MANIFEST).unwrap();
-        let nested = root.path().join("a").join("b");
-        std::fs::create_dir_all(&nested).unwrap();
-
-        let found = discover_manifest_upward(&nested)
-            .unwrap()
-            .expect("`discover_manifest_upward` should find a `module.json` in an ancestor");
-        assert_eq!(
-            found.0,
-            root.path().join(wdl_modules::MANIFEST_FILENAME),
-            "`discover_manifest_upward` should return the ancestor `module.json` path"
-        );
-    }
-
-    #[test]
-    fn discover_manifest_upward_stops_at_git_root() {
-        let outer = tempfile::TempDir::new().unwrap();
-        // A `module.json` above the repository root must not be discovered.
-        std::fs::write(outer.path().join(wdl_modules::MANIFEST_FILENAME), MANIFEST).unwrap();
-        let repo = outer.path().join("repo");
-        std::fs::create_dir_all(repo.join(".git")).unwrap();
-        let nested = repo.join("src");
-        std::fs::create_dir_all(&nested).unwrap();
-
-        assert!(
-            discover_manifest_upward(&nested).unwrap().is_none(),
-            "the walk should stop at the `.git` repository root and ignore an ancestor \
-             `module.json`"
-        );
     }
 
     #[test]

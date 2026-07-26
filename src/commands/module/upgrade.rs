@@ -19,8 +19,6 @@ use wdl_modules::resolver::lock::signer_identity_map;
 use wdl_modules::resolver::lock::update_relock;
 
 use super::display::version_constraint;
-use super::manifest::parse_manifest_value;
-use super::manifest::read_manifest_value;
 use super::mutation::LockedProject;
 use super::mutation::ProjectUpdate;
 use super::project::Locator;
@@ -90,16 +88,16 @@ pub async fn upgrade(args: Args, config: Config, output: CommandOutput) -> Comma
         output,
     )?;
     project.commit(ProjectUpdate::Both {
-        manifest: &changes.manifest_value,
+        manifest: &changes.manifest,
         lockfile: &changes.outcome.lockfile,
     })?;
     tracing::debug!(
-        manifest = %project.project().manifest_path.display(),
+        manifest = %project.project().manifest_path().display(),
         changed = changes.changed.len(),
         "wrote upgraded version selectors"
     );
     tracing::debug!(
-        lockfile = %project.project().lockfile_path.display(),
+        lockfile = %project.project().lockfile_path().display(),
         "wrote module lockfile"
     );
     let count = changes.changed.len();
@@ -131,7 +129,7 @@ enum UpgradePlan {
 /// Manifest, lockfile, and trust changes prepared by an upgrade.
 struct UpgradeChanges {
     existing: Lockfile,
-    manifest_value: serde_json::Value,
+    manifest: wdl_modules::project::ManifestDocument,
     changed: Vec<(DependencyName, String, String)>,
     outcome: RelockOutcome,
     identities: SignerIdentityMap,
@@ -145,13 +143,13 @@ async fn plan_upgrade(
 ) -> anyhow::Result<UpgradePlan> {
     let mut selected = Vec::new();
     if args.names.is_empty() {
-        selected.extend(project.manifest.dependencies.keys().cloned());
+        selected.extend(project.manifest().dependencies.keys().cloned());
     } else {
         for raw in &args.names {
             let name: DependencyName = raw
                 .parse()
                 .with_context(|| format!("invalid dependency name `{raw}`"))?;
-            if !project.manifest.dependencies.contains_key(&name) {
+            if !project.manifest().dependencies.contains_key(&name) {
                 return Err(anyhow::anyhow!(
                     "dependency `{raw}` not found in `module.json`"
                 ));
@@ -167,12 +165,16 @@ async fn plan_upgrade(
 
     let mut eligible = Vec::new();
     for name in selected {
-        let source = project.manifest.dependencies.get(&name).with_context(|| {
-            format!(
-                "dependency `{}` disappeared during upgrade",
-                name.manifest()
-            )
-        })?;
+        let source = project
+            .manifest()
+            .dependencies
+            .get(&name)
+            .with_context(|| {
+                format!(
+                    "dependency `{}` disappeared during upgrade",
+                    name.manifest()
+                )
+            })?;
         match source {
             DependencySource::Git {
                 selector: GitSelector::Version(req),
@@ -234,12 +236,20 @@ async fn plan_upgrade(
         return Ok(UpgradePlan::Current);
     }
 
-    let mut manifest_value = read_manifest_value(&project.manifest_path)?;
+    let mut document = project.document().clone();
     for (name, _, new_req) in &changed {
-        set_version_selector(&mut manifest_value, name.manifest(), new_req)?;
+        let source = document
+            .manifest()
+            .dependencies
+            .get(name)
+            .with_context(|| format!("dependency `{}` is not declared", name.manifest()))?;
+        let source = with_version_requirement(source, new_req)?;
+        document.set_dependency(name.manifest(), &source)?;
     }
-    let pending_manifest = parse_manifest_value(&manifest_value)?;
-    let module = Module::new(std::sync::Arc::new(pending_manifest), project.root.clone());
+    let module = Module::new(
+        std::sync::Arc::new(document.manifest().clone()),
+        project.root().to_path_buf(),
+    );
     let tree = resolver
         .resolve_tree(&module)
         .await
@@ -255,7 +265,7 @@ async fn plan_upgrade(
 
     Ok(UpgradePlan::Changes(Box::new(UpgradeChanges {
         existing,
-        manifest_value,
+        manifest: document,
         changed,
         outcome,
         identities,
@@ -323,27 +333,64 @@ fn wildcard_version_source(source: &DependencySource) -> anyhow::Result<Dependen
     }
 }
 
-/// Replaces one dependency's version selector in a manifest value.
-fn set_version_selector(
-    manifest: &mut serde_json::Value,
-    name: &str,
-    version_req: &str,
-) -> anyhow::Result<()> {
-    let deps = manifest
-        .get_mut("dependencies")
-        .and_then(serde_json::Value::as_object_mut)
-        .with_context(|| "`dependencies` in `module.json` must be an object")?;
-    let dep = deps
-        .get_mut(name)
-        .and_then(serde_json::Value::as_object_mut)
-        .with_context(|| format!("dependency `{name}` in `module.json` must be an object"))?;
-
-    if !dep.contains_key("version") {
-        anyhow::bail!("dependency `{name}` does not contain a `version` selector");
+/// Clones a Git dependency source with a new version requirement selector.
+fn with_version_requirement(
+    source: &DependencySource,
+    requirement: &str,
+) -> anyhow::Result<DependencySource> {
+    let selector = GitSelector::Version(requirement.parse()?);
+    match source {
+        DependencySource::Git {
+            url, path, extra, ..
+        } => Ok(DependencySource::Git {
+            url: url.clone(),
+            selector,
+            path: path.clone(),
+            extra: extra.clone(),
+        }),
+        _ => Err(anyhow::anyhow!(
+            "dependency source is not a Git version selector"
+        )),
     }
-    dep.insert(
-        "version".to_string(),
-        serde_json::Value::String(version_req.to_string()),
-    );
-    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn with_version_requirement_preserves_url_path_and_extra() {
+        let source: DependencySource = serde_json::from_str(
+            r#"{
+              "git": "https://example.com/owner/repo.git",
+              "version": "^1.0.0",
+              "path": "sub/dir",
+              "x-source-extra": "kept"
+            }"#,
+        )
+        .unwrap();
+
+        let upgraded = with_version_requirement(&source, "^2.3.4").unwrap();
+
+        let DependencySource::Git {
+            url,
+            selector,
+            path,
+            extra,
+        } = upgraded
+        else {
+            panic!("expected a Git source");
+        };
+        assert_eq!(url.as_str(), "https://example.com/owner/repo.git");
+        assert_eq!(path.as_ref().map(|p| p.as_str()), Some("sub/dir"));
+        assert_eq!(extra["x-source-extra"], "kept");
+        assert_eq!(selector, GitSelector::Version("^2.3.4".parse().unwrap()));
+    }
+
+    #[test]
+    fn with_version_requirement_rejects_non_git_source() {
+        let source: DependencySource = serde_json::from_str(r#"{"path":"../local"}"#).unwrap();
+
+        assert!(with_version_requirement(&source, "^1.0.0").is_err());
+    }
 }

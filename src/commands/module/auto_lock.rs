@@ -5,11 +5,9 @@
 //! executing.
 
 use std::path::Path;
-use std::sync::Arc;
 
 use super::mutation::LockedProject;
 use super::mutation::ProjectUpdate;
-use super::project::Project;
 use super::project::load_lockfile;
 use super::relock::RelockPlanner;
 use super::signer_policy::SignerChangeMode;
@@ -19,31 +17,19 @@ use crate::config::Config;
 /// Regenerates `module-lock.json` before execution when it is missing or
 /// out of date with the governing `module.json`.
 pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> anyhow::Result<()> {
-    let Some((manifest_path, manifest)) = crate::analysis::discover_manifest_upward(start)? else {
+    let Some(project) = wdl_modules::project::ModuleProject::discover(start)? else {
         return Ok(());
     };
-    if manifest.dependencies.is_empty() {
+    if project.manifest().dependencies.is_empty() {
         return Ok(());
     }
-
-    let root = manifest_path
-        .parent()
-        .unwrap_or_else(|| Path::new("."))
-        .to_path_buf();
-    let lockfile_path = manifest_path.with_file_name(wdl_modules::LOCKFILE_FILENAME);
-    let project = Project {
-        manifest_path,
-        root,
-        manifest: Arc::new(manifest),
-        lockfile_path,
-    };
 
     // Avoid acquiring the mutation lock when the current lockfile already
     // satisfies the manifest.
     let existing = load_lockfile(&project)?;
     if existing
         .as_ref()
-        .is_some_and(|lock| lock.satisfies_manifest(&project.manifest))
+        .is_some_and(|lock| lock.satisfies_manifest(project.manifest()))
     {
         return Ok(());
     }
@@ -54,20 +40,20 @@ pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> an
     let existing = load_lockfile(project.project())?;
     if existing
         .as_ref()
-        .is_some_and(|lock| lock.satisfies_manifest(&project.project().manifest))
+        .is_some_and(|lock| lock.satisfies_manifest(project.project().manifest()))
     {
         return Ok(());
     }
 
     tracing::info!(
-        manifest = %project.project().manifest_path.display(),
+        manifest = %project.project().manifest_path().display(),
         lockfile_present = existing.is_some(),
         "`module-lock.json` is missing or out of date; regenerating before execution"
     );
     let planner = RelockPlanner::new(config, project.project());
     let outcome = planner
         .plan_and_enforce(
-            project.project().manifest.clone(),
+            std::sync::Arc::new(project.project().manifest().clone()),
             SignerChangeMode::Strict,
             CommandOutput::new(false),
         )

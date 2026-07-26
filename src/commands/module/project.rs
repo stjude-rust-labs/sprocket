@@ -2,38 +2,14 @@
 
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use anyhow::Context as _;
 use clap::Args as ClapArgs;
 use wdl_modules::Lockfile;
-use wdl_modules::Manifest;
+use wdl_modules::project::ModuleProject;
 
 /// Parsed module project context shared by porcelain subcommands.
-#[derive(Debug, Clone)]
-pub(super) struct Project {
-    /// Path to the discovered `module.json`.
-    pub manifest_path: PathBuf,
-    /// Root directory containing `module.json`.
-    pub root: PathBuf,
-    /// Parsed manifest discovered from disk.
-    pub manifest: Arc<Manifest>,
-    /// Path to the sibling `module-lock.json`.
-    pub lockfile_path: PathBuf,
-}
-
-impl Project {
-    /// Reloads the manifest while a project mutation lock is held.
-    pub(super) fn reload(&mut self) -> anyhow::Result<()> {
-        let bytes = std::fs::read(&self.manifest_path)
-            .with_context(|| format!("reading `{}`", self.manifest_path.display()))?;
-        self.manifest = Arc::new(
-            Manifest::parse(&bytes)
-                .with_context(|| format!("parsing `{}`", self.manifest_path.display()))?,
-        );
-        Ok(())
-    }
-}
+pub(super) type Project = ModuleProject;
 
 /// Locates the governing `module.json`.
 #[derive(ClapArgs, Debug, Clone)]
@@ -56,54 +32,38 @@ pub(super) fn discover(locator: &Locator) -> anyhow::Result<Project> {
         None => std::env::current_dir().context("reading current directory")?,
     };
 
-    let (manifest_path, manifest) = crate::analysis::discover_manifest_upward(&start)?
-        .with_context(|| "no `module.json` found; run `sprocket dev module init` first")?;
-
-    let root = manifest_path
-        .parent()
-        .unwrap_or_else(|| Path::new("."))
-        .to_path_buf();
-    let lockfile_path = manifest_path.with_file_name(wdl_modules::LOCKFILE_FILENAME);
-
-    Ok(Project {
-        manifest_path,
-        root,
-        manifest: Arc::new(manifest),
-        lockfile_path,
-    })
+    ModuleProject::discover(&start)?
+        .with_context(|| "no `module.json` found; run `sprocket dev module init` first")
 }
 
 /// Traces the discovered module project for a command.
 pub(super) fn trace_project(command: &'static str, project: &Project) {
     tracing::debug!(
         command,
-        module = %project.manifest.name,
-        root = %project.root.display(),
-        manifest = %project.manifest_path.display(),
-        lockfile = %project.lockfile_path.display(),
-        dependencies = project.manifest.dependencies.len(),
+        module = %project.manifest().name,
+        root = %project.root().display(),
+        manifest = %project.manifest_path().display(),
+        lockfile = %project.lockfile_path().display(),
+        dependencies = project.manifest().dependencies.len(),
         "discovered module project"
     );
 }
 
 /// Loads `module-lock.json` when present.
 pub(super) fn load_lockfile(project: &Project) -> anyhow::Result<Option<Lockfile>> {
-    if !project.lockfile_path.exists() {
-        tracing::trace!(lockfile = %project.lockfile_path.display(), "module lockfile is absent");
-        return Ok(None);
-    }
-
-    tracing::trace!(lockfile = %project.lockfile_path.display(), "reading module lockfile");
-    let bytes = std::fs::read(&project.lockfile_path)
-        .with_context(|| format!("reading `{}`", project.lockfile_path.display()))?;
-    let lock = Lockfile::parse(&bytes)
-        .with_context(|| format!("parsing `{}`", project.lockfile_path.display()))?;
-    tracing::debug!(
-        lockfile = %project.lockfile_path.display(),
-        dependencies = lock.dependencies.len(),
-        "loaded module lockfile"
+    tracing::trace!(
+        lockfile = %project.lockfile_path().display(),
+        "reading module lockfile"
     );
-    Ok(Some(lock))
+    let lockfile = project.load_lockfile()?;
+    if let Some(lockfile) = &lockfile {
+        tracing::debug!(
+            lockfile = %project.lockfile_path().display(),
+            dependencies = lockfile.dependencies.len(),
+            "loaded module lockfile"
+        );
+    }
+    Ok(lockfile)
 }
 
 /// Loads `module-lock.json`, failing when it is absent.

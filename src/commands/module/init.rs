@@ -12,7 +12,6 @@ use serde_json::Map;
 use serde_json::Value;
 use wdl::ast::SupportedVersion;
 
-use super::manifest::align_temp_permissions;
 use crate::commands::CommandResult;
 use crate::commands::output::Action;
 use crate::commands::output::CommandOutput;
@@ -274,6 +273,26 @@ fn ensure_scaffold_path(path: &Path, label: &str) -> anyhow::Result<()> {
         Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(()),
         Err(source) => Err(source).with_context(|| format!("inspecting scaffold `{label}`")),
     }
+}
+
+/// Aligns a temporary file's permissions with its destination before an
+/// atomic rename.
+fn align_temp_permissions(temp: &tempfile::NamedTempFile, path: &Path) -> anyhow::Result<()> {
+    if let Ok(metadata) = std::fs::metadata(path) {
+        temp.as_file()
+            .set_permissions(metadata.permissions())
+            .with_context(|| format!("setting permissions on `{}`", temp.path().display()))?;
+        return Ok(());
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        temp.as_file()
+            .set_permissions(std::fs::Permissions::from_mode(0o644))
+            .with_context(|| format!("setting permissions on `{}`", temp.path().display()))?;
+    }
+    Ok(())
 }
 
 /// Writes a validated manifest without replacing a concurrently created file.

@@ -80,7 +80,7 @@ pub async fn update(args: Args, config: Config, output: CommandOutput) -> Comman
     )?;
     project.commit(ProjectUpdate::Lockfile(&plan.outcome.lockfile))?;
     tracing::debug!(
-        lockfile = %project.project().lockfile_path.display(),
+        lockfile = %project.project().lockfile_path().display(),
         "wrote module lockfile"
     );
     print_update_outcome(output, &plan.outcome.stats, false);
@@ -106,13 +106,13 @@ async fn plan_update(
     let existing = load_lockfile(project)?.unwrap_or_default();
     let mut names = BTreeSet::new();
     if args.names.is_empty() {
-        names.extend(project.manifest.dependencies.keys().cloned());
+        names.extend(project.manifest().dependencies.keys().cloned());
     } else {
         for raw in &args.names {
             let name: DependencyName = raw
                 .parse()
                 .with_context(|| format!("invalid dependency name `{raw}`"))?;
-            if !project.manifest.dependencies.contains_key(&name) {
+            if !project.manifest().dependencies.contains_key(&name) {
                 return Err(anyhow::anyhow!(
                     "dependency `{raw}` not found in `module.json`"
                 ));
@@ -126,7 +126,10 @@ async fn plan_update(
         "selected dependencies for update"
     );
 
-    let module = Module::new(project.manifest.clone(), project.root.clone());
+    let module = Module::new(
+        std::sync::Arc::new(project.manifest().clone()),
+        project.root().to_path_buf(),
+    );
     let environment = ResolverEnvironment::from_config(config)?;
     let resolver = environment.resolver(existing.clone())?;
     let tree = resolver

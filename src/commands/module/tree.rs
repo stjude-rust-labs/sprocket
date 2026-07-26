@@ -49,7 +49,7 @@ pub async fn tree(args: TreeArgs, output: CommandOutput) -> CommandResult<()> {
         "loaded module lockfile for tree"
     );
 
-    output.payload(&project.manifest.name);
+    output.payload(&project.manifest().name);
     if args.depth == Some(0) {
         tracing::trace!("printed root module only because depth is zero");
         return Ok(());

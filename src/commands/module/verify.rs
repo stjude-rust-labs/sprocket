@@ -77,15 +77,19 @@ fn verify_all(
     let mut checked = 0usize;
     let mut unsigned_current = None;
     let mut unsigned_dependencies = Vec::new();
-    if project.root.join(wdl_modules::SIGNATURE_FILENAME).exists() {
+    if project
+        .root()
+        .join(wdl_modules::SIGNATURE_FILENAME)
+        .exists()
+    {
         tracing::debug!("verifying module signature as part of full verification");
         verify_signature(project, output)?;
         checked += 1;
     } else {
-        unsigned_current = Some(project.manifest.name.as_str().to_string());
+        unsigned_current = Some(project.manifest().name.as_str().to_string());
         print_unsigned_current_summary(output, require_signatures);
     }
-    if project.lockfile_path.exists() {
+    if project.lockfile_path().exists() {
         tracing::debug!("verifying lockfile as part of full verification");
         unsigned_dependencies = verify_lockfile(project, config, output, require_signatures)?;
         checked += 1;
@@ -106,7 +110,7 @@ fn verify_all(
 
 /// Verifies the current module's signature against its content digest.
 fn verify_signature(project: &Project, output: CommandOutput) -> anyhow::Result<()> {
-    let signature_path = project.root.join(wdl_modules::SIGNATURE_FILENAME);
+    let signature_path = project.root().join(wdl_modules::SIGNATURE_FILENAME);
     tracing::trace!(signature = %signature_path.display(), "reading module signature");
     let bytes = std::fs::read(&signature_path).map_err(|source| match source.kind() {
         std::io::ErrorKind::NotFound => {
@@ -115,7 +119,7 @@ fn verify_signature(project: &Project, output: CommandOutput) -> anyhow::Result<
         _ => anyhow::Error::new(source).context(format!("reading `{}`", signature_path.display())),
     })?;
     let signature = ModuleSignature::parse(&bytes).map_err(anyhow::Error::from)?;
-    let digest = wdl_modules::hash::hash_directory(&project.root).map_err(anyhow::Error::from)?;
+    let digest = wdl_modules::hash::hash_directory(project.root()).map_err(anyhow::Error::from)?;
     tracing::debug!(digest = %digest, "hashed module content for signature verification");
     signature.verify(&digest).map_err(anyhow::Error::from)?;
 
@@ -131,10 +135,13 @@ fn verify_lockfile(
     output: CommandOutput,
     require_signatures: bool,
 ) -> anyhow::Result<Vec<DependencyName>> {
-    tracing::trace!(lockfile = %project.lockfile_path.display(), "reading module lockfile");
+    tracing::trace!(lockfile = %project.lockfile_path().display(), "reading module lockfile");
     let lock = require_lockfile(project)?;
 
-    let module = Module::new(project.manifest.clone(), project.root.clone());
+    let module = Module::new(
+        std::sync::Arc::new(project.manifest().clone()),
+        project.root().to_path_buf(),
+    );
     let environment = ResolverEnvironment::from_config(config)?;
     let resolver = environment.resolver(lock)?;
     tracing::debug!("verifying locked dependencies from cache");

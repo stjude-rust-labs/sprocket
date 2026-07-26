@@ -51,7 +51,7 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
     let lock = load_lockfile(&project)?;
     let satisfied = lock
         .as_ref()
-        .is_some_and(|l| l.satisfies_manifest(&project.manifest));
+        .is_some_and(|l| l.satisfies_manifest(project.manifest()));
     tracing::debug!(
         lockfile_present = lock.is_some(),
         satisfied,
@@ -78,7 +78,7 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
 
     if args.dry_run {
         let plan = RelockPlanner::new(&config, &project)
-            .plan(project.manifest.clone())
+            .plan(std::sync::Arc::new(project.manifest().clone()))
             .await?;
         tracing::debug!("dry run completed without writing lockfile or trust store");
         let changes = relock_change_count(&plan.outcome.stats);
@@ -107,7 +107,7 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
     let project = LockedProject::acquire(project)?;
     if load_lockfile(project.project())?
         .as_ref()
-        .is_some_and(|lockfile| lockfile.satisfies_manifest(&project.project().manifest))
+        .is_some_and(|lockfile| lockfile.satisfies_manifest(project.project().manifest()))
     {
         output.current("module lockfile is up to date");
         return Ok(());
@@ -115,14 +115,14 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
 
     let outcome = RelockPlanner::new(&config, project.project())
         .plan_and_enforce(
-            project.project().manifest.clone(),
+            std::sync::Arc::new(project.project().manifest().clone()),
             signer_change_mode(&config, args.trust_mode),
             output,
         )
         .await?;
     project.commit(ProjectUpdate::Lockfile(&outcome.lockfile))?;
     tracing::debug!(
-        lockfile = %project.project().lockfile_path.display(),
+        lockfile = %project.project().lockfile_path().display(),
         "wrote module lockfile"
     );
     let dependencies = outcome.lockfile.dependencies.len();

@@ -11,9 +11,6 @@ use wdl_modules::resolver::GitPlatform;
 
 use super::display::git_selector;
 use super::display::short_commit;
-use super::manifest::parse_manifest_value;
-use super::manifest::read_manifest_value;
-use super::manifest::set_dependency;
 use super::mutation::LockedProject;
 use super::mutation::ProjectUpdate;
 use super::project::Locator;
@@ -100,8 +97,8 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
         .build()
         .await?;
     let source = built.source;
-    let mut value = read_manifest_value(&project.manifest_path)?;
-    if project.manifest.dependencies.get(&name) == Some(&source) {
+    let mut document = project.document().clone();
+    if project.manifest().dependencies.get(&name) == Some(&source) {
         tracing::info!(
             dependency = name.manifest(),
             "dependency already exists with the same source"
@@ -109,11 +106,11 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
         let lockfile = load_lockfile(project)?;
         let lock_is_current = lockfile
             .as_ref()
-            .is_some_and(|lockfile| lockfile.satisfies_manifest(&project.manifest));
+            .is_some_and(|lockfile| lockfile.satisfies_manifest(project.manifest()));
         if !args.no_lock && !lock_is_current {
             let outcome = RelockPlanner::new(&config, project)
                 .plan_and_enforce(
-                    project.manifest.clone(),
+                    std::sync::Arc::new(project.manifest().clone()),
                     signer_change_mode(&config, args.trust_mode),
                     output,
                 )
@@ -144,15 +141,16 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
         return Ok(());
     }
 
-    set_dependency(&mut value, name.manifest(), &source)?;
+    document
+        .set_dependency(name.manifest(), &source)
+        .map_err(anyhow::Error::from)?;
     let relock = if args.no_lock {
         None
     } else {
-        let pending_manifest = parse_manifest_value(&value)?;
         Some(
             RelockPlanner::new(&config, project)
                 .plan_and_enforce(
-                    std::sync::Arc::new(pending_manifest),
+                    std::sync::Arc::new(document.manifest().clone()),
                     signer_change_mode(&config, args.trust_mode),
                     output,
                 )
@@ -162,19 +160,19 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
 
     locked.commit(match relock.as_ref() {
         Some(outcome) => ProjectUpdate::Both {
-            manifest: &value,
+            manifest: &document,
             lockfile: &outcome.lockfile,
         },
-        None => ProjectUpdate::Manifest(&value),
+        None => ProjectUpdate::Manifest(&document),
     })?;
     tracing::debug!(
         dependency = name.manifest(),
-        manifest = %project.manifest_path.display(),
+        manifest = %project.manifest_path().display(),
         "wrote dependency to manifest"
     );
 
     if let Some(outcome) = relock {
-        tracing::debug!(lockfile = %project.lockfile_path.display(), "wrote module lockfile");
+        tracing::debug!(lockfile = %project.lockfile_path().display(), "wrote module lockfile");
         output.completed(ADD, format!("`{}`", name.manifest()));
         print_source_details(output, &source);
         if let Some(change) = outcome
