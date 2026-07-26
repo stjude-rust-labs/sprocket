@@ -1345,7 +1345,7 @@ impl DocsTree {
         html! {
             section class="module-overview" {
                 p class="module-overview__eyebrow" { "WDL Module" }
-                h1 id="title" class="module-overview__title" { (humanize_module_name(root.name())) }
+                h1 id="title" class="module-overview__title" data-pagefind-meta="title" { (humanize_module_name(root.name())) }
                 @if let Some(description) = root.description() {
                     p class="module-overview__description" { (description) }
                 }
