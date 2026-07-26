@@ -1,6 +1,7 @@
 //! Module project loading and upward discovery.
 
 mod document;
+mod mutation;
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -9,6 +10,9 @@ use thiserror::Error;
 
 pub use self::document::ManifestDocument;
 pub use self::document::ManifestDocumentError;
+pub use self::mutation::LockedModuleProject;
+pub use self::mutation::ProjectMutationError;
+pub use self::mutation::ProjectUpdate;
 use crate::Lockfile;
 use crate::Manifest;
 use crate::lockfile::LockfileError;
@@ -130,9 +134,18 @@ impl ModuleProject {
         self.document.manifest()
     }
 
-    /// Reloads the manifest document from disk.
+    /// Reloads the manifest document from disk, preserving all other fields.
     pub fn reload(&mut self) -> Result<(), ProjectError> {
-        *self = Self::load(self.manifest_path.clone())?;
+        let bytes =
+            std::fs::read(&self.manifest_path).map_err(|source| ProjectError::Io {
+                path: self.manifest_path.clone(),
+                source,
+            })?;
+        self.document =
+            ManifestDocument::parse(&bytes).map_err(|source| ProjectError::Manifest {
+                path: self.manifest_path.clone(),
+                source,
+            })?;
         Ok(())
     }
 
