@@ -33,10 +33,10 @@ impl ProjectTransaction {
         project: &ModuleProject,
         journal_root: &Path,
     ) -> Result<Self, ProjectMutationError> {
-        ensure_journal_root(journal_root)?;
+        ensure_managed_directory(journal_root)?;
         let pending = journal_root.join(PENDING_DIRECTORY);
         let active = journal_root.join(ACTIVE_DIRECTORY);
-        remove_path_if_present(&pending)?;
+        remove_directory_if_present(&pending)?;
         std::fs::create_dir(&pending).map_err(|source| ProjectMutationError::Io {
             operation: "creating mutation journal",
             path: pending.clone(),
@@ -61,7 +61,7 @@ impl ProjectTransaction {
 
     /// Commits the mutation by removing the recovery journal.
     pub(super) fn finish(self) -> Result<(), ProjectMutationError> {
-        remove_path_if_present(&self.active)?;
+        remove_directory_if_present(&self.active)?;
         sync_directory(&self.journal_root)?;
         cleanup_journal_if_empty(&self.journal_root);
         Ok(())
@@ -72,7 +72,7 @@ impl ProjectTransaction {
         restore_snapshot(&self.active, "manifest", &self.manifest_path)?;
         restore_snapshot(&self.active, "lockfile", &self.lockfile_path)?;
         sync_project_files(&self.manifest_path, &self.lockfile_path)?;
-        remove_path_if_present(&self.active)?;
+        remove_directory_if_present(&self.active)?;
         sync_directory(&self.journal_root)?;
         cleanup_journal_if_empty(&self.journal_root);
         Ok(())
@@ -115,10 +115,14 @@ pub(super) fn commit(
 /// Ensures `path` is a non-symlink directory owned by this process, creating
 /// it if absent.
 ///
-/// Accepts an existing real directory or a freshly created one. Rejects
-/// symlinks and non-directory entries with `InvalidPath`. Handles creation
-/// races by re-inspecting after `AlreadyExists`.
-pub(super) fn ensure_journal_root(path: &Path) -> Result<(), ProjectMutationError> {
+/// This is the single race-safe helper used for every managed state directory;
+/// the `locks` and `journals` namespaces, and each per-project journal root
+/// beneath them. Accepts an existing real directory or a freshly created one.
+/// Rejects symlinks and non-directory entries with `InvalidPath`. Handles
+/// creation races by re-inspecting after `AlreadyExists`. The immediate parent
+/// is trusted to exist; callers create the caller-supplied state root before
+/// validating its managed children.
+pub(super) fn ensure_managed_directory(path: &Path) -> Result<(), ProjectMutationError> {
     loop {
         match std::fs::symlink_metadata(path) {
             Ok(metadata) => {
@@ -136,7 +140,7 @@ pub(super) fn ensure_journal_root(path: &Path) -> Result<(), ProjectMutationErro
                     Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
                     Err(source) => {
                         return Err(ProjectMutationError::Io {
-                            operation: "creating mutation journal directory",
+                            operation: "creating managed state directory",
                             path: path.to_path_buf(),
                             source,
                         });
@@ -145,7 +149,7 @@ pub(super) fn ensure_journal_root(path: &Path) -> Result<(), ProjectMutationErro
             }
             Err(source) => {
                 return Err(ProjectMutationError::Io {
-                    operation: "inspecting mutation journal directory",
+                    operation: "inspecting managed state directory",
                     path: path.to_path_buf(),
                     source,
                 });
@@ -155,10 +159,14 @@ pub(super) fn ensure_journal_root(path: &Path) -> Result<(), ProjectMutationErro
 }
 
 /// Removes an incomplete pending journal.
+///
+/// A tampered pending path that is a symlink or non-directory is rejected as
+/// `InvalidPath` and left untouched; only a real leftover pending directory is
+/// removed as the intended incomplete journal.
 pub(super) fn remove_pending_directory(
     journal_root: &Path,
 ) -> Result<(), ProjectMutationError> {
-    remove_path_if_present(&journal_root.join(PENDING_DIRECTORY))
+    remove_directory_if_present(&journal_root.join(PENDING_DIRECTORY))
 }
 
 /// Restores an interrupted transaction left by another process.
@@ -187,7 +195,7 @@ pub(super) fn recover_active_mutation(
     restore_snapshot(&active, "manifest", project.manifest_path())?;
     restore_snapshot(&active, "lockfile", project.lockfile_path())?;
     sync_project_files(project.manifest_path(), project.lockfile_path())?;
-    remove_path_if_present(&active)?;
+    remove_directory_if_present(&active)?;
     sync_directory(journal_root)?;
     cleanup_journal_if_empty(journal_root);
     Ok(())
@@ -541,29 +549,31 @@ fn write_bytes_atomically(path: &Path, bytes: &[u8]) -> Result<(), ProjectMutati
     Ok(())
 }
 
-/// Removes a journal path without following symbolic links.
-fn remove_path_if_present(path: &Path) -> Result<(), ProjectMutationError> {
-    let metadata = match std::fs::symlink_metadata(path) {
-        Ok(metadata) => metadata,
-        Err(source) if source.kind() == std::io::ErrorKind::NotFound => return Ok(()),
-        Err(source) => {
-            return Err(ProjectMutationError::Io {
-                operation: "inspecting",
+/// Removes a managed journal directory without following symbolic links.
+///
+/// Only a real directory is removed. A symlink or non-directory entry is
+/// rejected as `InvalidPath` and left untouched, so a tampered journal path can
+/// never redirect removal to an outside target.
+fn remove_directory_if_present(path: &Path) -> Result<(), ProjectMutationError> {
+    match std::fs::symlink_metadata(path) {
+        Ok(metadata) if metadata.is_dir() && !metadata.file_type().is_symlink() => {
+            std::fs::remove_dir_all(path).map_err(|source| ProjectMutationError::Io {
+                operation: "removing",
                 path: path.to_path_buf(),
                 source,
-            });
+            })
         }
-    };
-    if metadata.is_dir() && !metadata.file_type().is_symlink() {
-        std::fs::remove_dir_all(path)
-    } else {
-        std::fs::remove_file(path)
+        Ok(_) => Err(ProjectMutationError::InvalidPath {
+            path: path.to_path_buf(),
+            expected: "directory",
+        }),
+        Err(source) if source.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(source) => Err(ProjectMutationError::Io {
+            operation: "inspecting",
+            path: path.to_path_buf(),
+            source,
+        }),
     }
-    .map_err(|source| ProjectMutationError::Io {
-        operation: "removing",
-        path: path.to_path_buf(),
-        source,
-    })
 }
 
 /// Attempts to remove the journal directory when it is empty; silently
@@ -805,6 +815,108 @@ mod tests {
             0,
             "outside directory should be untouched"
         );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symlinked_journals_namespace() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("project");
+        let state = directory.path().join("state");
+        let project = test_project(&root);
+        let outside = directory.path().join("outside");
+        std::fs::create_dir(&outside).unwrap();
+        std::fs::create_dir_all(&state).unwrap();
+        std::os::unix::fs::symlink(&outside, state.join("journals")).unwrap();
+
+        let error = LockedModuleProject::acquire(project, &state)
+            .expect_err("a symlinked journals namespace should fail");
+
+        assert!(
+            error.to_string().contains("is not a regular directory"),
+            "unexpected error: {error}"
+        );
+        assert_eq!(
+            std::fs::read_dir(&outside).unwrap().count(),
+            0,
+            "outside directory should be untouched"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symlinked_locks_namespace() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("project");
+        let state = directory.path().join("state");
+        let project = test_project(&root);
+        let outside = directory.path().join("outside");
+        std::fs::create_dir(&outside).unwrap();
+        std::fs::create_dir_all(&state).unwrap();
+        std::os::unix::fs::symlink(&outside, state.join("locks")).unwrap();
+
+        let error = LockedModuleProject::acquire(project, &state)
+            .expect_err("a symlinked locks namespace should fail");
+
+        assert!(
+            error.to_string().contains("is not a regular directory"),
+            "unexpected error: {error}"
+        );
+        assert_eq!(
+            std::fs::read_dir(&outside).unwrap().count(),
+            0,
+            "outside directory should be untouched"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn rejects_symlinked_pending_journal() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("project");
+        let state = directory.path().join("state");
+        let project = test_project(&root);
+        let journal = journal_root(&state, &project_key(project.root()).unwrap());
+        let outside = directory.path().join("outside");
+        std::fs::create_dir(&outside).unwrap();
+        std::fs::write(outside.join("keep"), b"keep").unwrap();
+        std::fs::create_dir_all(&journal).unwrap();
+        std::os::unix::fs::symlink(&outside, journal.join(super::PENDING_DIRECTORY))
+            .unwrap();
+
+        let error = LockedModuleProject::acquire(project, &state)
+            .expect_err("a symlinked pending journal should fail");
+
+        assert!(
+            error.to_string().contains("is not a regular directory"),
+            "unexpected error: {error}"
+        );
+        assert_eq!(std::fs::read(outside.join("keep")).unwrap(), b"keep");
+        assert_eq!(
+            std::fs::read_dir(&outside).unwrap().count(),
+            1,
+            "outside target should be untouched"
+        );
+    }
+
+    #[test]
+    fn rejects_regular_file_pending_journal() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("project");
+        let state = directory.path().join("state");
+        let project = test_project(&root);
+        let journal = journal_root(&state, &project_key(project.root()).unwrap());
+        std::fs::create_dir_all(&journal).unwrap();
+        std::fs::write(journal.join(super::PENDING_DIRECTORY), b"tamper").unwrap();
+
+        let error = LockedModuleProject::acquire(project, &state)
+            .expect_err("a regular-file pending journal should fail");
+
+        assert!(
+            error.to_string().contains("is not a regular directory"),
+            "unexpected error: {error}"
+        );
+        assert!(journal.join(super::PENDING_DIRECTORY).is_file());
     }
 
     #[cfg(unix)]

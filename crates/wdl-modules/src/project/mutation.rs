@@ -110,13 +110,14 @@ impl LockedModuleProject {
         state_root: &Path,
     ) -> Result<Self, ProjectMutationError> {
         let key = project_key(project.root())?;
-        let lock_root = state_root.join("locks");
         let journal_root = journal_root(state_root, &key);
-        std::fs::create_dir_all(&lock_root).map_err(|source| ProjectMutationError::Io {
-            operation: "creating mutation lock directory",
-            path: lock_root.clone(),
+        std::fs::create_dir_all(state_root).map_err(|source| ProjectMutationError::Io {
+            operation: "creating mutation state directory",
+            path: state_root.to_path_buf(),
             source,
         })?;
+        let lock_root = state_root.join("locks");
+        transaction::ensure_managed_directory(&lock_root)?;
         let lock_path = lock_root.join(format!("{key}.lock"));
         let lock = OpenOptions::new()
             .create(true)
@@ -135,12 +136,8 @@ impl LockedModuleProject {
             source,
         })?;
         let journals_dir = state_root.join("journals");
-        std::fs::create_dir_all(&journals_dir).map_err(|source| ProjectMutationError::Io {
-            operation: "creating mutation journals directory",
-            path: journals_dir,
-            source,
-        })?;
-        transaction::ensure_journal_root(&journal_root)?;
+        transaction::ensure_managed_directory(&journals_dir)?;
+        transaction::ensure_managed_directory(&journal_root)?;
         transaction::remove_pending_directory(&journal_root)?;
         transaction::recover_active_mutation(&project, &journal_root)?;
         project.reload()?;
