@@ -170,10 +170,15 @@ impl Task {
     }
 
     /// Render the task as HTML.
-    pub fn render(&self, assets: &Path) -> (Markup, PageSections) {
+    pub fn render(
+        &self,
+        assets: &Path,
+        links: &PageLinkIndex,
+        page_dir: &Path,
+    ) -> (Markup, PageSections) {
         let mut headers = PageSections::default();
 
-        let (input_markup, inner_headers) = self.render_inputs(assets);
+        let (input_markup, inner_headers) = self.render_inputs(assets, links, page_dir);
         headers.extend(inner_headers);
 
         let mut hero = DeclarationHero::new("Task", self.name(), self.render_description(false))
@@ -196,7 +201,7 @@ impl Task {
                 }
             }
             (input_markup)
-            (self.render_outputs(assets))
+            (self.render_outputs(assets, links, page_dir))
             (self.render_runtime_section())
             (self.render_command_section())
         };

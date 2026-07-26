@@ -9,6 +9,7 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::v1::Decl;
 
+use crate::links::PageLinkIndex;
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::DefinitionMeta;
 use crate::meta::MaybeSummarized;
@@ -212,7 +213,11 @@ impl Parameter {
     }
 
     /// Render the parameter as HTML.
-    pub fn render(&self, assets: &Path) -> Markup {
+    ///
+    /// The parameter type is rendered through `links` so that references to
+    /// uniquely generated struct and enum pages become anchors relative to
+    /// `page_dir`.
+    pub fn render(&self, assets: &Path, links: &PageLinkIndex, page_dir: &Path) -> Markup {
         let show_expr = self.required() != Some(true);
         html! {
             div class="main__grid-row" x-data=(
@@ -222,7 +227,7 @@ impl Parameter {
                     code { (self.name()) }
                 }
                 div class="main__grid-cell" {
-                    code { (self.ty()) }
+                    (links.render_type(&self.ty(), page_dir))
                 }
                 @if show_expr {
                     div class="main__grid-cell" { (self.render_expr(true)) }
@@ -270,7 +275,12 @@ impl Parameter {
 /// treated as outputs), and the third column will be labeled "Expression". If
 /// it returns `Some(true)` or `Some(false)` for every parameter, they are all
 /// inputs and the third column will be labeled "Default".
-pub(crate) fn render_non_required_parameters_table<'a, I>(params: I, assets: &Path) -> Markup
+pub(crate) fn render_non_required_parameters_table<'a, I>(
+    params: I,
+    assets: &Path,
+    links: &PageLinkIndex,
+    page_dir: &Path,
+) -> Markup
 where
     I: Iterator<Item = &'a Parameter>,
 {
@@ -287,7 +297,7 @@ where
 
     let rows = params
         .iter()
-        .map(|param| param.render(assets).into_string())
+        .map(|param| param.render(assets, links, page_dir).into_string())
         .collect::<Vec<_>>()
         .join(&html! { div class="main__grid-row-separator" {} }.into_string());
 
@@ -302,5 +312,62 @@ where
                 (PreEscaped(rows))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+    use std::path::PathBuf;
+
+    use wdl_ast::Document;
+
+    use super::InputOutput;
+    use super::Parameter;
+    use crate::links::PageLinkIndex;
+    use crate::meta::MetaMap;
+
+    /// Parse the input declarations of the single workflow in `wdl` into
+    /// parameters with empty metadata.
+    fn input_parameters(wdl: &str) -> Vec<Parameter> {
+        let (doc, _) = Document::parse(wdl, None);
+        let item = doc.ast().into_v1().unwrap().items().next().unwrap();
+        let workflow = item.into_workflow_definition().unwrap();
+        workflow
+            .input()
+            .unwrap()
+            .declarations()
+            .map(|decl| Parameter::new(decl.clone(), MetaMap::default(), InputOutput::Input))
+            .collect()
+    }
+
+    #[test]
+    fn renders_struct_type_as_link() {
+        let params = input_parameters(
+            r#"
+            version 1.2
+            workflow w {
+                input {
+                    Sample sample
+                    Int count
+                }
+            }
+            "#,
+        );
+        let links = PageLinkIndex::from_pages([("Sample", PathBuf::from("Sample-struct.html"))]);
+
+        let sample = params.iter().find(|p| p.name() == "sample").unwrap();
+        let html = sample
+            .render(Path::new("assets"), &links, Path::new(""))
+            .into_string();
+        assert!(html.contains("href=\"Sample-struct.html\""));
+        assert!(html.contains(">Sample</a>"));
+
+        let count = params.iter().find(|p| p.name() == "count").unwrap();
+        let html = count
+            .render(Path::new("assets"), &links, Path::new(""))
+            .into_string();
+        assert!(!html.contains("href"));
+        assert!(html.contains("Int"));
     }
 }

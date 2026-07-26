@@ -64,4 +64,38 @@ Alpine.store('search', {
 });
 
 window.Alpine = Alpine;
+
+// Build the "on this page" navigation from the headings that are actually
+// rendered in the page content, preserving their order.
+function buildPageSections() {
+    const container = document.querySelector('[data-page-sections]');
+    if (!container) return;
+
+    container.replaceChildren();
+    const used = new Set();
+    for (const heading of document.querySelectorAll(
+        '.layout__main-center-content h2, .layout__main-center-content h3'
+    )) {
+        // Skip headings that are not rendered, such as the search results
+        // header that stays hidden while the search query is empty.
+        if (heading.getClientRects().length === 0) continue;
+
+        let id = heading.id || heading.textContent.trim().toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+        const base = id || 'section';
+        for (let suffix = 2; used.has(id); suffix += 1) id = `${base}-${suffix}`;
+        used.add(id);
+        heading.id = id;
+
+        const link = document.createElement('a');
+        link.href = `#${id}`;
+        link.textContent = heading.textContent.trim();
+        link.className = heading.tagName === 'H3'
+            ? 'right-sidebar__section-item'
+            : 'right-sidebar__section-header';
+        container.append(link);
+    }
+}
+
 Alpine.start();
+requestAnimationFrame(buildPageSections);

@@ -20,6 +20,7 @@ use wdl_ast::v1::OutputSection;
 use crate::VersionBadge;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
+use crate::links::PageLinkIndex;
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
@@ -145,12 +146,17 @@ pub(crate) trait Runnable: DefinitionMeta {
     }
 
     /// Render the required inputs of the runnable if present.
-    fn render_required_inputs(&self, assets: &Path) -> Option<Markup> {
+    fn render_required_inputs(
+        &self,
+        assets: &Path,
+        links: &PageLinkIndex,
+        page_dir: &Path,
+    ) -> Option<Markup> {
         let mut iter = self.required_inputs().peekable();
         iter.peek()?;
 
         let rows = iter
-            .map(|param| param.render(assets).into_string())
+            .map(|param| param.render(assets, links, page_dir).into_string())
             .collect::<Vec<_>>()
             .join(&html! { div class="main__grid-row-separator" {} }.into_string());
 
@@ -172,14 +178,19 @@ pub(crate) trait Runnable: DefinitionMeta {
     ///
     /// This will render each group with a subheader and a table
     /// of parameters that are part of that group.
-    fn render_group_inputs(&self, assets: &Path) -> Option<Markup> {
+    fn render_group_inputs(
+        &self,
+        assets: &Path,
+        links: &PageLinkIndex,
+        page_dir: &Path,
+    ) -> Option<Markup> {
         let mut group_tables = self
             .input_groups()
             .into_iter()
             .map(|group| {
                 html! {
                     h3 id=(group.id()) class="main__section-subheader" { (group.display_name()) }
-                    (render_non_required_parameters_table(self.inputs_in_group(&group), assets))
+                    (render_non_required_parameters_table(self.inputs_in_group(&group), assets, links, page_dir))
                 }
             })
             .peekable();
@@ -194,29 +205,39 @@ pub(crate) trait Runnable: DefinitionMeta {
 
     /// Render the inputs that are neither required nor part of a group if
     /// present.
-    fn render_other_inputs(&self, assets: &Path) -> Option<Markup> {
+    fn render_other_inputs(
+        &self,
+        assets: &Path,
+        links: &PageLinkIndex,
+        page_dir: &Path,
+    ) -> Option<Markup> {
         let mut iter = self.other_inputs().peekable();
         iter.peek()?;
 
         Some(html! {
             h3 id="other-inputs" class="main__section-subheader" { "Other Inputs" }
-            (render_non_required_parameters_table(iter, assets))
+            (render_non_required_parameters_table(iter, assets, links, page_dir))
         })
     }
 
     /// Render the inputs of the runnable.
-    fn render_inputs(&self, assets: &Path) -> (Markup, PageSections) {
+    fn render_inputs(
+        &self,
+        assets: &Path,
+        links: &PageLinkIndex,
+        page_dir: &Path,
+    ) -> (Markup, PageSections) {
         let mut inner_markup = Vec::new();
         let mut headers = PageSections::default();
         headers.push(Header::Header("Inputs".to_string(), "inputs".to_string()));
-        if let Some(req) = self.render_required_inputs(assets) {
+        if let Some(req) = self.render_required_inputs(assets, links, page_dir) {
             inner_markup.push(req);
             headers.push(Header::SubHeader(
                 "Required Inputs".to_string(),
                 "required-inputs".to_string(),
             ));
         }
-        if let Some(group) = self.render_group_inputs(assets) {
+        if let Some(group) = self.render_group_inputs(assets, links, page_dir) {
             inner_markup.push(group);
             for group in self.input_groups() {
                 headers.push(Header::SubHeader(
@@ -225,7 +246,7 @@ pub(crate) trait Runnable: DefinitionMeta {
                 ));
             }
         }
-        if let Some(other) = self.render_other_inputs(assets) {
+        if let Some(other) = self.render_other_inputs(assets, links, page_dir) {
             inner_markup.push(other);
             headers.push(Header::SubHeader(
                 "Other Inputs".to_string(),
@@ -245,11 +266,11 @@ pub(crate) trait Runnable: DefinitionMeta {
     }
 
     /// Render the outputs of the runnable.
-    fn render_outputs(&self, assets: &Path) -> Markup {
+    fn render_outputs(&self, assets: &Path, links: &PageLinkIndex, page_dir: &Path) -> Markup {
         html! {
             div class="main__section" {
                 h2 id="outputs" class="main__section-header" { "Outputs" }
-                (render_non_required_parameters_table(self.outputs().iter(), assets))
+                (render_non_required_parameters_table(self.outputs().iter(), assets, links, page_dir))
             }
         }
     }

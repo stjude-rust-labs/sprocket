@@ -27,6 +27,7 @@ use crate::error::DocResult;
 use crate::error::ResultContextExt;
 use crate::full_page;
 use crate::get_assets;
+use crate::links::PageLinkIndex;
 use crate::r#struct::Struct;
 use crate::task::Task;
 use crate::workflow::Workflow;
@@ -1162,7 +1163,9 @@ impl DocsTree {
                 div class="right-sidebar__header" {
                     "ON THIS PAGE"
                 }
-                (headers.render())
+                nav id="page-sections" data-page-sections {
+                    (headers.render())
+                }
                 div class="right-sidebar__back-to-top-container" {
                     // TODO: this should be a link to the top of the page, not just a link to the title
                     a href="#title" class="right-sidebar__back-to-top" {
@@ -1252,13 +1255,16 @@ impl DocsTree {
     /// Render every page in the tree.
     pub fn render_all(&self) -> DocResult<()> {
         let root = self.root();
+        let links = self.build_link_index();
 
         for node in root.depth_first_traversal() {
             if let Some(page) = node.page() {
-                self.write_page(page.as_ref(), self.root_abs_path().join(node.path()))
-                    .with_context(|| {
-                        format!("failed to write page at `{}`", node.path().display())
-                    })?;
+                self.write_page(
+                    page.as_ref(),
+                    self.root_abs_path().join(node.path()),
+                    &links,
+                )
+                .with_context(|| format!("failed to write page at `{}`", node.path().display()))?;
             }
         }
 
@@ -1590,19 +1596,54 @@ impl DocsTree {
         }
     }
 
+    /// Build an index of uniquely named generated struct and enum pages.
+    ///
+    /// Struct and enum page names that resolve to more than one page are
+    /// excluded so that ambiguous type references remain plain text. Paths are
+    /// stored relative to the docs root.
+    fn build_link_index(&self) -> PageLinkIndex {
+        let pages = self
+            .root()
+            .depth_first_traversal()
+            .into_iter()
+            .filter_map(|node| {
+                let page = node.page()?;
+                match page.page_type() {
+                    PageType::Struct(_) | PageType::Enum(_) => {
+                        Some((page.name().to_string(), node.path().clone()))
+                    }
+                    _ => None,
+                }
+            });
+
+        PageLinkIndex::from_pages(pages)
+    }
+
     /// Write a page to disk at the designated path.
     ///
     /// Path is expected to be an absolute path.
-    fn write_page<P: Into<PathBuf>>(&self, page: &HTMLPage, path: P) -> DocResult<()> {
+    fn write_page<P: Into<PathBuf>>(
+        &self,
+        page: &HTMLPage,
+        path: P,
+        links: &PageLinkIndex,
+    ) -> DocResult<()> {
         let path = path.into();
         let base = path.parent().expect("path should have a parent");
 
+        let page_dir = path
+            .strip_prefix(self.root_abs_path())
+            .ok()
+            .and_then(Path::parent)
+            .map(Path::to_path_buf)
+            .unwrap_or_default();
+
         let (content, headers) = match page.page_type() {
             PageType::Index(doc) => doc.render(),
-            PageType::Struct(s) => s.render(&self.assets_relative_to(base)),
+            PageType::Struct(s) => s.render(&self.assets_relative_to(base), links, &page_dir),
             PageType::Enum(e) => e.render(&self.assets_relative_to(base)),
-            PageType::Task(t) => t.render(&self.assets_relative_to(base)),
-            PageType::Workflow(w) => w.render(&self.assets_relative_to(base)),
+            PageType::Task(t) => t.render(&self.assets_relative_to(base), links, &page_dir),
+            PageType::Workflow(w) => w.render(&self.assets_relative_to(base), links, &page_dir),
         };
 
         let breadcrumbs = self.render_breadcrumbs(&path);

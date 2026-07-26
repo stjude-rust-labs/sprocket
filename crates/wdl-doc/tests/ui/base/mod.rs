@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use crate::UiTest;
 
+mod page_navigation;
 mod search;
 mod search_invalid;
 mod toggle_theme;
@@ -15,6 +16,7 @@ pub fn all_tests() -> HashMap<&'static str, Arc<dyn UiTest>> {
         Arc::new(toggle_theme::ToggleTheme),
         Arc::new(search::Search),
         Arc::new(search_invalid::SearchInvalid),
+        Arc::new(page_navigation::PageNavigation),
     ];
 
     tests.into_iter().map(|test| (test.name(), test)).collect()

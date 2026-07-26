@@ -15,6 +15,7 @@ mod docs_tree;
 mod document;
 mod r#enum;
 pub mod error;
+mod links;
 mod meta;
 mod page;
 mod parameter;

@@ -177,10 +177,15 @@ impl Workflow {
     }
 
     /// Render the workflow as HTML.
-    pub fn render(&self, assets: &Path) -> (Markup, PageSections) {
+    pub fn render(
+        &self,
+        assets: &Path,
+        links: &PageLinkIndex,
+        page_dir: &Path,
+    ) -> (Markup, PageSections) {
         let mut headers = PageSections::default();
 
-        let (input_markup, inner_headers) = self.render_inputs(assets);
+        let (input_markup, inner_headers) = self.render_inputs(assets, links, page_dir);
 
         headers.extend(inner_headers);
 
@@ -210,7 +215,7 @@ impl Workflow {
                 }
             }
             (input_markup)
-            (self.render_outputs(assets))
+            (self.render_outputs(assets, links, page_dir))
         };
 
         headers.push(Header::Header("Outputs".to_string(), "outputs".to_string()));
