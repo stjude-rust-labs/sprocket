@@ -204,7 +204,7 @@ pub(super) fn recover_active_mutation(
 #[cfg(test)]
 thread_local! {
     static FAIL_MANIFEST_RESTORE: std::cell::RefCell<Option<PathBuf>> =
-        std::cell::RefCell::new(None);
+        const { std::cell::RefCell::new(None) };
 }
 
 #[cfg(test)]
@@ -236,10 +236,7 @@ fn maybe_fail_manifest_restore(path: &Path) -> Result<(), ProjectMutationError> 
         return Err(ProjectMutationError::Io {
             operation: "restoring",
             path: path.to_path_buf(),
-            source: std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "injected manifest restore failure",
-            ),
+            source: std::io::Error::other("injected manifest restore failure"),
         });
     }
     Ok(())
