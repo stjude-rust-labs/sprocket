@@ -1,6 +1,19 @@
-//! Module project loading and upward discovery.
+//! Module project loading, upward discovery, and paired persistence.
+//!
+//! [`ModuleProject`] loads an exact `module.json` path and remembers the
+//! sibling `module-lock.json` path beside it. [`ModuleProject::discover`]
+//! walks upward from a caller-supplied start path until it finds `module.json`
+//! or reaches a `.git` boundary, so project discovery returns `Ok(None)` when
+//! no ancestor project exists. [`ManifestDocument`] preserves unknown manifest
+//! extension fields while revalidating each edit immediately. When callers
+//! need to write the manifest and lockfile together, [`LockedModuleProject`]
+//! blocks on a global lock under a caller-rooted state directory, keeps
+//! recovery journals there, and writes no mutation state inside the project
+//! itself.
 
+/// Lossless `module.json` document editing helpers.
 mod document;
+/// Caller-rooted locking and paired persistence helpers.
 mod mutation;
 
 use std::path::Path;
@@ -17,33 +30,33 @@ use crate::Lockfile;
 use crate::Manifest;
 use crate::lockfile::LockfileError;
 
-/// An error loading or discovering a module project.
+/// An error loading, discovering, or reloading a module project.
 #[derive(Debug, Error)]
 pub enum ProjectError {
-    /// Reading a project file from disk failed.
+    /// Reading or inspecting a project file on disk failed.
     #[error("i/o error at `{path}`")]
     Io {
-        /// The path that failed.
+        /// The manifest candidate or sibling project path that failed.
         path: PathBuf,
         /// The underlying I/O error.
         #[source]
         source: std::io::Error,
     },
 
-    /// The manifest bytes were not a valid module manifest document.
+    /// The bytes at `path` were not a valid `module.json` document.
     #[error("invalid module manifest at `{path}`")]
     Manifest {
-        /// The manifest path.
+        /// The exact `module.json` path that failed validation.
         path: PathBuf,
         /// The underlying manifest-document error.
         #[source]
         source: ManifestDocumentError,
     },
 
-    /// The lockfile bytes were not a valid module lockfile.
+    /// The bytes at `path` were not a valid `module-lock.json` document.
     #[error("invalid module lockfile at `{path}`")]
     Lockfile {
-        /// The lockfile path.
+        /// The sibling `module-lock.json` path that failed validation.
         path: PathBuf,
         /// The underlying lockfile error.
         #[source]
@@ -51,17 +64,29 @@ pub enum ProjectError {
     },
 }
 
-/// A loaded module project rooted at a `module.json` manifest.
+/// A loaded module project rooted at an exact `module.json` path.
+///
+/// The project keeps the caller-selected manifest path, exposes the sibling
+/// `module-lock.json` path even when the lockfile is absent, and keeps the
+/// manifest in a lossless [`ManifestDocument`] so extension fields survive
+/// future edits.
 #[derive(Clone, Debug)]
 pub struct ModuleProject {
+    /// Directory containing the loaded `module.json`.
     root: PathBuf,
+    /// Exact `module.json` path used for loads and reloads.
     manifest_path: PathBuf,
+    /// Sibling `module-lock.json` path beside `manifest_path`.
     lockfile_path: PathBuf,
+    /// Lossless in-memory `module.json` document for this project.
     document: ManifestDocument,
 }
 
 impl ModuleProject {
     /// Loads a project from the exact `module.json` path.
+    ///
+    /// The returned value reloads this same path on later reads and derives
+    /// the sibling `module-lock.json` path beside it.
     pub fn load(path: impl Into<PathBuf>) -> Result<Self, ProjectError> {
         let manifest_path = path.into();
         let bytes = std::fs::read(&manifest_path).map_err(|source| ProjectError::Io {
@@ -88,7 +113,9 @@ impl ModuleProject {
 
     /// Discovers the nearest ancestor project starting from `start`.
     ///
-    /// Discovery stops at the first `.git` directory boundary.
+    /// This walks each ancestor directory, checking for `module.json`, and
+    /// stops at the first `.git` directory boundary. It returns `Ok(None)`
+    /// when no ancestor project exists before that boundary.
     pub fn discover(start: &Path) -> Result<Option<Self>, ProjectError> {
         for directory in start.ancestors() {
             let manifest_path = directory.join(crate::MANIFEST_FILENAME);
@@ -109,38 +136,44 @@ impl ModuleProject {
         Ok(None)
     }
 
-    /// Returns the project root directory.
+    /// Returns the directory containing the loaded `module.json`.
     pub fn root(&self) -> &Path {
         &self.root
     }
 
-    /// Returns the exact manifest path that loaded this project.
+    /// Returns the exact `module.json` path that loaded this project.
     pub fn manifest_path(&self) -> &Path {
         &self.manifest_path
     }
 
-    /// Returns the sibling lockfile path for this project.
+    /// Returns the sibling `module-lock.json` path for this project.
+    ///
+    /// The path is stable even when no lockfile exists yet.
     pub fn lockfile_path(&self) -> &Path {
         &self.lockfile_path
     }
 
-    /// Returns the lossless manifest document.
+    /// Returns the lossless `module.json` document loaded from
+    /// [`Self::manifest_path`].
     pub fn document(&self) -> &ManifestDocument {
         &self.document
     }
 
-    /// Returns the validated manifest view of the current document.
+    /// Returns the validated manifest view of the current `module.json`
+    /// document.
     pub fn manifest(&self) -> &Manifest {
         self.document.manifest()
     }
 
-    /// Reloads the manifest document from disk, preserving all other fields.
+    /// Reloads the exact `module.json` path from disk.
+    ///
+    /// This keeps the same project root and sibling lockfile path while
+    /// replacing the in-memory manifest document with the latest bytes.
     pub fn reload(&mut self) -> Result<(), ProjectError> {
-        let bytes =
-            std::fs::read(&self.manifest_path).map_err(|source| ProjectError::Io {
-                path: self.manifest_path.clone(),
-                source,
-            })?;
+        let bytes = std::fs::read(&self.manifest_path).map_err(|source| ProjectError::Io {
+            path: self.manifest_path.clone(),
+            source,
+        })?;
         self.document =
             ManifestDocument::parse(&bytes).map_err(|source| ProjectError::Manifest {
                 path: self.manifest_path.clone(),
@@ -150,6 +183,8 @@ impl ModuleProject {
     }
 
     /// Loads the sibling `module-lock.json` when it exists.
+    ///
+    /// This returns `Ok(None)` when the sibling lockfile path is absent.
     pub fn load_lockfile(&self) -> Result<Option<Lockfile>, ProjectError> {
         let bytes = match std::fs::read(&self.lockfile_path) {
             Ok(bytes) => bytes,

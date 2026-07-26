@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 * Added `GitSelector::kind` for stable selector-kind labels
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* Added `ModuleProject`, `ManifestDocument`, and crash-safe project mutation
+  APIs, plus trust-store helpers for accepting lockfile signers
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 
 #### Changed
 

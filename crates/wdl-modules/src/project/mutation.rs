@@ -16,22 +16,27 @@ use super::ProjectError;
 use crate::Lockfile;
 
 /// A non-empty update applied atomically to a module project.
+///
+/// Each variant selects which project file paths
+/// [`LockedModuleProject::commit`] rewrites under one recovery journal.
 #[derive(Clone, Copy, Debug)]
 pub enum ProjectUpdate<'a> {
-    /// Rewrite only the manifest.
+    /// Rewrite only the project's `module.json`.
     Manifest(&'a ManifestDocument),
-    /// Rewrite only the lockfile.
+    /// Rewrite only the project's `module-lock.json`.
     Lockfile(&'a Lockfile),
-    /// Rewrite both the manifest and the lockfile.
+    /// Rewrite both the project's `module.json` and `module-lock.json`.
     Both {
-        /// The updated manifest document.
+        /// The updated manifest document to write to
+        /// [`ModuleProject::manifest_path`].
         manifest: &'a ManifestDocument,
-        /// The updated lockfile.
+        /// The updated lockfile to write to [`ModuleProject::lockfile_path`].
         lockfile: &'a Lockfile,
     },
 }
 
 impl<'a> ProjectUpdate<'a> {
+    /// Returns the manifest document included in this update, if any.
     fn manifest(self) -> Option<&'a ManifestDocument> {
         match self {
             Self::Manifest(manifest) | Self::Both { manifest, .. } => Some(manifest),
@@ -39,6 +44,7 @@ impl<'a> ProjectUpdate<'a> {
         }
     }
 
+    /// Returns the lockfile included in this update, if any.
     fn lockfile(self) -> Option<&'a Lockfile> {
         match self {
             Self::Lockfile(lockfile) | Self::Both { lockfile, .. } => Some(lockfile),
@@ -50,13 +56,14 @@ impl<'a> ProjectUpdate<'a> {
 /// An error applying a mutation to a module project.
 #[derive(Debug, Error)]
 pub enum ProjectMutationError {
-    /// A project operation failed.
+    /// Loading, reloading, or recovering a project path failed.
     #[error("project error")]
     Project(#[from] ProjectError),
-    /// The manifest document could not be serialized.
+    /// The proposed `module.json` update could not be serialized.
     #[error("invalid manifest update")]
     Manifest(#[from] ManifestDocumentError),
-    /// An i/o operation failed.
+    /// An I/O operation on a project file, lock path, or recovery journal
+    /// failed.
     #[error("{operation} `{path}`")]
     Io {
         /// A short description of the failing operation.
@@ -67,7 +74,8 @@ pub enum ProjectMutationError {
         #[source]
         source: std::io::Error,
     },
-    /// A project or journal path was not the expected kind of filesystem entry.
+    /// A project or journal path was not the expected kind of filesystem
+    /// entry.
     #[error("project path `{path}` is not a regular {expected}")]
     InvalidPath {
         /// The offending path.
@@ -75,16 +83,16 @@ pub enum ProjectMutationError {
         /// The kind of entry that was expected.
         expected: &'static str,
     },
-    /// The mutation failed and the rollback also failed.
+    /// The mutation failed and rolling both project files back also failed.
     #[error(
-        "rolling back the interrupted module project mutation after {source} also failed; \
-         inspect manifest `{manifest_path}` and lockfile `{lockfile_path}` \
-         for manual recovery; rollback: {rollback}"
+        "rolling back the interrupted module project mutation after {source} also failed; inspect \
+         manifest `{manifest_path}` and lockfile `{lockfile_path}` for manual recovery; rollback: \
+         {rollback}"
     )]
     Rollback {
-        /// The manifest path that may need manual recovery.
+        /// The `module.json` path that may need manual recovery.
         manifest_path: PathBuf,
-        /// The lockfile path that may need manual recovery.
+        /// The `module-lock.json` path that may need manual recovery.
         lockfile_path: PathBuf,
         /// The original mutation error.
         #[source]
@@ -95,16 +103,28 @@ pub enum ProjectMutationError {
 }
 
 /// A module project held under its exclusive global mutation lock.
+///
+/// The lock file and recovery journals live under a caller-supplied state
+/// root, not inside the module project. Acquiring the lock blocks until the
+/// current holder releases it.
 #[derive(Debug)]
 pub struct LockedModuleProject {
+    /// Refreshed project snapshot protected by the global mutation lock.
     project: ModuleProject,
+    /// Caller-rooted journal directory for this project key.
     journal_root: PathBuf,
+    /// Open lock file handle that keeps the operating-system lock alive.
     _lock: File,
 }
 
 impl LockedModuleProject {
-    /// Acquires the project mutation lock, recovers any interrupted work,
-    /// then reloads the manifest document under the lock.
+    /// Acquires the project mutation lock under `state_root`.
+    ///
+    /// This blocks on the per-project global lock in `<state_root>/locks`,
+    /// removes incomplete journals in `<state_root>/journals`, recovers or
+    /// rolls back any interrupted paired write there, and then reloads the
+    /// exact `module.json` path under the lock. The module project directory
+    /// itself receives no mutation state.
     pub fn acquire(
         mut project: ModuleProject,
         state_root: &Path,
@@ -150,27 +170,40 @@ impl LockedModuleProject {
     }
 
     /// Returns the refreshed project snapshot held under this lock.
+    ///
+    /// The snapshot reflects any recovery performed during [`Self::acquire`].
     pub fn project(&self) -> &ModuleProject {
         &self.project
     }
 
     /// Atomically applies the update to the project on disk.
+    ///
+    /// This eagerly validates every serialized output before it creates a
+    /// recovery journal, snapshots both project files under `state_root`, and
+    /// then writes the selected paths. If any write fails, it restores both
+    /// `module.json` and `module-lock.json` together. If rollback also fails,
+    /// [`ProjectMutationError::Rollback`] reports both paths for manual
+    /// recovery.
     pub fn commit(&self, update: ProjectUpdate<'_>) -> Result<(), ProjectMutationError> {
         transaction::commit(&self.project, &self.journal_root, update)
     }
 }
 
+/// Derives the stable lock and journal key for one project root.
 fn project_key(root: &Path) -> Result<String, ProjectMutationError> {
-    let canonical = root.canonicalize().map_err(|source| ProjectMutationError::Io {
-        operation: "canonicalizing module root",
-        path: root.to_path_buf(),
-        source,
-    })?;
+    let canonical = root
+        .canonicalize()
+        .map_err(|source| ProjectMutationError::Io {
+            operation: "canonicalizing module root",
+            path: root.to_path_buf(),
+            source,
+        })?;
     Ok(hex::encode(Sha256::digest(
         canonical.as_os_str().as_encoded_bytes(),
     )))
 }
 
+/// Returns the caller-rooted journal directory for one project key.
 fn journal_root(state_root: &Path, project_key: &str) -> PathBuf {
     state_root.join("journals").join(project_key)
 }
@@ -242,7 +275,10 @@ mod tests {
 
         assert!(receiver.recv_timeout(Duration::from_millis(100)).is_err());
         drop(first);
-        receiver.recv_timeout(Duration::from_secs(5)).unwrap().unwrap();
+        receiver
+            .recv_timeout(Duration::from_secs(5))
+            .unwrap()
+            .unwrap();
         thread.join().unwrap();
     }
 
@@ -254,8 +290,7 @@ mod tests {
         let project = project(&root);
         let alias = directory.path().join("alias");
         std::os::unix::fs::symlink(&root, &alias).unwrap();
-        let alias_project =
-            ModuleProject::load(alias.join(crate::MANIFEST_FILENAME)).unwrap();
+        let alias_project = ModuleProject::load(alias.join(crate::MANIFEST_FILENAME)).unwrap();
 
         assert_eq!(
             project_key(project.root()).unwrap(),

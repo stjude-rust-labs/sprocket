@@ -21,9 +21,13 @@ const PENDING_DIRECTORY: &str = "pending";
 /// On-disk snapshots used to recover a project mutation.
 #[derive(Debug)]
 pub(super) struct ProjectTransaction {
+    /// Per-project journal root under the caller-rooted state directory.
     journal_root: PathBuf,
+    /// Active journal directory holding the paired snapshots.
     active: PathBuf,
+    /// Exact `module.json` path being protected by this transaction.
     manifest_path: PathBuf,
+    /// Exact `module-lock.json` path being protected by this transaction.
     lockfile_path: PathBuf,
 }
 
@@ -193,9 +197,7 @@ pub(super) fn inspect_journal_root(path: &Path) -> Result<bool, ProjectMutationE
 /// A tampered pending path that is a symlink or non-directory is rejected as
 /// `InvalidPath` and left untouched; only a real leftover pending directory is
 /// removed as the intended incomplete journal.
-pub(super) fn remove_pending_directory(
-    journal_root: &Path,
-) -> Result<(), ProjectMutationError> {
+pub(super) fn remove_pending_directory(journal_root: &Path) -> Result<(), ProjectMutationError> {
     remove_directory_if_present(&journal_root.join(PENDING_DIRECTORY))
 }
 
@@ -259,9 +261,8 @@ fn fail_manifest_restore_for_test(path: &Path) -> ManifestRestoreFailureGuard {
 
 #[cfg(test)]
 fn maybe_fail_manifest_restore(path: &Path) -> Result<(), ProjectMutationError> {
-    let should_fail = FAIL_MANIFEST_RESTORE.with(|configured| {
-        configured.borrow().as_deref() == Some(path)
-    });
+    let should_fail =
+        FAIL_MANIFEST_RESTORE.with(|configured| configured.borrow().as_deref() == Some(path));
     if should_fail {
         return Err(ProjectMutationError::Io {
             operation: "restoring",
@@ -340,11 +341,12 @@ fn write_manifest_atomically(
             path: directory.to_path_buf(),
             source,
         })?;
-    temp.write_all(&bytes).map_err(|source| ProjectMutationError::Io {
-        operation: "writing",
-        path: temp.path().to_path_buf(),
-        source,
-    })?;
+    temp.write_all(&bytes)
+        .map_err(|source| ProjectMutationError::Io {
+            operation: "writing",
+            path: temp.path().to_path_buf(),
+            source,
+        })?;
     align_temp_permissions(&temp, path)?;
     temp.persist(path).map_err(|e| ProjectMutationError::Io {
         operation: "replacing",
@@ -355,10 +357,7 @@ fn write_manifest_atomically(
 }
 
 /// Writes the lockfile to `path` atomically.
-fn write_lockfile_atomically(
-    path: &Path,
-    lockfile: &Lockfile,
-) -> Result<(), ProjectMutationError> {
+fn write_lockfile_atomically(path: &Path, lockfile: &Lockfile) -> Result<(), ProjectMutationError> {
     let directory = path.parent().unwrap_or_else(|| Path::new("."));
     let mut temp =
         tempfile::NamedTempFile::new_in(directory).map_err(|source| ProjectMutationError::Io {
@@ -366,11 +365,13 @@ fn write_lockfile_atomically(
             path: directory.to_path_buf(),
             source,
         })?;
-    lockfile.write(&mut temp).map_err(|source| ProjectMutationError::Io {
-        operation: "writing",
-        path: temp.path().to_path_buf(),
-        source,
-    })?;
+    lockfile
+        .write(&mut temp)
+        .map_err(|source| ProjectMutationError::Io {
+            operation: "writing",
+            path: temp.path().to_path_buf(),
+            source,
+        })?;
     align_temp_permissions(&temp, path)?;
     temp.persist(path).map_err(|e| ProjectMutationError::Io {
         operation: "replacing",
@@ -411,12 +412,9 @@ fn align_temp_permissions(
     Ok(())
 }
 
-/// Saves one file as `<label>.before` or records its absence as `<label>.absent`.
-fn snapshot_file(
-    journal: &Path,
-    label: &str,
-    path: &Path,
-) -> Result<(), ProjectMutationError> {
+/// Saves one file as `<label>.before` or records its absence as
+/// `<label>.absent`.
+fn snapshot_file(journal: &Path, label: &str, path: &Path) -> Result<(), ProjectMutationError> {
     match std::fs::symlink_metadata(path) {
         Ok(metadata) if !metadata.is_file() || metadata.file_type().is_symlink() => {
             return Err(ProjectMutationError::InvalidPath {
@@ -437,30 +435,35 @@ fn snapshot_file(
                     path: snapshot.clone(),
                     source,
                 })?;
-            snapshot_file.write_all(&bytes).map_err(|source| ProjectMutationError::Io {
-                operation: "writing mutation snapshot",
-                path: snapshot.clone(),
-                source,
-            })?;
-            snapshot_file.sync_all().map_err(|source| ProjectMutationError::Io {
-                operation: "syncing mutation snapshot",
-                path: snapshot,
-                source,
-            })?;
+            snapshot_file
+                .write_all(&bytes)
+                .map_err(|source| ProjectMutationError::Io {
+                    operation: "writing mutation snapshot",
+                    path: snapshot.clone(),
+                    source,
+                })?;
+            snapshot_file
+                .sync_all()
+                .map_err(|source| ProjectMutationError::Io {
+                    operation: "syncing mutation snapshot",
+                    path: snapshot,
+                    source,
+                })?;
         }
         Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
             let marker = journal.join(format!("{label}.absent"));
-            let marker_file =
-                File::create(&marker).map_err(|source| ProjectMutationError::Io {
-                    operation: "writing mutation marker",
-                    path: marker.clone(),
-                    source,
-                })?;
-            marker_file.sync_all().map_err(|source| ProjectMutationError::Io {
-                operation: "syncing mutation marker",
-                path: marker,
+            let marker_file = File::create(&marker).map_err(|source| ProjectMutationError::Io {
+                operation: "writing mutation marker",
+                path: marker.clone(),
                 source,
             })?;
+            marker_file
+                .sync_all()
+                .map_err(|source| ProjectMutationError::Io {
+                    operation: "syncing mutation marker",
+                    path: marker,
+                    source,
+                })?;
         }
         Err(source) => {
             return Err(ProjectMutationError::Io {
@@ -475,22 +478,17 @@ fn snapshot_file(
 
 /// Restores one file from the journal snapshot at `<label>.before` or removes
 /// it when the journal records `<label>.absent`.
-fn restore_snapshot(
-    journal: &Path,
-    label: &str,
-    path: &Path,
-) -> Result<(), ProjectMutationError> {
+fn restore_snapshot(journal: &Path, label: &str, path: &Path) -> Result<(), ProjectMutationError> {
     let snapshot = journal.join(format!("{label}.before"));
     let absent = journal.join(format!("{label}.absent"));
 
     match std::fs::symlink_metadata(&snapshot) {
         Ok(metadata) if metadata.is_file() && !metadata.file_type().is_symlink() => {
-            let bytes =
-                std::fs::read(&snapshot).map_err(|source| ProjectMutationError::Io {
-                    operation: "reading mutation snapshot",
-                    path: snapshot.clone(),
-                    source,
-                })?;
+            let bytes = std::fs::read(&snapshot).map_err(|source| ProjectMutationError::Io {
+                operation: "reading mutation snapshot",
+                path: snapshot.clone(),
+                source,
+            })?;
             return write_bytes_atomically(path, &bytes);
         }
         Ok(_) => {
@@ -562,11 +560,12 @@ fn write_bytes_atomically(path: &Path, bytes: &[u8]) -> Result<(), ProjectMutati
             path: directory.to_path_buf(),
             source,
         })?;
-    temp.write_all(bytes).map_err(|source| ProjectMutationError::Io {
-        operation: "writing",
-        path: temp.path().to_path_buf(),
-        source,
-    })?;
+    temp.write_all(bytes)
+        .map_err(|source| ProjectMutationError::Io {
+            operation: "writing",
+            path: temp.path().to_path_buf(),
+            source,
+        })?;
     align_temp_permissions(&temp, path)?;
     temp.persist(path).map_err(|e| ProjectMutationError::Io {
         operation: "restoring",
@@ -631,12 +630,14 @@ fn sync_directory(_path: &Path) -> Result<(), ProjectMutationError> {
 mod tests {
     use std::path::Path;
 
-    use crate::Lockfile;
-    use crate::project::ModuleProject;
-
+    use super::super::LockedModuleProject;
+    use super::super::ProjectUpdate;
+    use super::super::journal_root;
+    use super::super::project_key;
     use super::ACTIVE_DIRECTORY;
     use super::ProjectTransaction;
-    use super::super::{LockedModuleProject, ProjectUpdate, journal_root, project_key};
+    use crate::Lockfile;
+    use crate::project::ModuleProject;
 
     fn test_project(root: &Path) -> ModuleProject {
         std::fs::create_dir_all(root).unwrap();
@@ -722,8 +723,7 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join(crate::MANIFEST_FILENAME);
         let document =
-            crate::project::ManifestDocument::parse(br#"{"name":"test","license":"MIT"}"#)
-                .unwrap();
+            crate::project::ManifestDocument::parse(br#"{"name":"test","license":"MIT"}"#).unwrap();
 
         super::write_manifest_atomically(&path, &document).unwrap();
 
@@ -740,8 +740,7 @@ mod tests {
         let state = directory.path().join("state");
         let project = test_project(&root);
         let manifest_path = project.manifest_path().to_path_buf();
-        std::fs::set_permissions(&manifest_path, std::fs::Permissions::from_mode(0o600))
-            .unwrap();
+        std::fs::set_permissions(&manifest_path, std::fs::Permissions::from_mode(0o600)).unwrap();
         let document = updated_document(&project);
 
         let locked = LockedModuleProject::acquire(project, &state).unwrap();
@@ -789,7 +788,10 @@ mod tests {
             })
             .unwrap_err();
 
-        assert!(matches!(error, super::super::ProjectMutationError::Rollback { .. }));
+        assert!(matches!(
+            error,
+            super::super::ProjectMutationError::Rollback { .. }
+        ));
         assert!(journal.join(ACTIVE_DIRECTORY).is_dir());
     }
 
@@ -908,8 +910,7 @@ mod tests {
         std::fs::create_dir(&outside).unwrap();
         std::fs::write(outside.join("keep"), b"keep").unwrap();
         std::fs::create_dir_all(&journal).unwrap();
-        std::os::unix::fs::symlink(&outside, journal.join(super::PENDING_DIRECTORY))
-            .unwrap();
+        std::os::unix::fs::symlink(&outside, journal.join(super::PENDING_DIRECTORY)).unwrap();
 
         let error = LockedModuleProject::acquire(project, &state)
             .expect_err("a symlinked pending journal should fail");

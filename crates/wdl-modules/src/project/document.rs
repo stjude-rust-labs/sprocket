@@ -5,14 +5,14 @@ use crate::dependency::DependencyName;
 use crate::dependency::DependencySource;
 use crate::manifest::ManifestError;
 
-/// An error parsing or editing a manifest document.
+/// An error parsing or editing a `module.json` document.
 #[derive(Debug, Error)]
 pub enum ManifestDocumentError {
-    /// The manifest bytes failed strict manifest validation.
+    /// The `module.json` bytes failed strict manifest validation.
     #[error("invalid module manifest")]
     Manifest(#[source] ManifestError),
 
-    /// The bytes failed JSON parsing or serialization.
+    /// The `module.json` bytes failed JSON parsing or serialization.
     #[error("invalid manifest JSON")]
     Json(#[source] serde_json::Error),
 
@@ -26,29 +26,75 @@ pub enum ManifestDocumentError {
 }
 
 /// A lossless `module.json` document paired with its validated manifest view.
+///
+/// This value stays in memory until a caller writes [`Self::to_bytes`] back to
+/// the exact `module.json` path chosen by [`super::ModuleProject`]. Each edit
+/// preserves unrelated extension fields and becomes visible only after the
+/// edited document reparses as a valid manifest.
+///
+/// ```rust
+/// use std::path::PathBuf;
+///
+/// use wdl_modules::dependency::DependencySource;
+/// use wdl_modules::project::ManifestDocument;
+///
+/// let mut document = ManifestDocument::parse(
+///     br#"{
+///   "name": "spellbook",
+///   "license": "MIT",
+///   "x-extra": { "kept": true }
+/// }"#,
+/// )?;
+///
+/// document.set_dependency(
+///     "helpers",
+///     &DependencySource::LocalPath {
+///         path: PathBuf::from("../helpers"),
+///         extra: serde_json::Map::new(),
+///     },
+/// )?;
+///
+/// let serialized = String::from_utf8(document.to_bytes()?)?;
+/// assert!(serialized.contains(r#""helpers""#));
+/// let dependency_name = "helpers".parse()?;
+/// assert_eq!(
+///     document.manifest().dependencies.get(&dependency_name),
+///     Some(&DependencySource::LocalPath {
+///         path: PathBuf::from("../helpers"),
+///         extra: serde_json::Map::new(),
+///     })
+/// );
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
 #[derive(Clone, Debug)]
 pub struct ManifestDocument {
+    /// Raw JSON value preserved for lossless editing of `module.json`.
     value: serde_json::Value,
+    /// Strictly validated manifest view derived from `value`.
     manifest: Manifest,
 }
 
 impl ManifestDocument {
-    /// Parses a manifest document from raw bytes.
+    /// Parses raw `module.json` bytes without discarding unknown extension
+    /// fields.
     pub fn parse(bytes: &[u8]) -> Result<Self, ManifestDocumentError> {
         let manifest = Manifest::parse(bytes).map_err(ManifestDocumentError::Manifest)?;
         let value = serde_json::from_slice(bytes).map_err(ManifestDocumentError::Json)?;
         Ok(Self { value, manifest })
     }
 
-    /// Returns the validated manifest view.
+    /// Returns the validated manifest view for the latest accepted
+    /// `module.json` bytes.
     pub fn manifest(&self) -> &Manifest {
         &self.manifest
     }
 
-    /// Sets or replaces a dependency while preserving unrelated fields.
+    /// Sets or replaces one dependency entry in `module.json`.
     ///
-    /// The in-memory document changes only after the edited result re-parses
-    /// as a valid manifest.
+    /// Unrelated manifest fields and dependency extension fields stay intact.
+    /// The in-memory document changes only after the edited result reparses as
+    /// a valid manifest, so failed edits leave both the document bytes and the
+    /// validated view unchanged.
     pub fn set_dependency(
         &mut self,
         name: &str,
@@ -77,9 +123,11 @@ impl ManifestDocument {
         self.replace_validated(value)
     }
 
-    /// Removes a dependency when present.
+    /// Removes a dependency from `module.json` when present.
     ///
-    /// Returns `true` when a dependency was removed.
+    /// Returns `true` when a dependency was removed. Removal still reparses
+    /// the whole document before it becomes visible, so failed edits leave the
+    /// document unchanged.
     pub fn remove_dependency(&mut self, name: &str) -> Result<bool, ManifestDocumentError> {
         let name = Self::parse_dependency_name(name)?;
         let mut value = self.value.clone();
@@ -103,7 +151,8 @@ impl ManifestDocument {
         Ok(removed)
     }
 
-    /// Serializes the document as pretty-printed JSON with a trailing newline.
+    /// Serializes the current document as pretty-printed `module.json` bytes
+    /// with a trailing newline.
     pub fn to_bytes(&self) -> Result<Vec<u8>, ManifestDocumentError> {
         let mut bytes =
             serde_json::to_vec_pretty(&self.value).map_err(ManifestDocumentError::Json)?;
@@ -111,6 +160,7 @@ impl ManifestDocument {
         Ok(bytes)
     }
 
+    /// Replaces the stored JSON value after revalidating the full document.
     fn replace_validated(&mut self, value: serde_json::Value) -> Result<(), ManifestDocumentError> {
         let mut bytes = serde_json::to_vec_pretty(&value).map_err(ManifestDocumentError::Json)?;
         bytes.push(b'\n');
@@ -120,12 +170,14 @@ impl ManifestDocument {
         Ok(())
     }
 
+    /// Parses one dependency key with manifest validation rules.
     fn parse_dependency_name(name: &str) -> Result<DependencyName, ManifestDocumentError> {
         name.parse().map_err(|_| {
             ManifestDocumentError::Manifest(ManifestError::InvalidDependencyName(name.to_string()))
         })
     }
 
+    /// Finds the stored dependency key that matches `name`.
     fn matching_dependency_key(&self, name: &DependencyName) -> Option<&str> {
         self.manifest
             .dependencies

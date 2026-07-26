@@ -1,4 +1,8 @@
 //! User-level trust store at `<config>/sprocket/modules-trust.toml`.
+//!
+//! This state lives outside any module project. Callers choose the config path
+//! to read or write, and lockfile signer acceptance never writes inside the
+//! project tree.
 
 use std::io::Write as _;
 use std::path::Path;
@@ -13,7 +17,7 @@ use crate::lockfile::Lockfile;
 use crate::signing::SignerIdentity;
 use crate::signing::VerifyingKey;
 
-/// An error reading or writing the trust store.
+/// An error reading or writing the user-level trust store.
 #[derive(Debug, Error)]
 pub enum TrustStoreError {
     /// I/O error.
@@ -52,18 +56,24 @@ pub enum TrustStoreError {
 }
 
 /// The user-level trust store loaded from `modules-trust.toml`.
+///
+/// This file is separate from `module.json` and `module-lock.json`, so trusted
+/// signer state remains outside the project tree.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Toml)]
 #[toml(Toml)]
 pub struct TrustStore {
-    /// The globally trusted signer public keys.
+    /// The globally trusted signer public keys stored in
+    /// `modules-trust.toml`.
     #[toml(default, rename = "trust", skip_if = Vec::is_empty)]
     pub keys: Vec<VerifyingKey>,
-    /// Optional signer identity metadata keyed by public key.
+    /// Optional signer identity metadata keyed by public key in the same
+    /// trust-store file.
     #[toml(default, rename = "identity", skip_if = Vec::is_empty)]
     pub identities: Vec<TrustedIdentity>,
 }
 
-/// Optional human metadata associated with a trusted key.
+/// Optional human metadata associated with one trusted key in the user-level
+/// trust store.
 #[derive(Clone, Debug, Eq, PartialEq, Toml)]
 #[toml(Toml)]
 pub struct TrustedIdentity {
@@ -81,8 +91,9 @@ pub struct TrustedIdentity {
 }
 
 impl TrustStore {
-    /// Reads the trust store from `path`, or returns the default (empty)
-    /// store if the file does not exist.
+    /// Reads the trust store from `path`.
+    ///
+    /// This returns the default empty store when `path` does not exist.
     pub fn load_or_default(path: &Path) -> Result<Self, TrustStoreError> {
         let bytes = match std::fs::read(path) {
             Ok(b) => b,
@@ -141,12 +152,12 @@ impl TrustStore {
         Ok(())
     }
 
-    /// Returns `true` when `key` is globally trusted.
+    /// Returns `true` when `key` is globally trusted in this user-level store.
     pub fn contains_key(&self, key: &VerifyingKey) -> bool {
         self.keys.contains(key)
     }
 
-    /// Adds `key` if it is not already trusted.
+    /// Adds `key` if it is not already trusted in `modules-trust.toml`.
     pub fn insert_key(&mut self, key: VerifyingKey) -> bool {
         if self.contains_key(&key) {
             return false;
@@ -158,6 +169,9 @@ impl TrustStore {
 
     /// Adds signer trust for `key` and records authenticated identity metadata
     /// when present.
+    ///
+    /// This updates only the in-memory trust store. Call [`Self::save`] to
+    /// persist the user-level trust file.
     pub fn trust_signer(&mut self, key: VerifyingKey, identity: Option<SignerIdentity>) -> bool {
         let inserted = self.insert_key(key);
         match identity {
@@ -172,7 +186,7 @@ impl TrustStore {
         inserted
     }
 
-    /// Removes `key` from the trust store.
+    /// Removes `key` from the in-memory trust store.
     pub fn remove_key(&mut self, key: &VerifyingKey) -> bool {
         let before = self.keys.len();
         self.keys.retain(|trusted| trusted != key);
@@ -180,18 +194,18 @@ impl TrustStore {
         self.keys.len() != before
     }
 
-    /// Removes every trusted key and its identity metadata.
+    /// Removes every trusted key and its identity metadata from memory.
     pub fn clear(&mut self) {
         self.keys.clear();
         self.identities.clear();
     }
 
-    /// Iterates over globally trusted signer keys.
+    /// Iterates over globally trusted signer keys from this user-level store.
     pub fn trusted_keys(&self) -> impl Iterator<Item = &VerifyingKey> {
         self.keys.iter()
     }
 
-    /// Upserts optional metadata for a trusted key.
+    /// Upserts optional metadata for a trusted key in memory.
     pub fn upsert_identity(
         &mut self,
         key: VerifyingKey,
@@ -239,13 +253,17 @@ impl TrustStore {
             .sort_by_key(|identity| identity.key.to_openssh());
     }
 
-    /// Returns optional metadata for a trusted key.
+    /// Returns optional metadata for a trusted key from this store.
     pub fn identity(&self, key: &VerifyingKey) -> Option<&TrustedIdentity> {
         self.identities.iter().find(|identity| &identity.key == key)
     }
 
-    /// Trusts signer keys recorded across a lockfile dependency tree and
-    /// returns the number of newly inserted keys.
+    /// Trusts signer keys recorded across a lockfile dependency tree.
+    ///
+    /// This reads signer information from the supplied `module-lock.json`
+    /// model, inserts any new keys into the in-memory user-level store, and
+    /// returns the number of newly inserted keys. It does not modify the
+    /// project manifest or lockfile.
     pub fn trust_lockfile_signers(&mut self, lockfile: &Lockfile) -> usize {
         fn visit(store: &mut TrustStore, dependencies: &DependencyMap) -> usize {
             dependencies
@@ -266,17 +284,16 @@ impl TrustStore {
 
 #[cfg(test)]
 mod tests {
-    use crate::lockfile::DependencyEntry;
-    use crate::lockfile::DependencyMap;
-    use crate::lockfile::Lockfile;
-    use crate::lockfile::ResolvedSource;
-    use crate::signing::SignerIdentity;
-
     use std::fs;
 
     use tempfile::tempdir;
 
     use super::*;
+    use crate::lockfile::DependencyEntry;
+    use crate::lockfile::DependencyMap;
+    use crate::lockfile::Lockfile;
+    use crate::lockfile::ResolvedSource;
+    use crate::signing::SignerIdentity;
 
     fn test_key() -> VerifyingKey {
         crate::signing::test_utils::signing_key_from_seed(0xA7).verifying_key()
