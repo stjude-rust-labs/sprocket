@@ -170,6 +170,12 @@ impl ModuleProject {
                 source,
             })
     }
+
+    #[cfg(test)]
+    fn with_test_lockfile_path(mut self, lockfile_path: PathBuf) -> Self {
+        self.lockfile_path = lockfile_path;
+        self
+    }
 }
 
 #[cfg(test)]

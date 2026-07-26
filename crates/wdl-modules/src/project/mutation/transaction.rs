@@ -155,6 +155,50 @@ pub(super) fn recover_active_mutation(
     Ok(())
 }
 
+#[cfg(test)]
+thread_local! {
+    static FAIL_MANIFEST_RESTORE: std::cell::RefCell<Option<PathBuf>> =
+        std::cell::RefCell::new(None);
+}
+
+#[cfg(test)]
+struct ManifestRestoreFailureGuard;
+
+#[cfg(test)]
+impl Drop for ManifestRestoreFailureGuard {
+    fn drop(&mut self) {
+        FAIL_MANIFEST_RESTORE.with(|path| {
+            path.borrow_mut().take();
+        });
+    }
+}
+
+#[cfg(test)]
+fn fail_manifest_restore_for_test(path: &Path) -> ManifestRestoreFailureGuard {
+    FAIL_MANIFEST_RESTORE.with(|configured| {
+        *configured.borrow_mut() = Some(path.to_path_buf());
+    });
+    ManifestRestoreFailureGuard
+}
+
+#[cfg(test)]
+fn maybe_fail_manifest_restore(path: &Path) -> Result<(), ProjectMutationError> {
+    let should_fail = FAIL_MANIFEST_RESTORE.with(|configured| {
+        configured.borrow().as_deref() == Some(path)
+    });
+    if should_fail {
+        return Err(ProjectMutationError::Io {
+            operation: "restoring",
+            path: path.to_path_buf(),
+            source: std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "injected manifest restore failure",
+            ),
+        });
+    }
+    Ok(())
+}
+
 /// Makes both project files and their containing directory durable.
 pub(super) fn sync_project_files(
     manifest_path: &Path,
@@ -435,6 +479,9 @@ fn restore_snapshot(
 
 /// Replaces a file with recovery bytes using an atomic rename.
 fn write_bytes_atomically(path: &Path, bytes: &[u8]) -> Result<(), ProjectMutationError> {
+    #[cfg(test)]
+    maybe_fail_manifest_restore(path)?;
+
     let directory = path.parent().unwrap_or_else(|| Path::new("."));
     let mut temp =
         tempfile::NamedTempFile::new_in(directory).map_err(|source| ProjectMutationError::Io {
@@ -514,7 +561,7 @@ mod tests {
 
     use super::ACTIVE_DIRECTORY;
     use super::ProjectTransaction;
-    use super::super::{LockedModuleProject, ProjectUpdate, journal_root};
+    use super::super::{LockedModuleProject, ProjectUpdate, journal_root, project_key};
 
     fn test_project(root: &Path) -> ModuleProject {
         std::fs::create_dir_all(root).unwrap();
@@ -526,6 +573,24 @@ mod tests {
         ModuleProject::load(root.join(crate::MANIFEST_FILENAME)).unwrap()
     }
 
+    fn updated_document(project: &ModuleProject) -> crate::project::ManifestDocument {
+        let mut document = project.document().clone();
+        document
+            .set_dependency(
+                "dep",
+                &serde_json::from_str(r#"{"path":"../dep"}"#).unwrap(),
+            )
+            .unwrap();
+        document
+    }
+
+    #[cfg(unix)]
+    fn mode_of(path: &Path) -> u32 {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        std::fs::metadata(path).unwrap().permissions().mode() & 0o777
+    }
+
     #[test]
     fn recovers_interrupted_pair_mutation_from_global_journal() {
         let directory = tempfile::tempdir().unwrap();
@@ -533,7 +598,7 @@ mod tests {
         let state = directory.path().join("state");
         let project = test_project(&root);
         let original = std::fs::read(project.manifest_path()).unwrap();
-        let journal = journal_root(&state, project.root()).unwrap();
+        let journal = journal_root(&state, &project_key(project.root()).unwrap());
 
         {
             let _locked = LockedModuleProject::acquire(project.clone(), &state).unwrap();
@@ -556,16 +621,10 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path().join("project");
         let state = directory.path().join("state");
-        let mut project = test_project(&root);
-        project.lockfile_path = root.join("missing").join(crate::LOCKFILE_FILENAME);
+        let project = test_project(&root)
+            .with_test_lockfile_path(root.join("missing").join(crate::LOCKFILE_FILENAME));
         let original = std::fs::read(project.manifest_path()).unwrap();
-        let mut document = project.document().clone();
-        document
-            .set_dependency(
-                "dep",
-                &serde_json::from_str(r#"{"path":"../dep"}"#).unwrap(),
-            )
-            .unwrap();
+        let document = updated_document(&project);
 
         let locked = LockedModuleProject::acquire(project, &state).unwrap();
         let error = locked
@@ -584,12 +643,89 @@ mod tests {
 
     #[cfg(unix)]
     #[test]
+    fn write_manifest_atomically_gives_new_files_mode_0644() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join(crate::MANIFEST_FILENAME);
+        let document =
+            crate::project::ManifestDocument::parse(br#"{"name":"test","license":"MIT"}"#)
+                .unwrap();
+
+        super::write_manifest_atomically(&path, &document).unwrap();
+
+        assert_eq!(mode_of(&path), 0o644);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn manifest_commit_preserves_existing_mode() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("project");
+        let state = directory.path().join("state");
+        let project = test_project(&root);
+        let manifest_path = project.manifest_path().to_path_buf();
+        std::fs::set_permissions(&manifest_path, std::fs::Permissions::from_mode(0o600))
+            .unwrap();
+        let document = updated_document(&project);
+
+        let locked = LockedModuleProject::acquire(project, &state).unwrap();
+        locked.commit(ProjectUpdate::Manifest(&document)).unwrap();
+
+        assert_eq!(mode_of(&manifest_path), 0o600);
+    }
+
+    #[test]
+    fn successful_commit_keeps_unrelated_sibling_journal_state() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("project");
+        let state = directory.path().join("state");
+        let project = test_project(&root);
+        let journal = journal_root(&state, &project_key(project.root()).unwrap());
+        let sibling = state.join("journals").join("sibling-project");
+        std::fs::create_dir_all(&sibling).unwrap();
+        std::fs::write(sibling.join("keep"), b"keep").unwrap();
+        let document = updated_document(&project);
+
+        let locked = LockedModuleProject::acquire(project, &state).unwrap();
+        locked.commit(ProjectUpdate::Manifest(&document)).unwrap();
+
+        assert_eq!(std::fs::read(sibling.join("keep")).unwrap(), b"keep");
+        assert!(sibling.is_dir());
+        assert!(!journal.exists());
+    }
+
+    #[test]
+    fn rollback_failure_leaves_active_journal_for_manual_recovery() {
+        let directory = tempfile::tempdir().unwrap();
+        let root = directory.path().join("project");
+        let state = directory.path().join("state");
+        let project = test_project(&root)
+            .with_test_lockfile_path(root.join("missing").join(crate::LOCKFILE_FILENAME));
+        let journal = journal_root(&state, &project_key(project.root()).unwrap());
+        let document = updated_document(&project);
+        let locked = LockedModuleProject::acquire(project, &state).unwrap();
+        let _guard = super::fail_manifest_restore_for_test(locked.project().manifest_path());
+
+        let error = locked
+            .commit(ProjectUpdate::Both {
+                manifest: &document,
+                lockfile: &Lockfile::default(),
+            })
+            .unwrap_err();
+
+        assert!(matches!(error, super::super::ProjectMutationError::Rollback { .. }));
+        assert!(journal.join(ACTIVE_DIRECTORY).is_dir());
+    }
+
+    #[cfg(unix)]
+    #[test]
     fn rejects_symlinked_active_journal() {
         let directory = tempfile::tempdir().unwrap();
         let root = directory.path().join("project");
         let state = directory.path().join("state");
         let project = test_project(&root);
-        let journal = journal_root(&state, project.root()).unwrap();
+        let journal = journal_root(&state, &project_key(project.root()).unwrap());
         let outside = directory.path().join("outside");
         std::fs::create_dir_all(&journal).unwrap();
         std::fs::create_dir(&outside).unwrap();
@@ -609,7 +745,7 @@ mod tests {
         let root = directory.path().join("project");
         let state = directory.path().join("state");
         let project = test_project(&root);
-        let journal = journal_root(&state, project.root()).unwrap();
+        let journal = journal_root(&state, &project_key(project.root()).unwrap());
         let active = journal.join(ACTIVE_DIRECTORY);
         std::fs::create_dir_all(&active).unwrap();
         std::os::unix::fs::symlink(project.manifest_path(), active.join("manifest.before"))
@@ -622,4 +758,3 @@ mod tests {
         assert!(error.to_string().contains("is not a regular file"));
     }
 }
-

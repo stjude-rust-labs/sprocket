@@ -77,7 +77,7 @@ pub enum ProjectMutationError {
     },
     /// The mutation failed and the rollback also failed.
     #[error(
-        "rolling back the interrupted module project mutation also failed; \
+        "rolling back the interrupted module project mutation after {source} also failed; \
          inspect manifest `{manifest_path}` and lockfile `{lockfile_path}` \
          for manual recovery; rollback: {rollback}"
     )]
@@ -111,7 +111,7 @@ impl LockedModuleProject {
     ) -> Result<Self, ProjectMutationError> {
         let key = project_key(project.root())?;
         let lock_root = state_root.join("locks");
-        let journal_root = journal_root(state_root, project.root())?;
+        let journal_root = journal_root(state_root, &key);
         std::fs::create_dir_all(&lock_root).map_err(|source| ProjectMutationError::Io {
             operation: "creating mutation lock directory",
             path: lock_root.clone(),
@@ -166,18 +166,15 @@ fn project_key(root: &Path) -> Result<String, ProjectMutationError> {
     )))
 }
 
-fn journal_root(
-    state_root: &Path,
-    project_root: &Path,
-) -> Result<PathBuf, ProjectMutationError> {
-    Ok(state_root
-        .join("journals")
-        .join(project_key(project_root)?))
+fn journal_root(state_root: &Path, project_key: &str) -> PathBuf {
+    state_root.join("journals").join(project_key)
 }
 
 #[cfg(test)]
 mod tests {
+    use std::error::Error as _;
     use std::path::Path;
+    use std::path::PathBuf;
     use std::sync::mpsc;
     use std::time::Duration;
 
@@ -260,5 +257,35 @@ mod tests {
             project_key(alias_project.root()).unwrap()
         );
     }
-}
 
+    #[test]
+    fn rollback_error_renders_both_failures_inline() {
+        let manifest_path = PathBuf::from("/worktree/module.json");
+        let lockfile_path = PathBuf::from("/worktree/module-lock.json");
+        let error = ProjectMutationError::Rollback {
+            manifest_path: manifest_path.clone(),
+            lockfile_path: lockfile_path.clone(),
+            source: Box::new(ProjectMutationError::Io {
+                operation: "writing",
+                path: lockfile_path.clone(),
+                source: std::io::Error::other("mutation write failed"),
+            }),
+            rollback: Box::new(ProjectMutationError::Io {
+                operation: "restoring",
+                path: manifest_path.clone(),
+                source: std::io::Error::other("rollback restore failed"),
+            }),
+        };
+
+        let rendered = error.to_string();
+
+        assert!(rendered.contains(&format!("writing `{}`", lockfile_path.display())));
+        assert!(rendered.contains(&format!("restoring `{}`", manifest_path.display())));
+        assert!(rendered.contains(&manifest_path.display().to_string()));
+        assert!(rendered.contains(&lockfile_path.display().to_string()));
+        assert_eq!(
+            error.source().unwrap().to_string(),
+            format!("writing `{}`", lockfile_path.display())
+        );
+    }
+}
