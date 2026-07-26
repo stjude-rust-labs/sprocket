@@ -30,6 +30,8 @@ use crate::get_assets;
 use crate::r#struct::Struct;
 use crate::task::Task;
 use crate::workflow::Workflow;
+use crate::workspace::ModuleMetadata;
+use crate::workspace::WorkspaceMetadata;
 
 /// Filename for the dark theme logo SVG expected to be in the "assets"
 /// directory.
@@ -242,6 +244,9 @@ pub struct DocsTreeBuilder {
     additional_html: AdditionalHtml,
     /// Start in light mode instead of the default dark mode.
     init_light_mode: bool,
+    /// Optional workspace module metadata, present when the documented
+    /// workspace is a WDL module.
+    workspace_metadata: Option<WorkspaceMetadata>,
 }
 
 impl DocsTreeBuilder {
@@ -259,6 +264,7 @@ impl DocsTreeBuilder {
             alt_logo: None,
             additional_html: AdditionalHtml::default(),
             init_light_mode: false,
+            workspace_metadata: None,
         }
     }
 
@@ -339,17 +345,33 @@ impl DocsTreeBuilder {
         self
     }
 
+    /// Set the workspace module metadata with an option.
+    ///
+    /// When present, the documented workspace is a WDL module, and the
+    /// resulting [`DocsTree`] uses the module's manifest name for its root
+    /// node, labels module directories with their manifest name and version,
+    /// and renders a generated module overview on the root index page in
+    /// place of the plain "Home" header.
+    pub(crate) fn maybe_workspace_metadata(mut self, metadata: Option<WorkspaceMetadata>) -> Self {
+        self.workspace_metadata = metadata;
+        self
+    }
+
     /// Build the docs tree.
     pub fn build(self) -> DocResult<DocsTree> {
         self.write_assets()?;
 
-        let node = Node::new(
-            self.root
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or("docs".to_string()),
-            PathBuf::from(""),
-        );
+        let root_name = self
+            .workspace_metadata
+            .as_ref()
+            .map(|metadata| metadata.root().name().to_string())
+            .unwrap_or_else(|| {
+                self.root
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or("docs".to_string())
+            });
+        let node = Node::new(root_name, PathBuf::from(""));
         Ok(DocsTree {
             root: node,
             path: self.root,
@@ -357,6 +379,7 @@ impl DocsTreeBuilder {
             external_urls: self.external_urls,
             additional_html: self.additional_html,
             init_light_mode: self.init_light_mode,
+            workspace_metadata: self.workspace_metadata,
         })
     }
 
@@ -537,6 +560,9 @@ pub struct DocsTree {
     additional_html: AdditionalHtml,
     /// Initialize in light mode instead of the default dark mode.
     init_light_mode: bool,
+    /// Optional workspace module metadata, present when the documented
+    /// workspace is a WDL module.
+    workspace_metadata: Option<WorkspaceMetadata>,
 }
 
 impl DocsTree {
@@ -812,6 +838,21 @@ impl DocsTree {
                 .replace(std::path::MAIN_SEPARATOR_STR, "_")
         };
 
+        // Local dependency module entrypoint documents are collapsed onto
+        // their module's root directory (see `WorkspaceMetadata::documentation_path`),
+        // so a node's directory (i.e. its path without a trailing
+        // `index.html`) can be looked up directly as a module root.
+        let node_module = |path: &Path| -> Option<&ModuleMetadata> {
+            let dir = if path.file_name().expect("path should have a file name") == "index.html" {
+                path.parent().expect("path should have a parent")
+            } else {
+                path
+            };
+            self.workspace_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.module_at_root(dir))
+        };
+
         #[derive(Serialize)]
         struct JsNode {
             /// The key of the node.
@@ -828,6 +869,9 @@ impl DocsTree {
             icon: Option<String>,
             /// The href for the node.
             href: Option<String>,
+            /// The manifest version of the module rooted at this node, if
+            /// this node is the root of a WDL module.
+            module_version: Option<String>,
             /// Whether the node is ancestor.
             ancestor: bool,
             /// Whether the node is the current page.
@@ -844,10 +888,13 @@ impl DocsTree {
             .skip(1) // Skip the root node
             .map(|node| {
                 let key = make_key(node.path());
-                let display_name = match node.page() {
-                    Some(page) => page.name().to_string(),
-                    None => node.name().to_string(),
+                let module = node_module(node.path());
+                let display_name = match (module, node.page()) {
+                    (Some(module), _) => module.name().to_string(),
+                    (None, Some(page)) => page.name().to_string(),
+                    (None, None) => node.name().to_string(),
                 };
+                let module_version = module.map(|module| module.version().to_string());
                 let parent = node
                     .path()
                     .parent()
@@ -934,6 +981,7 @@ impl DocsTree {
                     search_name: search_name.clone(),
                     icon,
                     href,
+                    module_version,
                     ancestor,
                     current,
                     nest_level,
@@ -962,9 +1010,16 @@ impl DocsTree {
             .collect::<Vec<String>>()
             .join(", ");
 
+        let is_module = self.workspace_metadata.is_some();
+        let show_workflows_field = if is_module {
+            String::new()
+        } else {
+            "showWorkflows: $persist(false).using(sessionStorage),".to_string()
+        };
+
         let data = format!(
             r#"{{
-                showWorkflows: $persist(false).using(sessionStorage),
+                {show_workflows_field}
                 dirOpen: '{}',
                 dirClosed: '{}',
                 nodes: [{}],
@@ -1017,61 +1072,83 @@ impl DocsTree {
             all_nodes_true,
         );
 
-        html! {
-            div x-data=(data) x-cloak x-init="$nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__container" {
-                // top navbar
-                div class="sticky px-4" {
-                    div class="left-sidebar__tabs-container mt-4" {
-                        button x-on:click="showWorkflows = true; search = ''; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="! showWorkflows ? 'opacity-40 light:opacity-60 hover:opacity-80' : ''" {
-                            img src=(self.get_asset(base, "list-bullet-selected.svg")) class="left-sidebar__icon block light:hidden" alt="List icon";
-                            img src=(self.get_asset(base, "list-bullet-selected.light.svg")) class="left-sidebar__icon hidden light:block" alt="List icon";
-                            p { "Workflows" }
+        // The root node link and per-node rows are shared between module and
+        // non-module workspaces; only the surrounding chrome (the tabs and
+        // the competing "Workflows" view) differs.
+        let directory_tree = html! {
+            // Root node for the directory tree
+            sprocket-tooltip content=(root.name()) class="block" {
+                a href=(self.root_index_relative_to(base).to_string_lossy()) aria-label=(root.name()) class="left-sidebar__row hover:bg-slate-700/40" {
+                    div class="left-sidebar__content-item-container crop-ellipsis" {
+                        div class="relative shrink-0" {
+                            img src=(self.get_asset(base, "dir-open.svg")) class="left-sidebar__icon block light:hidden" alt="Directory icon";
+                            img src=(self.get_asset(base, "dir-open.light.svg")) class="left-sidebar__icon hidden light:block" alt="Directory icon";
                         }
-                        button x-on:click="showWorkflows = false; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="showWorkflows ? 'opacity-50 light:opacity-60 hover:opacity-80' : ''" {
-                            img src=(self.get_asset(base, "folder-selected.svg")) class="left-sidebar__icon block light:hidden" alt="List icon";
-                            img src=(self.get_asset(base, "folder-selected.light.svg")) class="left-sidebar__icon hidden light:block" alt="List icon";
-                            p { "Full Directory" }
+                        div class="text-slate-50" { (root.name()) }
+                    }
+                }
+            }
+            // Nodes in the directory tree
+            template x-for="node in shownNodes" {
+                sprocket-tooltip x-bind:content="node.display_name" class="block isolate" {
+                    a x-bind:href="node.href" x-show="showSelfCache[node.key]" x-on:click="if (node.href === null) toggleChildren(node.key)" x-bind:aria-label="node.display_name" class="left-sidebar__row" x-bind:class="`${node.current ? 'is-scrolled-to left-sidebar__row--active' : (node.href === null) ? showChildrenCache[node.key] ? 'left-sidebar__row-folder left-sidebar__row-folder--open' : 'left-sidebar__row-folder left-sidebar__row-folder--closed' : 'left-sidebar__row-page'} ${node.ancestor ? 'left-sidebar__content-item-container--ancestor' : ''}`" {
+                        template x-for="i in Array.from({ length: node.nest_level })" {
+                            div class="left-sidebar__indent -z-1" {}
+                        }
+                        div class="left-sidebar__content-item-container crop-ellipsis" {
+                            div class="relative left-sidebar__icon shrink-0" {
+                                img x-bind:src="node.icon || dirOpen" class="left-sidebar__icon block light:hidden" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
+                                img x-bind:src="(node.icon || dirOpen).replace('.svg', '.light.svg')" class="left-sidebar__icon hidden light:block" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
+                            }
+                            div class="crop-ellipsis" x-text="node.display_name" {}
+                            span x-show="node.module_version" x-text="node.module_version" class="left-sidebar__module-version" {}
                         }
                     }
                 }
-                // Main content
-                div x-cloak class="left-sidebar__content-container pt-4" {
-                    // Full directory view
-                    ul x-show="! showWorkflows" class="left-sidebar__content" {
-                        // Root node for the directory tree
-                        sprocket-tooltip content=(root.name()) class="block" {
-                            a href=(self.root_index_relative_to(base).to_string_lossy()) aria-label=(root.name()) class="left-sidebar__row hover:bg-slate-700/40" {
-                                div class="left-sidebar__content-item-container crop-ellipsis" {
-                                    div class="relative shrink-0" {
-                                        img src=(self.get_asset(base, "dir-open.svg")) class="left-sidebar__icon block light:hidden" alt="Directory icon";
-                                        img src=(self.get_asset(base, "dir-open.light.svg")) class="left-sidebar__icon hidden light:block" alt="Directory icon";
-                                    }
-                                    div class="text-slate-50" { (root.name()) }
-                                }
-                            }
+            }
+        };
+
+        if is_module {
+            // Module workspaces render one semantic module tree; there is
+            // no separate "Workflows" view competing with it, so the tabs
+            // and the "Full Directory" toggle are omitted entirely.
+            html! {
+                div x-data=(data) x-cloak x-init="$nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__container" {
+                    div x-cloak class="left-sidebar__content-container pt-4" {
+                        ul class="left-sidebar__content" {
+                            (directory_tree)
                         }
-                        // Nodes in the directory tree
-                        template x-for="node in shownNodes" {
-                            sprocket-tooltip x-bind:content="node.display_name" class="block isolate" {
-                                a x-bind:href="node.href" x-show="showSelfCache[node.key]" x-on:click="if (node.href === null) toggleChildren(node.key)" x-bind:aria-label="node.display_name" class="left-sidebar__row" x-bind:class="`${node.current ? 'is-scrolled-to left-sidebar__row--active' : (node.href === null) ? showChildrenCache[node.key] ? 'left-sidebar__row-folder left-sidebar__row-folder--open' : 'left-sidebar__row-folder left-sidebar__row-folder--closed' : 'left-sidebar__row-page'} ${node.ancestor ? 'left-sidebar__content-item-container--ancestor' : ''}`" {
-                                    template x-for="i in Array.from({ length: node.nest_level })" {
-                                        div class="left-sidebar__indent -z-1" {}
-                                    }
-                                    div class="left-sidebar__content-item-container crop-ellipsis" {
-                                        div class="relative left-sidebar__icon shrink-0" {
-                                            img x-bind:src="node.icon || dirOpen" class="left-sidebar__icon block light:hidden" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
-                                            img x-bind:src="(node.icon || dirOpen).replace('.svg', '.light.svg')" class="left-sidebar__icon hidden light:block" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
-                                        }
-                                        div class="crop-ellipsis" x-text="node.display_name" {
-                                        }
-                                    }
-                                }
+                    }
+                }
+            }
+        } else {
+            html! {
+                div x-data=(data) x-cloak x-init="$nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__container" {
+                    // top navbar
+                    div class="sticky px-4" {
+                        div class="left-sidebar__tabs-container mt-4" {
+                            button x-on:click="showWorkflows = true; search = ''; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="! showWorkflows ? 'opacity-40 light:opacity-60 hover:opacity-80' : ''" {
+                                img src=(self.get_asset(base, "list-bullet-selected.svg")) class="left-sidebar__icon block light:hidden" alt="List icon";
+                                img src=(self.get_asset(base, "list-bullet-selected.light.svg")) class="left-sidebar__icon hidden light:block" alt="List icon";
+                                p { "Workflows" }
+                            }
+                            button x-on:click="showWorkflows = false; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="showWorkflows ? 'opacity-50 light:opacity-60 hover:opacity-80' : ''" {
+                                img src=(self.get_asset(base, "folder-selected.svg")) class="left-sidebar__icon block light:hidden" alt="List icon";
+                                img src=(self.get_asset(base, "folder-selected.light.svg")) class="left-sidebar__icon hidden light:block" alt="List icon";
+                                p { "Full Directory" }
                             }
                         }
                     }
-                    // Workflows view
-                    ul x-show="showWorkflows" class="left-sidebar__content" {
-                        (self.sidebar_workflows_view(path))
+                    // Main content
+                    div x-cloak class="left-sidebar__content-container pt-4" {
+                        // Full directory view
+                        ul x-show="! showWorkflows" class="left-sidebar__content" {
+                            (directory_tree)
+                        }
+                        // Workflows view
+                        ul x-show="showWorkflows" class="left-sidebar__content" {
+                            (self.sidebar_workflows_view(path))
+                        }
                     }
                 }
             }
@@ -1221,8 +1298,12 @@ impl DocsTree {
         };
 
         let index_page_content = html! {
-            h5 class="main__homepage-header" {
-                "Home"
+            @if let Some(metadata) = &self.workspace_metadata {
+                (self.render_module_overview(metadata))
+            } @else {
+                h5 class="main__homepage-header" {
+                    "Home"
+                }
             }
             (content)
         };
@@ -1250,6 +1331,51 @@ impl DocsTree {
                 )
             })?;
         Ok(())
+    }
+
+    /// Renders the generated module overview shown at the top of the root
+    /// index page when the documented workspace is a WDL module.
+    fn render_module_overview(&self, metadata: &WorkspaceMetadata) -> Markup {
+        let root = metadata.root();
+        let dependencies = metadata
+            .modules()
+            .filter(|module| !module.root().as_os_str().is_empty())
+            .collect::<Vec<_>>();
+
+        html! {
+            section class="module-overview" {
+                p class="module-overview__eyebrow" { "WDL Module" }
+                h1 id="title" class="module-overview__title" { (humanize_module_name(root.name())) }
+                @if let Some(description) = root.description() {
+                    p class="module-overview__description" { (description) }
+                }
+                div class="module-overview__metadata" {
+                    div class="module-overview__metadata-item" {
+                        span class="module-overview__metadata-label" { "Version " (root.version()) }
+                    }
+                    div class="module-overview__metadata-item" {
+                        span class="module-overview__metadata-label" { "Entrypoint" }
+                        code class="module-overview__metadata-value" { (root.entrypoint().display().to_string()) }
+                    }
+                }
+                @if !dependencies.is_empty() {
+                    div class="module-overview__dependencies" {
+                        h2 class="module-overview__dependencies-header" { "Dependencies" }
+                        div class="module-overview__dependencies-list" {
+                            @for dependency in &dependencies {
+                                div class="module-overview__dependency-card" {
+                                    p class="module-overview__dependency-name" { (dependency.name()) }
+                                    p class="module-overview__dependency-version" { "v" (dependency.version()) }
+                                    @if let Some(description) = dependency.description() {
+                                        p class="module-overview__dependency-description" { (description) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Render reusable sidebar control buttons
@@ -1523,4 +1649,178 @@ fn sort_workflow_categories(categories: HashSet<String>) -> Vec<String> {
         }
     });
     sorted_categories
+}
+
+/// Converts a kebab-case or snake_case module manifest name into a
+/// human-friendly title by replacing separators with spaces and
+/// capitalizing each word (e.g. `genomics-showcase` becomes `Genomics
+/// Showcase`).
+fn humanize_module_name(name: &str) -> String {
+    name.split(['-', '_'])
+        .filter(|word| !word.is_empty())
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use tempfile::TempDir;
+
+    use super::*;
+    use crate::workspace::WorkspaceMetadata;
+
+    /// The showcase workspace checked into the repository, reused here as a
+    /// realistic fixture for module-aware navigation tests.
+    fn showcase_root() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../wdl-doc-showcase")
+    }
+
+    /// Builds a `TempDir` containing copies of the showcase's `module.json`
+    /// manifests, mirroring its on-disk module layout (root plus the local
+    /// `qc` and `alignment` dependencies the root manifest declares) without
+    /// copying the WDL source files. Suitable for tests that only need
+    /// `WorkspaceMetadata`, not a fully documentable workspace.
+    fn manifest_only_workspace() -> TempDir {
+        let showcase = showcase_root();
+        let dir = tempfile::tempdir().unwrap();
+
+        for relative_manifest in [
+            "module.json",
+            "modules/qc/module.json",
+            "modules/alignment/module.json",
+        ] {
+            let src = showcase.join(relative_manifest);
+            let dst = dir.path().join(relative_manifest);
+            // SAFETY: `relative_manifest` always has a parent component
+            // (`modules/qc` and friends, or the workspace root itself).
+            fs::create_dir_all(dst.parent().unwrap()).unwrap();
+            fs::copy(&src, &dst).unwrap();
+        }
+
+        dir
+    }
+
+    /// Builds a `TempDir` containing a full copy of the showcase workspace
+    /// (manifests and WDL sources), suitable for actually generating
+    /// documentation end-to-end.
+    fn full_module_workspace() -> TempDir {
+        let showcase = showcase_root();
+        let dir = tempfile::tempdir().unwrap();
+
+        for relative_file in [
+            "module.json",
+            "main.wdl",
+            "modules/qc/module.json",
+            "modules/qc/qc.wdl",
+            "modules/alignment/module.json",
+            "modules/alignment/alignment.wdl",
+        ] {
+            let src = showcase.join(relative_file);
+            let dst = dir.path().join(relative_file);
+            // SAFETY: `relative_file` always has a parent component
+            // (`modules/qc` and friends, or the workspace root itself).
+            fs::create_dir_all(dst.parent().unwrap()).unwrap();
+            fs::copy(&src, &dst).unwrap();
+        }
+
+        dir
+    }
+
+    #[test]
+    fn module_workspace_uses_manifest_root_name_and_labels_module_directories() {
+        let workspace_dir = manifest_only_workspace();
+        let metadata = WorkspaceMetadata::load(workspace_dir.path()).unwrap();
+
+        let docs_dir = tempfile::tempdir().unwrap();
+        let mut tree = DocsTreeBuilder::new(docs_dir.path())
+            .maybe_workspace_metadata(metadata)
+            .build()
+            .unwrap();
+
+        assert_eq!(tree.root().name(), "genomics-showcase");
+
+        // Manually mirror the directory node that document generation would
+        // create for the `qc` module's collapsed entrypoint document (see
+        // `WorkspaceMetadata::documentation_path`): a plain "qc" directory
+        // node rooted at `modules/qc`, without needing a full analysis run.
+        let modules_node = Node::new("modules".to_string(), PathBuf::from("modules"));
+        tree.root_mut()
+            .children
+            .insert("modules".to_string(), modules_node);
+        let qc_node = Node::new("qc".to_string(), PathBuf::from("modules/qc"));
+        tree.root_mut()
+            .children
+            .get_mut("modules")
+            .expect("modules node should exist")
+            .children
+            .insert("qc".to_string(), qc_node);
+
+        let page = docs_dir.path().join("modules/qc/index.html");
+        let sidebar = tree.render_left_sidebar(&page).into_string();
+        assert!(sidebar.contains("qc"));
+        assert!(sidebar.contains("1.0.0"));
+        assert!(!sidebar.contains("Workflows"));
+    }
+
+    #[test]
+    fn non_module_workspace_uses_output_dir_name_and_keeps_custom_index() {
+        let docs_dir = tempfile::tempdir().unwrap();
+        let index_source = tempfile::tempdir().unwrap();
+        let index_path = index_source.path().join("index.md");
+        fs::write(&index_path, "Custom homepage content marker").unwrap();
+
+        let tree = DocsTreeBuilder::new(docs_dir.path())
+            .maybe_workspace_metadata(None)
+            .index_page(index_path)
+            .build()
+            .unwrap();
+
+        let expected_name = docs_dir
+            .path()
+            .file_name()
+            .expect("docs dir should have a file name")
+            .to_string_lossy()
+            .to_string();
+        assert_eq!(tree.root().name(), expected_name);
+
+        tree.write_index_page().unwrap();
+        let content = fs::read_to_string(docs_dir.path().join("index.html")).unwrap();
+        assert!(content.contains("Home"));
+        assert!(content.contains("Custom homepage content marker"));
+        assert!(!content.contains("module-overview"));
+    }
+
+    #[tokio::test]
+    async fn module_workspace_renders_module_overview_and_navigation() {
+        let workspace_dir = full_module_workspace();
+        let docs_dir = tempfile::tempdir().unwrap();
+
+        let config = crate::Config::new(
+            wdl_analysis::Config::default()
+                .with_feature_flags(wdl_analysis::FeatureFlags::default().with_wdl_1_4()),
+            workspace_dir.path(),
+            docs_dir.path(),
+        );
+
+        crate::document_workspace(config)
+            .await
+            .expect("documentation generation should succeed");
+
+        let content = fs::read_to_string(docs_dir.path().join("index.html")).unwrap();
+        assert!(content.contains("Genomics Showcase"));
+        assert!(content.contains("Version 1.0.0"));
+        assert!(content.contains("Entrypoint"));
+        assert!(content.contains("main.wdl"));
+        assert!(content.contains("Dependencies"));
+        assert!(content.contains("qc"));
+    }
 }

@@ -433,6 +433,7 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
         .maybe_alt_logo(config.alt_logo)
         .additional_html(config.additional_html)
         .external_urls(config.external_urls)
+        .maybe_workspace_metadata(workspace_metadata.clone())
         .build()?;
 
     for result in results {

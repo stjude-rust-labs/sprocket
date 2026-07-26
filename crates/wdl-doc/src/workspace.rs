@@ -18,12 +18,6 @@ use crate::error::DocResult;
 
 /// Metadata for a single WDL module, either the workspace root or one of its
 /// local-path dependencies.
-// NOTE: `name`, `version`, and `description` are read by tests but not yet by
-// any non-test code path; upcoming navigation work (module names and
-// descriptions in the sidebar) will consume them. `#[expect(dead_code)]`
-// would fire inconsistently here since the dead-code lint only sees these
-// fields as read in the `#[cfg(test)]` configuration.
-#[allow(dead_code)]
 #[derive(Clone, Debug)]
 pub(crate) struct ModuleMetadata {
     /// The module's root directory, relative to the workspace root. The
@@ -55,27 +49,21 @@ impl From<(&Module, PathBuf)> for ModuleMetadata {
 
 impl ModuleMetadata {
     /// Returns the module's root directory, relative to the workspace root.
-    #[expect(dead_code)]
     pub(crate) fn root(&self) -> &Path {
         &self.root
     }
 
     /// Returns the module's display name.
-    // NOTE: only called by tests today; see the struct-level `#[allow]`.
-    #[allow(dead_code)]
     pub(crate) fn name(&self) -> &str {
         &self.name
     }
 
     /// Returns the module version.
-    // NOTE: only called by tests today; see the struct-level `#[allow]`.
-    #[allow(dead_code)]
     pub(crate) fn version(&self) -> &str {
         &self.version
     }
 
     /// Returns the module's description, if any.
-    #[expect(dead_code)]
     pub(crate) fn description(&self) -> Option<&str> {
         self.description.as_deref()
     }
@@ -92,12 +80,6 @@ impl ModuleMetadata {
 #[derive(Clone, Debug)]
 pub(crate) struct WorkspaceMetadata {
     /// The workspace root module.
-    // NOTE: only read by tests today (via `root()`, itself only called by
-    // tests); upcoming navigation work will surface the root module's name
-    // and version in the sidebar. `#[expect(dead_code)]` would fire
-    // inconsistently since the dead-code lint only sees this field as read
-    // in the `#[cfg(test)]` configuration.
-    #[allow(dead_code)]
     root: ModuleMetadata,
     /// All modules in the workspace, keyed by their root directory relative
     /// to the workspace root. This includes the root module at the empty
@@ -169,11 +151,24 @@ impl WorkspaceMetadata {
     }
 
     /// Returns the workspace root module's metadata.
-    // NOTE: only called by tests today; `#[expect(dead_code)]` would fire
-    // inconsistently since it is used in the `#[cfg(test)]` configuration.
-    #[allow(dead_code)]
     pub(crate) fn root(&self) -> &ModuleMetadata {
         &self.root
+    }
+
+    /// Returns the metadata for the module rooted exactly at `root`, a
+    /// directory path relative to the workspace root.
+    ///
+    /// Unlike [`module_for_document`](Self::module_for_document), this only
+    /// matches a module whose root is exactly `root`, not one that merely
+    /// contains it.
+    pub(crate) fn module_at_root(&self, root: &Path) -> Option<&ModuleMetadata> {
+        self.modules.get(root)
+    }
+
+    /// Returns an iterator over all modules in the workspace, including the
+    /// root module.
+    pub(crate) fn modules(&self) -> impl Iterator<Item = &ModuleMetadata> {
+        self.modules.values()
     }
 
     /// Returns the metadata for the module that contains `doc_path`, a WDL
