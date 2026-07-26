@@ -6,6 +6,7 @@ use std::sync::Arc;
 use crate::UiTest;
 
 mod code_block;
+mod markdown_fence;
 mod page_navigation;
 mod search;
 mod search_invalid;
@@ -19,6 +20,7 @@ pub fn all_tests() -> HashMap<&'static str, Arc<dyn UiTest>> {
         Arc::new(search_invalid::SearchInvalid),
         Arc::new(page_navigation::PageNavigation),
         Arc::new(code_block::CodeBlock),
+        Arc::new(markdown_fence::MarkdownFence),
     ];
 
     tests.into_iter().map(|test| (test.name(), test)).collect()

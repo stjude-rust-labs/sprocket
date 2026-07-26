@@ -150,14 +150,32 @@ function decorateCodeBlock({ host, shadow, highlighted, source, copyable, expand
 // code blocks.
 export async function initManualHighlighting(languagesToLoad = [], options = {}) {
   const { copyable = false, expandable = false, lineNumbers = false } = options;
+
+  // Load the highlighter once. A load failure is fatal for manual
+  // highlighting, so report it explicitly and leave every fence as readable
+  // plain text rather than silently swallowing the error.
+  let highlighter;
   try {
-    const highlighter = await initializeHighlighter(languagesToLoad);
-    for (const codeElem of document.querySelectorAll('pre > code[class*="language-"]')) {
+    highlighter = await initializeHighlighter(languagesToLoad);
+  } catch (err) {
+    console.error("Failed to initialize syntax highlighting: ", err);
+    return;
+  }
+  if (!highlighter) {
+    console.error("Failed to initialize syntax highlighting: highlighter unavailable");
+    return;
+  }
+
+  // Decorate each fence independently. Highlighting an unsupported language
+  // throws, so isolating failures per element keeps that one fence as plain,
+  // readable text while every other supported fence is still decorated.
+  for (const codeElem of document.querySelectorAll('pre > code[class*="language-"]')) {
+    try {
       const langClass = [...codeElem.classList].find(c => c.startsWith('language-'));
       if (!langClass) continue;
 
       const lang = langClass.replace('language-', '');
-      const code = codeElem.textContent
+      const code = codeElem.textContent;
 
       const highlighted = await highlighter.codeToHtml(code, {
         lang: lang,
@@ -178,9 +196,9 @@ export async function initManualHighlighting(languagesToLoad = [], options = {})
       });
 
       codeElem.parentElement.replaceWith(host);
+    } catch (err) {
+      console.error("Failed to highlight code block: ", err);
     }
-  } catch (err) {
-    console.error("Failed to initialize syntax highlighting: ", err)
   }
 }
 
