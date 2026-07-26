@@ -19,6 +19,7 @@ mod meta;
 mod parameter;
 mod runnable;
 mod r#struct;
+mod workspace;
 
 use std::io::Error as IoError;
 use std::io::ErrorKind;
@@ -60,6 +61,7 @@ use crate::error::DocErrorKind;
 use crate::error::DocResult;
 use crate::error::NpmError;
 use crate::error::ResultContextExt;
+use crate::workspace::WorkspaceMetadata;
 
 /// Install the theme dependencies using npm.
 pub fn install_theme(theme_dir: &Path) -> DocResult<()> {
@@ -403,6 +405,8 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
         );
     }
 
+    let workspace_metadata = WorkspaceMetadata::load(&workspace_abs_path)?;
+
     let results = analyze_workspace(&workspace_abs_path, config.analysis_config).await?;
 
     if config.check {
@@ -462,7 +466,12 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                 true,
             ),
         };
-        let cur_dir = docs_dir.join(root_to_wdl.with_extension(""));
+        let cur_dir = docs_dir.join(
+            workspace_metadata
+                .as_ref()
+                .map(|metadata| metadata.documentation_path(&root_to_wdl))
+                .unwrap_or_else(|| root_to_wdl.with_extension("")),
+        );
         if !cur_dir.exists() {
             std::fs::create_dir_all(&cur_dir)
                 .map_err(Into::<DocError>::into)
