@@ -78,6 +78,11 @@ impl From<ThreadSafeSyntaxToken> for SyntaxToken<WorkflowDescriptionLanguage> {
 #[expect(missing_debug_implementations)]
 pub struct PyAstNode;
 
+/// A trait implemented by AST tokens.
+#[pyclass(module = "sprocket_bio.ast", name = "AstToken", subclass, frozen)]
+#[expect(missing_debug_implementations)]
+pub struct PyAstToken;
+
 #[cfg(test)]
 mod tests {
     use wdl_grammar::SyntaxTree;

@@ -38,6 +38,8 @@ use std::str::FromStr;
 pub use element::*;
 #[cfg(feature = "unstable-python")]
 pub use python::PyAstNode;
+#[cfg(feature = "unstable-python")]
+pub use python::PyAstToken;
 pub use rowan::Direction;
 use rowan::NodeOrToken;
 use v1::CloseBrace;

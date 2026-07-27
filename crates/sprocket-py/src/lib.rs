@@ -64,6 +64,8 @@ mod _sprocket_bio {
     mod ast {
         #[pymodule_export]
         use wdl_ast::PyAstNode;
+        #[pymodule_export]
+        use wdl_ast::PyAstToken;
     }
 
     /// Initializer that runs when the `_sprocket_bio` Python extension is
