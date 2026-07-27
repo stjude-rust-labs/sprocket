@@ -6,6 +6,7 @@ use std::time::Duration;
 use anyhow::Context;
 use anyhow::bail;
 use thirtyfour::By;
+use thirtyfour::Rect;
 use thirtyfour::WebDriver;
 use thirtyfour::WebElement;
 use thirtyfour::prelude::ElementQueryable;
@@ -156,22 +157,25 @@ impl UiTest for ToggleTheme {
         // assert it is still attached after focusing.
         drop(copy);
 
-        // The right rail must be visible above the responsive breakpoint and
-        // hidden below it.
-        driver.set_window_rect(0, 0, 1000, 900).await?;
+        // The right rail must be visible above the responsive breakpoint
+        // (1280px) and hidden below it. Capture the original window rect so the
+        // shared browser window can be restored reliably for later tests.
+        let original_rect = driver.get_window_rect().await?;
+
+        driver.set_window_rect(0, 0, 1400, 900).await?;
         if !right_rail_displayed(driver).await? {
-            driver.fullscreen_window().await?;
+            restore_window(driver, &original_rect).await?;
             bail!("expected the right rail to be visible above the responsive breakpoint");
         }
 
-        driver.set_window_rect(0, 0, 700, 900).await?;
+        driver.set_window_rect(0, 0, 1000, 900).await?;
         if right_rail_displayed(driver).await? {
-            driver.fullscreen_window().await?;
+            restore_window(driver, &original_rect).await?;
             bail!("expected the right rail to be hidden below the responsive breakpoint");
         }
 
         // Restore the shared browser window so later tests are unaffected.
-        driver.fullscreen_window().await?;
+        restore_window(driver, &original_rect).await?;
 
         Ok(())
     }
@@ -197,4 +201,13 @@ async fn right_rail_displayed(driver: &WebDriver) -> anyhow::Result<bool> {
         tokio::time::sleep(Duration::from_millis(50)).await;
     }
     bail!("could not find the right rail element");
+}
+
+/// Restores the shared browser window to a previously captured rect so later
+/// tests are unaffected by this test's resizing.
+async fn restore_window(driver: &WebDriver, rect: &Rect) -> anyhow::Result<()> {
+    driver
+        .set_window_rect(rect.x, rect.y, rect.width as u32, rect.height as u32)
+        .await?;
+    Ok(())
 }

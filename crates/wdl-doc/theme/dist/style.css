@@ -47,7 +47,6 @@
     --color-white: #fff;
     --spacing: 0.25rem;
     --container-xs: 20rem;
-    --container-sm: 24rem;
     --container-4xl: 56rem;
     --container-5xl: 64rem;
     --text-xs: 0.75rem;
@@ -2782,10 +2781,10 @@
     border-left-style: var(--tw-border-style);
     border-left-width: 1px;
     border-color: var(--color-slate-800);
-    @media (width < 48rem) {
+    @media (width < 80rem) {
       display: none;
     }
-    @media (width >= 48rem) {
+    @media (width >= 80rem) {
       display: block;
     }
   }

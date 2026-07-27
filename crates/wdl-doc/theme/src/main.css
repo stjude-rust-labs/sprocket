@@ -31,7 +31,7 @@
     @apply max-w-[70rem] px-6 py-10 md:px-12 md:py-14;
   }
   .layout__sidebar-right {
-    @apply w-64 border-l border-slate-800 md:block max-md:hidden;
+    @apply w-64 border-l border-slate-800 xl:block max-xl:hidden;
   }
   .markdown-body {
     @apply text-lg leading-8;

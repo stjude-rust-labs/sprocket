@@ -1489,8 +1489,8 @@ impl DocsTree {
                             id="theme-toggle"
                             aria-label="Switch theme"
                             class="header__button" {
-                                img src=(assets.join("moon.light.svg").to_string_lossy()) class="size-6 hidden light:block";
-                                img src=(assets.join("sun.svg").to_string_lossy()) class="size-6 block light:hidden";
+                                img src=(assets.join("moon.light.svg").to_string_lossy()) alt="" class="size-6 hidden light:block";
+                                img src=(assets.join("sun.svg").to_string_lossy()) alt="" class="size-6 block light:hidden";
                             }
 
                             div class="absolute top-full flex flex-col items-center left-1/2 -translate-x-1/2 mt-2" x-show="showTooltip" {

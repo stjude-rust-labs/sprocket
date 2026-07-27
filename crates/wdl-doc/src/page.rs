@@ -98,7 +98,7 @@ impl<'a> DeclarationHero<'a> {
                 @if let Some(path) = self.source_path {
                     div class="source-card" {
                         span class="source-card__icon" aria-hidden="true" { "▱" }
-                        code class="source-card__path" { (path.to_string_lossy()) }
+                        code class="source-card__path" title=(path.to_string_lossy()) { (path.to_string_lossy()) }
                         button
                             type="button"
                             class="source-card__copy"
@@ -125,7 +125,7 @@ mod tests {
             .render()
             .into_string();
         assert!(html.contains("declaration-hero__title\">Sample"));
-        assert!(html.contains("source-card__path\">main.wdl"));
+        assert!(html.contains("source-card__path\" title=\"main.wdl\">main.wdl"));
         assert!(html.contains("navigator.clipboard.writeText"));
         assert!(!html.contains("<code>Sample</code>"));
     }
