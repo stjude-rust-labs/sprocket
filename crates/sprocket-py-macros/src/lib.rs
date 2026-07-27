@@ -30,7 +30,9 @@ use syn::parse_macro_input;
 ///
 /// # Arguments
 ///
-/// This attribute accepts no argument.
+/// - `module = "sprocket_bio.ast.v1"`: The module the AST element is defined
+///   in, from Python's perspective. This is forwarded to `#[pyclass(module =
+///   ...)]`.
 ///
 /// # Requirements
 ///
@@ -78,12 +80,23 @@ use syn::parse_macro_input;
 /// }
 /// ```
 #[proc_macro_attribute]
-pub fn ast(args: TokenStream, item: TokenStream) -> TokenStream {
-    parse_macro_input!(args as Nothing);
-    let item = parse_macro_input!(item as Item);
+pub fn ast(args_stream: TokenStream, item_stream: TokenStream) -> TokenStream {
+    let mut args = ast::Args::default();
+
+    let args_parser = syn::meta::parser(|meta| {
+        if meta.path.is_ident("module") {
+            args.module = meta.value()?.parse()?;
+            return Ok(());
+        }
+
+        Err(meta.error("unknown `#[ast]` argument"))
+    });
+
+    parse_macro_input!(args_stream with args_parser);
+    let item = parse_macro_input!(item_stream as Item);
 
     let expanded = match &item {
-        Item::Struct(struct_) => ast::build(struct_),
+        Item::Struct(struct_) => ast::build(struct_, args),
         Item::Enum(_enum_) => todo!(),
         unsupported => Err(syn::Error::new_spanned(
             unsupported,

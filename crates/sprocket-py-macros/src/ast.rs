@@ -11,6 +11,22 @@ use syn::ItemStruct;
 use syn::LitStr;
 use syn::parse_quote;
 
+/// Arguments to the `#[ast]` attribute.
+pub(crate) struct Args {
+    /// The module the type is defined in, from Python's perspective.
+    ///
+    /// This is forwarded to `#[pyclass(module = ...)]`.
+    pub(crate) module: LitStr,
+}
+
+impl Default for Args {
+    fn default() -> Self {
+        Self {
+            module: LitStr::new("sprocket_bio.ast.v1", Span::call_site()),
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 enum AstKind {
     Node,
@@ -18,7 +34,7 @@ enum AstKind {
 }
 
 /// Gives the Python binding equivalent of an AST struct.
-pub(crate) fn build(original: &ItemStruct) -> syn::Result<TokenStream> {
+pub(crate) fn build(original: &ItemStruct, args: Args) -> syn::Result<TokenStream> {
     let mut py_struct = original.clone();
 
     py_struct.ident = format_ident!("Py{}", original.ident);
@@ -45,6 +61,7 @@ pub(crate) fn build(original: &ItemStruct) -> syn::Result<TokenStream> {
     py_struct.attrs.extend_from_slice(&[
         // Make generated struct a pyclass.
         {
+            let module = args.module;
             let class_name = LitStr::new(&original.ident.to_string(), original.ident.span());
             let extends = Ident::new(
                 match ast_kind {
@@ -54,7 +71,7 @@ pub(crate) fn build(original: &ItemStruct) -> syn::Result<TokenStream> {
                 Span::call_site(),
             );
 
-            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = #class_name, extends = crate::#extends, frozen, skip_from_py_object, eq)])
+            parse_quote!(#[::pyo3::pyclass(module = #module, name = #class_name, extends = crate::#extends, frozen, skip_from_py_object, eq)])
         },
         // `#[pymethods]` relies on the Python struct being cloneable. We additionally derive
         // `PartialEq` for parity with the original struct.
