@@ -43,7 +43,7 @@ use syn::parse_macro_input;
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// # use sprocket_py_macros::ast;
 /// #
 /// /// Some documentation...
@@ -54,7 +54,7 @@ use syn::parse_macro_input;
 ///
 /// The above code roughly expands to:
 ///
-/// ```no_run
+/// ```ignore
 /// /// Some documentation...
 /// #[derive(PartialEq)]
 /// struct Ast<N: TreeNode = SyntaxNode>(N);
