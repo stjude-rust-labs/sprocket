@@ -1,5 +1,7 @@
 //! TODO
 
+use proc_macro2::Ident;
+use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
@@ -9,11 +11,33 @@ use syn::ItemStruct;
 use syn::LitStr;
 use syn::parse_quote;
 
+#[derive(Clone, Copy)]
+enum AstKind {
+    Node,
+    Token,
+}
+
 /// Gives the Python binding equivalent of an AST struct.
 pub(crate) fn build(original: &ItemStruct) -> syn::Result<TokenStream> {
     let mut py_struct = original.clone();
 
     py_struct.ident = format_ident!("Py{}", original.ident);
+
+    // Determine if struct is a node or a token.
+    let ast_kind = if original.generics == parse_quote!(<N: TreeNode = SyntaxNode>) {
+        AstKind::Node
+    } else if original.generics == parse_quote!(<T: TreeToken = SyntaxToken>) {
+        AstKind::Token
+    } else {
+        return Err(syn::Error::new_spanned(
+            &original.generics,
+            "`#[ast]` requires that struct generics be either `<N: TreeNode = SyntaxNode>` or \
+             `<T: TreeToken = SyntaxToken>`",
+        ));
+    };
+
+    // Remove generics.
+    py_struct.generics = Generics::default();
 
     // Only copy over doc comments, remove all other attributes.
     py_struct.attrs.retain(|attr| attr.path().is_ident("doc"));
@@ -22,7 +46,15 @@ pub(crate) fn build(original: &ItemStruct) -> syn::Result<TokenStream> {
         // Make generated struct a pyclass.
         {
             let class_name = LitStr::new(&original.ident.to_string(), original.ident.span());
-            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = #class_name, extends = crate::PyAstNode, frozen, skip_from_py_object, eq)])
+            let extends = Ident::new(
+                match ast_kind {
+                    AstKind::Node => "PyAstNode",
+                    AstKind::Token => "PyAstToken",
+                },
+                Span::call_site(),
+            );
+
+            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = #class_name, extends = crate::#extends, frozen, skip_from_py_object, eq)])
         },
         // `#[pymethods]` relies on the Python struct being cloneable. We additionally derive
         // `PartialEq` for parity with the original struct.
@@ -30,17 +62,6 @@ pub(crate) fn build(original: &ItemStruct) -> syn::Result<TokenStream> {
         // `Debug` is purposefully not implemented, silence the lint.
         parse_quote!(#[allow(missing_debug_implementations)]),
     ]);
-
-    // Verify generics.
-    if original.generics != parse_quote!(<N: TreeNode = SyntaxNode>) {
-        return Err(syn::Error::new_spanned(
-            &original.generics,
-            "`#[ast]` requires that struct generics be `<N: TreeNode = SyntaxNode>`",
-        ));
-    }
-
-    // Remove generics.
-    py_struct.generics = Generics::default();
 
     // Verify fields.
     if let Fields::Unnamed(ref fields) = original.fields {
@@ -57,12 +78,22 @@ pub(crate) fn build(original: &ItemStruct) -> syn::Result<TokenStream> {
         ));
     }
 
-    // Replace generic `N: SyntaxNode` field with thread-safe variant.
-    py_struct.fields = Fields::Unnamed(parse_quote!((crate::python::ThreadSafeSyntaxNode)));
+    // Replace generic node / token field with thread-safe variant.
+    py_struct.fields = Fields::Unnamed(match ast_kind {
+        AstKind::Node => parse_quote!((crate::python::ThreadSafeSyntaxNode)),
+        AstKind::Token => parse_quote!((crate::python::ThreadSafeSyntaxToken)),
+    });
 
     // Used for quote formatting.
     let ident = &original.ident;
     let py_ident = &py_struct.ident;
+    let base_class = Ident::new(
+        match ast_kind {
+            AstKind::Node => "PyAstNode",
+            AstKind::Token => "PyAstToken",
+        },
+        Span::call_site(),
+    );
 
     Ok(quote! {
         #py_struct
@@ -93,9 +124,9 @@ pub(crate) fn build(original: &ItemStruct) -> syn::Result<TokenStream> {
             fn into_pyobject(self, py: ::pyo3::marker::Python<'py>) -> Result<Self::Output, Self::Error> {
                 use ::pyo3::prelude::*;
 
-                // Convert `self` to its Python counterpart, make it a subclass of `PyAstNode`,
-                // allocate it on Python's heap, then cast it to `PyAny`.
-                Bound::new(py, PyClassInitializer::from(crate::PyAstNode).add_subclass(#py_ident::from(self)))
+                // Convert `self` to its Python counterpart, make it a subclass of `PyAstNode` or
+                // `PyAstToken`, allocate it on Python's heap, then cast it to `PyAny`.
+                Bound::new(py, PyClassInitializer::from(crate::#base_class).add_subclass(#py_ident::from(self)))
                     .map(Bound::into_any)
             }
         }

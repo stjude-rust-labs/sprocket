@@ -38,6 +38,7 @@ impl From<ThreadSafeSyntaxNode> for SyntaxNode<WorkflowDescriptionLanguage> {
 
 /// A [`SyntaxToken<WorkflowDescriptionLanguage>`] that is [`Send`] and
 /// [`Sync`].
+#[derive(Clone, PartialEq, Debug)]
 pub(crate) struct ThreadSafeSyntaxToken {
     /// The parent node of this token.
     parent: ThreadSafeSyntaxNode,

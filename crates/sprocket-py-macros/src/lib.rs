@@ -14,12 +14,12 @@ use syn::ItemImpl;
 use syn::parse::Nothing;
 use syn::parse_macro_input;
 
-/// Creates the Python equivalent of an AST node.
+/// Creates the Python equivalent of an AST element.
 ///
-/// Given an AST node named `Foo` annotated with this macro, it will generate a
-/// new struct named `PyFoo`. This new struct will contain a
-/// `wdl_ast::python::ThreadSafeSyntaxNode` and be annotated with
-/// `pyo3::pyclass`, allowing it to be used in Python bindings. [`From`]
+/// Given an AST node or token named `Foo` annotated with this macro, it will
+/// generate a new struct named `PyFoo`. This new struct will contain a
+/// `ThreadSafeSyntaxNode` or `ThreadSafeSyntaxToken` field and be annotated
+/// with `pyo3::pyclass`, allowing it to be used in Python bindings. [`From`]
 /// implementations will be created to allow easy conversion between `Foo` and
 /// `PyFoo`. The doc comments from `Foo` will be copied over to `PyFoo`.
 ///
@@ -33,11 +33,11 @@ use syn::parse_macro_input;
 ///
 /// # Requirements
 ///
-/// - This attribute can only be applied to tuple structs with a single
-///   `wdl_grammar::SyntaxNode` field.
-///   - The field may be a generic as long as it defaults to `SyntaxNode`, such
-///     as `N: TreeNode = SyntaxNode`.
-/// - The struct must implement [`PartialEq`].
+/// - The type generics must be either `<N: TreeNode = SyntaxNode>` or `<T:
+///   TreeToken = SyntaxToken>`.
+/// - The type must be a tuple struct with a single field for the node or token
+///   generic type.
+/// - The type must implement [`PartialEq`].
 /// - This attribute can only be used within the `wdl-ast` crate.
 /// - `pyo3` must be available for import with the `macros` feature enabled.
 ///
