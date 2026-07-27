@@ -6,6 +6,7 @@
 //! use at your own risk.
 
 mod ast;
+mod ast_methods;
 
 use proc_macro::TokenStream;
 use quote::quote;
@@ -82,7 +83,7 @@ pub fn ast(args: TokenStream, item: TokenStream) -> TokenStream {
     let item = parse_macro_input!(item as Item);
 
     let expanded = match &item {
-        Item::Struct(struct_) => ast::struct_::build(struct_),
+        Item::Struct(struct_) => ast::build(struct_),
         Item::Enum(_enum_) => todo!(),
         unsupported => Err(syn::Error::new_spanned(
             unsupported,
@@ -104,7 +105,7 @@ pub fn ast_methods(args: TokenStream, item: TokenStream) -> TokenStream {
     parse_macro_input!(args as Nothing);
     let mut methods = parse_macro_input!(item as ItemImpl);
 
-    let expanded = ast::methods::build(&mut methods).unwrap_or_else(syn::Error::into_compile_error);
+    let expanded = ast_methods::build(&mut methods).unwrap_or_else(syn::Error::into_compile_error);
 
     quote! {
         #methods
