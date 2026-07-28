@@ -24,6 +24,7 @@ pub(crate) struct Args {
 }
 
 impl Args {
+    /// Parses a token stream into structured arguments.
     pub(crate) fn parse(args_stream: TokenStream) -> Result<Self> {
         let mut args = Self::default();
 
@@ -36,7 +37,9 @@ impl Args {
             Err(meta.error("unknown `#[ast]` argument"))
         });
 
-        args_parser.parse2(args_stream).map(move |_| args)
+        args_parser.parse2(args_stream)?;
+
+        Ok(args)
     }
 }
 
@@ -51,7 +54,9 @@ impl Default for Args {
 /// Represents whether an AST element is a node or token.
 #[derive(Clone, Copy, PartialEq, Debug)]
 enum AstKind {
+    /// An AST node.
     Node,
+    /// An AST token.
     Token,
 }
 
@@ -151,11 +156,11 @@ fn ast_kind(original: &ItemStruct) -> Result<AstKind> {
     } else if original.generics == parse_quote!(<T: TreeToken = SyntaxToken>) {
         Ok(AstKind::Token)
     } else {
-        return Err(Error::new_spanned(
+        Err(Error::new_spanned(
             &original.generics,
             "`#[ast]` requires that struct generics be either `<N: TreeNode = SyntaxNode>` or \
              `<T: TreeToken = SyntaxToken>`",
-        ));
+        ))
     }
 }
 
