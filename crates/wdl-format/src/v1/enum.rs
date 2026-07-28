@@ -21,12 +21,12 @@ pub fn format_enum_definition(
     let mut children = element.children().expect("enum definition children");
 
     let enum_keyword = children.next().expect("enum keyword");
-    assert!(enum_keyword.element().kind() == SyntaxKind::EnumKeyword);
+    assert_eq!(enum_keyword.element().kind(), SyntaxKind::EnumKeyword);
     (&enum_keyword).write(stream, config);
     stream.end_word();
 
     let name = children.next().expect("enum name");
-    assert!(name.element().kind() == SyntaxKind::Ident);
+    assert_eq!(name.element().kind(), SyntaxKind::Ident);
     (&name).write(stream, config);
 
     let mut choices = Vec::new();
@@ -91,7 +91,7 @@ pub fn format_enum_choice(
     let mut children = element.children().expect("enum choice children");
 
     let name = children.next().expect("enum choice name");
-    assert!(name.element().kind() == SyntaxKind::Ident);
+    assert_eq!(name.element().kind(), SyntaxKind::Ident);
     (&name).write(stream, config);
 
     for child in children {
