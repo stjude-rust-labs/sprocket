@@ -90,7 +90,7 @@ pub fn ast(args_stream: TokenStream, item_stream: TokenStream) -> TokenStream {
     let item = parse_macro_input!(item_stream as Item);
 
     let expanded = match &item {
-        Item::Struct(struct_) => ast::build(struct_, args),
+        Item::Struct(struct_) => ast::struct_::build(struct_, args),
         Item::Enum(_enum_) => todo!(),
         unsupported => Err(Error::new_spanned(
             unsupported,
