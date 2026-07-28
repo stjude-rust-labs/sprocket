@@ -5058,6 +5058,7 @@ dependencies = [
 name = "sprocket-py-macros"
 version = "0.1.0"
 dependencies = [
+ "pretty_assertions",
  "proc-macro2",
  "quote",
  "syn 3.0.2",

@@ -66,30 +66,7 @@ pub(crate) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
     // Remove generics.
     py_struct.generics = Generics::default();
 
-    // Only copy over doc comments, remove all other attributes.
-    py_struct.attrs.retain(|attr| attr.path().is_ident("doc"));
-
-    py_struct.attrs.extend_from_slice(&[
-        // Make generated struct a pyclass.
-        {
-            let module = args.module;
-            let class_name = LitStr::new(&original.ident.to_string(), original.ident.span());
-            let extends = Ident::new(
-                match ast_kind {
-                    AstKind::Node => "PyAstNode",
-                    AstKind::Token => "PyAstToken",
-                },
-                Span::call_site(),
-            );
-
-            parse_quote!(#[::pyo3::pyclass(module = #module, name = #class_name, extends = crate::#extends, frozen, skip_from_py_object, eq)])
-        },
-        // `#[pymethods]` relies on the Python struct being cloneable. We additionally derive
-        // `PartialEq` for parity with the original struct.
-        parse_quote!(#[derive(Clone, PartialEq)]),
-        // `Debug` is purposefully not implemented, silence the lint.
-        parse_quote!(#[allow(missing_debug_implementations)]),
-    ]);
+    build_attrs(&mut py_struct, original, args, ast_kind);
 
     // Verify fields.
     if let Fields::Unnamed(ref fields) = original.fields {
@@ -182,6 +159,38 @@ fn ast_kind(original: &ItemStruct) -> Result<AstKind> {
     }
 }
 
+/// Modifies the attributes of `py_struct`.
+///
+/// This first removes all of `py_struct`'s attributes except for its doc
+/// comments. Then, it appends attributes like `#[pyclass]` that are necessary
+/// for making it a Python type.
+fn build_attrs(py_struct: &mut ItemStruct, original: &ItemStruct, args: Args, ast_kind: AstKind) {
+    // Only copy over doc comments, remove all other attributes.
+    py_struct.attrs.retain(|attr| attr.path().is_ident("doc"));
+
+    py_struct.attrs.extend_from_slice(&[
+        // Make generated struct a pyclass.
+        {
+            let module = args.module;
+            let class_name = LitStr::new(&original.ident.to_string(), original.ident.span());
+            let extends = Ident::new(
+                match ast_kind {
+                    AstKind::Node => "PyAstNode",
+                    AstKind::Token => "PyAstToken",
+                },
+                Span::call_site(),
+            );
+
+            parse_quote!(#[::pyo3::pyclass(module = #module, name = #class_name, extends = crate::#extends, frozen, skip_from_py_object, eq)])
+        },
+        // `#[pymethods]` relies on the Python struct being cloneable. We additionally derive
+        // `PartialEq` for parity with the original struct.
+        parse_quote!(#[derive(Clone, PartialEq)]),
+        // `Debug` is purposefully not implemented, silence the lint.
+        parse_quote!(#[allow(missing_debug_implementations)]),
+    ]);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -269,5 +278,67 @@ mod tests {
             result.is_err(),
             "did not error on missing generic default: {result:?}"
         );
+    }
+
+    #[test]
+    fn attrs_node() {
+        let original: ItemStruct = parse_quote! {
+            /// Doc comment
+            /** Another doc comment */
+            #[derive(Hash)]
+            struct Foo;
+        };
+        let mut py_struct = original.clone();
+
+        build_attrs(&mut py_struct, &original, Args::default(), AstKind::Node);
+
+        let expected = [
+            parse_quote!(#[doc = r" Doc comment"]),
+            parse_quote!(#[doc = r" Another doc comment "]),
+            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "Foo", extends = crate::PyAstNode, frozen, skip_from_py_object, eq)]),
+            parse_quote!(#[derive(Clone, PartialEq)]),
+            parse_quote!(#[allow(missing_debug_implementations)]),
+        ];
+
+        pretty_assertions::assert_eq!(py_struct.attrs, expected);
+    }
+
+    #[test]
+    fn attrs_token() {
+        let original: ItemStruct = parse_quote! { struct Foo; };
+        let mut py_struct = original.clone();
+
+        build_attrs(&mut py_struct, &original, Args::default(), AstKind::Token);
+
+        let expected = [
+            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "Foo", extends = crate::PyAstToken, frozen, skip_from_py_object, eq)]),
+            parse_quote!(#[derive(Clone, PartialEq)]),
+            parse_quote!(#[allow(missing_debug_implementations)]),
+        ];
+
+        pretty_assertions::assert_eq!(py_struct.attrs, expected);
+    }
+
+    #[test]
+    fn attrs_module() {
+        let original: ItemStruct = parse_quote! { struct Foo; };
+        let mut py_struct = original.clone();
+
+        build_attrs(
+            &mut py_struct,
+            &original,
+            Args {
+                module: LitStr::new("sprocket_bio.custom_module", Span::call_site()),
+            },
+            AstKind::Token,
+        );
+
+        let expected = [
+            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.custom_module", name = "Foo", extends = crate::PyAstToken, frozen, skip_from_py_object, eq)]),
+            parse_quote!(#[derive(Clone, PartialEq)]),
+            parse_quote!(#[allow(missing_debug_implementations)]),
+        ];
+
+        pretty_assertions::assert_eq!(py_struct.attrs, expected);
     }
 }

@@ -17,6 +17,9 @@ quote = "1.0.47"
 # Parses token streams into syntax trees
 syn = { version = "3.0.2", features = ["full", "extra-traits"] } # TODO: simplify features
 
+[dev-dependencies]
+pretty_assertions.workspace = true
+
 [lints]
 workspace = true
 
