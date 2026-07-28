@@ -27,16 +27,16 @@ enum AstKind {
 pub(crate) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
     let mut py_struct = original.clone();
 
-    super::build_ident(&mut py_struct, original);
+    super::make_py_ident(&mut py_struct, original);
 
     let ast_kind = ast_kind(original)?;
 
     // Remove generics.
     py_struct.generics = Generics::default();
 
-    build_attrs(&mut py_struct, original, args, ast_kind);
+    make_py_attrs(&mut py_struct, original, args, ast_kind);
 
-    build_fields(&mut py_struct, original, ast_kind)?;
+    make_py_fields(&mut py_struct, original, ast_kind)?;
 
     // Used for quote formatting.
     let ident = &original.ident;
@@ -108,7 +108,7 @@ fn ast_kind(original: &ItemStruct) -> Result<AstKind> {
 /// This first removes all of `py_struct`'s attributes except for its doc
 /// comments. Then, it appends attributes like `#[pyclass]` that are necessary
 /// for making it a Python type.
-fn build_attrs(py_struct: &mut ItemStruct, original: &ItemStruct, args: Args, ast_kind: AstKind) {
+fn make_py_attrs(py_struct: &mut ItemStruct, original: &ItemStruct, args: Args, ast_kind: AstKind) {
     // Only copy over doc comments, remove all other attributes.
     py_struct.attrs.retain(|attr| attr.path().is_ident("doc"));
 
@@ -136,7 +136,7 @@ fn build_attrs(py_struct: &mut ItemStruct, original: &ItemStruct, args: Args, as
 }
 
 /// Modifies the fields of `py_struct`.
-fn build_fields(
+fn make_py_fields(
     py_struct: &mut ItemStruct,
     original: &ItemStruct,
     ast_kind: AstKind,
@@ -227,7 +227,7 @@ mod tests {
         };
         let mut py_struct = original.clone();
 
-        build_attrs(&mut py_struct, &original, Args::default(), AstKind::Node);
+        make_py_attrs(&mut py_struct, &original, Args::default(), AstKind::Node);
 
         let expected = [
             parse_quote!(#[doc = r" Doc comment"]),
@@ -245,7 +245,7 @@ mod tests {
         let original: ItemStruct = parse_quote! { struct Foo; };
         let mut py_struct = original.clone();
 
-        build_attrs(&mut py_struct, &original, Args::default(), AstKind::Token);
+        make_py_attrs(&mut py_struct, &original, Args::default(), AstKind::Token);
 
         let expected = [
             parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "Foo", extends = crate::PyAstToken, frozen, skip_from_py_object, eq)]),
@@ -261,7 +261,7 @@ mod tests {
         let original: ItemStruct = parse_quote! { struct Foo; };
         let mut py_struct = original.clone();
 
-        build_attrs(
+        make_py_attrs(
             &mut py_struct,
             &original,
             Args {
@@ -284,7 +284,7 @@ mod tests {
         let original: ItemStruct = parse_quote! { struct Foo<N: TreeNode = SyntaxNode>(N); };
         let mut py_struct = original.clone();
 
-        build_fields(&mut py_struct, &original, AstKind::Node).unwrap();
+        make_py_fields(&mut py_struct, &original, AstKind::Node).unwrap();
 
         let expected = Fields::Unnamed(parse_quote!((crate::python::ThreadSafeSyntaxNode)));
 
@@ -296,7 +296,7 @@ mod tests {
         let original: ItemStruct = parse_quote! { struct Foo<T: TreeToken = SyntaxToken>(T); };
         let mut py_struct = original.clone();
 
-        build_fields(&mut py_struct, &original, AstKind::Token).unwrap();
+        make_py_fields(&mut py_struct, &original, AstKind::Token).unwrap();
 
         let expected = Fields::Unnamed(parse_quote!((crate::python::ThreadSafeSyntaxToken)));
 
@@ -308,7 +308,7 @@ mod tests {
         let unit: ItemStruct = parse_quote! { struct Foo; };
         let mut py_struct = unit.clone();
 
-        let result = build_fields(&mut py_struct, &unit, AstKind::Node);
+        let result = make_py_fields(&mut py_struct, &unit, AstKind::Node);
 
         assert!(result.is_err(), "did not error on unit struct: {result:?}");
 
@@ -319,7 +319,7 @@ mod tests {
         };
         let mut py_struct = named.clone();
 
-        let result = build_fields(&mut py_struct, &named, AstKind::Token);
+        let result = make_py_fields(&mut py_struct, &named, AstKind::Token);
 
         assert!(result.is_err(), "did not error on named struct: {result:?}");
     }
@@ -329,7 +329,7 @@ mod tests {
         let zero_fields: ItemStruct = parse_quote! { struct Foo(); };
         let mut py_struct = zero_fields.clone();
 
-        let result = build_fields(&mut py_struct, &zero_fields, AstKind::Node);
+        let result = make_py_fields(&mut py_struct, &zero_fields, AstKind::Node);
 
         assert!(
             result.is_err(),
@@ -340,7 +340,7 @@ mod tests {
             parse_quote! { struct Foo<T: TreeToken = SyntaxToken>(T, bool); };
         let mut py_struct = two_fields.clone();
 
-        let result = build_fields(&mut py_struct, &two_fields, AstKind::Token);
+        let result = make_py_fields(&mut py_struct, &two_fields, AstKind::Token);
 
         assert!(
             result.is_err(),

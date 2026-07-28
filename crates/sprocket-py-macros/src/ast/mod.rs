@@ -48,7 +48,7 @@ impl Default for Args {
 }
 
 /// Modifies the [`Ident`] of `py_struct` to its Python name.
-fn build_ident(py_struct: &mut ItemStruct, original: &ItemStruct) {
+fn make_py_ident(py_struct: &mut ItemStruct, original: &ItemStruct) {
     py_struct.ident = format_ident!("Py{}", original.ident);
 }
 
@@ -91,7 +91,7 @@ mod tests {
         let original: ItemStruct = parse_quote! { struct Foo; };
         let mut py_struct = original.clone();
 
-        build_ident(&mut py_struct, &original);
+        make_py_ident(&mut py_struct, &original);
 
         assert_eq!(py_struct.ident.to_string(), "PyFoo");
     }
