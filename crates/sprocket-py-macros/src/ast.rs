@@ -48,6 +48,7 @@ impl Default for Args {
     }
 }
 
+/// Represents whether an AST element is a node or token.
 #[derive(Clone, Copy)]
 enum AstKind {
     Node,
@@ -58,7 +59,7 @@ enum AstKind {
 pub(crate) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
     let mut py_struct = original.clone();
 
-    py_struct.ident = format_ident!("Py{}", original.ident);
+    build_ident(&mut py_struct, original);
 
     // Determine if struct is a node or a token.
     let ast_kind = if original.generics == parse_quote!(<N: TreeNode = SyntaxNode>) {
@@ -171,6 +172,11 @@ pub(crate) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
     })
 }
 
+/// Modifies the [`Ident`] of `py_struct` to its Python name.
+fn build_ident(py_struct: &mut ItemStruct, original: &ItemStruct) {
+    py_struct.ident = format_ident!("Py{}", original.ident);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -200,5 +206,15 @@ mod tests {
             result.is_err(),
             "did not error on unknown argument: {result:?}"
         );
+    }
+
+    #[test]
+    fn ident() {
+        let original: ItemStruct = parse_quote! { struct Foo; };
+        let mut py_struct = original.clone();
+
+        build_ident(&mut py_struct, &original);
+
+        assert_eq!(py_struct.ident.to_string(), "PyFoo");
     }
 }
