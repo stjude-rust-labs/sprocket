@@ -82,18 +82,11 @@ use syn::parse_macro_input;
 /// ```
 #[proc_macro_attribute]
 pub fn ast(args_stream: TokenStream, item_stream: TokenStream) -> TokenStream {
-    let mut args = ast::Args::default();
+    let args = match ast::Args::parse(args_stream.into()) {
+        Ok(args) => args,
+        Err(error) => return error.to_compile_error().into(),
+    };
 
-    let args_parser = syn::meta::parser(|meta| {
-        if meta.path.is_ident("module") {
-            args.module = meta.value()?.parse()?;
-            return Ok(());
-        }
-
-        Err(meta.error("unknown `#[ast]` argument"))
-    });
-
-    parse_macro_input!(args_stream with args_parser);
     let item = parse_macro_input!(item_stream as Item);
 
     let expanded = match &item {

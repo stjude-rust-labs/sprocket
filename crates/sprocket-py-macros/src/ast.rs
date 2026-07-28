@@ -11,14 +11,33 @@ use syn::Generics;
 use syn::ItemStruct;
 use syn::LitStr;
 use syn::Result;
+use syn::parse::Parser;
 use syn::parse_quote;
 
 /// Arguments to the `#[ast]` attribute.
+#[derive(PartialEq, Debug)]
 pub(crate) struct Args {
     /// The module the type is defined in, from Python's perspective.
     ///
     /// This is forwarded to `#[pyclass(module = ...)]`.
     pub(crate) module: LitStr,
+}
+
+impl Args {
+    pub(crate) fn parse(args_stream: TokenStream) -> Result<Self> {
+        let mut args = Self::default();
+
+        let args_parser = syn::meta::parser(|meta| {
+            if meta.path.is_ident("module") {
+                args.module = meta.value()?.parse()?;
+                return Ok(());
+            }
+
+            Err(meta.error("unknown `#[ast]` argument"))
+        });
+
+        args_parser.parse2(args_stream).map(move |_| args)
+    }
 }
 
 impl Default for Args {
@@ -150,4 +169,36 @@ pub(crate) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
             }
         }
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_args() {
+        let args_stream = quote!();
+        let args = Args::parse(args_stream).unwrap();
+
+        assert_eq!(args, Args::default());
+    }
+
+    #[test]
+    fn module_arg() {
+        let args_stream = quote!(module = "sprocket_bio.super_cool_module");
+        let args = Args::parse(args_stream).unwrap();
+
+        assert_eq!(args.module.value(), "sprocket_bio.super_cool_module");
+    }
+
+    #[test]
+    fn unknown_arg() {
+        let args_stream = quote!(spooky = "👻");
+        let result = Args::parse(args_stream);
+
+        assert!(
+            result.is_err(),
+            "did not error on unknown argument: {result:?}"
+        );
+    }
 }
