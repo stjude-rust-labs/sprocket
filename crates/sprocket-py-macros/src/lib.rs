@@ -11,7 +11,6 @@ mod ast_methods;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::Error;
-use syn::Item;
 use syn::ItemImpl;
 use syn::parse::Nothing;
 use syn::parse_macro_input;
@@ -82,28 +81,9 @@ use syn::parse_macro_input;
 /// ```
 #[proc_macro_attribute]
 pub fn ast(args_stream: TokenStream, item_stream: TokenStream) -> TokenStream {
-    let args = match ast::Args::parse(args_stream.into()) {
-        Ok(args) => args,
-        Err(error) => return error.to_compile_error().into(),
-    };
-
-    let item = parse_macro_input!(item_stream as Item);
-
-    let expanded = match &item {
-        Item::Struct(struct_) => ast::struct_::build(struct_, args),
-        Item::Enum(_enum_) => todo!(),
-        unsupported => Err(Error::new_spanned(
-            unsupported,
-            "`#[ast]` only supports structs and enums",
-        )),
-    }
-    .unwrap_or_else(Error::into_compile_error);
-
-    quote! {
-        #item
-        #expanded
-    }
-    .into()
+    ast::ast(args_stream.into(), item_stream.into())
+        .unwrap_or_else(Error::into_compile_error)
+        .into()
 }
 
 /// TODO

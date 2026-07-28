@@ -1,10 +1,14 @@
 //! TODO
 
-pub(crate) mod struct_;
+// mod enum_;
+mod struct_;
 
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::format_ident;
+use quote::quote;
+use syn::Error;
+use syn::Item;
 use syn::ItemStruct;
 use syn::LitStr;
 use syn::Result;
@@ -12,16 +16,16 @@ use syn::parse::Parser;
 
 /// Arguments to the `#[ast]` attribute.
 #[derive(PartialEq, Debug)]
-pub(crate) struct Args {
+struct Args {
     /// The module the type is defined in, from Python's perspective.
     ///
     /// This is forwarded to `#[pyclass(module = ...)]`.
-    pub(crate) module: LitStr,
+    module: LitStr,
 }
 
 impl Args {
     /// Parses a token stream into structured arguments.
-    pub(crate) fn parse(args_stream: TokenStream) -> Result<Self> {
+    fn parse(args_stream: TokenStream) -> Result<Self> {
         let mut args = Self::default();
 
         let args_parser = syn::meta::parser(|meta| {
@@ -45,6 +49,27 @@ impl Default for Args {
             module: LitStr::new("sprocket_bio.ast.v1", Span::call_site()),
         }
     }
+}
+
+pub(crate) fn ast(args_stream: TokenStream, item_stream: TokenStream) -> Result<TokenStream> {
+    let args = Args::parse(args_stream.into())?;
+    let item = syn::parse2::<Item>(item_stream)?;
+
+    let expanded = match &item {
+        Item::Struct(struct_) => struct_::build(struct_, args)?,
+        // Item::Enum(enum_) => enum_::build(enum_, args)?,
+        unsupported => {
+            return Err(Error::new_spanned(
+                unsupported,
+                "`#[ast]` only supports structs and enums",
+            ));
+        }
+    };
+
+    Ok(quote! {
+        #item
+        #expanded
+    })
 }
 
 /// Modifies the [`Ident`] of `py_struct` to its Python name.

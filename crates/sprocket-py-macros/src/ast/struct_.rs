@@ -23,8 +23,8 @@ enum AstKind {
     Token,
 }
 
-/// Gives the Python binding equivalent of an AST struct.
-pub(crate) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
+/// Builds the Python binding equivalent of an AST struct.
+pub(super) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
     let mut py_struct = original.clone();
 
     super::make_py_ident(&mut py_struct, original);
