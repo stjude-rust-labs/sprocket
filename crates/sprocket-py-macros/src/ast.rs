@@ -73,26 +73,7 @@ pub(crate) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
 
     build_attrs(&mut py_struct, original, args, ast_kind);
 
-    // Verify fields.
-    if let Fields::Unnamed(ref fields) = original.fields {
-        if fields.unnamed.len() != 1 {
-            return Err(Error::new_spanned(
-                fields,
-                "`#[ast]` only supports structs with a single field",
-            ));
-        }
-    } else {
-        return Err(Error::new_spanned(
-            &original.fields,
-            "`#[ast]` only supports tuple structs",
-        ));
-    }
-
-    // Replace generic node / token field with thread-safe variant.
-    py_struct.fields = Fields::Unnamed(match ast_kind {
-        AstKind::Node => parse_quote!((crate::python::ThreadSafeSyntaxNode)),
-        AstKind::Token => parse_quote!((crate::python::ThreadSafeSyntaxToken)),
-    });
+    build_fields(&mut py_struct, original, ast_kind)?;
 
     // Used for quote formatting.
     let ident = &original.ident;
@@ -194,6 +175,36 @@ fn build_attrs(py_struct: &mut ItemStruct, original: &ItemStruct, args: Args, as
         // `Debug` is purposefully not implemented, silence the lint.
         parse_quote!(#[allow(missing_debug_implementations)]),
     ]);
+}
+
+/// Modifies the fields of `py_struct`.
+fn build_fields(
+    py_struct: &mut ItemStruct,
+    original: &ItemStruct,
+    ast_kind: AstKind,
+) -> Result<()> {
+    // Verify fields.
+    if let Fields::Unnamed(ref fields) = original.fields {
+        if fields.unnamed.len() != 1 {
+            return Err(Error::new_spanned(
+                fields,
+                "`#[ast]` only supports structs with a single field",
+            ));
+        }
+    } else {
+        return Err(Error::new_spanned(
+            &original.fields,
+            "`#[ast]` only supports tuple structs",
+        ));
+    }
+
+    // Replace generic node / token field with thread-safe variant.
+    py_struct.fields = Fields::Unnamed(match ast_kind {
+        AstKind::Node => parse_quote!((crate::python::ThreadSafeSyntaxNode)),
+        AstKind::Token => parse_quote!((crate::python::ThreadSafeSyntaxToken)),
+    });
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -345,5 +356,74 @@ mod tests {
         ];
 
         pretty_assertions::assert_eq!(py_struct.attrs, expected);
+    }
+
+    #[test]
+    fn fields_node() {
+        let original: ItemStruct = parse_quote! { struct Foo<N: TreeNode = SyntaxNode>(N); };
+        let mut py_struct = original.clone();
+
+        build_fields(&mut py_struct, &original, AstKind::Node).unwrap();
+
+        let expected = Fields::Unnamed(parse_quote!((crate::python::ThreadSafeSyntaxNode)));
+
+        assert_eq!(py_struct.fields, expected);
+    }
+
+    #[test]
+    fn fields_token() {
+        let original: ItemStruct = parse_quote! { struct Foo<T: TreeToken = SyntaxToken>(T); };
+        let mut py_struct = original.clone();
+
+        build_fields(&mut py_struct, &original, AstKind::Token).unwrap();
+
+        let expected = Fields::Unnamed(parse_quote!((crate::python::ThreadSafeSyntaxToken)));
+
+        assert_eq!(py_struct.fields, expected);
+    }
+
+    #[test]
+    fn fields_not_tuple() {
+        let unit: ItemStruct = parse_quote! { struct Foo; };
+        let mut py_struct = unit.clone();
+
+        let result = build_fields(&mut py_struct, &unit, AstKind::Node);
+
+        assert!(result.is_err(), "did not error on unit struct: {result:?}");
+
+        let named: ItemStruct = parse_quote! {
+            struct Foo<T: TreeToken = SyntaxToken> {
+                token: T,
+            }
+        };
+        let mut py_struct = named.clone();
+
+        let result = build_fields(&mut py_struct, &named, AstKind::Token);
+
+        assert!(result.is_err(), "did not error on named struct: {result:?}");
+    }
+
+    #[test]
+    fn fields_incorrect_amount() {
+        let zero_fields: ItemStruct = parse_quote! { struct Foo(); };
+        let mut py_struct = zero_fields.clone();
+
+        let result = build_fields(&mut py_struct, &zero_fields, AstKind::Node);
+
+        assert!(
+            result.is_err(),
+            "did not error on zero field struct: {result:?}"
+        );
+
+        let two_fields: ItemStruct =
+            parse_quote! { struct Foo<T: TreeToken = SyntaxToken>(T, bool); };
+        let mut py_struct = two_fields.clone();
+
+        let result = build_fields(&mut py_struct, &two_fields, AstKind::Token);
+
+        assert!(
+            result.is_err(),
+            "did not error on two field struct: {result:?}"
+        );
     }
 }
