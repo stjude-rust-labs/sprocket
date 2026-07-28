@@ -10,6 +10,7 @@ mod ast_methods;
 
 use proc_macro::TokenStream;
 use quote::quote;
+use syn::Error;
 use syn::Item;
 use syn::ItemImpl;
 use syn::parse::Nothing;
@@ -98,12 +99,12 @@ pub fn ast(args_stream: TokenStream, item_stream: TokenStream) -> TokenStream {
     let expanded = match &item {
         Item::Struct(struct_) => ast::build(struct_, args),
         Item::Enum(_enum_) => todo!(),
-        unsupported => Err(syn::Error::new_spanned(
+        unsupported => Err(Error::new_spanned(
             unsupported,
             "`#[ast]` only supports structs and enums",
         )),
     }
-    .unwrap_or_else(syn::Error::into_compile_error);
+    .unwrap_or_else(Error::into_compile_error);
 
     quote! {
         #item
@@ -118,7 +119,7 @@ pub fn ast_methods(args: TokenStream, item: TokenStream) -> TokenStream {
     parse_macro_input!(args as Nothing);
     let mut methods = parse_macro_input!(item as ItemImpl);
 
-    let expanded = ast_methods::build(&mut methods).unwrap_or_else(syn::Error::into_compile_error);
+    let expanded = ast_methods::build(&mut methods).unwrap_or_else(Error::into_compile_error);
 
     quote! {
         #methods

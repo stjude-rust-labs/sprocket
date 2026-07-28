@@ -9,11 +9,12 @@ use syn::ImplItem;
 use syn::ItemImpl;
 use syn::LitStr;
 use syn::PathArguments;
+use syn::Result;
 use syn::Type;
 use syn::parse_quote;
 
 /// TODO
-pub(crate) fn build(original: &mut ItemImpl) -> syn::Result<TokenStream> {
+pub(crate) fn build(original: &mut ItemImpl) -> Result<TokenStream> {
     let mut py_impl = original.clone();
 
     // Add `#[pymethods]` attribute to impl.

@@ -5,10 +5,12 @@ use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
+use syn::Error;
 use syn::Fields;
 use syn::Generics;
 use syn::ItemStruct;
 use syn::LitStr;
+use syn::Result;
 use syn::parse_quote;
 
 /// Arguments to the `#[ast]` attribute.
@@ -34,7 +36,7 @@ enum AstKind {
 }
 
 /// Gives the Python binding equivalent of an AST struct.
-pub(crate) fn build(original: &ItemStruct, args: Args) -> syn::Result<TokenStream> {
+pub(crate) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
     let mut py_struct = original.clone();
 
     py_struct.ident = format_ident!("Py{}", original.ident);
@@ -45,7 +47,7 @@ pub(crate) fn build(original: &ItemStruct, args: Args) -> syn::Result<TokenStrea
     } else if original.generics == parse_quote!(<T: TreeToken = SyntaxToken>) {
         AstKind::Token
     } else {
-        return Err(syn::Error::new_spanned(
+        return Err(Error::new_spanned(
             &original.generics,
             "`#[ast]` requires that struct generics be either `<N: TreeNode = SyntaxNode>` or \
              `<T: TreeToken = SyntaxToken>`",
@@ -83,13 +85,13 @@ pub(crate) fn build(original: &ItemStruct, args: Args) -> syn::Result<TokenStrea
     // Verify fields.
     if let Fields::Unnamed(ref fields) = original.fields {
         if fields.unnamed.len() != 1 {
-            return Err(syn::Error::new_spanned(
+            return Err(Error::new_spanned(
                 fields,
                 "`#[ast]` only supports structs with a single field",
             ));
         }
     } else {
-        return Err(syn::Error::new_spanned(
+        return Err(Error::new_spanned(
             &original.fields,
             "`#[ast]` only supports tuple structs",
         ));
