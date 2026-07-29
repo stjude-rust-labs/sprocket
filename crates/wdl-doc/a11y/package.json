@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Accessibility audit for generated wdl-doc documentation.",
   "dependencies": {
-    "axe-core": "^4.10.2",
-    "puppeteer": "^23.0.0"
+    "axe-core": "^4.12.1",
+    "puppeteer": "^25.4.0"
   }
 }
