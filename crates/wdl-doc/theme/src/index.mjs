@@ -126,9 +126,47 @@ function applyPlatformShortcutHint() {
     }
 }
 
+const SCROLL_PANES = [
+    ['.layout__main-center', 'layout__main-center--scrolling'],
+    [
+        '.left-sidebar__content-container',
+        'left-sidebar__content-container--scrolling'
+    ],
+];
+const SCROLL_IDLE_DELAY_MS = 700;
+
+// Reveal each documentation scrollbar while its pane is actively scrolling,
+// then hide it shortly after scrolling stops. Hover and `focus-within` reveal
+// scrollbars through CSS; this drives only the transient active-scroll state.
+//
+// Each pane receives one passive listener and reuses one timer. A data
+// attribute prevents repeated initialization from accumulating handlers.
+function initScrollbarAutohide() {
+    for (const [selector, activeClass] of SCROLL_PANES) {
+        const pane = document.querySelector(selector);
+        if (!pane || pane.dataset.scrollbarAutohide === 'true') continue;
+        pane.dataset.scrollbarAutohide = 'true';
+
+        let idleTimer = null;
+        pane.addEventListener(
+            'scroll',
+            () => {
+                pane.classList.add(activeClass);
+                if (idleTimer !== null) clearTimeout(idleTimer);
+                idleTimer = setTimeout(() => {
+                    pane.classList.remove(activeClass);
+                    idleTimer = null;
+                }, SCROLL_IDLE_DELAY_MS);
+            },
+            { passive: true }
+        );
+    }
+}
+
 Alpine.start();
 requestAnimationFrame(buildPageSections);
 applyPlatformShortcutHint();
+initScrollbarAutohide();
 
 // Highlight Markdown fenced code blocks and give them the same copy, expand,
 // and line-number controls as the generated `<sprocket-code>` blocks. These

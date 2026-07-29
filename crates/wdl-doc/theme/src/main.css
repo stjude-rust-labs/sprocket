@@ -12,7 +12,19 @@
    * Layout
    */
   .layout__header {
-    @apply fixed flex flex-row top-0 right-0 left-0 w-screen h-16 z-50 border-b border-slate-900 bg-slate-950 transition-all;
+    @apply fixed flex flex-row top-0 right-0 left-0 w-screen h-16 z-50 border-b border-slate-800 bg-slate-950 transition-all;
+  }
+  .header__content {
+    @apply grid h-16 w-full grid-cols-[auto_minmax(0,1fr)_2.5rem] items-center gap-3 px-3 md:grid-cols-[1fr_minmax(0,23rem)_1fr] md:gap-6 md:px-6;
+  }
+  .header__logo {
+    @apply flex h-16 w-40 items-center justify-start;
+  }
+  .header__search {
+    @apply relative col-start-2 h-11 w-full max-w-56 justify-self-center md:max-w-[23rem];
+  }
+  .header__actions {
+    @apply col-start-3 flex flex-row-reverse items-start justify-between justify-self-end;
   }
   /**
    * Layout - Target desktop proportions
@@ -25,13 +37,48 @@
     @apply md:pl-[23.5rem];
   }
   .layout__sidebar-left {
-    @apply w-[23.5rem];
+    @apply w-[23.5rem] h-screen pt-16 bg-slate-950 transition-transform duration-200 ease-out max-md:w-80;
+  }
+  .layout__main-shell {
+    @apply mx-auto xl:grid xl:grid-cols-[minmax(0,70rem)_14rem] xl:gap-10;
   }
   .layout__main-center-content {
-    @apply max-w-[70rem] px-6 py-10 md:px-12 md:py-14;
+    @apply w-full max-w-[70rem] px-4 py-8 md:px-8 md:py-10;
   }
-  .layout__sidebar-right {
-    @apply w-64 border-l border-slate-800 xl:block max-xl:hidden;
+  .layout__main-rail {
+    @apply max-xl:hidden pt-14;
+  }
+  .layout__main-center {
+    @apply scroll-pt-20;
+  }
+  /**
+   * Scrollbar auto-hide
+   *
+   * The shared `dark-scrollbar` utility (see `web-common`) keeps scrollbars
+   * permanently visible. For `wdl-doc`, the main pane and left navigation
+   * instead use transparent thumbs and tracks at rest. Hover, keyboard focus,
+   * or active scrolling reveals the thumb. The theme's scroll handler toggles
+   * each transient `--scrolling` class and clears it shortly after scrolling
+   * stops. Only colors change, so scrolling remains fully functional.
+   */
+  .layout__main-center,
+  .left-sidebar__content-container {
+    scrollbar-color: transparent transparent;
+    transition: scrollbar-color 200ms ease;
+  }
+  .layout__main-center:hover,
+  .layout__main-center:focus-within,
+  .layout__main-center--scrolling,
+  .left-sidebar__content-container:hover,
+  .left-sidebar__content-container:focus-within,
+  .left-sidebar__content-container--scrolling {
+    scrollbar-color: var(--color-slate-600) transparent;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .layout__main-center,
+    .left-sidebar__content-container {
+      transition: none;
+    }
   }
   .markdown-body {
     @apply text-lg leading-8;
@@ -41,6 +88,9 @@
   }
   .main__section-header {
     @apply text-3xl leading-10;
+  }
+  .main__expression-toggle {
+    @apply ml-1 mt-2 inline-block;
   }
   /**
    * Layout - Alternative Layouts
@@ -54,6 +104,19 @@
     @apply -translate-x-full;
   }
   .layout__container--alt-layout.layout__container--left-hidden {
+    @apply pl-0;
+  }
+  /*
+   * Pre-hydration sidebar position. The head bootstrap sets
+   * `document.documentElement.dataset.sidebar` from the persisted state (or the
+   * viewport width on first load) before Alpine runs, so the sidebar starts in
+   * the remembered position instead of flashing open and then snapping closed.
+   * Once Alpine hydrates, `containerClasses` takes over and matches this.
+   */
+  :root[data-sidebar="hidden"] .layout__sidebar-left {
+    @apply -translate-x-full;
+  }
+  :root[data-sidebar="hidden"] .layout__container--alt-layout {
     @apply pl-0;
   }
   
@@ -71,7 +134,7 @@
     @apply pl-0 md:pl-[47rem];
   }
 
-  .layout__container--alt-layout.layout__container--right-hidden .layout__sidebar-right {
+  .layout__container--alt-layout.layout__container--right-hidden .layout__main-rail {
     @apply hidden;
   }
   .layout__container--alt-layout.layout__container--right-hidden .layout__main-center {
@@ -81,13 +144,13 @@
    * Layout - Breadcrumbs
    */
   .layout__breadcrumb-container {
-    @apply mb-8 text-xs;
+    @apply mb-8 font-mono text-xs;
   }
   .layout__breadcrumb-clickable {
-    @apply text-slate-50 hover:text-slate-300 hover:underline;
+    @apply text-slate-50 underline hover:text-slate-300;
   }
   .layout__breadcrumb-inactive {
-    @apply text-slate-500;
+    @apply text-slate-400;
   }
   /* RUN WITH component */
   .main__run-with-container {
@@ -97,16 +160,25 @@
     @apply flex flex-row items-center shrink gap-2 text-slate-50 text-xs;
   }
   .main__run-with-label-text {
-    @apply text-slate-500 text-xs;
+    @apply text-slate-400 text-xs;
   }
   .main__run-with-toggle {
     @apply flex items-center justify-center rounded-full border border-slate-700 p-[2px];
   }
-  .main__run-with-toggle-label--active {
-    @apply bg-slate-50 text-slate-900 rounded-full px-1.5 py-0.5 transition-all cursor-pointer;
+  .main__run-with-toggle-label {
+    @apply rounded-full px-1.5 py-0.5 cursor-pointer;
   }
-  .main__run-with-toggle-label--inactive {
-    @apply bg-slate-900 text-slate-50 rounded-full px-1.5 py-0.5 transition-all cursor-pointer;
+  :root[data-run-with="unix"] .main__run-with-toggle-label--unix,
+  :root[data-run-with="windows"] .main__run-with-toggle-label--windows {
+    @apply bg-slate-50 text-slate-900;
+  }
+  :root[data-run-with="unix"] .main__run-with-toggle-label--windows,
+  :root[data-run-with="windows"] .main__run-with-toggle-label--unix {
+    @apply bg-slate-900 text-slate-50;
+  }
+  :root[data-run-with="unix"] .main__run-with-path--windows,
+  :root[data-run-with="windows"] .main__run-with-path--unix {
+    @apply hidden;
   }
   .main__run-with-content {
     @apply flex flex-row gap-2;
@@ -206,7 +278,7 @@
     @apply w-px h-full border rounded-none border-gray-800 ml-1.5 mr-1;
   }
   .left-sidebar__container {
-    @apply flex flex-col size-full text-nowrap pt-4 text-slate-400 border-r border-slate-900;
+    @apply flex flex-col size-full text-nowrap pt-4 text-slate-400 border-r border-slate-800;
   }
   .left-sidebar__tabs-container {
     @apply flex items-center;
@@ -218,7 +290,7 @@
     @apply size-4;
   }
   .left-sidebar__content-container {
-    @apply size-full rounded-md overflow-x-clip overflow-y-scroll pl-4 pr-2;
+    @apply size-full rounded-md overflow-x-clip overflow-y-auto pl-4 pr-2;
   }
   .left-sidebar__content {
     @apply w-full;
@@ -260,11 +332,14 @@
   .left-sidebar__size-button {
     @apply w-6 h-6 rounded flex items-center justify-center opacity-40 text-lg hover:bg-slate-700 text-slate-500 hover:text-slate-100 focus:ring-2 focus:outline-0 focus:ring-slate-500 hover:opacity-100 cursor-pointer;
   }
+  .left-sidebar__controls {
+    @apply absolute right-3 top-[4.5rem] z-10 flex gap-1;
+  }
   .left-sidebar__size-button.left-sidebar__size-button--active {
     @apply text-slate-100 bg-slate-700 opacity-100;
   }
   .left-sidebar__module-version {
-    @apply ml-1 shrink-0 rounded-full bg-slate-800 px-1.5 py-0.5 text-[0.65rem] leading-none text-slate-400;
+    @apply ml-1 shrink-0 rounded-full bg-slate-800 px-1.5 py-0.5 text-[0.65rem] leading-none text-slate-300;
   }
 
   /**
@@ -324,16 +399,34 @@
    * summary, badges, and a source card.
    */
   .declaration-hero {
-    @apply flex flex-col gap-4 pb-2;
+    @apply flex flex-col gap-4 border-b border-slate-800 pb-6;
   }
   .declaration-hero__kind {
     @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
   }
   .declaration-hero__title {
-    @apply text-5xl leading-tight font-sans font-medium text-slate-50;
+    @apply text-5xl leading-normal font-sans font-medium text-slate-50;
   }
   .declaration-hero__summary {
     @apply text-slate-300;
+  }
+
+  /**
+   * Heading code literal
+   *
+   * Wraps a WDL identifier used as a page title (declaration names such as
+   * `Sample`/`align_reads` and document names such as `main`) in inline
+   * `<code>` styling while keeping the surrounding heading's font size.
+   *
+   * The `code` qualifier matches the specificity of the generic
+   * `.main__container code` rule (see `web-common`) and, being defined later
+   * in the cascade, wins: `font-size: inherit` restores the full h1/h2 size
+   * instead of the generic 0.8em, so the treatment also works if a future WDL
+   * identifier appears in an h2.
+   */
+  .main__container code.heading-code-literal {
+    @apply rounded-lg border border-slate-700 bg-slate-800/60 px-[0.4em] py-[0.1em] font-mono;
+    font-size: inherit;
   }
 
   /**
@@ -346,26 +439,32 @@
     @apply flex flex-row items-center gap-3 rounded-lg border border-slate-800 bg-slate-900 px-4 py-3;
   }
   .source-card__icon {
-    @apply shrink-0 text-lg leading-none text-slate-500;
+    @apply flex size-4 shrink-0;
+  }
+  .source-card__icon img {
+    @apply size-full;
   }
   code.source-card__path {
     @apply flex-1 min-w-0 border-0 bg-transparent p-0 font-mono text-sm text-slate-300 overflow-x-hidden text-ellipsis whitespace-nowrap;
   }
   .source-card__copy {
-    @apply flex shrink-0 items-center justify-center gap-1 rounded-md border border-slate-700 px-2.5 py-1 text-xs text-slate-300 transition-colors hover:bg-slate-800 hover:text-slate-50 cursor-pointer;
+    @apply flex shrink-0 items-center justify-center gap-1 rounded-md border border-slate-700 px-2.5 py-1 text-xs text-slate-300 hover:bg-slate-800 hover:text-slate-50 cursor-pointer;
   }
 
   /**
    * Right Sidebar
    */
   .right-sidebar__container {
-    @apply p-4 size-full bg-slate-950 text-white isolate flex flex-col;
+    @apply h-full text-white isolate;
+  }
+  .right-sidebar__sticky {
+    @apply sticky top-4 flex flex-col;
   }
   .right-sidebar__header {
-    @apply text-xs text-slate-600;
+    @apply mb-2 text-xs text-slate-400;
   }
   .right-sidebar__section-header {
-    @apply max-w-xs h-8 px-2 flex items-center rounded-sm text-sm text-slate-400 hover:text-slate-300 hover:bg-slate-700/40 cursor-pointer;
+    @apply max-w-xs min-h-8 px-2 py-1.5 flex items-center rounded-sm text-sm text-slate-400 hover:text-slate-300 hover:bg-slate-700/40 cursor-pointer;
   }
   .right-sidebar__section-header--active {
     @apply bg-slate-600/50 text-white;
@@ -374,16 +473,25 @@
     @apply flex flex-col gap-1.5 ml-4 border-l border-slate-600;
   }
   .right-sidebar__section-item {
-    @apply max-w-xs h-8 px-4 flex items-center rounded-sm text-sm text-slate-400 -ml-2 hover:text-slate-300 hover:bg-slate-700/40 cursor-pointer;
+    @apply max-w-xs px-4 py-1 flex items-center rounded-sm text-sm text-slate-400 -ml-2 hover:text-slate-300 hover:bg-slate-700/40 cursor-pointer;
   }
   .right-sidebar__section-item--active {
     @apply bg-slate-600/50 text-white;
   }
+  .right-sidebar__project-links {
+    @apply mt-6 border-t border-slate-800 pt-4 flex flex-col gap-1;
+  }
+  .right-sidebar__project-link {
+    @apply flex items-center gap-2 rounded-sm px-2 py-2 text-sm text-slate-400 hover:text-slate-200 hover:bg-slate-700/40;
+  }
+  .right-sidebar__project-link-icon {
+    @apply size-4 shrink-0;
+  }
   .right-sidebar__back-to-top-container {
-    @apply mt-4;
+    @apply mt-6;
   }
   .right-sidebar__back-to-top {
-    @apply flex items-center text-slate-400 hover:text-slate-300 cursor-pointer;
+    @apply flex items-center text-slate-300 hover:text-slate-100 cursor-pointer;
   }
   .right-sidebar__back-to-top-icon {
     @apply mr-2 flex items-center justify-center w-6 h-6 rounded-full border border-slate-500;
@@ -398,19 +506,15 @@
     @apply flex text-slate-400 w-full h-full px-8 outline-none bg-transparent items-center rounded-md border border-slate-700 transition-colors focus:border-slate-400 placeholder:text-slate-400;
   }
   #search-shortcut-hint {
-    @apply absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1;
+    @apply absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-1 max-md:hidden;
   }
   .search-shortcut {
     @apply flex items-center gap-1;
   }
   .search-shortcut__key {
-    @apply flex items-center justify-center min-w-6 h-6 px-1 rounded-sm border border-slate-700 text-slate-400 text-xs font-sans font-medium leading-none;
+    @apply flex items-center justify-center min-w-6 h-6 px-1 rounded-sm border border-slate-700 text-slate-300 text-xs font-sans font-medium leading-none;
 
-    background: linear-gradient(
-      to top,
-      var(--color-slate-800) 0%,
-      oklch(from var(--color-slate-800) l c h / 0) 100%
-    );
+    background: rgb(255 255 255 / 0.05);
   }
   .search-shortcut__key--wide {
     @apply px-1.5;
@@ -445,6 +549,7 @@
   .left-sidebar__size-button:focus-visible,
   .right-sidebar__section-header:focus-visible,
   .right-sidebar__section-item:focus-visible,
+  .right-sidebar__project-link:focus-visible,
   .right-sidebar__back-to-top:focus-visible {
     outline: 2px solid var(--color-slate-400);
     outline-offset: -2px;
