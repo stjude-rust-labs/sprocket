@@ -1395,6 +1395,11 @@
           "type": "string",
           "default": "none"
         },
+        "slack_url": {
+          "description": "An optional link to the project's Slack workspace.",
+          "type": "string",
+          "default": "none"
+        },
         "light_mode": {
           "description": "Initialize pages in light mode instead of the default dark mode.",
           "type": "boolean",

@@ -50,6 +50,9 @@ pub struct Args {
     /// An optional link to the project's GitHub repository.
     #[arg(long, value_name = "LINK TO GITHUB")]
     pub github_url: Option<Url>,
+    /// An optional link to the project's Slack workspace.
+    #[arg(long, value_name = "LINK TO SLACK")]
+    pub slack_url: Option<Url>,
     /// Path to an alternate light mode SVG logo to embed on each page.
     ///
     /// If not supplied, the `--logo` SVG will be used; or if that is also not
@@ -202,6 +205,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
     let alt_light_logo = args.alt_light_logo.or(config.doc.alt_light_logo());
     let homepage_url = args.homepage_url.or(config.doc.homepage_url());
     let github_url = args.github_url.or(config.doc.github_url());
+    let slack_url = args.slack_url.or(config.doc.slack_url());
     let with_doc_comments = args.with_doc_comments || config.doc.with_doc_comments;
 
     let config = DocConfig::new(analysis_config, &workspace, &docs_dir)
@@ -213,6 +217,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         .external_urls(ExternalUrls {
             homepage: homepage_url,
             github: github_url,
+            slack: slack_url,
         })
         .additional_html(addl_html)
         .enable_doc_comments(with_doc_comments)
@@ -263,4 +268,25 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_slack_url() {
+        // SAFETY: the argument list contains a valid absolute URL.
+        let args = Args::try_parse_from([
+            "doc",
+            "--slack-url",
+            "https://example.slack.com/archives/community",
+        ])
+        .unwrap();
+
+        assert_eq!(
+            args.slack_url.as_ref().map(Url::as_str),
+            Some("https://example.slack.com/archives/community")
+        );
+    }
 }

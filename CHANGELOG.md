@@ -10,7 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 * `sprocket dev doc` now renders module-aware navigation, richer declaration
-  pages, linked local types, improved code blocks, and a responsive layout.
+  pages, linked local types, improved code blocks, and a responsive layout with
+  article-aligned GitHub, website, and optional Slack links.
 
 ### Fixed
 

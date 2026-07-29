@@ -12,6 +12,8 @@ pub struct ExternalUrls {
     pub homepage: Option<Url>,
     /// URL pointing to the project's GitHub repository.
     pub github: Option<Url>,
+    /// URL pointing to the project's Slack workspace.
+    pub slack: Option<Url>,
 }
 
 /// Additional HTML to embed into each generated page.

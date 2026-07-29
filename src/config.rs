@@ -740,6 +740,10 @@ pub struct DocConfig {
     #[toml(default = String::from(sentinel_doc_config_value()))]
     #[schemars(default = "sentinel_doc_config_value")]
     pub github_url: String,
+    /// An optional link to the project's Slack workspace.
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub slack_url: String,
     /// Initialize pages in light mode instead of the default dark mode.
     #[toml(default)]
     #[schemars(default)]
@@ -764,6 +768,7 @@ impl Default for DocConfig {
             alt_light_logo: sentinel_doc_config_value().into(),
             homepage_url: sentinel_doc_config_value().into(),
             github_url: sentinel_doc_config_value().into(),
+            slack_url: sentinel_doc_config_value().into(),
             light_mode: false,
             with_doc_comments: false,
             extra_html: DocExtraHtmlConfig::default(),
@@ -818,6 +823,15 @@ impl DocConfig {
         }
     }
 
+    /// Get the URL to the project's Slack workspace, if configured.
+    pub fn slack_url(&self) -> Option<Url> {
+        if self.slack_url == sentinel_doc_config_value() {
+            None
+        } else {
+            Some(Url::from_str(&self.slack_url).expect("validated already"))
+        }
+    }
+
     /// Validates the configuration.
     pub fn validate(&self) -> Result<()> {
         if self.homepage_url != sentinel_doc_config_value() {
@@ -830,6 +844,12 @@ impl DocConfig {
             match Url::from_str(&self.github_url) {
                 Ok(_) => Ok(()),
                 Err(e) => Err(anyhow!("error while parsing configured GitHub URL: {e}")),
+            }?;
+        }
+        if self.slack_url != sentinel_doc_config_value() {
+            match Url::from_str(&self.slack_url) {
+                Ok(_) => Ok(()),
+                Err(e) => Err(anyhow!("error while parsing configured slack url: {e}")),
             }?;
         }
         Ok(())
@@ -1138,6 +1158,27 @@ mod test {
         assert!(
             !failed,
             "the generated schema does not match the current `sprocket.toml`!"
+        );
+    }
+
+    #[test]
+    fn doc_slack_url_is_optional_and_validated() {
+        let mut config = DocConfig::default();
+        assert_eq!(config.slack_url(), None);
+
+        config.slack_url = "https://example.slack.com".to_string();
+        assert_eq!(
+            config.slack_url().as_ref().map(Url::as_str),
+            Some("https://example.slack.com/")
+        );
+        assert!(config.validate().is_ok());
+
+        config.slack_url = "not a url".to_string();
+        // SAFETY: the configured value is deliberately invalid.
+        let error = config.validate().unwrap_err().to_string();
+        assert!(
+            error.contains("configured slack url"),
+            "unexpected validation error: {error}"
         );
     }
 }
