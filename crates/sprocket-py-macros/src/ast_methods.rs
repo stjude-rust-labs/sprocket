@@ -70,22 +70,25 @@ fn build(original: &mut ItemImpl) -> Result<TokenStream> {
             let path = fn_.attrs[i].path();
 
             if path.is_ident("method") {
-                // Remove `#[method]`, as it is not recognized by PyO3 unlike `#[staticmethod]`.
+                // Remove `#[method]` as it is not recognized by PyO3, unlike `#[staticmethod]`.
                 fn_.attrs.remove(i);
                 is_py_method = true;
                 break;
             } else if path.is_ident("staticmethod") {
-                // Retain `#[staticmethod]` so that PyO3 can see it.
+                // Retain `#[staticmethod]` so that PyO3 will see it.
                 is_py_method = true;
                 break;
             }
         }
 
-        // If the method isn't annotated with `#[method]` or `#[staticmethod]`, do not
-        // retain it.
-        if !is_py_method {
-            return false;
-        }
+        // Only retain methods annotated with `#[method]` or `#[staticmethod]`.
+        is_py_method
+    });
+
+    for item in py_impl.items.iter_mut() {
+        let ImplItem::Fn(fn_) = item else {
+            unreachable!("previously guaranteed that item must be a function: {item:?}");
+        };
 
         // Add `#[pyo3(name = "foo")]`. This makes the method in Python have its
         // original Rust name, before we add the "py_" prefix.
@@ -103,9 +106,7 @@ fn build(original: &mut ItemImpl) -> Result<TokenStream> {
             // Ast::from(self.clone()).foo()
             todo!();
         });
-
-        true
-    });
+    }
 
     // Remove `#[method]` and `#[staticmethod]` attributes from original impl.
     for item in original.items.iter_mut() {
