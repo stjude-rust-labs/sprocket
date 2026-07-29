@@ -9,11 +9,7 @@ mod ast;
 mod ast_methods;
 
 use proc_macro::TokenStream;
-use quote::quote;
 use syn::Error;
-use syn::ItemImpl;
-use syn::parse::Nothing;
-use syn::parse_macro_input;
 
 /// Creates the Python equivalent of an AST element.
 ///
@@ -88,15 +84,8 @@ pub fn ast(args_stream: TokenStream, item_stream: TokenStream) -> TokenStream {
 
 /// TODO
 #[proc_macro_attribute]
-pub fn ast_methods(args: TokenStream, item: TokenStream) -> TokenStream {
-    parse_macro_input!(args as Nothing);
-    let mut methods = parse_macro_input!(item as ItemImpl);
-
-    let expanded = ast_methods::build(&mut methods).unwrap_or_else(Error::into_compile_error);
-
-    quote! {
-        #methods
-        #expanded
-    }
-    .into()
+pub fn ast_methods(args_stream: TokenStream, impl_stream: TokenStream) -> TokenStream {
+    ast_methods::ast_methods(args_stream.into(), impl_stream.into())
+        .unwrap_or_else(Error::into_compile_error)
+        .into()
 }

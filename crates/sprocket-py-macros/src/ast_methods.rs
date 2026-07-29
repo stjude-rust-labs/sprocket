@@ -3,6 +3,7 @@
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use quote::format_ident;
+use quote::quote;
 use syn::Error;
 use syn::Generics;
 use syn::ImplItem;
@@ -11,10 +12,25 @@ use syn::LitStr;
 use syn::PathArguments;
 use syn::Result;
 use syn::Type;
+use syn::parse::Nothing;
 use syn::parse_quote;
 
-/// TODO
-pub(crate) fn build(original: &mut ItemImpl) -> Result<TokenStream> {
+pub(crate) fn ast_methods(
+    args_stream: TokenStream,
+    impl_stream: TokenStream,
+) -> Result<TokenStream> {
+    syn::parse2::<Nothing>(args_stream)?;
+    let mut impl_ = syn::parse2::<ItemImpl>(impl_stream)?;
+
+    let expanded = build(&mut impl_)?;
+
+    Ok(quote! {
+        #impl_
+        #expanded
+    })
+}
+
+fn build(original: &mut ItemImpl) -> Result<TokenStream> {
     let mut py_impl = original.clone();
 
     // Add `#[pymethods]` attribute to impl.
