@@ -1,0 +1,6 @@
+Bootstrap Icons x-lg
+Copyright 2019-Present The Bootstrap Authors
+Source: https://github.com/twbs/icons/blob/main/icons/x-lg.svg
+License: MIT
+License URL: https://opensource.org/licenses/MIT
+Changes: Set the fill color to match the badge text.
