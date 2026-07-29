@@ -17,7 +17,7 @@ const CODE_BLOCK_STYLES = `
     overflow-x: auto;
   }
   .code-block pre.shiki {
-    background: var(--shiki-bg, #2e3440) !important;
+    background: var(--shiki-background) !important;
   }
   .code-block__toolbar {
     position: absolute;
@@ -36,14 +36,14 @@ const CODE_BLOCK_STYLES = `
     padding: 0;
     border: none;
     border-radius: 4px;
-    background: rgba(255, 255, 255, 0.08);
-    color: #e0e0e0;
+    background: color-mix(in srgb, var(--shiki-foreground) 12%, transparent);
+    color: var(--shiki-foreground);
     cursor: pointer;
     font: inherit;
     line-height: 0;
   }
   .code-block__toolbar button:hover {
-    background: rgba(255, 255, 255, 0.18);
+    background: color-mix(in srgb, var(--shiki-foreground) 22%, transparent);
   }
   .code-block__toolbar button:focus-visible {
     outline: 2px solid #80cbc4;
@@ -55,10 +55,10 @@ const CODE_BLOCK_STYLES = `
   .code-block.line-numbered .line-number {
     counter-increment: sprocket-line;
     display: inline-block;
-    width: 2.5ch;
+    width: 2ch;
     margin-right: 1.5ch;
     text-align: right;
-    color: rgba(255, 255, 255, 0.35);
+    color: color-mix(in srgb, var(--shiki-foreground) 45%, transparent);
     user-select: none;
   }
   .code-block.line-numbered .line-number::before {
@@ -71,7 +71,7 @@ const CODE_BLOCK_STYLES = `
     margin: 0;
     border-radius: 0;
     overflow: auto;
-    background: var(--shiki-bg, #2e3440);
+    background: var(--shiki-background);
   }
   .code-block--expanded pre {
     min-height: 100%;
@@ -179,7 +179,7 @@ export async function initManualHighlighting(languagesToLoad = [], options = {})
 
       const highlighted = await highlighter.codeToHtml(code, {
         lang: lang,
-        theme: 'material-theme-ocean'
+        theme: 'sprocket'
       });
 
       const host = document.createElement('div');
@@ -219,7 +219,7 @@ class SprocketCode extends HTMLElement {
 
       const html = highlighter.codeToHtml(code, {
         lang: this.getAttribute('language') || 'wdl',
-        theme: 'material-theme-ocean'
+        theme: 'sprocket'
       });
 
       decorateCodeBlock({
