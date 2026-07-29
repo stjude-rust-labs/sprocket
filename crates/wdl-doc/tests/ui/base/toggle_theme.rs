@@ -188,7 +188,7 @@ async fn right_rail_displayed(driver: &WebDriver) -> anyhow::Result<bool> {
         let ret = driver
             .execute(
                 r#"
-                const el = document.querySelector('.layout__sidebar-right');
+                const el = document.querySelector('.layout__main-rail');
                 if (!el) return null;
                 return getComputedStyle(el).display !== 'none' && el.offsetParent !== null;
                 "#,

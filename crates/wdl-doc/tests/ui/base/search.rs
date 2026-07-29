@@ -88,22 +88,34 @@ impl UiTest for Search {
 
         driver.search("flag_filter").await?;
 
-        let search_results = driver
-            .query(By::ClassName("search-result"))
-            .wait(Duration::from_secs(5), Duration::from_millis(100))
-            .any()
-            .await?;
-        if search_results.len() != 2 {
-            bail!("expected 2 search results");
+        let mut search_results = Vec::new();
+        for _ in 0..50 {
+            search_results = driver.find_all(By::ClassName("search-result")).await?;
+            if search_results.len() == 3 {
+                break;
+            }
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+        if search_results.len() != 3 {
+            let mut titles = Vec::new();
+            for result in &search_results {
+                titles.push(result.query(By::Tag("a")).first().await?.text().await?);
+            }
+            bail!(
+                "expected 3 search results, found {} with titles {titles:?}",
+                search_results.len()
+            );
         }
 
         let mut found_struct = false;
         let mut found_task = false;
+        let mut found_validation_task = false;
         for element in search_results {
             let anchor = element.query(By::Tag("a")).first().await?;
             match &*anchor.text().await? {
                 "FlagFilter" => found_struct = true,
                 "validate_flag_filter" => found_task = true,
+                "validate_string_is_12bit_oct_dec_or_hex" => found_validation_task = true,
                 text => bail!("unexpected search result: {text}"),
             }
         }
@@ -114,6 +126,9 @@ impl UiTest for Search {
 
         if !found_task {
             bail!("expected to find `validate_flag_filter` task");
+        }
+        if !found_validation_task {
+            bail!("expected to find `validate_string_is_12bit_oct_dec_or_hex` task");
         }
 
         Ok(())

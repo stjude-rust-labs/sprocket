@@ -158,7 +158,7 @@ impl Parameter {
                     div class="main__summary-container" {
                         code { (summary) }
                         "..."
-                        button type="button" class="main__button" x-on:click="expr_expanded = !expr_expanded" {
+                        button type="button" class="main__button main__expression-toggle" x-on:click="expr_expanded = !expr_expanded" {
                             b x-text="expr_expanded ? 'Hide full expression' : 'Show full expression'" {}
                         }
                     }
@@ -369,5 +369,28 @@ mod tests {
             .into_string();
         assert!(!html.contains("href"));
         assert!(html.contains("Int"));
+    }
+
+    #[test]
+    fn summarized_expression_toggle_has_leading_space() {
+        let params = input_parameters(
+            r#"
+            version 1.2
+            workflow w {
+                input {
+                    String message = "this expression is intentionally long enough to require the full expression toggle in the table"
+                }
+            }
+            "#,
+        );
+        let html = params[0]
+            .render(
+                Path::new("assets"),
+                &PageLinkIndex::default(),
+                Path::new(""),
+            )
+            .into_string();
+
+        assert!(html.contains("main__expression-toggle"));
     }
 }

@@ -157,7 +157,7 @@ impl Task {
                 html! {
                     div class="main__section" {
                         h2 id="command" class="main__section-header" { "Command" }
-                        sprocket-code language="wdl" class="pt-8" copyable expandable line-numbers {
+                        sprocket-code language="bash" class="pt-8" copyable expandable line-numbers {
                             (command_section.script())
                         }
                     }
@@ -190,7 +190,7 @@ impl Task {
         }
 
         let markup = html! {
-            (hero.render())
+            (hero.render(assets))
             @if let Some(body) = self.meta().render_authored_body(assets) {
                 (body)
             }
@@ -297,6 +297,67 @@ mod tests {
         );
         assert_eq!(task.inputs().len(), 1);
         assert_eq!(task.outputs().len(), 1);
+    }
+
+    /// Parses a single task from `source` and builds a [`Task`] documented at
+    /// `wdl_path`.
+    fn task_at_path(source: &str, wdl_path: &str) -> Task {
+        let (doc, _) = Document::parse(source, None);
+        let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
+        let ast_task = doc_item.into_task_definition().unwrap();
+        Task::new(
+            ast_task.name().text().to_owned(),
+            SupportedVersion::V1(V1::Zero),
+            ast_task,
+            Some(PathBuf::from(wdl_path)),
+            false,
+        )
+    }
+
+    #[test]
+    fn run_with_control_has_static_initial_markup() {
+        // A nested path contains a separator, so the Unix/Windows toggle is
+        // offered.
+        let task = task_at_path(
+            r#"
+            version 1.0
+            task my_task {
+                command <<<
+                echo hello
+                >>>
+            }
+            "#,
+            "modules/tasks.wdl",
+        );
+        let html = task.render_run_with(Path::new("assets")).into_string();
+
+        assert!(html.contains("main__run-with-toggle-label--unix"));
+        assert!(html.contains("main__run-with-toggle-label--windows"));
+        assert!(html.contains("main__run-with-path--unix"));
+        assert!(html.contains("main__run-with-path--windows"));
+        assert!(!html.contains("x-bind:class"));
+        assert!(!html.contains("x-show"));
+    }
+
+    #[test]
+    fn run_with_control_omits_toggle_without_path_separator() {
+        // A top-level file has no path separator, so the Unix/Windows paths are
+        // identical and the toggle must not be offered.
+        let task = task_at_path(
+            r#"
+            version 1.0
+            task my_task {
+                command <<<
+                echo hello
+                >>>
+            }
+            "#,
+            "tasks.wdl",
+        );
+        let html = task.render_run_with(Path::new("assets")).into_string();
+
+        assert!(html.contains("main__run-with-container"));
+        assert!(!html.contains("main__run-with-toggle"));
     }
 
     #[test]

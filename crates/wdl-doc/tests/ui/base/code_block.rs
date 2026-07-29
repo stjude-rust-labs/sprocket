@@ -70,6 +70,9 @@ impl UiTest for CodeBlock {
                   expandLabel: root.querySelector('.code-block__expand')?.getAttribute('aria-label') || null,
                   lineCount: root.querySelectorAll('.line').length,
                   lineNumberCount: root.querySelectorAll('.line-number').length,
+                  lineHeight: getComputedStyle(root.querySelector('.line')).lineHeight,
+                  lineNumberGap:
+                    getComputedStyle(root.querySelector('.line-number')).marginRight,
                   codeText: root.querySelector('code')?.textContent || '',
                 };
                 "#,
@@ -106,6 +109,27 @@ impl UiTest for CodeBlock {
             bail!(
                 "expected a `.line-number` per rendered line: {line_number_count} line numbers \
                  for {line_count} lines"
+            );
+        }
+        let line_height = info["lineHeight"]
+            .as_str()
+            .context("expected a computed code line height")?
+            .trim_end_matches("px")
+            .parse::<f64>()
+            .context("expected the code line height in pixels")?;
+        if line_height > 21.0 {
+            bail!("expected compact code line spacing, found a {line_height}px line height");
+        }
+        let line_number_gap = info["lineNumberGap"]
+            .as_str()
+            .context("expected a computed line-number gap")?
+            .trim_end_matches("px")
+            .parse::<f64>()
+            .context("expected the line-number gap in pixels")?;
+        if !(8.0..=24.0).contains(&line_number_gap) {
+            bail!(
+                "expected a readable gap between line numbers and code (8-24px), found a \
+                 {line_number_gap}px gap"
             );
         }
 
@@ -195,6 +219,41 @@ impl UiTest for CodeBlock {
             .await?;
         if collapsed.json().as_bool().unwrap_or(true) {
             bail!("expected the expand control to collapse the block when toggled again");
+        }
+
+        // The css-variables theme emits spans that reference `--shiki-*` custom
+        // properties rather than baked hex, and those properties flip with the
+        // site theme. Confirm both: a token span references a `--shiki-*`
+        // variable, and its computed color changes when the theme toggles.
+        let theme_probe = driver
+            .execute(
+                r#"
+                const root = document.querySelector('sprocket-code.pt-8').shadowRoot;
+                const varSpan = root.querySelector('span[style*="var(--shiki"]');
+                if (!varSpan) return { usesVars: false };
+                const darkColor = getComputedStyle(varSpan).color;
+                document.documentElement.classList.add('light');
+                document.documentElement.classList.remove('dark');
+                const lightColor = getComputedStyle(varSpan).color;
+                // Restore dark mode so the page is left as it was found.
+                document.documentElement.classList.add('dark');
+                document.documentElement.classList.remove('light');
+                return { usesVars: true, darkColor, lightColor };
+                "#,
+                Vec::new(),
+            )
+            .await?;
+        let theme_probe = theme_probe.json();
+        if !theme_probe["usesVars"].as_bool().unwrap_or(false) {
+            bail!("expected highlighted spans to reference `--shiki-*` CSS variables");
+        }
+        let dark_color = theme_probe["darkColor"].as_str().unwrap_or_default();
+        let light_color = theme_probe["lightColor"].as_str().unwrap_or_default();
+        if dark_color.is_empty() || dark_color == light_color {
+            bail!(
+                "expected the token color to change with the theme, got dark={dark_color:?} \
+                 light={light_color:?}"
+            );
         }
 
         Ok(())

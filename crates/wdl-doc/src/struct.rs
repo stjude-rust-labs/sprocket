@@ -175,7 +175,7 @@ impl Struct {
         }
 
         let markup = html! {
-            (hero.render())
+            (hero.render(assets))
             @if let Some(body) = self.meta.render_authored_body(assets) {
                 (body)
             }

@@ -193,8 +193,25 @@ pub(crate) fn header<P: AsRef<Path>>(
     page_title: &str,
     root: P,
     addl_html: &AdditionalHtml,
+    init_light_mode: bool,
 ) -> Markup {
     let root = root.as_ref();
+    let initial_theme = if init_light_mode { "light" } else { "dark" };
+    let theme_bootstrap = format!(
+        r#"const storedTheme = localStorage.getItem('_x_theme');
+const initialTheme = storedTheme === null ? '{initial_theme}' : JSON.parse(storedTheme);
+if (initialTheme === 'light') {{
+    document.documentElement.classList.replace('dark', 'light');
+}} else {{
+    document.documentElement.classList.replace('light', 'dark');
+}}
+const storedRunWith = localStorage.getItem('run_with');
+document.documentElement.dataset.runWith =
+    storedRunWith === 'windows' ? 'windows' : 'unix';
+const storedSidebar = sessionStorage.getItem('_x_sidebarState');
+document.documentElement.dataset.sidebar =
+    storedSidebar === null ? (window.innerWidth < 768 ? 'hidden' : 'normal') : JSON.parse(storedSidebar);"#
+    );
     let search_import = format!(
         r#"const pagefindPath = new URL('{}', import.meta.url).href;
 window.pagefind = import(pagefindPath)"#,
@@ -205,6 +222,7 @@ window.pagefind = import(pagefindPath)"#,
             meta charset="utf-8";
             meta name="viewport" content="width=device-width, initial-scale=1.0";
             title { (page_title) }
+            script { (PreEscaped(theme_bootstrap)) }
             link rel="preconnect" href="https://fonts.googleapis.com";
             link rel="preconnect" href="https://fonts.gstatic.com" crossorigin;
             link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet";
@@ -234,11 +252,13 @@ pub(crate) fn full_page<P: AsRef<Path>>(
         (DOCTYPE)
         html
             lang="en"
+            class=(if init_light_mode { "light" } else { "dark" })
+            data-run-with="unix"
             x-data=(if init_light_mode { "{ theme: $persist('light') }" } else { "{ theme: $persist('dark') }" })
             x-bind:class="theme === 'light' ? 'light' : 'dark'"
             x-cloak
         {
-            (header(page_title, root, addl_html))
+            (header(page_title, root, addl_html, init_light_mode))
             body class="body--base" {
                 @if let Some(s) = addl_html.body_open() {
                     (PreEscaped(s))
@@ -314,7 +334,10 @@ impl VersionBadge {
         };
         let text = self.version.to_string();
         html! {
-            div class="main__badge" {
+            div class="main__badge main__badge--wdl" {
+                span class="main__badge-wdl-icon" aria-hidden="true" {
+                    (PreEscaped(include_str!("../theme/assets/wdl.svg")))
+                }
                 span class="main__badge-text" {
                     "WDL Version"
                 }
@@ -676,5 +699,40 @@ mod tests {
             rendered.contains("class=\"language-json\""),
             "expected the fenced code block to keep its language class, got: {rendered}"
         );
+    }
+
+    #[test]
+    fn persisted_theme_is_applied_before_the_stylesheet_loads() {
+        let page = full_page(
+            "Theme test",
+            html! {},
+            Path::new("."),
+            &AdditionalHtml::default(),
+            false,
+        )
+        .into_string();
+        let theme_position = page
+            .find("localStorage.getItem('_x_theme')")
+            .expect("persisted theme bootstrap");
+        let stylesheet_position = page.find("style.css").expect("theme stylesheet");
+
+        assert!(page.contains("<html lang=\"en\" class=\"dark\""));
+        assert!(theme_position < stylesheet_position);
+        assert!(page.contains("classList.replace('dark', 'light')"));
+        assert!(page.contains("document.documentElement.dataset.runWith"));
+    }
+
+    #[test]
+    fn version_badge_uses_bundled_openwdl_icon() {
+        let badge = VersionBadge::new(SupportedVersion::V1(V1::Two))
+            .render()
+            .into_string();
+        let assets = get_assets();
+
+        assert!(badge.contains("main__badge--wdl"));
+        assert!(badge.contains("main__badge-wdl-icon"));
+        assert!(badge.contains("<svg width=\"512\" height=\"512\""));
+        assert!(assets.contains_key("wdl.svg"));
+        assert!(assets.contains_key("wdl.svg.license.txt"));
     }
 }

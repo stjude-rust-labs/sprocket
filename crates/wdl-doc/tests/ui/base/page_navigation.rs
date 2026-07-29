@@ -32,7 +32,7 @@ impl UiTest for PageNavigation {
         driver.goto(target.as_str()).await?;
 
         // Wait for the client-side navigation to be populated.
-        let links = driver
+        driver
             .query(By::Css("#page-sections a"))
             .wait(Duration::from_secs(10), Duration::from_millis(100))
             .any()
@@ -59,12 +59,29 @@ impl UiTest for PageNavigation {
         }
 
         // The navigation must contain one link per visible heading, in order.
-        let mut link_info = Vec::new();
-        for link in &links {
-            let text = link.text().await?.trim().to_string();
-            let href = link.attr("href").await?.unwrap_or_default();
-            link_info.push((text, href));
-        }
+        let link_info = driver
+            .execute(
+                r#"
+                return Array.from(document.querySelectorAll('#page-sections a'), link => ({
+                    text: link.textContent.trim(),
+                    href: link.getAttribute('href') || '',
+                }));
+                "#,
+                Vec::new(),
+            )
+            .await?;
+        let link_info: Vec<(String, String)> = link_info
+            .json()
+            .as_array()
+            .context("expected page navigation links")?
+            .iter()
+            .map(|link| {
+                (
+                    link["text"].as_str().unwrap_or_default().to_string(),
+                    link["href"].as_str().unwrap_or_default().to_string(),
+                )
+            })
+            .collect();
 
         let link_texts: Vec<&str> = link_info.iter().map(|(text, _)| text.as_str()).collect();
         let heading_texts: Vec<&str> = headings.iter().map(|(_, text)| text.as_str()).collect();

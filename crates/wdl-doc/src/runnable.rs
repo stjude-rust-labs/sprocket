@@ -105,34 +105,44 @@ pub(crate) trait Runnable: DefinitionMeta {
         if let Some(wdl_path) = self.wdl_path() {
             let unix_path = wdl_path.to_string_lossy().replace(MAIN_SEPARATOR, "/");
             let windows_path = wdl_path.to_string_lossy().replace(MAIN_SEPARATOR, "\\");
+            // The Unix/Windows toggle only changes the path separator in the
+            // shown `sprocket run --target <path>` command, so it is only
+            // meaningful when the path actually contains a separator.
+            let has_separator = unix_path != windows_path;
             html! {
-                div x-data="{ run_with: (localStorage.getItem('run_with') ?? 'unix') }" class="main__run-with-container" data-pagefind-ignore="all" {
+                div class="main__run-with-container" data-pagefind-ignore="all" {
                     div class="main__run-with-label" {
                         span class="main__run-with-label-text" {
                             "RUN WITH"
                         }
-                        button x-on:click="
-                        run_with = run_with == 'unix' ? 'windows' : 'unix'
-                        localStorage.setItem('run_with', run_with)
-                        "
-                        class="main__run-with-toggle" {
-                            div x-bind:class="run_with == 'unix' ? 'main__run-with-toggle-label--active' : 'main__run-with-toggle-label--inactive'" {
-                                "Unix"
-                            }
-                            div x-bind:class="run_with == 'windows' ? 'main__run-with-toggle-label--active' : 'main__run-with-toggle-label--inactive'" {
-                                "Windows"
+                        @if has_separator {
+                            button x-on:click="
+                            const next = document.documentElement.dataset.runWith === 'unix' ? 'windows' : 'unix'
+                            document.documentElement.dataset.runWith = next
+                            localStorage.setItem('run_with', next)
+                            "
+                            class="main__run-with-toggle" {
+                                div class="main__run-with-toggle-label main__run-with-toggle-label--unix" {
+                                    "Unix"
+                                }
+                                div class="main__run-with-toggle-label main__run-with-toggle-label--windows" {
+                                    "Windows"
+                                }
                             }
                         }
                     }
                     div class="main__run-with-content" {
                         p class="main__run-with-content-text" {
-                            "sprocket run --target "
+                            span style="color: var(--shiki-token-function)" { "sprocket" }
+                            " run "
+                            span style="color: var(--shiki-token-constant)" { "--target" }
+                            " "
                             (self.name())
                             " "
-                            span x-show="run_with == 'unix'" {
+                            span class="main__run-with-path--unix" {
                                 (unix_path)
                             }
-                            span x-show="run_with == 'windows'" {
+                            span class="main__run-with-path--windows" {
                                 (windows_path)
                             }
                             " [INPUTS]..."
