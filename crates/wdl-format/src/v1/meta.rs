@@ -36,7 +36,7 @@ pub fn format_metadata_array(
     let mut children = element.children().expect("metadata array children");
 
     let open_bracket = children.next().expect("metadata array open bracket");
-    assert!(open_bracket.element().kind() == SyntaxKind::OpenBracket);
+    assert_eq!(open_bracket.element().kind(), SyntaxKind::OpenBracket);
     (&open_bracket).write(stream, config);
 
     let mut items = Vec::new();
@@ -92,7 +92,7 @@ pub fn format_metadata_object(
     let mut children = element.children().expect("metadata object children");
 
     let open_brace = children.next().expect("metadata object open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
 
     let mut items = Vec::new();
@@ -152,11 +152,11 @@ pub fn format_metadata_object_item(
     let mut children = element.children().expect("metadata object item children");
 
     let key = children.next().expect("metadata object item key");
-    assert!(key.element().kind() == SyntaxKind::Ident);
+    assert_eq!(key.element().kind(), SyntaxKind::Ident);
     (&key).write(stream, config);
 
     let colon = children.next().expect("metadata object item colon");
-    assert!(colon.element().kind() == SyntaxKind::Colon);
+    assert_eq!(colon.element().kind(), SyntaxKind::Colon);
     (&colon).write(stream, config);
     stream.end_word();
 
@@ -177,12 +177,12 @@ pub fn format_metadata_section(
     let mut children = element.children().expect("meta section children");
 
     let meta_keyword = children.next().expect("meta keyword");
-    assert!(meta_keyword.element().kind() == SyntaxKind::MetaKeyword);
+    assert_eq!(meta_keyword.element().kind(), SyntaxKind::MetaKeyword);
     (&meta_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("metadata section open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 
@@ -227,14 +227,17 @@ pub fn format_parameter_metadata_section(
     let mut children = element.children().expect("parameter meta section children");
 
     let parameter_meta_keyword = children.next().expect("parameter meta keyword");
-    assert!(parameter_meta_keyword.element().kind() == SyntaxKind::ParameterMetaKeyword);
+    assert_eq!(
+        parameter_meta_keyword.element().kind(),
+        SyntaxKind::ParameterMetaKeyword
+    );
     (&parameter_meta_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children
         .next()
         .expect("parameter metadata section open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 

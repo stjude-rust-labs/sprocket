@@ -33,7 +33,7 @@ const FUNCTION_NAME: &str = "glob";
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#glob
 fn glob(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
-        debug_assert!(context.arguments.len() == 1);
+        debug_assert_eq!(context.arguments.len(), 1);
         debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_file_type().clone()));
 
         // Construct a glob from the given argument

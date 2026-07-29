@@ -67,7 +67,7 @@ impl TsvHeader {
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_tsv
 fn read_tsv_simple(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
-        debug_assert!(context.arguments.len() == 1);
+        debug_assert_eq!(context.arguments.len(), 1);
         debug_assert!(context.return_type_eq(ANALYSIS_STDLIB.array_array_string_type().clone()));
 
         let path = context

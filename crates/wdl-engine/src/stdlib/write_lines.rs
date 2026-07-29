@@ -31,7 +31,7 @@ const FUNCTION_NAME: &str = "write_lines";
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_lines
 fn write_lines(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
-        debug_assert!(context.arguments.len() == 1);
+        debug_assert_eq!(context.arguments.len(), 1);
         debug_assert!(context.return_type_eq(PrimitiveType::File));
 
         // Helper for handling errors while writing to the file.
