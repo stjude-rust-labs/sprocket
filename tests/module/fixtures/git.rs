@@ -96,6 +96,7 @@ impl GitFixture {
         )
         .unwrap();
         fs::write(consumer.join("index.wdl"), "version 1.3\n").unwrap();
+        fs::write(consumer.join("README.md"), "# Consumer\n").unwrap();
         consumer
     }
 

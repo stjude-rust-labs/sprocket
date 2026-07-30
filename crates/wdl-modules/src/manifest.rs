@@ -11,6 +11,7 @@ use thiserror::Error;
 use url::Url;
 
 use crate::DEFAULT_ENTRYPOINT_FILENAME;
+use crate::DEFAULT_README_FILENAME;
 use crate::dependency::DependencyName;
 use crate::dependency::DependencySource;
 use crate::dependency::DependencySourceError;
@@ -178,6 +179,17 @@ impl Manifest {
             .as_ref()
             .map(RelativePath::as_path)
             .unwrap_or(Path::new(DEFAULT_ENTRYPOINT_FILENAME))
+    }
+
+    /// Returns the readme filename, falling back to
+    /// [`DEFAULT_README_FILENAME`] when [`readme`](Self::readme) is
+    /// [`Readme::Default`], or `None` when it is [`Readme::Disabled`].
+    pub fn readme_filename(&self) -> Option<&Path> {
+        match &self.readme {
+            Readme::Default => Some(Path::new(DEFAULT_README_FILENAME)),
+            Readme::Path(path) => Some(path.as_path()),
+            Readme::Disabled => None,
+        }
     }
 }
 
@@ -468,6 +480,42 @@ mod tests {
         )
         .unwrap();
         assert!(matches!(m.readme, Readme::Path(_)));
+    }
+
+    #[test]
+    fn resolves_default_readme_filename() -> Result<(), ManifestError> {
+        let manifest = parse(r#"{"name":"spellbook","license":"MIT"}"#)?;
+        assert_eq!(
+            manifest.readme_filename(),
+            Some(Path::new(crate::DEFAULT_README_FILENAME))
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn resolves_custom_readme_filename() -> Result<(), ManifestError> {
+        let manifest = parse(
+            r#"{
+                "name": "spellbook",
+                "license": "MIT",
+                "readme": "docs/guide.md"
+            }"#,
+        )?;
+        assert_eq!(manifest.readme_filename(), Some(Path::new("docs/guide.md")));
+        Ok(())
+    }
+
+    #[test]
+    fn disabled_readme_has_no_filename() -> Result<(), ManifestError> {
+        let manifest = parse(
+            r#"{
+                "name": "spellbook",
+                "license": "MIT",
+                "readme": false
+            }"#,
+        )?;
+        assert_eq!(manifest.readme_filename(), None);
+        Ok(())
     }
 
     #[test]

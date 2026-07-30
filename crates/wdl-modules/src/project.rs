@@ -15,6 +15,9 @@
 mod document;
 /// Caller-rooted locking and paired persistence helpers.
 mod mutation;
+/// Project validation helpers for manifest-referenced files and content
+/// hashing.
+mod validation;
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -26,6 +29,8 @@ pub use self::document::ManifestDocumentError;
 pub use self::mutation::LockedModuleProject;
 pub use self::mutation::ProjectMutationError;
 pub use self::mutation::ProjectUpdate;
+pub use self::validation::ProjectFileKind;
+pub use self::validation::ProjectValidationError;
 use crate::Lockfile;
 use crate::Manifest;
 use crate::lockfile::LockfileError;

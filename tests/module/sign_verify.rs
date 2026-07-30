@@ -41,6 +41,7 @@ fn verify_succeeds_after_lock() {
         stderr = String::from_utf8_lossy(&verify.stderr)
     );
     let stdout = String::from_utf8_lossy(&verify.stdout);
+    assert!(stdout.contains("Verified module structure"));
     assert!(stdout.contains("Verified"));
     assert!(stdout.contains("Skipped signature verification for current module (no `module.sig`)"));
     assert!(stdout.contains("Skipped signature verification for 1 dependency without a signature"));
@@ -62,6 +63,96 @@ fn verify_succeeds_after_lock() {
         stderr = String::from_utf8_lossy(&colored.stderr)
     );
     assert!(String::from_utf8_lossy(&colored.stdout).contains("\u{1b}[1;36mSkipped\u{1b}[0m"));
+}
+
+#[test]
+fn verify_succeeds_without_optional_artifacts() {
+    let fixture = ModuleFixture::with_local_dep();
+
+    let verify = sprocket(&["dev", "module", "verify"])
+        .current_dir(fixture.consumer())
+        .output()
+        .expect("failed to run sprocket dev module verify");
+
+    assert!(
+        verify.status.success(),
+        "command failed {status}: {stderr}",
+        status = verify.status,
+        stderr = String::from_utf8_lossy(&verify.stderr)
+    );
+    let stdout = String::from_utf8_lossy(&verify.stdout);
+    assert!(stdout.contains("Verified module structure"));
+    assert!(stdout.contains("Skipped signature verification for current module (no `module.sig`)"));
+    assert!(stdout.contains("Skipped lockfile verification (no `module-lock.json`)"));
+}
+
+#[test]
+fn verify_reports_missing_entrypoint() {
+    let fixture = ModuleFixture::with_local_dep();
+    fs::remove_file(fixture.consumer().join("index.wdl")).unwrap();
+
+    let verify = sprocket(&["dev", "module", "verify"])
+        .current_dir(fixture.consumer())
+        .output()
+        .expect("failed to run sprocket dev module verify");
+
+    assert!(!verify.status.success());
+    let stderr = String::from_utf8_lossy(&verify.stderr);
+    assert!(stderr.contains("module entrypoint"));
+    assert!(stderr.contains("index.wdl"));
+}
+
+#[test]
+fn verify_reports_missing_default_readme() {
+    let fixture = ModuleFixture::with_local_dep();
+    fs::remove_file(fixture.consumer().join("README.md")).unwrap();
+
+    let verify = sprocket(&["dev", "module", "verify"])
+        .current_dir(fixture.consumer())
+        .output()
+        .expect("failed to run sprocket dev module verify");
+
+    assert!(!verify.status.success());
+    let stderr = String::from_utf8_lossy(&verify.stderr);
+    assert!(stderr.contains("module readme"));
+    assert!(stderr.contains("README.md"));
+}
+
+#[test]
+fn verify_reports_malformed_manifest() {
+    let directory = tempfile::tempdir().unwrap();
+    fs::write(directory.path().join("module.json"), b"{").unwrap();
+
+    let verify = sprocket(&["dev", "module", "verify"])
+        .current_dir(directory.path())
+        .output()
+        .expect("failed to run sprocket dev module verify");
+
+    assert!(!verify.status.success());
+    let stderr = String::from_utf8_lossy(&verify.stderr);
+    assert!(stderr.contains("invalid module manifest"));
+    assert!(stderr.contains("invalid `module.json` JSON"));
+}
+
+#[test]
+fn verify_require_signatures_requires_lockfile_for_dependencies() {
+    let fixture = ModuleFixture::with_local_dep_added();
+    fs::remove_file(fixture.consumer().join("module-lock.json")).unwrap();
+
+    let verify = sprocket(&["dev", "module", "verify", "--require-signatures"])
+        .current_dir(fixture.consumer())
+        .output()
+        .expect("failed to run sprocket dev module verify");
+
+    assert!(!verify.status.success());
+    let stdout = String::from_utf8_lossy(&verify.stdout);
+    assert!(
+        stdout.contains("Failed signature verification for dependencies (no `module-lock.json`)")
+    );
+    let stderr = String::from_utf8_lossy(&verify.stderr);
+    assert!(
+        stderr.contains("dependencies require `module-lock.json`; run `sprocket dev module lock`")
+    );
 }
 
 #[test]

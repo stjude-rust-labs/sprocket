@@ -25,9 +25,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   * `upgrade` raises Git version constraints and relocks to the newest matching
     versions.
   * `tree` and `list` display locked dependencies as a tree or flat table.
-  * `verify` validates locked dependencies from cache without network access
-    and summarizes unsigned modules; `--require-signatures` requires signatures
-    for the current module and every locked dependency.
+  * `verify` validates the current module's manifest and referenced files,
+    then validates locked dependencies and cryptographic signatures when their
+    artifacts are present; `--require-signatures` requires signatures for the
+    current module and every locked dependency.
   * `fetch` pre-populates the module cache from `module-lock.json`.
   * `cache clean` removes the current module's locked cache tree, or every
     cached module with `--all`.

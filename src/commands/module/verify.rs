@@ -3,6 +3,7 @@
 use clap::Parser;
 use clap::ValueEnum;
 use wdl_modules::dependency::DependencyName;
+use wdl_modules::hash::ContentHash;
 use wdl_modules::module::Module;
 use wdl_modules::resolver::ResolverError;
 use wdl_modules::resolver::VerifyLockedReport;
@@ -55,13 +56,21 @@ pub async fn verify(args: Args, config: Config, output: CommandOutput) -> Comman
     );
     let project = discover(&args.locator)?;
     trace_project("module verify", &project);
+    let checksum = project.validate().map_err(anyhow::Error::from)?;
+    output.completed(VERIFY, "module structure");
     match args.target {
-        Some(VerifyTarget::Signature) => verify_signature(&project, output)?,
+        Some(VerifyTarget::Signature) => verify_signature(&project, &checksum, output)?,
         Some(VerifyTarget::Lockfile) => {
             let unsigned = verify_lockfile(&project, &config, output, args.require_signatures)?;
-            fail_if_required_signatures_missing(None, &unsigned, args.require_signatures)?;
+            fail_if_required_signatures_missing(None, &unsigned, false, args.require_signatures)?;
         }
-        None => verify_all(&project, &config, output, args.require_signatures)?,
+        None => verify_all(
+            &project,
+            &config,
+            &checksum,
+            output,
+            args.require_signatures,
+        )?,
     }
 
     Ok(())
@@ -71,10 +80,10 @@ pub async fn verify(args: Args, config: Config, output: CommandOutput) -> Comman
 fn verify_all(
     project: &Project,
     config: &Config,
+    checksum: &ContentHash,
     output: CommandOutput,
     require_signatures: bool,
 ) -> anyhow::Result<()> {
-    let mut checked = 0usize;
     let mut unsigned_current = None;
     let mut unsigned_dependencies = Vec::new();
     if project
@@ -83,33 +92,39 @@ fn verify_all(
         .exists()
     {
         tracing::debug!("verifying module signature as part of full verification");
-        verify_signature(project, output)?;
-        checked += 1;
+        verify_signature(project, checksum, output)?;
     } else {
         unsigned_current = Some(project.manifest().name.as_str().to_string());
         print_unsigned_current_summary(output, require_signatures);
     }
-    if project.lockfile_path().exists() {
+
+    let missing_dependency_lockfile = if project.lockfile_path().exists() {
         tracing::debug!("verifying lockfile as part of full verification");
         unsigned_dependencies = verify_lockfile(project, config, output, require_signatures)?;
-        checked += 1;
-    }
+        false
+    } else if require_signatures && !project.manifest().dependencies.is_empty() {
+        output.failed("signature verification for dependencies (no `module-lock.json`)");
+        true
+    } else {
+        output.skipped("lockfile verification (no `module-lock.json`)");
+        false
+    };
+
     fail_if_required_signatures_missing(
         unsigned_current.as_deref(),
         &unsigned_dependencies,
+        missing_dependency_lockfile,
         require_signatures,
     )?;
-    if checked == 0 {
-        tracing::debug!("full verification found no signature or lockfile");
-        anyhow::bail!(
-            "nothing to verify; run `sprocket dev module sign` or `sprocket dev module lock` first"
-        );
-    }
     Ok(())
 }
 
 /// Verifies the current module's signature against its content digest.
-fn verify_signature(project: &Project, output: CommandOutput) -> anyhow::Result<()> {
+fn verify_signature(
+    project: &Project,
+    checksum: &ContentHash,
+    output: CommandOutput,
+) -> anyhow::Result<()> {
     let signature_path = project.root().join(wdl_modules::SIGNATURE_FILENAME);
     tracing::trace!(signature = %signature_path.display(), "reading module signature");
     let bytes = std::fs::read(&signature_path).map_err(|source| match source.kind() {
@@ -119,12 +134,10 @@ fn verify_signature(project: &Project, output: CommandOutput) -> anyhow::Result<
         _ => anyhow::Error::new(source).context(format!("reading `{}`", signature_path.display())),
     })?;
     let signature = ModuleSignature::parse(&bytes).map_err(anyhow::Error::from)?;
-    let digest = wdl_modules::hash::hash_directory(project.root()).map_err(anyhow::Error::from)?;
-    tracing::debug!(digest = %digest, "hashed module content for signature verification");
-    signature.verify(&digest).map_err(anyhow::Error::from)?;
+    signature.verify(checksum).map_err(anyhow::Error::from)?;
 
     output.completed(VERIFY, "module signature");
-    output.detail("Digest", digest);
+    output.detail("Digest", checksum);
     Ok(())
 }
 
@@ -259,6 +272,7 @@ fn unsigned_dependency_summary(unsigned: usize) -> String {
 fn fail_if_required_signatures_missing(
     current: Option<&str>,
     dependencies: &[DependencyName],
+    missing_dependency_lockfile: bool,
     require_signatures: bool,
 ) -> anyhow::Result<()> {
     if !require_signatures {
@@ -274,6 +288,11 @@ fn fail_if_required_signatures_missing(
             format!("dependency `{}` has no `module.sig`", dependency.manifest())
         }),
     );
+    if missing_dependency_lockfile {
+        problems.push(
+            "dependencies require `module-lock.json`; run `sprocket dev module lock`".to_string(),
+        );
+    }
 
     if problems.is_empty() {
         Ok(())

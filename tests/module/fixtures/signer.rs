@@ -372,6 +372,7 @@ fn write_consumer_manifest(consumer: &Path, dependencies: &str) {
     )
     .unwrap();
     fs::write(consumer.join("index.wdl"), "version 1.3\n").unwrap();
+    fs::write(consumer.join("README.md"), "# Consumer\n").unwrap();
 }
 
 /// Stages the [`MixedSignerBatch`] scenario described on that type.

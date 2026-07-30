@@ -265,6 +265,18 @@ impl Hasher {
 /// be excluded from hashing, limit checks, and content walks.
 pub(crate) const NON_MODULE_CONTENT: &[&str] = &[".git", ".sprocket"];
 
+/// Returns `true` when a module-relative path is omitted from content hashing.
+pub(crate) fn path_is_excluded_from_hash(path: &Path) -> bool {
+    path == Path::new(crate::SIGNATURE_FILENAME)
+        || path == Path::new(crate::LOCKFILE_FILENAME)
+        || path.components().any(|component| match component {
+            std::path::Component::Normal(name) => NON_MODULE_CONTENT
+                .iter()
+                .any(|excluded| name == std::ffi::OsStr::new(excluded)),
+            _ => false,
+        })
+}
+
 /// Walks `root` and computes the deterministic content hash of the
 /// module directory, skipping non-module content and spec-defined
 /// exclusions.
@@ -279,8 +291,7 @@ pub fn hash_directory(root: impl AsRef<Path>) -> Result<ContentHash, HashError> 
             .to_str()
             .ok_or(RelativePathError::NonUtf8)?
             .replace('\\', "/");
-        // Spec-defined hash exclusions (present in tree but not hashed).
-        if rel == crate::SIGNATURE_FILENAME || rel == crate::LOCKFILE_FILENAME {
+        if path_is_excluded_from_hash(Path::new(&rel)) {
             return Ok(());
         }
         hasher.try_add(rel)?;
