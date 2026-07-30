@@ -50,7 +50,7 @@ impl UiTest for StatusBadge {
                       .transitionDuration,
                   runWithTransition:
                     getComputedStyle(
-                      document.querySelector('.main__run-with-toggle-label')
+                      document.querySelector('.main__run-with-label')
                     ).transitionDuration,
                   wdlBackgroundDark,
                   wdlBackgroundLight,

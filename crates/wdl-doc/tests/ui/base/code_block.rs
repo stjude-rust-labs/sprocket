@@ -231,6 +231,10 @@ impl UiTest for CodeBlock {
                 const root = document.querySelector('sprocket-code.pt-8').shadowRoot;
                 const varSpan = root.querySelector('span[style*="var(--shiki"]');
                 if (!varSpan) return { usesVars: false };
+                // Establish a known theme first; a prior test may have left the
+                // persisted theme in light mode, which `goto` reapplies on load.
+                document.documentElement.classList.remove('light');
+                document.documentElement.classList.add('dark');
                 const darkColor = getComputedStyle(varSpan).color;
                 document.documentElement.classList.add('light');
                 document.documentElement.classList.remove('dark');

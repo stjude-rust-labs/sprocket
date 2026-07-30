@@ -90,6 +90,10 @@ impl UiTest for MobileLayout {
                   document.querySelector(selector).getBoundingClientRect();
                 const header = document.querySelector('.layout__header');
                 const sidebar = document.querySelector('.left-sidebar__container');
+                // The border-contrast assertions expect dark-mode values; force
+                // a known theme in case a prior test left light mode persisted.
+                document.documentElement.classList.remove('light');
+                document.documentElement.classList.add('dark');
                 return {
                   logo: rect('#logo'),
                   search: rect('#search'),
