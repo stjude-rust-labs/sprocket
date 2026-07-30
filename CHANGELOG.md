@@ -88,6 +88,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* For `sprocket run`, the execution backend is now considered for the call
+  cache key derivation, which prevents unexpected behavior when switching
+  executing backends. NOTE: this will cause existing call cache entries to be
+  ignored ([#1039](https://github.com/stjude-rust-labs/sprocket/pull/1039)).
 * `sprocket dev test` now isolates each invocation in a unique run directory,
   preventing Docker Desktop bind-mount failures when repeated tests recreate the same paths
   ([#1041](https://github.com/stjude-rust-labs/sprocket/pull/1041)).
