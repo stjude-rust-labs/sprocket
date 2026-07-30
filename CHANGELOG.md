@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `sprocket dev doc` now renders module-aware navigation, richer declaration
   pages, linked local types, improved code blocks, and a responsive layout with
   article-aligned GitHub, website, and optional Slack links.
+* `sprocket dev doc` now accepts SEO metadata under `[doc.seo]` (title,
+  description, author, keywords, base URL, social image, locale, Twitter
+  handle, robots, and theme color); each page's `<title>` becomes
+  `"<page> | <title>"` and the configured values populate the `<head>` with
+  standard, Open Graph, and Twitter Card tags.
 
 ### Fixed
 

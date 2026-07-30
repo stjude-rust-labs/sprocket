@@ -1413,6 +1413,10 @@
         "extra_html": {
           "description": "Configuration for custom HTML to embed in generated pages.",
           "$ref": "#/$defs/DocExtraHtmlConfig"
+        },
+        "seo": {
+          "description": "Search-engine-optimization metadata embedded in each page's `<head>`.",
+          "$ref": "#/$defs/DocSeoConfig"
         }
       }
     },
@@ -1432,6 +1436,65 @@
         },
         "body_close": {
           "description": "Path to an HTML file that should have its contents embedded in each HTML\npage, immediately before the closing `<body>` tag.",
+          "type": "string",
+          "default": "none"
+        }
+      }
+    },
+    "DocSeoConfig": {
+      "description": "`doc.seo` command configuration.\n\nSite-level search-engine-optimization metadata embedded into each page's\n`<head>`. Every field is optional.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "description": "Site title. When set, each page's `<title>` becomes `\"<page> | <title>\"`\nand drives `og:site_name`.",
+          "type": "string",
+          "default": "none"
+        },
+        "description": {
+          "description": "Default page description (`<meta name=\"description\">` and the Open Graph\nand Twitter Card descriptions).",
+          "type": "string",
+          "default": "none"
+        },
+        "author": {
+          "description": "Content author (`<meta name=\"author\">`).",
+          "type": "string",
+          "default": "none"
+        },
+        "keywords": {
+          "description": "Keywords (`<meta name=\"keywords\">`).",
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": []
+        },
+        "base_url": {
+          "description": "Absolute site base URL used to build per-page `<link rel=\"canonical\">`\nand `og:url` values.",
+          "type": "string",
+          "default": "none"
+        },
+        "image_url": {
+          "description": "Social-preview image URL (`og:image`, `twitter:image`).",
+          "type": "string",
+          "default": "none"
+        },
+        "locale": {
+          "description": "Open Graph locale (`og:locale`); defaults to `en_US` when unset.",
+          "type": "string",
+          "default": "none"
+        },
+        "twitter_handle": {
+          "description": "Twitter handle, including the leading `@` (`twitter:site`,\n`twitter:creator`).",
+          "type": "string",
+          "default": "none"
+        },
+        "robots": {
+          "description": "Robots directive (`<meta name=\"robots\">`, e.g. `index, follow`).",
+          "type": "string",
+          "default": "none"
+        },
+        "theme_color": {
+          "description": "Browser theme color (`<meta name=\"theme-color\">`).",
           "type": "string",
           "default": "none"
         }

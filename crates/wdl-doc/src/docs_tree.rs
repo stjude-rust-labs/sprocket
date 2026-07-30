@@ -21,6 +21,7 @@ use crate::DocError;
 use crate::Markdown;
 use crate::Render;
 use crate::config::ExternalUrls;
+use crate::config::Seo;
 use crate::document::Document;
 use crate::r#enum::Enum;
 use crate::error::DocResult;
@@ -238,6 +239,8 @@ pub struct DocsTreeBuilder {
     logo: Option<PathBuf>,
     /// External URLs related to the project, rendered in the right rail.
     external_urls: ExternalUrls,
+    /// Site-level SEO metadata embedded into each page's `<head>`.
+    seo: Seo,
     /// The path to an alternate light theme custom logo to embed at the top of
     /// the left sidebar.
     alt_logo: Option<PathBuf>,
@@ -262,6 +265,7 @@ impl DocsTreeBuilder {
             custom_theme: None,
             logo: None,
             external_urls: ExternalUrls::default(),
+            seo: Seo::default(),
             alt_logo: None,
             additional_html: AdditionalHtml::default(),
             init_light_mode: false,
@@ -322,6 +326,12 @@ impl DocsTreeBuilder {
         self
     }
 
+    /// Set the site-level SEO metadata embedded into each page's `<head>`.
+    pub fn seo(mut self, seo: Seo) -> Self {
+        self.seo = seo;
+        self
+    }
+
     /// Set the alt (i.e. light mode) custom logo for the left sidebar with an
     /// option.
     pub fn maybe_alt_logo(mut self, logo: Option<impl Into<PathBuf>>) -> Self {
@@ -378,6 +388,7 @@ impl DocsTreeBuilder {
             path: self.root,
             index_page: self.index_page,
             external_urls: self.external_urls,
+            seo: self.seo,
             additional_html: self.additional_html,
             init_light_mode: self.init_light_mode,
             workspace_metadata: self.workspace_metadata,
@@ -557,6 +568,8 @@ pub struct DocsTree {
     index_page: Option<PathBuf>,
     /// External URLs related to the project, rendered in the right rail.
     external_urls: ExternalUrls,
+    /// Site-level SEO metadata embedded into each page's `<head>`.
+    seo: Seo,
     /// Optional extra HTML to embed in each page.
     additional_html: AdditionalHtml,
     /// Initialize in light mode instead of the default dark mode.
@@ -586,6 +599,19 @@ impl DocsTree {
     fn root_relative_to<P: AsRef<Path>>(&self, path: P) -> PathBuf {
         let path = path.as_ref();
         diff_paths(self.root_abs_path(), path).expect("should diff paths")
+    }
+
+    /// Builds the absolute canonical URL for the page written to
+    /// `page_abs_path`, using the configured SEO `base_url`. Returns `None`
+    /// when no `base_url` is set or the page lies outside the docs root.
+    fn canonical_url(&self, page_abs_path: &Path) -> Option<String> {
+        let base = self.seo.base_url.as_ref()?;
+        let relative = page_abs_path
+            .strip_prefix(self.root_abs_path())
+            .ok()?
+            .to_string_lossy()
+            .replace('\\', "/");
+        base.join(&relative).ok().map(|url| url.to_string())
     }
 
     /// Get the absolute path to the assets directory.
@@ -1355,6 +1381,8 @@ impl DocsTree {
             self.root().path(),
             &self.additional_html,
             self.init_light_mode,
+            &self.seo,
+            self.canonical_url(&index_path).as_deref(),
         );
         std::fs::write(&index_path, html.into_string())
             .map_err(Into::<DocError>::into)
@@ -1697,6 +1725,8 @@ impl DocsTree {
             self.root_relative_to(base),
             &self.additional_html,
             self.init_light_mode,
+            &self.seo,
+            self.canonical_url(&path).as_deref(),
         );
         std::fs::write(&path, html.into_string())
             .map_err(Into::<DocError>::into)

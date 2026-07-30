@@ -18,6 +18,7 @@ use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
 use wdl::doc::config::AdditionalHtml;
 use wdl::doc::config::ExternalUrls;
+use wdl::doc::config::Seo;
 use wdl::doc::document_workspace;
 use wdl::doc::error::DocErrorKind;
 use wdl::doc::install_theme;
@@ -207,6 +208,18 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
     let github_url = args.github_url.or(config.doc.github_url());
     let slack_url = args.slack_url.or(config.doc.slack_url());
     let with_doc_comments = args.with_doc_comments || config.doc.with_doc_comments;
+    let seo = Seo {
+        title: config.doc.seo.title(),
+        description: config.doc.seo.description(),
+        author: config.doc.seo.author(),
+        keywords: config.doc.seo.keywords(),
+        base_url: config.doc.seo.base_url(),
+        image_url: config.doc.seo.image_url(),
+        locale: config.doc.seo.locale(),
+        twitter_handle: config.doc.seo.twitter_handle(),
+        robots: config.doc.seo.robots(),
+        theme_color: config.doc.seo.theme_color(),
+    };
 
     let config = DocConfig::new(analysis_config, &workspace, &docs_dir)
         .index_page(index_page)
@@ -220,6 +233,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
             slack: slack_url,
         })
         .additional_html(addl_html)
+        .seo(seo)
         .enable_doc_comments(with_doc_comments)
         .check(args.check);
 
