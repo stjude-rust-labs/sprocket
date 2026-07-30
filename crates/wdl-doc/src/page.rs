@@ -163,20 +163,20 @@ mod tests {
 
     #[test]
     fn declaration_hero_renders_title_and_source_card() {
-        let html = DeclarationHero::new("Struct", "Sample", "A sequencing sample.")
+        let html = DeclarationHero::new("Struct", "Scroll", "An enchanted scroll.")
             .source_path(Path::new("main.wdl"))
             .render(Path::new("assets"))
             .into_string();
         assert!(html.contains("class=\"declaration-hero__title\""));
         // The identifier used as the page title is styled as a code literal
         // while remaining inside the h1 (preserving its heading size via CSS).
-        assert!(html.contains("<code class=\"heading-code-literal\">Sample</code>"));
+        assert!(html.contains("<code class=\"heading-code-literal\">Scroll</code>"));
         assert!(html.contains("source-card__path\" title=\"main.wdl\">main.wdl"));
         assert!(html.contains("src=\"assets/folder.dark.svg\""));
         assert!(html.contains("src=\"assets/folder.light.svg\""));
         assert!(!html.contains(">▱<"));
         assert!(html.contains("navigator.clipboard.writeText"));
-        assert!(!html.contains("<code>Sample</code>"));
+        assert!(!html.contains("<code>Scroll</code>"));
 
         let assets = crate::get_assets();
         let icon = std::str::from_utf8(assets.get("folder.dark.svg").expect("bundled folder icon"))

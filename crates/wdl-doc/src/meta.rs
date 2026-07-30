@@ -579,7 +579,7 @@ mod tests {
             ## A detailed explanation of the struct.
             ##
             ## ### Example Input JSON
-            struct Sample {
+            struct Scroll {
                 String id
             }
             "#,

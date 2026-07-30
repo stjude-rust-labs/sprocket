@@ -143,35 +143,30 @@ mod tests {
     #[test]
     fn links_unique_struct_and_enum_types() {
         let links = PageLinkIndex::from_pages([
-            ("Sample", PathBuf::from("main/Sample-struct.html")),
-            (
-                "ReferenceBuild",
-                PathBuf::from("main/ReferenceBuild-enum.html"),
-            ),
+            ("Scroll", PathBuf::from("main/Scroll-struct.html")),
+            ("Spellbook", PathBuf::from("main/Spellbook-enum.html")),
         ]);
         let html = links
-            .render_type("Array[Sample]?", Path::new("main"))
+            .render_type("Array[Scroll]?", Path::new("main"))
             .into_string();
-        assert!(html.contains("href=\"Sample-struct.html\""));
+        assert!(html.contains("href=\"Scroll-struct.html\""));
         assert!(html.contains("Array["));
     }
 
     #[test]
     fn links_enum_types_relative_to_page() {
-        let links = PageLinkIndex::from_pages([(
-            "ReferenceBuild",
-            PathBuf::from("main/ReferenceBuild-enum.html"),
-        )]);
+        let links =
+            PageLinkIndex::from_pages([("Spellbook", PathBuf::from("main/Spellbook-enum.html"))]);
         let html = links
-            .render_type("ReferenceBuild", Path::new("main/nested"))
+            .render_type("Spellbook", Path::new("main/nested"))
             .into_string();
-        assert!(html.contains("href=\"../ReferenceBuild-enum.html\""));
+        assert!(html.contains("href=\"../Spellbook-enum.html\""));
     }
 
     #[test]
     fn unknown_identifiers_stay_plain() {
         let links =
-            PageLinkIndex::from_pages([("Sample", PathBuf::from("main/Sample-struct.html"))]);
+            PageLinkIndex::from_pages([("Scroll", PathBuf::from("main/Scroll-struct.html"))]);
         let html = links
             .render_type("Map[String, Int]", Path::new("main"))
             .into_string();
@@ -182,12 +177,12 @@ mod tests {
     #[test]
     fn ambiguous_names_stay_plain() {
         let links = PageLinkIndex::from_pages([
-            ("Sample", PathBuf::from("main/Sample-struct.html")),
-            ("Sample", PathBuf::from("other/Sample-struct.html")),
+            ("Scroll", PathBuf::from("main/Scroll-struct.html")),
+            ("Scroll", PathBuf::from("other/Scroll-struct.html")),
         ]);
-        let html = links.render_type("Sample", Path::new("main")).into_string();
+        let html = links.render_type("Scroll", Path::new("main")).into_string();
         assert!(!html.contains("href"));
         assert!(html.contains("<code>"));
-        assert!(html.contains("Sample"));
+        assert!(html.contains("Scroll"));
     }
 }

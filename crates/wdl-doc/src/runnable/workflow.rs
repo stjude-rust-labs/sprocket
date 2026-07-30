@@ -383,9 +383,9 @@ mod tests {
             r#"
             version 1.2
 
-            workflow align_reads {
+            workflow bind_runes {
                 meta {
-                    name: "Align Reads (v2)"
+                    name: "Bind Runes (v2)"
                 }
             }
             "#,
@@ -408,7 +408,7 @@ mod tests {
         let html = markup.into_string();
 
         // The friendly `meta.name` display name is shown verbatim in the title.
-        assert!(html.contains("Align Reads (v2)"));
+        assert!(html.contains("Bind Runes (v2)"));
         // It is a human-facing name, not a WDL identifier, so it must not be
         // wrapped as a code literal.
         assert!(!html.contains("heading-code-literal"));
@@ -420,7 +420,7 @@ mod tests {
             r#"
             version 1.2
 
-            workflow align_reads {
+            workflow bind_runes {
             }
             "#,
             None,
@@ -443,7 +443,7 @@ mod tests {
 
         // Without a `meta.name` override the title is the raw WDL identifier and
         // must be rendered as a code literal.
-        assert!(html.contains("<code class=\"heading-code-literal\">align_reads</code>"));
+        assert!(html.contains("<code class=\"heading-code-literal\">bind_runes</code>"));
     }
 
     #[test]

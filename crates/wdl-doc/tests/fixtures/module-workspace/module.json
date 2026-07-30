@@ -1,10 +1,10 @@
 {
-  "name": "genomics-showcase",
+  "name": "spellcraft-showcase",
   "version": "1.0.0",
   "license": "MIT",
   "entrypoint": "main.wdl",
   "dependencies": {
-    "qc": { "path": "modules/qc" },
-    "alignment": { "path": "modules/alignment" }
+    "wards": { "path": "modules/wards" },
+    "enchantment": { "path": "modules/enchantment" }
   }
 }

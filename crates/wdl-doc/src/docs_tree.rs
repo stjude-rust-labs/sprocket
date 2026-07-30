@@ -1748,7 +1748,7 @@ fn render_search_shortcut_hint() -> Markup {
 
 /// Converts a kebab-case or snake_case module manifest name into a
 /// human-friendly title by replacing separators with spaces and
-/// capitalizing each word (e.g. `genomics-showcase` becomes `Genomics
+/// capitalizing each word (e.g. `spellcraft-showcase` becomes `Spellcraft
 /// Showcase`).
 fn humanize_module_name(name: &str) -> String {
     name.split(['-', '_'])
@@ -1815,22 +1815,22 @@ mod tests {
 
     /// Builds a `TempDir` containing copies of the fixture's `module.json`
     /// manifests, mirroring its on-disk module layout (root plus the local
-    /// `qc` and `alignment` dependencies the root manifest declares) without
-    /// copying the WDL source files. Suitable for tests that only need
-    /// `WorkspaceMetadata`, not a fully documentable workspace.
+    /// `wards` and `enchantment` dependencies the root manifest declares)
+    /// without copying the WDL source files. Suitable for tests that only
+    /// need `WorkspaceMetadata`, not a fully documentable workspace.
     fn manifest_only_workspace() -> TempDir {
         let fixture = fixture_root();
         let dir = tempfile::tempdir().unwrap();
 
         for relative_manifest in [
             "module.json",
-            "modules/qc/module.json",
-            "modules/alignment/module.json",
+            "modules/wards/module.json",
+            "modules/enchantment/module.json",
         ] {
             let src = fixture.join(relative_manifest);
             let dst = dir.path().join(relative_manifest);
             // SAFETY: `relative_manifest` always has a parent component
-            // (`modules/qc` and friends, or the workspace root itself).
+            // (`modules/wards` and friends, or the workspace root itself).
             fs::create_dir_all(dst.parent().unwrap()).unwrap();
             fs::copy(&src, &dst).unwrap();
         }
@@ -1848,15 +1848,15 @@ mod tests {
         for relative_file in [
             "module.json",
             "main.wdl",
-            "modules/qc/module.json",
-            "modules/qc/qc.wdl",
-            "modules/alignment/module.json",
-            "modules/alignment/alignment.wdl",
+            "modules/wards/module.json",
+            "modules/wards/wards.wdl",
+            "modules/enchantment/module.json",
+            "modules/enchantment/enchantment.wdl",
         ] {
             let src = fixture.join(relative_file);
             let dst = dir.path().join(relative_file);
             // SAFETY: `relative_file` always has a parent component
-            // (`modules/qc` and friends, or the workspace root itself).
+            // (`modules/wards` and friends, or the workspace root itself).
             fs::create_dir_all(dst.parent().unwrap()).unwrap();
             fs::copy(&src, &dst).unwrap();
         }
@@ -1875,27 +1875,27 @@ mod tests {
             .build()
             .unwrap();
 
-        assert_eq!(tree.root().name(), "genomics-showcase");
+        assert_eq!(tree.root().name(), "spellcraft-showcase");
 
         // Manually mirror the directory node that document generation would
-        // create for the `qc` module's collapsed entrypoint document (see
-        // `WorkspaceMetadata::documentation_path`): a plain "qc" directory
-        // node rooted at `modules/qc`, without needing a full analysis run.
+        // create for the `wards` module's collapsed entrypoint document (see
+        // `WorkspaceMetadata::documentation_path`): a plain "wards" directory
+        // node rooted at `modules/wards`, without needing a full analysis run.
         let modules_node = Node::new("modules".to_string(), PathBuf::from("modules"));
         tree.root_mut()
             .children
             .insert("modules".to_string(), modules_node);
-        let qc_node = Node::new("qc".to_string(), PathBuf::from("modules/qc"));
+        let wards_node = Node::new("wards".to_string(), PathBuf::from("modules/wards"));
         tree.root_mut()
             .children
             .get_mut("modules")
             .expect("modules node should exist")
             .children
-            .insert("qc".to_string(), qc_node);
+            .insert("wards".to_string(), wards_node);
 
-        let page = docs_dir.path().join("modules/qc/index.html");
+        let page = docs_dir.path().join("modules/wards/index.html");
         let sidebar = tree.render_left_sidebar(&page).into_string();
-        assert!(sidebar.contains("qc"));
+        assert!(sidebar.contains("wards"));
         assert!(sidebar.contains("1.0.0"));
         assert!(!sidebar.contains("Workflows"));
     }
@@ -1922,13 +1922,14 @@ mod tests {
     /// the paths of sibling documents added to the same module directory
     /// afterward.
     ///
-    /// The `qc` module's entrypoint (`qc.wdl`) collapses onto the `modules/qc`
-    /// directory node, storing its page at `modules/qc/index.html`. A second
-    /// WDL file in the same module (`modules/qc/trimming.wdl`) documents into
-    /// `modules/qc/trimming/`. If the directory node's collapsed path is reused
-    /// verbatim when creating that subdirectory, the sibling's pages end up
-    /// under a bogus `modules/qc/index.html/trimming/...`, whose `index.html`
-    /// component is a file, not a directory (`ENOTDIR` at write time).
+    /// The `wards` module's entrypoint (`wards.wdl`) collapses onto the
+    /// `modules/wards` directory node, storing its page at
+    /// `modules/wards/index.html`. A second WDL file in the same module
+    /// (`modules/wards/scrying.wdl`) documents into `modules/wards/scrying/
+    /// `. If the directory node's collapsed path is reused verbatim when
+    /// creating that subdirectory, the sibling's pages end up under a bogus
+    /// `modules/wards/index.html/scrying/...`, whose `index.html` component
+    /// is a file, not a directory (`ENOTDIR` at write time).
     #[test]
     fn collapsed_index_does_not_leak_into_sibling_document_paths() {
         let docs_dir = tempfile::tempdir().unwrap();
@@ -1938,26 +1939,28 @@ mod tests {
         // node) is added before the sibling document, matching the ordering
         // that triggered the original failure.
         tree.add_page(
-            docs_dir.path().join("modules/qc/collect_qc-task.html"),
-            task_page("collect_qc"),
+            docs_dir
+                .path()
+                .join("modules/wards/inspect_wards-task.html"),
+            task_page("inspect_wards"),
         );
         tree.add_page(
-            docs_dir.path().join("modules/qc/index.html"),
-            task_page("qc"),
+            docs_dir.path().join("modules/wards/index.html"),
+            task_page("wards"),
         );
         tree.add_page(
             docs_dir
                 .path()
-                .join("modules/qc/trimming/trim_reads-task.html"),
-            task_page("trim_reads"),
+                .join("modules/wards/scrying/scry_runes-task.html"),
+            task_page("scry_runes"),
         );
 
         let node = tree
-            .get_node("modules/qc/trimming/trim_reads-task.html")
+            .get_node("modules/wards/scrying/scry_runes-task.html")
             .expect("sibling document node should exist");
         assert_eq!(
             node.path(),
-            &PathBuf::from("modules/qc/trimming/trim_reads-task.html"),
+            &PathBuf::from("modules/wards/scrying/scry_runes-task.html"),
             "sibling document path must not contain the collapsed `index.html`"
         );
     }
@@ -2007,17 +2010,17 @@ mod tests {
             .expect("documentation generation should succeed");
 
         let content = fs::read_to_string(docs_dir.path().join("index.html")).unwrap();
-        assert!(content.contains("Genomics Showcase"));
+        assert!(content.contains("Spellcraft Showcase"));
         assert!(content.contains("Version 1.0.0"));
         assert!(content.contains("Entrypoint"));
         assert!(content.contains("main.wdl"));
         assert!(content.contains("Dependencies"));
-        assert!(content.contains("qc"));
+        assert!(content.contains("wards"));
         // The module overview title is a humanized display name, not a WDL
         // identifier, so it must stay plain prose without code-literal styling.
         assert!(
             content.contains(
-                "module-overview__title\" data-pagefind-meta=\"title\">Genomics Showcase"
+                "module-overview__title\" data-pagefind-meta=\"title\">Spellcraft Showcase"
             ),
             "expected a plain module overview title, got: {content}"
         );

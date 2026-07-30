@@ -191,8 +191,8 @@ impl WorkspaceMetadata {
     /// When `doc_path` is the entrypoint of a local-path dependency module,
     /// its documentation collapses into that module's root directory rather
     /// than a subdirectory named after the entrypoint file, so that a
-    /// module's documentation lives at, e.g., `modules/qc/` instead of
-    /// `modules/qc/qc/`. The workspace root's own entrypoint is exempted
+    /// module's documentation lives at, e.g., `modules/wards/` instead of
+    /// `modules/wards/wards/`. The workspace root's own entrypoint is exempted
     /// from this collapse so that it does not collide with the site's home
     /// page, and instead keeps its usual file-stem path (e.g. `main`).
     pub(crate) fn documentation_path(&self, doc_path: &Path) -> PathBuf {
@@ -233,21 +233,21 @@ mod tests {
 
     /// Builds a `TempDir` containing copies of the fixture's `module.json`
     /// manifests, mirroring its on-disk module layout (root plus the local
-    /// `qc` and `alignment` dependencies the root manifest declares) without
-    /// copying the WDL source files.
+    /// `wards` and `enchantment` dependencies the root manifest declares)
+    /// without copying the WDL source files.
     fn module_workspace() -> TempDir {
         let fixture = fixture_root();
         let dir = tempfile::tempdir().unwrap();
 
         for relative_manifest in [
             "module.json",
-            "modules/qc/module.json",
-            "modules/alignment/module.json",
+            "modules/wards/module.json",
+            "modules/enchantment/module.json",
         ] {
             let src = fixture.join(relative_manifest);
             let dst = dir.path().join(relative_manifest);
             // SAFETY: `relative_manifest` always has a parent component
-            // (`modules/qc` and friends, or the workspace root itself).
+            // (`modules/wards` and friends, or the workspace root itself).
             fs::create_dir_all(dst.parent().unwrap()).unwrap();
             fs::copy(&src, &dst).unwrap();
         }
@@ -266,14 +266,14 @@ mod tests {
         let dir = module_workspace();
         let metadata = WorkspaceMetadata::load(dir.path()).unwrap().unwrap();
 
-        assert_eq!(metadata.root().name(), "genomics-showcase");
+        assert_eq!(metadata.root().name(), "spellcraft-showcase");
         assert_eq!(metadata.root().version().to_string(), "1.0.0");
         assert_eq!(
             metadata
-                .module_for_document(Path::new("modules/qc/qc.wdl"))
+                .module_for_document(Path::new("modules/wards/wards.wdl"))
                 .unwrap()
                 .name(),
-            "qc"
+            "wards"
         );
     }
 
@@ -283,8 +283,8 @@ mod tests {
         let metadata = WorkspaceMetadata::load(dir.path()).unwrap().unwrap();
 
         assert_eq!(
-            metadata.documentation_path(Path::new("modules/qc/qc.wdl")),
-            PathBuf::from("modules/qc")
+            metadata.documentation_path(Path::new("modules/wards/wards.wdl")),
+            PathBuf::from("modules/wards")
         );
         assert_eq!(
             metadata.documentation_path(Path::new("main.wdl")),

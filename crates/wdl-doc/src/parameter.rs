@@ -348,20 +348,20 @@ mod tests {
             version 1.2
             workflow w {
                 input {
-                    Sample sample
+                    Scroll scroll
                     Int count
                 }
             }
             "#,
         );
-        let links = PageLinkIndex::from_pages([("Sample", PathBuf::from("Sample-struct.html"))]);
+        let links = PageLinkIndex::from_pages([("Scroll", PathBuf::from("Scroll-struct.html"))]);
 
-        let sample = params.iter().find(|p| p.name() == "sample").unwrap();
-        let html = sample
+        let scroll = params.iter().find(|p| p.name() == "scroll").unwrap();
+        let html = scroll
             .render(Path::new("assets"), &links, Path::new(""))
             .into_string();
-        assert!(html.contains("href=\"Sample-struct.html\""));
-        assert!(html.contains(">Sample</a>"));
+        assert!(html.contains("href=\"Scroll-struct.html\""));
+        assert!(html.contains(">Scroll</a>"));
 
         let count = params.iter().find(|p| p.name() == "count").unwrap();
         let html = count
