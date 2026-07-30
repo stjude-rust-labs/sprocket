@@ -29,7 +29,7 @@ const FUNCTION_NAME: &str = "read_boolean";
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_boolean
 fn read_boolean(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
-        debug_assert!(context.arguments.len() == 1);
+        debug_assert_eq!(context.arguments.len(), 1);
         debug_assert!(context.return_type_eq(PrimitiveType::Boolean));
 
         let path = context

@@ -21,15 +21,15 @@ pub fn format_sep_option(
     let mut children = element.children().expect("sep option children");
 
     let sep_keyword = children.next().expect("sep keyword");
-    assert!(sep_keyword.element().kind() == SyntaxKind::Ident);
+    assert_eq!(sep_keyword.element().kind(), SyntaxKind::Ident);
     (&sep_keyword).write(stream, config);
 
     let equals = children.next().expect("sep equals");
-    assert!(equals.element().kind() == SyntaxKind::Assignment);
+    assert_eq!(equals.element().kind(), SyntaxKind::Assignment);
     (&equals).write(stream, config);
 
     let sep_value = children.next().expect("sep value");
-    assert!(sep_value.element().kind() == SyntaxKind::LiteralStringNode);
+    assert_eq!(sep_value.element().kind(), SyntaxKind::LiteralStringNode);
     (&sep_value).write(stream, config);
     stream.end_word();
 }
@@ -47,11 +47,11 @@ pub fn format_default_option(
     let mut children = element.children().expect("default option children");
 
     let default_keyword = children.next().expect("default keyword");
-    assert!(default_keyword.element().kind() == SyntaxKind::Ident);
+    assert_eq!(default_keyword.element().kind(), SyntaxKind::Ident);
     (&default_keyword).write(stream, config);
 
     let equals = children.next().expect("default equals");
-    assert!(equals.element().kind() == SyntaxKind::Assignment);
+    assert_eq!(equals.element().kind(), SyntaxKind::Assignment);
     (&equals).write(stream, config);
 
     let default_value = children.next().expect("default value");
@@ -79,7 +79,7 @@ pub fn format_true_false_option(
     );
 
     let first_equals = children.next().expect("true false option first equals");
-    assert!(first_equals.element().kind() == SyntaxKind::Assignment);
+    assert_eq!(first_equals.element().kind(), SyntaxKind::Assignment);
 
     let first_value = children.next().expect("true false option first value");
 
@@ -91,12 +91,12 @@ pub fn format_true_false_option(
     );
 
     let second_equals = children.next().expect("true false option second equals");
-    assert!(second_equals.element().kind() == SyntaxKind::Assignment);
+    assert_eq!(second_equals.element().kind(), SyntaxKind::Assignment);
 
     let second_value = children.next().expect("true false option second value");
 
     if first_keyword_kind == SyntaxKind::TrueKeyword {
-        assert!(second_keyword_kind == SyntaxKind::FalseKeyword);
+        assert_eq!(second_keyword_kind, SyntaxKind::FalseKeyword);
         (&first_keyword).write(stream, config);
         (&first_equals).write(stream, config);
         (&first_value).write(stream, config);
@@ -105,7 +105,7 @@ pub fn format_true_false_option(
         (&second_equals).write(stream, config);
         (&second_value).write(stream, config);
     } else {
-        assert!(second_keyword_kind == SyntaxKind::TrueKeyword);
+        assert_eq!(second_keyword_kind, SyntaxKind::TrueKeyword);
         (&second_keyword).write(stream, config);
         (&second_equals).write(stream, config);
         (&second_value).write(stream, config);
@@ -130,7 +130,7 @@ pub fn format_placeholder(
     let mut children = element.children().expect("placeholder children");
 
     let open = children.next().expect("placeholder open");
-    assert!(open.element().kind() == SyntaxKind::PlaceholderOpen);
+    assert_eq!(open.element().kind(), SyntaxKind::PlaceholderOpen);
     let syntax = open.element().inner();
     let text = syntax.as_token().expect("token").text();
     match text {
@@ -239,7 +239,7 @@ pub fn format_literal_none(
 ) {
     let mut children = element.children().expect("literal none children");
     let none = children.next().expect("literal none token");
-    assert!(none.element().kind() == SyntaxKind::NoneKeyword);
+    assert_eq!(none.element().kind(), SyntaxKind::NoneKeyword);
     (&none).write(stream, config);
 }
 
@@ -256,14 +256,14 @@ pub fn format_literal_pair(
     let mut children = element.children().expect("literal pair children");
 
     let open_paren = children.next().expect("literal pair open paren");
-    assert!(open_paren.element().kind() == SyntaxKind::OpenParen);
+    assert_eq!(open_paren.element().kind(), SyntaxKind::OpenParen);
     (&open_paren).write(stream, config);
 
     let left = children.next().expect("literal pair left");
     (&left).write(stream, config);
 
     let comma = children.next().expect("literal pair comma");
-    assert!(comma.element().kind() == SyntaxKind::Comma);
+    assert_eq!(comma.element().kind(), SyntaxKind::Comma);
     (&comma).write(stream, config);
     stream.end_word();
 
@@ -271,7 +271,7 @@ pub fn format_literal_pair(
     (&right).write(stream, config);
 
     let close_paren = children.next().expect("literal pair close paren");
-    assert!(close_paren.element().kind() == SyntaxKind::CloseParen);
+    assert_eq!(close_paren.element().kind(), SyntaxKind::CloseParen);
     (&close_paren).write(stream, config);
 }
 
@@ -302,7 +302,7 @@ pub fn format_negation_expr(
 ) {
     let mut children = element.children().expect("negation expr children");
     let minus = children.next().expect("negation expr minus");
-    assert!(minus.element().kind() == SyntaxKind::Minus);
+    assert_eq!(minus.element().kind(), SyntaxKind::Minus);
     (&minus).write(stream, config);
 
     let expr = children.next().expect("negation expr expr");
@@ -367,7 +367,7 @@ pub fn format_literal_array(
     let mut children = element.children().expect("literal array children");
 
     let open_bracket = children.next().expect("literal array open bracket");
-    assert!(open_bracket.element().kind() == SyntaxKind::OpenBracket);
+    assert_eq!(open_bracket.element().kind(), SyntaxKind::OpenBracket);
     (&open_bracket).write(stream, config);
 
     let mut items = Vec::new();
@@ -425,7 +425,7 @@ pub fn format_literal_map_item(
     (&key).write(stream, config);
 
     let colon = children.next().expect("literal map item colon");
-    assert!(colon.element().kind() == SyntaxKind::Colon);
+    assert_eq!(colon.element().kind(), SyntaxKind::Colon);
     (&colon).write(stream, config);
     stream.end_word();
 
@@ -446,7 +446,7 @@ pub fn format_literal_map(
     let mut children = element.children().expect("literal map children");
 
     let open_brace = children.next().expect("literal map open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 
@@ -496,11 +496,11 @@ pub fn format_literal_object_item(
     let mut children = element.children().expect("literal object item children");
 
     let key = children.next().expect("literal object item key");
-    assert!(key.element().kind() == SyntaxKind::Ident);
+    assert_eq!(key.element().kind(), SyntaxKind::Ident);
     (&key).write(stream, config);
 
     let colon = children.next().expect("literal object item colon");
-    assert!(colon.element().kind() == SyntaxKind::Colon);
+    assert_eq!(colon.element().kind(), SyntaxKind::Colon);
     (&colon).write(stream, config);
     stream.end_word();
 
@@ -522,12 +522,12 @@ pub fn format_literal_object(
     let mut children = element.children().expect("literal object children");
 
     let object_keyword = children.next().expect("literal object keyword");
-    assert!(object_keyword.element().kind() == SyntaxKind::ObjectKeyword);
+    assert_eq!(object_keyword.element().kind(), SyntaxKind::ObjectKeyword);
     (&object_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("literal object open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 
@@ -778,7 +778,7 @@ pub fn format_logical_not_expr(
 ) {
     let mut children = element.children().expect("logical not expr children");
     let not = children.next().expect("logical not expr not");
-    assert!(not.element().kind() == SyntaxKind::Exclamation);
+    assert_eq!(not.element().kind(), SyntaxKind::Exclamation);
     (&not).write(stream, config);
 
     let expr = children.next().expect("logical not expr expr");
