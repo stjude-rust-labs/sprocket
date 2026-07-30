@@ -1,6 +1,7 @@
 import { initializeHighlighter } from "./sprocket-code.utils.js";
 import COPY_ICON from "./icons/copy.svg";
 import EXPAND_ICON from "./icons/arrows-fullscreen.svg";
+import CHECK_ICON from "./icons/check-lg.svg";
 
 const CODE_BLOCK_STYLES = `
   :host { display: block; font-size: 14px; }
@@ -47,6 +48,11 @@ const CODE_BLOCK_STYLES = `
   .code-block__toolbar button:focus-visible {
     outline: 2px solid #80cbc4;
     outline-offset: 1px;
+  }
+  .code-block__toolbar button.code-block__copy--copied,
+  .code-block__toolbar button.code-block__copy--copied:hover {
+    background: #22c55e;
+    color: #052e16;
   }
   .code-block.line-numbered .shiki code {
     counter-reset: sprocket-line;
@@ -121,9 +127,21 @@ function decorateCodeBlock({ host, shadow, highlighted, source, copyable, expand
 
   if (copyable) {
     const copyButton = shadow.querySelector('.code-block__copy');
+    let copiedTimer;
     copyButton.addEventListener('click', async () => {
       try {
         await navigator.clipboard.writeText(source);
+        copyButton.classList.add('code-block__copy--copied');
+        copyButton.innerHTML = CHECK_ICON;
+        copyButton.setAttribute('aria-label', 'Copied!');
+        copyButton.setAttribute('title', 'Copied!');
+        clearTimeout(copiedTimer);
+        copiedTimer = setTimeout(() => {
+          copyButton.classList.remove('code-block__copy--copied');
+          copyButton.innerHTML = COPY_ICON;
+          copyButton.setAttribute('aria-label', 'Copy code');
+          copyButton.setAttribute('title', 'Copy code');
+        }, 3000);
       } catch (err) {
         console.error('Failed to copy code: ', err);
       }
