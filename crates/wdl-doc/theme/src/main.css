@@ -408,7 +408,7 @@
     @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
   }
   .declaration-hero__title {
-    @apply text-5xl leading-normal font-sans font-medium text-slate-50;
+    @apply text-4xl leading-normal font-sans font-medium text-slate-50;
   }
   .declaration-hero__summary {
     @apply text-slate-300;

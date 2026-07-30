@@ -1278,8 +1278,8 @@
   .main__title {
     margin-top: calc(var(--spacing) * 4);
     margin-bottom: calc(var(--spacing) * 6);
-    font-size: var(--text-5xl);
-    line-height: var(--tw-leading, var(--text-5xl--line-height));
+    font-size: var(--text-4xl);
+    line-height: var(--tw-leading, var(--text-4xl--line-height));
     color: var(--color-slate-50);
   }
   .main__section {
@@ -3535,8 +3535,8 @@
   }
   .declaration-hero__title {
     font-family: var(--font-sans);
-    font-size: var(--text-5xl);
-    line-height: var(--tw-leading, var(--text-5xl--line-height));
+    font-size: var(--text-4xl);
+    line-height: var(--tw-leading, var(--text-4xl--line-height));
     --tw-leading: var(--leading-normal);
     line-height: var(--leading-normal);
     --tw-font-weight: var(--font-weight-medium);

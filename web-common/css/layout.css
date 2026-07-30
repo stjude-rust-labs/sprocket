@@ -33,7 +33,7 @@
         @apply flex flex-col;
     }
     .main__title {
-        @apply text-5xl text-slate-50 mt-4 mb-6;
+        @apply text-4xl text-slate-50 mt-4 mb-6;
     }
     .main__section {
         @apply flex flex-col mt-8;
