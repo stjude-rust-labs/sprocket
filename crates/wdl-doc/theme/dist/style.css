@@ -1455,6 +1455,10 @@
     --tw-font-weight: var(--font-weight-bold);
     font-weight: var(--font-weight-bold);
   }
+  .main__badge-status-icon img {
+    width: calc(var(--spacing) * 3.5);
+    height: calc(var(--spacing) * 3.5);
+  }
   .main__badge--disabled::before {
     content: "-";
     display: flex;

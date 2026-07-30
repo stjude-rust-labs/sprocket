@@ -144,8 +144,8 @@ impl Workflow {
             return html! {
                 div class="main__badge main__badge--success" {
                     span class="main__badge-status-icon" aria-hidden="true" {
-                        img src=(assets.join("check.svg").to_string_lossy()) class="size-3.5 block light:hidden" alt="";
-                        img src=(assets.join("check.light.svg").to_string_lossy()) class="size-3.5 hidden light:block" alt="";
+                        img src=(assets.join("check.svg").to_string_lossy()) class="block light:hidden" alt="";
+                        img src=(assets.join("check.light.svg").to_string_lossy()) class="hidden light:block" alt="";
                     }
                     span class="main__badge-text" {
                         "Nested Inputs Allowed"
@@ -156,8 +156,8 @@ impl Workflow {
         html! {
             div class="main__badge main__badge--error" {
                 span class="main__badge-status-icon" aria-hidden="true" {
-                    img src=(assets.join("x.svg").to_string_lossy()) class="size-3.5 block light:hidden" alt="";
-                    img src=(assets.join("x.light.svg").to_string_lossy()) class="size-3.5 hidden light:block" alt="";
+                    img src=(assets.join("x.svg").to_string_lossy()) class="block light:hidden" alt="";
+                    img src=(assets.join("x.light.svg").to_string_lossy()) class="hidden light:block" alt="";
                 }
                 span class="main__badge-text" {
                     "Nested Inputs Not Allowed"
