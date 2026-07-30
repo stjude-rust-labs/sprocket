@@ -1085,7 +1085,7 @@ impl DocsTree {
                             div class="left-sidebar__indent -z-1" {}
                         }
                         div class="left-sidebar__content-item-container crop-ellipsis" {
-                            div class="relative left-sidebar__icon shrink-0" {
+                            div class="relative left-sidebar__icon shrink-0" x-on:click="if (node.href && node.children.length) { $event.preventDefault(); $event.stopPropagation(); toggleChildren(node.key); }" x-bind:class="(node.href && node.children.length) ? 'cursor-pointer' : ''" {
                                 img x-bind:src="(node.module_version && showChildrenCache[node.key]) ? node.icon.replace('wdl-folder.svg', 'wdl-folder-open.svg') : (node.icon || dirOpen)" class="left-sidebar__icon block light:hidden" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
                                 img x-bind:src="((node.module_version && showChildrenCache[node.key]) ? node.icon.replace('wdl-folder.svg', 'wdl-folder-open.svg') : (node.icon || dirOpen)).replace('.svg', '.light.svg')" class="left-sidebar__icon hidden light:block" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
                             }
