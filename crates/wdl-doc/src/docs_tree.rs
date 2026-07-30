@@ -792,12 +792,8 @@ impl DocsTree {
                                     }}
                                 }}"#,
                                 self.root_abs_path().join(node.path()) == destination,
-                                self.get_asset(base, if self.root_abs_path().join(node.path()) == destination {
-                                        "workflow-selected.svg"
-                                    } else {
-                                        "workflow-unselected.svg"
-                                    },
-                            ))) class="left-sidebar__row" x-bind:class="node.current ? 'bg-slate-600/50 is-scrolled-to' : 'hover:bg-slate-700/40'" {
+                                self.get_asset(base, "workflow.svg"),
+                            )) class="left-sidebar__row" x-bind:class="node.current ? 'bg-slate-600/50 is-scrolled-to' : 'hover:bg-slate-700/40'" {
                                 @if let Some(page) = node.page() {
                                     @match page.page_type() {
                                         PageType::Workflow(wf) => {
@@ -934,51 +930,26 @@ impl DocsTree {
                 };
                 let ancestor = node.part_of_path(rel_path);
                 let current = path == self.root_abs_path().join(node.path());
-                let icon = match node.page() {
-                    Some(page) => match page.page_type() {
-                        PageType::Task(_) => Some(self.get_asset(
-                            base,
-                            if ancestor {
-                                "task-selected.svg"
-                            } else {
-                                "task-unselected.svg"
-                            },
-                        )),
-                        PageType::Struct(_) => Some(self.get_asset(
-                            base,
-                            if ancestor {
-                                "struct-selected.svg"
-                            } else {
-                                "struct-unselected.svg"
-                            },
-                        )),
-                        PageType::Enum(_) => Some(self.get_asset(
-                            base,
-                            if ancestor {
-                                "enum-selected.svg"
-                            } else {
-                                "enum-unselected.svg"
-                            },
-                        )),
-                        PageType::Workflow(_) => Some(self.get_asset(
-                            base,
-                            if ancestor {
-                                "workflow-selected.svg"
-                            } else {
-                                "workflow-unselected.svg"
-                            },
-                        )),
-                        PageType::Index(_) => Some(self.get_asset(
-                            base,
-                            if ancestor {
-                                "wdl-dir-selected.svg"
-                            } else {
-                                "wdl-dir-unselected.svg"
-                            },
-                        )),
-                    },
-                    None => None,
-                };
+                let icon = node.page().map(|page| {
+                    self.get_asset(
+                        base,
+                        match page.page_type() {
+                            PageType::Task(_) => "task.svg",
+                            PageType::Struct(_) => "struct.svg",
+                            PageType::Enum(_) => "enum.svg",
+                            PageType::Workflow(_) => "workflow.svg",
+                            // WDL modules render as a folder; a standalone WDL
+                            // document renders as a file.
+                            PageType::Index(_) => {
+                                if module.is_some() {
+                                    "wdl-folder.svg"
+                                } else {
+                                    "wdl-file.svg"
+                                }
+                            }
+                        },
+                    )
+                });
                 let nest_level = node
                     .path()
                     .components()
@@ -1115,8 +1086,8 @@ impl DocsTree {
                         }
                         div class="left-sidebar__content-item-container crop-ellipsis" {
                             div class="relative left-sidebar__icon shrink-0" {
-                                img x-bind:src="node.icon || dirOpen" class="left-sidebar__icon block light:hidden" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
-                                img x-bind:src="(node.icon || dirOpen).replace('.svg', '.light.svg')" class="left-sidebar__icon hidden light:block" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
+                                img x-bind:src="(node.module_version && showChildrenCache[node.key]) ? node.icon.replace('wdl-folder.svg', 'wdl-folder-open.svg') : (node.icon || dirOpen)" class="left-sidebar__icon block light:hidden" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
+                                img x-bind:src="((node.module_version && showChildrenCache[node.key]) ? node.icon.replace('wdl-folder.svg', 'wdl-folder-open.svg') : (node.icon || dirOpen)).replace('.svg', '.light.svg')" class="left-sidebar__icon hidden light:block" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
                             }
                             div class="crop-ellipsis" x-text="node.display_name" {}
                             span x-show="node.module_version" x-text="node.module_version" class="left-sidebar__module-version" {}
