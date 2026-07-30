@@ -106,8 +106,8 @@
     .main__badge--error .main__badge-status-icon {
         @apply text-sm font-bold flex items-center justify-center;
     }
-    .main__badge-status-icon img {
-        @apply size-3.5;
+    .main__badge-status-icon svg {
+        @apply block size-3.5;
     }
     .main__badge--disabled::before {
         content: "-";

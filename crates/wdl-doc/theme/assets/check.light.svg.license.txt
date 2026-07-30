@@ -1,6 +1,0 @@
-Bootstrap Icons check-lg
-Copyright 2019-Present The Bootstrap Authors
-Source: https://github.com/twbs/icons/blob/main/icons/check-lg.svg
-License: MIT
-License URL: https://opensource.org/licenses/MIT
-Changes: Set the fill color to match the badge text.

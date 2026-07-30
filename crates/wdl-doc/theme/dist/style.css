@@ -1455,7 +1455,8 @@
     --tw-font-weight: var(--font-weight-bold);
     font-weight: var(--font-weight-bold);
   }
-  .main__badge-status-icon img {
+  .main__badge-status-icon svg {
+    display: block;
     width: calc(var(--spacing) * 3.5);
     height: calc(var(--spacing) * 3.5);
   }

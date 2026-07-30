@@ -134,7 +134,7 @@ impl Workflow {
     ///
     /// If the value is `true`, it renders an "allowed badge", in all other
     /// cases it renders a "disabled badge".
-    pub fn render_allow_nested_inputs(&self, assets: &Path) -> Markup {
+    pub fn render_allow_nested_inputs(&self) -> Markup {
         if let Some(MetaMapValueSource::MetaValue(MetadataValue::Boolean(b))) = self
             .meta
             .get("allowNestedInputs")
@@ -144,8 +144,7 @@ impl Workflow {
             return html! {
                 div class="main__badge main__badge--success" {
                     span class="main__badge-status-icon" aria-hidden="true" {
-                        img src=(assets.join("check.svg").to_string_lossy()) class="block light:hidden" alt="";
-                        img src=(assets.join("check.light.svg").to_string_lossy()) class="hidden light:block" alt="";
+                        (maud::PreEscaped(include_str!("../../theme/assets/check.svg")))
                     }
                     span class="main__badge-text" {
                         "Nested Inputs Allowed"
@@ -156,8 +155,7 @@ impl Workflow {
         html! {
             div class="main__badge main__badge--error" {
                 span class="main__badge-status-icon" aria-hidden="true" {
-                    img src=(assets.join("x.svg").to_string_lossy()) class="block light:hidden" alt="";
-                    img src=(assets.join("x.light.svg").to_string_lossy()) class="hidden light:block" alt="";
+                    (maud::PreEscaped(include_str!("../../theme/assets/x.svg")))
                 }
                 span class="main__badge-text" {
                     "Nested Inputs Not Allowed"
@@ -211,7 +209,7 @@ impl Workflow {
         if let Some(badge) = self.render_category() {
             hero = hero.badge(badge);
         }
-        hero = hero.badge(self.render_allow_nested_inputs(assets));
+        hero = hero.badge(self.render_allow_nested_inputs());
         if let Some(path) = self.wdl_path.as_deref() {
             hero = hero.source_path(path);
         }
@@ -477,13 +475,13 @@ mod tests {
             false,
         );
 
-        let html = workflow
-            .render_allow_nested_inputs(std::path::Path::new("assets"))
-            .into_string();
+        let html = workflow.render_allow_nested_inputs().into_string();
         assert!(html.contains("main__badge--success"));
         assert!(html.contains("main__badge-status-icon"));
-        assert!(html.contains("assets/check.svg"));
-        assert!(html.contains("assets/check.light.svg"));
+        // The check icon is inlined as an SVG so it inherits the badge's text
+        // color via `currentColor` in both themes.
+        assert!(html.contains("<svg"));
+        assert!(html.contains("M12.736 3.97a"));
         assert!(html.contains("Nested Inputs Allowed"));
     }
 
@@ -516,13 +514,13 @@ mod tests {
             false,
         );
 
-        let html = workflow
-            .render_allow_nested_inputs(std::path::Path::new("assets"))
-            .into_string();
+        let html = workflow.render_allow_nested_inputs().into_string();
         assert!(html.contains("main__badge--error"));
         assert!(html.contains("main__badge-status-icon"));
-        assert!(html.contains("assets/x.svg"));
-        assert!(html.contains("assets/x.light.svg"));
+        // The x icon is inlined as an SVG so it inherits the badge's text color
+        // via `currentColor` in both themes.
+        assert!(html.contains("<svg"));
+        assert!(html.contains("M2.146 2.854a"));
         assert!(html.contains("Nested Inputs Not Allowed"));
     }
 }
