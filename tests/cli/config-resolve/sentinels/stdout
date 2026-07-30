@@ -129,6 +129,7 @@ logo = "none"
 alt_light_logo = "none"
 homepage_url = "none"
 github_url = "none"
+slack_url = "none"
 light_mode = false
 with_doc_comments = false
 
