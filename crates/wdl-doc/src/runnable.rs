@@ -4,7 +4,6 @@ pub mod task;
 pub mod workflow;
 
 use std::collections::BTreeSet;
-use std::path::MAIN_SEPARATOR;
 use std::path::Path;
 
 use maud::Markup;
@@ -103,12 +102,16 @@ pub(crate) trait Runnable: DefinitionMeta {
     /// Render the "run with" component of the runnable.
     fn render_run_with(&self, _assets: &Path) -> Markup {
         if let Some(wdl_path) = self.wdl_path() {
-            let unix_path = wdl_path.to_string_lossy().replace(MAIN_SEPARATOR, "/");
-            let windows_path = wdl_path.to_string_lossy().replace(MAIN_SEPARATOR, "\\");
+            let raw_path = wdl_path.to_string_lossy();
+            let unix_path = raw_path.replace('\\', "/");
+            let windows_path = raw_path.replace('/', "\\");
             // The Unix/Windows toggle only changes the path separator in the
             // shown `sprocket run --target <path>` command, so it is only
-            // meaningful when the path actually contains a separator.
-            let has_separator = unix_path != windows_path;
+            // meaningful when the path actually contains a separator. Detect
+            // both separators explicitly rather than via `MAIN_SEPARATOR`, which
+            // would miss the `/` in WDL import paths when the host OS is
+            // Windows.
+            let has_separator = raw_path.contains('/') || raw_path.contains('\\');
             html! {
                 div class="main__run-with-container" data-pagefind-ignore="all" {
                     div class="main__run-with-label" {

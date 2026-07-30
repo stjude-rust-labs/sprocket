@@ -131,11 +131,11 @@ impl<'a> DeclarationHero<'a> {
                     div class="source-card" {
                         span class="source-card__icon" aria-hidden="true" {
                             img
-                                src=(assets.join("folder.dark.svg").to_string_lossy())
+                                src=(assets.join("folder.dark.svg").to_string_lossy().replace('\\', "/"))
                                 class="block light:hidden"
                                 alt="";
                             img
-                                src=(assets.join("folder.light.svg").to_string_lossy())
+                                src=(assets.join("folder.light.svg").to_string_lossy().replace('\\', "/"))
                                 class="hidden light:block"
                                 alt="";
                         }
