@@ -168,7 +168,7 @@ async fn write_array_tsv_file(
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
 fn write_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
-        debug_assert!(context.arguments.len() == 1);
+        debug_assert_eq!(context.arguments.len(), 1);
         debug_assert!(context.return_type_eq(PrimitiveType::File));
 
         let rows = context
@@ -192,7 +192,7 @@ fn write_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
 fn write_tsv_with_header(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
-        debug_assert!(context.arguments.len() == 3);
+        debug_assert_eq!(context.arguments.len(), 3);
         debug_assert!(context.return_type_eq(PrimitiveType::File));
 
         let rows = context

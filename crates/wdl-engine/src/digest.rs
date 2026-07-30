@@ -972,7 +972,7 @@ pub(crate) mod test {
         let modified = calculate_directory_digest(dir.path(), ContentDigestMode::Strong)
             .await
             .expect("failed to calculate digest");
-        assert!(digest != modified);
+        assert_ne!(digest, modified);
 
         // Restore the file
         fs::write(&target, b"hello world!").expect("failed to create temporary file");

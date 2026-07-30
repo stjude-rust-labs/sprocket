@@ -161,6 +161,7 @@ missing_docs_in_private_items = "warn"
 #
 # Ref: https://rust-lang.github.io/rust-clippy/master/index.html#new_without_default
 new_without_default = "allow"
+manual_assert_eq = "warn"
 
 [package]
 name = "sprocket"
