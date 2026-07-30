@@ -2904,7 +2904,7 @@
     }
   }
   .layout__main-rail {
-    padding-top: calc(var(--spacing) * 14);
+    padding-top: calc(var(--spacing) * 10);
     @media (width < 80rem) {
       display: none;
     }

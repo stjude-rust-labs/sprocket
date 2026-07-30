@@ -46,7 +46,7 @@
     @apply w-full max-w-[70rem] px-4 py-8 md:px-8 md:py-10;
   }
   .layout__main-rail {
-    @apply max-xl:hidden pt-14;
+    @apply max-xl:hidden pt-10;
   }
   .layout__main-center {
     @apply scroll-pt-20;
