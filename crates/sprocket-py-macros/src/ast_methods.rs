@@ -6,12 +6,15 @@ use quote::quote;
 use syn::Error;
 use syn::Generics;
 use syn::Ident;
+use syn::ImplItem;
+use syn::ImplItemFn;
 use syn::ItemImpl;
 use syn::PathArguments;
 use syn::Result;
 use syn::Type;
 use syn::TypeGroup;
 use syn::TypeParen;
+use syn::Visibility;
 use syn::parse::Nothing;
 use syn::parse_quote;
 use syn::spanned::Spanned;
@@ -39,13 +42,21 @@ pub(crate) fn ast_methods(
 
     // Determine if this AST element is a node or a token, and get the type
     // parameter's ident.
-    let ast_kind = ast_kind(&original.generics)?;
+    let _ast_kind = ast_kind(&original.generics)?;
 
     // Remove the first generic (`impl<N: TreeNode> Ast<N>` into `impl Ast<N>`).
     py_impl.generics = Generics::default();
 
     // Remove second generic and add "Py" prefix (`impl Ast<N>` into `impl PyAst`).
     make_py_self_ty(&mut py_impl.self_ty)?;
+
+    py_impl.items = original
+        .items
+        .iter()
+        .filter_map(filter_py_method)
+        // TODO: Temporary, remove this
+        .map(|original_fn| ImplItem::Fn(original_fn.clone()))
+        .collect();
 
     Ok(quote! {
         #original
@@ -130,6 +141,24 @@ fn make_py_self_ty(self_ty: &mut Type) -> Result<()> {
     last_segment.arguments = PathArguments::None;
 
     Ok(())
+}
+
+/// Filters [`ImplItem`]s based on criteria for becoming Python methods.
+///
+/// In order for an [`ImplItem`] to become a Python method, it must:
+///
+/// - Be a function.
+/// - Be public.
+/// - Not be annotated with `#[skip]`.
+fn filter_py_method(original: &ImplItem) -> Option<&ImplItemFn> {
+    if let ImplItem::Fn(original_fn) = original
+        && let Visibility::Public(..) = original_fn.vis
+    {
+        // TODO: Check for `#[skip]`.
+        Some(original_fn)
+    } else {
+        None
+    }
 }
 
 #[cfg(test)]
@@ -293,5 +322,28 @@ mod tests {
         });
 
         let _ = make_py_self_ty(&mut self_ty);
+    }
+
+    #[test]
+    fn filter_pub_method() {
+        let original: ImplItem = parse_quote! { pub fn foo(&self) {} };
+        assert!(filter_py_method(&original).is_some());
+    }
+
+    #[test]
+    fn filter_priv_method() {
+        let original: ImplItem = parse_quote! { fn foo(&self) {} };
+        let result = filter_py_method(&original);
+        assert!(
+            result.is_none(),
+            "did not filter out private method: {result:?}"
+        );
+    }
+
+    #[test]
+    fn filter_pub_const() {
+        let original: ImplItem = parse_quote! { pub const FOO: &str = "hello"; };
+        let result = filter_py_method(&original);
+        assert!(result.is_none(), "did not filter out const: {result:?}");
     }
 }
