@@ -89,13 +89,13 @@ impl UiTest for CodeBlock {
         }
         if info["copyLabel"].as_str() != Some("Copy code") {
             bail!(
-                "expected the copy control to be labelled `Copy code`, got {:?}",
+                "expected the copy control to be labeled `Copy code`, got {:?}",
                 info["copyLabel"]
             );
         }
         if info["expandLabel"].as_str() != Some("Expand code") {
             bail!(
-                "expected the expand control to be labelled `Expand code`, got {:?}",
+                "expected the expand control to be labeled `Expand code`, got {:?}",
                 info["expandLabel"]
             );
         }
