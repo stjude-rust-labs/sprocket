@@ -3240,6 +3240,12 @@
     width: calc(var(--spacing) * 4);
     height: calc(var(--spacing) * 4);
   }
+  .left-sidebar__chevron {
+    width: calc(var(--spacing) * 4);
+    height: calc(var(--spacing) * 4);
+    flex-shrink: 0;
+    cursor: pointer;
+  }
   .left-sidebar__content-container {
     width: 100%;
     height: 100%;

@@ -1085,7 +1085,13 @@ impl DocsTree {
                             div class="left-sidebar__indent -z-1" {}
                         }
                         div class="left-sidebar__content-item-container crop-ellipsis" {
-                            div class="relative left-sidebar__icon shrink-0" x-on:click="if (node.href && node.children.length) { $event.preventDefault(); $event.stopPropagation(); toggleChildren(node.key); }" x-bind:class="(node.href && node.children.length) ? 'cursor-pointer' : ''" {
+                            // Disclosure chevron for expandable page nodes (WDL modules and
+                            // documents). Leaf pages get an equal-width spacer so their icons
+                            // stay aligned with expandable siblings.
+                            img x-show="node.href && node.children.length" x-on:click="$event.preventDefault(); $event.stopPropagation(); toggleChildren(node.key);" x-bind:src="dirOpen" x-bind:class="showChildrenCache[node.key] ? '' : 'rotate-180'" class="left-sidebar__chevron block light:hidden" alt="";
+                            img x-show="node.href && node.children.length" x-on:click="$event.preventDefault(); $event.stopPropagation(); toggleChildren(node.key);" x-bind:src="dirOpen.replace('.svg', '.light.svg')" x-bind:class="showChildrenCache[node.key] ? '' : 'rotate-180'" class="left-sidebar__chevron hidden light:block" alt="";
+                            div x-show="node.href && !node.children.length" class="left-sidebar__chevron" {}
+                            div class="relative left-sidebar__icon shrink-0" {
                                 img x-bind:src="(node.module_version && showChildrenCache[node.key]) ? node.icon.replace('wdl-folder.svg', 'wdl-folder-open.svg') : (node.icon || dirOpen)" class="left-sidebar__icon block light:hidden" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
                                 img x-bind:src="((node.module_version && showChildrenCache[node.key]) ? node.icon.replace('wdl-folder.svg', 'wdl-folder-open.svg') : (node.icon || dirOpen)).replace('.svg', '.light.svg')" class="left-sidebar__icon hidden light:block" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
                             }

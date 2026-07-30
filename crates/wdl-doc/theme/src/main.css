@@ -289,6 +289,9 @@
   .left-sidebar__icon {
     @apply size-4;
   }
+  .left-sidebar__chevron {
+    @apply size-4 shrink-0 cursor-pointer;
+  }
   .left-sidebar__content-container {
     @apply size-full rounded-md overflow-x-clip overflow-y-auto pl-4 pr-2;
   }
