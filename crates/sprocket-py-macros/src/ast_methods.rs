@@ -11,9 +11,16 @@ use syn::ImplItemFn;
 use syn::ItemImpl;
 use syn::PathArguments;
 use syn::Result;
+use syn::ReturnType;
 use syn::Type;
+use syn::TypeArray;
 use syn::TypeGroup;
+use syn::TypeImplTrait;
 use syn::TypeParen;
+use syn::TypePtr;
+use syn::TypeReference;
+use syn::TypeSlice;
+use syn::TypeTraitObject;
 use syn::Visibility;
 use syn::parse::Nothing;
 use syn::parse_quote;
@@ -42,7 +49,7 @@ pub(crate) fn ast_methods(
 
     // Determine if this AST element is a node or a token, and get the type
     // parameter's ident.
-    let _ast_kind = ast_kind(&original.generics)?;
+    let ast_kind = ast_kind(&original.generics)?;
 
     // Remove the first generic (`impl<N: TreeNode> Ast<N>` into `impl Ast<N>`).
     py_impl.generics = Generics::default();
@@ -50,13 +57,25 @@ pub(crate) fn ast_methods(
     // Remove second generic and add "Py" prefix (`impl Ast<N>` into `impl PyAst`).
     make_py_self_ty(&mut py_impl.self_ty)?;
 
-    py_impl.items = original
-        .items
-        .iter()
-        .filter_map(filter_py_method)
-        // TODO: Temporary, remove this
-        .map(|original_fn| ImplItem::Fn(original_fn.clone()))
-        .collect();
+    py_impl.items =
+        original
+            .items
+            .iter()
+            .filter_map(filter_py_method)
+            .cloned()
+            .map(|mut py_fn| {
+                if let Some(
+                    AstKind::Node { ref generic_ident } | AstKind::Token { ref generic_ident },
+                ) = ast_kind
+                    && let ReturnType::Type(_, ref mut type_) = py_fn.sig.output
+                {
+                    strip_path_generic(type_, generic_ident.clone())?;
+                }
+
+                Ok(ImplItem::Fn(py_fn))
+            })
+            // TODO: more processing
+            .collect::<Result<_>>()?;
 
     Ok(quote! {
         #original
@@ -158,6 +177,56 @@ fn filter_py_method(original: &ImplItem) -> Option<&ImplItemFn> {
         Some(original_fn)
     } else {
         None
+    }
+}
+
+/// Recursively removes a generic parameter from all paths in a type.
+fn strip_path_generic(type_: &mut Type, generic_ident: Ident) -> Result<()> {
+    match type_ {
+        Type::Path(type_path) => {
+            let path_argument = PathArguments::AngleBracketed(parse_quote!(<#generic_ident>));
+
+            for segments in type_path.path.segments.iter_mut() {
+                if segments.arguments == path_argument {
+                    segments.arguments = PathArguments::None;
+                }
+            }
+
+            Ok(())
+        }
+        Type::Array(TypeArray { elem, .. })
+        | Type::Group(TypeGroup { elem, .. })
+        | Type::Paren(TypeParen { elem, .. })
+        | Type::Ptr(TypePtr { elem, .. })
+        | Type::Slice(TypeSlice { elem, .. })
+        | Type::Reference(TypeReference { elem, .. }) => strip_path_generic(elem, generic_ident),
+        Type::FnPtr(type_fn_ptr) => {
+            for elem in type_fn_ptr.inputs.iter_mut() {
+                strip_path_generic(&mut elem.ty, generic_ident.clone())?;
+            }
+
+            if let ReturnType::Type(_, ref mut elem) = type_fn_ptr.output {
+                strip_path_generic(elem, generic_ident)?;
+            }
+
+            Ok(())
+        }
+        Type::ImplTrait(TypeImplTrait { bounds, .. })
+        | Type::TraitObject(TypeTraitObject { bounds, .. }) => {
+            Err(Error::new_spanned(bounds, "not yet implemented"))
+        }
+        Type::Tuple(type_tuple) => {
+            for elem in type_tuple.elems.iter_mut() {
+                strip_path_generic(elem, generic_ident.clone())?;
+            }
+
+            Ok(())
+        }
+        Type::Infer(_) | Type::Macro(_) | Type::Never(_) => Ok(()),
+        unsupported => Err(Error::new(
+            unsupported.span(),
+            "`#[ast_methods]` does not support this return type",
+        )),
     }
 }
 
