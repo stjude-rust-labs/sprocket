@@ -352,7 +352,7 @@
     @apply flex flex-col gap-4 pb-8;
   }
   .module-overview__eyebrow {
-    @apply text-xs font-semibold uppercase tracking-wide text-slate-500;
+    @apply text-xs font-semibold uppercase tracking-wide text-slate-400;
   }
   .module-overview__title {
     @apply text-2xl font-bold text-slate-50;
@@ -388,7 +388,7 @@
     @apply text-sm font-semibold text-slate-50;
   }
   .module-overview__dependency-version {
-    @apply text-xs text-slate-500;
+    @apply text-xs text-slate-400;
   }
   .module-overview__dependency-description {
     @apply text-sm text-slate-300;

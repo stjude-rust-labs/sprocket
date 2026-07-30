@@ -3423,7 +3423,7 @@
     font-weight: var(--font-weight-semibold);
     --tw-tracking: var(--tracking-wide);
     letter-spacing: var(--tracking-wide);
-    color: var(--color-slate-500);
+    color: var(--color-slate-400);
     text-transform: uppercase;
   }
   .module-overview__title {
@@ -3507,7 +3507,7 @@
   .module-overview__dependency-version {
     font-size: var(--text-xs);
     line-height: var(--tw-leading, var(--text-xs--line-height));
-    color: var(--color-slate-500);
+    color: var(--color-slate-400);
   }
   .module-overview__dependency-description {
     font-size: var(--text-sm);
