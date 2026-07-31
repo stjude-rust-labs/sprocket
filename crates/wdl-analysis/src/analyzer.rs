@@ -1377,14 +1377,14 @@ workflow something_else {
         let id = results[0].document.id().clone();
         let results = analyzer.analyze(()).await.unwrap();
         assert_eq!(results.len(), 1);
-        assert!(results[0].document.id().as_ref() != id.as_ref());
+        assert_ne!(results[0].document.id().as_ref(), id.as_ref());
         assert_eq!(results[0].document.diagnostics().count(), 0);
 
         // Analyze again and ensure the analysis result id is unchanged
         let id = results[0].document.id().clone();
         let results = analyzer.analyze_document((), uri).await.unwrap();
         assert_eq!(results.len(), 1);
-        assert!(results[0].document.id().as_ref() == id.as_ref());
+        assert_eq!(results[0].document.id().as_ref(), id.as_ref());
         assert_eq!(results[0].document.diagnostics().count(), 0);
     }
 
@@ -1451,7 +1451,7 @@ workflow test {
         let id = results[0].document.id().clone();
         let results = analyzer.analyze_document((), uri).await.unwrap();
         assert_eq!(results.len(), 1);
-        assert!(results[0].document.id().as_ref() != id.as_ref());
+        assert_ne!(results[0].document.id().as_ref(), id.as_ref());
         assert_eq!(results[0].document.diagnostics().count(), 0);
     }
 

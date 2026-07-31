@@ -28,7 +28,7 @@ const FUNCTION_NAME: &str = "read_float";
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_float
 fn read_float(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
-        debug_assert!(context.arguments.len() == 1);
+        debug_assert_eq!(context.arguments.len(), 1);
         debug_assert!(context.return_type_eq(PrimitiveType::Float));
 
         let path = context
