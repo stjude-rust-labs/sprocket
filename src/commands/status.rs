@@ -161,27 +161,19 @@ async fn status_list(
     colorize: bool,
 ) -> CommandResult<()> {
     let client = reqwest::Client::new();
-    let mut next_token: Option<String> = None;
-    let mut all_runs = Vec::new();
 
-    loop {
-        let mut url = format!("{base_url}{path}?limit={limit}", path = paths::LIST_RUNS,);
-        if let Some(s) = &status_filter {
-            url.push_str(&format!("&status={s}"));
-        }
-        if let Some(token) = &next_token {
-            url.push_str(&format!("&next_token={token}"));
-        }
-
-        let page: ListRunsResponse = send_json(client.get(&url), "run list").await?;
-
-        all_runs.extend(page.runs);
-        next_token = page.next_token;
-
-        if next_token.is_none() {
-            break;
-        }
+    // `--limit` is a client-visible cap on how many runs to show, so fetch a
+    // single page of at most `limit` runs. The server's `total` field is
+    // captured separately so the footer can report how many runs exist in the
+    // system independent of what was displayed.
+    let mut url = format!("{base_url}{path}?limit={limit}", path = paths::LIST_RUNS);
+    if let Some(s) = &status_filter {
+        url.push_str(&format!("&status={s}"));
     }
+
+    let page: ListRunsResponse = send_json(client.get(&url), "run list").await?;
+    let total_runs = page.total;
+    let all_runs = page.runs;
 
     if json {
         let value = serde_json::json!({ "runs": all_runs });
@@ -238,7 +230,7 @@ async fn status_list(
         );
     }
 
-    println!("{total} run(s) shown.");
+    println!("{total} run(s) shown. {total_runs} total run(s) in the system.");
 
     Ok(())
 }
