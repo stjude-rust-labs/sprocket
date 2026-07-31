@@ -1,16 +1,16 @@
 //! Optional workspace module metadata.
 //!
-//! A documented workspace may or may not be a WDL module (i.e. it may or may
-//! not have a `module.json` manifest at its root). When it is, this module
-//! loads the root manifest along with the manifests of any local-path
-//! dependencies so that documentation generation can use module names,
-//! versions, and descriptions when building navigation.
+//! A documented workspace may contain one or more WDL modules (directories
+//! with a `module.json` manifest). This module discovers them by recursively
+//! scanning the workspace, so documentation generation can label module
+//! directories with their names and versions and render a module overview —
+//! whether a module sits at the workspace root or is nested within it (e.g. a
+//! monorepo of sibling modules under a manifest-less root).
 
 use std::collections::BTreeMap;
 use std::path::Path;
 use std::path::PathBuf;
 
-use wdl_modules::dependency::DependencySource;
 use wdl_modules::module::Module;
 use wdl_modules::module::is_module_root;
 
@@ -75,84 +75,88 @@ impl ModuleMetadata {
     }
 }
 
-/// Metadata for a workspace that is a WDL module, including the root module
-/// and any local-path dependency modules reachable from it.
+/// Metadata for a workspace that contains one or more WDL modules, discovered
+/// by recursively scanning the workspace for `module.json` manifests.
 #[derive(Clone, Debug)]
 pub(crate) struct WorkspaceMetadata {
-    /// The workspace root module.
-    root: ModuleMetadata,
-    /// All modules in the workspace, keyed by their root directory relative
-    /// to the workspace root. This includes the root module at the empty
-    /// path.
+    /// The module rooted at the workspace root, if the workspace root itself
+    /// has a `module.json` manifest. A workspace that only contains nested
+    /// modules (e.g. a monorepo of sibling modules) has no root module.
+    root: Option<ModuleMetadata>,
+    /// All modules discovered in the workspace, keyed by their root directory
+    /// relative to the workspace root. The root module, when present, is keyed
+    /// by the empty path.
     modules: BTreeMap<PathBuf, ModuleMetadata>,
 }
 
 impl WorkspaceMetadata {
     /// Loads workspace module metadata rooted at `workspace_root`.
     ///
-    /// Returns `Ok(None)` when `workspace_root` has no `module.json`
-    /// manifest (i.e. the workspace is not a WDL module). Otherwise, loads
-    /// the root manifest and recursively follows `DependencySource::LocalPath`
-    /// dependencies whose canonical roots remain inside the workspace,
-    /// storing each module's root relative to the workspace.
+    /// Recursively scans `workspace_root` for `module.json` manifests and
+    /// records a module for each one, keyed by its directory relative to the
+    /// workspace root. Symlinked directories are not followed. A `module.json`
+    /// that does not parse as a WDL module is skipped (with a warning) rather
+    /// than aborting discovery of the rest of the workspace.
+    ///
+    /// Returns `Ok(None)` when no modules are found, so plain WDL directories
+    /// keep their non-module documentation layout.
     pub(crate) fn load(workspace_root: &Path) -> DocResult<Option<Self>> {
-        if !is_module_root(workspace_root) {
-            return Ok(None);
-        }
-
-        // Canonicalize the workspace root once so that dependency roots can
-        // be checked for containment and made relative to it consistently.
+        // Canonicalize the workspace root once so discovered module roots can
+        // be made relative to it consistently.
         let workspace_root_canonical = workspace_root.canonicalize()?;
 
-        let root_module = Module::load_from_path(workspace_root)?;
-        let root_metadata = ModuleMetadata::from((&root_module, PathBuf::new()));
-
-        let mut modules = BTreeMap::new();
-        modules.insert(PathBuf::new(), root_metadata.clone());
-
-        let mut queue = vec![root_module];
-        while let Some(module) = queue.pop() {
-            for source in module.manifest.dependencies.values() {
-                let DependencySource::LocalPath { path, .. } = source else {
-                    // Only local-path dependencies live on disk within
-                    // reach of this workspace; Git dependencies are not
-                    // resolved for documentation purposes.
-                    continue;
-                };
-
-                let dependency_root = module.resolve_local_path(path);
-                let dependency_root_canonical = dependency_root.canonicalize()?;
-
-                let Ok(relative_root) =
-                    dependency_root_canonical.strip_prefix(&workspace_root_canonical)
-                else {
-                    // The dependency resolves outside the workspace; it is
-                    // not documented alongside it.
-                    continue;
-                };
-                let relative_root = relative_root.to_path_buf();
-
-                if modules.contains_key(&relative_root) {
-                    continue;
+        let mut modules: BTreeMap<PathBuf, ModuleMetadata> = BTreeMap::new();
+        let mut stack = vec![workspace_root_canonical.clone()];
+        while let Some(dir) = stack.pop() {
+            if is_module_root(&dir) {
+                match Module::load_from_path(&dir) {
+                    Ok(module) => {
+                        let relative = dir
+                            .strip_prefix(&workspace_root_canonical)
+                            .unwrap_or_else(|_| Path::new(""))
+                            .to_path_buf();
+                        modules
+                            .entry(relative.clone())
+                            .or_insert_with(|| ModuleMetadata::from((&module, relative)));
+                    }
+                    Err(error) => {
+                        // A `module.json` that does not parse as a WDL module
+                        // (e.g. a manifest missing a required field) is skipped
+                        // with a warning rather than failing the whole run, so
+                        // the rest of the workspace still documents.
+                        let manifest = dir.join(wdl_modules::MANIFEST_FILENAME);
+                        tracing::warn!(
+                            "skipping module manifest `{}`: {error}",
+                            manifest.display()
+                        );
+                    }
                 }
+            }
 
-                let dependency_module = Module::load_from_path(&dependency_root_canonical)?;
-                let dependency_metadata =
-                    ModuleMetadata::from((&dependency_module, relative_root.clone()));
-                modules.insert(relative_root, dependency_metadata);
-                queue.push(dependency_module);
+            let Ok(entries) = std::fs::read_dir(&dir) else {
+                continue;
+            };
+            for entry in entries.flatten() {
+                // Descend into real subdirectories only. Symlinks are not
+                // followed, so the scan cannot get stuck in a cycle.
+                if entry.file_type().map(|ty| ty.is_dir()).unwrap_or(false) {
+                    stack.push(entry.path());
+                }
             }
         }
 
-        Ok(Some(Self {
-            root: root_metadata,
-            modules,
-        }))
+        if modules.is_empty() {
+            return Ok(None);
+        }
+
+        let root = modules.get(Path::new("")).cloned();
+        Ok(Some(Self { root, modules }))
     }
 
-    /// Returns the workspace root module's metadata.
-    pub(crate) fn root(&self) -> &ModuleMetadata {
-        &self.root
+    /// Returns the module rooted at the workspace root, if the workspace root
+    /// itself has a `module.json` manifest.
+    pub(crate) fn root(&self) -> Option<&ModuleMetadata> {
+        self.root.as_ref()
     }
 
     /// Returns the metadata for the module rooted exactly at `root`, a
@@ -266,8 +270,8 @@ mod tests {
         let dir = module_workspace();
         let metadata = WorkspaceMetadata::load(dir.path()).unwrap().unwrap();
 
-        assert_eq!(metadata.root().name(), "spellcraft-showcase");
-        assert_eq!(metadata.root().version().to_string(), "1.0.0");
+        assert_eq!(metadata.root().unwrap().name(), "spellcraft-showcase");
+        assert_eq!(metadata.root().unwrap().version(), "1.0.0");
         assert_eq!(
             metadata
                 .module_for_document(Path::new("modules/wards/wards.wdl"))
@@ -293,7 +297,10 @@ mod tests {
     }
 
     #[test]
-    fn errors_for_missing_local_dependency() {
+    fn ignores_missing_declared_dependency() {
+        // Discovery scans the filesystem rather than following declared
+        // dependencies, so a dependency that is not present on disk is simply
+        // not documented; the root module still loads.
         let dir = tempfile::tempdir().unwrap();
         write_manifest(
             dir.path(),
@@ -307,48 +314,51 @@ mod tests {
             }"#,
         );
 
-        assert!(WorkspaceMetadata::load(dir.path()).is_err());
+        let metadata = WorkspaceMetadata::load(dir.path()).unwrap().unwrap();
+        assert_eq!(metadata.root().unwrap().name(), "root");
+        assert_eq!(metadata.modules.len(), 1);
     }
 
     #[test]
-    fn errors_for_malformed_dependency_manifest() {
+    fn skips_unparsable_manifest() {
+        // A nested `module.json` that does not parse as a WDL module is
+        // skipped rather than aborting discovery; the valid root still loads.
         let dir = tempfile::tempdir().unwrap();
         write_manifest(
             dir.path(),
             r#"{
                 "name": "root",
                 "version": "1.0.0",
-                "license": "MIT",
-                "dependencies": {
-                    "broken": { "path": "broken" }
-                }
+                "license": "MIT"
             }"#,
         );
         write_manifest(&dir.path().join("broken"), "{");
 
-        assert!(WorkspaceMetadata::load(dir.path()).is_err());
+        let metadata = WorkspaceMetadata::load(dir.path()).unwrap().unwrap();
+        assert_eq!(metadata.root().unwrap().name(), "root");
+        assert!(metadata.module_at_root(Path::new("broken")).is_none());
+        assert_eq!(metadata.modules.len(), 1);
     }
 
     #[test]
-    fn skips_local_dependency_outside_workspace() {
+    fn does_not_scan_outside_the_workspace() {
+        // Discovery is confined to the workspace subtree, so a module in a
+        // sibling directory is not documented.
         let parent = tempfile::tempdir().unwrap();
         let workspace = parent.path().join("workspace");
-        let dependency = parent.path().join("dependency");
+        let sibling = parent.path().join("sibling");
         write_manifest(
             &workspace,
             r#"{
                 "name": "root",
                 "version": "1.0.0",
-                "license": "MIT",
-                "dependencies": {
-                    "external": { "path": "../dependency" }
-                }
+                "license": "MIT"
             }"#,
         );
         write_manifest(
-            &dependency,
+            &sibling,
             r#"{
-                "name": "external",
+                "name": "sibling",
                 "version": "1.0.0",
                 "license": "MIT"
             }"#,
@@ -356,5 +366,47 @@ mod tests {
 
         let metadata = WorkspaceMetadata::load(&workspace).unwrap().unwrap();
         assert_eq!(metadata.modules.len(), 1);
+    }
+
+    #[test]
+    fn discovers_nested_modules_without_a_root_manifest() {
+        // A workspace root with no `module.json` of its own still documents
+        // the modules nested within it (e.g. a monorepo of sibling modules).
+        let dir = tempfile::tempdir().unwrap();
+        write_manifest(
+            &dir.path().join("fq"),
+            r#"{
+                "name": "fq",
+                "version": "0.12.0",
+                "license": "MIT"
+            }"#,
+        );
+        write_manifest(
+            &dir.path().join("samtools"),
+            r#"{
+                "name": "samtools",
+                "version": "1.21.0",
+                "license": "MIT"
+            }"#,
+        );
+
+        let metadata = WorkspaceMetadata::load(dir.path()).unwrap().unwrap();
+        // No manifest at the root, so there is no root module.
+        assert!(metadata.root().is_none());
+        assert_eq!(metadata.modules.len(), 2);
+        assert_eq!(
+            metadata
+                .module_for_document(Path::new("fq/fq.wdl"))
+                .unwrap()
+                .name(),
+            "fq"
+        );
+        assert_eq!(
+            metadata
+                .module_at_root(Path::new("samtools"))
+                .unwrap()
+                .name(),
+            "samtools"
+        );
     }
 }

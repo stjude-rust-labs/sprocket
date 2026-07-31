@@ -21,6 +21,7 @@ schemars.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
+tracing.workspace = true
 wdl-analysis = { path = "../wdl-analysis", version = "0.23.0" }
 wdl-ast = { path = "../wdl-ast", version = "0.26.0" }
 wdl-modules = { path = "../wdl-modules", version = "0.3.0" }
@@ -34,7 +35,6 @@ libtest-mimic = { workspace = true }
 tempfile.workspace = true
 thirtyfour.workspace = true
 tower-http = { workspace = true, features = ["fs"] }
-tracing.workspace = true
 tracing-subscriber.workspace = true
 wdl-analysis = { path = "../wdl-analysis", version = "0.23.0" }
 

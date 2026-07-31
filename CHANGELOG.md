@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   handle, robots, and theme color); each page's `<title>` becomes
   `"<page> | <title>"` and the configured values populate the `<head>` with
   standard, Open Graph, and Twitter Card tags.
+* `sprocket dev doc` now discovers WDL modules by recursively scanning the
+  workspace for `module.json` manifests, so nested and sibling modules (e.g. a
+  monorepo of modules under a manifest-less root) are each documented as
+  modules. A `module.json` that fails to parse is skipped with a warning
+  rather than aborting the run.
 
 ### Fixed
 

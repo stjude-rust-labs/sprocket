@@ -375,7 +375,7 @@ impl DocsTreeBuilder {
         let root_name = self
             .workspace_metadata
             .as_ref()
-            .map(|metadata| metadata.root().name().to_string())
+            .and_then(|metadata| metadata.root().map(|root| root.name().to_string()))
             .unwrap_or_else(|| {
                 self.root
                     .file_name()
@@ -1399,36 +1399,51 @@ impl DocsTree {
     /// index page when the documented workspace is a WDL module.
     fn render_module_overview(&self, metadata: &WorkspaceMetadata) -> Markup {
         let root = metadata.root();
-        let dependencies = metadata
+        // Modules to list as cards: the workspace's dependencies when the root
+        // is itself a module, or simply every discovered module for a
+        // manifest-less monorepo root.
+        let modules = metadata
             .modules()
             .filter(|module| !module.root().as_os_str().is_empty())
             .collect::<Vec<_>>();
+        // Without a root module, the overview is titled after the workspace
+        // (the docs root node name).
+        let title = match root {
+            Some(root) => humanize_module_name(root.name()),
+            None => humanize_module_name(self.root().name()),
+        };
 
         html! {
             section class="module-overview" {
-                p class="module-overview__eyebrow" { "WDL Module" }
-                h1 id="title" class="module-overview__title" data-pagefind-meta="title" { (humanize_module_name(root.name())) }
-                @if let Some(description) = root.description() {
-                    p class="module-overview__description" { (description) }
+                p class="module-overview__eyebrow" {
+                    (if root.is_some() { "WDL Module" } else { "WDL Modules" })
                 }
-                div class="module-overview__metadata" {
-                    div class="module-overview__metadata-item" {
-                        span class="module-overview__metadata-label" { "Version " (root.version()) }
+                h1 id="title" class="module-overview__title" data-pagefind-meta="title" { (title) }
+                @if let Some(root) = root {
+                    @if let Some(description) = root.description() {
+                        p class="module-overview__description" { (description) }
                     }
-                    div class="module-overview__metadata-item" {
-                        span class="module-overview__metadata-label" { "Entrypoint" }
-                        code class="module-overview__metadata-value" { (root.entrypoint().display().to_string()) }
+                    div class="module-overview__metadata" {
+                        div class="module-overview__metadata-item" {
+                            span class="module-overview__metadata-label" { "Version " (root.version()) }
+                        }
+                        div class="module-overview__metadata-item" {
+                            span class="module-overview__metadata-label" { "Entrypoint" }
+                            code class="module-overview__metadata-value" { (root.entrypoint().display().to_string()) }
+                        }
                     }
                 }
-                @if !dependencies.is_empty() {
+                @if !modules.is_empty() {
                     div class="module-overview__dependencies" {
-                        h2 class="module-overview__dependencies-header" { "Dependencies" }
+                        h2 class="module-overview__dependencies-header" {
+                            (if root.is_some() { "Dependencies" } else { "Modules" })
+                        }
                         div class="module-overview__dependencies-list" {
-                            @for dependency in &dependencies {
+                            @for module in &modules {
                                 div class="module-overview__dependency-card" {
-                                    p class="module-overview__dependency-name" { (dependency.name()) }
-                                    p class="module-overview__dependency-version" { "v" (dependency.version()) }
-                                    @if let Some(description) = dependency.description() {
+                                    p class="module-overview__dependency-name" { (module.name()) }
+                                    p class="module-overview__dependency-version" { "v" (module.version()) }
+                                    @if let Some(description) = module.description() {
                                         p class="module-overview__dependency-description" { (description) }
                                     }
                                 }
