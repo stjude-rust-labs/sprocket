@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* For `sprocket dev server status`, the `--limit` parameter is now respected ([#1050](https://github.com/stjude-rust-labs/sprocket/pull/1050)).
 * For `sprocket run`, the execution backend is now considered for the call
   cache key derivation, which prevents unexpected behavior when switching
   executing backends. NOTE: this will cause existing call cache entries to be
