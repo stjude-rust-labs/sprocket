@@ -15,6 +15,7 @@ use syn::ReturnType;
 use syn::Type;
 use syn::TypeArray;
 use syn::TypeGroup;
+use syn::TypeParamBound;
 use syn::TypeParen;
 use syn::TypePtr;
 use syn::TypeReference;
@@ -31,6 +32,12 @@ enum AstKind {
     Node { generic_ident: Ident },
     /// An AST token.
     Token { generic_ident: Ident },
+}
+
+enum SpecialCase {
+    /// Where a Python method returns `impl Iterator`, and needs to be
+    /// translated to return a `PyList` instead.
+    ImplIterator,
 }
 
 pub(crate) fn ast_methods(
@@ -67,12 +74,25 @@ pub(crate) fn ast_methods(
                 ) = ast_kind
                     && let ReturnType::Type(_, ref mut type_) = py_fn.sig.output
                 {
+                    // If the return type is `impl Iterator<...>`, replace it with `PyList` and
+                    // mark this method as a special case.
+                    if let Type::ImplTrait(ref type_impl_trait) = **type_
+                        && type_impl_trait.bounds.len() == 1
+                        && let Some(bound) = type_impl_trait.bounds.first()
+                        && let TypeParamBound::Trait(trait_bound) = bound
+                        && trait_bound.path.is_ident("Iterator")
+                    {
+                        *type_ = parse_quote!(::pyo3::types::PyList);
+                        return Ok((ImplItem::Fn(py_fn), Some(SpecialCase::ImplIterator)));
+                    }
+
                     strip_path_generic(type_, generic_ident.clone())?;
                 }
 
-                Ok(ImplItem::Fn(py_fn))
+                Ok((ImplItem::Fn(py_fn), None))
             })
             // TODO: more processing
+            .map(|x| x.map(|(py_fn, _)| py_fn))
             .collect::<Result<_>>()?;
 
     Ok(quote! {
