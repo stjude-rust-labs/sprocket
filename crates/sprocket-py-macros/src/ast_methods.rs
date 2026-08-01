@@ -192,6 +192,10 @@ fn strip_path_generic(type_: &mut Type, generic_ident: Ident) -> Result<()> {
                 }
             }
 
+            if let Some(ref mut qself) = type_path.qself {
+                strip_path_generic(&mut qself.ty, generic_ident)?;
+            }
+
             Ok(())
         }
         Type::Array(TypeArray { elem, .. })
