@@ -4,12 +4,15 @@ use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
 use syn::Error;
+use syn::FnArg;
 use syn::Generics;
 use syn::Ident;
 use syn::ImplItem;
 use syn::ImplItemFn;
 use syn::ItemImpl;
 use syn::PathArguments;
+use syn::Receiver;
+use syn::ReceiverKind;
 use syn::Result;
 use syn::ReturnType;
 use syn::Type;
@@ -68,7 +71,7 @@ pub(crate) fn ast_methods(
             .iter()
             .filter_map(filter_py_method)
             .cloned()
-            .map(|mut py_fn| {
+            .map(|mut py_fn| -> Result<(ImplItemFn, Option<SpecialCase>)> {
                 if let Some(
                     AstKind::Node { ref generic_ident } | AstKind::Token { ref generic_ident },
                 ) = ast_kind
@@ -82,17 +85,56 @@ pub(crate) fn ast_methods(
                         && let TypeParamBound::Trait(trait_bound) = bound
                         && trait_bound.path.is_ident("Iterator")
                     {
-                        *type_ = parse_quote!(::pyo3::types::PyList);
-                        return Ok((ImplItem::Fn(py_fn), Some(SpecialCase::ImplIterator)));
+                        return Ok((py_fn, Some(SpecialCase::ImplIterator)));
                     }
 
                     strip_path_generic(type_, generic_ident.clone())?;
                 }
 
-                Ok((ImplItem::Fn(py_fn), None))
+                Ok((py_fn, None))
             })
-            // TODO: more processing
-            .map(|x| x.map(|(py_fn, _)| py_fn))
+            .map(|result| {
+                let (mut py_fn, special_case) = result?;
+
+                if let Some(SpecialCase::ImplIterator) = special_case {
+                    // Add `'py` lifetime.
+                    py_fn.sig.generics.params.push(parse_quote!('py));
+
+                    // Add `py: Python<'py>` argument.
+                    py_fn.sig.inputs.push(parse_quote!(py: ::pyo3::marker::Python<'py>));
+
+                    // Set return type to `PyResult<Bound<'py, PyList>>`.
+                    py_fn.sig.output = parse_quote!(-> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>>);
+
+                    // Set body.
+                    py_fn.block = match py_fn.sig.inputs.first() {
+                        // Method that takes `self` by reference
+                        Some(FnArg::Receiver(Receiver {
+                            kind: ReceiverKind::Reference(..), ..
+                        })) => parse_quote!({
+                            ::pyo3::types::PyList::new(py, Original::from(self.clone()).iterator())
+                        }),
+
+                        // Method that consumes `self`
+                        Some(FnArg::Receiver(Receiver {
+                            kind: ReceiverKind::Value, ..
+                        })) => parse_quote!({
+                            ::pyo3::types::PyList::new(py, Original::from(self).iterator())
+                        }),
+
+                        // Associated function
+                        Some(FnArg::Typed(_)) | None => parse_quote!({
+                            ::pyo3::types::PyList::new(py, Original::iterator())
+                        }),
+
+                        Some(FnArg::Receiver(receiver)) => return Err(Error::new_spanned(receiver, "`#[ast_methods]` does not support this kind of receiver")),
+                    };
+
+                    return Ok(ImplItem::Fn(py_fn));
+                }
+
+                Ok(ImplItem::Fn(py_fn))
+            })
             .collect::<Result<_>>()?;
 
     Ok(quote! {
