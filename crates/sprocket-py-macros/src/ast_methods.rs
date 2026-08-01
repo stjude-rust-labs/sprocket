@@ -101,10 +101,10 @@ pub(crate) fn ast_methods(
                 let py_ident = format_ident!("py_{}", py_fn.sig.ident);
                 let original_ident = std::mem::replace(&mut py_fn.sig.ident, py_ident);
 
-                if let Some(SpecialCase::ImplIterator) = special_case {
-                    // Make private.
-                    py_fn.vis = Visibility::Inherited;
+                // Make private.
+                py_fn.vis = Visibility::Inherited;
 
+                if let Some(SpecialCase::ImplIterator) = special_case {
                     // Add `'py` lifetime.
                     py_fn.sig.generics.params.push(parse_quote!('py));
 
@@ -137,11 +137,31 @@ pub(crate) fn ast_methods(
 
                         Some(FnArg::Receiver(receiver)) => return Err(Error::new_spanned(receiver, "`#[ast_methods]` does not support this kind of receiver")),
                     };
+                } else {
+                    // Set body
+                    py_fn.block = match py_fn.sig.inputs.first() {
+                        // Method that takes `self` by reference
+                        Some(FnArg::Receiver(Receiver {
+                            kind: ReceiverKind::Reference(..), ..
+                        })) => parse_quote!({
+                            #original_path::from(self.clone()).#original_ident()
+                        }),
 
-                    return Ok(ImplItem::Fn(py_fn));
+                        // Method that consumes `self`
+                        Some(FnArg::Receiver(Receiver {
+                            kind: ReceiverKind::Value, ..
+                        })) => parse_quote!({
+                            #original_path::from(self).#original_ident()
+                        }),
+
+                        // Associated function
+                        Some(FnArg::Typed(_)) | None => parse_quote!({
+                            #original_path::#original_ident()
+                        }),
+
+                        Some(FnArg::Receiver(receiver)) => return Err(Error::new_spanned(receiver, "`#[ast_methods]` does not support this kind of receiver")),
+                    }
                 }
-
-                // TODO
 
                 Ok(ImplItem::Fn(py_fn))
             })
