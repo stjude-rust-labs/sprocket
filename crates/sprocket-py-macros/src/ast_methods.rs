@@ -97,6 +97,9 @@ pub(crate) fn ast_methods(
                 let (mut py_fn, special_case) = result?;
 
                 if let Some(SpecialCase::ImplIterator) = special_case {
+                    // Make private.
+                    py_fn.vis = Visibility::Inherited;
+
                     // Add `'py` lifetime.
                     py_fn.sig.generics.params.push(parse_quote!('py));
 
@@ -132,6 +135,8 @@ pub(crate) fn ast_methods(
 
                     return Ok(ImplItem::Fn(py_fn));
                 }
+
+                // TODO
 
                 Ok(ImplItem::Fn(py_fn))
             })
