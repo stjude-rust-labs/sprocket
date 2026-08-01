@@ -15,12 +15,10 @@ use syn::ReturnType;
 use syn::Type;
 use syn::TypeArray;
 use syn::TypeGroup;
-use syn::TypeImplTrait;
 use syn::TypeParen;
 use syn::TypePtr;
 use syn::TypeReference;
 use syn::TypeSlice;
-use syn::TypeTraitObject;
 use syn::Visibility;
 use syn::parse::Nothing;
 use syn::parse_quote;
@@ -204,6 +202,13 @@ fn strip_path_generic(type_: &mut Type, generic_ident: Ident) -> Result<()> {
         | Type::Ptr(TypePtr { elem, .. })
         | Type::Slice(TypeSlice { elem, .. })
         | Type::Reference(TypeReference { elem, .. }) => strip_path_generic(elem, generic_ident),
+        Type::Tuple(type_tuple) => {
+            for elem in type_tuple.elems.iter_mut() {
+                strip_path_generic(elem, generic_ident.clone())?;
+            }
+
+            Ok(())
+        }
         Type::FnPtr(type_fn_ptr) => {
             for elem in type_fn_ptr.inputs.iter_mut() {
                 strip_path_generic(&mut elem.ty, generic_ident.clone())?;
@@ -215,18 +220,13 @@ fn strip_path_generic(type_: &mut Type, generic_ident: Ident) -> Result<()> {
 
             Ok(())
         }
-        Type::ImplTrait(TypeImplTrait { bounds, .. })
-        | Type::TraitObject(TypeTraitObject { bounds, .. }) => {
-            Err(Error::new_spanned(bounds, "not yet implemented"))
-        }
-        Type::Tuple(type_tuple) => {
-            for elem in type_tuple.elems.iter_mut() {
-                strip_path_generic(elem, generic_ident.clone())?;
-            }
-
-            Ok(())
-        }
-        Type::Infer(_) | Type::Macro(_) | Type::Never(_) => Ok(()),
+        //  While `impl Trait` and `dyn Trait` may contain paths with generics, we don't support
+        // stripping them.
+        Type::ImplTrait(_)
+        | Type::TraitObject(_)
+        | Type::Infer(_)
+        | Type::Macro(_)
+        | Type::Never(_) => Ok(()),
         unsupported => Err(Error::new(
             unsupported.span(),
             "`#[ast_methods]` does not support this return type",
@@ -237,6 +237,7 @@ fn strip_path_generic(type_: &mut Type, generic_ident: Ident) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use proc_macro2::Span;
+    use quote::ToTokens;
     use syn::Path;
     use syn::TypeGroup;
     use syn::TypePath;
@@ -418,5 +419,82 @@ mod tests {
         let original: ImplItem = parse_quote! { pub const FOO: &str = "hello"; };
         let result = filter_py_method(&original);
         assert!(result.is_none(), "did not filter out const: {result:?}");
+    }
+
+    #[test]
+    fn strip_path_generic() {
+        let generic_ident = Ident::new("N", Span::call_site());
+
+        // The first item in each tuple will be fed into `strip_path_generic()`, and the
+        // result will be compared with the second item.
+        let test_cases: [(Type, Type); _] = [
+            // Paths
+            (parse_quote!(Ast), parse_quote!(Ast)),
+            (parse_quote!(Ast<N>), parse_quote!(Ast)),
+            (parse_quote!(Ast<T>), parse_quote!(Ast<T>)),
+            (parse_quote!(super::Ast<N>), parse_quote!(super::Ast)),
+            (
+                parse_quote!(Ast<N>::Associated),
+                parse_quote!(Ast::Associated),
+            ),
+            (
+                parse_quote!(<Ast<N>>::Associated),
+                parse_quote!(<Ast>::Associated),
+            ),
+            (
+                parse_quote!(<Ast<N> as Foo<N>>::Associated),
+                parse_quote!(<Ast as Foo>::Associated),
+            ),
+            // Types that wrap another type.
+            (parse_quote!([Ast<N>; 3]), parse_quote!([Ast; 3])),
+            (
+                Type::Group(TypeGroup {
+                    attrs: Vec::new(),
+                    group_token: Group::default(),
+                    elem: parse_quote!(Ast<N>),
+                }),
+                Type::Group(TypeGroup {
+                    attrs: Vec::new(),
+                    group_token: Group::default(),
+                    elem: parse_quote!(Ast),
+                }),
+            ),
+            (parse_quote!((Ast<N>)), parse_quote!((Ast))),
+            (parse_quote!(*const Ast<N>), parse_quote!(*const Ast)),
+            (parse_quote!(*mut Ast<N>), parse_quote!(*mut Ast)),
+            (parse_quote!(&[Ast<N>]), parse_quote!(&[Ast])),
+            (parse_quote!(&Ast<N>), parse_quote!(&Ast)),
+            (parse_quote!(&mut Ast<N>), parse_quote!(&mut Ast)),
+            // Tuples
+            (
+                parse_quote!((foo::Ast<N>, Ast<T>, (baz::Bar, Ast<N>))),
+                parse_quote!((foo::Ast, Ast<T>, (baz::Bar, Ast))),
+            ),
+            // Function pointers
+            (
+                parse_quote!(fn(Ast<N>) -> Ast<N>),
+                parse_quote!(fn(Ast) -> Ast),
+            ),
+            // Untouched types
+            (
+                parse_quote!(impl Iterator<Item = Ast<N>>),
+                parse_quote!(impl Iterator<Item = Ast<N>>),
+            ),
+            (parse_quote!(dyn Foo<N>), parse_quote!(dyn Foo<N>)),
+            (parse_quote!(_), parse_quote!(_)),
+            (parse_quote!(Token![=]), parse_quote!(Token![=])),
+            (parse_quote!(!), parse_quote!(!)),
+        ];
+
+        for (input, expected) in test_cases {
+            let mut output = input.clone();
+            super::strip_path_generic(&mut output, generic_ident.clone()).unwrap();
+            pretty_assertions::assert_eq!(
+                output,
+                expected,
+                "stripping `{}` of generic <{generic_ident}> did not result in expected type path",
+                input.to_token_stream()
+            );
+        }
     }
 }
