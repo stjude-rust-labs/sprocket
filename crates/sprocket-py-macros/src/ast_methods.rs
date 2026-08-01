@@ -10,6 +10,7 @@ use syn::Ident;
 use syn::ImplItem;
 use syn::ImplItemFn;
 use syn::ItemImpl;
+use syn::Path;
 use syn::PathArguments;
 use syn::Receiver;
 use syn::ReceiverKind;
@@ -63,7 +64,7 @@ pub(crate) fn ast_methods(
     py_impl.generics = Generics::default();
 
     // Remove second generic and add "Py" prefix (`impl Ast<N>` into `impl PyAst`).
-    make_py_self_ty(&mut py_impl.self_ty)?;
+    let original_path = make_py_self_ty(&mut py_impl.self_ty)?;
 
     py_impl.items =
         original
@@ -96,6 +97,9 @@ pub(crate) fn ast_methods(
             .map(|result| {
                 let (mut py_fn, special_case) = result?;
 
+                let py_ident = format_ident!("py_{}", py_fn.sig.ident);
+                let original_ident = std::mem::replace(&mut py_fn.sig.ident, py_ident);
+
                 if let Some(SpecialCase::ImplIterator) = special_case {
                     // Make private.
                     py_fn.vis = Visibility::Inherited;
@@ -115,19 +119,19 @@ pub(crate) fn ast_methods(
                         Some(FnArg::Receiver(Receiver {
                             kind: ReceiverKind::Reference(..), ..
                         })) => parse_quote!({
-                            ::pyo3::types::PyList::new(py, Original::from(self.clone()).iterator())
+                            ::pyo3::types::PyList::new(py, #original_path::from(self.clone()).#original_ident())
                         }),
 
                         // Method that consumes `self`
                         Some(FnArg::Receiver(Receiver {
                             kind: ReceiverKind::Value, ..
                         })) => parse_quote!({
-                            ::pyo3::types::PyList::new(py, Original::from(self).iterator())
+                            ::pyo3::types::PyList::new(py, #original_path::from(self).#original_ident())
                         }),
 
                         // Associated function
                         Some(FnArg::Typed(_)) | None => parse_quote!({
-                            ::pyo3::types::PyList::new(py, Original::iterator())
+                            ::pyo3::types::PyList::new(py, #original_path::#original_ident())
                         }),
 
                         Some(FnArg::Receiver(receiver)) => return Err(Error::new_spanned(receiver, "`#[ast_methods]` does not support this kind of receiver")),
@@ -189,8 +193,8 @@ fn ast_kind(generics: &Generics) -> Result<Option<AstKind>> {
 }
 
 /// Adds the "Py" prefix to the `self_ty`'s ident and removes its generic
-/// parameters.
-fn make_py_self_ty(self_ty: &mut Type) -> Result<()> {
+/// parameters. Returns the original ident without its generics.
+fn make_py_self_ty(self_ty: &mut Type) -> Result<Path> {
     let type_path = match self_ty {
         // When encountering a group or parenthesized type, recurse into the inner element.
         Type::Group(TypeGroup { elem, .. }) | Type::Paren(TypeParen { elem, .. }) => {
@@ -213,18 +217,24 @@ fn make_py_self_ty(self_ty: &mut Type) -> Result<()> {
         ));
     }
 
+    let mut original_path = type_path.path.clone();
+    original_path
+        .segments
+        .last_mut()
+        .expect("type paths should contain at least one segment")
+        .arguments = PathArguments::None;
+
     let last_segment = type_path
         .path
         .segments
         .last_mut()
         .expect("type paths should contain at least one segment");
 
-    last_segment.ident = format_ident!("Py{}", last_segment.ident);
-
     // TODO: Verify only argument is `AstKind` ident.
     last_segment.arguments = PathArguments::None;
+    last_segment.ident = format_ident!("Py{}", last_segment.ident);
 
-    Ok(())
+    Ok(original_path)
 }
 
 /// Filters [`ImplItem`]s based on criteria for becoming Python methods.
