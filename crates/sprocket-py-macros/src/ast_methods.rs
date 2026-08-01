@@ -81,10 +81,11 @@ pub(crate) fn ast_methods(
                     // If the return type is `impl Iterator<...>`, replace it with `PyList` and
                     // mark this method as a special case.
                     if let Type::ImplTrait(ref type_impl_trait) = **type_
-                        && type_impl_trait.bounds.len() == 1
+                        && type_impl_trait.bounds.len() >= 1
                         && let Some(bound) = type_impl_trait.bounds.first()
                         && let TypeParamBound::Trait(trait_bound) = bound
-                        && trait_bound.path.is_ident("Iterator")
+                        && let Some(segment) = trait_bound.path.segments.first()
+                        && segment.ident == "Iterator"
                     {
                         return Ok((py_fn, Some(SpecialCase::ImplIterator)));
                     }
