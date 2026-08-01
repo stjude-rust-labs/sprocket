@@ -10,12 +10,15 @@ use syn::Ident;
 use syn::ImplItem;
 use syn::ImplItemFn;
 use syn::ItemImpl;
+use syn::Pat;
+use syn::PatIdent;
 use syn::Path;
 use syn::PathArguments;
 use syn::Receiver;
 use syn::ReceiverKind;
 use syn::Result;
 use syn::ReturnType;
+use syn::Token;
 use syn::Type;
 use syn::TypeArray;
 use syn::TypeGroup;
@@ -27,6 +30,7 @@ use syn::TypeSlice;
 use syn::Visibility;
 use syn::parse::Nothing;
 use syn::parse_quote;
+use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 
 /// Represents whether an AST element is a node or token.
@@ -104,6 +108,28 @@ pub(crate) fn ast_methods(
                 // Make private.
                 py_fn.vis = Visibility::Inherited;
 
+                // Get names of arguments that can be passed to method. (Ex. turn `a: usize, b:
+                // String` into `a, b`.)
+                let method_args = py_fn.sig.inputs.iter()
+                    // Filter out received arguments, they are handled later.
+                    .filter_map(|arg| match arg {
+                        FnArg::Typed(pat_type) => Some(pat_type),
+                        FnArg::Receiver(_) => None,
+                    })
+                    .map(|pat_type| {
+                        match &*pat_type.pat {
+                            Pat::Ident(PatIdent {
+                                ident,
+                                by_ref: None,
+                                mutability: None,
+                                subpat: None,
+                                ..
+                            }) => Ok(ident.clone()),
+                            unexpected => Err(Error::new_spanned(unexpected, "`#[ast_methods]` does not support this pattern in arguments")),
+                        }
+                    })
+                    .collect::<Result<Punctuated<_, Token![,]>>>()?;
+
                 if let Some(SpecialCase::ImplIterator) = special_case {
                     // Add `'py` lifetime.
                     py_fn.sig.generics.params.push(parse_quote!('py));
@@ -120,19 +146,19 @@ pub(crate) fn ast_methods(
                         Some(FnArg::Receiver(Receiver {
                             kind: ReceiverKind::Reference(..), ..
                         })) => parse_quote!({
-                            ::pyo3::types::PyList::new(py, #original_path::from(self.clone()).#original_ident())
+                            ::pyo3::types::PyList::new(py, #original_path::from(self.clone()).#original_ident(#method_args))
                         }),
 
                         // Method that consumes `self`
                         Some(FnArg::Receiver(Receiver {
                             kind: ReceiverKind::Value, ..
                         })) => parse_quote!({
-                            ::pyo3::types::PyList::new(py, #original_path::from(self).#original_ident())
+                            ::pyo3::types::PyList::new(py, #original_path::from(self).#original_ident(#method_args))
                         }),
 
                         // Associated function
                         Some(FnArg::Typed(_)) | None => parse_quote!({
-                            ::pyo3::types::PyList::new(py, #original_path::#original_ident())
+                            ::pyo3::types::PyList::new(py, #original_path::#original_ident(#method_args))
                         }),
 
                         Some(FnArg::Receiver(receiver)) => return Err(Error::new_spanned(receiver, "`#[ast_methods]` does not support this kind of receiver")),
@@ -144,19 +170,19 @@ pub(crate) fn ast_methods(
                         Some(FnArg::Receiver(Receiver {
                             kind: ReceiverKind::Reference(..), ..
                         })) => parse_quote!({
-                            #original_path::from(self.clone()).#original_ident()
+                            #original_path::from(self.clone()).#original_ident(#method_args)
                         }),
 
                         // Method that consumes `self`
                         Some(FnArg::Receiver(Receiver {
                             kind: ReceiverKind::Value, ..
                         })) => parse_quote!({
-                            #original_path::from(self).#original_ident()
+                            #original_path::from(self).#original_ident(#method_args)
                         }),
 
                         // Associated function
                         Some(FnArg::Typed(_)) | None => parse_quote!({
-                            #original_path::#original_ident()
+                            #original_path::#original_ident(#method_args)
                         }),
 
                         Some(FnArg::Receiver(receiver)) => return Err(Error::new_spanned(receiver, "`#[ast_methods]` does not support this kind of receiver")),
