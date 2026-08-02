@@ -19,6 +19,7 @@ use syn::ReceiverKind;
 use syn::Result;
 use syn::ReturnType;
 use syn::Token;
+use syn::TraitBound;
 use syn::Type;
 use syn::TypeArray;
 use syn::TypeGroup;
@@ -70,15 +71,9 @@ pub(crate) fn ast_methods(
                 if let Some(ref generic_ident) = ast_generic_ident
                     && let ReturnType::Type(_, ref mut type_) = py_fn.sig.output
                 {
-                    // If the return type is `impl Iterator<...>`, replace it with `PyList` and
-                    // mark this method as a special case.
-                    if let Type::ImplTrait(ref type_impl_trait) = **type_
-                        && type_impl_trait.bounds.len() >= 1
-                        && let Some(bound) = type_impl_trait.bounds.first()
-                        && let TypeParamBound::Trait(trait_bound) = bound
-                        && let Some(segment) = trait_bound.path.segments.first()
-                        && segment.ident == "Iterator"
-                    {
+                    // If the return type is `impl Iterator<...>`, mark this method as a special
+                    // case.
+                    if is_impl_iterator(type_)? {
                         return Ok((py_fn, Some(SpecialCase::ImplIterator)));
                     }
 
@@ -299,6 +294,56 @@ fn filter_py_method(original: &ImplItem) -> Option<&ImplItemFn> {
     } else {
         None
     }
+}
+
+/// Returns true if the given [`Type`] is of the form `impl Iterator<...>`.
+///
+/// Due to implementation details, only the first trait bound will be checked.
+///
+/// # Examples
+///
+/// - `impl Iterator<Item = ()>` is accepted.
+/// - `impl std::iter::Iterator<Item = Ast<N>>` is accepted.
+/// - `impl Iterator<Item = Ast<N>> + use<'_, N>` is accepted.
+/// - `impl Debug` is rejected.
+/// - `impl use<'_, N> + Iterator<Item = Ast<N>>` is rejected (`Iterator` must
+///   be first).
+/// - `impl for<'a> Iterator<Item = &'a Ast<N>>` is rejected (binders are not
+///   allowed).
+///
+/// # Errors
+///
+/// This function will return an error if unstable
+/// [`TraitBoundModifiers`](syn::TraitBoundModifiers) are used.
+fn is_impl_iterator(type_: &Type) -> Result<bool> {
+    if let Type::ImplTrait(type_impl_trait) = type_
+        && !type_impl_trait.bounds.is_empty()
+        // We only check the first type parameter bound for `Iterator`. A type like `impl Debug +
+        // Iterator<...>` will be rejected.
+        && let Some(bound) = type_impl_trait.bounds.first()
+        // Filter by trait bounds that do not use binders and do not have a `?` prefix. Types like
+        // `impl for<'a> Iterator<...>` and `impl ?Iterator<...>` will be rejeceted.
+        && let TypeParamBound::Trait(TraitBound { path, modifiers, lifetimes: None, maybe: None, .. }) = bound
+    {
+        // Reject types that use unstable modifiers.
+        modifiers.require_empty()?;
+
+        // Accept `impl Iterator<...>`;
+        if path.segments.len() == 1 && path.segments.first().unwrap().ident == "Iterator" {
+            return Ok(true);
+        }
+
+        // Accept `impl std::iter::Iterator<...>`.
+        if path.segments.len() == 3
+            && path.segments.get(0).unwrap().ident == "std"
+            && path.segments.get(1).unwrap().ident == "iter"
+            && path.segments.get(2).unwrap().ident == "Iterator"
+        {
+            return Ok(true);
+        }
+    }
+
+    Ok(false)
 }
 
 /// Recursively removes a generic parameter from all paths in a type.
@@ -544,6 +589,60 @@ mod tests {
         let original: ImplItem = parse_quote! { pub const FOO: &str = "hello"; };
         let result = filter_py_method(&original);
         assert!(result.is_none(), "did not filter out const: {result:?}");
+    }
+
+    #[test]
+    fn impl_iterator() {
+        let type_: Type = parse_quote!(impl Iterator<Item = ()>);
+        assert!(
+            is_impl_iterator(&type_).unwrap(),
+            "type was incorrectly marked as not an `impl Iterator`: {type_:?}"
+        );
+    }
+
+    #[test]
+    fn impl_iterator_qualified() {
+        let type_: Type = parse_quote!(impl std::iter::Iterator<Item = Ast<N>>);
+        assert!(
+            is_impl_iterator(&type_).unwrap(),
+            "type was incorrectly marked as not an `impl Iterator`: {type_:?}"
+        );
+    }
+
+    #[test]
+    fn impl_iterator_use_bound() {
+        let type_: Type = parse_quote!(impl Iterator<Item = Ast<N>> + use<'_, N>);
+        assert!(
+            is_impl_iterator(&type_).unwrap(),
+            "type was incorrectly marked as not an `impl Iterator`: {type_:?}"
+        );
+    }
+
+    #[test]
+    fn impl_iterator_incorrect_trait() {
+        let type_: Type = parse_quote!(impl Debug);
+        assert!(
+            !is_impl_iterator(&type_).unwrap(),
+            "type was incorrectly marked as an `impl Iterator`: {type_:?}"
+        );
+    }
+
+    #[test]
+    fn impl_iterator_incorrect_order() {
+        let type_: Type = parse_quote!(impl use<'_, N> + Iterator<Item = Ast<N>>);
+        assert!(
+            !is_impl_iterator(&type_).unwrap(),
+            "type was incorrectly marked as an `impl Iterator`: {type_:?}"
+        );
+    }
+
+    #[test]
+    fn impl_iterator_binder() {
+        let type_: Type = parse_quote!(impl for<'a> Iterator<Item = &'a Ast<N>>);
+        assert!(
+            !is_impl_iterator(&type_).unwrap(),
+            "type was incorrectly marked as an `impl Iterator`: {type_:?}"
+        );
     }
 
     #[test]
