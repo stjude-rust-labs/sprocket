@@ -33,15 +33,6 @@ use syn::parse_quote;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 
-/// Represents whether an AST element is a node or token.
-#[derive(PartialEq, Debug)]
-enum AstKind {
-    /// An AST node.
-    Node { generic_ident: Ident },
-    /// An AST token.
-    Token { generic_ident: Ident },
-}
-
 enum SpecialCase {
     /// Where a Python method returns `impl Iterator`, and needs to be
     /// translated to return a `PyList` instead.
@@ -60,9 +51,8 @@ pub(crate) fn ast_methods(
     // Annotate the Python `impl` with `#[pymethods]`.
     py_impl.attrs.push(parse_quote!(#[::pyo3::pymethods]));
 
-    // Determine if this AST element is a node or a token, and get the type
-    // parameter's ident.
-    let ast_kind = ast_kind(&original.generics)?;
+    // Get the identifier of the `TreeNode` / `TreeToken` generic parameter.
+    let ast_generic_ident = ast_generic_ident(&original.generics)?;
 
     // Remove the first generic (`impl<N: TreeNode> Ast<N>` into `impl Ast<N>`).
     py_impl.generics = Generics::default();
@@ -77,9 +67,7 @@ pub(crate) fn ast_methods(
             .filter_map(filter_py_method)
             .cloned()
             .map(|mut py_fn| -> Result<(ImplItemFn, Option<SpecialCase>)> {
-                if let Some(
-                    AstKind::Node { ref generic_ident } | AstKind::Token { ref generic_ident },
-                ) = ast_kind
+                if let Some(ref generic_ident) = ast_generic_ident
                     && let ReturnType::Type(_, ref mut type_) = py_fn.sig.output
                 {
                     // If the return type is `impl Iterator<...>`, replace it with `PyList` and
@@ -199,9 +187,26 @@ pub(crate) fn ast_methods(
     })
 }
 
-/// Determines whether the AST element is a node or a token from its `impl`
-/// generics, and gets the [`Ident`] of that generic type.
-fn ast_kind(generics: &Generics) -> Result<Option<AstKind>> {
+/// Gets the [`Ident`] of the generic type bound by the `TreeNode` or
+/// `TreeToken` trait.
+///
+/// If there are no generic types, this will return [`None`].
+///
+/// # Examples
+///
+/// - The generics `<N: TreeNode>` will return the ident `N`.
+/// - The generics `<T: TreeToken>` will return the ident `T`.
+/// - [`Generics::default()`] (empty generics) will return [`None`].
+///
+/// # Errors
+///
+/// This function will return an error when:
+///
+/// - There is a `where` clause.
+/// - There are multiple type parameters.
+/// - The type parameter is not bound by any traits (ex. `<T>`) or bound by more
+///   than one trait (ex. `<T: TreeToken + Display>`).
+fn ast_generic_ident(generics: &Generics) -> Result<Option<Ident>> {
     if let Some(ref where_clause) = generics.where_clause {
         return Err(Error::new_spanned(
             where_clause,
@@ -223,18 +228,12 @@ fn ast_kind(generics: &Generics) -> Result<Option<AstKind>> {
         ));
     }
 
-    if type_param.bounds == parse_quote!(TreeNode) {
-        Ok(Some(AstKind::Node {
-            generic_ident: type_param.ident.clone(),
-        }))
-    } else if type_param.bounds == parse_quote!(TreeToken) {
-        Ok(Some(AstKind::Token {
-            generic_ident: type_param.ident.clone(),
-        }))
+    if type_param.bounds == parse_quote!(TreeNode) || type_param.bounds == parse_quote!(TreeToken) {
+        Ok(Some(type_param.ident.clone()))
     } else {
         Err(Error::new_spanned(
             &type_param.bounds,
-            "`#[ast_methods]` requires that trait bounds be either `TreeNode` or `TreeToken`",
+            "`#[ast_methods]` requires that trait bounds be exactly `TreeNode` or `TreeToken`",
         ))
     }
 }
@@ -371,38 +370,28 @@ mod tests {
     use super::*;
 
     #[test]
-    fn ast_kind_node() {
+    fn generic_ident_node() {
         let original: ItemImpl = parse_quote! { impl<N: TreeNode> Ast<N> {} };
 
-        let ast_kind = ast_kind(&original.generics).unwrap().unwrap();
+        let ast_kind = ast_generic_ident(&original.generics).unwrap().unwrap();
 
-        assert_eq!(
-            ast_kind,
-            AstKind::Node {
-                generic_ident: Ident::new("N", Span::call_site())
-            }
-        );
+        assert_eq!(ast_kind, Ident::new("N", Span::call_site()));
     }
 
     #[test]
-    fn ast_kind_token() {
+    fn generic_ident_token() {
         let original: ItemImpl = parse_quote! { impl<T: TreeToken> Ast<T> {} };
 
-        let ast_kind = ast_kind(&original.generics).unwrap().unwrap();
+        let ast_kind = ast_generic_ident(&original.generics).unwrap().unwrap();
 
-        assert_eq!(
-            ast_kind,
-            AstKind::Token {
-                generic_ident: Ident::new("T", Span::call_site())
-            }
-        );
+        assert_eq!(ast_kind, Ident::new("T", Span::call_site()));
     }
 
     #[test]
-    fn ast_kind_no_params() {
+    fn generic_ident_no_params() {
         let original: ItemImpl = parse_quote! { impl Ast {} };
 
-        let ast_kind = ast_kind(&original.generics).unwrap();
+        let ast_kind = ast_generic_ident(&original.generics).unwrap();
 
         assert!(
             ast_kind.is_none(),
@@ -411,10 +400,10 @@ mod tests {
     }
 
     #[test]
-    fn ast_kind_two_params() {
+    fn generic_ident_two_params() {
         let original: ItemImpl = parse_quote! { impl<N: TreeNode, T: TreeToken> Ast<N> {} };
 
-        let result = ast_kind(&original.generics);
+        let result = ast_generic_ident(&original.generics);
 
         assert!(
             result.is_err(),
@@ -423,23 +412,35 @@ mod tests {
     }
 
     #[test]
-    fn ast_kind_where_clause() {
+    fn generic_ident_where_clause() {
         let original: ItemImpl = parse_quote! { impl<N> Ast<N> where N: TreeNode {} };
 
-        let result = ast_kind(&original.generics);
+        let result = ast_generic_ident(&original.generics);
 
         assert!(result.is_err(), "did not error on where clause: {result:?}");
     }
 
     #[test]
-    fn ast_kind_invalid_trait_bound() {
+    fn generic_ident_invalid_trait_bound() {
         let original: ItemImpl = parse_quote! { impl<T: Display> Ast<T> {} };
 
-        let result = ast_kind(&original.generics);
+        let result = ast_generic_ident(&original.generics);
 
         assert!(
             result.is_err(),
             "did not error on invalid trait bound: {result:?}"
+        );
+    }
+
+    #[test]
+    fn generic_ident_multiple_trait_bounds() {
+        let original: ItemImpl = parse_quote! { impl<T: TreeToken + Display> Ast<T> {} };
+
+        let result = ast_generic_ident(&original.generics);
+
+        assert!(
+            result.is_err(),
+            "did not error on multiple trait bound: {result:?}"
         );
     }
 
