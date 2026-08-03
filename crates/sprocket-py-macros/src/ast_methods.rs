@@ -65,7 +65,7 @@ pub(crate) fn ast_methods(
     py_impl.generics = Generics::default();
 
     // Remove second generic and add "Py" prefix (`impl Ast<N>` into `impl PyAst`).
-    let original_path = make_py_self_ty(&mut py_impl.self_ty)?;
+    let original_type_path = make_py_self_ty(&mut py_impl.self_ty)?;
 
     py_impl.items =
         original
@@ -92,16 +92,16 @@ pub(crate) fn ast_methods(
                 let (mut py_fn, special_case) = result?;
 
                 let py_ident = format_ident!("py_{}", py_fn.sig.ident);
-                let original_ident = std::mem::replace(&mut py_fn.sig.ident, py_ident);
+                let original_method_ident = std::mem::replace(&mut py_fn.sig.ident, py_ident);
 
                 // Make private.
                 py_fn.vis = Visibility::Inherited;
 
-                // Convert function inputs into function arguments. (Ex. turn `a: usize, b: String`
-                // into `a, b`.)
-                let method_args = fn_inputs_to_args(&py_fn.sig.inputs)?;
-
                 if let Some(SpecialCase::ImplIterator) = special_case {
+                    // Convert function inputs into function arguments. (Ex. turn `a: usize, b: String`
+                    // into `a, b`.)
+                    let method_args = fn_inputs_to_args(&py_fn.sig.inputs)?;
+
                     // Add `'py` lifetime.
                     py_fn.sig.generics.params.push(parse_quote!('py));
 
@@ -117,47 +117,26 @@ pub(crate) fn ast_methods(
                         Some(FnArg::Receiver(Receiver {
                             kind: ReceiverKind::Reference(..), ..
                         })) => parse_quote!({
-                            ::pyo3::types::PyList::new(py, #original_path::from(self.clone()).#original_ident(#method_args))
+                            ::pyo3::types::PyList::new(py, #original_type_path::from(self.clone()).#original_method_ident(#method_args))
                         }),
 
                         // Method that consumes `self`
                         Some(FnArg::Receiver(Receiver {
                             kind: ReceiverKind::Value, ..
                         })) => parse_quote!({
-                            ::pyo3::types::PyList::new(py, #original_path::from(self).#original_ident(#method_args))
+                            ::pyo3::types::PyList::new(py, #original_type_path::from(self).#original_method_ident(#method_args))
                         }),
 
                         // Associated function
                         Some(FnArg::Typed(_)) | None => parse_quote!({
-                            ::pyo3::types::PyList::new(py, #original_path::#original_ident(#method_args))
+                            ::pyo3::types::PyList::new(py, #original_type_path::#original_method_ident(#method_args))
                         }),
 
                         Some(FnArg::Receiver(receiver)) => return Err(Error::new_spanned(receiver, "`#[ast_methods]` does not support this kind of receiver")),
                     };
                 } else {
-                    // Set body
-                    py_fn.block = match py_fn.sig.inputs.first() {
-                        // Method that takes `self` by reference
-                        Some(FnArg::Receiver(Receiver {
-                            kind: ReceiverKind::Reference(..), ..
-                        })) => parse_quote!({
-                            #original_path::from(self.clone()).#original_ident(#method_args)
-                        }),
-
-                        // Method that consumes `self`
-                        Some(FnArg::Receiver(Receiver {
-                            kind: ReceiverKind::Value, ..
-                        })) => parse_quote!({
-                            #original_path::from(self).#original_ident(#method_args)
-                        }),
-
-                        // Associated function
-                        Some(FnArg::Typed(_)) | None => parse_quote!({
-                            #original_path::#original_ident(#method_args)
-                        }),
-
-                        Some(FnArg::Receiver(receiver)) => return Err(Error::new_spanned(receiver, "`#[ast_methods]` does not support this kind of receiver")),
-                    }
+                    // Set body.
+                    make_py_method_body(&mut py_fn, &original_type_path, original_method_ident)?;
                 }
 
                 Ok(ImplItem::Fn(py_fn))
@@ -388,6 +367,98 @@ fn strip_path_generic(type_: &mut Type, generic_ident: Ident) -> Result<()> {
             "`#[ast_methods]` does not support this return type",
         )),
     }
+}
+
+/// Sets the body of a Python method to call the original method.
+///
+/// # Examples
+///
+/// For methods that take `&self` or `&mut self`, this will set the Python
+/// method body to:
+///
+/// ```
+/// # #[derive(Clone)]
+/// # struct Struct;
+/// # impl Struct {
+/// #     fn method(&self) {}
+/// #     fn py_method(&self) {
+/// Struct::from(self.clone()).method(/* ... */)
+/// #     }
+/// # }
+/// ```
+///
+/// For methods that take `self` or `self: Box<Self>`, this will set the Python
+/// method body to:
+///
+/// ```
+/// # struct Struct;
+/// # impl Struct {
+/// #     fn method(self) {}
+/// #     fn py_method(self) {
+/// Struct::from(self).method(/* ... */)
+/// #     }
+/// # }
+/// ```
+///
+/// For associated functions, this will set the Python method body to:
+///
+/// ```
+/// # struct Struct;
+/// # impl Struct {
+/// #     fn method() {}
+/// #     fn py_method() {
+/// Struct::method(/* ...  */)
+/// #     }
+/// # }
+/// ```
+///
+/// # Errors
+///
+/// This calls [`fn_inputs_to_args()`] internally and forwards any returned
+/// errors.
+///
+/// Additionally, this will return an error when it encounters an unknown
+/// receiver kind such as `&pin self`.
+fn make_py_method_body(
+    py_fn: &mut ImplItemFn,
+    original_type_path: &Path,
+    original_method_ident: Ident,
+) -> Result<()> {
+    // Convert function inputs into function arguments. (Ex. turn `a: usize, b:
+    // String` into `a, b`.)
+    let method_args = fn_inputs_to_args(&py_fn.sig.inputs)?;
+
+    py_fn.block = match py_fn.sig.inputs.first() {
+        // Method that takes `self` by reference
+        Some(FnArg::Receiver(Receiver {
+            kind: ReceiverKind::Reference(..),
+            ..
+        })) => parse_quote!({
+            #original_type_path::from(self.clone()).#original_method_ident(#method_args)
+        }),
+
+        // Method that consumes `self`
+        Some(FnArg::Receiver(Receiver {
+            kind: ReceiverKind::Value | ReceiverKind::Typed(..),
+            ..
+        })) => parse_quote!({
+            #original_type_path::from(self).#original_method_ident(#method_args)
+        }),
+
+        // Associated function
+        Some(FnArg::Typed(_)) | None => parse_quote!({
+            #original_type_path::#original_method_ident(#method_args)
+        }),
+
+        Some(FnArg::Receiver(receiver)) => {
+            return Err(Error::new_spanned(
+                receiver,
+                "`#[ast_methods]` does not support this kind of receiver",
+            ));
+        }
+    };
+
+    Ok(())
 }
 
 /// Converts function signature inputs into function call arguments.
@@ -776,6 +847,91 @@ mod tests {
                 input.to_token_stream()
             );
         }
+    }
+
+    #[test]
+    fn py_method_body_reference_receiver() {
+        let mut py_fn = parse_quote!(
+            fn py_method(&self, a: usize) {}
+        );
+
+        make_py_method_body(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+
+        let expected = parse_quote! {
+            fn py_method(&self, a: usize) {
+                Ast::from(self.clone()).method(a)
+            }
+        };
+
+        pretty_assertions::assert_eq!(py_fn, expected);
+    }
+
+    #[test]
+    fn py_method_body_mut_reference_receiver() {
+        let mut py_fn = parse_quote!(
+            fn py_method(&mut self) {}
+        );
+
+        make_py_method_body(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+
+        let expected = parse_quote! {
+            fn py_method(&mut self) {
+                Ast::from(self.clone()).method()
+            }
+        };
+
+        pretty_assertions::assert_eq!(py_fn, expected);
+    }
+
+    #[test]
+    fn py_method_body_value_receiver() {
+        let mut py_fn = parse_quote!(
+            fn py_method(self, [a, b]: [usize; 2]) {}
+        );
+
+        make_py_method_body(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+
+        let expected = parse_quote! {
+            fn py_method(self, [a, b]: [usize; 2]) {
+                Ast::from(self).method([a, b])
+            }
+        };
+
+        pretty_assertions::assert_eq!(py_fn, expected);
+    }
+
+    #[test]
+    fn py_method_body_associated_args() {
+        let mut py_fn = parse_quote!(
+            fn py_method(a: String) -> bool {}
+        );
+
+        make_py_method_body(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+
+        let expected = parse_quote! {
+            fn py_method(a: String) -> bool {
+                Ast::method(a)
+            }
+        };
+
+        pretty_assertions::assert_eq!(py_fn, expected);
+    }
+
+    #[test]
+    fn py_method_body_associated_no_args() {
+        let mut py_fn = parse_quote!(
+            fn py_method() -> bool {}
+        );
+
+        make_py_method_body(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+
+        let expected = parse_quote! {
+            fn py_method() -> bool {
+                Ast::method()
+            }
+        };
+
+        pretty_assertions::assert_eq!(py_fn, expected);
     }
 
     #[test]
