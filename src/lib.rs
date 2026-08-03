@@ -160,7 +160,16 @@ async fn real_main() -> CommandResult<()> {
         initialize_logging(cli.verbosity, colorize).context("failed to initialize logging")?;
 
     match cli.command {
-        Commands::Analyzer(args) => commands::analyzer::analyzer(args, config, writer).await,
+        Commands::Analyzer(args) => {
+            commands::analyzer::analyzer(
+                args,
+                config,
+                writer,
+                cli.config.clone(),
+                cli.skip_config_search,
+            )
+            .await
+        }
         Commands::Check(args) => commands::check::check(args, config, colorize).await,
         Commands::Completions(args) => {
             let mut cmd = Cli::command();

@@ -251,7 +251,7 @@ impl ProgressToken {
 
 // NOTE: Renamed camelCase to make it play nicely with the vscode extension.
 /// Represents options for running the LSP server.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ServerOptions {
     /// The name of the server.
     ///
@@ -280,6 +280,45 @@ pub struct ServerOptions {
 
     /// The formatting configuration to use.
     pub format: FormatConfig,
+
+    /// The basename of the Sprocket configuration file to watch for changes.
+    ///
+    /// When a file with this basename is created, changed, or deleted
+    /// anywhere in a watched workspace folder, [`Self::reload_config`] (if
+    /// set) is invoked to recompute the server's analyzer-affecting
+    /// configuration without requiring a full server restart.
+    ///
+    /// This field has no effect if [`Self::reload_config`] is `None`.
+    ///
+    /// Defaults to `sprocket.toml`.
+    pub config_filename: Option<String>,
+
+    /// A callback invoked to reload configuration derived from the
+    /// `sprocket.toml` configuration file(s) on disk.
+    ///
+    /// This is invoked whenever a file matching [`Self::config_filename`] is
+    /// created, changed, or deleted in the workspace. The callback is
+    /// responsible for re-reading and re-merging any applicable
+    /// configuration files (e.g. via `Config::new`) and returning the
+    /// resulting analyzer-affecting configuration.
+    pub reload_config: Option<Arc<dyn Fn() -> anyhow::Result<ConfigReload> + Send + Sync>>,
+}
+
+impl std::fmt::Debug for ServerOptions {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ServerOptions")
+            .field("name", &self.name)
+            .field("version", &self.version)
+            .field("feature_flags", &self.feature_flags)
+            .field("resolution_context", &self.resolution_context)
+            .field("exceptions", &self.exceptions)
+            .field("ignore_filename", &self.ignore_filename)
+            .field("baseline", &self.baseline)
+            .field("format", &self.format)
+            .field("config_filename", &self.config_filename)
+            .field("reload_config", &self.reload_config.is_some())
+            .finish()
+    }
 }
 
 impl ServerOptions {
@@ -303,8 +342,37 @@ impl Default for ServerOptions {
             resolution_context: Default::default(),
             baseline: None,
             format: FormatConfig::default(),
+            config_filename: Some(String::from("sprocket.toml")),
+            reload_config: None,
         }
     }
+}
+
+/// The subset of `sprocket.toml`-derived configuration that the LSP server
+/// tracks and can hot-reload without a restart.
+///
+/// This mirrors the fields called out in the "track `sprocket.toml` changes"
+/// feature request: `check.{baseline,lint}` and `analyzer`. `format` and
+/// `modules` are not yet wired into the analyzer at all in this version of
+/// the server, so they aren't part of this struct; `common.wdl.feature_flags`
+/// is included since `ServerOptions::feature_flags` is already threaded
+/// through to the analyzer.
+#[derive(Debug, Clone, Default)]
+pub struct ConfigReload {
+    /// Analysis or lint rule IDs to except (ignore); corresponds to the
+    /// `analyzer.except` field (merged with any CLI-provided exceptions).
+    pub exceptions: Vec<String>,
+    /// Corresponds to `common.wdl.feature_flags`.
+    pub feature_flags: FeatureFlags,
+    /// Corresponds to `modules` (used to resolve symbolic module imports).
+    pub resolution_context: wdl_analysis::ResolutionContext,
+    /// Corresponds to `check.baseline`.
+    pub baseline: Option<wdl_lint::Baseline>,
+    /// Corresponds to `format`.
+    pub format: FormatConfig,
+    /// Corresponds to `check.lint` and `analyzer.lint` (the latter merged
+    /// with any CLI-provided `--lint` flag).
+    pub lint: LintOptions,
 }
 
 /// User-controlled options for the server.
@@ -398,7 +466,7 @@ struct ServerState<S> {
 
 impl<S> ServerState<S> {
     /// Patch the config with the new values from the client.
-    fn apply_config_patch(
+    async fn apply_config_patch(
         &mut self,
         client: ClientSocket,
         options: &ServerOptions,
@@ -416,7 +484,55 @@ impl<S> ServerState<S> {
         }
 
         self.config.options.apply(patch);
-        self.config.analyzer = options.analyzer(client.clone(), &self.config.options.lint);
+        self.rebuild_analyzer(client, options).await;
+    }
+
+    /// Applies newly reloaded `sprocket.toml`-derived configuration and
+    /// rebuilds the analyzer.
+    async fn apply_config_reload(
+        &mut self,
+        client: ClientSocket,
+        options: &ServerOptions,
+        reload: ConfigReload,
+    ) {
+        self.config.analyzer_options = AnalyzerOptions {
+            feature_flags: reload.feature_flags,
+            resolution_context: reload.resolution_context,
+            exceptions: reload.exceptions,
+            baseline: reload.baseline,
+            format: reload.format,
+        };
+        self.config.options.lint = reload.lint;
+        self.rebuild_analyzer(client, options).await;
+    }
+
+    /// Rebuilds the analyzer from the current analyzer and lint options.
+    ///
+    /// Replacing the analyzer discards its in-memory document graph, so all
+    /// currently tracked workspace folders are re-added to the new analyzer
+    /// afterward.
+    async fn rebuild_analyzer(&mut self, client: ClientSocket, options: &ServerOptions) {
+        self.config.analyzer = options.analyzer(
+            client,
+            &self.config.analyzer_options,
+            &self.config.options.lint,
+        );
+
+        for folder in self.folders.clone() {
+            match folder.uri.to_file_path() {
+                Ok(path) => {
+                    if let Err(e) = self.config.analyzer.add_directory(path).await {
+                        error!("failed to add documents from directory to analyzer: {e}");
+                    }
+                }
+                Err(_) => {
+                    warn!(
+                        "failed to convert URI `{uri}` to a file path",
+                        uri = folder.uri
+                    );
+                }
+            }
+        }
     }
 }
 
@@ -444,17 +560,52 @@ struct ServerConfig {
     options: UserOptions,
     /// The analyzer used to analyze documents.
     analyzer: Analyzer<ProgressToken>,
+    /// The current `sprocket.toml`-derived options used to build
+    /// [`Self::analyzer`].
+    ///
+    /// This is kept separate from the static [`ServerOptions`] so it can be
+    /// replaced at runtime when `sprocket.toml` changes on disk.
+    analyzer_options: AnalyzerOptions,
+}
+
+/// The subset of [`ServerOptions`] that is derived from `sprocket.toml` and
+/// can be replaced at runtime (see [`ConfigReload`]).
+#[derive(Debug, Clone)]
+struct AnalyzerOptions {
+    /// Feature flags for enabling experimental features.
+    feature_flags: FeatureFlags,
+    /// Context for resolving symbolic module imports.
+    resolution_context: wdl_analysis::ResolutionContext,
+    /// Analysis or lint rule IDs to except (ignore).
+    exceptions: Vec<String>,
+    /// The diagnostic baseline for suppressing known diagnostics.
+    baseline: Option<wdl_lint::Baseline>,
+    /// The formatting configuration to use.
+    format: FormatConfig,
+}
+
+impl From<&ServerOptions> for AnalyzerOptions {
+    fn from(options: &ServerOptions) -> Self {
+        Self {
+            feature_flags: options.feature_flags,
+            resolution_context: options.resolution_context.clone(),
+            exceptions: options.exceptions.clone(),
+            baseline: options.baseline.clone(),
+            format: options.format,
+        }
+    }
 }
 
 impl ServerOptions {
-    /// Create an [`Analyzer`] based on this config.
+    /// Create an [`Analyzer`] based on the given analyzer and lint options.
     fn analyzer(
         &self,
         client: ClientSocket,
+        analyzer_options: &AnalyzerOptions,
         lint_options: &LintOptions,
     ) -> Analyzer<ProgressToken> {
         let linting_enabled = lint_options.enabled;
-        let exceptions = self.exceptions.clone();
+        let exceptions = analyzer_options.exceptions.clone();
         let ignore_name = self.ignore_filename.clone();
         let analyzer_client = client.clone();
 
@@ -477,13 +628,13 @@ impl ServerOptions {
             ))
             .with_ignore_filename(ignore_name)
             .with_all_rules(all_rules)
-            .with_feature_flags(self.feature_flags)
-            .with_format_config(self.format);
+            .with_feature_flags(analyzer_options.feature_flags)
+            .with_format_config(analyzer_options.format);
 
         let wdl_lint_config = lint_options.config.clone();
         Analyzer::<ProgressToken>::new_with_validator_and_resolution(
             analyzer_config,
-            self.resolution_context.clone(),
+            analyzer_options.resolution_context.clone(),
             move |token, kind, current, total| {
                 let client = analyzer_client.clone();
                 async move {
@@ -647,7 +798,8 @@ impl<S: 'static> Server<S> {
         user_options: UserOptions,
         log_handle: Option<FilterReloadHandle<S>>,
     ) -> Self {
-        let analyzer = options.analyzer(client.clone(), &user_options.lint);
+        let analyzer_options = AnalyzerOptions::from(&options);
+        let analyzer = options.analyzer(client.clone(), &analyzer_options, &user_options.lint);
         let (message_tx, message_rx) = tokio::sync::mpsc::unbounded_channel();
 
         let client_support = Arc::new(OnceLock::new());
@@ -657,6 +809,7 @@ impl<S: 'static> Server<S> {
             config: ServerConfig {
                 options: user_options,
                 analyzer,
+                analyzer_options,
             },
             log_handle,
         }));
@@ -831,8 +984,14 @@ impl<S: 'static> Server<S> {
                         .await;
                     }
                     Notification::DidChangeWatchedFiles(params) => {
-                        let state = state.read().await;
-                        Self::did_change_watched_files(params, &state).await;
+                        let mut state = state.write().await;
+                        Self::did_change_watched_files(
+                            params,
+                            &mut state,
+                            client.clone(),
+                            &options,
+                        )
+                        .await;
                     }
                 },
                 Message::Request(request) => match request {
@@ -1027,7 +1186,12 @@ impl<S: 'static> Server<S> {
             .await
             .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e))
             .and_then(|results| {
-                let mut matcher = options.baseline.as_ref().map(|b| b.matcher());
+                let mut matcher = state
+                    .config
+                    .analyzer_options
+                    .baseline
+                    .as_ref()
+                    .map(|b| b.matcher());
                 proto::document_diagnostic_report(params, results, &options.name, matcher.as_mut())
                     .ok_or_else(|| {
                         ResponseError::new(
@@ -1357,7 +1521,12 @@ impl<S: 'static> Server<S> {
             .map(|results| {
                 let _ = progress.complete(&client, "analysis complete");
 
-                let mut matcher = options.baseline.as_ref().map(|b| b.matcher());
+                let mut matcher = state
+                    .config
+                    .analyzer_options
+                    .baseline
+                    .as_ref()
+                    .map(|b| b.matcher());
                 proto::workspace_diagnostic_report(params, results, &options.name, matcher.as_mut())
             });
 
@@ -1516,7 +1685,7 @@ impl<S: 'static> Server<S> {
         match workspace_configs {
             Ok(mut configs) if !configs.is_empty() => {
                 match serde_json::from_value::<UserOptionsPatch>(configs.remove(0)) {
-                    Ok(patch) => state.apply_config_patch(client, options, patch),
+                    Ok(patch) => state.apply_config_patch(client, options, patch).await,
                     Err(e) => error!("failed to deserialize `UserOptionsPatch`: {e:?}"),
                 }
             }
@@ -1526,7 +1695,12 @@ impl<S: 'static> Server<S> {
     }
 
     /// `workspace/didChangeWatchedFiles` notification handler.
-    async fn did_change_watched_files(params: DidChangeWatchedFilesParams, state: &ServerState<S>) {
+    async fn did_change_watched_files(
+        params: DidChangeWatchedFilesParams,
+        state: &mut ServerState<S>,
+        client: ClientSocket,
+        options: &ServerOptions,
+    ) {
         /// Converts a URI into a WDL file path.
         fn to_wdl_file_path(uri: &Url) -> Option<PathBuf> {
             if let Ok(path) = uri.to_file_path()
@@ -1539,10 +1713,39 @@ impl<S: 'static> Server<S> {
             None
         }
 
+        /// Returns whether the given URI's file name matches the configured
+        /// Sprocket configuration file basename (e.g. `sprocket.toml`).
+        ///
+        /// This intentionally matches by basename alone, so a `sprocket.toml`
+        /// anywhere in a watched workspace folder will trigger a reload — even
+        /// one that isn't actually consulted by the current search path. This
+        /// is safe because [`ServerOptions::reload_config`] re-runs the
+        /// full configuration search/merge from scratch rather than
+        /// reading the triggering file directly, so an irrelevant match
+        /// just costs a redundant (but correct) re-resolution.
+        fn is_config_file(uri: &Url, config_filename: Option<&str>) -> bool {
+            let Some(name) = config_filename else {
+                return false;
+            };
+
+            uri.path_segments()
+                .and_then(|mut segments| segments.next_back())
+                .is_some_and(|basename| basename == name)
+        }
+
         let mut added = Vec::new();
         let mut deleted = Vec::new();
+        let mut config_changed = false;
         for mut event in params.changes {
             normalize_uri_path(&mut event.uri);
+
+            if is_config_file(&event.uri, options.config_filename.as_deref()) {
+                debug!(
+                    "configuration file `{uri}` has changed on disk",
+                    uri = event.uri
+                );
+                config_changed = true;
+            }
 
             match event.typ {
                 FileChangeType::CREATED => {
@@ -1585,6 +1788,33 @@ impl<S: 'static> Server<S> {
             && let Err(e) = state.config.analyzer.remove_documents(deleted).await
         {
             error!("failed to remove documents from analyzer: {e}");
+        }
+
+        if config_changed {
+            Self::reload_config(state, client, options).await;
+        }
+    }
+
+    /// Reloads `sprocket.toml`-derived configuration via
+    /// [`ServerOptions::reload_config`] (if set) and rebuilds the analyzer
+    /// so the running server reflects the new configuration without
+    /// requiring a restart.
+    async fn reload_config(
+        state: &mut ServerState<S>,
+        client: ClientSocket,
+        options: &ServerOptions,
+    ) {
+        let Some(reload_fn) = options.reload_config.as_ref() else {
+            debug!("no configuration reload callback is configured; ignoring change");
+            return;
+        };
+
+        match reload_fn() {
+            Ok(reload) => {
+                info!("reloading configuration from `sprocket.toml`");
+                state.apply_config_reload(client, options, reload).await;
+            }
+            Err(e) => error!("failed to reload configuration from `sprocket.toml`: {e:#}"),
         }
     }
 }
