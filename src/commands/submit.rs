@@ -78,11 +78,15 @@ pub struct Args {
 pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let report_mode = args.run_request_args.report_mode.unwrap_or_default();
     let source = match args.run_request_args.source {
-        Source::Directory(ref dir) => {
-            crate::analysis::resolve_module_entrypoint(dir, config.common.wdl.feature_flags)?
-        }
+        Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
     };
+
+    // Regenerate a stale or missing module lockfile before submitting so
+    // the workflow runs against a consistent, reproducible tree.
+    if let Some(dir) = source.local_start_dir() {
+        crate::commands::module::auto_lock::ensure_lockfile_current(&config, &dir).await?;
+    }
 
     let document = analyze_source(
         &source,

@@ -383,18 +383,18 @@ fn resolve_call_target(
             }
 
             if let Some(imported_task) = analysis_doc.imported_task_by_name(callee_name_str) {
-                let Some(index) = graph.get_index(imported_task.source.as_ref()) else {
+                let Some(index) = graph.get_index(imported_task.source()) else {
                     return Ok(None);
                 };
                 let node = graph.get(index);
                 let Some(imported_doc) = node.document() else {
                     return Ok(None);
                 };
-                let Some(task_def) = imported_doc.task_by_name(&imported_task.name) else {
+                let Some(task_def) = imported_doc.task_by_name(imported_task.name()) else {
                     return Ok(None);
                 };
                 return Ok(Some(location_from_span(
-                    &imported_task.source,
+                    imported_task.source(),
                     task_def.name_span(),
                     node.parse_state().lines().unwrap(),
                 )?));
@@ -402,7 +402,7 @@ fn resolve_call_target(
 
             if let Some(imported_workflow) = analysis_doc.imported_workflow_by_name(callee_name_str)
             {
-                let Some(index) = graph.get_index(imported_workflow.source.as_ref()) else {
+                let Some(index) = graph.get_index(imported_workflow.source()) else {
                     return Ok(None);
                 };
                 let node = graph.get(index);
@@ -411,12 +411,12 @@ fn resolve_call_target(
                 };
                 let Some(workflow_def) = imported_doc
                     .workflow()
-                    .filter(|workflow| workflow.name() == imported_workflow.name)
+                    .filter(|workflow| workflow.name() == imported_workflow.name())
                 else {
                     return Ok(None);
                 };
                 return Ok(Some(location_from_span(
-                    &imported_workflow.source,
+                    imported_workflow.source(),
                     workflow_def.name_span(),
                     node.parse_state().lines().unwrap(),
                 )?));

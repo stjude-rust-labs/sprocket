@@ -14,13 +14,21 @@
 //! keys, invalid relative paths, invalid dependency declarations, and module
 //! trees that violate the reserved-filename or Unicode-normalization rules.
 //!
+//! Use [`project::ModuleProject`] to load an exact `module.json` path or
+//! discover the nearest ancestor project. Use [`project::ManifestDocument`] to
+//! edit `module.json` losslessly while preserving extension fields and
+//! revalidating each change before it becomes visible. Use
+//! [`project::LockedModuleProject`] to persist `module.json` and the sibling
+//! `module-lock.json` together with caller-rooted recovery state, and use
+//! [`resolver::trust::TrustStore`] to accept lockfile signers in a user-level
+//! trust store outside the project tree.
+//!
 //! ```rust
 //! use wdl_modules::Manifest;
 //!
 //! let manifest = Manifest::parse(
 //!     br#"{
 //!         "name": "spellbook",
-//!         "version": "1.0.0",
 //!         "license": "MIT"
 //!     }"#,
 //! )?;
@@ -36,6 +44,7 @@ pub mod lockfile;
 pub mod manifest;
 pub mod module;
 pub mod module_walk;
+pub mod project;
 pub mod relative_path;
 pub mod resolver;
 pub mod signing;

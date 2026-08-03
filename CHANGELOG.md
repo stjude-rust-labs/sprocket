@@ -7,6 +7,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added the experimental `sprocket dev module` command group for creating and
+  managing WDL modules ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)):
+  * `init` bootstraps module manifests and scaffolding.
+  * `add` adds dependencies to `module.json`, accepts `owner/repo` Git
+    shorthand, infers dependency names, and supports `--name` and
+    `--git-platform`; it tracks the remote's default branch when no matching
+    version tags are discoverable.
+  * `remove` removes dependencies from `module.json` and refreshes
+    `module-lock.json`.
+  * `lock` refreshes the lockfile and provides `--locked` and `--dry-run`
+    flows for CI.
+  * `update` refreshes locked versions within existing manifest constraints,
+    with optional targeted updates.
+  * `upgrade` raises Git version constraints and relocks to the newest matching
+    versions.
+  * `tree` and `list` display locked dependencies as a tree or flat table.
+  * `verify` validates the current module's manifest and referenced files,
+    then validates locked dependencies and cryptographic signatures when their
+    artifacts are present; `--require-signatures` requires signatures for the
+    current module and every locked dependency.
+  * `fetch` pre-populates the module cache from `module-lock.json`.
+  * `cache clean` removes the current module's locked cache tree, or every
+    cached module with `--all`.
+  * `sign` creates a verifiable `module.sig` for module contents.
+  * `trust` manages trusted signing keys through `list`, `add`, `all`, `remove`,
+    and `destroy`; `add` can trust a global OpenSSH public key for every module
+    signed by that key.
+* Added the `[modules] default_git_platform` setting for selecting the hosted
+  Git platform used by `owner/repo` shorthand
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* Resolver errors now explain when a dependency path is missing `module.json`,
+  meaning that the target is not a Sprocket module or the `path` is wrong
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* Analysis now warns when a discovered `module-lock.json` is out of date with
+  its `module.json`, pointing to `sprocket dev module lock`
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+
+### Changed
+
+* `module.json` no longer declares a module `version`; Git version tags are the
+  source of truth for module versions
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* `module.json` `tools` entries now use `url` and `ids` (an array of CURIEs
+  such as `doi:10.21105/joss.04704`) in place of `homepage`, `doi`, and
+  `biotools` ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* `module-lock.json` no longer records dependency versions; it records the
+  requested selector and resolved Git commit, renames the Git source field
+  `commit` to `sha`, and records a `checksum` only for Git sources. Local path
+  sources carry no checksum or signer and are read as-is without verification
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* The `commit` dependency selector now accepts any unique commit-SHA prefix
+  (7–40 hex characters), expanded to the full SHA at lock time
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* Cycle detection now identifies modules by source coordinates (repository URL
+  and sub-path, or local directory), so a module that transitively depends on
+  itself is detected even at a different version or selector
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* Symbolic sub-path components now match files and directories with
+  hyphen-to-underscore normalization (`my_task` resolves `my_task.wdl` or
+  `my-task.wdl`), reporting an error when more than one entry matches
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* The manifest `exclude` field now uses gitignore-style glob semantics: `*`
+  stays within a path segment, `**` crosses separators, and a plain directory
+  name excludes everything beneath it
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* A module is now invalid if it contains a symbolic link anywhere in its tree,
+  or a quoted `import` that resolves outside the module root
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* Adding, changing, or removing a dependency signer now requires confirmation
+  by default; `[modules] trust_mode = "tofu"` accepts a first-seen signer for a
+  new dependency but prompts for later signer changes, while `"auto-accept"`
+  accepts and reports every signer transition without prompting
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* `sprocket run` and `sprocket submit` now regenerate a missing or out-of-date
+  `module-lock.json` before executing, rather than only warning
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+
 ### Fixed
 
 * For `sprocket run`, the execution backend is now considered for the call

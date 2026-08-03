@@ -36,6 +36,10 @@
       "description": "Common configuration options for all commands.",
       "$ref": "#/$defs/CommonConfig"
     },
+    "module": {
+      "description": "Configuration for the `module` command group (`[module]` section).",
+      "$ref": "#/$defs/ModuleConfig"
+    },
     "modules": {
       "description": "Configuration for the module system (`[modules]` section).",
       "$ref": "#/$defs/ModulesConfig"
@@ -1521,6 +1525,45 @@
         }
       }
     },
+    "ModuleConfig": {
+      "description": "Configuration for the `sprocket dev module` command group.",
+      "type": "object",
+      "properties": {
+        "init": {
+          "description": "Configuration for `sprocket dev module init`.",
+          "$ref": "#/$defs/ModuleInitConfig"
+        }
+      },
+      "additionalProperties": false
+    },
+    "ModuleInitConfig": {
+      "description": "Configuration for `sprocket dev module init`.",
+      "type": "object",
+      "properties": {
+        "author": {
+          "description": "Default module author name.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "email": {
+          "description": "Default module author email.",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "license": {
+          "description": "Default SPDX license expression.",
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
     "ModulesConfig": {
       "description": "The `[modules]` configuration section.",
       "type": "object",
@@ -1532,6 +1575,10 @@
             "null"
           ]
         },
+        "default_git_platform": {
+          "description": "The platform used to expand `owner/repo` dependency shorthands.",
+          "$ref": "#/$defs/GitPlatform"
+        },
         "large_file_warning": {
           "description": "Threshold for the large-file warning, or [`LargeFileWarning::Disabled`]\nwhen the user opts out. Defaults to 1 MiB.",
           "$ref": "#/$defs/LargeFileWarning"
@@ -1542,7 +1589,7 @@
           "default": false
         },
         "trust_mode": {
-          "description": "TOFU policy for new signer keys.",
+          "description": "Policy for accepting signer keys.",
           "$ref": "#/$defs/TrustMode"
         },
         "allowed_schemes": {
@@ -1626,6 +1673,26 @@
       },
       "additionalProperties": false
     },
+    "GitPlatform": {
+      "description": "A hosted Git platform used for dependency shorthand expansion.",
+      "oneOf": [
+        {
+          "description": "GitHub repository shorthand.",
+          "type": "string",
+          "const": "github"
+        },
+        {
+          "description": "GitLab repository shorthand.",
+          "type": "string",
+          "const": "gitlab"
+        },
+        {
+          "description": "Bitbucket repository shorthand.",
+          "type": "string",
+          "const": "bitbucket"
+        }
+      ]
+    },
     "LargeFileWarning": {
       "description": "Threshold for the large-file warning emitted at sign- and fetch-time.",
       "anyOf": [
@@ -1653,15 +1720,20 @@
       ]
     },
     "TrustMode": {
-      "description": "Trust-on-first-use (TOFU) policy for new signer keys.\n\nWhen the resolver encounters a signed module whose signer key is not\nyet recorded in the lockfile, this setting controls whether the key\nis accepted silently or requires explicit user confirmation. The\nlibrary computes a [`LockfileDiff`](super::lock::LockfileDiff) that\nflags new signers; the CLI is responsible for acting on the policy\n(e.g., prompting the user when `Confirm` is set).",
+      "description": "Policy for accepting signer keys.\n\nWhen the resolver encounters a signed module whose signer key is not\nyet recorded in the lockfile, this setting controls whether the key\nmay be accepted automatically or requires explicit user confirmation. The\nlibrary computes a [`LockfileDiff`](super::lock::LockfileDiff) that\nflags new signers; the CLI is responsible for acting on the policy\n(e.g., prompting the user when `Confirm` is set).",
       "oneOf": [
         {
-          "description": "New signer keys are recorded in the lockfile without prompting.\nThis is the default and is suitable for non-interactive or\nCI environments where manual confirmation is impractical.",
+          "description": "Signer keys may be recorded without prompting when a caller\nexplicitly opts into automatic trust.",
           "type": "string",
-          "const": "auto"
+          "const": "auto-accept"
         },
         {
-          "description": "The CLI must prompt the user to confirm any newly-trusted signer\nkey before writing the lockfile. Intended for interactive use\nwhere the user wants to review each new signer.",
+          "description": "Signer keys may be recorded without prompting when a caller\nexplicitly opts into trusting first observed keys.",
+          "type": "string",
+          "const": "tofu"
+        },
+        {
+          "description": "The CLI must prompt the user to confirm signer keys before\nwriting the lockfile.",
           "type": "string",
           "const": "confirm"
         }
