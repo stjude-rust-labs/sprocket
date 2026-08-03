@@ -24,10 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Analysis resolves symbolic module imports (`import owner/module/path`, including the wildcard `import * from owner/module` and selected-member `import { a, b } from owner/module` forms) through a `wdl-modules` `Resolver`, materializing them to concrete files during analysis ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
 * `MeaninglessLintDirective` rule, which flags `#@ except` comments that don't suppress anything ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
 * `KnownRules` rule, which ensures only known rules are used in `except` directives ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
+* `Analyzer::delete_documents()` to forcefully delete documents from the graph, regardless of
+  dependencies ([#917](https://github.com/stjude-rust-labs/sprocket/pull/917)).
 
 #### Changed
 
 * `Analyzer::new` and `Analyzer::new_with_validator` now take a `ResolutionContext` (a resolver plus an optional manifest path) in place of separate arguments; pass `ResolutionContext::default()` to preserve the previous non-resolving behavior ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
+* `Analyzer::remove_documents()` was renamed to `Analyzer::remove_roots()` ([#917](https://github.com/stjude-rust-labs/sprocket/pull/917)).
 
 #### Fixed
 

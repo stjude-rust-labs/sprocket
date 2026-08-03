@@ -1,6 +1,5 @@
 //! Integration tests for the `textDocument/references` request.
 
-pub mod common;
 use core::panic;
 
 use async_lsp::lsp_types::Location;
@@ -11,8 +10,10 @@ use async_lsp::lsp_types::ReferenceParams;
 use async_lsp::lsp_types::TextDocumentIdentifier;
 use async_lsp::lsp_types::TextDocumentPositionParams;
 use async_lsp::lsp_types::request::References;
-use common::TestContext;
 use pretty_assertions::assert_eq;
+
+use crate::common::TestContext;
+use crate::common::TestContextBuilder;
 
 async fn find_all_references(
     ctx: &mut TestContext,
@@ -37,7 +38,7 @@ async fn find_all_references(
 }
 
 async fn setup() -> TestContext {
-    let mut ctx = TestContext::new("find_references");
+    let mut ctx = TestContextBuilder::new("find_references").build();
     ctx.initialize().await;
     ctx
 }
