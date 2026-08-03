@@ -46,7 +46,7 @@ const FUNCTION_NAME: &str = "write_objects";
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_objects
 fn write_objects(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
-        debug_assert!(context.arguments.len() == 1);
+        debug_assert_eq!(context.arguments.len(), 1);
         debug_assert!(context.return_type_eq(PrimitiveType::File));
 
         // Helper for handling errors while writing to the file.
