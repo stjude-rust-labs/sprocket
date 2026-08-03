@@ -67,81 +67,49 @@ pub(crate) fn ast_methods(
     // Remove second generic and add "Py" prefix (`impl Ast<N>` into `impl PyAst`).
     let original_type_path = make_py_self_ty(&mut py_impl.self_ty)?;
 
-    py_impl.items =
-        original
-            .items
-            .iter()
-            .filter_map(filter_py_method)
-            .cloned()
-            .map(|mut py_fn| -> Result<(ImplItemFn, Option<SpecialCase>)> {
-                if let Some(ref generic_ident) = ast_generic_ident
-                    && let ReturnType::Type(_, ref mut type_) = py_fn.sig.output
-                {
-                    // If the return type is `impl Iterator<...>`, mark this method as a special
-                    // case.
-                    if is_impl_iterator(type_)? {
-                        return Ok((py_fn, Some(SpecialCase::ImplIterator)));
-                    }
-
-                    strip_path_generic(type_, generic_ident.clone())?;
+    py_impl.items = original
+        .items
+        .iter()
+        .filter_map(filter_py_method)
+        .cloned()
+        .map(|mut py_fn| -> Result<(ImplItemFn, Option<SpecialCase>)> {
+            if let Some(ref generic_ident) = ast_generic_ident
+                && let ReturnType::Type(_, ref mut type_) = py_fn.sig.output
+            {
+                // If the return type is `impl Iterator<...>`, mark this method as a special
+                // case.
+                if is_impl_iterator(type_)? {
+                    return Ok((py_fn, Some(SpecialCase::ImplIterator)));
                 }
 
-                Ok((py_fn, None))
-            })
-            .map(|result| {
-                let (mut py_fn, special_case) = result?;
+                strip_path_generic(type_, generic_ident.clone())?;
+            }
 
-                let py_ident = format_ident!("py_{}", py_fn.sig.ident);
-                let original_method_ident = std::mem::replace(&mut py_fn.sig.ident, py_ident);
+            Ok((py_fn, None))
+        })
+        .map(move |result| {
+            let (mut py_fn, special_case) = result?;
 
-                // Make private.
-                py_fn.vis = Visibility::Inherited;
+            let py_ident = format_ident!("py_{}", py_fn.sig.ident);
+            let original_method_ident = std::mem::replace(&mut py_fn.sig.ident, py_ident);
 
-                if let Some(SpecialCase::ImplIterator) = special_case {
-                    // Convert function inputs into function arguments. (Ex. turn `a: usize, b: String`
-                    // into `a, b`.)
-                    let method_args = fn_inputs_to_args(&py_fn.sig.inputs)?;
+            // Make private.
+            py_fn.vis = Visibility::Inherited;
 
-                    // Add `'py` lifetime.
-                    py_fn.sig.generics.params.push(parse_quote!('py));
+            // Set method body.
+            if let Some(SpecialCase::ImplIterator) = special_case {
+                make_py_method_body_impl_iterator(
+                    &mut py_fn,
+                    &original_type_path,
+                    original_method_ident,
+                )?;
+            } else {
+                make_py_method_body(&mut py_fn, &original_type_path, original_method_ident)?;
+            }
 
-                    // Add `py: Python<'py>` argument.
-                    py_fn.sig.inputs.push(parse_quote!(py: ::pyo3::marker::Python<'py>));
-
-                    // Set return type to `PyResult<Bound<'py, PyList>>`.
-                    py_fn.sig.output = parse_quote!(-> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>>);
-
-                    // Set body.
-                    py_fn.block = match py_fn.sig.inputs.first() {
-                        // Method that takes `self` by reference
-                        Some(FnArg::Receiver(Receiver {
-                            kind: ReceiverKind::Reference(..), ..
-                        })) => parse_quote!({
-                            ::pyo3::types::PyList::new(py, #original_type_path::from(self.clone()).#original_method_ident(#method_args))
-                        }),
-
-                        // Method that consumes `self`
-                        Some(FnArg::Receiver(Receiver {
-                            kind: ReceiverKind::Value, ..
-                        })) => parse_quote!({
-                            ::pyo3::types::PyList::new(py, #original_type_path::from(self).#original_method_ident(#method_args))
-                        }),
-
-                        // Associated function
-                        Some(FnArg::Typed(_)) | None => parse_quote!({
-                            ::pyo3::types::PyList::new(py, #original_type_path::#original_method_ident(#method_args))
-                        }),
-
-                        Some(FnArg::Receiver(receiver)) => return Err(Error::new_spanned(receiver, "`#[ast_methods]` does not support this kind of receiver")),
-                    };
-                } else {
-                    // Set body.
-                    make_py_method_body(&mut py_fn, &original_type_path, original_method_ident)?;
-                }
-
-                Ok(ImplItem::Fn(py_fn))
-            })
-            .collect::<Result<_>>()?;
+            Ok(ImplItem::Fn(py_fn))
+        })
+        .collect::<Result<_>>()?;
 
     Ok(quote! {
         #original
@@ -448,6 +416,100 @@ fn make_py_method_body(
         // Associated function
         Some(FnArg::Typed(_)) | None => parse_quote!({
             #original_type_path::#original_method_ident(#method_args)
+        }),
+
+        Some(FnArg::Receiver(receiver)) => {
+            return Err(Error::new_spanned(
+                receiver,
+                "`#[ast_methods]` does not support this kind of receiver",
+            ));
+        }
+    };
+
+    Ok(())
+}
+
+/// A variant of [`make_py_method_body()`] that adapts methods returning `impl
+/// Iterator` to instead return `PyList`.
+///
+/// This function should only be called on Python methods whose return type
+/// passes [`is_impl_iterator()`]. If [`is_impl_iterator()`] returns false, call
+/// [`make_py_method_body()`] instead.
+///
+/// This function performs the following actions:
+///
+/// 1. Appends `'py` as a lifetime generic parameter.
+/// 2. Appends `py: Python<'py>` as a function parameter.
+/// 3. Sets the return type to `PyResult<Bound<'py, PyList>>`.
+/// 4. Makes the function body call the original method and pass the returned
+///    iterator to `PyList::new()`.
+///
+/// # Examples
+///
+/// Given the following method:
+///
+/// ```ignore
+/// fn py_method(&self) -> impl Iterator<Item = ...> {
+///     // ...
+/// }
+/// ```
+///
+/// This function will modify it into the following:
+///
+/// ```
+/// fn py_method<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
+///     PyList::new(py, Struct::from(self.clone()).method())
+/// }
+/// ```
+///
+/// # Errors
+///
+/// This function has the exact same error conditions as
+/// [`make_py_method_body()`].
+fn make_py_method_body_impl_iterator(
+    py_fn: &mut ImplItemFn,
+    original_type_path: &Path,
+    original_method_ident: Ident,
+) -> Result<()> {
+    // Convert function inputs into function arguments. (Ex. turn `a: usize, b:
+    // String` into `a, b`.) This is purposefully called before we add `py:
+    // Python<'py>` to the function input, as the Python marker token is not passed
+    // to the original method.
+    let method_args = fn_inputs_to_args(&py_fn.sig.inputs)?;
+
+    // Add `'py` lifetime.
+    py_fn.sig.generics.params.push(parse_quote!('py));
+
+    // Add `py: Python<'py>` argument.
+    py_fn
+        .sig
+        .inputs
+        .push(parse_quote!(py: ::pyo3::marker::Python<'py>));
+
+    // Set return type to `PyResult<Bound<'py, PyList>>`.
+    py_fn.sig.output = parse_quote!(-> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>>);
+
+    // Set body.
+    py_fn.block = match py_fn.sig.inputs.first() {
+        // Method that takes `self` by reference
+        Some(FnArg::Receiver(Receiver {
+            kind: ReceiverKind::Reference(..),
+            ..
+        })) => parse_quote!({
+            ::pyo3::types::PyList::new(py, #original_type_path::from(self.clone()).#original_method_ident(#method_args))
+        }),
+
+        // Method that consumes `self`
+        Some(FnArg::Receiver(Receiver {
+            kind: ReceiverKind::Value | ReceiverKind::Typed(..),
+            ..
+        })) => parse_quote!({
+            ::pyo3::types::PyList::new(py, #original_type_path::from(self).#original_method_ident(#method_args))
+        }),
+
+        // Associated function
+        Some(FnArg::Typed(_)) | None => parse_quote!({
+            ::pyo3::types::PyList::new(py, #original_type_path::#original_method_ident(#method_args))
         }),
 
         Some(FnArg::Receiver(receiver)) => {
