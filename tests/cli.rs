@@ -259,21 +259,26 @@ fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
 
 /// Normalizes a string for OS platform differences and dynamic content.
 fn normalize_string(input: &str, temp_dir: &Path) -> String {
-    // NOTE: the drive prefix removal (e.g., `C:`) must occur after backslash
-    // normalization so that paths like `C:\foo` are first converted to `C:/foo`
-    // before the prefix is stripped.
     let s = input
         .replace(&*temp_dir.to_string_lossy(), "_TEMP_DIR_")
         .replace("\r\n", "\n")
         .replace("\\r\\n", "\\n")
-        .replace("sprocket.exe", "sprocket")
-        .replace("\\", "/")
-        .replace("//", "/");
+        .replace("sprocket.exe", "sprocket");
 
-    // Strip Windows drive prefixes (e.g., `C:`) from absolute paths.
-    static DRIVE_PREFIX: std::sync::LazyLock<regex::Regex> =
-        std::sync::LazyLock::new(|| regex::Regex::new(r"[A-Za-z]:(/\S)").unwrap());
-    let s = DRIVE_PREFIX.replace_all(&s, "$1");
+    // HACK: Assuming all Windows paths are absolute and have at least 2 segments.
+    // Lots of tests have multiline JSON strings with literal "\n" that
+    // would otherwise be normalized improperly.
+    static WINDOWS_PATH: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#"(?<drive>[A-Za-z]:)\\[^\r\n"'\\]*\\[^\r\n"']*"#).unwrap());
+    let s = WINDOWS_PATH.replace_all(&s, |caps: &regex::Captures<'_>| {
+        // Replace backslashes and strip Windows drive prefixes (e.g., `C:`) from
+        // absolute paths.
+        let s = caps.get(0).unwrap().as_str();
+        let drive = caps.name("drive").unwrap().as_str();
+
+        let stripped_drive = &s[drive.len()..];
+        stripped_drive.replace('\\', "/")
+    });
 
     // Normalize Windows OS error messages to their Unix equivalents.
     const WINDOWS_TO_UNIX_ERRORS: &[(&str, &str)] = &[
