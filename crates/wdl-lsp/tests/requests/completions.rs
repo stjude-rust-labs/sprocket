@@ -1,7 +1,5 @@
 //! Integration tests for the `textDocument/completion` request.
 
-pub mod common;
-
 use async_lsp::lsp_types::CompletionContext;
 use async_lsp::lsp_types::CompletionItem;
 use async_lsp::lsp_types::CompletionItemKind;
@@ -12,8 +10,10 @@ use async_lsp::lsp_types::Position;
 use async_lsp::lsp_types::TextDocumentIdentifier;
 use async_lsp::lsp_types::TextDocumentPositionParams;
 use async_lsp::lsp_types::request::Completion;
-use common::TestContext;
 use pretty_assertions::assert_eq;
+
+use crate::common::TestContext;
+use crate::common::TestContextBuilder;
 
 async fn completion_request(
     ctx: &mut TestContext,
@@ -52,7 +52,7 @@ fn assert_not_contains(items: &[CompletionItem], unexpected_label: &str) {
 }
 
 async fn setup() -> TestContext {
-    let mut ctx = TestContext::new("completions");
+    let mut ctx = TestContextBuilder::new("completions").build();
     ctx.initialize().await;
     ctx
 }
@@ -325,9 +325,14 @@ async fn should_complete_scope_variables() {
     assert_contains(&items, "lib");
     // Stdlib function
     assert_contains(&items, "floor");
-    assert_contains(&items, "min");
     assert_contains(&items, "stdout");
     assert_contains(&items, "stderr");
+    // The following standard library functions are present in WDL version 1.3 and
+    // should appear as completions.
+    assert_contains(&items, "min");
+    assert_contains(&items, "find");
+    assert_contains(&items, "chunk");
+    assert_contains(&items, "matches");
 
     // Workflow specific keywords
     assert_contains(&items, "call");
@@ -363,6 +368,30 @@ async fn should_complete_scope_variables() {
     assert_contains(&items, "runtime");
     assert_contains(&items, "requirements");
     assert_not_contains(&items, "call");
+}
+
+#[tokio::test]
+async fn should_complete_scope_variables_v1_0_stdlib() {
+    let mut ctx = setup().await;
+
+    // Workflow scope
+    let response = completion_request(&mut ctx, "scopes_v1_0.wdl", Position::new(10, 0))
+        .await
+        .expect("request should succeed");
+    let Some(CompletionResponse::Array(items)) = response else {
+        panic!("expected a response, got none");
+    };
+
+    // Stdlib functions
+    assert_contains(&items, "floor");
+    assert_contains(&items, "stdout");
+    assert_contains(&items, "stderr");
+    // The following standard library functions are *not* present in WDL version 1.0
+    // and should *not* appear as completions.
+    assert_not_contains(&items, "min");
+    assert_not_contains(&items, "find");
+    assert_not_contains(&items, "chunk");
+    assert_not_contains(&items, "matches");
 }
 
 #[tokio::test]

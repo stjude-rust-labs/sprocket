@@ -1,6 +1,5 @@
 //! Integration tests for the `textDocument/gotoDefinition` request.
 
-pub mod common;
 use core::panic;
 
 use async_lsp::lsp_types::GotoDefinitionParams;
@@ -10,8 +9,10 @@ use async_lsp::lsp_types::Range;
 use async_lsp::lsp_types::TextDocumentIdentifier;
 use async_lsp::lsp_types::TextDocumentPositionParams;
 use async_lsp::lsp_types::request::GotoDefinition;
-use common::TestContext;
 use pretty_assertions::assert_eq;
+
+use crate::common::TestContext;
+use crate::common::TestContextBuilder;
 
 async fn goto_definition_request(
     ctx: &mut TestContext,
@@ -32,7 +33,7 @@ async fn goto_definition_request(
 }
 
 async fn setup() -> TestContext {
-    let mut ctx = TestContext::new("goto_definition");
+    let mut ctx = TestContextBuilder::new("goto_definition").build();
     ctx.initialize().await;
     ctx
 }
@@ -119,11 +120,9 @@ async fn should_goto_imported_workflow_definition() {
 async fn should_goto_selected_imported_task_definition() {
     let mut options = wdl_lsp::ServerOptions::default();
     options.feature_flags = options.feature_flags.with_wdl_1_4();
-    let mut ctx = TestContext::with_options(
-        "goto_definition_selected",
-        options,
-        wdl_lsp::UserOptions::default(),
-    );
+    let mut ctx = TestContextBuilder::new("goto_definition_selected")
+        .server_options(options)
+        .build();
     ctx.initialize().await;
 
     // Position of `add` in `call add`
@@ -145,11 +144,9 @@ async fn should_goto_selected_imported_task_definition() {
 async fn should_goto_selected_imported_workflow_definition() {
     let mut options = wdl_lsp::ServerOptions::default();
     options.feature_flags = options.feature_flags.with_wdl_1_4();
-    let mut ctx = TestContext::with_options(
-        "goto_definition_selected",
-        options,
-        wdl_lsp::UserOptions::default(),
-    );
+    let mut ctx = TestContextBuilder::new("goto_definition_selected")
+        .server_options(options)
+        .build();
     ctx.initialize().await;
 
     // Position of `run` in `call run`

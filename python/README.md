@@ -59,3 +59,33 @@ isort python/
 ```
 
 The Python package is located at `python/sprocket_bio` (in this folder), and the Python extension that it bundles is compiled from `crates/sprocket-py` using the [Maturin build system](https://www.maturin.rs). Dependencies and additional metadata are specified in `pyproject.toml` and `crates/sprocket-py/Cargo.toml`. Unit tests are defined in `python/tests` using the [`pytest`](https://docs.pytest.org) framework. Type and stub checking is performed by [`mypy`](https://mypy.readthedocs.io). Code formatting is performed by [`black`](https://black.readthedocs.io), and import statement sorting is done by [`isort`](https://isort.readthedocs.io).
+
+### Code Coverage
+
+To generate code coverage reports, first install the `llvm-tools` [Rustup component](https://rust-lang.github.io/rustup/concepts/components.html) and install [`cargo-llvm-cov`](https://github.com/taiki-e/cargo-llvm-cov). For example:
+
+```bash
+rustup component add llvm-tools
+cargo install cargo-llvm-cov --version 0.8 --locked
+```
+
+Then, run the following commands with the virtual environment activated:
+
+```bash
+# Configure Rust to build with code coverage.
+source <(cargo llvm-cov show-env --sh)
+
+# Remove unwanted artifacts that may affect coverage results.
+cargo llvm-cov clean --workspace
+
+# Compile and install `sprocket_bio`.
+maturin develop --group=cov
+
+# Run tests and display Python code coverage.
+pytest --cov=python/sprocket_bio
+
+# Display Rust code coverage.
+cargo llvm-cov report -p sprocket-py -p wdl-diagnostics -p wdl-grammar -p wdl-ast
+```
+
+Code coverage of Python code is generated using [`pytest-cov`](https://pytest-cov.readthedocs.io/en/latest/), which is installed as part of the `cov` dependency group. The Python report is printed when you run `pytest` with the `--cov` option. The Rust coverage data is generated when you run `pytest` as well, but the report must be printed after the fact using `cargo-llvm-cov`.

@@ -22,7 +22,7 @@ tokio.workspace = true
 toml-spanner = { workspace = true }
 tracing.workspace = true
 tracing-subscriber.workspace = true
-wdl = { path = "../wdl", version = "0.23.2", features = ["analysis"] }
+wdl = { path = "../wdl", version = "0.23.3", features = ["analysis"] }
 
 [lints]
 workspace = true

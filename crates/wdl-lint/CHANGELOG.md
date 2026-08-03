@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+* New lint rule `InlineInstall` ([#1023](https://github.com/stjude-rust-labs/sprocket/pull/1023)).
+* Added `Tag::Performance` ([#1023](https://github.com/stjude-rust-labs/sprocket/pull/1023)).
+
+## 0.25.0 - 2026-07-15
+
 #### Added
 
 * Added `BashSetSyntax` lint rule to enforce consistent [bash set](https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html)
