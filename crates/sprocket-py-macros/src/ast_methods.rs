@@ -467,7 +467,7 @@ fn make_py_method_body(
 ///
 /// This function will modify it into the following:
 ///
-/// ```
+/// ```ignore
 /// fn py_method<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
 ///     PyList::new(py, Struct::from(self.clone()).method())
 /// }
@@ -490,6 +490,14 @@ fn make_py_method_body_impl_iterator(
 
     // Add `'py` lifetime.
     py_fn.sig.generics.params.push(parse_quote!('py));
+
+    if py_fn.sig.generics.lt_token.is_none() {
+        py_fn.sig.generics.lt_token = Some(<Token![<]>::default());
+    }
+
+    if py_fn.sig.generics.gt_token.is_none() {
+         py_fn.sig.generics.gt_token = Some(<Token![>]>::default());
+    }
 
     // Add `py: Python<'py>` argument.
     py_fn
