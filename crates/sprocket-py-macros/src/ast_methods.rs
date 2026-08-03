@@ -73,16 +73,16 @@ pub(crate) fn ast_methods(
         .filter_map(filter_py_method)
         .cloned()
         .map(|mut py_fn| -> Result<(ImplItemFn, Option<SpecialCase>)> {
-            if let Some(ref generic_ident) = ast_generic_ident
-                && let ReturnType::Type(_, ref mut type_) = py_fn.sig.output
-            {
+            if let ReturnType::Type(_, ref mut type_) = py_fn.sig.output {
                 // If the return type is `impl Iterator<...>`, mark this method as a special
                 // case.
                 if is_impl_iterator(type_)? {
                     return Ok((py_fn, Some(SpecialCase::ImplIterator)));
                 }
 
-                strip_path_generic(type_, generic_ident.clone())?;
+                if let Some(ref generic_ident) = ast_generic_ident {
+                    strip_path_generic(type_, generic_ident.clone())?;
+                }
             }
 
             Ok((py_fn, None))
