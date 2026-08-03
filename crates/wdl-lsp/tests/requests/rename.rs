@@ -1,11 +1,11 @@
 //! Integration tests for the `textDocument/rename` request.
 
+use async_lsp::lsp_types::request::Rename;
 use async_lsp::lsp_types::*;
 use pretty_assertions::assert_eq;
 
-pub mod common;
-use async_lsp::lsp_types::request::Rename;
-use common::TestContext;
+use crate::common::TestContext;
+use crate::common::TestContextBuilder;
 
 async fn rename_request(
     ctx: &mut TestContext,
@@ -26,10 +26,15 @@ async fn rename_request(
     .await
 }
 
+async fn setup() -> TestContext {
+    let mut ctx = TestContextBuilder::new("rename").build();
+    ctx.initialize().await;
+    ctx
+}
+
 #[tokio::test]
 async fn should_rename_workspace_wide() {
-    let mut ctx = TestContext::new("rename");
-    ctx.initialize().await;
+    let mut ctx = setup().await;
 
     const NEW_NAME: &str = "renamedTask";
 
@@ -56,8 +61,7 @@ async fn should_rename_workspace_wide() {
 
 #[tokio::test]
 async fn should_reject_invalid_identifier() {
-    let mut ctx = TestContext::new("rename");
-    ctx.initialize().await;
+    let mut ctx = setup().await;
 
     let result = rename_request(&mut ctx, "source.wdl", Position::new(10, 13), "1notValid")
         .await
@@ -68,8 +72,7 @@ async fn should_reject_invalid_identifier() {
 
 #[tokio::test]
 async fn should_rename_struct_definition() {
-    let mut ctx = TestContext::new("rename");
-    ctx.initialize().await;
+    let mut ctx = setup().await;
 
     let edit = rename_request(
         &mut ctx,
@@ -98,8 +101,7 @@ async fn should_rename_struct_definition() {
 
 #[tokio::test]
 async fn should_rename_import_namespace_alias() {
-    let mut ctx = TestContext::new("rename");
-    ctx.initialize().await;
+    let mut ctx = setup().await;
 
     let edit = rename_request(&mut ctx, "source.wdl", Position::new(3, 22), "libx")
         .await
@@ -117,8 +119,7 @@ async fn should_rename_import_namespace_alias() {
 
 #[tokio::test]
 async fn should_not_rename_shadowed_declaration() {
-    let mut ctx = TestContext::new("rename");
-    ctx.initialize().await;
+    let mut ctx = setup().await;
 
     const NEW_NAME: &str = "renamed_out_dir";
 
@@ -156,8 +157,7 @@ async fn should_not_rename_shadowed_declaration() {
 
 #[tokio::test]
 async fn should_rename_enum() {
-    let mut ctx = TestContext::new("rename");
-    ctx.initialize().await;
+    let mut ctx = setup().await;
 
     // Position of `Status` in `enum Status`
     let edit = rename_request(&mut ctx, "enum.wdl", Position::new(2, 7), "State")
@@ -175,8 +175,7 @@ async fn should_rename_enum() {
 
 #[tokio::test]
 async fn should_rename_enum_choice() {
-    let mut ctx = TestContext::new("rename");
-    ctx.initialize().await;
+    let mut ctx = setup().await;
 
     // Position of `Active` in choice definition
     let edit = rename_request(&mut ctx, "enum.wdl", Position::new(3, 4), "Running")

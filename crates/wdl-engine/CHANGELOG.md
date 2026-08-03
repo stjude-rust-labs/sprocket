@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* The execution backend is now considered for the call cache key derivation,
+  which prevents unexpected behavior when switching executing backends. NOTE:
+  this fix will cause existing call cache entries to be ignored ([#1039](https://github.com/stjude-rust-labs/sprocket/pull/1039)).
+* WDL 1.0 `runtime` resource requirements such as `cpu` are again enforced and
+  passed to execution backends
+  ([#1026](https://github.com/stjude-rust-labs/sprocket/issues/1026)).
+
 ## 0.17.0 - 2026-07-15
 
 #### Added

@@ -58,6 +58,16 @@ unicode-normalization = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 wdl-grammar = { path = "../wdl-grammar", version = "0.25.0" }
 
+# The `x86_64-apple-darwin` binary is cross-compiled from an `arm64` runner,
+# where the only system OpenSSL available is `arm64`. Building OpenSSL from
+# source (vendored) for this target removes the dependency on an
+# architecture-matched system copy. `openssl-sys` is a single node in the
+# dependency graph, so vendoring applies to the whole x86_64 macOS build,
+# including the `ssh2`/`libssh2-sys` path. The native `aarch64-apple-darwin`
+# build is unaffected and continues to use the system OpenSSL.
+[target.'cfg(all(target_os = "macos", target_arch = "x86_64"))'.dependencies]
+git2 = { workspace = true, optional = true, features = ["https", "ssh", "vendored-openssl"] }
+
 [dev-dependencies]
 pretty_assertions = { workspace = true }
 tempfile = { workspace = true }

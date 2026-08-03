@@ -27,17 +27,17 @@ pub fn format_task_definition(
     stream.ignore_trailing_blank_lines();
 
     let task_keyword = children.next().expect("task keyword");
-    assert!(task_keyword.element().kind() == SyntaxKind::TaskKeyword);
+    assert_eq!(task_keyword.element().kind(), SyntaxKind::TaskKeyword);
     (&task_keyword).write(stream, config);
     stream.end_word();
 
     let name = children.next().expect("task name");
-    assert!(name.element().kind() == SyntaxKind::Ident);
+    assert_eq!(name.element().kind(), SyntaxKind::Ident);
     (&name).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.end_line();
     stream.increment_indent();
@@ -167,7 +167,7 @@ pub fn format_command_section(
     let mut children = element.children().expect("command section children");
 
     let command_keyword = children.next().expect("command keyword");
-    assert!(command_keyword.element().kind() == SyntaxKind::CommandKeyword);
+    assert_eq!(command_keyword.element().kind(), SyntaxKind::CommandKeyword);
     (&command_keyword).write(stream, config);
     stream.end_word();
 
@@ -320,11 +320,11 @@ pub fn format_requirements_item(
     let mut children = element.children().expect("requirements item children");
 
     let name = children.next().expect("requirements item name");
-    assert!(name.element().kind() == SyntaxKind::Ident);
+    assert_eq!(name.element().kind(), SyntaxKind::Ident);
     (&name).write(stream, config);
 
     let colon = children.next().expect("requirements item colon");
-    assert!(colon.element().kind() == SyntaxKind::Colon);
+    assert_eq!(colon.element().kind(), SyntaxKind::Colon);
     (&colon).write(stream, config);
     stream.end_word();
 
@@ -345,12 +345,15 @@ pub fn format_requirements_section(
     let mut children = element.children().expect("requirements section children");
 
     let requirements_keyword = children.next().expect("requirements keyword");
-    assert!(requirements_keyword.element().kind() == SyntaxKind::RequirementsKeyword);
+    assert_eq!(
+        requirements_keyword.element().kind(),
+        SyntaxKind::RequirementsKeyword
+    );
     (&requirements_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 
@@ -397,11 +400,11 @@ pub fn format_task_hints_item(
     let mut children = element.children().expect("task hints item children");
 
     let name = children.next().expect("task hints item name");
-    assert!(name.element().kind() == SyntaxKind::Ident);
+    assert_eq!(name.element().kind(), SyntaxKind::Ident);
     (&name).write(stream, config);
 
     let colon = children.next().expect("task hints item colon");
-    assert!(colon.element().kind() == SyntaxKind::Colon);
+    assert_eq!(colon.element().kind(), SyntaxKind::Colon);
     (&colon).write(stream, config);
     stream.end_word();
 
@@ -424,11 +427,11 @@ pub fn format_runtime_item(
     let mut children = element.children().expect("runtime item children");
 
     let name = children.next().expect("runtime item name");
-    assert!(name.element().kind() == SyntaxKind::Ident);
+    assert_eq!(name.element().kind(), SyntaxKind::Ident);
     (&name).write(stream, config);
 
     let colon = children.next().expect("runtime item colon");
-    assert!(colon.element().kind() == SyntaxKind::Colon);
+    assert_eq!(colon.element().kind(), SyntaxKind::Colon);
     (&colon).write(stream, config);
     stream.end_word();
 
@@ -449,12 +452,12 @@ pub fn format_runtime_section(
     let mut children = element.children().expect("runtime section children");
 
     let runtime_keyword = children.next().expect("runtime keyword");
-    assert!(runtime_keyword.element().kind() == SyntaxKind::RuntimeKeyword);
+    assert_eq!(runtime_keyword.element().kind(), SyntaxKind::RuntimeKeyword);
     (&runtime_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 
@@ -501,12 +504,12 @@ pub fn format_task_hints_section(
     let mut children = element.children().expect("task hints section children");
 
     let hints_keyword = children.next().expect("hints keyword");
-    assert!(hints_keyword.element().kind() == SyntaxKind::HintsKeyword);
+    assert_eq!(hints_keyword.element().kind(), SyntaxKind::HintsKeyword);
     (&hints_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 

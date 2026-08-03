@@ -1,7 +1,5 @@
 //! Integration tests for the `textDocument/signatureHelp` request.
 
-pub mod common;
-
 use async_lsp::lsp_types::ParameterLabel;
 use async_lsp::lsp_types::Position;
 use async_lsp::lsp_types::SignatureHelp;
@@ -10,8 +8,10 @@ use async_lsp::lsp_types::SignatureHelpTriggerKind;
 use async_lsp::lsp_types::TextDocumentIdentifier;
 use async_lsp::lsp_types::TextDocumentPositionParams;
 use async_lsp::lsp_types::request::SignatureHelpRequest;
-use common::TestContext;
 use pretty_assertions::assert_eq;
+
+use crate::common::TestContext;
+use crate::common::TestContextBuilder;
 
 async fn signature_help_request(
     ctx: &mut TestContext,
@@ -37,7 +37,7 @@ async fn signature_help_request(
 }
 
 async fn setup() -> TestContext {
-    let mut ctx = TestContext::new("signature_help");
+    let mut ctx = TestContextBuilder::new("signature_help").build();
     ctx.initialize().await;
     ctx
 }

@@ -34,6 +34,7 @@ use tracing::error;
 use tracing::info;
 use tracing::instrument::WithSubscriber;
 use tracing::subscriber::NoSubscriber;
+use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
 use wdl::ast::AstNode;
 use wdl::diagnostics::DiagnosticCounts;
@@ -570,11 +571,6 @@ impl Runner {
                 let is_workflow = callable.is_workflow();
 
                 let run_root: Arc<Path> = self.root.join(&*target).join(&*test.name).into();
-                if run_root.exists() {
-                    remove_dir_all(&run_root).await.with_context(|| {
-                        format!("removing prior test dir: `{}`", run_root.display())
-                    })?;
-                }
 
                 target_results.insert(test.name.clone(), Vec::new());
 
@@ -797,7 +793,15 @@ fn resolve_test_paths(
         .clone()
         .or_else(|| config.run_dir.clone())
         .unwrap_or_else(|| test_dir.join(RUNS_DIR));
-    (fixtures_dir, run_dir)
+    (fixtures_dir, run_dir.join(Uuid::new_v4().to_string()))
+}
+
+async fn clean_all_run_root(run_root: &Path) -> Result<()> {
+    match remove_dir_all(run_root).await {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e).context("cleaning the file system of all test executions"),
+    }
 }
 
 /// Performs the `test` command.
@@ -1019,9 +1023,9 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
     }
 
     if args.clean_all {
-        remove_dir_all(runner.root)
-            .await
-            .context("cleaning the file system of all test executions")?;
+        clean_all_run_root(&runner.root).await?;
+    } else if !args.no_clean {
+        let _ = remove_dir(&runner.root);
     }
 
     if let Some(errors) = NonEmpty::from_vec(errors) {
@@ -1062,9 +1066,10 @@ mod tests {
 
         let (fixtures_dir, run_dir) =
             resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+        let expected_run_dir = workspace.join("test").join("runs");
 
         assert_eq!(fixtures_dir, workspace.join("test").join("fixtures"));
-        assert_eq!(run_dir, workspace.join("test").join("runs"));
+        assert_eq!(run_dir.parent(), Some(expected_run_dir.as_path()));
     }
 
     #[test]
@@ -1076,9 +1081,10 @@ mod tests {
 
         let (fixtures_dir, run_dir) =
             resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+        let expected_run_dir = workspace.join("test").join("runs");
 
         assert_eq!(fixtures_dir, custom_fixtures);
-        assert_eq!(run_dir, workspace.join("test").join("runs"));
+        assert_eq!(run_dir.parent(), Some(expected_run_dir.as_path()));
     }
 
     #[test]
@@ -1092,7 +1098,24 @@ mod tests {
             resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
 
         assert_eq!(fixtures_dir, workspace.join("test").join("fixtures"));
-        assert_eq!(run_dir, custom_run_dir);
+        assert_eq!(run_dir.parent(), Some(custom_run_dir.as_path()));
+    }
+
+    #[test]
+    fn resolve_test_paths_uses_unique_run_dir_per_invocation() {
+        let workspace = PathBuf::from("/workspace");
+        let args = args_with_overrides(None, None);
+        let config = TestConfig::default();
+        let expected_parent = workspace.join("test").join("runs");
+
+        let (_, first_run_dir) =
+            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+        let (_, second_run_dir) =
+            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+
+        assert_ne!(first_run_dir, second_run_dir);
+        assert_eq!(first_run_dir.parent(), Some(expected_parent.as_path()));
+        assert_eq!(second_run_dir.parent(), Some(expected_parent.as_path()));
     }
 
     #[test]
@@ -1107,7 +1130,7 @@ mod tests {
             resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
 
         assert_eq!(fixtures_dir, custom_fixtures);
-        assert_eq!(run_dir, custom_run_dir);
+        assert_eq!(run_dir.parent(), Some(custom_run_dir.as_path()));
     }
 
     #[test]
@@ -1124,7 +1147,7 @@ mod tests {
             resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
 
         assert_eq!(fixtures_dir, PathBuf::from("/config-fixtures"));
-        assert_eq!(run_dir, PathBuf::from("/config-runs"));
+        assert_eq!(run_dir.parent(), Some(Path::new("/config-runs")));
     }
 
     #[test]
@@ -1144,6 +1167,14 @@ mod tests {
             resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
 
         assert_eq!(fixtures_dir, PathBuf::from("/cli-fixtures"));
-        assert_eq!(run_dir, PathBuf::from("/cli-runs"));
+        assert_eq!(run_dir.parent(), Some(Path::new("/cli-runs")));
+    }
+
+    #[tokio::test]
+    async fn clean_all_run_root_ignores_missing_directory() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let run_root = temp_dir.path().join("missing");
+
+        clean_all_run_root(&run_root).await
     }
 }

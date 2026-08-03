@@ -1,13 +1,13 @@
 //! Tests for diagnostic baseline filtering in the LSP.
 
-pub mod common;
-
 use async_lsp::lsp_types::WorkspaceDiagnosticReportResult;
 use async_lsp::lsp_types::WorkspaceDocumentDiagnosticReport;
 use wdl_lint::Baseline;
 use wdl_lint::BaselineEntry;
+use wdl_lsp::LintOptions;
+use wdl_lsp::UserOptions;
 
-use crate::common::TestContext;
+use crate::common::TestContextBuilder;
 
 /// Extracts all diagnostic rule codes from a workspace diagnostic report.
 fn diagnostic_codes(report: &WorkspaceDiagnosticReportResult) -> Vec<String> {
@@ -33,27 +33,24 @@ fn diagnostic_codes(report: &WorkspaceDiagnosticReportResult) -> Vec<String> {
 
 #[tokio::test]
 async fn baseline_suppresses_matching_diagnostics() {
-    let mut ctx = TestContext::with_options_fn("baseline", |workspace| {
-        let hash = blake3::hash(b"x").to_hex();
-        let baseline = Baseline::new(vec![
-            BaselineEntry::new("InputName", "source.wdl", hash),
-            BaselineEntry::new("UnusedInput", "source.wdl", hash),
-        ])
-        .with_base_dir(workspace.to_path_buf());
-        (
-            wdl_lsp::ServerOptions {
-                baseline: Some(baseline),
+    let mut ctx = TestContextBuilder::new("baseline")
+        .user_options(UserOptions {
+            lint: LintOptions {
+                enabled: true,
                 ..Default::default()
             },
-            wdl_lsp::UserOptions {
-                lint: wdl_lsp::LintOptions {
-                    enabled: true,
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-        )
-    });
+            ..Default::default()
+        })
+        .build_with_options_fn(|workspace, server_options, _| {
+            let hash = blake3::hash(b"x").to_hex();
+            let baseline = Baseline::new(vec![
+                BaselineEntry::new("InputName", "source.wdl", hash),
+                BaselineEntry::new("UnusedInput", "source.wdl", hash),
+            ])
+            .with_base_dir(workspace.to_path_buf());
+
+            server_options.baseline = Some(baseline);
+        });
     let (_, report) = ctx.initialize().await;
     let codes = diagnostic_codes(&report);
 
@@ -73,7 +70,15 @@ async fn baseline_suppresses_matching_diagnostics() {
 
 #[tokio::test]
 async fn no_baseline_reports_all_diagnostics() {
-    let mut ctx = TestContext::new("baseline");
+    let mut ctx = TestContextBuilder::new("baseline")
+        .user_options(UserOptions {
+            lint: LintOptions {
+                enabled: true,
+                ..Default::default()
+            },
+            ..Default::default()
+        })
+        .build();
     let (_, report) = ctx.initialize().await;
     let codes = diagnostic_codes(&report);
 
@@ -93,27 +98,24 @@ async fn no_baseline_reports_all_diagnostics() {
 
 #[tokio::test]
 async fn baseline_still_suppresses_after_repeated_pulls() {
-    let mut ctx = TestContext::with_options_fn("baseline", |workspace| {
-        let hash = blake3::hash(b"x").to_hex();
-        let baseline = Baseline::new(vec![
-            BaselineEntry::new("InputName", "source.wdl", hash),
-            BaselineEntry::new("UnusedInput", "source.wdl", hash),
-        ])
-        .with_base_dir(workspace.to_path_buf());
-        (
-            wdl_lsp::ServerOptions {
-                baseline: Some(baseline),
+    let mut ctx = TestContextBuilder::new("baseline")
+        .user_options(UserOptions {
+            lint: LintOptions {
+                enabled: true,
                 ..Default::default()
             },
-            wdl_lsp::UserOptions {
-                lint: wdl_lsp::LintOptions {
-                    enabled: true,
-                    ..Default::default()
-                },
-                ..Default::default()
-            },
-        )
-    });
+            ..Default::default()
+        })
+        .build_with_options_fn(|workspace, server_options, _| {
+            let hash = blake3::hash(b"x").to_hex();
+            let baseline = Baseline::new(vec![
+                BaselineEntry::new("InputName", "source.wdl", hash),
+                BaselineEntry::new("UnusedInput", "source.wdl", hash),
+            ])
+            .with_base_dir(workspace.to_path_buf());
+
+            server_options.baseline = Some(baseline);
+        });
 
     let (_, first) = ctx.initialize().await;
     let codes = diagnostic_codes(&first);
