@@ -4,6 +4,10 @@ use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
 use syn::Error;
+use syn::Expr;
+use syn::ExprArray;
+use syn::ExprPath;
+use syn::ExprTuple;
 use syn::FnArg;
 use syn::Generics;
 use syn::Ident;
@@ -33,6 +37,8 @@ use syn::parse::Nothing;
 use syn::parse_quote;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
+use syn::token::Bracket;
+use syn::token::Paren;
 
 enum SpecialCase {
     /// Where a Python method returns `impl Iterator`, and needs to be
@@ -91,27 +97,9 @@ pub(crate) fn ast_methods(
                 // Make private.
                 py_fn.vis = Visibility::Inherited;
 
-                // Get names of arguments that can be passed to method. (Ex. turn `a: usize, b:
-                // String` into `a, b`.)
-                let method_args = py_fn.sig.inputs.iter()
-                    // Filter out received arguments, they are handled later.
-                    .filter_map(|arg| match arg {
-                        FnArg::Typed(pat_type) => Some(pat_type),
-                        FnArg::Receiver(_) => None,
-                    })
-                    .map(|pat_type| {
-                        match &*pat_type.pat {
-                            Pat::Ident(PatIdent {
-                                ident,
-                                by_ref: None,
-                                mutability: None,
-                                subpat: None,
-                                ..
-                            }) => Ok(ident.clone()),
-                            unexpected => Err(Error::new_spanned(unexpected, "`#[ast_methods]` does not support this pattern in arguments")),
-                        }
-                    })
-                    .collect::<Result<Punctuated<_, Token![,]>>>()?;
+                // Convert function inputs into function arguments. (Ex. turn `a: usize, b: String`
+                // into `a, b`.)
+                let method_args = fn_inputs_to_args(&py_fn.sig.inputs)?;
 
                 if let Some(SpecialCase::ImplIterator) = special_case {
                     // Add `'py` lifetime.
@@ -400,6 +388,74 @@ fn strip_path_generic(type_: &mut Type, generic_ident: Ident) -> Result<()> {
             "`#[ast_methods]` does not support this return type",
         )),
     }
+}
+
+/// Converts function signature inputs into function call arguments.
+///
+/// This function skips receiver inputs like `&self`, assuming they will be
+/// handled by the caller.
+///
+/// This function only supports the following input pattern kinds:
+///
+/// - Idents (`foo: usize`)
+/// - Parentheseses (`(foo): usize`)
+/// - Slices (`[a, b]: [usize; 2]`)
+/// - Tuples (`(a, b, c): (usize, usize, usize)`)
+///
+/// Input patterns that discard data, like `_` and `..`, as well as more complex
+/// patterns, like `Struct { a, b }`, are not supported.
+///
+/// # Examples
+///
+/// - `a: usize, b: String` will result in `a, b`.
+/// - `&self, a: bool` will result in `a`.
+/// - `[a, b]: [usize; 2]` will result in `[a, b]`.
+/// - `(a, b, c): (usize, usize, usize)` will result in `(a, b, c)`.
+/// - `(a, [b, c]): (usize, [usize; 2])` will result in `(a, [b, c])`.
+///
+/// # Errors
+///
+/// This function will return an error if it encounters an unsupported input
+/// pattern.
+fn fn_inputs_to_args(inputs: &Punctuated<FnArg, Token![,]>) -> Result<Punctuated<Expr, Token![,]>> {
+    fn inner(pat_type: &Pat) -> Result<Expr> {
+        match pat_type {
+            Pat::Ident(PatIdent {
+                ident,
+                by_ref: None,
+                ..
+            }) => Ok(Expr::Path(ExprPath {
+                attrs: Vec::new(),
+                qself: None,
+                path: Path::from(ident.clone()),
+            })),
+            Pat::Paren(pat_paren) => inner(&pat_paren.pat),
+            Pat::Slice(pat_slice) => Ok(Expr::Array(ExprArray {
+                attrs: Vec::new(),
+                bracket_token: Bracket::default(),
+                elems: pat_slice.elems.iter().map(inner).collect::<Result<_>>()?,
+            })),
+            Pat::Tuple(pat_tuple) => Ok(Expr::Tuple(ExprTuple {
+                attrs: Vec::new(),
+                paren_token: Paren::default(),
+                elems: pat_tuple.elems.iter().map(inner).collect::<Result<_>>()?,
+            })),
+            unexpected => Err(Error::new_spanned(
+                unexpected,
+                "`#[ast_methods]` does not support this pattern in arguments",
+            )),
+        }
+    }
+
+    inputs
+        .iter()
+        .filter_map(|arg| match arg {
+            FnArg::Typed(pat_type) => Some(&*pat_type.pat),
+            // Discard the receiver, which is usually `&self`.
+            FnArg::Receiver(_) => None,
+        })
+        .map(inner)
+        .collect()
 }
 
 #[cfg(test)]
@@ -720,5 +776,74 @@ mod tests {
                 input.to_token_stream()
             );
         }
+    }
+
+    #[test]
+    fn inputs_to_args_idents() {
+        let input = parse_quote!(a: usize, b: String);
+        let expected = parse_quote!(a, b);
+        assert_eq!(fn_inputs_to_args(&input).unwrap(), expected);
+    }
+
+    #[test]
+    fn inputs_to_args_receiver() {
+        let input = parse_quote!(&self, a: usize);
+        let expected = parse_quote!(a);
+        assert_eq!(fn_inputs_to_args(&input).unwrap(), expected);
+    }
+
+    #[test]
+    fn inputs_to_args_paren() {
+        let input = parse_quote!((a): usize);
+        let expected = parse_quote!(a);
+        assert_eq!(fn_inputs_to_args(&input).unwrap(), expected);
+    }
+
+    #[test]
+    fn inputs_to_args_slice() {
+        let input = parse_quote!([a, b]: [usize; 2]);
+        let expected = parse_quote!([a, b]);
+        assert_eq!(fn_inputs_to_args(&input).unwrap(), expected);
+    }
+
+    #[test]
+    fn inputs_to_args_tuple() {
+        let input = parse_quote!((a, b, c): (usize, usize, usize));
+        let expected = parse_quote!((a, b, c));
+        assert_eq!(fn_inputs_to_args(&input).unwrap(), expected);
+    }
+
+    #[test]
+    fn inputs_to_args_nested() {
+        let input = parse_quote!((a, [b, c]): (usize, [usize; 2]));
+        let expected = parse_quote!((a, [b, c]));
+        assert_eq!(fn_inputs_to_args(&input).unwrap(), expected);
+    }
+
+    #[test]
+    fn inputs_to_args_rest() {
+        let input = parse_quote!([..]: &[usize]);
+        let result = fn_inputs_to_args(&input);
+        assert!(result.is_err(), "did not error on rest pattern: {result:?}");
+    }
+
+    #[test]
+    fn inputs_to_args_struct() {
+        let input = parse_quote!(Struct { a, b }: Struct);
+        let result = fn_inputs_to_args(&input);
+        assert!(
+            result.is_err(),
+            "did not error on struct pattern: {result:?}"
+        );
+    }
+
+    #[test]
+    fn inputs_to_args_wildcard() {
+        let input = parse_quote!(_: usize);
+        let result = fn_inputs_to_args(&input);
+        assert!(
+            result.is_err(),
+            "did not error on wildcard pattern: {result:?}"
+        );
     }
 }
