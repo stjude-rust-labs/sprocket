@@ -40,12 +40,6 @@ use syn::spanned::Spanned;
 use syn::token::Bracket;
 use syn::token::Paren;
 
-enum SpecialCase {
-    /// Where a Python method returns `impl Iterator`, and needs to be
-    /// translated to return a `PyList` instead.
-    ImplIterator,
-}
-
 pub(crate) fn ast_methods(
     args_stream: TokenStream,
     impl_stream: TokenStream,
@@ -67,47 +61,13 @@ pub(crate) fn ast_methods(
     // Remove second generic and add "Py" prefix (`impl Ast<N>` into `impl PyAst`).
     let original_type_path = make_py_self_ty(&mut py_impl.self_ty)?;
 
+    // Create the Python methods from the original methods.
     py_impl.items = original
         .items
         .iter()
         .filter_map(filter_py_method)
-        .cloned()
-        .map(|mut py_fn| -> Result<(ImplItemFn, Option<SpecialCase>)> {
-            if let ReturnType::Type(_, ref mut type_) = py_fn.sig.output {
-                // If the return type is `impl Iterator<...>`, mark this method as a special
-                // case.
-                if is_impl_iterator(type_)? {
-                    return Ok((py_fn, Some(SpecialCase::ImplIterator)));
-                }
-
-                if let Some(ref generic_ident) = ast_generic_ident {
-                    strip_path_generic(type_, generic_ident.clone())?;
-                }
-            }
-
-            Ok((py_fn, None))
-        })
-        .map(move |result| {
-            let (mut py_fn, special_case) = result?;
-
-            let py_ident = format_ident!("py_{}", py_fn.sig.ident);
-            let original_method_ident = std::mem::replace(&mut py_fn.sig.ident, py_ident);
-
-            // Make private.
-            py_fn.vis = Visibility::Inherited;
-
-            // Set method body.
-            if let Some(SpecialCase::ImplIterator) = special_case {
-                make_py_method_body_impl_iterator(
-                    &mut py_fn,
-                    &original_type_path,
-                    original_method_ident,
-                )?;
-            } else {
-                make_py_method_body(&mut py_fn, &original_type_path, original_method_ident)?;
-            }
-
-            Ok(ImplItem::Fn(py_fn))
+        .map(|original_fn| {
+            make_py_method(original_fn, &ast_generic_ident, &original_type_path).map(ImplItem::Fn)
         })
         .collect::<Result<_>>()?;
 
@@ -229,6 +189,57 @@ fn filter_py_method(original: &ImplItem) -> Option<&ImplItemFn> {
     } else {
         None
     }
+}
+
+/// Creates the Python method from the original method.
+///
+/// This clones `original_fn` and applies the following transformations:
+///
+/// - Strips `ast_generic_ident` from the return type using
+///   [`strip_path_generic()`].
+/// - Adds the "py_" prefix to the method name.
+/// - Makes the method private.
+/// - Makes the Python method call the original method, through
+///   [`make_py_method_body()`] or [`make_py_method_body_impl_iterator()`].
+///
+/// # Errors
+///
+/// This function forwards errors from [`is_impl_iterator()`],
+/// [`strip_path_generic()`], [`make_py_method_body_impl_iterator`], and
+/// [`make_py_method_body()`].
+fn make_py_method(
+    original_fn: &ImplItemFn,
+    ast_generic_ident: &Option<Ident>,
+    original_type_path: &Path,
+) -> Result<ImplItemFn> {
+    let mut py_fn = original_fn.clone();
+    let mut impl_iterator = false;
+
+    if let ReturnType::Type(_, ref mut type_) = py_fn.sig.output {
+        // If the return type is `impl Iterator<...>`, mark this method as a special
+        // case.
+        if is_impl_iterator(type_)? {
+            impl_iterator = true;
+        } else if let Some(ast_generic_ident) = ast_generic_ident {
+            strip_path_generic(type_, ast_generic_ident.clone())?;
+        }
+    }
+
+    // Add "py_" prefix.
+    let py_ident = format_ident!("py_{}", py_fn.sig.ident);
+    let original_method_ident = std::mem::replace(&mut py_fn.sig.ident, py_ident);
+
+    // Make private.
+    py_fn.vis = Visibility::Inherited;
+
+    // Set method body.
+    if impl_iterator {
+        make_py_method_body_impl_iterator(&mut py_fn, original_type_path, original_method_ident)?;
+    } else {
+        make_py_method_body(&mut py_fn, original_type_path, original_method_ident)?;
+    }
+
+    Ok(py_fn)
 }
 
 /// Returns true if the given [`Type`] is of the form `impl Iterator<...>`.
