@@ -1016,6 +1016,108 @@ mod tests {
     }
 
     #[test]
+    fn py_method_body_impl_iterator_receiver() {
+        let mut py_fn = parse_quote!(
+            fn py_method(&self) -> impl Iterator<Item = ()> {}
+        );
+
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+
+        let expected = parse_quote! {
+            fn py_method<'py>(&self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
+                ::pyo3::types::PyList::new(py, Ast::from(self.clone()).method())
+            }
+        };
+
+        pretty_assertions::assert_eq!(py_fn, expected);
+    }
+
+    #[test]
+    fn py_method_body_impl_iterator_reference_receiver() {
+        let mut py_fn = parse_quote!(
+            fn py_method(&self) -> impl Iterator<Item = ()> {}
+        );
+
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+
+        let expected = parse_quote! {
+            fn py_method<'py>(&self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
+                ::pyo3::types::PyList::new(py, Ast::from(self.clone()).method())
+            }
+        };
+
+        pretty_assertions::assert_eq!(py_fn, expected);
+    }
+
+    #[test]
+    fn py_method_body_impl_iterator_mut_reference_receiver() {
+        let mut py_fn = parse_quote!(
+            fn py_method(&mut self) -> impl Iterator<Item = ()> {}
+        );
+
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+
+        let expected = parse_quote! {
+            fn py_method<'py>(&mut self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
+                ::pyo3::types::PyList::new(py, Ast::from(self.clone()).method())
+            }
+        };
+
+        pretty_assertions::assert_eq!(py_fn, expected);
+    }
+
+    #[test]
+    fn py_method_body_impl_iterator_value_receiver() {
+        let mut py_fn = parse_quote!(
+            fn py_method(self) -> impl Iterator<Item = ()> {}
+        );
+
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+
+        let expected = parse_quote! {
+            fn py_method<'py>(self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
+                ::pyo3::types::PyList::new(py, Ast::from(self).method())
+            }
+        };
+
+        pretty_assertions::assert_eq!(py_fn, expected);
+    }
+
+    #[test]
+    fn py_method_body_impl_iterator_associated_args() {
+        let mut py_fn = parse_quote!(
+            fn py_method((a, b): (u8, u16)) -> impl Iterator<Item = ()> {}
+        );
+
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+
+        let expected = parse_quote! {
+            fn py_method<'py>((a, b): (u8, u16), py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
+                ::pyo3::types::PyList::new(py, Ast::method((a, b)))
+            }
+        };
+
+        pretty_assertions::assert_eq!(py_fn, expected);
+    }
+
+    #[test]
+    fn py_method_body_impl_iterator_associated_no_args() {
+        let mut py_fn = parse_quote!(
+            fn py_method() -> impl Iterator<Item = ()> {}
+        );
+
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+
+        let expected = parse_quote! {
+            fn py_method<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
+                ::pyo3::types::PyList::new(py, Ast::method())
+            }
+        };
+
+        pretty_assertions::assert_eq!(py_fn, expected);
+    }
+
+    #[test]
     fn inputs_to_args_idents() {
         let input = parse_quote!(a: usize, b: String);
         let expected = parse_quote!(a, b);
