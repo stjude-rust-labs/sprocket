@@ -12,6 +12,7 @@
 
 use std::collections::HashMap;
 use std::fmt;
+use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::process::ExitStatusExt as _;
 #[cfg(windows)]
@@ -73,6 +74,13 @@ use crate::v1::requirements;
 /// The name of the file where the Apptainer command invocation will be written.
 const APPTAINER_COMMAND_FILE_NAME: &str = "apptainer_command";
 
+/// The name of the file which stores the id of the job that was submitted to
+/// LSF.
+const JOB_ID_FILE_NAME: &str = "job_id";
+
+/// The name of the file which stores the full command used to enqueue the task.
+const BSUB_COMMAND_FILE_NAME: &str = "bsub_command";
+
 /// The maximum length of an LSF job name, in *bytes*.
 ///
 /// See <https://www.ibm.com/docs/en/spectrum-lsf/10.1.0?topic=o-j>.
@@ -108,6 +116,28 @@ fn truncate_job_name(name: &str) -> &str {
         .expect("should have index");
 
     &name[0..index]
+}
+
+/// Writes a `bsub_command` file with the given bsub command.
+fn write_bsub_command_file(dir: &Path, command: &Command) -> Result<()> {
+    let path = dir.join(BSUB_COMMAND_FILE_NAME);
+    let mut file = std::fs::File::create(&path)
+        .with_context(|| format!("failed to create file `{path}`", path = path.display()))?;
+    writeln!(&mut file, "{command:?}", command = command.as_std())
+        .with_context(|| format!("failed to write file `{path}`", path = path.display()))?;
+
+    Ok(())
+}
+
+/// Writes a `job_id` file with the given job identifier.
+fn write_job_id_file(dir: &Path, job_id: u64) -> Result<()> {
+    let path = dir.join(JOB_ID_FILE_NAME);
+    let mut file = std::fs::File::create(&path)
+        .with_context(|| format!("failed to create file `{path}`", path = path.display()))?;
+    writeln!(&mut file, "{job_id}")
+        .with_context(|| format!("failed to write file `{path}`", path = path.display()))?;
+
+    Ok(())
 }
 
 /// Represents an LSF job state.
@@ -507,7 +537,13 @@ impl Monitor {
             ))
             .arg(command_path);
 
-        trace!(?command, "spawning `bsub` to queue task");
+        trace!(
+            "spawning `bsub` to queue task: `{command:?}`",
+            command = command.as_std()
+        );
+
+        // Write the full `bsub` command to the attempt directory
+        write_bsub_command_file(request.attempt_dir, &command)?;
 
         let child = command.spawn().context("failed to spawn `bsub`")?;
         let output = child
@@ -539,7 +575,9 @@ impl Monitor {
             })
             .context("`bsub` output did not contain the job identifier")?;
 
+        // Write out the job id to the attempt directory
         debug!("task `{task_name}` was queued as LSF job `{job_id}`");
+        write_job_id_file(request.attempt_dir, job_id)?;
 
         let (tx, rx) = oneshot::channel();
         let mut state = self.state.lock().expect("failed to lock state");
@@ -635,7 +673,10 @@ impl Monitor {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        trace!(?command, "spawning `bjobs` to monitor tasks");
+        trace!(
+            "spawning `bjobs` to monitor tasks: `{command:?}`",
+            command = command.as_std()
+        );
 
         let child = command.spawn().context("failed to spawn `bjobs` command")?;
 
@@ -743,7 +784,10 @@ impl LsfApptainerBackend {
             .await
             .context("failed to acquire permit for canceling job")?;
 
-        trace!(?command, "spawning `bkill` to cancel task");
+        trace!(
+            "spawning `bkill` to cancel task: `{command:?}`",
+            command = command.as_std()
+        );
 
         let mut child = command.spawn().context("failed to spawn `bkill` command")?;
         let status = child.wait().await.context("failed to wait for `bkill`")?;
