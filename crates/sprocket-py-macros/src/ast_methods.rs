@@ -40,6 +40,7 @@ use syn::spanned::Spanned;
 use syn::token::Bracket;
 use syn::token::Paren;
 
+/// See [`#[ast_methods]`](super::ast_methods) documentation.
 pub(crate) fn ast_methods(
     args_stream: TokenStream,
     impl_stream: TokenStream,
@@ -94,6 +95,8 @@ pub(crate) fn ast_methods(
 ///
 /// - There is a `where` clause.
 /// - There are multiple type parameters.
+/// - The type parameter is bound by a trait other than `TreeNode` or
+///   `TreeToken`.
 /// - The type parameter is not bound by any traits (ex. `<T>`) or bound by more
 ///   than one trait (ex. `<T: TreeToken + Display>`).
 fn ast_generic_ident(generics: &Generics) -> Result<Option<Ident>> {

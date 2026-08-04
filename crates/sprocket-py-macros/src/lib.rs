@@ -24,6 +24,9 @@ use syn::Error;
 /// the original `Foo` struct, letting it be returned directly from Python
 /// methods without first being converted to `PyFoo`.
 ///
+/// To make AST element methods available in Python, please see
+/// [`#[ast_methods]`](ast_methods).
+///
 /// # Arguments
 ///
 /// - `module = "sprocket_bio.ast.v1"`: The module the AST element is defined
@@ -82,7 +85,79 @@ pub fn ast(args_stream: TokenStream, item_stream: TokenStream) -> TokenStream {
         .into()
 }
 
-/// TODO
+/// Makes AST element methods available in Python.
+///
+/// When added to an `impl` block, this attribute will make all **public**
+/// functions available in Python. If an public function is annotated with
+/// `#[skip]`, it will not be processed by this macro. These functions must
+/// return a type that implements `IntoPyObject`. If a function returns an `impl
+/// Iterator<Item = T>` where `T: IntoPyObject`, it will be adapted by the
+/// attribute to return a list in Python.
+///
+/// As a general rule of thumb, add this attribute to the main `impl` block for
+/// any type annotated with [`#[ast]`](ast).
+///
+/// # Arguments
+///
+/// This attribute does not accept any arguments.
+///
+/// # Requirements
+///
+/// - The type these methods are implemented for must be annotated with
+///   [`#[ast]`](ast).
+/// - The `impl` block must have zero or one generic type that is bound by
+///   either `TreeNode` or `TreeToken`. (Ex. `impl<N: TreeNode>` or `impl<T:
+///   TreeToken>`).
+/// - This attribute can only be used once per AST element.
+/// - `pyo3` must be available for import with the `macros` feature enabled.
+///
+/// # Examples
+///
+/// ```
+/// #[ast_methods]
+/// impl<N: TreeNode> EnumDefinition<N> {
+///     /// Some documentation...
+///     pub fn name(&self) -> Ident<N::Token> {
+///         // ...
+///     }
+///
+///     /// Other docs...
+///     pub fn keyword(&self) -> EnumKeyword<N::Token> {
+///         // ...
+///     }
+///
+///     pub fn choices(&self) -> impl Iterator<Item = EnumChoice<N>> + use<'_, N> {
+///         // ...
+///     }
+/// }
+/// ```
+///
+/// The above code roughly expands to:
+///
+/// ```
+/// // The original `impl` is untouched.
+/// impl<N: TreeNode> EnumDefinition<N> {
+///     // ...
+/// }
+///
+/// // A new `impl` is created for the Python version of `EnumDefinition`.
+/// #[pymethods]
+/// impl PyEnumDefinition {
+///     /// Some documentation...
+///     fn py_name(&self) -> Ident {
+///         EnumDefinition::from(self.clone()).name()
+///     }
+///
+///     /// Other docs...
+///     fn py_keyword(&self) -> EnumKeyword {
+///         EnumDefinition::from(self.clone()).keyword()
+///     }
+///
+///     fn py_choices<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
+///         PyList::new(py, EnumDefinition::from(self.clone()).choices())
+///     }
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn ast_methods(args_stream: TokenStream, impl_stream: TokenStream) -> TokenStream {
     ast_methods::ast_methods(args_stream.into(), impl_stream.into())
