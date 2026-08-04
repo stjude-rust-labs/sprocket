@@ -415,11 +415,9 @@ impl Postprocessor {
             }
             PreToken::IndentStart => {
                 self.indent_level += 1;
-                self.end_line(stream);
             }
             PreToken::IndentEnd => {
                 self.indent_level = self.indent_level.saturating_sub(1);
-                self.end_line(stream);
             }
             PreToken::LineSpacingPolicy(policy) => {
                 self.line_spacing_policy = policy;

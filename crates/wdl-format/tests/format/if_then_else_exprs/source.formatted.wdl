@@ -11,8 +11,7 @@ workflow if_then_else_exprs {
 
     Int c = (if (a < b)
         then a
-        else b
-    )
+        else b)
 
     Int d = if (a < b)
         then a
