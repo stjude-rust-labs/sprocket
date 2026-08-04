@@ -77,7 +77,8 @@ impl FormatElement {
     }
 
     /// Returns `true` if the underlying syntax for `element` contains a comment
-    /// token.
+    /// token (in case of a node) or has inline or preceding trivia (in case of
+    /// a token).
     ///
     /// `FormatElement` collation drops trivia, so this peeks at the raw syntax
     /// instead.
@@ -90,7 +91,10 @@ impl FormatElement {
         };
         let token = self.element().as_token().expect("must be node or token");
         token.inner().inline_comment().is_some()
-            || token.inner().preceding_trivia().next().is_some()
+            || token
+                .inner()
+                .preceding_trivia()
+                .any(|t| t.kind() == wdl_ast::SyntaxKind::Comment)
     }
 }
 
