@@ -7,7 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Fixed
+#### Added
+
+* The LSF and Slurm backends now write files to the attempt directory recording
+  the command used to queue the task and the resulting job identifiers ([#1057](https://github.com/stjude-rust-labs/sprocket/pull/1057)).
+
+#### Fixed
 
 * The execution backend is now considered for the call cache key derivation,
   which prevents unexpected behavior when switching executing backends. NOTE:
