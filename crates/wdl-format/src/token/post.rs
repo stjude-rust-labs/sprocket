@@ -246,12 +246,14 @@ enum LineBreak {
 }
 
 /// Returns whether a token can be line broken.
+///
+/// Note that tokens which should _always_ be followed by a linebreak (i.e.
+/// braces (`{`, `}`) and heredocs (`<<<`, `>>>`)) are not considered
+/// "linebreakable" by this function.
 fn can_be_line_broken(kind: SyntaxKind) -> Option<LineBreak> {
     match kind {
-        SyntaxKind::CloseBrace
-        | SyntaxKind::CloseBracket
+        SyntaxKind::CloseBracket
         | SyntaxKind::CloseParen
-        | SyntaxKind::CloseHeredoc
         | SyntaxKind::Assignment
         | SyntaxKind::Plus
         | SyntaxKind::Minus
@@ -272,10 +274,8 @@ fn can_be_line_broken(kind: SyntaxKind) -> Option<LineBreak> {
         | SyntaxKind::IfKeyword
         | SyntaxKind::ElseKeyword
         | SyntaxKind::ThenKeyword => Some(LineBreak::Before),
-        SyntaxKind::OpenBrace
-        | SyntaxKind::OpenBracket
+        SyntaxKind::OpenBracket
         | SyntaxKind::OpenParen
-        | SyntaxKind::OpenHeredoc
         | SyntaxKind::Colon
         | SyntaxKind::PlaceholderOpen
         | SyntaxKind::Comma => Some(LineBreak::After),
@@ -536,52 +536,55 @@ impl Postprocessor {
             let mut cached_self = None;
             let mut cached_on = None;
 
-            if let Some(max) = max_length
-                && let PreToken::Literal(_, kind) = token
-                && let Some(LineBreak::Before) = can_be_line_broken(*kind)
-            {
-                // Check if we need a break to match a prior tandem break
-                if let Some(top_of_stack) = break_stack.last_mut() {
-                    if *kind == top_of_stack.close {
-                        if top_of_stack.depth > 0 {
-                            top_of_stack.depth -= 1;
-                        } else {
-                            break_stack.pop();
-                            self.interrupted = true;
-                            self.end_line(&mut post_buffer);
+            if let Some(max) = max_length {
+                if let PreToken::Literal(_, kind) = token
+                    && let Some(LineBreak::Before) = can_be_line_broken(*kind)
+                {
+                    // Check if we need a break to match a prior tandem break
+                    if let Some(top_of_stack) = break_stack.last_mut() {
+                        if *kind == top_of_stack.close {
+                            if top_of_stack.depth > 0 {
+                                top_of_stack.depth -= 1;
+                            } else {
+                                break_stack.pop();
+                                self.indent_level -= 1;
+                                self.end_line(&mut post_buffer);
+                            }
+                        } else if *kind == top_of_stack.open {
+                            top_of_stack.depth += 1;
                         }
-                    } else if *kind == top_of_stack.open {
-                        top_of_stack.depth += 1;
                     }
-                }
-                if post_buffer.last_line_width(config) > max {
-                    // the line is already too long
-                    self.interrupted = true;
-                    self.end_line(&mut post_buffer);
-                    if let Some(also_break_on) = tandem_line_break(*kind) {
-                        let tandem_break = TandemBreak {
-                            open: *kind,
-                            close: also_break_on,
-                            depth: 0,
-                        };
-                        break_stack.push(tandem_break);
+                    if post_buffer.last_line_width(config) > max {
+                        // the line is already too long
+                        self.interrupted = true;
+                        self.end_line(&mut post_buffer);
+                        if let Some(also_break_on) = tandem_line_break(*kind) {
+                            self.indent_level += 1;
+                            self.interrupted = false;
+                            let tandem_break = TandemBreak {
+                                open: *kind,
+                                close: also_break_on,
+                                depth: 0,
+                            };
+                            break_stack.push(tandem_break);
+                        }
+                    } else {
+                        // cache the current state so we can revert to it if
+                        // the line is too long after the next step.
+                        cache = Some(post_buffer.clone());
+                        cached_self = Some(self.clone());
+                        cached_on = Some(*kind);
                     }
-                } else {
-                    // cache the current state so we can revert to it if
-                    // the line is too long after the next step.
+                    prev_kind = Some(*kind);
+                } else if let Some(k) = prev_kind.take()
+                    && matches!(can_be_line_broken(k), Some(LineBreak::After))
+                {
                     cache = Some(post_buffer.clone());
                     cached_self = Some(self.clone());
-                    cached_on = Some(*kind);
+                    cached_on = Some(k);
+                } else {
+                    prev_kind = None;
                 }
-                prev_kind = Some(*kind);
-            } else if let Some(k) = prev_kind.take()
-                && matches!(can_be_line_broken(k), Some(LineBreak::After))
-            {
-                cache = Some(post_buffer.clone());
-                cached_self = Some(self.clone());
-                cached_on = Some(k);
-            } else {
-                prev_kind = None;
             }
 
             let next = pre_buffer.peek().copied();
@@ -606,6 +609,8 @@ impl Postprocessor {
                 self.interrupted = true;
                 self.end_line(&mut post_buffer);
                 if let Some(also_break_on) = tandem_line_break(cached_on) {
+                    self.indent_level += 1;
+                    self.interrupted = false;
                     let tandem_break = TandemBreak {
                         open: cached_on,
                         close: also_break_on,
@@ -619,7 +624,8 @@ impl Postprocessor {
             }
 
             // check if we should line break now, after the step has been taken
-            if let PreToken::Literal(_, kind) = token
+            if let Some(max) = max_length
+                && let PreToken::Literal(_, kind) = token
                 && let Some(LineBreak::After) = can_be_line_broken(*kind)
             {
                 // Check if we need a break to match a prior tandem break
@@ -629,17 +635,19 @@ impl Postprocessor {
                             top_of_stack.depth -= 1;
                         } else {
                             break_stack.pop();
-                            self.interrupted = true;
+                            self.indent_level -= 1;
                             self.end_line(&mut post_buffer);
                         }
                     } else if *kind == top_of_stack.open {
                         top_of_stack.depth += 1;
                     }
                 }
-                if max_length.is_some_and(|max| post_buffer.last_line_width(config) > max) {
+                if post_buffer.last_line_width(config) > max {
                     self.interrupted = true;
                     self.end_line(&mut post_buffer);
                     if let Some(also_break_on) = tandem_line_break(*kind) {
+                        self.indent_level += 1;
+                        self.interrupted = false;
                         let tandem_break = TandemBreak {
                             open: *kind,
                             close: also_break_on,
