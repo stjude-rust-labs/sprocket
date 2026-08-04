@@ -864,10 +864,16 @@ mod tests {
             (parse_quote!(Ast), parse_quote!(Ast)),
             (parse_quote!(Ast<N>), parse_quote!(Ast)),
             (parse_quote!(Ast<T>), parse_quote!(Ast<T>)),
+            (parse_quote!(Ast<N, T>), parse_quote!(Ast<N, T>)),
+            (parse_quote!(Ast<T, N>), parse_quote!(Ast<T, N>)),
             (parse_quote!(super::Ast<N>), parse_quote!(super::Ast)),
             (
                 parse_quote!(Ast<N>::Associated),
                 parse_quote!(Ast::Associated),
+            ),
+            (
+                parse_quote!(Ast<N>::Associated<T>),
+                parse_quote!(Ast::Associated<T>),
             ),
             (
                 parse_quote!(<Ast<N>>::Associated),
