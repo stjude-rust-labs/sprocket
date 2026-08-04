@@ -395,6 +395,7 @@ pub fn format_literal_array(
     let empty = items.is_empty();
     if !empty {
         stream.increment_indent();
+        stream.end_line();
     }
 
     let mut items = items.iter().peekable();
@@ -415,6 +416,7 @@ pub fn format_literal_array(
 
     if !empty {
         stream.decrement_indent();
+        stream.end_line();
     }
     (&close_bracket.expect("literal array close bracket")).write(stream, config);
 }
@@ -459,6 +461,7 @@ pub fn format_literal_map(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut commas = Vec::new();
@@ -496,6 +499,7 @@ pub fn format_literal_map(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("literal map close brace")).write(stream, config);
 }
 
@@ -545,6 +549,7 @@ pub fn format_literal_object(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut members = Vec::new();
     let mut commas = Vec::new();
@@ -582,6 +587,7 @@ pub fn format_literal_object(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("literal object close brace")).write(stream, config);
 }
 
@@ -1007,6 +1013,7 @@ pub fn format_if_expr(
             SyntaxKind::ThenKeyword => {
                 if !in_chain {
                     stream.increment_indent();
+                    stream.end_line();
                 } else {
                     stream.end_line();
                 }

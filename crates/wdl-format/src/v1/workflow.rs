@@ -84,10 +84,12 @@ pub fn format_conditional_statement_clause(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     for child in children {
         if child.element().kind() == SyntaxKind::CloseBrace {
             stream.decrement_indent();
+            stream.end_line();
         }
         (&child).write(stream, config);
     }
@@ -138,10 +140,12 @@ pub fn format_scatter_statement(
     (&open_brace).write(stream, config);
     stream.end_line();
     stream.increment_indent();
+    stream.end_line();
 
     for child in children {
         if child.element().kind() == SyntaxKind::CloseBrace {
             stream.decrement_indent();
+            stream.end_line();
         }
         (&child).write(stream, config);
     }
@@ -179,6 +183,7 @@ pub fn format_workflow_definition(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut meta = None;
     let mut parameter_meta = None;
@@ -267,6 +272,7 @@ pub fn format_workflow_definition(
     stream.trim_while(|t| matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine)));
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("workflow close brace")).write(stream, config);
     stream.end_line();
 }
@@ -287,6 +293,7 @@ pub fn format_workflow_hints_array(
     assert_eq!(open_bracket.element().kind(), SyntaxKind::OpenBracket);
     (&open_bracket).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut commas = Vec::new();
@@ -323,6 +330,7 @@ pub fn format_workflow_hints_array(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_bracket.expect("workflow hints array close bracket")).write(stream, config);
 }
 
@@ -398,10 +406,12 @@ pub fn format_workflow_hints_object(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     for child in children {
         if child.element().kind() == SyntaxKind::CloseBrace {
             stream.decrement_indent();
+            stream.end_line();
         }
         (&child).write(stream, config);
         stream.end_line();
@@ -429,10 +439,12 @@ pub fn format_workflow_hints_section(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     for child in children {
         if child.element().kind() == SyntaxKind::CloseBrace {
             stream.decrement_indent();
+            stream.end_line();
         }
         (&child).write(stream, config);
         stream.end_line();

@@ -35,6 +35,7 @@ pub fn format_struct_definition(
     (&open_brace).write(stream, config);
     stream.end_line();
     stream.increment_indent();
+    stream.end_line();
 
     let mut meta = None;
     let mut parameter_meta = None;
@@ -79,6 +80,7 @@ pub fn format_struct_definition(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("struct definition close brace")).write(stream, config);
     stream.end_line();
 }
@@ -130,6 +132,7 @@ pub fn format_literal_struct(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut members = Vec::new();
     let mut commas = Vec::new();
@@ -172,5 +175,6 @@ pub fn format_literal_struct(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("literal struct close brace")).write(stream, config);
 }
