@@ -266,11 +266,11 @@ fn normalize_string(input: &str, temp_dir: &Path) -> String {
         .replace("sprocket.exe", "sprocket");
 
     // HACK: Assuming all Windows paths are absolute and have at least 2 segments.
-    // Lots of tests have multiline JSON strings with literal "\n" that
+    // Lots of tests have multiline JSON strings with literal `['\', 'n']` that
     // would otherwise be normalized improperly.
-    static WINDOWS_PATH: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r#"(?<drive>[A-Za-z]:)\\[^\r\n"'\\]*\\[^\r\n"']*"#).unwrap());
-    let s = WINDOWS_PATH.replace_all(&s, |caps: &regex::Captures<'_>| {
+    static WINDOWS_PATH_PATTERN: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#"\b(?<drive>[A-Za-z]:)\\[^\r\n"'\\]*\\[^\r\n"']*"#).unwrap());
+    let s = WINDOWS_PATH_PATTERN.replace_all(&s, |caps: &regex::Captures<'_>| {
         // Replace backslashes and strip Windows drive prefixes (e.g., `C:`) from
         // absolute paths.
         let s = caps.get(0).unwrap().as_str();
