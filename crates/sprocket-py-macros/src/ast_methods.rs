@@ -496,7 +496,7 @@ fn make_py_method_body_impl_iterator(
     }
 
     if py_fn.sig.generics.gt_token.is_none() {
-         py_fn.sig.generics.gt_token = Some(<Token![>]>::default());
+        py_fn.sig.generics.gt_token = Some(<Token![>]>::default());
     }
 
     // Add `py: Python<'py>` argument.
@@ -800,6 +800,74 @@ mod tests {
     }
 
     #[test]
+    fn py_method_no_return_type() {
+        let original_fn = parse_quote! { fn method() {} };
+        let ast_generic_ident = None;
+        let original_type_path = parse_quote!(Ast);
+
+        let py_fn = make_py_method(&original_fn, &ast_generic_ident, &original_type_path).unwrap();
+
+        let expected = parse_quote! {
+            fn py_method() {
+                Ast::method()
+            }
+        };
+
+        pretty_assertions::assert_eq!(py_fn, expected);
+    }
+
+    #[test]
+    fn py_method_strip_ident() {
+        let original_fn = parse_quote! { fn method() -> Ast<N> {} };
+        let ast_generic_ident = Some(Ident::new("N", Span::call_site()));
+        let original_type_path = parse_quote!(Ast);
+
+        let py_fn = make_py_method(&original_fn, &ast_generic_ident, &original_type_path).unwrap();
+
+        let expected = parse_quote! {
+            fn py_method() -> Ast {
+                Ast::method()
+            }
+        };
+
+        pretty_assertions::assert_eq!(py_fn, expected);
+    }
+
+    #[test]
+    fn py_method_pub() {
+        let original_fn = parse_quote! { pub fn method() {} };
+        let ast_generic_ident = None;
+        let original_type_path = parse_quote!(Ast);
+
+        let py_fn = make_py_method(&original_fn, &ast_generic_ident, &original_type_path).unwrap();
+
+        let expected = parse_quote! {
+            fn py_method() {
+                Ast::method()
+            }
+        };
+
+        pretty_assertions::assert_eq!(py_fn, expected);
+    }
+
+    #[test]
+    fn py_method_impl_iterator() {
+        let original_fn = parse_quote! { fn method() -> impl Iterator<Item = Ast<N>> {} };
+        let ast_generic_ident = Some(Ident::new("N", Span::call_site()));
+        let original_type_path = parse_quote!(Ast);
+
+        let py_fn = make_py_method(&original_fn, &ast_generic_ident, &original_type_path).unwrap();
+
+        let expected = parse_quote! {
+            fn py_method<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
+                ::pyo3::types::PyList::new(py, Ast::method())
+            }
+        };
+
+        pretty_assertions::assert_eq!(py_fn, expected);
+    }
+
+    #[test]
     fn impl_iterator() {
         let type_: Type = parse_quote!(impl Iterator<Item = ()>);
         assert!(
@@ -1027,7 +1095,8 @@ mod tests {
             fn py_method(&self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method))
+            .unwrap();
 
         let expected = parse_quote! {
             fn py_method<'py>(&self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
@@ -1044,7 +1113,8 @@ mod tests {
             fn py_method(&self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method))
+            .unwrap();
 
         let expected = parse_quote! {
             fn py_method<'py>(&self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
@@ -1061,7 +1131,8 @@ mod tests {
             fn py_method(&mut self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method))
+            .unwrap();
 
         let expected = parse_quote! {
             fn py_method<'py>(&mut self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
@@ -1078,7 +1149,8 @@ mod tests {
             fn py_method(self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method))
+            .unwrap();
 
         let expected = parse_quote! {
             fn py_method<'py>(self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
@@ -1095,7 +1167,8 @@ mod tests {
             fn py_method((a, b): (u8, u16)) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method))
+            .unwrap();
 
         let expected = parse_quote! {
             fn py_method<'py>((a, b): (u8, u16), py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
@@ -1112,7 +1185,8 @@ mod tests {
             fn py_method() -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method))
+            .unwrap();
 
         let expected = parse_quote! {
             fn py_method<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
