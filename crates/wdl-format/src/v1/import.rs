@@ -57,6 +57,7 @@ pub fn format_import_members(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut items = Vec::new();
     let mut commas = Vec::new();
@@ -93,6 +94,7 @@ pub fn format_import_members(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("import members close brace")).write(stream, config);
 }
 
