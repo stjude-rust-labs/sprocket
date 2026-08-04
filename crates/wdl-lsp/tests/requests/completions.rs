@@ -1,7 +1,5 @@
 //! Integration tests for the `textDocument/completion` request.
 
-pub mod common;
-
 use async_lsp::lsp_types::CompletionContext;
 use async_lsp::lsp_types::CompletionItem;
 use async_lsp::lsp_types::CompletionItemKind;
@@ -12,8 +10,10 @@ use async_lsp::lsp_types::Position;
 use async_lsp::lsp_types::TextDocumentIdentifier;
 use async_lsp::lsp_types::TextDocumentPositionParams;
 use async_lsp::lsp_types::request::Completion;
-use common::TestContext;
 use pretty_assertions::assert_eq;
+
+use crate::common::TestContext;
+use crate::common::TestContextBuilder;
 
 async fn completion_request(
     ctx: &mut TestContext,
@@ -52,7 +52,7 @@ fn assert_not_contains(items: &[CompletionItem], unexpected_label: &str) {
 }
 
 async fn setup() -> TestContext {
-    let mut ctx = TestContext::new("completions");
+    let mut ctx = TestContextBuilder::new("completions").build();
     ctx.initialize().await;
     ctx
 }
