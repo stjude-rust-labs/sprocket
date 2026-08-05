@@ -42,7 +42,7 @@ fn make_py_attrs(py_enum: &mut ItemEnum, original: &ItemEnum, args: Args) {
             let module = args.module;
             let class_name = LitStr::new(&original.ident.to_string(), original.ident.span());
 
-            parse_quote!(#[::pyo3::pyclass(module = #module, name = #class_name, frozen, skip_from_py_object, eq)])
+            parse_quote!(#[::pyo3::pyclass(module = #module, name = #class_name, frozen, from_py_object, eq)])
         },
         // We derive `PartialEq` for parity with the original enum.
         parse_quote!(#[derive(PartialEq)]),

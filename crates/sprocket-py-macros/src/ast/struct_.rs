@@ -68,6 +68,23 @@ pub(super) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
             }
         }
 
+        // Let the Python struct be converted directly into a Python object. This lets the Python
+        // struct be stored in enums.
+        impl<'py> ::pyo3::conversion::IntoPyObject<'py> for #py_ident {
+            type Target = ::pyo3::types::PyAny;
+            type Output = ::pyo3::Bound<'py, Self::Target>;
+            type Error = ::pyo3::PyErr;
+
+            fn into_pyobject(self, py: ::pyo3::marker::Python<'py>) -> Result<Self::Output, Self::Error> {
+                use ::pyo3::prelude::*;
+
+                // Make `self` a subclass of `PyAstNode` or `PyAstToken`, allocate it on Python's
+                // heap, then cast it to `PyAny`.
+                Bound::new(py, PyClassInitializer::from(crate::#base_class).add_subclass(self))
+                    .map(Bound::into_any)
+            }
+        }
+
         // Let the original struct be converted directly into a Python object. This lets the
         // original struct be returned directly from Python methods.
         impl<'py> ::pyo3::conversion::IntoPyObject<'py> for #ident {
@@ -125,7 +142,7 @@ fn make_py_attrs(py_struct: &mut ItemStruct, original: &ItemStruct, args: Args, 
                 Span::call_site(),
             );
 
-            parse_quote!(#[::pyo3::pyclass(module = #module, name = #class_name, extends = crate::#extends, frozen, skip_from_py_object, eq)])
+            parse_quote!(#[::pyo3::pyclass(module = #module, name = #class_name, extends = crate::#extends, frozen, from_py_object, eq)])
         },
         // `#[pymethods]` relies on the Python struct being cloneable. We additionally derive
         // `PartialEq` for parity with the original struct.
@@ -232,7 +249,7 @@ mod tests {
         let expected = [
             parse_quote!(#[doc = r" Doc comment"]),
             parse_quote!(#[doc = r" Another doc comment "]),
-            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "Foo", extends = crate::PyAstNode, frozen, skip_from_py_object, eq)]),
+            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "Foo", extends = crate::PyAstNode, frozen, from_py_object, eq)]),
             parse_quote!(#[derive(Clone, PartialEq)]),
             parse_quote!(#[allow(missing_debug_implementations)]),
         ];
@@ -248,7 +265,7 @@ mod tests {
         make_py_attrs(&mut py_struct, &original, Args::default(), AstKind::Token);
 
         let expected = [
-            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "Foo", extends = crate::PyAstToken, frozen, skip_from_py_object, eq)]),
+            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "Foo", extends = crate::PyAstToken, frozen, from_py_object, eq)]),
             parse_quote!(#[derive(Clone, PartialEq)]),
             parse_quote!(#[allow(missing_debug_implementations)]),
         ];
@@ -271,7 +288,7 @@ mod tests {
         );
 
         let expected = [
-            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.custom_module", name = "Foo", extends = crate::PyAstToken, frozen, skip_from_py_object, eq)]),
+            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.custom_module", name = "Foo", extends = crate::PyAstToken, frozen, from_py_object, eq)]),
             parse_quote!(#[derive(Clone, PartialEq)]),
             parse_quote!(#[allow(missing_debug_implementations)]),
         ];
