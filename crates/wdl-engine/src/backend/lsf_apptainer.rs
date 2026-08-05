@@ -120,7 +120,7 @@ fn truncate_job_name(name: &str) -> &str {
 /// Writes a `bsub_command` file with the given `bsub` command.
 async fn write_bsub_command_file(dir: &Path, command: &Command) -> Result<()> {
     let path = dir.join(BSUB_COMMAND_FILE_NAME);
-    fs::write(&path, format!("{command:?}\n"))
+    fs::write(&path, format!("{command:?}\n", command = command.as_std()))
         .await
         .with_context(|| format!("failed to write file `{path}`", path = path.display()))?;
     Ok(())
