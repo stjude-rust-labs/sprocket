@@ -1,24 +1,28 @@
-warning: missing required call input `input4` for task `t`
-   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:33:10
+error: type mismatch: expected type `Int`, but found type `Int?`
+   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:37:18
    │
-33 │     call t as t1 { input:
-   │          ^
+37 │         input4 = absent,
+   │         ------   ^^^^^^ this is type `Int?`
+   │         │         
+   │         this expects type `Int`
 
 warning: missing required call input `input4` for task `t`
-   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:39:10
+   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:40:10
    │
-39 │     call t as t2
+40 │     call t as t2
    │          ^
 
-warning: missing required call input `input4` for workflow `w`
-   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:41:12
+error: type mismatch: expected type `Int`, but found type `Int?`
+   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:46:18
    │
-41 │     call w.w as w1 { input:
-   │            ^
+46 │         input4 = absent,
+   │         ------   ^^^^^^ this is type `Int?`
+   │         │         
+   │         this expects type `Int`
 
 warning: missing required call input `input4` for workflow `w`
-   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:47:12
+   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:49:12
    │
-47 │     call w.w as w2
+49 │     call w.w as w2
    │            ^
 
