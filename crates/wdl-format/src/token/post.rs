@@ -598,10 +598,7 @@ impl Postprocessor {
                 // revert
                 post_buffer = cache;
                 // reset self
-                self.indent_level = cached_self.indent_level;
-                self.temp_indent = cached_self.temp_indent;
-                self.interrupted = cached_self.interrupted;
-                self.position = cached_self.position;
+                *self = cached_self;
 
                 // line break
                 self.interrupted = true;
