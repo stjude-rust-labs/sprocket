@@ -575,7 +575,6 @@ impl Postprocessor {
                         cached_self = Some(self.clone());
                         cached_on = Some(*kind);
                     }
-                    prev_kind = Some(*kind);
                 } else if let Some(k) = prev_kind.take()
                     && matches!(can_be_line_broken(k), Some(LineBreak::After))
                 {
@@ -628,6 +627,9 @@ impl Postprocessor {
                 && let PreToken::Literal(_, kind) = token
                 && let Some(LineBreak::After) = can_be_line_broken(*kind)
             {
+                // will be cleared to `None` if a linebreak is added this pass
+                prev_kind = Some(*kind);
+
                 // Check if we need a break to match a prior tandem break
                 if let Some(top_of_stack) = break_stack.last_mut() {
                     if *kind == top_of_stack.close {
@@ -637,6 +639,8 @@ impl Postprocessor {
                             break_stack.pop();
                             self.indent_level -= 1;
                             self.end_line(&mut post_buffer);
+
+                            prev_kind = None;
                         }
                     } else if *kind == top_of_stack.open {
                         top_of_stack.depth += 1;
@@ -655,8 +659,9 @@ impl Postprocessor {
                         };
                         break_stack.push(tandem_break);
                     }
+
+                    prev_kind = None;
                 }
-                prev_kind = Some(*kind);
             }
         }
 
