@@ -1,4 +1,4 @@
-## This is a test that failing to pass a required input without a
+## This is a test that fails to pass a required input without a
 ## default is still an error in WDL 1.0.
 ## See: https://github.com/stjude-rust-labs/sprocket/issues/812
 #@ except: UnusedCall, UnusedDeclaration, UnusedInput
