@@ -165,7 +165,7 @@ manual_assert_eq = "warn"
 
 [package]
 name = "sprocket"
-version = "0.28.1"
+version = "0.28.2"
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true
