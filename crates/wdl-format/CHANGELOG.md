@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-* Extraneous tokens (e.g. trailing commas and empty call input blocks) are dropped from the output ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034))). 
+* Extraneous tokens (e.g. trailing commas and empty call input blocks) are dropped from the output ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)). 
 
 #### Fixed
 
-* Comments within import statements are preserved ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034))).
-* Non-directive comment ordering and blank lines are preserved ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034))).
+* Comments within import statements are preserved ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
+* Non-directive comment ordering and blank lines are preserved ([#1034](https://github.com/stjude-rust-labs/sprocket/pull/1034)).
 * Better handling of "interrupting" comments so that common comment placements don't result in awkward whitespace ([#1033](https://github.com/stjude-rust-labs/sprocket/pull/1033)).
 
 ## 0.20.0 - 2026-07-15
