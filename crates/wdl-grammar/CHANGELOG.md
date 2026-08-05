@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.25.1 - 2026-08-05
+
 #### Fixed
 
 * Fixed parsing of WDL 1.0 to treat `None` as an identifier (i.e. in a name
