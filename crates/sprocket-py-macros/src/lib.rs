@@ -113,7 +113,7 @@ pub fn ast(args_stream: TokenStream, item_stream: TokenStream) -> TokenStream {
 ///
 /// # Examples
 ///
-/// ```
+/// ```ignore
 /// #[ast_methods]
 /// impl<N: TreeNode> EnumDefinition<N> {
 ///     /// Some documentation...
@@ -134,7 +134,7 @@ pub fn ast(args_stream: TokenStream, item_stream: TokenStream) -> TokenStream {
 ///
 /// The above code roughly expands to:
 ///
-/// ```
+/// ```ignore
 /// // The original `impl` is untouched.
 /// impl<N: TreeNode> EnumDefinition<N> {
 ///     // ...
