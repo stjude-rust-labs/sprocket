@@ -247,9 +247,9 @@ enum LineBreak {
 
 /// Returns whether a token can be line broken.
 ///
-/// Note that tokens which should _always_ be followed by a linebreak (i.e.
-/// braces (`{`, `}`) and heredocs (`<<<`, `>>>`)) are not considered
-/// "linebreakable" by this function.
+/// Note that this function only returns `true` for tokens that do not otherwise
+/// get linebroken. Tokens which are either always or sometimes linebroken
+/// should be handled during [`PreToken`] processing.
 fn can_be_line_broken(kind: SyntaxKind) -> Option<LineBreak> {
     match kind {
         SyntaxKind::CloseBracket
