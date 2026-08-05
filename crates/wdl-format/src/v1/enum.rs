@@ -43,6 +43,7 @@ pub fn format_enum_definition(
                 (&child).write(stream, config);
                 stream.end_line();
                 stream.increment_indent();
+                stream.end_line();
             }
             SyntaxKind::EnumChoiceNode => {
                 choices.push(child.clone());
@@ -62,18 +63,24 @@ pub fn format_enum_definition(
         }
     }
 
+    let mut choices = choices.iter().peekable();
     let mut commas = commas.iter();
-    for choice in choices {
+    while let Some(choice) = choices.next() {
         (&choice).write(stream, config);
-        if let Some(comma) = commas.next() {
+        if let Some(comma) = commas.next()
+            && (choices.peek().is_some() || comma.has_comment())
+        {
             (comma).write(stream, config);
+            if choices.peek().is_some() {
+                stream.end_line();
+            }
         } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
-        stream.end_line();
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("enum definition close brace")).write(stream, config);
     stream.end_line();
 }

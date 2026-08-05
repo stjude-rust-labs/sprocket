@@ -162,6 +162,7 @@ workflow seaseq {
     ### ------------ S E C T I O N 1 ----------- ###
     ### ------ Pre-process Analysis Files ------ ###
     ### ---------------------------------------- ###
+
     # Process SRRs
     if (defined(sample_sraid)) {
         # Download sample file(s) from SRA database
@@ -289,6 +290,7 @@ workflow seaseq {
     ### ---------------- S E C T I O N 1 ---------------- ###
     ### ----------- B: remove Spike-IN reads ------------ ###
     ### ------------------------------------------------- ###
+
     # if multiple fastqfiles are provided
     Boolean multi_fastq = if length(original_fastqfiles) > 1
         then true
@@ -303,15 +305,13 @@ workflow seaseq {
                 inputfile = eachfastq,
                 default_location = if (one_fastq)
                     then sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/FastQC"
-                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/FastQC"
-                ,
+                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/FastQC",
             }
             call util.basicfastqstats as spikein_indv_bfs { input:
                 fastqfile = eachfastq,
                 default_location = if (one_fastq)
                     then sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
-                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
-                ,
+                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats",
             }
             call bowtie.spikein_SE as spikein_indv_map { input:
                 fastqfile = eachfastq,
@@ -319,8 +319,7 @@ workflow seaseq {
                 metricsfile = spikein_indv_bfs.metrics_out,
                 default_location = if (one_fastq)
                     then sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
-                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats"
-                ,
+                    else "SAMPLE/" + sub(basename(eachfastq), ".fastq.gz|.fq.gz", "") + "/SpikeIn/SummaryStats",
             }
         }
 
@@ -335,6 +334,7 @@ workflow seaseq {
     ### ---------------- S E C T I O N 2 ---------------- ###
     ### ---- A: analysis if multiple FASTQs provided ---- ###
     ### ------------------------------------------------- ###
+
     if (multi_fastq) {
         scatter (eachfastq in fastqfiles) {
             # Execute analysis on each fastq file provided
@@ -423,12 +423,10 @@ workflow seaseq {
             metricsfiles = indv_bfs.metrics_out,
             default_location = if defined(results_name)
                 then results_name + "/BAM_files"
-                else "AllMerge_" + length(indv_mapping.sorted_bam) + "_mapped" + "/BAM_files"
-            ,
+                else "AllMerge_" + length(indv_mapping.sorted_bam) + "_mapped" + "/BAM_files",
             outputfile = if defined(results_name)
                 then results_name + ".sorted.bam"
-                else "AllMerge_" + length(fastqfiles) + "_mapped.sorted.bam"
-            ,
+                else "AllMerge_" + length(fastqfiles) + "_mapped.sorted.bam",
         }
 
         call fastqc.fastqc as mergebamfqc { input:
@@ -480,6 +478,7 @@ workflow seaseq {
     ### ------------ S E C T I O N 2 ----------- ###
     ### -- B: analysis if one FASTQ provided --- ###
     ### ---------------------------------------- ###
+
     # if only one fastqfile is provided
     if (one_fastq) {
         # Execute analysis on each fastq file provided
@@ -536,6 +535,7 @@ workflow seaseq {
     ### ------------ S E C T I O N 3 ----------- ###
     ### ----------- ChIP-seq analysis ---------- ###
     ### ---------------------------------------- ###
+
     # ChIP-seq and downstream analysis
     # Execute analysis on merge bam file
     # Analysis executed:
@@ -746,6 +746,7 @@ workflow seaseq {
     ### ------------ S E C T I O N 4 ----------- ###
     ### ---------- Summary Statistics ---------- ###
     ### ---------------------------------------- ###
+
     String string_qual = ""  #buffer to allow for optionality in if statement
 
     #SUMMARY STATISTICS
