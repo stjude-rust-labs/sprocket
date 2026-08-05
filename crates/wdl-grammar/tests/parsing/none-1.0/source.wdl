@@ -5,7 +5,7 @@ workflow test_none_literal {
     String value
   }
 
-  # In version 1.0, `None` should parse as an name reference expression
+  # In version 1.0, `None` should parse as a name reference expression.
   String? maybe_value = if (value == "match") then value else None
 
   output {
