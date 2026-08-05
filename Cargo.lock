@@ -6567,6 +6567,7 @@ dependencies = [
  "tracing-subscriber",
  "wdl-analysis",
  "wdl-ast",
+ "wdl-modules",
  "which",
 ]
 
