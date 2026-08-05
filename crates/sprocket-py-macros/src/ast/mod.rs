@@ -1,6 +1,6 @@
 //! TODO
 
-// mod enum_;
+mod enum_;
 mod struct_;
 
 use proc_macro2::Span;
@@ -57,7 +57,7 @@ pub(crate) fn ast(args_stream: TokenStream, item_stream: TokenStream) -> Result<
 
     let expanded = match &item {
         Item::Struct(struct_) => struct_::build(struct_, args)?,
-        // Item::Enum(enum_) => enum_::build(enum_, args)?,
+        Item::Enum(enum_) => enum_::build(enum_, args)?,
         unsupported => {
             return Err(Error::new_spanned(
                 unsupported,
