@@ -20,6 +20,25 @@
     @apply bg-slate-900 text-slate-200 border-slate-700 rounded-md font-mono border;
 }
 
+.markdown-body img,
+.markdown-body svg,
+.markdown-body video,
+.markdown-body canvas,
+.markdown-body audio,
+.markdown-body iframe,
+.markdown-body embed,
+.markdown-body object {
+    display: inline-block;
+}
+
+.markdown-body ul {
+    list-style: disc;
+}
+
+.markdown-body ol {
+    list-style: decimal;
+}
+
 .main__container .markdown-body {
     @apply max-w-4xl;
 }

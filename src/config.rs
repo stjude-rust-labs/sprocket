@@ -740,6 +740,10 @@ pub struct DocConfig {
     #[toml(default = String::from(sentinel_doc_config_value()))]
     #[schemars(default = "sentinel_doc_config_value")]
     pub github_url: String,
+    /// An optional link to the project's Slack workspace.
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub slack_url: String,
     /// Initialize pages in light mode instead of the default dark mode.
     #[toml(default)]
     #[schemars(default)]
@@ -754,6 +758,10 @@ pub struct DocConfig {
     #[toml(default, style = Header)]
     #[schemars(default)]
     pub extra_html: DocExtraHtmlConfig,
+    /// Search-engine-optimization metadata embedded in each page's `<head>`.
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub seo: DocSeoConfig,
 }
 
 impl Default for DocConfig {
@@ -764,9 +772,11 @@ impl Default for DocConfig {
             alt_light_logo: sentinel_doc_config_value().into(),
             homepage_url: sentinel_doc_config_value().into(),
             github_url: sentinel_doc_config_value().into(),
+            slack_url: sentinel_doc_config_value().into(),
             light_mode: false,
             with_doc_comments: false,
             extra_html: DocExtraHtmlConfig::default(),
+            seo: DocSeoConfig::default(),
         }
     }
 }
@@ -818,6 +828,15 @@ impl DocConfig {
         }
     }
 
+    /// Get the URL to the project's Slack workspace, if configured.
+    pub fn slack_url(&self) -> Option<Url> {
+        if self.slack_url == sentinel_doc_config_value() {
+            None
+        } else {
+            Some(Url::from_str(&self.slack_url).expect("validated already"))
+        }
+    }
+
     /// Validates the configuration.
     pub fn validate(&self) -> Result<()> {
         if self.homepage_url != sentinel_doc_config_value() {
@@ -832,6 +851,13 @@ impl DocConfig {
                 Err(e) => Err(anyhow!("error while parsing configured GitHub URL: {e}")),
             }?;
         }
+        if self.slack_url != sentinel_doc_config_value() {
+            match Url::from_str(&self.slack_url) {
+                Ok(_) => Ok(()),
+                Err(e) => Err(anyhow!("error while parsing configured slack url: {e}")),
+            }?;
+        }
+        self.seo.validate()?;
         Ok(())
     }
 }
@@ -892,6 +918,150 @@ impl Default for DocExtraHtmlConfig {
             head: sentinel_doc_config_value().into(),
             body_open: sentinel_doc_config_value().into(),
             body_close: sentinel_doc_config_value().into(),
+        }
+    }
+}
+
+/// `doc.seo` command configuration.
+///
+/// Site-level search-engine-optimization metadata embedded into each page's
+/// `<head>`. Every field is optional.
+#[derive(Debug, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+pub struct DocSeoConfig {
+    /// Site title. When set, each page's `<title>` becomes `"<page> | <title>"`
+    /// and drives `og:site_name`.
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub title: String,
+    /// Default page description (`<meta name="description">` and the Open Graph
+    /// and Twitter Card descriptions).
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub description: String,
+    /// Content author (`<meta name="author">`).
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub author: String,
+    /// Keywords (`<meta name="keywords">`).
+    #[toml(default)]
+    #[schemars(default)]
+    pub keywords: Vec<String>,
+    /// Absolute site base URL used to build per-page `<link rel="canonical">`
+    /// and `og:url` values.
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub base_url: String,
+    /// Social-preview image URL (`og:image`, `twitter:image`).
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub image_url: String,
+    /// Open Graph locale (`og:locale`); defaults to `en_US` when unset.
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub locale: String,
+    /// Twitter handle, including the leading `@` (`twitter:site`,
+    /// `twitter:creator`).
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub twitter_handle: String,
+    /// Robots directive (`<meta name="robots">`, e.g. `index, follow`).
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub robots: String,
+    /// Browser theme color (`<meta name="theme-color">`).
+    #[toml(default = String::from(sentinel_doc_config_value()))]
+    #[schemars(default = "sentinel_doc_config_value")]
+    pub theme_color: String,
+}
+
+impl DocSeoConfig {
+    /// Returns the value unless it is the unset sentinel.
+    fn present(value: &str) -> Option<String> {
+        if value == sentinel_doc_config_value() {
+            None
+        } else {
+            Some(value.to_string())
+        }
+    }
+
+    /// Get the configured site title, if any.
+    pub fn title(&self) -> Option<String> {
+        Self::present(&self.title)
+    }
+
+    /// Get the configured page description, if any.
+    pub fn description(&self) -> Option<String> {
+        Self::present(&self.description)
+    }
+
+    /// Get the configured author, if any.
+    pub fn author(&self) -> Option<String> {
+        Self::present(&self.author)
+    }
+
+    /// Get the configured keywords.
+    pub fn keywords(&self) -> Vec<String> {
+        self.keywords.clone()
+    }
+
+    /// Get the configured base URL, if any.
+    pub fn base_url(&self) -> Option<Url> {
+        Self::present(&self.base_url).map(|u| Url::from_str(&u).expect("validated already"))
+    }
+
+    /// Get the configured social-preview image URL, if any.
+    pub fn image_url(&self) -> Option<Url> {
+        Self::present(&self.image_url).map(|u| Url::from_str(&u).expect("validated already"))
+    }
+
+    /// Get the configured Open Graph locale, if any.
+    pub fn locale(&self) -> Option<String> {
+        Self::present(&self.locale)
+    }
+
+    /// Get the configured Twitter handle, if any.
+    pub fn twitter_handle(&self) -> Option<String> {
+        Self::present(&self.twitter_handle)
+    }
+
+    /// Get the configured robots directive, if any.
+    pub fn robots(&self) -> Option<String> {
+        Self::present(&self.robots)
+    }
+
+    /// Get the configured theme color, if any.
+    pub fn theme_color(&self) -> Option<String> {
+        Self::present(&self.theme_color)
+    }
+
+    /// Validates the SEO configuration.
+    pub fn validate(&self) -> Result<()> {
+        if self.base_url != sentinel_doc_config_value() {
+            Url::from_str(&self.base_url)
+                .map_err(|e| anyhow!("error while parsing configured SEO base URL: {e}"))?;
+        }
+        if self.image_url != sentinel_doc_config_value() {
+            Url::from_str(&self.image_url)
+                .map_err(|e| anyhow!("error while parsing configured SEO image URL: {e}"))?;
+        }
+        Ok(())
+    }
+}
+
+impl Default for DocSeoConfig {
+    fn default() -> Self {
+        Self {
+            title: sentinel_doc_config_value().into(),
+            description: sentinel_doc_config_value().into(),
+            author: sentinel_doc_config_value().into(),
+            keywords: Vec::new(),
+            base_url: sentinel_doc_config_value().into(),
+            image_url: sentinel_doc_config_value().into(),
+            locale: sentinel_doc_config_value().into(),
+            twitter_handle: sentinel_doc_config_value().into(),
+            robots: sentinel_doc_config_value().into(),
+            theme_color: sentinel_doc_config_value().into(),
         }
     }
 }
@@ -1138,6 +1308,27 @@ mod test {
         assert!(
             !failed,
             "the generated schema does not match the current `sprocket.toml`!"
+        );
+    }
+
+    #[test]
+    fn doc_slack_url_is_optional_and_validated() {
+        let mut config = DocConfig::default();
+        assert_eq!(config.slack_url(), None);
+
+        config.slack_url = "https://example.slack.com".to_string();
+        assert_eq!(
+            config.slack_url().as_ref().map(Url::as_str),
+            Some("https://example.slack.com/")
+        );
+        assert!(config.validate().is_ok());
+
+        config.slack_url = "not a url".to_string();
+        // SAFETY: the configured value is deliberately invalid.
+        let error = config.validate().unwrap_err().to_string();
+        assert!(
+            error.contains("configured slack url"),
+            "unexpected validation error: {error}"
         );
     }
 }
