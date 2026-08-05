@@ -84,7 +84,7 @@ const DEFAULT_MAX_CONCURRENCY: u32 = 10;
 /// Writes a `sbatch_command` file with the given `sbatch` command.
 async fn write_sbatch_command_file(dir: &Path, command: &Command) -> Result<()> {
     let path = dir.join(SBATCH_COMMAND_FILE_NAME);
-    fs::write(&path, format!("{command:?}\n"))
+    fs::write(&path, format!("{command:?}\n", command = command.as_std()))
         .await
         .with_context(|| format!("failed to write file `{path}`", path = path.display()))?;
     Ok(())
