@@ -9,6 +9,7 @@ use syn::ExprArray;
 use syn::ExprPath;
 use syn::ExprTuple;
 use syn::FnArg;
+use syn::GenericArgument;
 use syn::Generics;
 use syn::Ident;
 use syn::ImplItem;
@@ -29,6 +30,7 @@ use syn::TypeArray;
 use syn::TypeGroup;
 use syn::TypeParamBound;
 use syn::TypeParen;
+use syn::TypePath;
 use syn::TypePtr;
 use syn::TypeReference;
 use syn::TypeSlice;
@@ -299,11 +301,30 @@ fn is_impl_iterator(type_: &Type) -> Result<bool> {
 fn strip_path_generic(type_: &mut Type, generic_ident: Ident) -> Result<()> {
     match type_ {
         Type::Path(type_path) => {
-            let path_argument = PathArguments::AngleBracketed(parse_quote!(<#generic_ident>));
-
             for segments in type_path.path.segments.iter_mut() {
-                if segments.arguments == path_argument {
-                    segments.arguments = PathArguments::None;
+                if let PathArguments::AngleBracketed(ref mut path_arguments) = segments.arguments {
+                    // Generics with default types must be last, so we start looking for them at
+                    // the end.
+                    for i in (0..path_arguments.args.len()).rev() {
+                        if let GenericArgument::Type(ref type_) = path_arguments.args[i]
+                            && let Type::Path(TypePath {
+                                path, qself: None, ..
+                            }) = type_
+                            && let Some(first) = path.segments.first()
+                            && first.ident == generic_ident
+                        {
+                            path_arguments.args.pop();
+                        } else {
+                            // If the last argument isn't what we're looking for, it may not be a
+                            // generic with a default type. Exit out.
+                            break;
+                        }
+                    }
+
+                    // If we ended up removing all arguments, convert `AngleBracketed` into `None`.
+                    if path_arguments.args.is_empty() {
+                        segments.arguments = PathArguments::None;
+                    }
                 }
             }
 
@@ -934,9 +955,10 @@ mod tests {
             // Paths
             (parse_quote!(Ast), parse_quote!(Ast)),
             (parse_quote!(Ast<N>), parse_quote!(Ast)),
+            (parse_quote!(Ast<N::Token>), parse_quote!(Ast)),
             (parse_quote!(Ast<T>), parse_quote!(Ast<T>)),
             (parse_quote!(Ast<N, T>), parse_quote!(Ast<N, T>)),
-            (parse_quote!(Ast<T, N>), parse_quote!(Ast<T, N>)),
+            (parse_quote!(Ast<T, N>), parse_quote!(Ast<T,>)),
             (parse_quote!(super::Ast<N>), parse_quote!(super::Ast)),
             (
                 parse_quote!(Ast<N>::Associated),
