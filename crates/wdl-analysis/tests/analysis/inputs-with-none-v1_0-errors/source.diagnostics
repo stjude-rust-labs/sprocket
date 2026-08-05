@@ -1,24 +1,24 @@
 warning: missing required call input `input4` for task `t`
-   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:29:10
+   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:33:10
    │
-29 │     call t as t1 { input:
+33 │     call t as t1 { input:
    │          ^
 
 warning: missing required call input `input4` for task `t`
-   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:32:10
+   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:39:10
    │
-32 │     call t as t2
+39 │     call t as t2
    │          ^
 
 warning: missing required call input `input4` for workflow `w`
-   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:34:12
+   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:41:12
    │
-34 │     call w.w as w1 { input:
+41 │     call w.w as w1 { input:
    │            ^
 
 warning: missing required call input `input4` for workflow `w`
-   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:37:12
+   ┌─ tests/analysis/inputs-with-none-v1_0-errors/source.wdl:47:12
    │
-37 │     call w.w as w2
+47 │     call w.w as w2
    │            ^
 

@@ -34,7 +34,6 @@ workflow test {
         input1 = absent,
         input2 = absent,
         input3 = absent,
-        input4 = absent,
     }
 
     call t as t2
@@ -43,7 +42,6 @@ workflow test {
         input1 = absent,
         input2 = absent,
         input3 = absent,
-        input4 = absent,
     }
 
     call w.w as w2
