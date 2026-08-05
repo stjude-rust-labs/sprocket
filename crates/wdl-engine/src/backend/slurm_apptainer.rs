@@ -82,7 +82,7 @@ const DEFAULT_MONITOR_INTERVAL: u64 = 30;
 /// The default maximum concurrency for `sbatch` and `scancel` operations.
 const DEFAULT_MAX_CONCURRENCY: u32 = 10;
 
-/// Writes a `sbatch_command` file with the given sbatch command.
+/// Writes a `sbatch_command` file with the given `sbatch` command.
 fn write_sbatch_command_file(dir: &Path, command: &Command) -> Result<()> {
     let path = dir.join(SBATCH_COMMAND_FILE_NAME);
     let mut file = std::fs::File::create(&path)
