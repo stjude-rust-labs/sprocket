@@ -581,9 +581,8 @@ impl Postprocessor {
                     cache = Some(post_buffer.clone());
                     cached_self = Some(self.clone());
                     cached_on = Some(k);
-                } else {
-                    prev_kind = None;
                 }
+                prev_kind = None;
             }
 
             let next = pre_buffer.peek().copied();
