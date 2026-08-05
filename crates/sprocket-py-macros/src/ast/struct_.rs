@@ -27,7 +27,7 @@ enum AstKind {
 pub(super) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
     let mut py_struct = original.clone();
 
-    super::make_py_ident(&mut py_struct, original);
+    py_struct.ident = super::make_py_ident(&original.ident);
 
     let ast_kind = ast_kind(original)?;
 

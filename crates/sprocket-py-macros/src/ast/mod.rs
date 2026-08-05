@@ -8,8 +8,8 @@ use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
 use syn::Error;
+use syn::Ident;
 use syn::Item;
-use syn::ItemStruct;
 use syn::LitStr;
 use syn::Result;
 use syn::parse::Parser;
@@ -72,14 +72,15 @@ pub(crate) fn ast(args_stream: TokenStream, item_stream: TokenStream) -> Result<
     })
 }
 
-/// Modifies the [`Ident`] of `py_struct` to its Python name.
-fn make_py_ident(py_struct: &mut ItemStruct, original: &ItemStruct) {
-    py_struct.ident = format_ident!("Py{}", original.ident);
+/// Makes the Python item's name from the original item's [`Ident`].
+fn make_py_ident(original: &Ident) -> Ident {
+    format_ident!("Py{}", original)
 }
 
 #[cfg(test)]
 mod tests {
     use quote::quote;
+    use syn::ItemStruct;
     use syn::parse_quote;
 
     use super::*;
@@ -116,7 +117,7 @@ mod tests {
         let original: ItemStruct = parse_quote! { struct Foo; };
         let mut py_struct = original.clone();
 
-        make_py_ident(&mut py_struct, &original);
+        py_struct.ident = make_py_ident(&original.ident);
 
         assert_eq!(py_struct.ident.to_string(), "PyFoo");
     }
