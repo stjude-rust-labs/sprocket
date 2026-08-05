@@ -26,12 +26,24 @@ task t {
 }
 
 workflow test {
+    input {
+        Int? absent
+    }
+
     call t as t1 { input:
+        input1 = absent,
+        input2 = absent,
+        input3 = absent,
+        input4 = absent,
     }
 
     call t as t2
 
     call w.w as w1 { input:
+        input1 = absent,
+        input2 = absent,
+        input3 = absent,
+        input4 = absent,
     }
 
     call w.w as w2

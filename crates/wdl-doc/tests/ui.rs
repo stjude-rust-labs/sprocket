@@ -139,7 +139,7 @@ fn find_tests() -> anyhow::Result<Vec<Test>> {
         }
 
         let category_name = category_path
-            .file_stem()
+            .file_name()
             .unwrap()
             .to_string_lossy()
             .into_owned();
@@ -158,7 +158,7 @@ fn find_tests() -> anyhow::Result<Vec<Test>> {
             }
 
             let test_name = test_path
-                .file_stem()
+                .file_name()
                 .unwrap()
                 .to_string_lossy()
                 .into_owned();
