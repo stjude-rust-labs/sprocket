@@ -12,7 +12,6 @@
 
 use std::collections::HashMap;
 use std::fmt;
-use std::io::Write;
 use std::path::Path;
 use std::process::ExitStatus;
 use std::process::Stdio;
@@ -83,25 +82,23 @@ const DEFAULT_MONITOR_INTERVAL: u64 = 30;
 const DEFAULT_MAX_CONCURRENCY: u32 = 10;
 
 /// Writes a `sbatch_command` file with the given `sbatch` command.
-fn write_sbatch_command_file(dir: &Path, command: &Command) -> Result<()> {
+async fn write_sbatch_command_file(dir: &Path, command: &Command) -> Result<()> {
     let path = dir.join(SBATCH_COMMAND_FILE_NAME);
-    let mut file = std::fs::File::create(&path)
-        .with_context(|| format!("failed to create file `{path}`", path = path.display()))?;
-    writeln!(&mut file, "{command:?}", command = command.as_std())
+    fs::write(&path, format!("{command:?}\n"))
+        .await
         .with_context(|| format!("failed to write file `{path}`", path = path.display()))?;
-
     Ok(())
 }
 
 /// Writes a `job_id` file with the given job identifier.
-fn write_job_id_file(dir: &Path, job_id: u64) -> Result<()> {
+///
+/// If a failure to write the file occurs, an error is logged instead of
+/// returned so that the engine can continue to monitor the task.
+async fn write_job_id_file(dir: &Path, job_id: u64) {
     let path = dir.join(JOB_ID_FILE_NAME);
-    let mut file = std::fs::File::create(&path)
-        .with_context(|| format!("failed to create file `{path}`", path = path.display()))?;
-    writeln!(&mut file, "{job_id}")
-        .with_context(|| format!("failed to write file `{path}`", path = path.display()))?;
-
-    Ok(())
+    if let Err(e) = fs::write(&path, format!("{job_id}\n")).await {
+        error!("failed to write file `{path}`: {e}", path = path.display());
+    }
 }
 
 /// Represents a Slurm job state.
@@ -666,7 +663,7 @@ impl Monitor {
             .stderr(Stdio::piped());
 
         // Write the full `sbatch` command to the attempt directory
-        write_sbatch_command_file(request.attempt_dir, &command)?;
+        write_sbatch_command_file(request.attempt_dir, &command).await?;
 
         trace!(
             "spawning `sbatch` to queue task: `{command:?}`",
@@ -705,7 +702,7 @@ impl Monitor {
 
         // Write out the job id to the attempt directory
         debug!("task `{task_name}` was queued as Slurm job `{job_id}`");
-        write_job_id_file(request.attempt_dir, job_id)?;
+        write_job_id_file(request.attempt_dir, job_id).await;
 
         let (tx, rx) = oneshot::channel();
         let mut state = self.state.lock().expect("failed to lock state");

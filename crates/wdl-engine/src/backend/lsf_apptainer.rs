@@ -12,7 +12,6 @@
 
 use std::collections::HashMap;
 use std::fmt;
-use std::io::Write;
 #[cfg(unix)]
 use std::os::unix::process::ExitStatusExt as _;
 #[cfg(windows)]
@@ -119,25 +118,23 @@ fn truncate_job_name(name: &str) -> &str {
 }
 
 /// Writes a `bsub_command` file with the given `bsub` command.
-fn write_bsub_command_file(dir: &Path, command: &Command) -> Result<()> {
+async fn write_bsub_command_file(dir: &Path, command: &Command) -> Result<()> {
     let path = dir.join(BSUB_COMMAND_FILE_NAME);
-    let mut file = std::fs::File::create(&path)
-        .with_context(|| format!("failed to create file `{path}`", path = path.display()))?;
-    writeln!(&mut file, "{command:?}", command = command.as_std())
+    fs::write(&path, format!("{command:?}\n"))
+        .await
         .with_context(|| format!("failed to write file `{path}`", path = path.display()))?;
-
     Ok(())
 }
 
 /// Writes a `job_id` file with the given job identifier.
-fn write_job_id_file(dir: &Path, job_id: u64) -> Result<()> {
+///
+/// If a failure to write the file occurs, an error is logged instead of
+/// returned so that the engine can continue to monitor the task.
+async fn write_job_id_file(dir: &Path, job_id: u64) {
     let path = dir.join(JOB_ID_FILE_NAME);
-    let mut file = std::fs::File::create(&path)
-        .with_context(|| format!("failed to create file `{path}`", path = path.display()))?;
-    writeln!(&mut file, "{job_id}")
-        .with_context(|| format!("failed to write file `{path}`", path = path.display()))?;
-
-    Ok(())
+    if let Err(e) = fs::write(&path, format!("{job_id}\n")).await {
+        error!("failed to write file `{path}`: {e}", path = path.display());
+    }
 }
 
 /// Represents an LSF job state.
@@ -543,7 +540,7 @@ impl Monitor {
         );
 
         // Write the full `bsub` command to the attempt directory
-        write_bsub_command_file(request.attempt_dir, &command)?;
+        write_bsub_command_file(request.attempt_dir, &command).await?;
 
         let child = command.spawn().context("failed to spawn `bsub`")?;
         let output = child
@@ -577,7 +574,7 @@ impl Monitor {
 
         // Write out the job id to the attempt directory
         debug!("task `{task_name}` was queued as LSF job `{job_id}`");
-        write_job_id_file(request.attempt_dir, job_id)?;
+        write_job_id_file(request.attempt_dir, job_id).await;
 
         let (tx, rx) = oneshot::channel();
         let mut state = self.state.lock().expect("failed to lock state");
