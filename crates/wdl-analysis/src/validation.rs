@@ -681,7 +681,7 @@ impl Visitor for Validator {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_log::test]
     fn test_find_nearest_rule() {
         let validator = Validator::default();
 

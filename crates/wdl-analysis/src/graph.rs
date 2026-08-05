@@ -971,7 +971,7 @@ mod tests {
         }
     }
 
-    #[test]
+    #[test_log::test]
     fn test_delete_retains_current_state() {
         let DependencyContext {
             mut graph,
@@ -1015,7 +1015,7 @@ mod tests {
         assert!(change.edits.is_empty());
     }
 
-    #[test]
+    #[test_log::test]
     fn test_delete_retains_unapplied_edits() {
         let DependencyContext {
             mut graph,
