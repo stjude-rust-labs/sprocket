@@ -30,6 +30,7 @@ pub(crate) use api::v1::info::ServerInfoResponse;
 pub use api::v1::paths;
 pub(crate) use api::v1::runs::CancelRunResponse;
 pub(crate) use api::v1::runs::ListRunsResponse;
+pub(crate) use api::v1::runs::Run;
 pub(crate) use api::v1::runs::RunResponse;
 pub(crate) use api::v1::runs::SubmitRunRequest;
 pub(crate) use api::v1::tasks::ListTasksResponse;
