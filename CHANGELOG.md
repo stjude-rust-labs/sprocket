@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* For `sprocket dev server status`, the `--limit` parameter is now respected: passing `--limit N` displays at most N runs by fetching a single page. When `--limit` is omitted, all runs are displayed by paginating through the server's results. The footer distinguishes between "total run(s) in the system" (no filter) and "total matching run(s)" (with a `--status` filter) so a filtered count is not misreported as global. The `--json` output now includes a `total` field alongside `runs` ([#1050](https://github.com/stjude-rust-labs/sprocket/pull/1050)).
 * For `sprocket run`, the execution backend is now considered for the call
   cache key derivation, which prevents unexpected behavior when switching
   executing backends. NOTE: this will cause existing call cache entries to be
