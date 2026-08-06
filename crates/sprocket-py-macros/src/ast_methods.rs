@@ -519,6 +519,12 @@ fn strip_path_generic(type_: &mut Type, generic_ident: Ident) -> Result<()> {
                         }
                     }
 
+                    for arg in path_arguments.args.iter_mut() {
+                        if let GenericArgument::Type(type_) = arg {
+                            strip_path_generic(type_, generic_ident.clone())?;
+                        }
+                    }
+
                     // If we ended up removing all arguments, convert `AngleBracketed` into `None`.
                     if path_arguments.args.is_empty() {
                         segments.arguments = PathArguments::None;
@@ -1341,6 +1347,7 @@ mod tests {
             (parse_quote!(Ast<T>), parse_quote!(Ast<T>)),
             (parse_quote!(Ast<N, T>), parse_quote!(Ast<N, T>)),
             (parse_quote!(Ast<T, N>), parse_quote!(Ast<T,>)),
+            (parse_quote!(Option<VersionStatement<N>>), parse_quote!(Option<VersionStatement>)),
             (parse_quote!(super::Ast<N>), parse_quote!(super::Ast)),
             (
                 parse_quote!(Ast<N>::Associated),
