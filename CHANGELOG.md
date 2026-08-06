@@ -14,19 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   output-directory root with the run-relative path) when the server's `/info`
   endpoint is available, instead of requiring the user to manually combine a
   separate `Output Dir:` line with a relative path
-  ([#1061](https://github.com/stjude-rust-labs/sprocket/issues/1061)).
+  ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
 
 ### Fixed
 
 * The server's reported `output_dir` (used by `dev server inspect`) is now
   resolved to an absolute path, even when configured with a relative path
   (e.g. `./out`), so it can be reliably combined with a run's relative
-  directory ([#1061](https://github.com/stjude-rust-labs/sprocket/issues/1061)).
+  directory ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
 * `sprocket run` now stores each run's directory relative to the output
   directory (matching the format already used by dev-server-initiated runs),
   fixing a bug where `dev server inspect` would display the output-directory
   prefix twice for runs started via `sprocket run`
-  ([#1061](https://github.com/stjude-rust-labs/sprocket/issues/1061)).
+  ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
 
 ## 0.29.0 - 2026-08-05
 
