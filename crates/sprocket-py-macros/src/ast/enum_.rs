@@ -30,7 +30,7 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
     make_py_attrs(&mut py_enum, original, args);
 
     // Strip generic from all variants, add "Py" prefix
-    for variant in py_enum.variants.iter_mut() {
+    for variant in &mut py_enum.variants {
         let fields = match variant.fields {
             Fields::Unnamed(ref mut fields) => fields,
             Fields::Unit => {
@@ -41,7 +41,7 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
                 });
                 continue;
             }
-            _ => {
+            Fields::Named(_) => {
                 return Err(Error::new_spanned(
                     &variant.fields,
                     "`#[ast]` does not support struct variants",
@@ -68,7 +68,7 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
                 .expect("paths are expected to have at least one segment");
 
             segment.ident = format_ident!("Py{}", segment.ident);
-            segment.arguments = PathArguments::None
+            segment.arguments = PathArguments::None;
         }
     }
 

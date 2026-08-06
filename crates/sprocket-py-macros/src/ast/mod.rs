@@ -51,8 +51,9 @@ impl Default for Args {
     }
 }
 
+/// See [`#[ast]`](super::ast).
 pub(crate) fn ast(args_stream: TokenStream, item_stream: TokenStream) -> Result<TokenStream> {
-    let args = Args::parse(args_stream.into())?;
+    let args = Args::parse(args_stream)?;
     let item = syn::parse2::<Item>(item_stream)?;
 
     let expanded = match &item {

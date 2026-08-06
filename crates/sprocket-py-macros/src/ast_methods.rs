@@ -78,7 +78,8 @@ pub(crate) fn ast_methods(
         .iter_mut()
         .filter_map(filter_py_method)
         .map(|original_fn| {
-            make_py_method(original_fn, &ast_generic_ident, &original_type_path).map(ImplItem::Fn)
+            make_py_method(original_fn, ast_generic_ident.as_ref(), &original_type_path)
+                .map(ImplItem::Fn)
         })
         .collect::<Result<_>>()?;
 
@@ -289,7 +290,7 @@ fn remove_skip_attributes(attrs: &mut Vec<Attribute>) -> bool {
 /// [`make_py_method_body()`].
 fn make_py_method(
     original_fn: &ImplItemFn,
-    ast_generic_ident: &Option<Ident>,
+    ast_generic_ident: Option<&Ident>,
     original_type_path: &Path,
 ) -> Result<ImplItemFn> {
     let mut py_fn = original_fn.clone();
@@ -318,9 +319,9 @@ fn make_py_method(
 
     // Set method body.
     if impl_iterator {
-        make_py_method_body_impl_iterator(&mut py_fn, original_type_path, original_method_ident)?;
+        make_py_method_body_impl_iterator(&mut py_fn, original_type_path, &original_method_ident)?;
     } else {
-        make_py_method_body(&mut py_fn, original_type_path, original_method_ident)?;
+        make_py_method_body(&mut py_fn, original_type_path, &original_method_ident)?;
     }
 
     Ok(py_fn)
@@ -400,13 +401,13 @@ fn replace_self_with_original_type_path(type_: &mut Type, original_type_path: &P
         }
 
         // Check generics for `Self`.
-        for segment in path.segments.iter_mut() {
+        for segment in &mut path.segments {
             match segment.arguments {
                 PathArguments::AngleBracketed(ref mut generic_args) => {
                     recurse_generic_args(generic_args, original_type_path)?;
                 }
                 PathArguments::Parenthesized(ref mut generic_args) => {
-                    for input in generic_args.inputs.iter_mut() {
+                    for input in &mut generic_args.inputs {
                         recurse_type(&mut input.ty, original_type_path)?;
                     }
 
@@ -437,7 +438,7 @@ fn replace_self_with_original_type_path(type_: &mut Type, original_type_path: &P
             | Type::Slice(TypeSlice { elem, .. })
             | Type::Reference(TypeReference { elem, .. }) => recurse_type(elem, original_type_path),
             Type::Tuple(type_tuple) => {
-                for elem in type_tuple.elems.iter_mut() {
+                for elem in &mut type_tuple.elems {
                     recurse_type(elem, original_type_path)?;
                 }
 
@@ -456,7 +457,7 @@ fn replace_self_with_original_type_path(type_: &mut Type, original_type_path: &P
                 Ok(())
             }
             Type::FnPtr(type_fn_ptr) => {
-                for arg in type_fn_ptr.inputs.iter_mut() {
+                for arg in &mut type_fn_ptr.inputs {
                     recurse_type(&mut arg.ty, original_type_path)?;
                 }
 
@@ -475,7 +476,7 @@ fn replace_self_with_original_type_path(type_: &mut Type, original_type_path: &P
         generic_args: &mut AngleBracketedGenericArguments,
         original_type_path: &Path,
     ) -> Result<()> {
-        for generic_arg in generic_args.args.iter_mut() {
+        for generic_arg in &mut generic_args.args {
             match generic_arg {
                 GenericArgument::Type(type_) => recurse_type(type_, original_type_path)?,
                 GenericArgument::AssocType(assoc_type) => {
@@ -499,7 +500,7 @@ fn replace_self_with_original_type_path(type_: &mut Type, original_type_path: &P
 fn strip_path_generic(type_: &mut Type, generic_ident: &Ident) -> Result<()> {
     match type_ {
         Type::Path(type_path) => {
-            for segments in type_path.path.segments.iter_mut() {
+            for segments in &mut type_path.path.segments {
                 if let PathArguments::AngleBracketed(ref mut path_arguments) = segments.arguments {
                     // Generics with default types must be last, so we start looking for them at
                     // the end.
@@ -519,7 +520,7 @@ fn strip_path_generic(type_: &mut Type, generic_ident: &Ident) -> Result<()> {
                         }
                     }
 
-                    for arg in path_arguments.args.iter_mut() {
+                    for arg in &mut path_arguments.args {
                         if let GenericArgument::Type(type_) = arg {
                             strip_path_generic(type_, generic_ident)?;
                         }
@@ -545,14 +546,14 @@ fn strip_path_generic(type_: &mut Type, generic_ident: &Ident) -> Result<()> {
         | Type::Slice(TypeSlice { elem, .. })
         | Type::Reference(TypeReference { elem, .. }) => strip_path_generic(elem, generic_ident),
         Type::Tuple(type_tuple) => {
-            for elem in type_tuple.elems.iter_mut() {
+            for elem in &mut type_tuple.elems {
                 strip_path_generic(elem, generic_ident)?;
             }
 
             Ok(())
         }
         Type::FnPtr(type_fn_ptr) => {
-            for elem in type_fn_ptr.inputs.iter_mut() {
+            for elem in &mut type_fn_ptr.inputs {
                 strip_path_generic(&mut elem.ty, generic_ident)?;
             }
 
@@ -629,7 +630,7 @@ fn strip_path_generic(type_: &mut Type, generic_ident: &Ident) -> Result<()> {
 fn make_py_method_body(
     py_fn: &mut ImplItemFn,
     original_type_path: &Path,
-    original_method_ident: Ident,
+    original_method_ident: &Ident,
 ) -> Result<()> {
     // Convert function inputs into function arguments. (Ex. turn `a: usize, b:
     // String` into `a, b`.)
@@ -708,7 +709,7 @@ fn make_py_method_body(
 fn make_py_method_body_impl_iterator(
     py_fn: &mut ImplItemFn,
     original_type_path: &Path,
-    original_method_ident: Ident,
+    original_method_ident: &Ident,
 ) -> Result<()> {
     // Convert function inputs into function arguments. (Ex. turn `a: usize, b:
     // String` into `a, b`.) This is purposefully called before we add `py:
@@ -1130,7 +1131,7 @@ mod tests {
         let ast_generic_ident = None;
         let original_type_path = parse_quote!(Ast);
 
-        let py_fn = make_py_method(&original_fn, &ast_generic_ident, &original_type_path).unwrap();
+        let py_fn = make_py_method(&original_fn, ast_generic_ident, &original_type_path).unwrap();
 
         let expected = parse_quote! {
             fn py_method() {
@@ -1144,10 +1145,10 @@ mod tests {
     #[test]
     fn py_method_strip_ident() {
         let original_fn = parse_quote! { fn method() -> Ast<N> {} };
-        let ast_generic_ident = Some(Ident::new("N", Span::call_site()));
+        let ast_generic_ident = Some(&Ident::new("N", Span::call_site()));
         let original_type_path = parse_quote!(Ast);
 
-        let py_fn = make_py_method(&original_fn, &ast_generic_ident, &original_type_path).unwrap();
+        let py_fn = make_py_method(&original_fn, ast_generic_ident, &original_type_path).unwrap();
 
         let expected = parse_quote! {
             fn py_method() -> Ast {
@@ -1164,7 +1165,7 @@ mod tests {
         let ast_generic_ident = None;
         let original_type_path = parse_quote!(Ast);
 
-        let py_fn = make_py_method(&original_fn, &ast_generic_ident, &original_type_path).unwrap();
+        let py_fn = make_py_method(&original_fn, ast_generic_ident, &original_type_path).unwrap();
 
         let expected = parse_quote! {
             fn py_method() {
@@ -1178,10 +1179,10 @@ mod tests {
     #[test]
     fn py_method_impl_iterator() {
         let original_fn = parse_quote! { fn method() -> impl Iterator<Item = Ast<N>> {} };
-        let ast_generic_ident = Some(Ident::new("N", Span::call_site()));
+        let ast_generic_ident = Some(&Ident::new("N", Span::call_site()));
         let original_type_path = parse_quote!(Ast);
 
-        let py_fn = make_py_method(&original_fn, &ast_generic_ident, &original_type_path).unwrap();
+        let py_fn = make_py_method(&original_fn, ast_generic_ident, &original_type_path).unwrap();
 
         let expected = parse_quote! {
             fn py_method<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
@@ -1347,7 +1348,10 @@ mod tests {
             (parse_quote!(Ast<T>), parse_quote!(Ast<T>)),
             (parse_quote!(Ast<N, T>), parse_quote!(Ast<N, T>)),
             (parse_quote!(Ast<T, N>), parse_quote!(Ast<T,>)),
-            (parse_quote!(Option<VersionStatement<N>>), parse_quote!(Option<VersionStatement>)),
+            (
+                parse_quote!(Option<VersionStatement<N>>),
+                parse_quote!(Option<VersionStatement>),
+            ),
             (parse_quote!(super::Ast<N>), parse_quote!(super::Ast)),
             (
                 parse_quote!(Ast<N>::Associated),
@@ -1424,7 +1428,7 @@ mod tests {
             fn py_method(&self, a: usize) {}
         );
 
-        make_py_method_body(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+        make_py_method_body(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method)).unwrap();
 
         let expected = parse_quote! {
             fn py_method(&self, a: usize) {
@@ -1441,7 +1445,7 @@ mod tests {
             fn py_method(&mut self) {}
         );
 
-        make_py_method_body(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+        make_py_method_body(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method)).unwrap();
 
         let expected = parse_quote! {
             fn py_method(&mut self) {
@@ -1458,7 +1462,7 @@ mod tests {
             fn py_method(self, [a, b]: [usize; 2]) {}
         );
 
-        make_py_method_body(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+        make_py_method_body(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method)).unwrap();
 
         let expected = parse_quote! {
             fn py_method(self, [a, b]: [usize; 2]) {
@@ -1475,7 +1479,7 @@ mod tests {
             fn py_method(a: String) -> bool {}
         );
 
-        make_py_method_body(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+        make_py_method_body(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method)).unwrap();
 
         let expected = parse_quote! {
             fn py_method(a: String) -> bool {
@@ -1492,7 +1496,7 @@ mod tests {
             fn py_method() -> bool {}
         );
 
-        make_py_method_body(&mut py_fn, &parse_quote!(Ast), parse_quote!(method)).unwrap();
+        make_py_method_body(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method)).unwrap();
 
         let expected = parse_quote! {
             fn py_method() -> bool {
@@ -1509,7 +1513,7 @@ mod tests {
             fn py_method(&self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method))
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method))
             .unwrap();
 
         let expected = parse_quote! {
@@ -1527,7 +1531,7 @@ mod tests {
             fn py_method(&self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method))
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method))
             .unwrap();
 
         let expected = parse_quote! {
@@ -1545,7 +1549,7 @@ mod tests {
             fn py_method(&mut self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method))
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method))
             .unwrap();
 
         let expected = parse_quote! {
@@ -1563,7 +1567,7 @@ mod tests {
             fn py_method(self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method))
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method))
             .unwrap();
 
         let expected = parse_quote! {
@@ -1581,7 +1585,7 @@ mod tests {
             fn py_method((a, b): (u8, u16)) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method))
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method))
             .unwrap();
 
         let expected = parse_quote! {
@@ -1599,7 +1603,7 @@ mod tests {
             fn py_method() -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), parse_quote!(method))
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method))
             .unwrap();
 
         let expected = parse_quote! {
