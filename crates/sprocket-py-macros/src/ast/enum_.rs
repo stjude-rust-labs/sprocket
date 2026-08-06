@@ -1,8 +1,8 @@
 //! TODO
 
 use proc_macro2::TokenStream;
-use quote::ToTokens;
 use quote::format_ident;
+use quote::quote;
 use syn::Error;
 use syn::Fields;
 use syn::FieldsUnnamed;
@@ -72,7 +72,53 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
         }
     }
 
-    Ok(py_enum.to_token_stream())
+    // Used for quote formatting.
+    let ident = &original.ident;
+    let py_ident = &py_enum.ident;
+    let from_match_arms = original.variants.iter().map(|variant| {
+        let variant_ident = &variant.ident;
+
+        match variant.fields {
+            Fields::Unnamed(ref fields_unnamed) => {
+                let field_names = (0..fields_unnamed.unnamed.len()).map(|i| format_ident!("_{i}"));
+                let field_names2 = field_names.clone().map(|i| quote! { #i.into() });
+
+                // This tends to look like `Foo::Bar(_0, _1) => PyFoo::Bar(_0.into(), _1.into())`.
+                quote!(#ident::#variant_ident(#(#field_names),*) => #py_ident::#variant_ident(#(#field_names2),*))
+            },
+            // Convert unit variant to empty tuple variant.
+            Fields::Unit => quote!(#ident::#variant_ident => #py_ident::#variant_ident()),
+            Fields::Named(_) => unreachable!("struct variants were previously filtered out"),
+        }
+    });
+
+    Ok(quote! {
+        #py_enum
+
+        // Converting from the original struct to the Python struct. This is used in the original
+        // struct's `IntoPyObject` impl.
+        impl ::std::convert::From<#ident> for #py_ident {
+            fn from(value: #ident) -> Self {
+                match value {
+                    #(#from_match_arms),*
+                }
+            }
+        }
+
+        // Let the original enum be converted directly into a Python object. This lets the original
+        // enum be returned directly from Python methods.
+        impl<'py> ::pyo3::conversion::IntoPyObject<'py> for #ident {
+            type Target = <#py_ident as ::pyo3::conversion::IntoPyObject<'py>>::Target;
+            type Output = <#py_ident as ::pyo3::conversion::IntoPyObject<'py>>::Output;
+            type Error = <#py_ident as ::pyo3::conversion::IntoPyObject<'py>>::Error;
+
+            // We qualify `Self::Output` because this would be ambiguous for enums with a variant
+            // named `Output`.
+            fn into_pyobject(self, py: ::pyo3::marker::Python<'py>) -> Result<<Self as ::pyo3::conversion::IntoPyObject<'py>>::Output, Self::Error> {
+                #py_ident::from(self).into_pyobject(py)
+            }
+        }
+    })
 }
 
 /// Modifies the attributes of `py_enum`.
