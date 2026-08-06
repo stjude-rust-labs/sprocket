@@ -28,7 +28,7 @@ const FUNCTION_NAME: &str = "join_paths";
 ///
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#-join_paths
 fn join_paths_simple(context: CallContext<'_>) -> Result<Value, Diagnostic> {
-    debug_assert!(context.arguments.len() == 2);
+    debug_assert_eq!(context.arguments.len(), 2);
     debug_assert!(context.return_type_eq(PrimitiveType::String));
 
     let first = context

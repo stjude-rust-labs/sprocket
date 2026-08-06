@@ -8,13 +8,6 @@ on:
     branches:
       - main
   pull_request:
-    paths:
-      - "python/**"
-      - "pyproject.toml"
-      - "crates/sprocket-py/**"
-      - "Cargo.toml"
-      - "Cargo.lock"
-      - ".github/workflows/python-ci.yml"
   workflow_dispatch:
 
 env:
@@ -39,36 +32,60 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Update Rust
-        run: rustup update stable && rustup default stable
+        run: rustup update stable && rustup default stable && rustup component add llvm-tools
 
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version-file: ".python-version"
+          python-version-file: .python-version
+
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov@0.8
 
       - name: Create virtual environment
         run: python -m venv --upgrade-deps .venv
 
-      - name: Activate virtual environment (Windows)
+      - name: Activate virtual environment and code coverage (Windows)
         if: ${{ matrix.os == 'windows-latest' }}
         run: |
+          # Activate virtual environment.
           Add-Content -Value "VIRTUAL_ENV=$PWD\.venv" -Path $Env:GITHUB_ENV
           Add-Content -Value "$PWD\.venv\Scripts" -Path $Env:GITHUB_PATH
 
-      - name: Activate virtual environment (non-Windows)
+          # Activate code coverage.
+          cargo llvm-cov show-env >> $Env:GITHUB_ENV
+
+      - name: Activate virtual environment and code coverage (non-Windows)
         if: ${{ matrix.os != 'windows-latest' }}
         run: |
+          # Activate virtual environment.
           echo "VIRTUAL_ENV=$(pwd)/.venv" >> "${GITHUB_ENV}"
           echo "$(pwd)/.venv/bin" >> "${GITHUB_PATH}"
+
+          # Activate code coverage. We remove single quotes from `llvm-cov`'s output, as Github
+          # Actions does not understand them.
+          cargo llvm-cov show-env | tr -d "'" >> "${GITHUB_ENV}"
 
       - name: Build package
         uses: PyO3/maturin-action@v1
         with:
           command: develop
-          args: --locked
+          args: --group=cov --locked
 
       - name: Run tests
-        run: pytest
+        run: pytest --cov=python/sprocket_bio --cov-report=json:codecov-py.json
+
+      - name: Generate llvm-cov report
+        run: cargo llvm-cov report -p sprocket-py -p wdl-diagnostics -p wdl-grammar -p wdl-ast --codecov --output-path=codecov-rust.json
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v6
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: codecov-py.json,codecov-rust.json
+          fail_ci_if_error: true
 
   type-check:
     runs-on: ubuntu-latest
@@ -82,7 +99,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version-file: ".python-version"
+          python-version-file: .python-version
 
       - name: Create virtual environment
         run: python -m venv --upgrade-deps .venv

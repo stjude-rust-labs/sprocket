@@ -18,6 +18,7 @@ use wdl::doc::build_stylesheet;
 use wdl::doc::build_web_components;
 use wdl::doc::config::AdditionalHtml;
 use wdl::doc::config::ExternalUrls;
+use wdl::doc::config::Seo;
 use wdl::doc::document_workspace;
 use wdl::doc::error::DocErrorKind;
 use wdl::doc::install_theme;
@@ -50,6 +51,9 @@ pub struct Args {
     /// An optional link to the project's GitHub repository.
     #[arg(long, value_name = "LINK TO GITHUB")]
     pub github_url: Option<Url>,
+    /// An optional link to the project's Slack workspace.
+    #[arg(long, value_name = "LINK TO SLACK")]
+    pub slack_url: Option<Url>,
     /// Path to an alternate light mode SVG logo to embed on each page.
     ///
     /// If not supplied, the `--logo` SVG will be used; or if that is also not
@@ -192,6 +196,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
 
     let analysis_config = AnalysisConfig::default()
         .with_fallback_version(config.common.wdl.fallback_version.into())
+        .with_feature_flags(config.common.wdl.feature_flags)
         .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
         .with_diagnostics_config(DiagnosticsConfig::except_all());
 
@@ -201,7 +206,20 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
     let alt_light_logo = args.alt_light_logo.or(config.doc.alt_light_logo());
     let homepage_url = args.homepage_url.or(config.doc.homepage_url());
     let github_url = args.github_url.or(config.doc.github_url());
+    let slack_url = args.slack_url.or(config.doc.slack_url());
     let with_doc_comments = args.with_doc_comments || config.doc.with_doc_comments;
+    let seo = Seo {
+        title: config.doc.seo.title(),
+        description: config.doc.seo.description(),
+        author: config.doc.seo.author(),
+        keywords: config.doc.seo.keywords(),
+        base_url: config.doc.seo.base_url(),
+        image_url: config.doc.seo.image_url(),
+        locale: config.doc.seo.locale(),
+        twitter_handle: config.doc.seo.twitter_handle(),
+        robots: config.doc.seo.robots(),
+        theme_color: config.doc.seo.theme_color(),
+    };
 
     let config = DocConfig::new(analysis_config, &workspace, &docs_dir)
         .index_page(index_page)
@@ -212,8 +230,10 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
         .external_urls(ExternalUrls {
             homepage: homepage_url,
             github: github_url,
+            slack: slack_url,
         })
         .additional_html(addl_html)
+        .seo(seo)
         .enable_doc_comments(with_doc_comments)
         .check(args.check);
 
@@ -262,4 +282,25 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parses_slack_url() {
+        // SAFETY: the argument list contains a valid absolute URL.
+        let args = Args::try_parse_from([
+            "doc",
+            "--slack-url",
+            "https://example.slack.com/archives/community",
+        ])
+        .unwrap();
+
+        assert_eq!(
+            args.slack_url.as_ref().map(Url::as_str),
+            Some("https://example.slack.com/archives/community")
+        );
+    }
 }

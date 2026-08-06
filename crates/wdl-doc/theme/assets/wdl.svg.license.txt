@@ -1,0 +1,6 @@
+OpenWDL icon
+Copyright 2019-Present The OpenWDL Developers
+Source: https://github.com/openwdl/brand/blob/main/assets/svg/icon.svg
+License: Creative Commons Attribution 4.0 International
+License URL: https://creativecommons.org/licenses/by/4.0/
+Changes: None

@@ -34,7 +34,7 @@ arrayvec = { version = "0.7.6", features = ["serde"] }
 async-lsp = "0.2.4"
 async-trait = "0.1.89"
 axum = "0.8.8"
-base64 = "0.22.1"
+base64 = "0.23.0"
 bimap = "0.6.3"
 blake3 = { version = "1.8.3", features = ["mmap"] }
 bon = "3.8.2"
@@ -43,7 +43,7 @@ chrono = "0.4.43"
 clap = { version = "4.5.57", features = ["derive", "string"] }
 clap-verbosity-flag = { version = "3.0.4", features = ["tracing"] }
 clap_complete = "4.5.65"
-cloud-copy = { version = "0.9.0", features = ["cli"] }
+cloud-copy = { version = "0.10.0", features = ["cli"] }
 codespan-reporting = "0.13.1"
 colored = "3.1.1"
 convert_case = "0.11.0"
@@ -51,7 +51,7 @@ crankshaft = { version = "0.10.0", features = ["docker"] }
 criterion = "0.8.2"
 dirs = "6.0.0"
 dyn-clone = "1.0.20"
-ed25519-dalek = "2.2.0"
+ed25519-dalek = "3.0.0"
 faster-hex = "0.10.0"
 fixedbitset = "0.5.7"
 fs_extra = "1.3.0"
@@ -65,7 +65,7 @@ ignore = "0.4.25"
 indexmap = "2.13.0"
 indicatif = "0.18.3"
 itertools = "0.15.0"
-jsonschema = "0.47.0"
+jsonschema = "0.48.5"
 libc = "0.2"
 libtest-mimic = "^0.8.1"
 line-index = "0.1.2"
@@ -84,7 +84,7 @@ paste = "1.0.15"
 path-clean = "1.0.1"
 pathdiff = "0.2.3"
 petgraph = "0.8.3"
-petname = { version = "2.0.2", features = ["default-rng", "default-words"] }
+petname = { version = "3.1.0", features = ["default-rng", "default-words"] }
 pretty_assertions = "1.4.1"
 pulldown-cmark = "0.13.0"
 pyo3 = "0.29.0"
@@ -103,8 +103,8 @@ serde_with = "3.16.1"
 serde_yaml_ng = "0.10.0"
 sha2 = "0.11.0"
 shellexpand = "3.1.2"
-shlex = "1.3.0"
-similar = "2.7.0"
+shlex = "2.0.1"
+similar = "3.1.1"
 smallvec = "1.15.1"
 spdx = "0.13.4"
 sqlx = { version = "0.9.0", features = ["runtime-tokio", "sqlite", "chrono", "uuid", "migrate"] }
@@ -135,8 +135,8 @@ utoipa = { version = "5.4.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 uuid = { version = "1.20.0", features = ["serde", "v4"] }
 walkdir = "2.5.0"
-wdl = { version = "0.23.3", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
-wdl-modules = { version = "0.3.0", path = "crates/wdl-modules", features = ["git-resolver"] }
+wdl = { version = "0.23.4", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
+wdl-modules = { version = "0.3.1", path = "crates/wdl-modules", features = ["git-resolver"] }
 which = "8.0.0"
 whoami = "2.1.0"
 windows-sys = "0.61"
@@ -162,10 +162,11 @@ missing_docs_in_private_items = "warn"
 #
 # Ref: https://rust-lang.github.io/rust-clippy/master/index.html#new_without_default
 new_without_default = "allow"
+manual_assert_eq = "warn"
 
 [package]
 name = "sprocket"
-version = "0.28.0"
+version = "0.29.0"
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true

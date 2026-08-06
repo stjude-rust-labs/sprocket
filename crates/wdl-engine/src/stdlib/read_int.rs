@@ -28,7 +28,7 @@ const FUNCTION_NAME: &str = "read_int";
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_int
 fn read_int(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
-        debug_assert!(context.arguments.len() == 1);
+        debug_assert_eq!(context.arguments.len(), 1);
         debug_assert!(context.return_type_eq(PrimitiveType::Integer));
 
         let path = context

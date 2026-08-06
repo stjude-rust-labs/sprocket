@@ -24,6 +24,8 @@ repository = "https://github.com/stjude-rust-labs/sprocket"
 [dependency-groups]
 # Installed by default with `maturin develop`.
 dev = ["pytest~=9.1", "mypy~=2.1", "black~=26.5", "isort~=8.0"]
+# Required to generate code coverage.
+cov = ["pytest-cov~=7.1"]
 
 [tool.maturin]
 module-name = "sprocket_bio._sprocket_bio"
