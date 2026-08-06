@@ -3,6 +3,7 @@
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
+use syn::AngleBracketedGenericArguments;
 use syn::Error;
 use syn::Expr;
 use syn::ExprArray;
@@ -28,12 +29,14 @@ use syn::TraitBound;
 use syn::Type;
 use syn::TypeArray;
 use syn::TypeGroup;
+use syn::TypeImplTrait;
 use syn::TypeParamBound;
 use syn::TypeParen;
 use syn::TypePath;
 use syn::TypePtr;
 use syn::TypeReference;
 use syn::TypeSlice;
+use syn::TypeTraitObject;
 use syn::Visibility;
 use syn::parse::Nothing;
 use syn::parse_quote;
@@ -225,8 +228,12 @@ fn make_py_method(
         // case.
         if is_impl_iterator(type_)? {
             impl_iterator = true;
-        } else if let Some(ast_generic_ident) = ast_generic_ident {
-            strip_path_generic(type_, ast_generic_ident.clone())?;
+        } else {
+            replace_self_with_original_type_path(type_, original_type_path)?;
+
+            if let Some(ast_generic_ident) = ast_generic_ident {
+                strip_path_generic(type_, ast_generic_ident.clone())?;
+            }
         }
     }
 
@@ -295,6 +302,121 @@ fn is_impl_iterator(type_: &Type) -> Result<bool> {
     }
 
     Ok(false)
+}
+
+/// Replaces all instances of `Self` with `original_ident` in a type.
+fn replace_self_with_original_type_path(type_: &mut Type, original_type_path: &Path) -> Result<()> {
+    // Replaces `Self` with `original_type_path` for all path segments and generic parameters.
+    fn process_path(path: &mut Path, original_type_path: &Path) -> Result<()> {
+        // `Self` must be the first segment, so we don't need to check any later segments.
+        // <https://doc.rust-lang.org/reference/paths.html#r-paths.qualifiers.type-self.allowed-positions>
+        if let Some(first) = path.segments.first()
+            && first.ident == "Self"
+        {
+            // Actually replace `Self`. If `original_type_path` is `::foo::Bar` and the
+            // current type path is `Self::baz::qux`, we perform the replacement by cloning
+            // `::foo::Bar` and then appending `baz::qux`. The final result is
+            // `::foo::Bar::baz::qux`.
+            let mut new_path = original_type_path.clone();
+
+            for segment in path.segments.iter().skip(1) {
+                new_path.segments.push(segment.clone());
+            }
+
+            *path = new_path;
+        }
+
+        // Check generics for `Self`.
+        for segment in path.segments.iter_mut() {
+            match segment.arguments {
+                PathArguments::AngleBracketed(ref mut generic_args) => {
+                    recurse_generic_args(generic_args, original_type_path)?;
+                }
+                PathArguments::None => {}
+                PathArguments::Parenthesized(ref generic_args) => {
+                    return Err(Error::new_spanned(
+                        generic_args,
+                        "`#[ast_methods]` does not support functions in the return type",
+                    ));
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    fn recurse_type(type_: &mut Type, original_type_path: &Path) -> Result<()> {
+        match type_ {
+            Type::Path(type_path) => {
+                if let Some(ref mut qself) = type_path.qself {
+                    recurse_type(&mut qself.ty, original_type_path)?;
+                }
+
+                process_path(&mut type_path.path, original_type_path)
+            }
+            Type::Array(TypeArray { elem, .. })
+            | Type::Group(TypeGroup { elem, .. })
+            | Type::Paren(TypeParen { elem, .. })
+            | Type::Ptr(TypePtr { elem, .. })
+            | Type::Slice(TypeSlice { elem, .. })
+            | Type::Reference(TypeReference { elem, .. }) => recurse_type(elem, original_type_path),
+            Type::Tuple(type_tuple) => {
+                for elem in type_tuple.elems.iter_mut() {
+                    recurse_type(elem, original_type_path)?;
+                }
+
+                Ok(())
+            }
+            Type::ImplTrait(TypeImplTrait { bounds, .. })
+            | Type::TraitObject(TypeTraitObject { bounds, .. }) => {
+                for bound in bounds.iter_mut() {
+                    if let TypeParamBound::Trait(trait_bound) = bound {
+                        // The trait itself cannot be `Self`, but `Self` may be in its generic
+                        // parameters, so we process the path anyways.
+                        process_path(&mut trait_bound.path, original_type_path)?;
+                    }
+                }
+
+                Ok(())
+            }
+            Type::FnPtr(type_fn_ptr) => {
+                for arg in type_fn_ptr.inputs.iter_mut() {
+                    recurse_type(&mut arg.ty, original_type_path)?;
+                }
+
+                if let ReturnType::Type(_, ref mut type_) = type_fn_ptr.output {
+                    recurse_type(type_, original_type_path)?;
+                }
+
+                Ok(())
+            }
+            Type::Infer(_) | Type::Macro(_) | Type::Never(_) => Ok(()),
+            _ => todo!(),
+        }
+    }
+
+    fn recurse_generic_args(
+        generic_args: &mut AngleBracketedGenericArguments,
+        original_type_path: &Path,
+    ) -> Result<()> {
+        for generic_arg in generic_args.args.iter_mut() {
+            match generic_arg {
+                GenericArgument::Type(type_) => recurse_type(type_, original_type_path)?,
+                GenericArgument::AssocType(assoc_type) => {
+                    if let Some(ref mut generic_args) = assoc_type.generics {
+                        recurse_generic_args(generic_args, original_type_path)?;
+                    }
+
+                    recurse_type(&mut assoc_type.ty, original_type_path)?;
+                }
+                _ => {}
+            }
+        }
+
+        Ok(())
+    }
+
+    recurse_type(type_, original_type_path)
 }
 
 /// Recursively removes a generic parameter from all paths in a type.
@@ -946,6 +1068,69 @@ mod tests {
     }
 
     #[test]
+    fn replace_self() {
+        let original_type_path = parse_quote!(Ast);
+
+        let test_cases: [(Type, Type); _] = [
+            (parse_quote!(Self), parse_quote!(Ast)),
+            (parse_quote!(Self::foo), parse_quote!(Ast::foo)),
+            // This is an invalid path because `Self` must be first, so it is skipped.
+            (parse_quote!(foo::Self), parse_quote!(foo::Self)),
+            (parse_quote!(Vec<Self>), parse_quote!(Vec<Ast>)),
+            (parse_quote!(std::vec::Vec<Self>), parse_quote!(std::vec::Vec<Ast>)),
+            (parse_quote!(Foo<A = Self>), parse_quote!(Foo<A = Ast>)),
+            (parse_quote!(impl Iterator<Item = Self>), parse_quote!(impl Iterator<Item = Ast>)),
+            (parse_quote!(dyn Iterator<Item = Self>), parse_quote!(dyn Iterator<Item = Ast>)),
+            (
+                Type::Group(TypeGroup {
+                    attrs: Vec::new(),
+                    group_token: Group::default(),
+                    elem: parse_quote!(Self),
+                }),
+                Type::Group(TypeGroup {
+                    attrs: Vec::new(),
+                    group_token: Group::default(),
+                    elem: parse_quote!(Ast),
+                }),
+            ),
+            (parse_quote!([Self; 2]), parse_quote!([Ast; 2])),
+            (parse_quote!((Self)), parse_quote!((Ast))),
+            (parse_quote!(*const Self), parse_quote!(*const Ast)),
+            (parse_quote!(*mut Self), parse_quote!(*mut Ast)),
+            (parse_quote!([Self]), parse_quote!([Ast])),
+            (parse_quote!(&Self), parse_quote!(&Ast)),
+            (parse_quote!(&mut Self), parse_quote!(&mut Ast)),
+            (parse_quote!((Self, Self, (String, Self))), parse_quote!((Ast, Ast, (String, Ast)))),
+            (parse_quote!(fn(Self, u8, Self) -> Self), parse_quote!(fn(Ast, u8, Ast) -> Ast)),
+        ];
+
+        for (input, expected) in test_cases {
+            let mut output = input.clone();
+            replace_self_with_original_type_path(&mut output, &original_type_path).unwrap();
+            pretty_assertions::assert_eq!(
+                output,
+                expected,
+                "replacing `Self` with `{}` for input `{}` did not result in expected type",
+                original_type_path.to_token_stream(),
+                input.to_token_stream()
+            )
+        }
+    }
+
+    #[test]
+    fn replace_self_long_original_type() {
+        // Testing when the original type path has more than one segment and generic parameters.
+        let original_type_path = parse_quote!(foo::Bar<String>);
+        let mut type_ = parse_quote!(Self::baz);
+
+        replace_self_with_original_type_path(&mut type_, &original_type_path).unwrap();
+
+        let expected = parse_quote!(foo::Bar<String>::baz);
+
+        pretty_assertions::assert_eq!(type_, expected);
+    }
+
+    #[test]
     fn strip_path_generic() {
         let generic_ident = Ident::new("N", Span::call_site());
 
@@ -993,7 +1178,7 @@ mod tests {
             (parse_quote!((Ast<N>)), parse_quote!((Ast))),
             (parse_quote!(*const Ast<N>), parse_quote!(*const Ast)),
             (parse_quote!(*mut Ast<N>), parse_quote!(*mut Ast)),
-            (parse_quote!(&[Ast<N>]), parse_quote!(&[Ast])),
+            (parse_quote!([Ast<N>]), parse_quote!([Ast])),
             (parse_quote!(&Ast<N>), parse_quote!(&Ast)),
             (parse_quote!(&mut Ast<N>), parse_quote!(&mut Ast)),
             // Tuples
