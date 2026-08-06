@@ -405,13 +405,16 @@ fn replace_self_with_original_type_path(type_: &mut Type, original_type_path: &P
                 PathArguments::AngleBracketed(ref mut generic_args) => {
                     recurse_generic_args(generic_args, original_type_path)?;
                 }
-                PathArguments::None => {}
-                PathArguments::Parenthesized(ref generic_args) => {
-                    return Err(Error::new_spanned(
-                        generic_args,
-                        "`#[ast_methods]` does not support functions in the return type",
-                    ));
+                PathArguments::Parenthesized(ref mut generic_args) => {
+                    for input in generic_args.inputs.iter_mut() {
+                        recurse_type(&mut input.ty, original_type_path)?;
+                    }
+
+                    if let ReturnType::Type(_, ref mut type_) = generic_args.output {
+                        recurse_type(type_, original_type_path)?;
+                    }
                 }
+                PathArguments::None => {}
             }
         }
 
@@ -1259,6 +1262,14 @@ mod tests {
             (
                 parse_quote!(dyn Iterator<Item = Self>),
                 parse_quote!(dyn Iterator<Item = Ast>),
+            ),
+            (
+                parse_quote!(impl Foo(u8, Self) -> Self),
+                parse_quote!(impl Foo(u8, Ast) -> Ast),
+            ),
+            (
+                parse_quote!(dyn Foo(Self) -> Self),
+                parse_quote!(dyn Foo(Ast) -> Ast),
             ),
             (
                 Type::Group(TypeGroup {
