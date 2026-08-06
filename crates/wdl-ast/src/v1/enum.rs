@@ -19,6 +19,7 @@ use crate::TreeNode;
 
 /// Represents an enum definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct EnumDefinition<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> EnumDefinition<N> {
@@ -139,6 +140,7 @@ impl Documented<SyntaxNode> for EnumDefinition<SyntaxNode> {
 
 /// Represents an enum type parameter (e.g., [String]).
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct EnumTypeParameter<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> EnumTypeParameter<N> {
@@ -170,6 +172,7 @@ impl<N: TreeNode> AstNode<N> for EnumTypeParameter<N> {
 
 /// Represents an enum choice.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct EnumChoice<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> EnumChoice<N> {

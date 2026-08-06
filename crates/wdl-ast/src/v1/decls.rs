@@ -20,6 +20,7 @@ use crate::TreeToken;
 
 /// Represents a `Map` type.
 #[derive(Clone, Debug, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct MapType<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> MapType<N> {
@@ -79,6 +80,7 @@ impl fmt::Display for MapType {
 
 /// Represents an `Array` type.
 #[derive(Clone, Debug, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct ArrayType<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> ArrayType<N> {
@@ -137,6 +139,7 @@ impl fmt::Display for ArrayType {
 
 /// Represents a `Pair` type.
 #[derive(Clone, Debug, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct PairType<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> PairType<N> {
@@ -193,6 +196,7 @@ impl fmt::Display for PairType {
 
 /// Represents a `Object` type.
 #[derive(Clone, Debug, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct ObjectType<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> ObjectType<N> {
@@ -240,6 +244,7 @@ impl fmt::Display for ObjectType {
 
 /// Represents a reference to a type.
 #[derive(Clone, Debug, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct TypeRef<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> TypeRef<N> {
@@ -310,6 +315,7 @@ pub enum PrimitiveTypeKind {
 
 /// Represents a primitive type.
 #[derive(Clone, Debug, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct PrimitiveType<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> PrimitiveType<N> {
@@ -384,6 +390,7 @@ impl fmt::Display for PrimitiveType {
 
 /// Represents a type.
 #[derive(Clone, Debug, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub enum Type<N: TreeNode = SyntaxNode> {
     /// The type is a map.
     Map(MapType<N>),
@@ -721,6 +728,7 @@ impl fmt::Display for Type {
 
 /// Represents an unbound declaration.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct UnboundDecl<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> UnboundDecl<N> {
@@ -779,6 +787,7 @@ impl Documented<SyntaxNode> for UnboundDecl<SyntaxNode> {
 
 /// Represents a bound declaration in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct BoundDecl<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> BoundDecl<N> {
@@ -842,6 +851,7 @@ impl Documented<SyntaxNode> for BoundDecl<SyntaxNode> {
 
 /// Represents a declaration in an input section.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub enum Decl<N: TreeNode = SyntaxNode> {
     /// The declaration is bound.
     Bound(BoundDecl<N>),

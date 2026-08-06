@@ -429,6 +429,7 @@ impl TreeToken for SyntaxToken {
 ///
 /// See [Document::ast].
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub enum Ast<N: TreeNode = SyntaxNode> {
     /// The WDL document specifies an unsupported version.
     Unsupported,
@@ -470,6 +471,7 @@ impl<N: TreeNode> Ast<N> {
 /// See [Document::ast] for getting a version-specific Abstract
 /// Syntax Tree.
 #[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct Document<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> AstNode<N> for Document<N> {
@@ -638,6 +640,7 @@ impl fmt::Debug for Document {
 
 /// Represents a whitespace token in the AST.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct Whitespace<T: TreeToken = SyntaxToken>(T);
 
 impl<T: TreeToken> AstToken<T> for Whitespace<T> {
@@ -759,6 +762,7 @@ pub const DOC_COMMENT_PREFIX: &str = "##";
 
 /// Represents a comment token in the AST.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct Comment<T: TreeToken = SyntaxToken>(T);
 
 impl<T: TreeToken> AstToken<T> for Comment<T> {
@@ -853,6 +857,7 @@ impl Comment {
 
 /// Represents a version statement in a WDL AST.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct VersionStatement<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> VersionStatement<N> {
@@ -888,6 +893,7 @@ impl<N: TreeNode> AstNode<N> for VersionStatement<N> {
 
 /// Represents a version in the AST.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct Version<T: TreeToken = SyntaxToken>(T);
 
 impl<T: TreeToken> AstToken<T> for Version<T> {
@@ -909,6 +915,7 @@ impl<T: TreeToken> AstToken<T> for Version<T> {
 
 /// Represents an identifier token.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct Ident<T: TreeToken = SyntaxToken>(T);
 
 impl<T: TreeToken> Ident<T> {

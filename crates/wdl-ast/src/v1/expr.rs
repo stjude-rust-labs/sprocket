@@ -16,6 +16,7 @@ use crate::TreeToken;
 
 /// Represents an expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub enum Expr<N: TreeNode = SyntaxNode> {
     /// The expression is a literal.
     Literal(LiteralExpr<N>),
@@ -1026,6 +1027,7 @@ impl<N: TreeNode> AstNode<N> for Expr<N> {
 
 /// Represents a literal expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub enum LiteralExpr<N: TreeNode = SyntaxNode> {
     /// The literal is a `Boolean`.
     Boolean(LiteralBoolean<N>),
@@ -1625,6 +1627,7 @@ impl<N: TreeNode> LiteralExpr<N> {
 
 /// Represents a literal boolean.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralBoolean<N: TreeNode = SyntaxNode>(pub(super) N);
 
 impl<N: TreeNode> LiteralBoolean<N> {
@@ -1662,6 +1665,7 @@ impl<N: TreeNode> AstNode<N> for LiteralBoolean<N> {
 
 /// Represents an integer token.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct Integer<T: TreeToken = SyntaxToken>(T);
 
 impl<T: TreeToken> AstToken<T> for Integer<T> {
@@ -1683,6 +1687,7 @@ impl<T: TreeToken> AstToken<T> for Integer<T> {
 
 /// Represents a literal integer.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralInteger<N: TreeNode = SyntaxNode>(pub(super) N);
 
 impl<N: TreeNode> LiteralInteger<N> {
@@ -1796,6 +1801,7 @@ impl<N: TreeNode> AstNode<N> for LiteralInteger<N> {
 
 /// Represents a float token.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct Float<T: TreeToken = SyntaxToken>(T);
 
 impl<T: TreeToken> AstToken<T> for Float<T> {
@@ -1817,6 +1823,7 @@ impl<T: TreeToken> AstToken<T> for Float<T> {
 
 /// Represents a literal float.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralFloat<N: TreeNode = SyntaxNode>(pub(crate) N);
 
 impl<N: TreeNode> LiteralFloat<N> {
@@ -1941,6 +1948,7 @@ fn unescape_multiline_string(s: &str) -> String {
 
 /// Represents text of a [`LiteralString`] that contains no placeholders.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub enum LiteralStringText<T: TreeToken = SyntaxToken> {
     /// The entire string literal is represented with a single token.
     Token(StringText<T>),
@@ -1970,6 +1978,7 @@ impl<T: TreeToken> LiteralStringText<T> {
 
 /// Represents a literal string.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralString<N: TreeNode = SyntaxNode>(pub(super) N);
 
 impl<N: TreeNode> LiteralString<N> {
@@ -2220,6 +2229,7 @@ impl<N: TreeNode> StringPart<N> {
 
 /// Represents a textual part of a string.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct StringText<T: TreeToken = SyntaxToken>(T);
 
 impl<T: TreeToken> StringText<T> {
@@ -2300,6 +2310,7 @@ impl<T: TreeToken> AstToken<T> for StringText<T> {
 
 /// Represents a placeholder in a string or command.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct Placeholder<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> Placeholder<N> {
@@ -2370,6 +2381,7 @@ impl<N: TreeNode> AstNode<N> for Placeholder<N> {
 
 /// Represents a placeholder option.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub enum PlaceholderOption<N: TreeNode = SyntaxNode> {
     /// A `sep` option for specifying a delimiter for formatting arrays.
     Sep(SepOption<N>),
@@ -2533,6 +2545,7 @@ impl<N: TreeNode> AstNode<N> for PlaceholderOption<N> {
 
 /// Represents a `sep` option for a placeholder.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct SepOption<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> SepOption<N> {
@@ -2562,6 +2575,7 @@ impl<N: TreeNode> AstNode<N> for SepOption<N> {
 
 /// Represents a `default` option for a placeholder.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct DefaultOption<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> DefaultOption<N> {
@@ -2591,6 +2605,7 @@ impl<N: TreeNode> AstNode<N> for DefaultOption<N> {
 
 /// Represents a `true/false` option for a placeholder.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct TrueFalseOption<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> TrueFalseOption<N> {
@@ -2655,6 +2670,7 @@ impl<N: TreeNode> AstNode<N> for TrueFalseOption<N> {
 
 /// Represents a literal array.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralArray<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> LiteralArray<N> {
@@ -2683,6 +2699,7 @@ impl<N: TreeNode> AstNode<N> for LiteralArray<N> {
 
 /// Represents a literal pair.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralPair<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> LiteralPair<N> {
@@ -2716,6 +2733,7 @@ impl<N: TreeNode> AstNode<N> for LiteralPair<N> {
 
 /// Represents a literal map.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralMap<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> LiteralMap<N> {
@@ -2744,6 +2762,7 @@ impl<N: TreeNode> AstNode<N> for LiteralMap<N> {
 
 /// Represents a literal map item.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralMapItem<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> LiteralMapItem<N> {
@@ -2775,6 +2794,7 @@ impl<N: TreeNode> AstNode<N> for LiteralMapItem<N> {
 
 /// Represents a literal object.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralObject<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> LiteralObject<N> {
@@ -2810,6 +2830,7 @@ fn name_value<N: TreeNode, T: AstNode<N>>(parent: &T) -> (Ident<N::Token>, Expr<
 
 /// Represents a literal object item.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralObjectItem<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> LiteralObjectItem<N> {
@@ -2838,6 +2859,7 @@ impl<N: TreeNode> AstNode<N> for LiteralObjectItem<N> {
 
 /// Represents a literal struct.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralStruct<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> LiteralStruct<N> {
@@ -2871,6 +2893,7 @@ impl<N: TreeNode> AstNode<N> for LiteralStruct<N> {
 
 /// Represents a literal struct item.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralStructItem<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> LiteralStructItem<N> {
@@ -2899,6 +2922,7 @@ impl<N: TreeNode> AstNode<N> for LiteralStructItem<N> {
 
 /// Represents a literal `None`.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralNone<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> AstNode<N> for LiteralNone<N> {
@@ -2920,6 +2944,7 @@ impl<N: TreeNode> AstNode<N> for LiteralNone<N> {
 
 /// Represents a literal `hints`.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralHints<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> LiteralHints<N> {
@@ -2948,6 +2973,7 @@ impl<N: TreeNode> AstNode<N> for LiteralHints<N> {
 
 /// Represents a literal hints item.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralHintsItem<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> LiteralHintsItem<N> {
@@ -2981,6 +3007,7 @@ impl<N: TreeNode> AstNode<N> for LiteralHintsItem<N> {
 
 /// Represents a literal `input`.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralInput<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> LiteralInput<N> {
@@ -3009,6 +3036,7 @@ impl<N: TreeNode> AstNode<N> for LiteralInput<N> {
 
 /// Represents a literal input item.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralInputItem<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> LiteralInputItem<N> {
@@ -3047,6 +3075,7 @@ impl<N: TreeNode> AstNode<N> for LiteralInputItem<N> {
 
 /// Represents a literal `output`.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralOutput<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> LiteralOutput<N> {
@@ -3075,6 +3104,7 @@ impl<N: TreeNode> AstNode<N> for LiteralOutput<N> {
 
 /// Represents a literal output item.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralOutputItem<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> LiteralOutputItem<N> {
@@ -3113,6 +3143,7 @@ impl<N: TreeNode> AstNode<N> for LiteralOutputItem<N> {
 
 /// Represents a name reference expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct NameRefExpr<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> NameRefExpr<N> {
@@ -3141,6 +3172,7 @@ impl<N: TreeNode> AstNode<N> for NameRefExpr<N> {
 
 /// Represents a parenthesized expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct ParenthesizedExpr<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> ParenthesizedExpr<N> {
@@ -3169,6 +3201,7 @@ impl<N: TreeNode> AstNode<N> for ParenthesizedExpr<N> {
 
 /// Represents an `if` expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct IfExpr<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> IfExpr<N> {
@@ -3210,6 +3243,7 @@ macro_rules! prefix_expression {
     ($name:ident, $kind:ident, $desc:literal) => {
         #[doc = concat!("Represents a ", $desc, " expression.")]
         #[derive(Clone, Debug, PartialEq, Eq)]
+        #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
         pub struct $name<N: TreeNode = SyntaxNode>(N);
 
         impl<N: TreeNode> $name<N> {
@@ -3243,6 +3277,7 @@ macro_rules! infix_expression {
     ($name:ident, $kind:ident, $desc:literal) => {
         #[doc = concat!("Represents a ", $desc, " expression.")]
         #[derive(Clone, Debug, PartialEq, Eq)]
+        #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
         pub struct $name<N: TreeNode = SyntaxNode>(N);
 
         impl<N: TreeNode> $name<N> {
@@ -3297,6 +3332,7 @@ infix_expression!(ExponentiationExpr, ExponentiationExprNode, "exponentiation");
 
 /// Represents a call expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct CallExpr<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> CallExpr<N> {
@@ -3330,6 +3366,7 @@ impl<N: TreeNode> AstNode<N> for CallExpr<N> {
 
 /// Represents an index expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct IndexExpr<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> IndexExpr<N> {
@@ -3364,6 +3401,7 @@ impl<N: TreeNode> AstNode<N> for IndexExpr<N> {
 
 /// Represents an access expression.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct AccessExpr<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> AccessExpr<N> {

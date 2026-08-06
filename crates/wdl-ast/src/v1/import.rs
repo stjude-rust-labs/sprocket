@@ -13,6 +13,8 @@ use super::Asterisk;
 use super::FromKeyword;
 use super::ImportKeyword;
 use super::LiteralString;
+#[cfg(feature = "unstable-python")]
+use super::PyLiteralString;
 use crate::AstNode;
 use crate::AstToken;
 use crate::Ident;
@@ -40,6 +42,7 @@ use crate::TreeToken;
 /// path; the variants are reachable through `source()`. Forms 2 and 3 do not
 /// accept the trailing `as <alias>` or `alias` clauses.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct ImportStatement<N: TreeNode = SyntaxNode>(N);
 
 /// The source of an [`ImportStatement`].
@@ -47,6 +50,7 @@ pub struct ImportStatement<N: TreeNode = SyntaxNode>(N);
 /// The grammar guarantees that every well-formed `ImportStatementNode` has
 /// exactly one of these two children, so callers always receive a value.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub enum ImportSource<N: TreeNode = SyntaxNode> {
     /// A quoted string URI source, e.g. `"some/file.wdl"`.
     Uri(LiteralString<N>),
@@ -239,6 +243,7 @@ impl<N: TreeNode> AstNode<N> for ImportStatement<N> {
 ///
 /// The path consists of one or more identifier components separated by `/`.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct SymbolicModulePath<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> SymbolicModulePath<N> {
@@ -284,6 +289,7 @@ impl<N: TreeNode> AstNode<N> for SymbolicModulePath<N> {
 /// The clause contains one or more comma-separated `ImportMember`
 /// entries inside `{` and `}`. A trailing comma is permitted.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct ImportMembers<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> ImportMembers<N> {
@@ -315,6 +321,7 @@ impl<N: TreeNode> AstNode<N> for ImportMembers<N> {
 /// An entry is a single identifier optionally followed by `as <alias>` to
 /// rename it locally.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct ImportMember<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> ImportMember<N> {
@@ -355,6 +362,7 @@ impl<N: TreeNode> AstNode<N> for ImportMember<N> {
 
 /// Represents an `alias <src> as <dst>` clause.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct ImportAlias<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> ImportAlias<N> {

@@ -18,6 +18,24 @@ use super::MetadataSection;
 use super::MetadataValue;
 use super::OutputSection;
 use super::ParameterMetadataSection;
+#[cfg(feature = "unstable-python")]
+use super::PyBoundDecl;
+#[cfg(feature = "unstable-python")]
+use super::PyInputSection;
+#[cfg(feature = "unstable-python")]
+use super::PyLiteralBoolean;
+#[cfg(feature = "unstable-python")]
+use super::PyLiteralFloat;
+#[cfg(feature = "unstable-python")]
+use super::PyLiteralInteger;
+#[cfg(feature = "unstable-python")]
+use super::PyLiteralString;
+#[cfg(feature = "unstable-python")]
+use super::PyMetadataSection;
+#[cfg(feature = "unstable-python")]
+use super::PyOutputSection;
+#[cfg(feature = "unstable-python")]
+use super::PyParameterMetadataSection;
 use super::WorkflowKeyword;
 use crate::AstNode;
 use crate::AstToken;
@@ -48,6 +66,7 @@ pub const WORKFLOW_HINT_KEYS: &[(&str, &str)] = &[(
 
 /// Represents a workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct WorkflowDefinition<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> WorkflowDefinition<N> {
@@ -178,6 +197,7 @@ impl Documented<SyntaxNode> for WorkflowDefinition<SyntaxNode> {
 
 /// Represents an item in a workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub enum WorkflowItem<N: TreeNode = SyntaxNode> {
     /// The item is an input section.
     Input(InputSection<N>),
@@ -502,6 +522,7 @@ impl<N: TreeNode> WorkflowItem<N> {
 
 /// Represents a statement in a workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub enum WorkflowStatement<N: TreeNode = SyntaxNode> {
     /// The statement is a conditional statement.
     Conditional(ConditionalStatement<N>),
@@ -741,6 +762,7 @@ impl std::fmt::Display for ConditionalStatementClauseKind {
 
 /// A clause within a conditional statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct ConditionalStatementClause<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> AstNode<N> for ConditionalStatementClause<N> {
@@ -817,6 +839,7 @@ impl<N: TreeNode> ConditionalStatementClause<N> {
 
 /// Represents a workflow conditional statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct ConditionalStatement<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> ConditionalStatement<N> {
@@ -864,6 +887,7 @@ impl<N: TreeNode> AstNode<N> for ConditionalStatement<N> {
 
 /// Represents a workflow scatter statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct ScatterStatement<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> ScatterStatement<N> {
@@ -909,6 +933,7 @@ impl<N: TreeNode> AstNode<N> for ScatterStatement<N> {
 
 /// Represents a workflow call statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct CallStatement<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> CallStatement<N> {
@@ -957,6 +982,7 @@ impl<N: TreeNode> AstNode<N> for CallStatement<N> {
 
 /// Represents a target in a call statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct CallTarget<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> CallTarget<N> {
@@ -991,6 +1017,7 @@ impl<N: TreeNode> AstNode<N> for CallTarget<N> {
 
 /// Represents an alias in a call statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct CallAlias<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> CallAlias<N> {
@@ -1019,6 +1046,7 @@ impl<N: TreeNode> AstNode<N> for CallAlias<N> {
 
 /// Represents an after clause in a call statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct CallAfter<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> CallAfter<N> {
@@ -1047,6 +1075,7 @@ impl<N: TreeNode> AstNode<N> for CallAfter<N> {
 
 /// Represents an input item in a call statement.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct CallInputItem<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> CallInputItem<N> {
@@ -1096,6 +1125,7 @@ impl<N: TreeNode> AstNode<N> for CallInputItem<N> {
 
 /// Represents a hints section in a workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct WorkflowHintsSection<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> WorkflowHintsSection<N> {
@@ -1129,6 +1159,7 @@ impl<N: TreeNode> AstNode<N> for WorkflowHintsSection<N> {
 
 /// Represents an item in a workflow hints section.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct WorkflowHintsItem<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> WorkflowHintsItem<N> {
@@ -1162,6 +1193,7 @@ impl<N: TreeNode> AstNode<N> for WorkflowHintsItem<N> {
 
 /// Represents a workflow hints item value.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub enum WorkflowHintsItemValue<N: TreeNode = SyntaxNode> {
     /// The value is a literal boolean.
     Boolean(LiteralBoolean<N>),
@@ -1290,6 +1322,7 @@ impl<N: TreeNode> AstNode<N> for WorkflowHintsItemValue<N> {
 
 /// Represents a workflow hints object.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct WorkflowHintsObject<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> WorkflowHintsObject<N> {
@@ -1318,6 +1351,7 @@ impl<N: TreeNode> AstNode<N> for WorkflowHintsObject<N> {
 
 /// Represents a workflow hints object item.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct WorkflowHintsObjectItem<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> WorkflowHintsObjectItem<N> {
@@ -1351,6 +1385,7 @@ impl<N: TreeNode> AstNode<N> for WorkflowHintsObjectItem<N> {
 
 /// Represents a workflow hints array.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct WorkflowHintsArray<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> WorkflowHintsArray<N> {
