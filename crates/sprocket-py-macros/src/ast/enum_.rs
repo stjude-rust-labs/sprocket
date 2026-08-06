@@ -75,7 +75,7 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
     // Used for quote formatting.
     let ident = &original.ident;
     let py_ident = &py_enum.ident;
-    let from_match_arms = original.variants.iter().map(|variant| {
+    let original_to_py_match_args = original.variants.iter().map(|variant| {
         let variant_ident = &variant.ident;
 
         match variant.fields {
@@ -91,6 +91,22 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
             Fields::Named(_) => unreachable!("struct variants were previously filtered out"),
         }
     });
+    let py_to_original_match_args = original.variants.iter().map(|variant| {
+        let variant_ident = &variant.ident;
+
+        match variant.fields {
+            Fields::Unnamed(ref fields_unnamed) => {
+                let field_names = (0..fields_unnamed.unnamed.len()).map(|i| format_ident!("_{i}"));
+                let field_names2 = field_names.clone().map(|i| quote! { #i.into() });
+
+                // This tends to look like `Foo::Bar(_0, _1) => PyFoo::Bar(_0.into(), _1.into())`.
+                quote!(#py_ident::#variant_ident(#(#field_names),*) => #ident::#variant_ident(#(#field_names2),*))
+            },
+            // Convert empty tuple variant to unit variant.
+            Fields::Unit => quote!(#py_ident::#variant_ident() => #ident::#variant_ident),
+            Fields::Named(_) => unreachable!("struct variants were previously filtered out"),
+        }
+    });
 
     Ok(quote! {
         #py_enum
@@ -100,7 +116,17 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
         impl ::std::convert::From<#ident> for #py_ident {
             fn from(value: #ident) -> Self {
                 match value {
-                    #(#from_match_arms),*
+                    #(#original_to_py_match_args),*
+                }
+            }
+        }
+
+        // Converting from the Python enum to the original enum. This is used by Python methods
+        // to call their original counterparts.
+        impl ::std::convert::From<#py_ident> for #ident {
+            fn from(value: #py_ident) -> Self {
+                match value {
+                    #(#py_to_original_match_args),*
                 }
             }
         }
