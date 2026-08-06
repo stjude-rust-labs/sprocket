@@ -5,6 +5,7 @@ use quote::ToTokens;
 use quote::format_ident;
 use syn::Error;
 use syn::Fields;
+use syn::FieldsUnnamed;
 use syn::Generics;
 use syn::ItemEnum;
 use syn::LitStr;
@@ -12,6 +13,8 @@ use syn::PathArguments;
 use syn::Result;
 use syn::Type;
 use syn::parse_quote;
+use syn::punctuated::Punctuated;
+use syn::token::Paren;
 
 use super::Args;
 
@@ -30,7 +33,14 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
     for variant in py_enum.variants.iter_mut() {
         let fields = match variant.fields {
             Fields::Unnamed(ref mut fields) => fields,
-            Fields::Unit => continue,
+            Fields::Unit => {
+                // Convert unit variants into empty tuple variants so that PyO3 supports them.
+                variant.fields = Fields::Unnamed(FieldsUnnamed {
+                    paren_token: Paren::default(),
+                    unnamed: Punctuated::new(),
+                });
+                continue;
+            }
             _ => {
                 return Err(Error::new_spanned(
                     &variant.fields,
