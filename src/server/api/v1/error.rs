@@ -212,4 +212,18 @@ mod tests {
         )
         .await;
     }
+
+    #[tokio::test]
+    async fn database_errors_map_to_internal_response() {
+        assert_error_response(
+            Error::from(DatabaseError::InvalidVersion {
+                expected: "1".to_string(),
+                found: "0".to_string(),
+            }),
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "Internal",
+            INTERNAL_ERROR_MESSAGE,
+        )
+        .await;
+    }
 }

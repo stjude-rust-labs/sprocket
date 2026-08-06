@@ -24,6 +24,9 @@ Options:
       --github-url <LINK TO GITHUB>
           An optional link to the project's GitHub repository
 
+      --slack-url <LINK TO SLACK>
+          An optional link to the project's Slack workspace
+
       --alt-light-logo <SVG FILE>
           Path to an alternate light mode SVG logo to embed on each page.
           
@@ -46,14 +49,11 @@ Options:
       --html-head <FILE>
           Path to an HTML file that should have its contents embedded in each HTML page, immediately before the closing `<head>` tag
 
-      --html-body-open <FILE>
-          Path to an HTML file that should have its contents embedded in each HTML page, immediately after the opening `<body>` tag
-
   -v, --verbose...
           Increase logging verbosity
 
-      --html-body-close <FILE>
-          Path to an HTML file that should have its contents embedded in each HTML page, immediately before the closing `<body>` tag
+      --html-body-open <FILE>
+          Path to an HTML file that should have its contents embedded in each HTML page, immediately after the opening `<body>` tag
 
   -q, --quiet...
           Decrease logging verbosity
@@ -68,13 +68,16 @@ Options:
           
           [default: auto]
 
+      --html-body-close <FILE>
+          Path to an HTML file that should have its contents embedded in each HTML page, immediately before the closing `<body>` tag
+
+  -c, --config <CONFIG>
+          Path to the configuration file
+
       --theme <DIR>
           An optional path to a custom theme directory.
           
           This argument is meant to be used by developers of the `wdl` crates; customizing the theme used for the generated documentation is currently unsupported.
-
-  -c, --config <CONFIG>
-          Path to the configuration file
 
       --install
           Install the theme if it is not already installed.
@@ -89,7 +92,7 @@ Options:
       --with-doc-comments
           Enables support for documentation comments
           
-          This option is *experimental* and will be removed in a future major version. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
+          This option is *experimental* and will be removed in a future major version. Follow the pre-RFC discussion here: <http/github.com/openwdl/wdl/issues/757>.
 
   -m, --report-mode <MODE>
           The report mode

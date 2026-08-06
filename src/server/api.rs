@@ -57,6 +57,8 @@ mod tests {
         let (run_manager_tx, _run_manager_rx) = mpsc::channel::<RunManagerCmd>(1);
         let state = AppState::builder()
             .run_manager_tx(run_manager_tx.clone())
+            .failure_mode(ServerFailureMode::Slow)
+            .output_dir(String::new())
             .build();
 
         assert!(!state.run_manager_tx().is_closed());
@@ -69,7 +71,11 @@ mod tests {
     #[tokio::test]
     async fn router_nests_v1_routes() -> anyhow::Result<()> {
         let (run_manager_tx, _run_manager_rx) = mpsc::channel::<RunManagerCmd>(1);
-        let state = AppState::builder().run_manager_tx(run_manager_tx).build();
+        let state = AppState::builder()
+            .run_manager_tx(run_manager_tx)
+            .failure_mode(ServerFailureMode::Slow)
+            .output_dir(String::new())
+            .build();
         let app = create_router(state);
 
         let request = Request::builder().uri("/missing").body(Body::empty())?;

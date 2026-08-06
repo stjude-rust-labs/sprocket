@@ -61,6 +61,9 @@ _sprocket() {
             sprocket__subcmd__config,resolve)
                 cmd="sprocket__subcmd__config__subcmd__resolve"
                 ;;
+            sprocket__subcmd__config,schema)
+                cmd="sprocket__subcmd__config__subcmd__schema"
+                ;;
             sprocket__subcmd__config__subcmd__help,help)
                 cmd="sprocket__subcmd__config__subcmd__help__subcmd__help"
                 ;;
@@ -69,6 +72,9 @@ _sprocket() {
                 ;;
             sprocket__subcmd__config__subcmd__help,resolve)
                 cmd="sprocket__subcmd__config__subcmd__help__subcmd__resolve"
+                ;;
+            sprocket__subcmd__config__subcmd__help,schema)
+                cmd="sprocket__subcmd__config__subcmd__help__subcmd__schema"
                 ;;
             sprocket__subcmd__dev,doc)
                 cmd="sprocket__subcmd__dev__subcmd__doc"
@@ -81,9 +87,6 @@ _sprocket() {
                 ;;
             sprocket__subcmd__dev,server)
                 cmd="sprocket__subcmd__dev__subcmd__server"
-                ;;
-            sprocket__subcmd__dev,submit)
-                cmd="sprocket__subcmd__dev__subcmd__submit"
                 ;;
             sprocket__subcmd__dev,test)
                 cmd="sprocket__subcmd__dev__subcmd__test"
@@ -100,11 +103,83 @@ _sprocket() {
             sprocket__subcmd__dev__subcmd__help,server)
                 cmd="sprocket__subcmd__dev__subcmd__help__subcmd__server"
                 ;;
-            sprocket__subcmd__dev__subcmd__help,submit)
-                cmd="sprocket__subcmd__dev__subcmd__help__subcmd__submit"
-                ;;
             sprocket__subcmd__dev__subcmd__help,test)
                 cmd="sprocket__subcmd__dev__subcmd__help__subcmd__test"
+                ;;
+            sprocket__subcmd__dev__subcmd__help__subcmd__server,cancel)
+                cmd="sprocket__subcmd__dev__subcmd__help__subcmd__server__subcmd__cancel"
+                ;;
+            sprocket__subcmd__dev__subcmd__help__subcmd__server,inspect)
+                cmd="sprocket__subcmd__dev__subcmd__help__subcmd__server__subcmd__inspect"
+                ;;
+            sprocket__subcmd__dev__subcmd__help__subcmd__server,retry)
+                cmd="sprocket__subcmd__dev__subcmd__help__subcmd__server__subcmd__retry"
+                ;;
+            sprocket__subcmd__dev__subcmd__help__subcmd__server,start)
+                cmd="sprocket__subcmd__dev__subcmd__help__subcmd__server__subcmd__start"
+                ;;
+            sprocket__subcmd__dev__subcmd__help__subcmd__server,status)
+                cmd="sprocket__subcmd__dev__subcmd__help__subcmd__server__subcmd__status"
+                ;;
+            sprocket__subcmd__dev__subcmd__help__subcmd__server,submit)
+                cmd="sprocket__subcmd__dev__subcmd__help__subcmd__server__subcmd__submit"
+                ;;
+            sprocket__subcmd__dev__subcmd__help__subcmd__test,schema)
+                cmd="sprocket__subcmd__dev__subcmd__help__subcmd__test__subcmd__schema"
+                ;;
+            sprocket__subcmd__dev__subcmd__server,cancel)
+                cmd="sprocket__subcmd__dev__subcmd__server__subcmd__cancel"
+                ;;
+            sprocket__subcmd__dev__subcmd__server,help)
+                cmd="sprocket__subcmd__dev__subcmd__server__subcmd__help"
+                ;;
+            sprocket__subcmd__dev__subcmd__server,inspect)
+                cmd="sprocket__subcmd__dev__subcmd__server__subcmd__inspect"
+                ;;
+            sprocket__subcmd__dev__subcmd__server,retry)
+                cmd="sprocket__subcmd__dev__subcmd__server__subcmd__retry"
+                ;;
+            sprocket__subcmd__dev__subcmd__server,start)
+                cmd="sprocket__subcmd__dev__subcmd__server__subcmd__start"
+                ;;
+            sprocket__subcmd__dev__subcmd__server,status)
+                cmd="sprocket__subcmd__dev__subcmd__server__subcmd__status"
+                ;;
+            sprocket__subcmd__dev__subcmd__server,submit)
+                cmd="sprocket__subcmd__dev__subcmd__server__subcmd__submit"
+                ;;
+            sprocket__subcmd__dev__subcmd__server__subcmd__help,cancel)
+                cmd="sprocket__subcmd__dev__subcmd__server__subcmd__help__subcmd__cancel"
+                ;;
+            sprocket__subcmd__dev__subcmd__server__subcmd__help,help)
+                cmd="sprocket__subcmd__dev__subcmd__server__subcmd__help__subcmd__help"
+                ;;
+            sprocket__subcmd__dev__subcmd__server__subcmd__help,inspect)
+                cmd="sprocket__subcmd__dev__subcmd__server__subcmd__help__subcmd__inspect"
+                ;;
+            sprocket__subcmd__dev__subcmd__server__subcmd__help,retry)
+                cmd="sprocket__subcmd__dev__subcmd__server__subcmd__help__subcmd__retry"
+                ;;
+            sprocket__subcmd__dev__subcmd__server__subcmd__help,start)
+                cmd="sprocket__subcmd__dev__subcmd__server__subcmd__help__subcmd__start"
+                ;;
+            sprocket__subcmd__dev__subcmd__server__subcmd__help,status)
+                cmd="sprocket__subcmd__dev__subcmd__server__subcmd__help__subcmd__status"
+                ;;
+            sprocket__subcmd__dev__subcmd__server__subcmd__help,submit)
+                cmd="sprocket__subcmd__dev__subcmd__server__subcmd__help__subcmd__submit"
+                ;;
+            sprocket__subcmd__dev__subcmd__test,help)
+                cmd="sprocket__subcmd__dev__subcmd__test__subcmd__help"
+                ;;
+            sprocket__subcmd__dev__subcmd__test,schema)
+                cmd="sprocket__subcmd__dev__subcmd__test__subcmd__schema"
+                ;;
+            sprocket__subcmd__dev__subcmd__test__subcmd__help,help)
+                cmd="sprocket__subcmd__dev__subcmd__test__subcmd__help__subcmd__help"
+                ;;
+            sprocket__subcmd__dev__subcmd__test__subcmd__help,schema)
+                cmd="sprocket__subcmd__dev__subcmd__test__subcmd__help__subcmd__schema"
                 ;;
             sprocket__subcmd__format,check)
                 cmd="sprocket__subcmd__format__subcmd__check"
@@ -172,6 +247,9 @@ _sprocket() {
             sprocket__subcmd__help__subcmd__config,resolve)
                 cmd="sprocket__subcmd__help__subcmd__config__subcmd__resolve"
                 ;;
+            sprocket__subcmd__help__subcmd__config,schema)
+                cmd="sprocket__subcmd__help__subcmd__config__subcmd__schema"
+                ;;
             sprocket__subcmd__help__subcmd__dev,doc)
                 cmd="sprocket__subcmd__help__subcmd__dev__subcmd__doc"
                 ;;
@@ -181,11 +259,29 @@ _sprocket() {
             sprocket__subcmd__help__subcmd__dev,server)
                 cmd="sprocket__subcmd__help__subcmd__dev__subcmd__server"
                 ;;
-            sprocket__subcmd__help__subcmd__dev,submit)
-                cmd="sprocket__subcmd__help__subcmd__dev__subcmd__submit"
-                ;;
             sprocket__subcmd__help__subcmd__dev,test)
                 cmd="sprocket__subcmd__help__subcmd__dev__subcmd__test"
+                ;;
+            sprocket__subcmd__help__subcmd__dev__subcmd__server,cancel)
+                cmd="sprocket__subcmd__help__subcmd__dev__subcmd__server__subcmd__cancel"
+                ;;
+            sprocket__subcmd__help__subcmd__dev__subcmd__server,inspect)
+                cmd="sprocket__subcmd__help__subcmd__dev__subcmd__server__subcmd__inspect"
+                ;;
+            sprocket__subcmd__help__subcmd__dev__subcmd__server,retry)
+                cmd="sprocket__subcmd__help__subcmd__dev__subcmd__server__subcmd__retry"
+                ;;
+            sprocket__subcmd__help__subcmd__dev__subcmd__server,start)
+                cmd="sprocket__subcmd__help__subcmd__dev__subcmd__server__subcmd__start"
+                ;;
+            sprocket__subcmd__help__subcmd__dev__subcmd__server,status)
+                cmd="sprocket__subcmd__help__subcmd__dev__subcmd__server__subcmd__status"
+                ;;
+            sprocket__subcmd__help__subcmd__dev__subcmd__server,submit)
+                cmd="sprocket__subcmd__help__subcmd__dev__subcmd__server__subcmd__submit"
+                ;;
+            sprocket__subcmd__help__subcmd__dev__subcmd__test,schema)
+                cmd="sprocket__subcmd__help__subcmd__dev__subcmd__test__subcmd__schema"
                 ;;
             sprocket__subcmd__help__subcmd__format,check)
                 cmd="sprocket__subcmd__help__subcmd__format__subcmd__check"
@@ -236,11 +332,11 @@ _sprocket() {
             fi
             case "${prev}" in
                 --except)
-                    COMPREPLY=($(compgen -W "CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DescriptionLength DocCommentTabs DocMetaStrings DoubleQuotes EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InputName KnownRules MatchingOutputMeta MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection SectionOrdering ShellCheck SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DescriptionLength DocCommentTabs DocMetaStrings DoubleQuotes EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection SectionOrdering ShellCheck SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
                     return 0
                     ;;
                 -e)
-                    COMPREPLY=($(compgen -W "CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DescriptionLength DocCommentTabs DocMetaStrings DoubleQuotes EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InputName KnownRules MatchingOutputMeta MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection SectionOrdering ShellCheck SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DescriptionLength DocCommentTabs DocMetaStrings DoubleQuotes EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection SectionOrdering ShellCheck SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
                     return 0
                     ;;
                 --color)
@@ -270,19 +366,19 @@ _sprocket() {
             fi
             case "${prev}" in
                 --except)
-                    COMPREPLY=($(compgen -W "CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DescriptionLength DocCommentTabs DocMetaStrings DoubleQuotes EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InputName KnownRules MatchingOutputMeta MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection SectionOrdering ShellCheck SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DescriptionLength DocCommentTabs DocMetaStrings DoubleQuotes EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection SectionOrdering ShellCheck SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
                     return 0
                     ;;
                 -e)
-                    COMPREPLY=($(compgen -W "CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DescriptionLength DocCommentTabs DocMetaStrings DoubleQuotes EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InputName KnownRules MatchingOutputMeta MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection SectionOrdering ShellCheck SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DescriptionLength DocCommentTabs DocMetaStrings DoubleQuotes EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection SectionOrdering ShellCheck SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
                     return 0
                     ;;
                 --filter-lint-tag)
-                    COMPREPLY=($(compgen -W "Clarity Completeness Correctness Deprecated Documentation Naming Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
                     return 0
                     ;;
                 --only-lint-tag)
-                    COMPREPLY=($(compgen -W "Clarity Completeness Correctness Deprecated Documentation Naming Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
                     return 0
                     ;;
                 --report-mode)
@@ -339,7 +435,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__config)
-            opts="-v -q -c -s -h -V --verbose --quiet --color --config --skip-config-search --help --version init resolve help"
+            opts="-v -q -c -s -h -V --verbose --quiet --color --config --skip-config-search --help --version schema init resolve help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -365,7 +461,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__config__subcmd__help)
-            opts="init resolve help"
+            opts="schema init resolve help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -407,6 +503,20 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__config__subcmd__help__subcmd__resolve)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__config__subcmd__help__subcmd__schema)
             opts=""
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
@@ -472,8 +582,34 @@ _sprocket() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        sprocket__subcmd__config__subcmd__schema)
+            opts="-v -q -c -s -h -V --verbose --quiet --color --config --skip-config-search --help --version"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --color)
+                    COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
+                    return 0
+                    ;;
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         sprocket__subcmd__dev)
-            opts="-v -q -c -s -h -V --verbose --quiet --color --config --skip-config-search --help --version doc lock server submit test help"
+            opts="-v -q -c -s -h -V --verbose --quiet --color --config --skip-config-search --help --version doc lock server test help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -499,7 +635,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__doc)
-            opts="-l -m -v -q -c -s -h -V --check --index-page --logo --homepage-url --github-url --alt-light-logo --light-mode --output --overwrite --open --html-head --html-body-open --html-body-close --theme --install --with-doc-comments --report-mode --verbose --quiet --color --config --skip-config-search --help --version [WORKSPACE]"
+            opts="-l -m -v -q -c -s -h -V --check --index-page --logo --homepage-url --github-url --slack-url --alt-light-logo --light-mode --output --overwrite --open --html-head --html-body-open --html-body-close --theme --install --with-doc-comments --report-mode --verbose --quiet --color --config --skip-config-search --help --version [WORKSPACE]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -518,6 +654,10 @@ _sprocket() {
                     return 0
                     ;;
                 --github-url)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --slack-url)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -573,7 +713,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__help)
-            opts="doc lock server submit test help"
+            opts="doc lock server test help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -629,7 +769,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__help__subcmd__server)
-            opts=""
+            opts="start submit status inspect cancel retry"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -642,9 +782,79 @@ _sprocket() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        sprocket__subcmd__dev__subcmd__help__subcmd__submit)
+        sprocket__subcmd__dev__subcmd__help__subcmd__server__subcmd__cancel)
             opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__help__subcmd__server__subcmd__inspect)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__help__subcmd__server__subcmd__retry)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__help__subcmd__server__subcmd__start)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__help__subcmd__server__subcmd__status)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__help__subcmd__server__subcmd__submit)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -657,7 +867,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__help__subcmd__test)
-            opts=""
+            opts="schema"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -670,8 +880,22 @@ _sprocket() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        sprocket__subcmd__dev__subcmd__help__subcmd__test__subcmd__schema)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         sprocket__subcmd__dev__subcmd__lock)
-            opts="-o -v -q -c -s -h -V --output --verbose --quiet --color --config --skip-config-search --help --version [SOURCE]"
+            opts="-o -m -v -q -c -s -h -V --output --report-mode --verbose --quiet --color --config --skip-config-search --help --version [SOURCE]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -683,6 +907,14 @@ _sprocket() {
                     ;;
                 -o)
                     COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --report-mode)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                -m)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
                     return 0
                     ;;
                 --color)
@@ -705,8 +937,280 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__server)
-            opts="-o -v -q -c -s -h -V --host --port --database-url --output-dir --allowed-file-paths --allowed-urls --allowed-origins --verbose --quiet --color --config --skip-config-search --help --version"
+            opts="-v -q -c -s -h -V --verbose --quiet --color --config --skip-config-search --help --version start submit status inspect cancel retry help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --color)
+                    COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
+                    return 0
+                    ;;
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__server__subcmd__cancel)
+            opts="-p -v -q -c -s -h -V --host --port --verbose --quiet --color --config --skip-config-search --help --version <RUN>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --host)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --port)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -p)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --color)
+                    COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
+                    return 0
+                    ;;
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__server__subcmd__help)
+            opts="start submit status inspect cancel retry help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__server__subcmd__help__subcmd__cancel)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__server__subcmd__help__subcmd__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__server__subcmd__help__subcmd__inspect)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__server__subcmd__help__subcmd__retry)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__server__subcmd__help__subcmd__start)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__server__subcmd__help__subcmd__status)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__server__subcmd__help__subcmd__submit)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__server__subcmd__inspect)
+            opts="-p -v -q -c -s -h -V --json --detailed --host --port --verbose --quiet --color --config --skip-config-search --help --version <RUN>"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --host)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --port)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -p)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --color)
+                    COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
+                    return 0
+                    ;;
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__server__subcmd__retry)
+            opts="-t -m -p -v -q -c -s -h -V --target --index-on --no-validate --report-mode --host --port --verbose --quiet --color --config --skip-config-search --help --version <RUN> [OVERRIDES]..."
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --target)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -t)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --index-on)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --report-mode)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                -m)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                --host)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --port)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -p)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --color)
+                    COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
+                    return 0
+                    ;;
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__server__subcmd__start)
+            opts="-o -m -v -q -c -s -h -V --host --port --database-url --output-dir --allowed-file-paths --allowed-urls --allowed-origins --report-mode --verbose --quiet --color --config --skip-config-search --help --version"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -743,6 +1247,14 @@ _sprocket() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
+                --report-mode)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                -m)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
                 --color)
                     COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
                     return 0
@@ -762,9 +1274,55 @@ _sprocket() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        sprocket__subcmd__dev__subcmd__submit)
+        sprocket__subcmd__dev__subcmd__server__subcmd__status)
+            opts="-p -v -q -c -s -h -V --status --limit --json --host --port --verbose --quiet --color --config --skip-config-search --help --version [RUN]"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --status)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --limit)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --host)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --port)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -p)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --color)
+                    COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
+                    return 0
+                    ;;
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__server__subcmd__submit)
             opts="-p -t -m -v -q -c -s -h -V --host --port --target --index-on --report-mode --verbose --quiet --color --config --skip-config-search --help --version <SOURCE> [INPUTS]..."
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -821,7 +1379,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__test)
-            opts="-w -t -f -p -v -q -c -s -h -V --workspace --include-tag --filter-tag --no-clean --clean-all --parallelism --fixtures-dir --run-dir --no-status --verbose --quiet --color --config --skip-config-search --help --version [SOURCE]"
+            opts="-w -t -f -i -e -p -m -v -q -c -s -h -V --workspace --target --filter --exact --include-tag --exclude-tag --no-clean --clean-all --parallelism --fixtures-dir --run-dir --no-status --report-mode --verbose --quiet --color --config --skip-config-search --help --version [SOURCE] schema help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -835,7 +1393,7 @@ _sprocket() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
-                --include-tag)
+                --target)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -843,11 +1401,27 @@ _sprocket() {
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
-                --filter-tag)
+                --filter)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
                 -f)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --include-tag)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -i)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --exclude-tag)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -e)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;
@@ -865,6 +1439,90 @@ _sprocket() {
                     ;;
                 --run-dir)
                     COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --report-mode)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                -m)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                --color)
+                    COMPREPLY=($(compgen -W "auto always never" -- "${cur}"))
+                    return 0
+                    ;;
+                --config)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -c)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__test__subcmd__help)
+            opts="schema help"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__test__subcmd__help__subcmd__help)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__test__subcmd__help__subcmd__schema)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__dev__subcmd__test__subcmd__schema)
+            opts="-m -v -q -c -s -h -V --report-mode --verbose --quiet --color --config --skip-config-search --help --version"
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                --report-mode)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                -m)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
                     return 0
                     ;;
                 --color)
@@ -887,18 +1545,18 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__explain)
-            opts="-t -f -v -q -c -s -h -V --tag --definitions --list-all-rules --list-all-tags --format --verbose --quiet --color --config --skip-config-search --help --version CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DescriptionLength DocCommentTabs DocMetaStrings DoubleQuotes EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InputName KnownRules MatchingOutputMeta MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection SectionOrdering ShellCheck SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion"
+            opts="-t -f -v -q -c -s -h -V --tag --definitions --list-all-rules --list-all-tags --format --verbose --quiet --color --config --skip-config-search --help --version BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DescriptionLength DocCommentTabs DocMetaStrings DoubleQuotes EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection SectionOrdering ShellCheck SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
                 --tag)
-                    COMPREPLY=($(compgen -W "Clarity Completeness Correctness Deprecated Documentation Naming Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
                     return 0
                     ;;
                 -t)
-                    COMPREPLY=($(compgen -W "Clarity Completeness Correctness Deprecated Documentation Naming Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
                     return 0
                     ;;
                 --format)
@@ -1255,7 +1913,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__help__subcmd__config)
-            opts="init resolve"
+            opts="schema init resolve"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1296,8 +1954,22 @@ _sprocket() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
+        sprocket__subcmd__help__subcmd__config__subcmd__schema)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
         sprocket__subcmd__help__subcmd__dev)
-            opts="doc lock server submit test"
+            opts="doc lock server test"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1339,7 +2011,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__help__subcmd__dev__subcmd__server)
-            opts=""
+            opts="start submit status inspect cancel retry"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1352,9 +2024,79 @@ _sprocket() {
             COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
             return 0
             ;;
-        sprocket__subcmd__help__subcmd__dev__subcmd__submit)
+        sprocket__subcmd__help__subcmd__dev__subcmd__server__subcmd__cancel)
             opts=""
-            if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__help__subcmd__dev__subcmd__server__subcmd__inspect)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__help__subcmd__dev__subcmd__server__subcmd__retry)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__help__subcmd__dev__subcmd__server__subcmd__start)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__help__subcmd__dev__subcmd__server__subcmd__status)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__help__subcmd__dev__subcmd__server__subcmd__submit)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -1367,8 +2109,22 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__help__subcmd__dev__subcmd__test)
-            opts=""
+            opts="schema"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
+                COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+                return 0
+            fi
+            case "${prev}" in
+                *)
+                    COMPREPLY=()
+                    ;;
+            esac
+            COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
+            return 0
+            ;;
+        sprocket__subcmd__help__subcmd__dev__subcmd__test__subcmd__schema)
+            opts=""
+            if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
@@ -1521,7 +2277,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__inputs)
-            opts="-t -v -q -c -s -h -V --target --show-non-literals --hide-defaults --nested-inputs --yaml --verbose --quiet --color --config --skip-config-search --help --version <SOURCE>"
+            opts="-t -m -v -q -c -s -h -V --target --show-non-literals --hide-defaults --nested-inputs --yaml --report-mode --verbose --quiet --color --config --skip-config-search --help --version <SOURCE>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1533,6 +2289,14 @@ _sprocket() {
                     ;;
                 -t)
                     COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                --report-mode)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
+                    return 0
+                    ;;
+                -m)
+                    COMPREPLY=($(compgen -W "full one-line" -- "${cur}"))
                     return 0
                     ;;
                 --color)
@@ -1562,19 +2326,19 @@ _sprocket() {
             fi
             case "${prev}" in
                 --except)
-                    COMPREPLY=($(compgen -W "CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DescriptionLength DocCommentTabs DocMetaStrings DoubleQuotes EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InputName KnownRules MatchingOutputMeta MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection SectionOrdering ShellCheck SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DescriptionLength DocCommentTabs DocMetaStrings DoubleQuotes EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection SectionOrdering ShellCheck SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
                     return 0
                     ;;
                 -e)
-                    COMPREPLY=($(compgen -W "CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DescriptionLength DocCommentTabs DocMetaStrings DoubleQuotes EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InputName KnownRules MatchingOutputMeta MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection SectionOrdering ShellCheck SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "BashSetSyntax CallInputKeyword CommandSectionIndentation ConciseInput ContainerUri DeclarationName DenyGlobStar DeprecatedObject DeprecatedPlaceholder DescriptionLength DocCommentTabs DocMetaStrings DoubleQuotes EmptyDocComment EmptyOutputs ExceptDirectiveValid ExpectedRuntimeKeys HereDocCommands HostPathLiterals ImportPlacement InlineInstall InputName KnownRules MatchingOutputMeta MeaninglessLintDirective MetaDescription MetaSections MisleadingDeclarationOrder OutputName ParameterDescription ParameterMetaMatched PascalCase RedundantNone RequirementsSection RuntimeSection SectionOrdering ShellCheck SnakeCase TodoComment UnnecessaryFunctionCall UnusedCall UnusedDeclaration UnusedDocComments UnusedImport UnusedInput UsingFallbackVersion" -- "${cur}"))
                     return 0
                     ;;
                 --filter-lint-tag)
-                    COMPREPLY=($(compgen -W "Clarity Completeness Correctness Deprecated Documentation Naming Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
                     return 0
                     ;;
                 --only-lint-tag)
-                    COMPREPLY=($(compgen -W "Clarity Completeness Correctness Deprecated Documentation Naming Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
+                    COMPREPLY=($(compgen -W "Clarity Completeness Correctness Deprecated Documentation Naming Performance Portability Sorting Spacing SprocketCompatibility Style" -- "${cur}"))
                     return 0
                     ;;
                 --report-mode)

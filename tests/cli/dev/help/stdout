@@ -5,8 +5,7 @@ Usage: sprocket dev [OPTIONS] <COMMAND>
 Commands:
   doc     Document a workspace
   lock    Locks Docker images to a sha256 digest
-  server  Runs the HTTP API server for run execution
-  submit  Submit a workflow to a Sprocket HTTP API server
+  server  Run-management server commands (start, submit, status, inspect, cancel, retry)
   test    Runs unit tests for a WDL workspace
   help    Print this message or the help of the given subcommand(s)
 

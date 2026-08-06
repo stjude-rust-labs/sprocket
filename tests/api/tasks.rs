@@ -98,7 +98,9 @@ async fn seed_completed_task(db: &Arc<dyn Database>) -> Uuid {
         .await
         .unwrap();
     db.create_task("task-one", run_id).await.unwrap();
-    db.update_task_started("task-one", Utc::now()).await.unwrap();
+    db.update_task_started("task-one", Utc::now())
+        .await
+        .unwrap();
     db.update_task_completed("task-one", Some(0), Utc::now())
         .await
         .unwrap();
@@ -661,10 +663,7 @@ async fn task_endpoints_return_seeded_task_and_logs(pool: sqlx::SqlitePool) {
         .oneshot(
             Request::builder()
                 .method("GET")
-                .uri(format!(
-                    "{}?next_token=1",
-                    paths::get_task_logs("task-one")
-                ))
+                .uri(format!("{}?next_token=1", paths::get_task_logs("task-one")))
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -700,10 +699,7 @@ async fn task_endpoints_return_expected_errors(pool: sqlx::SqlitePool) {
             StatusCode::BAD_REQUEST,
         ),
         (paths::get_task("missing-task"), StatusCode::NOT_FOUND),
-        (
-            paths::get_task_logs("missing-task"),
-            StatusCode::NOT_FOUND,
-        ),
+        (paths::get_task_logs("missing-task"), StatusCode::NOT_FOUND),
     ];
 
     for (uri, status) in cases {

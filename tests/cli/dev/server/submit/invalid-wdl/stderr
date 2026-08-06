@@ -6,4 +6,4 @@ error: enums are not supported in WDL v1.2
   │
   = fix: use WDL v1.3 or higher to use enums
 
-error: failed to submit WDL document to server due to analysis errors
+error: source contains analysis errors

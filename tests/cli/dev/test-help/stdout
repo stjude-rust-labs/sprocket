@@ -1,6 +1,10 @@
 Runs unit tests for a WDL workspace
 
-Usage: sprocket dev test [OPTIONS] [SOURCE]
+Usage: sprocket dev test [OPTIONS] [SOURCE] [COMMAND]
+
+Commands:
+  schema  Print the JSON schema for Sprocket test definition YAMLs to stdout
+  help    Print this message or the help of the given subcommand(s)
 
 Arguments:
   [SOURCE]
@@ -18,12 +22,21 @@ Options:
           
           If not specified and the `source` argument is a file, it's assumed that the current working directory is the workspace. This can be specified in addition to a source file if the CWD is not the right workspace.
 
-  -t, --include-tag <TAG>
+  -t, --target <TARGET>
+          Only run tests whose target (task/workflow) name contains the given filter
+
+  -f, --filter <FILTER>
+          Only run tests whose names contain the given filter
+
+      --exact
+          If set, filters are matched exactly rather than by substring
+
+  -i, --include-tag <TAG>
           Specific test tag that should be run.
           
           Can be repeated multiple times.
 
-  -f, --filter-tag <TAG>
+  -e, --exclude-tag <TAG>
           Filter out any tests with a matching tag.
           
           Can be repeated multiple times.
@@ -54,6 +67,13 @@ Options:
 
   -v, --verbose...
           Increase logging verbosity
+
+  -m, --report-mode <MODE>
+          The report mode for any emitted diagnostics
+
+          Possible values:
+          - full:     Prints diagnostics as multiple lines
+          - one-line: Prints diagnostics as one line
 
   -q, --quiet...
           Decrease logging verbosity

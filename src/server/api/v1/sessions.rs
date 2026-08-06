@@ -159,10 +159,15 @@ mod tests {
     use tokio::sync::mpsc;
 
     use super::*;
+    use crate::server::ServerFailureMode;
 
     fn app_state() -> AppState {
         let (run_manager_tx, _run_manager_rx) = mpsc::channel(1);
-        AppState::builder().run_manager_tx(run_manager_tx).build()
+        AppState::builder()
+            .run_manager_tx(run_manager_tx)
+            .failure_mode(ServerFailureMode::Slow)
+            .output_dir(String::new())
+            .build()
     }
 
     fn db_session() -> crate::system::v1::db::Session {

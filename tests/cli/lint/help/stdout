@@ -22,14 +22,14 @@ Options:
           
           Repeat the flag multiple times to filter multiple tags. This is additive with filtered tags found in config files.
           
-          [possible values: Clarity, Completeness, Correctness, Deprecated, Documentation, Naming, Portability, Sorting, Spacing, SprocketCompatibility, Style]
+          [possible values: Clarity, Completeness, Correctness, Deprecated, Documentation, Naming, Performance, Portability, Sorting, Spacing, SprocketCompatibility, Style]
 
       --only-lint-tag <TAG>
           Includes a lint tag for running.
           
           Repeat the flag multiple times to include multiple tags. `--except <RULE>` and `--filter-lint-tag <TAG>` can be used in conjunction with this argument. This is additive with tags selected via config files.
           
-          [possible values: Clarity, Completeness, Correctness, Deprecated, Documentation, Naming, Portability, Sorting, Spacing, SprocketCompatibility, Style]
+          [possible values: Clarity, Completeness, Correctness, Deprecated, Documentation, Naming, Performance, Portability, Sorting, Spacing, SprocketCompatibility, Style]
 
       --deny-warnings
           Causes the command to fail if warnings were reported

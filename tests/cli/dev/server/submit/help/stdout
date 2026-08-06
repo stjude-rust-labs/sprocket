@@ -1,12 +1,12 @@
 Submit a workflow to a Sprocket HTTP API server
 
-Usage: sprocket dev submit [OPTIONS] <SOURCE> [INPUTS]...
+Usage: sprocket dev server submit [OPTIONS] <SOURCE> [INPUTS]...
 
 Arguments:
   <SOURCE>
           The WDL source file to submit.
           
-          The source file may be specified by either a local file path or a URL.
+          The source file may be specified by either a local file path, a URL, or a WDL module directory containing a `module.json`.
 
   [INPUTS]...
           The inputs for the task or workflow.
