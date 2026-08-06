@@ -10,7 +10,6 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::MetadataSection;
 use wdl_ast::v1::MetadataValue;
@@ -132,7 +131,7 @@ impl Visitor for DescriptionLengthRule {
             if text.len() > DESCRIPTION_MAX_LENGTH {
                 diagnostics.exceptable_add(
                     description_too_long(description_item.name().span()),
-                    SyntaxElement::from(description_item.inner().clone()),
+                    description_item.inner(),
                     &self.exceptable_nodes(),
                 );
             }
@@ -155,7 +154,7 @@ impl Visitor for DescriptionLengthRule {
                     if text.len() > DESCRIPTION_MAX_LENGTH {
                         diagnostics.exceptable_add(
                             description_too_long(output.name().span()),
-                            SyntaxElement::from(output.inner().clone()),
+                            output.inner(),
                             &self.exceptable_nodes(),
                         );
                     }
@@ -174,7 +173,7 @@ impl Visitor for DescriptionLengthRule {
                     if text.len() > DESCRIPTION_MAX_LENGTH {
                         diagnostics.exceptable_add(
                             description_too_long(description_item.name().span()),
-                            SyntaxElement::from(description_item.inner().clone()),
+                            description_item.inner(),
                             &self.exceptable_nodes(),
                         );
                     }
@@ -205,7 +204,7 @@ impl Visitor for DescriptionLengthRule {
                 if text.len() > DESCRIPTION_MAX_LENGTH {
                     diagnostics.exceptable_add(
                         description_too_long(param.name().span()),
-                        SyntaxElement::from(param.inner().clone()),
+                        param.inner(),
                         &self.exceptable_nodes(),
                     );
                 }
@@ -224,7 +223,7 @@ impl Visitor for DescriptionLengthRule {
                 if text.len() > DESCRIPTION_MAX_LENGTH {
                     diagnostics.exceptable_add(
                         description_too_long(description_item.name().span()),
-                        SyntaxElement::from(description_item.inner().clone()),
+                        description_item.inner(),
                         &self.exceptable_nodes(),
                     );
                 }

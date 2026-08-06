@@ -61,6 +61,7 @@ Options:
           Print version
 
 Available rules:
+  - BashSetSyntax
   - CallInputKeyword
   - CommandSectionIndentation
   - ConciseInput
@@ -80,9 +81,11 @@ Available rules:
   - HereDocCommands
   - HostPathLiterals
   - ImportPlacement
+  - InlineInstall
   - InputName
   - KnownRules
   - MatchingOutputMeta
+  - MeaninglessLintDirective
   - MetaDescription
   - MetaSections
   - MisleadingDeclarationOrder
@@ -112,6 +115,7 @@ Available tags:
   - Deprecated
   - Documentation
   - Naming
+  - Performance
   - Portability
   - Sorting
   - Spacing

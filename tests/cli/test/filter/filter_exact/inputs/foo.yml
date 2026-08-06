@@ -1,0 +1,4 @@
+say_hello:
+  - name: greeting
+say_hello2:
+  - name: greeting2

@@ -1,0 +1,1 @@
+dev test -f greeting --exact -qq --no-status

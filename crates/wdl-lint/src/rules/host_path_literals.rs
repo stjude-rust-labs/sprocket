@@ -10,7 +10,6 @@ use wdl_ast::AstNode;
 use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::BoundDecl;
 use wdl_ast::v1::Expr;
@@ -149,7 +148,7 @@ impl Visitor for HostPathLiteralsRule {
         {
             diagnostics.exceptable_add(
                 absolute_host_path_default(s.span(), decl.name().text()),
-                SyntaxElement::from(decl.inner().clone()),
+                decl.inner(),
                 &self.exceptable_nodes(),
             );
         }

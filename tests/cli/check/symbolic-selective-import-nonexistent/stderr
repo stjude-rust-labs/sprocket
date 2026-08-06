@@ -1,0 +1,7 @@
+error: `brew_chai` does not exist in the imported module
+  ┌─ main.wdl:3:10
+  │
+3 │ import { brew_chai } from coffeeshop
+  │          ^^^^^^^^^
+
+error: failing due to 1 error

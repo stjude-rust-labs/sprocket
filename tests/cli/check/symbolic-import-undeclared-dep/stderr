@@ -1,0 +1,7 @@
+error: failed to resolve symbolic import `spellbook`: `spellbook` is not a declared dependency
+  ┌─ main.wdl:3:8
+  │
+3 │ import spellbook
+  │        ^^^^^^^^^
+
+error: failing due to 1 error

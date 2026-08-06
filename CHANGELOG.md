@@ -7,20 +7,94 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.29.0 - 2026-08-05
+
+### Changed
+
+* `sprocket dev doc` now renders module-aware navigation, richer declaration
+  pages, linked local types, improved code blocks, and a responsive layout with
+  article-aligned GitHub, website, and optional Slack links
+  ([#1049](https://github.com/stjude-rust-labs/sprocket/pull/1049)).
+* `sprocket dev doc` now accepts SEO metadata under `[doc.seo]` (title,
+  description, author, keywords, base URL, social image, locale, Twitter
+  handle, robots, and theme color); each page's `<title>` becomes
+  `"<page> | <title>"` and the configured values populate the `<head>` with
+  standard, Open Graph, and Twitter Card tags
+  ([#1049](https://github.com/stjude-rust-labs/sprocket/pull/1049)).
+* `sprocket dev doc` now discovers WDL modules by recursively scanning the
+  workspace for `module.json` manifests, so nested and sibling modules (e.g. a
+  monorepo of modules under a manifest-less root) are each documented as
+  modules. A `module.json` that fails to parse is skipped with a warning
+  rather than aborting the run
+  ([#1049](https://github.com/stjude-rust-labs/sprocket/pull/1049)).
+
+### Fixed
+
+* For `sprocket dev server status`, the `--limit` parameter is now respected: passing `--limit N` displays at most N runs by fetching a single page. When `--limit` is omitted, all runs are displayed by paginating through the server's results. The footer distinguishes between "total run(s) in the system" (no filter) and "total matching run(s)" (with a `--status` filter) so a filtered count is not misreported as global. The `--json` output now includes a `total` field alongside `runs` ([#1050](https://github.com/stjude-rust-labs/sprocket/pull/1050)).
+* For `sprocket run`, the execution backend is now considered for the call
+  cache key derivation, which prevents unexpected behavior when switching
+  executing backends. NOTE: this will cause existing call cache entries to be
+  ignored ([#1039](https://github.com/stjude-rust-labs/sprocket/pull/1039)).
+* `sprocket dev test` now isolates each invocation in a unique run directory,
+  preventing Docker Desktop bind-mount failures when repeated tests recreate the same paths
+  ([#1041](https://github.com/stjude-rust-labs/sprocket/pull/1041)).
+* `sprocket dev doc` now honors WDL feature flags configured in
+  `sprocket.toml` ([#1043](https://github.com/stjude-rust-labs/sprocket/pull/1043)).
+* WDL 1.0 `runtime` resource requirements such as `cpu` are again passed to
+  execution backends instead of being treated as hints
+  ([#1027](https://github.com/stjude-rust-labs/sprocket/pull/1027)).
+* `sprocket check` will no longer trigger `KnownRules` for rules excepted over the
+  command line or in `sprocket.toml` ([#1060](https://github.com/stjude-rust-labs/sprocket/pull/1060)).
+
+## 0.28.0 - 2026-07-15
+
 ### Added
 
+* Added server-management commands under `sprocket dev server` ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
+  * `status` shows a compact one-line status for a specific run, or lists all runs with pagination and status filtering; supports `--json`.
+  * `inspect` shows detailed information about a run, including per-status task counts, the server's output directory, and (with `--detailed`) a per-task breakdown.
+  * `cancel` cancels a queued or running run.
+  * `retry` resubmits a previous run with optional input overrides using the same syntax as `submit` (`key=value`, `@file`, repeated keys append to arrays).
+* New API endpoints on the `dev server` HTTP API: `GET /api/v1/info` (server metadata), `GET /api/v1/runs/{id}/tasks` (list a run's tasks, paginated and filterable by status), `GET /api/v1/runs/{id}/tasks/counts` (per-status task counts), `GET /api/v1/tasks` (list all tasks), `GET /api/v1/tasks/{name}` (single task), and `GET /api/v1/tasks/{name}/logs` (task logs, filterable by `stdout`/`stderr`) ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
+* Added a `strongish` content digest mode (`run.task.digests = "strongish"`) that hashes file size, last modified time, and the first 10 MiB of a file's contents; this is an intermediate strategy between `weak` and `strong`, similar to Cromwell's `fingerprint` call caching strategy ([#978](https://github.com/stjude-rust-labs/sprocket/pull/978)).
+* Added `-t` (`--target`), `-f` (`--filter`), and `--exact` options to `sprocket dev test` ([#952](https://github.com/stjude-rust-labs/sprocket/pull/952)).
+* Added `sprocket dev test schema` subcommand to generate a [JSON schema](https://json-schema.org) for
+  Sprocket test definitions ([#953](https://github.com/stjude-rust-labs/sprocket/pull/953)).
+* Added `sprocket config schema` subcommand to generate a [JSON schema](https://json-schema.org) for
+  `sprocket.toml` files ([#958](https://github.com/stjude-rust-labs/sprocket/pull/958)).
+
+### Changed
+
+* Grouped the server commands under `sprocket dev server` (previously flat under `sprocket dev`): `server` and `submit` are now `sprocket dev server <subcommand>`. The `server` subcommand was renamed `start`. ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
+* `sprocket analyzer` now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
+* Replaced the `peak_alloc` global allocator with `mimalloc` and now query peak memory usage from the operating system on exit, removing per-allocation tracking overhead ([#990](https://github.com/stjude-rust-labs/sprocket/pull/990)).
+* Errors reported for a scalar input (e.g., `File`) that received multiple values now include a hint pointing to the likely cause—a repeated `key=value` on the command line or an unquoted shell glob (e.g., `key=*.txt`) that expanded to more than one value ([#998](https://github.com/stjude-rust-labs/sprocket/pull/998)).
+* The `-t` (`--include-tag`) and `-f` (`--filter-tag`) options for `sprocket dev test` have been renamed to
+  `-i` and `-e` (`--exclude-tag`), respectively ([#952](https://github.com/stjude-rust-labs/sprocket/pull/952)).
+
+### Fixed
+
+* `dev server` HTTP endpoints and CLI commands now reject non-positive `--limit` values and negative or unparsable `next_token` values (previously `limit=0` could loop pagination and `limit=-1` triggered SQLite's unbounded-fetch behavior) ([#915](https://github.com/stjude-rust-labs/sprocket/pull/915)).
+* The "missing version statement" parse error no longer claims all WDL documents require a version statement (untrue for draft-2); it now scopes the claim to WDL v1.0+ and adds migration guidance for draft-2 documents ([#993](https://github.com/stjude-rust-labs/sprocket/pull/993)).
+
+## 0.27.0 - 2026-06-26
+
+### Added
+
+* `sprocket` resolves symbolic module imports during analysis when a `module.json` is found at or above the source directory, constructing a `GitResolver` from the `[modules]` configuration ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
 * Nix flake providing `packages.sprocket`, a development shell with the
   full toolchain, `nix flake check` entries (package build, binary smoke
   test, and `nixfmt`/`statix`/`deadnix` lints), and a `nix fmt`
   formatter ([#887](https://github.com/stjude-rust-labs/sprocket/issues/887)).
-* Added printing diagnostics with TOML source context when TOML fails to parse 
+* Added printing diagnostics with TOML source context when TOML fails to parse
   or be deserialized ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
 * New `test.throttle` configuration entry for adding a delay between initial test submissions ([#798](https://github.com/stjude-rust-labs/sprocket/pull/798)).
 * Added `--show-task-stderr` option to the `run` subcommand to show task stderr during execution ([#743](https://github.com/stjude-rust-labs/sprocket/pull/743)).
 * `sprocket dev doc --check` to analyze documents without producing an output ([#691](https://github.com/stjude-rust-labs/sprocket/pull/691)).
 * Added `--fixtures-dir` and `--run-dir` options to the `sprocket dev test`
   command ([#747](https://github.com/stjude-rust-labs/sprocket/pull/747)).
-  
+* Added support for the `should_fail` assertion on tasks in `sprocket dev test` ([#942](https://github.com/stjude-rust-labs/sprocket/pull/942)).
+
 ### Changed
 
 * Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).

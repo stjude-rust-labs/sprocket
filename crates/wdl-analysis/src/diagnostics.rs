@@ -11,7 +11,9 @@ use wdl_ast::TreeNode;
 use wdl_ast::TreeToken;
 use wdl_ast::Version;
 use wdl_ast::v1::PlaceholderOption;
+use wdl_grammar::Severity;
 
+use crate::MeaninglessLintDirective;
 use crate::MisleadingDeclarationOrderRule;
 use crate::UnnecessaryFunctionCall;
 use crate::UnusedCallRule;
@@ -305,6 +307,30 @@ pub fn import_missing_version(span: Span) -> Diagnostic {
 /// Creates an "invalid relative import" diagnostic.
 pub fn invalid_relative_import(error: &url::ParseError, span: Span) -> Diagnostic {
     Diagnostic::error(format!("{error:#}")).with_highlight(span)
+}
+
+/// Creates a diagnostic for a wildcard import conflict.
+pub fn wildcard_import_conflict(name: &str, import_span: Span, prev_span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "wildcard import introduces `{name}` which conflicts with an existing definition"
+    ))
+    .with_label("imported here", import_span)
+    .with_label("previous definition", prev_span)
+}
+
+/// Creates a diagnostic for a member not found in a selected import.
+pub fn selected_member_not_found(name: &str, span: Span) -> Diagnostic {
+    Diagnostic::error(format!("`{name}` does not exist in the imported module"))
+        .with_highlight(span)
+}
+
+/// Creates a diagnostic for a selected import conflict.
+pub fn selected_import_conflict(name: &str, import_span: Span, prev_span: Span) -> Diagnostic {
+    Diagnostic::error(format!(
+        "import of `{name}` conflicts with an existing definition"
+    ))
+    .with_label("imported here", import_span)
+    .with_label("previous definition", prev_span)
 }
 
 /// Creates a "struct not in document" diagnostic.
@@ -891,6 +917,16 @@ pub fn unnecessary_function_call(
         .with_rule(UnnecessaryFunctionCall::ID)
         .with_highlight(span)
         .with_label(label.to_string(), label_span)
+}
+
+/// Creates a "meaningless lint directive" diagnostic.
+pub fn meaningless_lint_directive(rule: &str, span: Span, severity: Severity) -> Diagnostic {
+    Diagnostic::note(format!(
+        "unnecessary `except` directive for lint rule `{rule}`"
+    ))
+    .with_rule(MeaninglessLintDirective::ID)
+    .with_highlight(span)
+    .with_severity(severity)
 }
 
 /// Generates a diagnostic error message when a placeholder option has a type

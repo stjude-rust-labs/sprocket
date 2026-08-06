@@ -1,0 +1,6 @@
+error: `does_not_exist` does not exist in the imported module
+  ┌─ tests/analysis/selected-import-not-found/source.wdl:3:10
+  │
+3 │ import { does_not_exist } from "lib.wdl"
+  │          ^^^^^^^^^^^^^^
+

@@ -96,7 +96,7 @@ impl FromStr for SprocketCommand {
 }
 
 /// Task execution status.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, ToSchema, SqlxType)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, ToSchema, SqlxType)]
 #[serde(rename_all = "lowercase")]
 #[sqlx(type_name = "text", rename_all = "lowercase")]
 pub enum TaskStatus {

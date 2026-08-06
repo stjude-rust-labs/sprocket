@@ -16,7 +16,9 @@ use petgraph::prelude::DiGraphMap;
 use url::Url;
 use wdl_ast::AstNode;
 use wdl_ast::AstToken;
+use wdl_ast::Comment;
 use wdl_ast::Diagnostic;
+use wdl_ast::Directive;
 use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
@@ -32,6 +34,7 @@ use wdl_ast::v1::Decl;
 use wdl_ast::v1::DocumentItem;
 use wdl_ast::v1::EnumDefinition;
 use wdl_ast::v1::Expr;
+use wdl_ast::v1::ImportForm;
 use wdl_ast::v1::ImportSource;
 use wdl_ast::v1::ImportStatement;
 use wdl_ast::v1::LiteralExpr;
@@ -42,10 +45,13 @@ use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::TypeRef;
 use wdl_ast::v1::WorkflowDefinition;
 use wdl_ast::version::V1;
+use wdl_grammar::SyntaxKind;
 
 use super::Document;
 use super::DocumentData;
 use super::Enum;
+use super::ImportedTask;
+use super::ImportedWorkflow;
 use super::Input;
 use super::Namespace;
 use super::Output;
@@ -93,6 +99,8 @@ use crate::diagnostics::only_one_namespace;
 use crate::diagnostics::recursive_enum;
 use crate::diagnostics::recursive_struct;
 use crate::diagnostics::recursive_workflow_call;
+use crate::diagnostics::selected_import_conflict;
+use crate::diagnostics::selected_member_not_found;
 use crate::diagnostics::struct_conflicts_with_import;
 use crate::diagnostics::struct_not_in_document;
 use crate::diagnostics::type_is_not_array;
@@ -104,7 +112,9 @@ use crate::diagnostics::unknown_task_or_workflow;
 use crate::diagnostics::unknown_type;
 use crate::diagnostics::unused_call;
 use crate::diagnostics::unused_declaration;
+use crate::diagnostics::unused_import;
 use crate::diagnostics::unused_input;
+use crate::diagnostics::wildcard_import_conflict;
 use crate::document::Name;
 use crate::eval::v1::TaskGraphBuilder;
 use crate::eval::v1::TaskGraphNode;
@@ -183,14 +193,39 @@ pub(crate) fn populate_document(
         "expected a supported V1 version"
     );
 
+    // Pre-populate all of the lint exceptions
+    document.analysis_diagnostics.add_exceptions(
+        ast.inner()
+            .descendants_with_tokens()
+            .flat_map(|d| {
+                d.into_token()
+                    .and_then(Comment::cast)
+                    .and_then(|c| c.directive().and_then(Directive::into_except))
+            })
+            .flatten(),
+    );
+
     // First start by processing imports, struct definitions, and enum definitions
     // This needs to be performed before processing tasks and workflows as
     // declarations might reference an imported or locally-defined struct or enum
+    let mut import_nodes_by_namespace = HashMap::new();
     for item in ast.items() {
         match item {
-            DocumentItem::Import(import) => {
-                add_namespace(document, graph, &import, index);
-            }
+            DocumentItem::Import(import) => match import.form() {
+                ImportForm::Namespace => {
+                    if add_namespace(document, graph, &import, index)
+                        && let Some((ns, _span)) = import.namespace()
+                    {
+                        import_nodes_by_namespace.insert(ns, import.inner().clone());
+                    }
+                }
+                ImportForm::Wildcard => {
+                    add_wildcard_import(document, graph, &import, index);
+                }
+                ImportForm::Selected => {
+                    add_selected_import(document, graph, &import, index);
+                }
+            },
             DocumentItem::Struct(s) => {
                 add_struct(document, &s);
             }
@@ -229,59 +264,85 @@ pub(crate) fn populate_document(
     if let Some(workflow) = workflow {
         populate_workflow(config, document, &workflow);
     }
+
+    if let Some(severity) = document.config.diagnostics_config().unused_import {
+        for (name, ns) in document.namespaces.iter().filter(|(_, ns)| !ns.used) {
+            let Some(node) = import_nodes_by_namespace.get(name) else {
+                continue;
+            };
+
+            document.analysis_diagnostics.exceptable_add(
+                unused_import(name, ns.span).with_severity(severity),
+                node,
+                &UnusedImportRule::EXCEPTABLE_NODES,
+            );
+        }
+    }
 }
 
 /// Adds a namespace to the document.
+///
+/// Returns `true` if the namespace was added, otherwise a diagnostic was
+/// emitted.
 fn add_namespace(
     document: &mut DocumentData,
     graph: &DocumentGraph,
     import: &ImportStatement,
     importer_index: NodeIndex,
-) {
+) -> bool {
     // Start by resolving the import to its document
     let (uri, imported) = match resolve_import(graph, import, importer_index) {
         Ok(resolved) => resolved,
         Err(Some(diagnostic)) => {
-            document.analysis_diagnostics.push(diagnostic);
-            return;
+            document.analysis_diagnostics.add(diagnostic);
+            if let Some((ns, _)) = import.namespace() {
+                document.failed_imports.insert(ns, import.source().span());
+            }
+            return false;
         }
-        Err(None) => return,
+        Err(None) => return false,
     };
 
     let span = import.source().span();
-    let ns = match import.namespace() {
-        Some((ns, span)) => match document.namespaces.get(&ns) {
-            Some(prev) => {
-                document.analysis_diagnostics.push(namespace_conflict(
-                    &ns,
-                    span,
-                    prev.span,
-                    import.explicit_namespace().is_none(),
-                ));
-                return;
-            }
-            None => {
-                document.namespaces.insert(
-                    ns.clone(),
-                    Namespace {
+    match import.namespace() {
+        Some((ns, span)) => {
+            let existing = document
+                .namespaces
+                .get(&ns)
+                .map(|prev| prev.span)
+                .or_else(|| document.failed_imports.get(&ns).copied());
+            match existing {
+                Some(prev_span) => {
+                    document.analysis_diagnostics.add(namespace_conflict(
+                        &ns,
                         span,
-                        source: uri.clone(),
-                        document: imported.clone(),
-                        used: false,
-                        excepted: import.inner().is_rule_excepted(UnusedImportRule::ID),
-                    },
-                );
-                ns
+                        prev_span,
+                        import.explicit_namespace().is_none(),
+                    ));
+                    return false;
+                }
+                None => {
+                    document.namespaces.insert(
+                        ns,
+                        Namespace {
+                            span,
+                            source: uri.clone(),
+                            document: imported.clone(),
+                            used: false,
+                        },
+                    );
+                }
             }
-        },
+        }
         None => {
             // Invalid import namespaces are caught during validation, so there is already a
             // diagnostic for this issue; ignore the import here
-            return;
+            return false;
         }
     };
 
     // Get the alias map for the namespace (for structs)
+    let mut failed = false;
     let aliases = import
         .aliases()
         .filter_map(|a| {
@@ -289,7 +350,8 @@ fn add_namespace(
             if !imported.data.structs.contains_key(from.text()) {
                 document
                     .analysis_diagnostics
-                    .push(struct_not_in_document(&from));
+                    .add(struct_not_in_document(&from));
+                failed = true;
                 return None;
             }
 
@@ -311,22 +373,23 @@ fn add_namespace(
                     .expect("node should cast");
                 if !are_structs_equal(&a, &b) {
                     // Import conflicts with a struct defined in this document
-                    if prev.namespace.is_none() {
+                    if prev.source.is_none() {
                         document
                             .analysis_diagnostics
-                            .push(struct_conflicts_with_import(
+                            .add(struct_conflicts_with_import(
                                 aliased_name,
                                 prev.name_span,
                                 span,
                             ));
                     } else {
-                        document.analysis_diagnostics.push(imported_struct_conflict(
+                        document.analysis_diagnostics.add(imported_struct_conflict(
                             aliased_name,
                             span,
                             prev.name_span,
                             !aliased,
                         ));
                     }
+                    failed = true;
                     continue;
                 }
             }
@@ -338,7 +401,7 @@ fn add_namespace(
                         name: aliased_name.to_string(),
                         offset: s.offset,
                         node: s.node.clone(),
-                        namespace: Some(ns.clone()),
+                        source: Some(uri.clone()),
                         ty: s.ty.clone(),
                     },
                 );
@@ -371,22 +434,23 @@ fn add_namespace(
                 let b = e.definition();
                 if !are_enums_equal(&a, &b) {
                     // Import conflicts with an enum defined in this document
-                    if prev.namespace.is_none() {
+                    if prev.source.is_none() {
                         document
                             .analysis_diagnostics
-                            .push(enum_conflicts_with_import(
+                            .add(enum_conflicts_with_import(
                                 aliased_name,
                                 prev.name_span,
                                 span,
                             ));
                     } else {
-                        document.analysis_diagnostics.push(imported_enum_conflict(
+                        document.analysis_diagnostics.add(imported_enum_conflict(
                             aliased_name,
                             span,
                             prev.name_span,
                             !aliased,
                         ));
                     }
+                    failed = true;
                     continue;
                 }
             }
@@ -398,13 +462,15 @@ fn add_namespace(
                         name: aliased_name.to_string(),
                         offset: e.offset,
                         node: e.node.clone(),
-                        namespace: Some(ns.clone()),
+                        source: Some(uri.clone()),
                         ty: e.ty.clone(),
                     },
                 );
             }
         }
     }
+
+    !failed
 }
 
 /// Compares two structs for structural equality.
@@ -464,13 +530,466 @@ fn are_enums_equal(a: &EnumDefinition, b: &EnumDefinition) -> bool {
     true
 }
 
+/// Imports all items from the resolved document into the importing document's
+/// scope.
+fn add_wildcard_import(
+    document: &mut DocumentData,
+    graph: &DocumentGraph,
+    import: &ImportStatement,
+    importer_index: NodeIndex,
+) {
+    let (uri, imported) = match resolve_import(graph, import, importer_index) {
+        Ok(resolved) => resolved,
+        Err(Some(diagnostic)) => {
+            document.analysis_diagnostics.add(diagnostic);
+            return;
+        }
+        Err(None) => return,
+    };
+
+    let span = import.source().span();
+
+    for (name, imported_struct) in &imported.data.structs {
+        if let Some(local_struct) = document.structs.get(name) {
+            let a = StructDefinition::cast(SyntaxNode::new_root(local_struct.node.clone()))
+                .expect("node should cast");
+            let b = StructDefinition::cast(SyntaxNode::new_root(imported_struct.node.clone()))
+                .expect("node should cast");
+            if !are_structs_equal(&a, &b) {
+                document.analysis_diagnostics.add(wildcard_import_conflict(
+                    name,
+                    span,
+                    local_struct.name_span,
+                ));
+                continue;
+            }
+        } else {
+            document.structs.insert(
+                name.clone(),
+                Struct {
+                    name_span: span,
+                    name: name.clone(),
+                    offset: imported_struct.offset,
+                    node: imported_struct.node.clone(),
+                    source: Some(uri.clone()),
+                    ty: imported_struct.ty.clone(),
+                },
+            );
+        }
+    }
+
+    for (name, imported_enum) in &imported.data.enums {
+        if let Some(local_enum) = document.enums.get(name) {
+            let a = local_enum.definition();
+            let b = imported_enum.definition();
+            if !are_enums_equal(&a, &b) {
+                document.analysis_diagnostics.add(wildcard_import_conflict(
+                    name,
+                    span,
+                    local_enum.name_span,
+                ));
+                continue;
+            }
+        } else {
+            document.enums.insert(
+                name.clone(),
+                Enum {
+                    name_span: span,
+                    name: name.clone(),
+                    offset: imported_enum.offset,
+                    node: imported_enum.node.clone(),
+                    source: Some(uri.clone()),
+                    ty: imported_enum.ty.clone(),
+                },
+            );
+        }
+    }
+
+    for (name, task) in &imported.data.tasks {
+        insert_imported_task(
+            document,
+            name,
+            ImportedTask {
+                name: task.name.clone(),
+                span,
+                source: uri.clone(),
+                inputs: task.inputs.clone(),
+                outputs: task.outputs.clone(),
+            },
+            span,
+            wildcard_import_conflict,
+        );
+    }
+
+    for (name, task) in &imported.data.imported_tasks {
+        insert_imported_task(
+            document,
+            name,
+            ImportedTask {
+                name: task.name.clone(),
+                span,
+                source: task.source.clone(),
+                inputs: task.inputs.clone(),
+                outputs: task.outputs.clone(),
+            },
+            span,
+            wildcard_import_conflict,
+        );
+    }
+
+    if let Some(workflow) = &imported.data.workflow {
+        insert_imported_workflow(
+            document,
+            &workflow.name,
+            ImportedWorkflow {
+                name: workflow.name.clone(),
+                span,
+                source: uri.clone(),
+                inputs: workflow.inputs.clone(),
+                outputs: workflow.outputs.clone(),
+            },
+            span,
+            wildcard_import_conflict,
+        );
+    }
+
+    for (name, workflow) in &imported.data.imported_workflows {
+        insert_imported_workflow(
+            document,
+            name,
+            ImportedWorkflow {
+                name: workflow.name.clone(),
+                span,
+                source: workflow.source.clone(),
+                inputs: workflow.inputs.clone(),
+                outputs: workflow.outputs.clone(),
+            },
+            span,
+            wildcard_import_conflict,
+        );
+    }
+}
+
+/// Imports only the listed members from the resolved document.
+fn add_selected_import(
+    document: &mut DocumentData,
+    graph: &DocumentGraph,
+    import: &ImportStatement,
+    importer_index: NodeIndex,
+) {
+    let (uri, imported) = match resolve_import(graph, import, importer_index) {
+        Ok(resolved) => resolved,
+        Err(Some(diagnostic)) => {
+            document.analysis_diagnostics.add(diagnostic);
+            return;
+        }
+        Err(None) => return,
+    };
+
+    let Some(members) = import.members() else {
+        return;
+    };
+
+    for member in members.members() {
+        let member_name = member.name();
+        let local_name = member
+            .alias()
+            .map(|a| a.text().to_string())
+            .unwrap_or_else(|| member_name.text().to_string());
+        let member_span = member
+            .alias()
+            .map(|a| a.span())
+            .unwrap_or(member_name.span());
+
+        let found_any = import_selected_struct(
+            document,
+            &imported,
+            &uri,
+            member_name.text(),
+            &local_name,
+            member_span,
+        ) || import_selected_enum(
+            document,
+            &imported,
+            &uri,
+            member_name.text(),
+            &local_name,
+            member_span,
+        ) || import_selected_task(
+            document,
+            &imported,
+            &uri,
+            member_name.text(),
+            &local_name,
+            member_span,
+            member_span,
+        ) || import_selected_workflow(
+            document,
+            &imported,
+            &uri,
+            member_name.text(),
+            &local_name,
+            member_span,
+            member_span,
+        );
+
+        if found_any {
+            continue;
+        }
+
+        document.failed_selected_imports.insert(local_name);
+        document.analysis_diagnostics.add(selected_member_not_found(
+            member_name.text(),
+            member_name.span(),
+        ));
+    }
+}
+
+/// Imports a struct member into the document. Returns `true` when a
+/// struct by that name exists in the imported module.
+fn import_selected_struct(
+    document: &mut DocumentData,
+    imported: &Document,
+    uri: &Arc<Url>,
+    member_name: &str,
+    local_name: &str,
+    member_span: Span,
+) -> bool {
+    let Some(s) = imported.data.structs.get(member_name) else {
+        return false;
+    };
+    if let Some(prev) = document.structs.get(local_name) {
+        let a = StructDefinition::cast(SyntaxNode::new_root(prev.node.clone()))
+            .expect("node should cast");
+        let b =
+            StructDefinition::cast(SyntaxNode::new_root(s.node.clone())).expect("node should cast");
+        if !are_structs_equal(&a, &b) {
+            document.analysis_diagnostics.add(selected_import_conflict(
+                local_name,
+                member_span,
+                prev.name_span,
+            ));
+        }
+    } else {
+        document.structs.insert(
+            local_name.to_string(),
+            Struct {
+                name_span: member_span,
+                name: local_name.to_string(),
+                offset: s.offset,
+                node: s.node.clone(),
+                source: Some(uri.clone()),
+                ty: s.ty.clone(),
+            },
+        );
+    }
+    true
+}
+
+/// Imports an enum member into the document. Returns `true` when an
+/// enum by that name exists in the imported module.
+fn import_selected_enum(
+    document: &mut DocumentData,
+    imported: &Document,
+    uri: &Arc<Url>,
+    member_name: &str,
+    local_name: &str,
+    member_span: Span,
+) -> bool {
+    let Some(e) = imported.data.enums.get(member_name) else {
+        return false;
+    };
+    if let Some(prev) = document.enums.get(local_name) {
+        let a = prev.definition();
+        let b = e.definition();
+        if !are_enums_equal(&a, &b) {
+            document.analysis_diagnostics.add(selected_import_conflict(
+                local_name,
+                member_span,
+                prev.name_span,
+            ));
+        }
+    } else {
+        document.enums.insert(
+            local_name.to_string(),
+            Enum {
+                name_span: member_span,
+                name: local_name.to_string(),
+                offset: e.offset,
+                node: e.node.clone(),
+                source: Some(uri.clone()),
+                ty: e.ty.clone(),
+            },
+        );
+    }
+    true
+}
+
+/// Imports a task or re-exported task by name. Returns `true` when
+/// the imported module exposes a task by that name (either a locally
+/// declared task or one selectively imported and thus re-exported).
+fn import_selected_task(
+    document: &mut DocumentData,
+    imported: &Document,
+    uri: &Arc<Url>,
+    member_name: &str,
+    local_name: &str,
+    member_span: Span,
+    span: Span,
+) -> bool {
+    let entry = if let Some(task) = imported.data.tasks.get(member_name) {
+        ImportedTask {
+            name: task.name.clone(),
+            span,
+            source: uri.clone(),
+            inputs: task.inputs.clone(),
+            outputs: task.outputs.clone(),
+        }
+    } else if let Some(task) = imported.data.imported_tasks.get(member_name) {
+        ImportedTask {
+            name: task.name.clone(),
+            span,
+            source: task.source.clone(),
+            inputs: task.inputs.clone(),
+            outputs: task.outputs.clone(),
+        }
+    } else {
+        return false;
+    };
+
+    insert_imported_task(
+        document,
+        local_name,
+        entry,
+        member_span,
+        selected_import_conflict,
+    );
+    true
+}
+
+/// Imports a workflow or re-exported workflow by name. Returns `true`
+/// when the imported module exposes a workflow by that name.
+fn import_selected_workflow(
+    document: &mut DocumentData,
+    imported: &Document,
+    uri: &Arc<Url>,
+    member_name: &str,
+    local_name: &str,
+    member_span: Span,
+    span: Span,
+) -> bool {
+    let entry = if let Some(workflow) = imported
+        .data
+        .workflow
+        .as_ref()
+        .filter(|w| w.name == member_name)
+    {
+        ImportedWorkflow {
+            name: workflow.name.clone(),
+            span,
+            source: uri.clone(),
+            inputs: workflow.inputs.clone(),
+            outputs: workflow.outputs.clone(),
+        }
+    } else if let Some(workflow) = imported.data.imported_workflows.get(member_name) {
+        ImportedWorkflow {
+            name: workflow.name.clone(),
+            span,
+            source: workflow.source.clone(),
+            inputs: workflow.inputs.clone(),
+            outputs: workflow.outputs.clone(),
+        }
+    } else {
+        return false;
+    };
+
+    insert_imported_workflow(
+        document,
+        local_name,
+        entry,
+        member_span,
+        selected_import_conflict,
+    );
+    true
+}
+
+/// Inserts a re-exported task into `document` under `local_name`.
+///
+/// When a callable by that name already exists, the `conflict`
+/// diagnostic is emitted (highlighting `conflict_span` and the previous
+/// definition) and the entry is not inserted.
+fn insert_imported_task(
+    document: &mut DocumentData,
+    local_name: &str,
+    entry: ImportedTask,
+    conflict_span: Span,
+    conflict: impl Fn(&str, Span, Span) -> Diagnostic,
+) {
+    if let Some(prev_span) = callable_conflict_span(document, local_name) {
+        document
+            .analysis_diagnostics
+            .add(conflict(local_name, conflict_span, prev_span));
+        return;
+    }
+
+    document
+        .imported_tasks
+        .insert(local_name.to_string(), entry);
+}
+
+/// Inserts a re-exported workflow into `document` under `local_name`.
+///
+/// When a callable by that name already exists, the `conflict`
+/// diagnostic is emitted (highlighting `conflict_span` and the previous
+/// definition) and the entry is not inserted.
+fn insert_imported_workflow(
+    document: &mut DocumentData,
+    local_name: &str,
+    entry: ImportedWorkflow,
+    conflict_span: Span,
+    conflict: impl Fn(&str, Span, Span) -> Diagnostic,
+) {
+    if let Some(prev_span) = callable_conflict_span(document, local_name) {
+        document
+            .analysis_diagnostics
+            .add(conflict(local_name, conflict_span, prev_span));
+        return;
+    }
+
+    document
+        .imported_workflows
+        .insert(local_name.to_string(), entry);
+}
+
+/// Returns the span of a callable that already owns `name`.
+fn callable_conflict_span(document: &DocumentData, name: &str) -> Option<Span> {
+    document
+        .tasks
+        .get(name)
+        .map(|task| task.name_span)
+        .or_else(|| {
+            document
+                .workflow
+                .as_ref()
+                .filter(|workflow| workflow.name == name)
+                .map(|workflow| workflow.name_span)
+        })
+        .or_else(|| document.imported_tasks.get(name).map(|task| task.span))
+        .or_else(|| {
+            document
+                .imported_workflows
+                .get(name)
+                .map(|workflow| workflow.span)
+        })
+}
+
 /// Adds a struct to the document.
 fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
     let name = definition.name();
 
     // Check for a conflict with imported struct first otherwise for any name
     if let Some(prev) = document.structs.get(name.text())
-        && prev.namespace.is_some()
+        && prev.source.is_some()
     {
         let prev_def = StructDefinition::cast(SyntaxNode::new_root(prev.node.clone()))
             .expect("node should cast");
@@ -478,7 +997,7 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
         if !are_structs_equal(definition, &prev_def) {
             document
                 .analysis_diagnostics
-                .push(struct_conflicts_with_import(
+                .add(struct_conflicts_with_import(
                     name.text(),
                     name.span(),
                     prev.name_span,
@@ -486,7 +1005,7 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
             return;
         }
     } else if let Some(ctx) = document.context(name.text()) {
-        document.analysis_diagnostics.push(name_conflict(
+        document.analysis_diagnostics.add(name_conflict(
             name.text(),
             Context::Struct(name.span()),
             ctx,
@@ -500,7 +1019,7 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
         let name = decl.name();
         match members.get(name.text()) {
             Some(prev_span) => {
-                document.analysis_diagnostics.push(name_conflict(
+                document.analysis_diagnostics.add(name_conflict(
                     name.text(),
                     Context::StructMember(name.span()),
                     Context::StructMember(*prev_span),
@@ -517,7 +1036,7 @@ fn add_struct(document: &mut DocumentData, definition: &StructDefinition) {
         Struct {
             name_span: name.span(),
             name: name.text().to_string(),
-            namespace: None,
+            source: None,
             offset: definition.span().start(),
             node: definition.inner().green().into(),
             ty: None,
@@ -534,26 +1053,26 @@ fn add_enum(document: &mut DocumentData, definition: &EnumDefinition) {
     if version < SupportedVersion::V1(V1::Three) {
         document
             .analysis_diagnostics
-            .push(enum_not_supported(version, definition.name().span()));
+            .add(enum_not_supported(version, definition.name().span()));
         return;
     }
 
     // Check for a conflict with imported enum first otherwise for any name
     if let Some(prev) = document.enums.get(name.text())
-        && prev.namespace.is_some()
+        && prev.source.is_some()
     {
         let prev_def = prev.definition();
         if !are_enums_equal(definition, &prev_def) {
             document
                 .analysis_diagnostics
-                .push(enum_conflicts_with_import(
+                .add(enum_conflicts_with_import(
                     name.text(),
                     name.span(),
                     prev.name_span,
                 ))
         }
     } else if let Some(ctx) = document.context(name.text()) {
-        document.analysis_diagnostics.push(name_conflict(
+        document.analysis_diagnostics.add(name_conflict(
             name.text(),
             Context::Enum(name.span()),
             ctx,
@@ -567,7 +1086,7 @@ fn add_enum(document: &mut DocumentData, definition: &EnumDefinition) {
         let name = choice.name();
         match choices.get(name.text()) {
             Some(prev_span) => {
-                document.analysis_diagnostics.push(name_conflict(
+                document.analysis_diagnostics.add(name_conflict(
                     name.text(),
                     Context::EnumChoice(name.span()),
                     Context::EnumChoice(*prev_span),
@@ -584,7 +1103,7 @@ fn add_enum(document: &mut DocumentData, definition: &EnumDefinition) {
         Enum {
             name_span: name.span(),
             name: name.text().to_string(),
-            namespace: None,
+            source: None,
             offset: definition.span().start(),
             node: definition.inner().green().into(),
             ty: None,
@@ -600,17 +1119,25 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
     impl TypeNameResolver for Resolver<'_> {
         fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
             if let Some(s) = self.0.structs.get(name) {
-                if let Some(ns) = &s.namespace {
-                    self.0.namespaces[ns].used = true;
+                let ty = s.ty().cloned().unwrap_or(Type::Union);
+                if let Some(uri) = s.source()
+                    && let Some(resolved) =
+                        self.0.namespaces.values_mut().find(|n| n.source() == uri)
+                {
+                    resolved.used = true;
                 }
-                return Ok(s.ty().cloned().unwrap_or(Type::Union));
+                return Ok(ty);
             }
 
             if let Some(e) = self.0.enums.get(name) {
-                if let Some(ns) = &e.namespace {
-                    self.0.namespaces[ns].used = true;
+                let ty = e.ty().cloned().unwrap_or(Type::Union);
+                if let Some(uri) = e.source()
+                    && let Some(resolved) =
+                        self.0.namespaces.values_mut().find(|n| n.source() == uri)
+                {
+                    resolved.used = true;
                 }
-                return Ok(e.ty().cloned().unwrap_or(Type::Union));
+                return Ok(ty);
             }
 
             Err(unknown_type(name, span))
@@ -621,7 +1148,7 @@ fn convert_ast_type(document: &mut DocumentData, ty: &wdl_ast::v1::Type) -> Type
     match converter.convert_type(ty) {
         Ok(ty) => ty,
         Err(diagnostic) => {
-            document.analysis_diagnostics.push(diagnostic);
+            document.analysis_diagnostics.add(diagnostic);
             Type::Union
         }
     }
@@ -716,11 +1243,22 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
     // Check for a name conflict
     let name = definition.name();
     if let Some(ctx) = document.context(name.text()) {
-        document.analysis_diagnostics.push(name_conflict(
+        document.analysis_diagnostics.add(name_conflict(
             name.text(),
             Context::Task(name.span()),
             ctx,
         ));
+        return;
+    }
+    if let Some(prev_span) = callable_conflict_span(document, name.text()) {
+        document.analysis_diagnostics.add(selected_import_conflict(
+            name.text(),
+            prev_span,
+            name.span(),
+        ));
+        document
+            .failed_selected_imports
+            .insert(name.text().to_string());
         return;
     }
 
@@ -791,14 +1329,14 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                     // a single implicit dependency edge; if so, it might be unused
                     let mut edges = graph.edges_directed(index, Direction::Outgoing);
 
-                    if edges.all(|e| *e.weight())
-                        && !decl.inner().is_rule_excepted(UnusedInputRule::ID)
-                    {
+                    if edges.all(|e| *e.weight()) {
                         let name = decl.name();
 
-                        document
-                            .analysis_diagnostics
-                            .push(unused_input(name.text(), name.span()).with_severity(severity));
+                        document.analysis_diagnostics.exceptable_add(
+                            unused_input(name.text(), name.span()).with_severity(severity),
+                            decl.inner(),
+                            &UnusedInputRule::EXCEPTABLE_NODES,
+                        );
                     }
                 }
             }
@@ -808,13 +1346,12 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 if let Some(command_section_span) = command_section_span
                     && decl.inner().span().start() > command_section_span.end()
                     && let Some(severity) = config.diagnostics_config().misleading_declaration_order
-                    && !decl
-                        .inner()
-                        .is_rule_excepted(MisleadingDeclarationOrderRule::ID)
                 {
-                    document.analysis_diagnostics.push(
+                    document.analysis_diagnostics.exceptable_add(
                         misleading_declaration_order(name.text(), name.span())
                             .with_severity(severity),
+                        decl.inner(),
+                        &MisleadingDeclarationOrderRule::EXCEPTABLE_NODES,
                     );
                 }
 
@@ -829,19 +1366,24 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
                 }
 
                 // Check for unused declaration
-                if let Some(severity) = config.diagnostics_config().unused_declaration {
-                    // Don't warn for environment variables as they are always implicitly used
-                    if decl.env().is_none()
-                        && graph
-                            .edges_directed(index, Direction::Outgoing)
-                            .next()
-                            .is_none()
-                        && !decl.inner().is_rule_excepted(UnusedDeclarationRule::ID)
-                    {
-                        document.analysis_diagnostics.push(
-                            unused_declaration(name.text(), name.span()).with_severity(severity),
-                        );
-                    }
+                let Some(severity) = config.diagnostics_config().unused_declaration else {
+                    continue;
+                };
+
+                let name = decl.name();
+
+                // Don't warn for environment variables as they are always implicitly used
+                if decl.env().is_none()
+                    && graph
+                        .edges_directed(index, Direction::Outgoing)
+                        .next()
+                        .is_none()
+                {
+                    document.analysis_diagnostics.exceptable_add(
+                        unused_declaration(name.text(), name.span()).with_severity(severity),
+                        decl.inner(),
+                        &UnusedDeclarationRule::EXCEPTABLE_NODES,
+                    );
                 }
             }
             TaskGraphNode::Output(decl) => {
@@ -973,6 +1515,7 @@ fn add_task(config: &Config, document: &mut DocumentData, definition: &TaskDefin
 
     // Sort the scopes
     sort_scopes(&mut task.scopes);
+
     document.tasks.insert(name.text().to_string(), task);
 }
 
@@ -1017,17 +1560,28 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
     if let Some(prev) = &document.workflow {
         document
             .analysis_diagnostics
-            .push(duplicate_workflow(&name, prev.name_span));
+            .add(duplicate_workflow(&name, prev.name_span));
         return false;
     }
 
     // Check for a name conflict
     if let Some(ctx) = document.context(name.text()) {
-        document.analysis_diagnostics.push(name_conflict(
+        document.analysis_diagnostics.add(name_conflict(
             name.text(),
             Context::Workflow(name.span()),
             ctx,
         ));
+        return false;
+    }
+    if let Some(prev_span) = callable_conflict_span(document, name.text()) {
+        document.analysis_diagnostics.add(selected_import_conflict(
+            name.text(),
+            prev_span,
+            name.span(),
+        ));
+        document
+            .failed_selected_imports
+            .insert(name.text().to_string());
         return false;
     }
 
@@ -1103,13 +1657,14 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                         .edges_directed(index, Direction::Outgoing)
                         .next()
                         .is_none()
-                    && !decl.inner().is_rule_excepted(UnusedInputRule::ID)
                 {
                     let name = decl.name();
 
-                    document
-                        .analysis_diagnostics
-                        .push(unused_input(name.text(), name.span()).with_severity(severity));
+                    document.analysis_diagnostics.exceptable_add(
+                        unused_input(name.text(), name.span()).with_severity(severity),
+                        decl.inner(),
+                        &UnusedInputRule::EXCEPTABLE_NODES,
+                    );
                 }
             }
             WorkflowGraphNode::Decl(decl) => {
@@ -1135,10 +1690,11 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                         .edges_directed(index, Direction::Outgoing)
                         .next()
                         .is_none()
-                        && !decl.inner().is_rule_excepted(UnusedDeclarationRule::ID)
                     {
-                        document.analysis_diagnostics.push(
+                        document.analysis_diagnostics.exceptable_add(
                             unused_declaration(name.text(), name.span()).with_severity(severity),
+                            decl.inner(),
+                            &UnusedDeclarationRule::EXCEPTABLE_NODES,
                         );
                     }
                 }
@@ -1258,7 +1814,7 @@ fn populate_workflow(config: &Config, document: &mut DocumentData, workflow: &Wo
                                     entry.insert(info);
                                 }
                                 IndexMapEntry::Occupied(entry) => {
-                                    document.analysis_diagnostics.push(name_conflict(
+                                    document.analysis_diagnostics.add(name_conflict(
                                         &name,
                                         Context::Name(NameContext::Decl(info.span)),
                                         Context::Name(NameContext::Decl(entry.get().span)),
@@ -1336,7 +1892,7 @@ fn add_conditional_statement(
                     let span = Span::new(else_span.start(), if_span.end() - else_span.start());
                     document
                         .analysis_diagnostics
-                        .push(else_if_not_supported(version, span));
+                        .add(else_if_not_supported(version, span));
                 }
                 ConditionalStatementClauseKind::Else => {
                     let span = clause
@@ -1345,7 +1901,7 @@ fn add_conditional_statement(
                         .span();
                     document
                         .analysis_diagnostics
-                        .push(else_not_supported(version, span));
+                        .add(else_not_supported(version, span));
                 }
                 ConditionalStatementClauseKind::If => {}
             }
@@ -1375,7 +1931,7 @@ fn add_conditional_statement(
         if !ty.is_coercible_to(&PrimitiveType::Boolean.into()) {
             document
                 .analysis_diagnostics
-                .push(if_conditional_mismatch(&ty, expr.span()));
+                .add(if_conditional_mismatch(&ty, expr.span()));
         }
     }
 }
@@ -1412,7 +1968,7 @@ fn add_scatter_statement(
         _ => {
             document
                 .analysis_diagnostics
-                .push(type_is_not_array(&ty, expr.span()));
+                .add(type_is_not_array(&ty, expr.span()));
             Type::Union
         }
     };
@@ -1457,7 +2013,7 @@ fn add_call_statement(
                     .get(input_name.text())
                     .map(|i| (i.ty.clone(), i.required))
                     .unwrap_or_else(|| {
-                        document.analysis_diagnostics.push(unknown_call_io(
+                        document.analysis_diagnostics.add(unknown_call_io(
                             &call_ty,
                             &input_name,
                             Io::Input,
@@ -1491,7 +2047,7 @@ fn add_call_statement(
                             if !matches!(expected_input_ty, Type::Union)
                                 && !name.ty.is_coercible_to(&expected_input_ty)
                             {
-                                document.analysis_diagnostics.push(call_input_type_mismatch(
+                                document.analysis_diagnostics.add(call_input_type_mismatch(
                                     &input_name,
                                     &expected_input_ty,
                                     &name.ty,
@@ -1501,7 +2057,7 @@ fn add_call_statement(
                         None => {
                             document
                                 .analysis_diagnostics
-                                .push(unknown_name(input_name.text(), input_name.span()));
+                                .add(unknown_name(input_name.text(), input_name.span()));
                         }
                     },
                 }
@@ -1511,7 +2067,7 @@ fn add_call_statement(
 
             for (name, input) in call_ty.inputs() {
                 if input.required && !seen.contains(name.as_str()) {
-                    document.analysis_diagnostics.push(missing_call_input(
+                    document.analysis_diagnostics.add(missing_call_input(
                         call_ty.kind(),
                         &target_name,
                         name,
@@ -1540,13 +2096,14 @@ fn add_call_statement(
         // Check for unused call
         if let Some(severity) = config.diagnostics_config().unused_call
             && !is_used
-            && !statement.inner().is_rule_excepted(UnusedCallRule::ID)
             && let Some(ty) = ty.as_call()
             && !ty.outputs().is_empty()
         {
-            document
-                .analysis_diagnostics
-                .push(unused_call(name.text(), name.span()).with_severity(severity));
+            document.analysis_diagnostics.exceptable_add(
+                unused_call(name.text(), name.span()).with_severity(severity),
+                statement.inner(),
+                &UnusedCallRule::EXCEPTABLE_NODES,
+            );
         }
 
         scope.insert(name.text(), name.span(), ty);
@@ -1574,7 +2131,11 @@ fn resolve_call_type(
         if namespace.is_some() {
             document
                 .analysis_diagnostics
-                .push(only_one_namespace(target.span()));
+                .add(only_one_namespace(target.span()));
+            return None;
+        }
+
+        if document.failed_imports.contains_key(target.text()) {
             return None;
         }
 
@@ -1586,20 +2147,20 @@ fn resolve_call_type(
             None => {
                 document
                     .analysis_diagnostics
-                    .push(unknown_namespace(&target));
+                    .add(unknown_namespace(&target));
                 return None;
             }
         }
     }
 
     let target = namespace
-        .map(|ns| ns.document.data.as_ref())
+        .map(|ns| ns.document().data.as_ref())
         .unwrap_or(document);
     let name = name.expect("should have name");
     if namespace.is_none() && name.text() == workflow_name {
         document
             .analysis_diagnostics
-            .push(recursive_workflow_call(name.text(), name.span()));
+            .add(recursive_workflow_call(name.text(), name.span()));
         return None;
     }
 
@@ -1611,9 +2172,33 @@ fn resolve_call_type(
                 workflow.inputs.clone(),
                 workflow.outputs.clone(),
             ),
+            _ if namespace.is_none() => {
+                if document.failed_selected_imports.contains(name.text()) {
+                    return None;
+                } else if let Some(imported) = document.imported_tasks.get(name.text()) {
+                    (
+                        CallKind::Task,
+                        imported.inputs.clone(),
+                        imported.outputs.clone(),
+                    )
+                } else if let Some(imported) = document.imported_workflows.get(name.text()) {
+                    (
+                        CallKind::Workflow,
+                        imported.inputs.clone(),
+                        imported.outputs.clone(),
+                    )
+                } else {
+                    document.analysis_diagnostics.add(unknown_task_or_workflow(
+                        None,
+                        name.text(),
+                        name.span(),
+                    ));
+                    return None;
+                }
+            }
             _ => {
-                document.analysis_diagnostics.push(unknown_task_or_workflow(
-                    namespace.map(|ns| ns.span),
+                document.analysis_diagnostics.add(unknown_task_or_workflow(
+                    namespace.map(|ns| ns.span()),
                     name.text(),
                     name.span(),
                 ));
@@ -1644,36 +2229,71 @@ fn resolve_call_type(
 }
 
 /// Resolves an import to its document.
+///
+/// On success, returns the resolved URI of the imported document along with
+/// the [`Document`] itself.
+///
+/// On failure, returns an [`Option<Diagnostic>`]: `Some(diagnostic)` carries a
+/// diagnostic the caller should push (e.g. an unresolvable symbolic import, an
+/// import cycle, a load or analysis failure, or an incompatible WDL version),
+/// while `None` means the import is malformed in a way that is already
+/// diagnosed elsewhere and should be silently ignored here.
 fn resolve_import(
     graph: &DocumentGraph,
     stmt: &ImportStatement,
     importer_index: NodeIndex,
 ) -> Result<(Arc<Url>, Document), Option<Diagnostic>> {
-    let uri = match stmt.source() {
-        ImportSource::Uri(uri) => uri,
-        ImportSource::ModulePath(_) => {
-            // Symbolic module paths do not resolve through the quoted-URI
-            // graph; the module resolver handles them separately.
-            return Err(None);
-        }
-    };
-    let span = uri.span();
-    let text = match uri.text() {
-        Some(text) => text,
-        None => {
-            // The import URI isn't valid; this is caught at validation time, so we do not
-            // emit any additional diagnostics for it here.
-            return Err(None);
-        }
-    };
-
     let importer_node = graph.get(importer_index);
-    let uri = match importer_node.uri().join(text.text()) {
-        Ok(uri) => uri,
-        Err(e) => return Err(Some(invalid_relative_import(&e, span))),
+    let (span, imported_index, source_label) = match stmt.source() {
+        ImportSource::Uri(uri) => {
+            let span = uri.span();
+            let text = match uri.text() {
+                Some(text) => text,
+                // The import URI isn't valid; this is caught at validation time, so we do not
+                // emit any additional diagnostics for it here.
+                None => return Err(None),
+            };
+            let label = text.text().to_string();
+            let resolved = match importer_node.uri().join(text.text()) {
+                Ok(uri) => uri,
+                Err(e) => return Err(Some(invalid_relative_import(&e, span))),
+            };
+            let index = graph
+                .get_index(&resolved)
+                .expect("missing import node in graph");
+            (span, index, label)
+        }
+        ImportSource::ModulePath(module_path) => {
+            let span = module_path.span();
+            if !importer_node
+                .parse_state()
+                .symbolic_imports_enabled(graph.config())
+            {
+                return Err(None);
+            }
+
+            let path_text = module_path.text();
+            match graph.get_resolved_symbolic_import(importer_index, &path_text) {
+                Some(uri) => {
+                    let index = graph
+                        .get_index(uri)
+                        .expect("resolved symbolic import missing from graph");
+                    (span, index, path_text)
+                }
+                None => {
+                    let message = if let Some(error) =
+                        graph.get_failed_symbolic_import(importer_index, &path_text)
+                    {
+                        format!("failed to resolve symbolic import `{path_text}`: {error}")
+                    } else {
+                        format!("`{path_text}` is not a declared dependency")
+                    };
+                    return Err(Some(Diagnostic::error(message).with_highlight(span)));
+                }
+            }
+        }
     };
 
-    let imported_index = graph.get_index(&uri).expect("missing import node in graph");
     let imported_node = graph.get(imported_index);
 
     // Check for an import cycle to report
@@ -1683,12 +2303,12 @@ fn resolve_import(
 
     // Check for a failure to load the import
     if let ParseState::Error(e) = imported_node.parse_state() {
-        return Err(Some(import_failure(text.text(), e, span)));
+        return Err(Some(import_failure(&source_label, e, span)));
     }
 
     // Check for analysis error
     if let Some(e) = imported_node.analysis_error() {
-        return Err(Some(import_failure(text.text(), e, span)));
+        return Err(Some(import_failure(&source_label, e, span)));
     }
 
     // Ensure the import has a matching WDL version
@@ -1738,7 +2358,7 @@ fn resolve_import(
     Ok((imported_node.uri().clone(), imported_document))
 }
 
-/// Sets struct and enum types in the document.
+/// Populates struct and enum type information in the document.
 fn populate_types(document: &mut DocumentData) {
     /// Used to resolve a type name from a document.
     struct Resolver<'a> {
@@ -1751,20 +2371,34 @@ fn populate_types(document: &mut DocumentData) {
     impl TypeNameResolver for Resolver<'_> {
         fn resolve(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
             if let Some(s) = self.document.structs.get(name) {
-                if let Some(ns) = &s.namespace {
-                    self.document.namespaces[ns].used = true;
+                let ty = s.ty().cloned().unwrap_or(Type::Union);
+                if let Some(uri) = s.source()
+                    && let Some(resolved) = self
+                        .document
+                        .namespaces
+                        .values_mut()
+                        .find(|n| n.source() == uri)
+                {
+                    resolved.used = true;
                 }
-                return Ok(s.ty().cloned().unwrap_or(Type::Union));
+                return Ok(ty);
             }
 
             if let Some(e) = self.document.enums.get(name) {
-                if let Some(ns) = &e.namespace {
-                    self.document.namespaces[ns].used = true;
+                let ty = e.ty().cloned().unwrap_or(Type::Union);
+                if let Some(uri) = e.source()
+                    && let Some(resolved) = self
+                        .document
+                        .namespaces
+                        .values_mut()
+                        .find(|n| n.source() == uri)
+                {
+                    resolved.used = true;
                 }
-                return Ok(e.ty().cloned().unwrap_or(Type::Union));
+                return Ok(ty);
             }
 
-            self.document.analysis_diagnostics.push(unknown_type(
+            self.document.analysis_diagnostics.add(unknown_type(
                 name,
                 Span::new(span.start() + self.offset, span.len()),
             ));
@@ -1804,8 +2438,9 @@ fn populate_types(document: &mut DocumentData) {
 
     // Map struct dependencies
     for (from, s) in document.structs.values().enumerate() {
-        // Only look at locally defined structs
-        if s.namespace.is_some() {
+        // Only compute types for locally defined structs; imported structs
+        // already carry their resolved type.
+        if s.source.is_some() {
             continue;
         }
 
@@ -1826,7 +2461,7 @@ fn populate_types(document: &mut DocumentData) {
                     let def_name = definition.name();
                     let def_span = def_name.span();
                     let member_span = member.name().span();
-                    document.analysis_diagnostics.push(recursive_struct(
+                    document.analysis_diagnostics.add(recursive_struct(
                         def_name.text(),
                         Span::new(def_span.start() + s.offset, def_span.len()),
                         Span::new(member_span.start() + s.offset, member_span.len()),
@@ -1840,8 +2475,9 @@ fn populate_types(document: &mut DocumentData) {
 
     // Map enum dependencies
     for (from, e) in document.enums.values().enumerate() {
-        // Only look at locally defined enums
-        if e.namespace.is_some() {
+        // Only compute types for locally defined enums; imported enums already
+        // carry their resolved type.
+        if e.source.is_some() {
             continue;
         }
 
@@ -1860,7 +2496,7 @@ fn populate_types(document: &mut DocumentData) {
                 if has_path_connecting(&graph, from_idx, to_idx, Some(&mut space)) {
                     let def_name = definition.name();
                     let def_span = def_name.span();
-                    document.analysis_diagnostics.push(recursive_enum(
+                    document.analysis_diagnostics.add(recursive_enum(
                         def_name.text(),
                         Span::new(def_span.start() + e.offset, def_span.len()),
                         match to_idx {
@@ -1898,7 +2534,7 @@ fn populate_types(document: &mut DocumentData) {
                             let span = label.span();
                             label.set_span(Span::new(span.start() + offset, span.len()));
                         }
-                        document.analysis_diagnostics.push(diagnostic);
+                        document.analysis_diagnostics.add(diagnostic);
                     }
                 }
             }
@@ -1918,7 +2554,7 @@ fn populate_types(document: &mut DocumentData) {
                                 let adjusted_span = Span::new(span.start() + e.offset, span.len());
                                 document
                                     .analysis_diagnostics
-                                    .push(non_literal_enum_value(adjusted_span));
+                                    .add(non_literal_enum_value(adjusted_span));
                                 Type::Union
                             }
                         }
@@ -1952,7 +2588,7 @@ fn populate_types(document: &mut DocumentData) {
                         document.enums[index].ty = Some(enum_ty.into());
                     }
                     Err(diagnostic) => {
-                        document.analysis_diagnostics.push(diagnostic);
+                        document.analysis_diagnostics.add(diagnostic);
                     }
                 }
             }
@@ -1972,12 +2608,12 @@ enum TypeIndex {
 /// Attempt to find a locally defined type in the `document` by name.
 fn resolve_dep(document: &DocumentData, name: &str) -> Option<TypeIndex> {
     if let Some(to) = document.structs.get_index_of(name)
-        // Only resolve locally defined types
-        && document.structs[to].namespace.is_none()
+        // Only order locally defined types; imported types carry their own type.
+        && document.structs[to].source.is_none()
     {
         Some(TypeIndex::Struct(to))
     } else if let Some(to) = document.enums.get_index_of(name)
-        && document.enums[to].namespace.is_none()
+        && document.enums[to].source.is_none()
     {
         Some(TypeIndex::Enum(to))
     } else {
@@ -2148,19 +2784,33 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
 
     fn resolve_type_name(&mut self, name: &str, span: Span) -> Result<Type, Diagnostic> {
         if let Some(s) = self.document.structs.get(name) {
-            if let Some(ns) = &s.namespace {
-                self.document.namespaces[ns].used = true;
+            let ty = s.ty().expect("struct should have type").clone();
+            if let Some(uri) = s.source()
+                && let Some(resolved) = self
+                    .document
+                    .namespaces
+                    .values_mut()
+                    .find(|n| n.source() == uri)
+            {
+                resolved.used = true;
             }
 
-            return Ok(s.ty().expect("struct should have type").clone());
+            return Ok(ty);
         }
 
         if let Some(e) = self.document.enums.get(name) {
-            if let Some(ns) = &e.namespace {
-                self.document.namespaces[ns].used = true;
+            let ty = e.ty().expect("enum should have type").clone();
+            if let Some(uri) = e.source()
+                && let Some(resolved) = self
+                    .document
+                    .namespaces
+                    .values_mut()
+                    .find(|n| n.source() == uri)
+            {
+                resolved.used = true;
             }
 
-            return Ok(e.ty().expect("enum should have type").clone());
+            return Ok(ty);
         }
 
         Err(unknown_type(name, span))
@@ -2175,7 +2825,18 @@ impl crate::types::v1::EvaluationContext for EvaluationContext<'_> {
     }
 
     fn add_diagnostic(&mut self, diagnostic: Diagnostic) {
-        self.document.analysis_diagnostics.push(diagnostic);
+        self.document.analysis_diagnostics.add(diagnostic);
+    }
+
+    fn exceptable_add_diagnostic<N: TreeNode + Exceptable>(
+        &mut self,
+        diagnostic: Diagnostic,
+        element: &N,
+        exceptable_nodes: &Option<&'static [SyntaxKind]>,
+    ) {
+        self.document
+            .analysis_diagnostics
+            .exceptable_add(diagnostic, element, exceptable_nodes);
     }
 }
 
@@ -2193,7 +2854,7 @@ fn type_check_expr(
     let actual = evaluator.evaluate_expr(expr).unwrap_or(Type::Union);
 
     if !matches!(expected, Type::Union) && !actual.is_coercible_to(expected) {
-        document.analysis_diagnostics.push(type_mismatch(
+        document.analysis_diagnostics.add(type_mismatch(
             expected,
             expected_span,
             &actual,
@@ -2208,7 +2869,7 @@ fn type_check_expr(
     {
         document
             .analysis_diagnostics
-            .push(non_empty_array_assignment(expected_span, expr.span()));
+            .add(non_empty_array_assignment(expected_span, expr.span()));
     }
 }
 

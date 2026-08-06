@@ -6,7 +6,7 @@ Arguments:
   <SOURCE>
           The WDL source file to run.
           
-          The source file may be specified by either a local file path or a URL.
+          The source file may be specified by either a local file path, a URL, or a WDL module directory containing a `module.json`.
 
   [INPUTS]...
           The inputs for the task or workflow.

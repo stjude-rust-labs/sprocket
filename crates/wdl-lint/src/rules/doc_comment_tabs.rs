@@ -9,7 +9,7 @@ use wdl_ast::Comment;
 use wdl_ast::CommentKind;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
+use wdl_ast::TreeToken;
 
 use crate::Rule;
 use crate::Tag;
@@ -122,7 +122,7 @@ impl Visitor for DocCommentTabsRule {
 
                 diagnostics.exceptable_add(
                     tab_in_doc_comment(Span::new(absolute_start, len)),
-                    SyntaxElement::from(comment.inner().clone()),
+                    &TreeToken::parent(comment.inner()),
                     &self.exceptable_nodes(),
                 );
             } else {

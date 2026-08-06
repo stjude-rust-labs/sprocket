@@ -148,6 +148,10 @@ impl TesBackend {
 }
 
 impl TaskExecutionBackend for TesBackend {
+    fn name(&self) -> &'static str {
+        "tes"
+    }
+
     fn constraints(
         &self,
         inputs: &TaskInputs,

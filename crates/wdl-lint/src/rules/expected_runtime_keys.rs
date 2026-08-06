@@ -20,7 +20,6 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::RuntimeItem;
 use wdl_ast::v1::RuntimeSection;
@@ -391,7 +390,7 @@ impl Visitor for ExpectedRuntimeKeysRule {
                                     .into(),
                                 &specification,
                             ),
-                            SyntaxElement::from(section.inner().clone()),
+                            section.inner(),
                             &self.exceptable_nodes(),
                         );
                     }
@@ -443,7 +442,7 @@ impl Visitor for ExpectedRuntimeKeysRule {
                         if let KeyKind::Deprecated(replacement) = kind {
                             diagnostics.exceptable_add(
                                 deprecated_runtime_key(&key_name, replacement),
-                                SyntaxElement::from(item.inner().clone()),
+                                item.inner(),
                                 &self.exceptable_nodes(),
                             );
                         }
@@ -471,7 +470,7 @@ impl Visitor for ExpectedRuntimeKeysRule {
                                     text_for_key_span,
                                     &specification,
                                 ),
-                                SyntaxElement::from(item.inner().clone()),
+                                item.inner(),
                                 &self.exceptable_nodes(),
                             );
                         }

@@ -8,6 +8,11 @@ use crate::commands::CommandError;
 use crate::commands::CommandResult;
 use crate::config::Config;
 
+/// The [Taplo schema directive] for `sprocket.toml`.
+///
+/// [Taplo schema directive]: https://taplo.tamasfe.dev/configuration/directives.html#the-schema-directive
+const SCHEMA_DIRECTIVE: &str = "#:schema https://raw.githubusercontent.com/stjude-rust-labs/sprocket/refs/heads/main/jsonschemas/sprocket.toml.json";
+
 /// Arguments for the `config` subcommand.
 #[derive(Parser, Debug, Clone)]
 pub struct Args {
@@ -26,6 +31,9 @@ impl Args {
 /// Subcommands for the `config` command.
 #[derive(Subcommand, Debug, Clone)]
 pub enum ConfigSubcommand {
+    /// Print the JSON schema for `sprocket.toml` to stdout.
+    Schema,
+
     /// Generates a default configuration file.
     Init,
 
@@ -43,8 +51,19 @@ pub struct ResolveArgs {
 
 /// Runs the `config` command.
 pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
+    let mut include_schema_directive = false;
     let config = match args.command {
-        ConfigSubcommand::Init => Config::default(),
+        ConfigSubcommand::Schema => {
+            let schema = schemars::schema_for!(Config);
+            let schema_pretty =
+                serde_json::to_string_pretty(&schema).context("serializing config schema")?;
+            println!("{schema_pretty}");
+            return Ok(());
+        }
+        ConfigSubcommand::Init => {
+            include_schema_directive = true;
+            Config::default()
+        }
         ConfigSubcommand::Resolve(args) => {
             // Redact any secrets unless explicitly requested not to
             if !args.unredact {
@@ -56,7 +75,12 @@ pub fn config(args: Args, mut config: Config) -> CommandResult<()> {
     };
 
     println!(
-        "{}",
+        "{}{}",
+        if include_schema_directive {
+            format!("{SCHEMA_DIRECTIVE}\n\n")
+        } else {
+            String::new()
+        },
         toml_spanner::to_string(&config)
             .context("failed to serialize configuration")
             .map_err(CommandError::Single)?

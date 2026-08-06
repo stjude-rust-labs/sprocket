@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 use std::rc::Rc;
 
+use wdl_ast::AstToken;
 use wdl_ast::DOC_COMMENT_PREFIX;
 use wdl_ast::Directive;
 use wdl_ast::SyntaxKind;
@@ -194,7 +195,9 @@ impl TokenStream<PreToken> {
                         // have syntactical meaning in markdown
                         documentation.push_str(t);
                         documentation.push('\n');
-                    } else if let Ok(directive) = token.text().parse::<Directive>() {
+                    } else if let Some(comment) = wdl_ast::Comment::cast(token.clone())
+                        && let Some(directive) = comment.directive()
+                    {
                         match directive {
                             Directive::Except(e) => exceptions.extend(e),
                         }

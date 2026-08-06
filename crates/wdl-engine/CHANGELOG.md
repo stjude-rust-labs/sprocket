@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.17.1 - 2026-08-05
+
+#### Added
+
+* The LSF and Slurm backends now write files to the attempt directory recording
+  the command used to queue the task and the resulting job identifiers ([#1057](https://github.com/stjude-rust-labs/sprocket/pull/1057)).
+
+#### Fixed
+
+* The execution backend is now considered for the call cache key derivation,
+  which prevents unexpected behavior when switching executing backends. NOTE:
+  this fix will cause existing call cache entries to be ignored ([#1039](https://github.com/stjude-rust-labs/sprocket/pull/1039)).
+* WDL 1.0 `runtime` resource requirements such as `cpu` are again enforced and
+  passed to execution backends
+  ([#1027](https://github.com/stjude-rust-labs/sprocket/pull/1027)).
+
+## 0.17.0 - 2026-07-15
+
+#### Added
+
+* Added a `strongish` content digest mode (`run.task.digests = "strongish"`) that hashes file size, last modified time, and the first 10 MiB of a file's contents; this is an intermediate strategy between `weak` and `strong`, similar to Cromwell's `fingerprint` call caching strategy ([#978](https://github.com/stjude-rust-labs/sprocket/pull/978)).
+
+#### Changed
+
+* Input type-mismatch errors now include a hint when a scalar input (e.g., `File`) was given an array value, explaining that this commonly happens when a key is repeated on the command line or when an unquoted shell glob expands to more than one value ([#998](https://github.com/stjude-rust-labs/sprocket/pull/998)).
+
+## 0.16.0 - 2026-06-26
+
 #### Added
 
 * Added dynamic `bsub` arguments to the LSF backend ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
@@ -24,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Slurm backend setting `extra_sbatch_args` has been renamed to `sbatch.args` ([#940](https://github.com/stjude-rust-labs/sprocket/pull/940)).
 * Renamed enum terminology from `variant` to `choice` ([#638](https://github.com/stjude-rust-labs/sprocket/pull/638)).
 * Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
+
+#### Fixed
+
+* Fixed an issue where a task could not output a `Directory` value that was a
+  subpath of a `Directory` input ([#933](https://github.com/stjude-rust-labs/sprocket/pull/933)).
 
 #### Dependencies
 

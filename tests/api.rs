@@ -1,5 +1,8 @@
 //! API end-to-end tests.
 
+#[path = "api/info.rs"]
+mod info;
+
 #[path = "api/runs.rs"]
 mod runs;
 

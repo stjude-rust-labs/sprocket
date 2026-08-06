@@ -37,6 +37,7 @@ use wdl_ast::v1::MetadataObject;
 use wdl_ast::v1::MetadataValue;
 use wdl_ast::v1::ParameterMetadataSection;
 use wdl_ast::v1::StructDefinition;
+use wdl_grammar::SupportedVersion;
 use wdl_grammar::SyntaxElement;
 
 use crate::Document;
@@ -223,12 +224,12 @@ fn resolve_hover_by_context(
     match parent_node.kind() {
         SyntaxKind::TypeRefNode | SyntaxKind::LiteralStructNode => {
             if let Some(s) = document.struct_by_name(token.text()) {
-                let root = if let Some(ns_name) = s.namespace() {
-                    // SAFETY: we just found a struct with this namespace name and the document
-                    // guarantees that `document.namespaces` contains a corresponding entry for
-                    // `ns_name`.
-                    let ns = document.namespace(ns_name).unwrap();
-                    let node = graph.get(graph.get_index(ns.source()).unwrap());
+                let root = if let Some(source) = s.source() {
+                    // SAFETY: `source` is the URI the import resolved to,
+                    // which is guaranteed to be present in the graph.
+                    let node = graph.get(graph.get_index(source).unwrap());
+                    // SAFETY: we successfully resolved the node above; it is
+                    // in `ParseState::Parsed`, which has a document.
                     node.document().unwrap().root()
                 } else {
                     document.root()
@@ -236,12 +237,12 @@ fn resolve_hover_by_context(
                 return Ok(provide_struct_documentation(s, &root));
             }
             if let Some(e) = document.enum_by_name(token.text()) {
-                let root = if let Some(ns_name) = e.namespace() {
-                    // SAFETY: we just found an enum with this namespace name and the document
-                    // guarantees that `document.namespaces` contains a corresponding entry for
-                    // `ns_name`.
-                    let ns = document.namespace(ns_name).unwrap();
-                    let node = graph.get(graph.get_index(ns.source()).unwrap());
+                let root = if let Some(source) = e.source() {
+                    // SAFETY: `source` is the URI the import resolved to,
+                    // which is guaranteed to be present in the graph.
+                    let node = graph.get(graph.get_index(source).unwrap());
+                    // SAFETY: we successfully resolved the node above; it is
+                    // in `ParseState::Parsed`, which has a document.
                     node.document().unwrap().root()
                 } else {
                     document.root()
@@ -278,7 +279,6 @@ fn resolve_hover_by_context(
                     if token.span() == name.span() {
                         (Some(ns), name)
                     } else if token.span() == ns.span() {
-                        // namespace identifier hovered
                         if let Some(ns) = document.namespace(token.text()) {
                             return Ok(Some(format!(
                                 "```wdl\n(import) {}\n```\nImports from `{}`",
@@ -297,13 +297,8 @@ fn resolve_hover_by_context(
             };
 
             let target_doc = if let Some(ns_name) = ns_name {
-                // SAFETY: we just found a call with this namespace name and the document
-                // guarantees that `document.namespaces` contains a corresponding entry for
-                // `ns_name`.
                 let ns = document.namespace(ns_name.text()).unwrap();
 
-                // SAFETY: `ns.source` comes from a valid namespace entry which guarantees the
-                // document exists in the graph.
                 let node = graph.get(graph.get_index(ns.source()).unwrap());
                 node.document().unwrap()
             } else {
@@ -384,15 +379,8 @@ fn resolve_hover_by_context(
                 }
                 Type::Compound(CompoundType::Custom(CustomType::Struct(s)), _) => {
                     let target_doc = if let Some(s) = document.struct_by_name(s.name()) {
-                        if let Some(ns_name) = s.namespace() {
-                            // SAFETY: we just found a struct with this namespace name and the
-                            // document guarantees that `document.namespaces` contains a
-                            // corresponding entry for `ns_name`.
-                            let ns = document.namespace(ns_name).unwrap();
-
-                            // SAFETY: `ns.source` comes from a valid namespace entry which
-                            // guarantees the document exists in the graph.
-                            let node = graph.get(graph.get_index(ns.source()).unwrap());
+                        if let Some(source) = s.source() {
+                            let node = graph.get(graph.get_index(source).unwrap());
                             node.document().unwrap()
                         } else {
                             document
@@ -475,8 +463,11 @@ fn resolve_hover_by_context(
             }
 
             if let Some(func) = STDLIB.function(call_expr.target().text()) {
-                let content = get_function_hover_content(call_expr.target().text(), func);
-                return Ok(Some(content));
+                return Ok(get_function_hover_content(
+                    document.version(),
+                    call_expr.target().text(),
+                    func,
+                ));
             }
         }
 
@@ -535,9 +526,22 @@ fn find_global_hover_in_doc(document: &Document, token: &SyntaxToken) -> Result<
 
 /// Generates markdown content for a standard library function's hover info.
 ///
-/// This includes all overloaded signatures and the documentation from the WDL
-/// specification.
-fn get_function_hover_content(name: &str, func: &Function) -> String {
+/// This includes all overloaded signatures appropriate for the specified
+/// `version` and the documentation from the WDL specification.
+///
+/// Returns `None` if the document has no supported version or the function is
+/// unavailable in that version.
+fn get_function_hover_content(
+    version: Option<SupportedVersion>,
+    name: &str,
+    func: &Function,
+) -> Option<String> {
+    let v = version?;
+
+    if func.minimum_version() > v {
+        return None;
+    }
+
     let (detail, docs) = match func {
         Function::Monomorphic(m) => {
             let sig = m.signature();
@@ -550,6 +554,7 @@ fn get_function_hover_content(name: &str, func: &Function) -> String {
             let detail = p
                 .signatures()
                 .iter()
+                .filter(|s| s.minimum_version() <= v)
                 .map(|s| {
                     let params = TypeParameters::new(s.type_parameters());
                     format!("```wdl\n{}{}\n```", name, s.display(&params))
@@ -559,13 +564,14 @@ fn get_function_hover_content(name: &str, func: &Function) -> String {
 
             let docs = p
                 .signatures()
-                .first()
+                .iter()
+                .find(|s| s.minimum_version() <= v)
                 .and_then(|s| s.definition())
                 .unwrap_or("");
             (detail, docs)
         }
     };
-    format!("{detail}\n\n{docs}")
+    Some(format!("{detail}\n\n{docs}"))
 }
 
 /// Finds documentation for a variable declaration.

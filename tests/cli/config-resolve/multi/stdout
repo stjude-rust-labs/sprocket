@@ -19,6 +19,7 @@ filter_lint_tags = []
 [check.lint]
 allowed_runtime_keys = []
 allowed_names = []
+bash_set_options = ["errexit", "nounset", "pipefail"]
 
 [analyzer]
 lint = false
@@ -138,6 +139,7 @@ logo = "none"
 alt_light_logo = "none"
 homepage_url = "none"
 github_url = "none"
+slack_url = "none"
 light_mode = false
 with_doc_comments = false
 
@@ -146,12 +148,28 @@ head = "none"
 body_open = "none"
 body_close = "none"
 
+[doc.seo]
+title = "none"
+description = "none"
+author = "none"
+keywords = []
+base_url = "none"
+image_url = "none"
+locale = "none"
+twitter_handle = "none"
+robots = "none"
+theme_color = "none"
+
 [common]
 color = "auto"
 report_mode = "full"
 
 [common.wdl]
 fallback_version = "none"
+
+[common.wdl.feature_flags]
+wdl_1_3 = true
+wdl_1_4 = false
 
 [modules]
 large_file_warning = "1.0 MiB"

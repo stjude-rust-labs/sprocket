@@ -88,7 +88,7 @@ pub struct ListSessionsResponse {
 /// List sessions.
 #[utoipa::path(
     get,
-    path = "/api/v1/sessions",
+    path = super::paths::LIST_SESSIONS,
     params(ListSessionsQueryParams),
     responses(
         (status = 200, description = "Sessions retrieved successfully", body = ListSessionsResponse),
@@ -106,16 +106,10 @@ pub async fn list_sessions(
         _ => Error::BadRequest("invalid query parameters".to_string()),
     })?;
 
-    let offset = match query.next_token.as_deref() {
-        Some(t) => t
-            .parse::<i64>()
-            .map_err(|_| Error::BadRequest(format!("invalid `next_token`: `{}`", t)))?,
-        None => 0,
-    };
-    let limit = query.limit.unwrap_or(100);
+    let (limit, offset) = super::validate_pagination(query.limit, query.next_token.as_deref())?;
 
     let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::ListSessions {
-        limit: query.limit,
+        limit: Some(limit),
         offset: Some(offset),
         rx,
     })
@@ -138,7 +132,7 @@ pub async fn list_sessions(
 /// Get session by ID.
 #[utoipa::path(
     get,
-    path = "/api/v1/sessions/{id}",
+    path = super::paths::GET_SESSION,
     params(
         ("id" = String, Path, description = "Session ID")
     ),

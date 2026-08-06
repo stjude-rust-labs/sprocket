@@ -1,0 +1,32 @@
+note[MeaninglessLintDirective]: unnecessary `except` directive for lint rule `UnusedCall`
+  ┌─ tests/analysis/meaningless-lint-directive/source.wdl:7:12
+  │
+7 │ #@ except: UnusedCall
+  │            ^^^^^^^^^^
+
+note[KnownRules]: unknown rule `WhatIsThisMysteriousRule`
+   ┌─ tests/analysis/meaningless-lint-directive/source.wdl:17:12
+   │
+17 │ #@ except: WhatIsThisMysteriousRule
+   │            ^^^^^^^^^^^^^^^^^^^^^^^^ cannot make an exception for this rule
+   │
+   = fix: remove the unknown rule from the exception list
+
+note[MeaninglessLintDirective]: unnecessary `except` directive for lint rule `UnusedCall`
+   ┌─ tests/analysis/meaningless-lint-directive/source.wdl:20:16
+   │
+20 │     #@ except: UnusedCall
+   │                ^^^^^^^^^^
+
+note[MeaninglessLintDirective]: unnecessary `except` directive for lint rule `UnnecessaryFunctionCall`
+   ┌─ tests/analysis/meaningless-lint-directive/source.wdl:31:16
+   │
+31 │     #@ except: UnnecessaryFunctionCall, UnusedDeclaration
+   │                ^^^^^^^^^^^^^^^^^^^^^^^
+
+note[MeaninglessLintDirective]: unnecessary `except` directive for lint rule `UnusedDeclaration`
+   ┌─ tests/analysis/meaningless-lint-directive/source.wdl:31:41
+   │
+31 │     #@ except: UnnecessaryFunctionCall, UnusedDeclaration
+   │                                         ^^^^^^^^^^^^^^^^^
+

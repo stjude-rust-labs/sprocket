@@ -13,7 +13,6 @@ use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Ident;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::v1::WorkflowDefinition;
@@ -216,19 +215,19 @@ impl Visitor for MetaSectionsRule {
         if inputs_present && task.metadata().is_none() && task.parameter_metadata().is_none() {
             diagnostics.exceptable_add(
                 missing_sections(task.name(), Context::Task),
-                SyntaxElement::from(task.inner().clone()),
+                task.inner(),
                 &self.exceptable_nodes(),
             );
         } else if task.metadata().is_none() {
             diagnostics.exceptable_add(
                 missing_section(task.name(), Section::Meta, Context::Task),
-                SyntaxElement::from(task.inner().clone()),
+                task.inner(),
                 &self.exceptable_nodes(),
             );
         } else if inputs_present && task.parameter_metadata().is_none() {
             diagnostics.exceptable_add(
                 missing_section(task.name(), Section::ParameterMeta, Context::Task),
-                SyntaxElement::from(task.inner().clone()),
+                task.inner(),
                 &self.exceptable_nodes(),
             );
         }
@@ -252,19 +251,19 @@ impl Visitor for MetaSectionsRule {
         {
             diagnostics.exceptable_add(
                 missing_sections(workflow.name(), Context::Workflow),
-                SyntaxElement::from(workflow.inner().clone()),
+                workflow.inner(),
                 &self.exceptable_nodes(),
             );
         } else if workflow.metadata().is_none() {
             diagnostics.exceptable_add(
                 missing_section(workflow.name(), Section::Meta, Context::Workflow),
-                SyntaxElement::from(workflow.inner().clone()),
+                workflow.inner(),
                 &self.exceptable_nodes(),
             );
         } else if inputs_present && workflow.parameter_metadata().is_none() {
             diagnostics.exceptable_add(
                 missing_section(workflow.name(), Section::ParameterMeta, Context::Workflow),
-                SyntaxElement::from(workflow.inner().clone()),
+                workflow.inner(),
                 &self.exceptable_nodes(),
             );
         }
@@ -288,19 +287,19 @@ impl Visitor for MetaSectionsRule {
         if def.metadata().next().is_none() && def.parameter_metadata().next().is_none() {
             diagnostics.exceptable_add(
                 missing_sections(def.name(), Context::Struct),
-                SyntaxElement::from(def.inner().clone()),
+                def.inner(),
                 &self.exceptable_nodes(),
             );
         } else if def.metadata().next().is_none() {
             diagnostics.exceptable_add(
                 missing_section(def.name(), Section::Meta, Context::Struct),
-                SyntaxElement::from(def.inner().clone()),
+                def.inner(),
                 &self.exceptable_nodes(),
             );
         } else if def.parameter_metadata().next().is_none() {
             diagnostics.exceptable_add(
                 missing_section(def.name(), Section::ParameterMeta, Context::Struct),
-                SyntaxElement::from(def.inner().clone()),
+                def.inner(),
                 &self.exceptable_nodes(),
             );
         }

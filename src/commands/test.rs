@@ -30,9 +30,11 @@ use tracing::error;
 use tracing::info;
 use tracing::instrument::WithSubscriber;
 use tracing::subscriber::NoSubscriber;
+use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
 use wdl::ast::AstNode;
 use wdl::diagnostics::DiagnosticCounts;
+use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
@@ -70,6 +72,18 @@ const WORKSPACE_TEST_DIR: &str = "test";
 /// Test fixtures are located at `$WORKSPACE_TEST_DIR/$FIXTURES_DIR`
 const FIXTURES_DIR: &str = "fixtures";
 
+#[derive(Default, Debug, clap::Args)]
+#[group(required = false, multiple = true)]
+pub struct Filters {
+    /// Only run tests whose target (task/workflow) name contains the given
+    /// filter.
+    #[clap(short = 't', long, value_name = "TARGET")]
+    pub target: Option<String>,
+    /// Only run tests whose names contain the given filter.
+    #[clap(short = 'f', long, value_name = "FILTER")]
+    pub filter: Option<String>,
+}
+
 /// Arguments for the `test` subcommand.
 #[derive(Parser, Debug)]
 pub struct Args {
@@ -94,13 +108,18 @@ pub struct Args {
     /// addition to a source file if the CWD is not the right workspace.
     #[clap(short, long)]
     pub workspace: Option<PathBuf>,
+    #[clap(flatten)]
+    pub filters: Filters,
+    /// If set, filters are matched exactly rather than by substring.
+    #[clap(long, requires = "Filters")]
+    pub exact: bool,
     /// Specific test tag that should be run.
     ///
     /// Can be repeated multiple times.
-    #[clap(short='t', long, value_name = "TAG",
+    #[clap(short='i', long, value_name = "TAG",
         action = clap::ArgAction::Append,
         num_args = 1,
-        conflicts_with="filter_tag",
+        conflicts_with="exclude_tag",
     )]
     pub include_tag: Vec<String>,
     /// Filter out any tests with a matching tag.
@@ -110,7 +129,7 @@ pub struct Args {
         action = clap::ArgAction::Append,
         num_args = 1,
     )]
-    pub filter_tag: Vec<String>,
+    pub exclude_tag: Vec<String>,
     /// Do not clean the file system of successful tests.
     ///
     /// The default behavior is to remove directories of successful tests,
@@ -136,6 +155,18 @@ pub struct Args {
     /// Do not print results as tests complete.
     #[clap(long)]
     pub no_status: bool,
+    /// The report mode for any emitted diagnostics.
+    #[arg(short = 'm', long, value_name = "MODE", global = true)]
+    pub report_mode: Option<Mode>,
+    #[command(subcommand)]
+    pub command: Option<Subcommand>,
+}
+
+/// Subcommands for `sprocket dev test`
+#[derive(clap::Subcommand, Debug)]
+pub enum Subcommand {
+    /// Print the JSON schema for Sprocket test definition YAMLs to stdout.
+    Schema,
 }
 
 fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
@@ -170,15 +201,33 @@ fn find_yaml(wdl_path: &Path) -> Result<Option<PathBuf>> {
 
 /// Returns `true` if the test should be filtered.
 fn filter_test(
+    target: &str,
     test: &TestDefinition,
     include_tags: &HashSet<String>,
-    filter_tags: &HashSet<String>,
+    exclude_tags: &HashSet<String>,
+    target_filter: Option<&str>,
+    name_filter: Option<&str>,
+    exact: bool,
 ) -> bool {
     if !include_tags.is_empty() && !test.tags.iter().any(|t| include_tags.contains(t)) {
         return true;
     }
-    if test.tags.iter().any(|t| filter_tags.contains(t)) {
+    if test.tags.iter().any(|t| exclude_tags.contains(t)) {
         return true;
+    }
+
+    if let Some(filter) = target_filter
+        && ((exact && target != filter) || (!exact && !target.contains(filter)))
+    {
+        return true;
+    }
+
+    if let Some(filter) = name_filter {
+        if exact {
+            return &*test.name != filter;
+        }
+
+        return !test.name.contains(filter);
     }
     false
 }
@@ -285,11 +334,21 @@ impl TestIteration {
                 },
                 RunResult::Task(result) => match *result {
                     Ok(evaled_task) => {
-                        if evaled_task.exit_code() != assertions.exit_code {
+                        let actual_exit_code = evaled_task.exit_code();
+
+                        if assertions.should_fail {
+                            if actual_exit_code == 0 {
+                                return Ok(IterationResult::Fail(anyhow!(
+                                    "{id} exited with code `0` but `should_fail` expected a \
+                                     nonzero exit code: see `{dir}`",
+                                    dir = run_dir.display(),
+                                )));
+                            }
+                        } else if actual_exit_code != assertions.exit_code {
                             return Ok(IterationResult::Fail(anyhow!(
                                 "{id} exited with code `{actual}` but test expected exit code \
                                  `{expected}`: see `{dir}`",
-                                actual = evaled_task.exit_code(),
+                                actual = actual_exit_code,
                                 expected = assertions.exit_code,
                                 dir = run_dir.display(),
                             )));
@@ -332,7 +391,7 @@ impl TestIteration {
                         let outputs = match evaled_task.into_outputs() {
                             Ok(outputs) => outputs,
                             Err(eval_err) => {
-                                if assertions.exit_code == 0 {
+                                if assertions.exit_code == 0 && !assertions.should_fail {
                                     return Err(anyhow!(
                                         "unexpected evaluation error: {}",
                                         eval_err.to_string()
@@ -417,7 +476,7 @@ impl Runner {
     async fn run(
         &self,
         documents: Vec<(&AnalysisResult, DocumentTests)>,
-        should_filter: impl Fn(&TestDefinition) -> bool,
+        should_filter: impl Fn(&str, &TestDefinition) -> bool,
         clean: bool,
         quiet: bool,
         errors: &mut Vec<Arc<anyhow::Error>>,
@@ -482,7 +541,7 @@ impl Runner {
         &self,
         analysis: &AnalysisResult,
         tests: DocumentTests,
-        should_filter: &impl Fn(&TestDefinition) -> bool,
+        should_filter: &impl Fn(&str, &TestDefinition) -> bool,
         errors: &mut Vec<Arc<anyhow::Error>>,
         all_results: &mut FullResults,
         tasks: &mut Vec<TestTask>,
@@ -515,7 +574,7 @@ impl Runner {
             let mut target_results = IndexMap::new();
 
             for test in definitions {
-                if should_filter(&test) {
+                if should_filter(&target, &test) {
                     continue;
                 }
 
@@ -532,11 +591,6 @@ impl Runner {
                 };
 
                 let run_root: Arc<Path> = self.root.join(target.as_ref()).join(&*test.name).into();
-                if run_root.exists() {
-                    remove_dir_all(&run_root).await.with_context(|| {
-                        format!("removing prior test dir: `{}`", run_root.display())
-                    })?;
-                }
 
                 let assertions = match test.assertions.parse(is_workflow, outputs) {
                     Ok(res) => Arc::new(res),
@@ -769,11 +823,28 @@ fn resolve_test_paths(
         .clone()
         .or_else(|| config.run_dir.clone())
         .unwrap_or_else(|| test_dir.join(RUNS_DIR));
-    (fixtures_dir, run_dir)
+    (fixtures_dir, run_dir.join(Uuid::new_v4().to_string()))
+}
+
+async fn clean_all_run_root(run_root: &Path) -> Result<()> {
+    match remove_dir_all(run_root).await {
+        Ok(()) => Ok(()),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(e).context("cleaning the file system of all test executions"),
+    }
 }
 
 /// Performs the `test` command.
 pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResult<()> {
+    if matches!(args.command, Some(Subcommand::Schema)) {
+        let schema = schemars::schema_for!(DocumentTests);
+        let schema_pretty =
+            serde_json::to_string_pretty(&schema).context("serializing test schema")?;
+        println!("{schema_pretty}");
+        return Ok(());
+    }
+
+    let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     let source = args.source.unwrap_or_default();
     let parallelism = args.parallelism.unwrap_or(
         config
@@ -806,7 +877,9 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
     let analysis_results = Analysis::default()
         .add_source(source.clone())
         .fallback_version(config.common.wdl.fallback_version.into())
-        .run()
+        .modules_config(config.modules.clone())
+        .feature_flags(config.common.wdl.feature_flags)
+        .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
 
@@ -892,8 +965,18 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
     };
 
     let include_tags = HashSet::from_iter(args.include_tag);
-    let filter_tags = HashSet::from_iter(args.filter_tag);
-    let should_filter = |test: &TestDefinition| filter_test(test, &include_tags, &filter_tags);
+    let exclude_tags = HashSet::from_iter(args.exclude_tag);
+    let should_filter = |target: &str, test: &TestDefinition| {
+        filter_test(
+            target,
+            test,
+            &include_tags,
+            &exclude_tags,
+            args.filters.target.as_deref(),
+            args.filters.filter.as_deref(),
+            args.exact,
+        )
+    };
     let mut errors = Vec::new();
     let mut runner_task = Box::pin(runner.run(
         documents,
@@ -939,9 +1022,9 @@ pub async fn test(args: Args, mut config: Config, colorize: bool) -> CommandResu
     }
 
     if args.clean_all {
-        remove_dir_all(runner.root)
-            .await
-            .context("cleaning the file system of all test executions")?;
+        clean_all_run_root(&runner.root).await?;
+    } else if !args.no_clean {
+        let _ = remove_dir(&runner.root);
     }
 
     if let Some(errors) = NonEmpty::from_vec(errors) {
@@ -960,13 +1043,17 @@ mod tests {
             source: None,
             workspace: None,
             include_tag: Vec::new(),
-            filter_tag: Vec::new(),
+            exclude_tag: Vec::new(),
             no_clean: false,
             clean_all: false,
             parallelism: None,
             fixtures_dir,
             run_dir,
             no_status: false,
+            filters: Filters::default(),
+            exact: false,
+            report_mode: None,
+            command: None,
         }
     }
 
@@ -978,9 +1065,10 @@ mod tests {
 
         let (fixtures_dir, run_dir) =
             resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+        let expected_run_dir = workspace.join("test").join("runs");
 
         assert_eq!(fixtures_dir, workspace.join("test").join("fixtures"));
-        assert_eq!(run_dir, workspace.join("test").join("runs"));
+        assert_eq!(run_dir.parent(), Some(expected_run_dir.as_path()));
     }
 
     #[test]
@@ -992,9 +1080,10 @@ mod tests {
 
         let (fixtures_dir, run_dir) =
             resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+        let expected_run_dir = workspace.join("test").join("runs");
 
         assert_eq!(fixtures_dir, custom_fixtures);
-        assert_eq!(run_dir, workspace.join("test").join("runs"));
+        assert_eq!(run_dir.parent(), Some(expected_run_dir.as_path()));
     }
 
     #[test]
@@ -1008,7 +1097,24 @@ mod tests {
             resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
 
         assert_eq!(fixtures_dir, workspace.join("test").join("fixtures"));
-        assert_eq!(run_dir, custom_run_dir);
+        assert_eq!(run_dir.parent(), Some(custom_run_dir.as_path()));
+    }
+
+    #[test]
+    fn resolve_test_paths_uses_unique_run_dir_per_invocation() {
+        let workspace = PathBuf::from("/workspace");
+        let args = args_with_overrides(None, None);
+        let config = TestConfig::default();
+        let expected_parent = workspace.join("test").join("runs");
+
+        let (_, first_run_dir) =
+            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+        let (_, second_run_dir) =
+            resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
+
+        assert_ne!(first_run_dir, second_run_dir);
+        assert_eq!(first_run_dir.parent(), Some(expected_parent.as_path()));
+        assert_eq!(second_run_dir.parent(), Some(expected_parent.as_path()));
     }
 
     #[test]
@@ -1023,7 +1129,7 @@ mod tests {
             resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
 
         assert_eq!(fixtures_dir, custom_fixtures);
-        assert_eq!(run_dir, custom_run_dir);
+        assert_eq!(run_dir.parent(), Some(custom_run_dir.as_path()));
     }
 
     #[test]
@@ -1040,7 +1146,7 @@ mod tests {
             resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
 
         assert_eq!(fixtures_dir, PathBuf::from("/config-fixtures"));
-        assert_eq!(run_dir, PathBuf::from("/config-runs"));
+        assert_eq!(run_dir.parent(), Some(Path::new("/config-runs")));
     }
 
     #[test]
@@ -1060,6 +1166,14 @@ mod tests {
             resolve_test_paths(&config, &workspace, &args.fixtures_dir, &args.run_dir);
 
         assert_eq!(fixtures_dir, PathBuf::from("/cli-fixtures"));
-        assert_eq!(run_dir, PathBuf::from("/cli-runs"));
+        assert_eq!(run_dir.parent(), Some(Path::new("/cli-runs")));
+    }
+
+    #[tokio::test]
+    async fn clean_all_run_root_ignores_missing_directory() -> Result<()> {
+        let temp_dir = tempfile::tempdir()?;
+        let run_root = temp_dir.path().join("missing");
+
+        clean_all_run_root(&run_root).await
     }
 }

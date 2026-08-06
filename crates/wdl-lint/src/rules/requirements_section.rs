@@ -11,7 +11,6 @@ use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::TaskDefinition;
 use wdl_ast::version::V1;
@@ -170,7 +169,7 @@ impl Visitor for RequirementsSectionRule {
                                 .text_range()
                                 .into(),
                         ),
-                        SyntaxElement::from(runtime.inner().clone()),
+                        runtime.inner(),
                         &self.exceptable_nodes(),
                     );
                 }
@@ -179,7 +178,7 @@ impl Visitor for RequirementsSectionRule {
                         let name = task.name();
                         diagnostics.exceptable_add(
                             missing_requirements_section(name.text(), name.span()),
-                            SyntaxElement::from(task.inner().clone()),
+                            task.inner(),
                             &self.exceptable_nodes(),
                         );
                     }

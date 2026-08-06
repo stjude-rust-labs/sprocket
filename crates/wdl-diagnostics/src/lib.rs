@@ -12,6 +12,9 @@ use codespan_reporting::term::DisplayStyle;
 use codespan_reporting::term::emit_to_write_style;
 use codespan_reporting::term::termcolor::ColorChoice;
 use codespan_reporting::term::termcolor::StandardStream;
+#[cfg(feature = "unstable-python")]
+pub use python::py_emit_diagnostics;
+use schemars::JsonSchema;
 use wdl_ast::Diagnostic;
 
 /// Configuration for full display style.
@@ -89,13 +92,25 @@ impl DiagnosticCounts {
 }
 
 /// The diagnostic mode to use for reporting diagnostics.
-#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, ValueEnum, PartialEq, Eq, JsonSchema)]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(
+        module = "sprocket_bio.diagnostics",
+        frozen,
+        rename_all = "SCREAMING_SNAKE_CASE",
+        skip_from_py_object,
+        eq
+    )
+)]
+#[schemars(rename_all = "lowercase")]
 pub enum Mode {
     /// Prints diagnostics as multiple lines.
     #[default]
     Full,
 
     /// Prints diagnostics as one line.
+    #[schemars(rename = "one-line")]
     OneLine,
 }
 
@@ -244,4 +259,41 @@ pub fn emit_diagnostics_with_backtrace<'a>(
     }
 
     Ok(())
+}
+
+/// Python-specific APIs.
+#[cfg(feature = "unstable-python")]
+mod python {
+    use pyo3::prelude::*;
+
+    use super::*;
+
+    #[pymethods]
+    impl Mode {
+        /// Returns the “default value” for a type.
+        #[staticmethod]
+        #[pyo3(name = "default")]
+        fn py_default() -> Self {
+            <Self as Default>::default()
+        }
+    }
+
+    /// Emits the given diagnostics to the terminal.
+    #[pyfunction(name = "emit_diagnostics")]
+    pub fn py_emit_diagnostics(
+        path: &str,
+        source: &str,
+        diagnostics: Vec<Bound<'_, Diagnostic>>,
+        report_mode: Bound<'_, Mode>,
+        colorize: bool,
+    ) -> PyResult<()> {
+        emit_diagnostics(
+            path,
+            source,
+            diagnostics.iter().map(|d| d.get()),
+            *report_mode.get(),
+            colorize,
+        )
+        .map_err(PyErr::from)
+    }
 }

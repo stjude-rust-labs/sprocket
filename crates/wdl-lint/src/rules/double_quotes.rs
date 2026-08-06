@@ -8,7 +8,6 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::Expr;
 use wdl_ast::v1::LiteralExpr;
@@ -108,7 +107,7 @@ impl Visitor for DoubleQuotesRule {
         {
             diagnostics.exceptable_add(
                 use_double_quotes(s.span()),
-                SyntaxElement::from(expr.inner().clone()),
+                expr.inner(),
                 &self.exceptable_nodes(),
             );
         }

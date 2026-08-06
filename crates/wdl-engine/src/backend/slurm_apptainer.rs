@@ -68,11 +68,38 @@ use crate::v1::requirements;
 /// The name of the file where the Apptainer command invocation will be written.
 const APPTAINER_COMMAND_FILE_NAME: &str = "apptainer_command";
 
+/// The name of the file which stores the id of the job that was submitted to
+/// Slurm.
+const JOB_ID_FILE_NAME: &str = "job_id";
+
+/// The name of the file which stores the full command used to enqueue the task.
+const SBATCH_COMMAND_FILE_NAME: &str = "sbatch_command";
+
 /// The default monitor interval, in seconds.
 const DEFAULT_MONITOR_INTERVAL: u64 = 30;
 
 /// The default maximum concurrency for `sbatch` and `scancel` operations.
 const DEFAULT_MAX_CONCURRENCY: u32 = 10;
+
+/// Writes a `sbatch_command` file with the given `sbatch` command.
+async fn write_sbatch_command_file(dir: &Path, command: &Command) -> Result<()> {
+    let path = dir.join(SBATCH_COMMAND_FILE_NAME);
+    fs::write(&path, format!("{command:?}\n", command = command.as_std()))
+        .await
+        .with_context(|| format!("failed to write file `{path}`", path = path.display()))?;
+    Ok(())
+}
+
+/// Writes a `job_id` file with the given job identifier.
+///
+/// If a failure to write the file occurs, an error is logged instead of
+/// returned so that the engine can continue to monitor the task.
+async fn write_job_id_file(dir: &Path, job_id: u64) {
+    let path = dir.join(JOB_ID_FILE_NAME);
+    if let Err(e) = fs::write(&path, format!("{job_id}\n")).await {
+        error!("failed to write file `{path}`: {e}", path = path.display());
+    }
+}
 
 /// Represents a Slurm job state.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -635,7 +662,13 @@ impl Monitor {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        trace!(?command, "spawning `sbatch` to queue task");
+        // Write the full `sbatch` command to the attempt directory
+        write_sbatch_command_file(request.attempt_dir, &command).await?;
+
+        trace!(
+            "spawning `sbatch` to queue task: `{command:?}`",
+            command = command.as_std()
+        );
 
         let child = command.spawn().context("failed to spawn `sbatch`")?;
         let output = child
@@ -667,7 +700,9 @@ impl Monitor {
 
         let job_id = job_id.context("`sbatch` did not output a job identifier")?;
 
+        // Write out the job id to the attempt directory
         debug!("task `{task_name}` was queued as Slurm job `{job_id}`");
+        write_job_id_file(request.attempt_dir, job_id).await;
 
         let (tx, rx) = oneshot::channel();
         let mut state = self.state.lock().expect("failed to lock state");
@@ -743,7 +778,10 @@ impl Monitor {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped());
 
-        trace!(?command, "spawning `sacct` to monitor tasks");
+        trace!(
+            "spawning `sacct` to monitor tasks: `{command:?}`",
+            command = command.as_std()
+        );
 
         let child = command.spawn().context("failed to spawn `sacct` command")?;
 
@@ -839,7 +877,10 @@ impl SlurmApptainerBackend {
             .await
             .context("failed to acquire permit for canceling job")?;
 
-        trace!(?command, "spawning `scancel` to cancel task");
+        trace!(
+            "spawning `scancel` to cancel task: `{command:?}`",
+            command = command.as_std()
+        );
 
         let mut child = command
             .spawn()
@@ -854,6 +895,10 @@ impl SlurmApptainerBackend {
 }
 
 impl TaskExecutionBackend for SlurmApptainerBackend {
+    fn name(&self) -> &'static str {
+        "slurm_apptainer"
+    }
+
     fn constraints(
         &self,
         inputs: &TaskInputs,

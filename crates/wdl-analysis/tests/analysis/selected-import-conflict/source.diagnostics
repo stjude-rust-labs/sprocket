@@ -1,0 +1,9 @@
+error: import of `Record` conflicts with an existing definition
+  ┌─ tests/analysis/selected-import-conflict/source.wdl:7:10
+  │
+3 │ struct Record {
+  │        ------ previous definition
+  ·
+7 │ import { Record } from "lib.wdl"
+  │          ^^^^^^ imported here
+

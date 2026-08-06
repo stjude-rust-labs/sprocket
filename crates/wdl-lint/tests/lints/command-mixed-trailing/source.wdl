@@ -1,4 +1,4 @@
-#@ except: MetaDescription, ExpectedRuntimeKeys, ShellCheck, DeprecatedPlaceholder, EmptyOutputs
+#@ except: MetaDescription, ExpectedRuntimeKeys, ShellCheck, DeprecatedPlaceholder, EmptyOutputs, BashSetSyntax
 
 ## This is a test of having mixed _trailing_ indentation in command sections.
 ## There should be no warnings from the `CommandSectionIndentation` rule.

@@ -15,10 +15,13 @@ mod docs_tree;
 mod document;
 mod r#enum;
 pub mod error;
+mod links;
 mod meta;
+mod page;
 mod parameter;
 mod runnable;
 mod r#struct;
+mod workspace;
 
 use std::io::Error as IoError;
 use std::io::ErrorKind;
@@ -55,11 +58,13 @@ use wdl_ast::version::V1;
 
 use crate::config::AdditionalHtml;
 pub use crate::config::Config;
+use crate::config::Seo;
 pub use crate::error::DocError;
 use crate::error::DocErrorKind;
 use crate::error::DocResult;
 use crate::error::NpmError;
 use crate::error::ResultContextExt;
+use crate::workspace::WorkspaceMetadata;
 
 /// Install the theme dependencies using npm.
 pub fn install_theme(theme_dir: &Path) -> DocResult<()> {
@@ -186,11 +191,42 @@ impl Render for Css<'_> {
 /// Requires a relative path to the root where `style.css` and `index.js` files
 /// are expected.
 pub(crate) fn header<P: AsRef<Path>>(
-    page_title: &str,
+    page_name: &str,
     root: P,
     addl_html: &AdditionalHtml,
+    init_light_mode: bool,
+    seo: &Seo,
+    canonical_url: Option<&str>,
 ) -> Markup {
     let root = root.as_ref();
+    // The browser/tab title is "<page> | <site title>" when a site title is
+    // configured, and just the page name otherwise.
+    let page_title = match &seo.title {
+        Some(site_title) => format!("{page_name} | {site_title}"),
+        None => page_name.to_string(),
+    };
+    // Only emit Open Graph and Twitter Card tags when there is something worth
+    // previewing; otherwise the head stays as lean as it was before SEO config.
+    let has_social = seo.title.is_some()
+        || seo.description.is_some()
+        || seo.image_url.is_some()
+        || canonical_url.is_some();
+    let initial_theme = if init_light_mode { "light" } else { "dark" };
+    let theme_bootstrap = format!(
+        r#"const storedTheme = localStorage.getItem('_x_theme');
+const initialTheme = storedTheme === null ? '{initial_theme}' : JSON.parse(storedTheme);
+if (initialTheme === 'light') {{
+    document.documentElement.classList.replace('dark', 'light');
+}} else {{
+    document.documentElement.classList.replace('light', 'dark');
+}}
+const storedRunWith = localStorage.getItem('run_with');
+document.documentElement.dataset.runWith =
+    storedRunWith === 'windows' ? 'windows' : 'unix';
+const storedSidebar = sessionStorage.getItem('_x_sidebarState');
+document.documentElement.dataset.sidebar =
+    storedSidebar === null ? (window.innerWidth < 768 ? 'hidden' : 'normal') : JSON.parse(storedSidebar);"#
+    );
     let search_import = format!(
         r#"const pagefindPath = new URL('{}', import.meta.url).href;
 window.pagefind = import(pagefindPath)"#,
@@ -201,6 +237,54 @@ window.pagefind = import(pagefindPath)"#,
             meta charset="utf-8";
             meta name="viewport" content="width=device-width, initial-scale=1.0";
             title { (page_title) }
+            @if let Some(description) = &seo.description {
+                meta name="description" content=(description);
+            }
+            @if let Some(author) = &seo.author {
+                meta name="author" content=(author);
+            }
+            @if !seo.keywords.is_empty() {
+                meta name="keywords" content=(seo.keywords.join(", "));
+            }
+            @if let Some(robots) = &seo.robots {
+                meta name="robots" content=(robots);
+            }
+            @if let Some(theme_color) = &seo.theme_color {
+                meta name="theme-color" content=(theme_color);
+            }
+            @if let Some(canonical) = canonical_url {
+                link rel="canonical" href=(canonical);
+            }
+            @if has_social {
+                meta property="og:type" content="website";
+                meta property="og:title" content=(page_title);
+                @if let Some(site_title) = &seo.title {
+                    meta property="og:site_name" content=(site_title);
+                }
+                @if let Some(description) = &seo.description {
+                    meta property="og:description" content=(description);
+                }
+                @if let Some(canonical) = canonical_url {
+                    meta property="og:url" content=(canonical);
+                }
+                @if let Some(image) = &seo.image_url {
+                    meta property="og:image" content=(image.as_str());
+                }
+                meta property="og:locale" content=(seo.locale.as_deref().unwrap_or("en_US"));
+                meta name="twitter:card" content=(if seo.image_url.is_some() { "summary_large_image" } else { "summary" });
+                meta name="twitter:title" content=(page_title);
+                @if let Some(description) = &seo.description {
+                    meta name="twitter:description" content=(description);
+                }
+                @if let Some(image) = &seo.image_url {
+                    meta name="twitter:image" content=(image.as_str());
+                }
+                @if let Some(handle) = &seo.twitter_handle {
+                    meta name="twitter:site" content=(handle);
+                    meta name="twitter:creator" content=(handle);
+                }
+            }
+            script { (PreEscaped(theme_bootstrap)) }
             link rel="preconnect" href="https://fonts.googleapis.com";
             link rel="preconnect" href="https://fonts.gstatic.com" crossorigin;
             link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet";
@@ -220,21 +304,25 @@ window.pagefind = import(pagefindPath)"#,
 /// Returns a full HTML page, including the `DOCTYPE`, `html`, `head`, and
 /// `body` tags,
 pub(crate) fn full_page<P: AsRef<Path>>(
-    page_title: &str,
+    page_name: &str,
     body: Markup,
     root: P,
     addl_html: &AdditionalHtml,
     init_light_mode: bool,
+    seo: &Seo,
+    canonical_url: Option<&str>,
 ) -> Markup {
     html! {
         (DOCTYPE)
         html
             lang="en"
+            class=(if init_light_mode { "light" } else { "dark" })
+            data-run-with="unix"
             x-data=(if init_light_mode { "{ theme: $persist('light') }" } else { "{ theme: $persist('dark') }" })
             x-bind:class="theme === 'light' ? 'light' : 'dark'"
             x-cloak
         {
-            (header(page_title, root, addl_html))
+            (header(page_name, root, addl_html, init_light_mode, seo, canonical_url))
             body class="body--base" {
                 @if let Some(s) = addl_html.body_open() {
                     (PreEscaped(s))
@@ -262,8 +350,13 @@ impl<T: AsRef<str>> Render for Markdown<T> {
         options.insert(Options::ENABLE_DEFINITION_LIST);
         let parser = Parser::new_ext(self.0.as_ref(), options);
         pulldown_cmark::html::push_html(&mut unsafe_html, parser);
-        // Sanitize it with ammonia
-        let safe_html = ammonia::clean(&unsafe_html);
+        // Sanitize it with ammonia, preserving the `class` attribute on fenced
+        // code blocks so the theme's manual highlighter can detect the
+        // `language-*` hint that `pulldown-cmark` emits.
+        let safe_html = ammonia::Builder::default()
+            .add_tag_attributes("code", ["class"])
+            .clean(&unsafe_html)
+            .to_string();
 
         // Remove the outer `<p>` tag that `pulldown_cmark` wraps single lines in
         let safe_html = if safe_html.starts_with("<p>") && safe_html.ends_with("</p>\n") {
@@ -305,7 +398,10 @@ impl VersionBadge {
         };
         let text = self.version.to_string();
         html! {
-            div class="main__badge" {
+            div class="main__badge main__badge--wdl" {
+                span class="main__badge-wdl-icon" aria-hidden="true" {
+                    (PreEscaped(include_str!("../theme/assets/wdl.svg")))
+                }
                 span class="main__badge-text" {
                     "WDL Version"
                 }
@@ -403,6 +499,8 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
         );
     }
 
+    let workspace_metadata = WorkspaceMetadata::load(&workspace_abs_path)?;
+
     let results = analyze_workspace(&workspace_abs_path, config.analysis_config).await?;
 
     if config.check {
@@ -429,6 +527,8 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
         .maybe_alt_logo(config.alt_logo)
         .additional_html(config.additional_html)
         .external_urls(config.external_urls)
+        .seo(config.seo)
+        .maybe_workspace_metadata(workspace_metadata.clone())
         .build()?;
 
     for result in results {
@@ -462,7 +562,12 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                 true,
             ),
         };
-        let cur_dir = docs_dir.join(root_to_wdl.with_extension(""));
+        let cur_dir = docs_dir.join(
+            workspace_metadata
+                .as_ref()
+                .map(|metadata| metadata.documentation_path(&root_to_wdl))
+                .unwrap_or_else(|| root_to_wdl.with_extension("")),
+        );
         if !cur_dir.exists() {
             std::fs::create_dir_all(&cur_dir)
                 .map_err(Into::<DocError>::into)
@@ -492,6 +597,11 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                         s.clone(),
                         version,
                         external_wdl,
+                        if external_wdl {
+                            None
+                        } else {
+                            Some(root_to_wdl.clone())
+                        },
                         config.enable_doc_comments,
                     );
 
@@ -550,8 +660,17 @@ pub async fn document_workspace(config: Config) -> DocResult<()> {
                     let name = e.name().text().to_owned();
                     let path = cur_dir.join(format!("{name}-enum.html"));
 
-                    let r#enum =
-                        r#enum::Enum::new(e, version, external_wdl, config.enable_doc_comments);
+                    let r#enum = r#enum::Enum::new(
+                        e,
+                        version,
+                        external_wdl,
+                        if external_wdl {
+                            None
+                        } else {
+                            Some(root_to_wdl.clone())
+                        },
+                        config.enable_doc_comments,
+                    );
 
                     let page = Rc::new(HTMLPage::new(name.clone(), PageType::Enum(r#enum)));
                     docs_tree.add_page(path.clone(), page.clone());
@@ -634,5 +753,116 @@ mod tests {
             description.into_string(),
             "A simple description should not render with p tags"
         );
+    }
+
+    #[test]
+    fn fenced_code_retains_language_class() {
+        // The theme's manual highlighter keys off the `language-*` class that
+        // `pulldown-cmark` emits, so sanitization must preserve it.
+        let rendered = Markdown("```json\n{\"a\": 1}\n```").render().into_string();
+        assert!(
+            rendered.contains("class=\"language-json\""),
+            "expected the fenced code block to keep its language class, got: {rendered}"
+        );
+    }
+
+    #[test]
+    fn persisted_theme_is_applied_before_the_stylesheet_loads() {
+        let page = full_page(
+            "Theme test",
+            html! {},
+            Path::new("."),
+            &AdditionalHtml::default(),
+            false,
+            &Seo::default(),
+            None,
+        )
+        .into_string();
+        let theme_position = page
+            .find("localStorage.getItem('_x_theme')")
+            .expect("persisted theme bootstrap");
+        let stylesheet_position = page.find("style.css").expect("theme stylesheet");
+
+        assert!(page.contains("<html lang=\"en\" class=\"dark\""));
+        assert!(theme_position < stylesheet_position);
+        assert!(page.contains("classList.replace('dark', 'light')"));
+        assert!(page.contains("document.documentElement.dataset.runWith"));
+    }
+
+    #[test]
+    fn seo_metadata_populates_the_head() {
+        let seo = Seo {
+            title: Some("Sprocket Docs".to_string()),
+            description: Some("WDL documentation".to_string()),
+            author: Some("St. Jude".to_string()),
+            keywords: vec!["wdl".to_string(), "workflows".to_string()],
+            base_url: None,
+            image_url: Some(ammonia::Url::parse("https://example.com/card.png").unwrap()),
+            locale: Some("en_GB".to_string()),
+            twitter_handle: Some("@sprocket".to_string()),
+            robots: Some("index, follow".to_string()),
+            theme_color: Some("#0a0c12".to_string()),
+        };
+        let page = full_page(
+            "analyze_sample",
+            html! {},
+            Path::new("."),
+            &AdditionalHtml::default(),
+            false,
+            &seo,
+            Some("https://example.com/main/analyze_sample-workflow.html"),
+        )
+        .into_string();
+
+        // The site title composes with the page name.
+        assert!(page.contains("<title>analyze_sample | Sprocket Docs</title>"));
+        assert!(page.contains(r#"<meta name="description" content="WDL documentation">"#));
+        assert!(page.contains(r#"<meta name="author" content="St. Jude">"#));
+        assert!(page.contains(r#"<meta name="keywords" content="wdl, workflows">"#));
+        assert!(page.contains(r#"<meta name="robots" content="index, follow">"#));
+        assert!(page.contains(r##"<meta name="theme-color" content="#0a0c12">"##));
+        assert!(page.contains(
+            r#"<link rel="canonical" href="https://example.com/main/analyze_sample-workflow.html">"#
+        ));
+        assert!(page.contains(r#"<meta property="og:site_name" content="Sprocket Docs">"#));
+        assert!(
+            page.contains(r#"<meta property="og:image" content="https://example.com/card.png">"#)
+        );
+        assert!(page.contains(r#"<meta property="og:locale" content="en_GB">"#));
+        assert!(page.contains(r#"<meta name="twitter:card" content="summary_large_image">"#));
+        assert!(page.contains(r#"<meta name="twitter:site" content="@sprocket">"#));
+    }
+
+    #[test]
+    fn head_stays_lean_without_seo_config() {
+        let page = full_page(
+            "Home",
+            html! {},
+            Path::new("."),
+            &AdditionalHtml::default(),
+            false,
+            &Seo::default(),
+            None,
+        )
+        .into_string();
+
+        assert!(page.contains("<title>Home</title>"));
+        assert!(!page.contains("og:"));
+        assert!(!page.contains("twitter:"));
+        assert!(!page.contains(r#"name="description""#));
+    }
+
+    #[test]
+    fn version_badge_uses_bundled_openwdl_icon() {
+        let badge = VersionBadge::new(SupportedVersion::V1(V1::Two))
+            .render()
+            .into_string();
+        let assets = get_assets();
+
+        assert!(badge.contains("main__badge--wdl"));
+        assert!(badge.contains("main__badge-wdl-icon"));
+        assert!(badge.contains("<svg width=\"512\" height=\"512\""));
+        assert!(assets.contains_key("wdl.svg"));
+        assert!(assets.contains_key("wdl.svg.license.txt"));
     }
 }

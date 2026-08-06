@@ -21,9 +21,8 @@ use tokio_retry2::strategy::ExponentialBackoff;
 use tracing::info;
 use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
-use wdl::analysis::Analyzer;
-use wdl::analysis::Config as AnalysisConfig;
 use wdl::analysis::Document as AnalysisDocument;
+use wdl::analysis::FeatureFlags;
 use wdl::ast::Severity;
 use wdl::ast::SupportedVersion;
 use wdl::engine::CancellationContext;
@@ -37,6 +36,7 @@ use wdl::engine::TaskInputs;
 use wdl::engine::WorkflowInputs;
 use wdl::engine::v1::Evaluator;
 
+use crate::analysis::Analysis;
 use crate::analysis::Source;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::DatabaseError;
@@ -57,6 +57,7 @@ pub use config::ConfigError;
 pub use config::ConfigResult;
 pub use names::generate_run_name;
 pub use source::validate as validate_source;
+use wdl::diagnostics::Mode;
 
 /// Represents a JSON object.
 type JsonObject = serde_json::Map<String, serde_json::Value>;
@@ -327,6 +328,10 @@ pub struct RunnableExecutor {
     run_name: String,
     /// The fallback WDL version for documents with unrecognized versions.
     fallback_version: Option<SupportedVersion>,
+    /// Feature flags used for analysis.
+    feature_flags: FeatureFlags,
+    /// Module resolver configuration used for analysis.
+    modules_config: wdl_modules::resolver::ModulesConfig,
     /// Validated source location of the WDL document.
     source: Source,
     /// User-provided target name (workflow or task), if any.
@@ -335,6 +340,10 @@ pub struct RunnableExecutor {
     inputs: JsonObject,
     /// Index key for result indexing, if requested.
     index_on: Option<String>,
+    /// The diagnostic reporting mode.
+    report_mode: Mode,
+    /// Whether to colorize diagnostics.
+    colorize: bool,
 }
 
 impl RunnableExecutor {
@@ -352,7 +361,16 @@ impl RunnableExecutor {
     /// returns early. On completion (success or failure), the run is removed
     /// from the active runs map.
     pub async fn execute(self) {
-        let result = match analyze_wdl_document(&self.source, self.fallback_version).await {
+        let result = match analyze_wdl_document(
+            &self.source,
+            self.fallback_version,
+            self.modules_config.clone(),
+            self.feature_flags,
+            self.report_mode,
+            self.colorize,
+        )
+        .await
+        {
             Ok(result) => result,
             Err(e) => {
                 tracing::error!(
@@ -566,22 +584,30 @@ impl RunnableExecutor {
 pub async fn analyze_wdl_document(
     source: &Source,
     fallback_version: Option<SupportedVersion>,
+    modules_config: wdl_modules::resolver::ModulesConfig,
+    feature_flags: FeatureFlags,
+    report_mode: Mode,
+    colorize: bool,
 ) -> Result<AnalysisResult> {
-    let config = AnalysisConfig::default().with_fallback_version(fallback_version);
-    let analyzer = Analyzer::new(config, |(), _, _, _| async {});
-
-    let uri = source.to_url();
-    analyzer
-        .add_document(uri.clone())
+    let results = Analysis::default()
+        .add_source(source.clone())
+        .fallback_version(fallback_version)
+        .modules_config(modules_config)
+        .feature_flags(feature_flags)
+        .run(report_mode, colorize)
         .await
-        .context("failed to add document to analyzer")?;
+        .map_err(|errors| {
+            anyhow!(
+                "failed to analyze document; {}",
+                errors
+                    .iter()
+                    .map(|e| format!("{e:#}"))
+                    .collect::<Vec<_>>()
+                    .join("; ")
+            )
+        })?;
 
-    let results = analyzer
-        .analyze(())
-        .await
-        .context("failed to analyze document")?;
-
-    for result in &results {
+    for result in results.as_slice() {
         if let Some(e) = result.error() {
             bail!("parsing failed for `{}`: {:#}", result.document().uri(), e);
         }
@@ -600,8 +626,9 @@ pub async fn analyze_wdl_document(
     }
 
     results
-        .into_iter()
-        .find(|result| **result.document().uri() == uri)
+        .filter(&[source])
+        .next()
+        .cloned()
         .context("analyzer didn't return analysis results for document")
 }
 

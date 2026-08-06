@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.1.6 - 2026-08-05
+
+## 0.1.5 - 2026-07-15
+
+#### Added
+
+* Added the `unstable-python` feature flag, which enables APIs related to Sprocket's Python bindings ([#941](https://github.com/stjude-rust-labs/sprocket/pull/941)).
+
+## 0.1.4 - 2026-06-26
+
 #### Changed
 
 * Removed dependency on `serde` ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).

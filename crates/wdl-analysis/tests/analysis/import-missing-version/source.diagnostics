@@ -1,8 +1,11 @@
-error: a WDL document must start with a version statement
+error: missing version statement
   ┌─ tests/analysis/import-missing-version/foo.wdl:1:1
   │
 1 │ workflow test {}
-  │ ^ a version statement must come before this
+  │ ^ WDL v1.0+ documents must begin with a version statement
+  │
+  = help: omitting the version statement declares the document as WDL draft-2, which is not supported
+  = fix: upgrade WDL draft-2 documents to v1.0 or later
 
 error: imported document is missing a version statement
   ┌─ tests/analysis/import-missing-version/source.wdl:5:8

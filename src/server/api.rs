@@ -4,6 +4,7 @@ use axum::Router;
 use bon::Builder;
 use tokio::sync::mpsc;
 
+use crate::server::api::v1::info::ServerFailureMode;
 use crate::system::v1::exec::svc::run_manager::RunManagerCmd;
 
 pub mod v1;
@@ -16,6 +17,17 @@ type RunManagerTx = mpsc::Sender<RunManagerCmd>;
 pub struct AppState {
     /// The run manager command transmitter.
     run_manager_tx: RunManagerTx,
+    /// The cancellation failure mode the server is configured to use.
+    ///
+    /// Surfaced via the [`info`](crate::server::api::v1::info) endpoint so
+    /// clients (e.g. the `dev server cancel` CLI) can adapt their behavior.
+    failure_mode: ServerFailureMode,
+    /// The server's output directory, rendered as a string.
+    ///
+    /// Populated from `config.server.output_dir` after shell expansion.
+    /// Surfaced via the [`info`](crate::server::api::v1::info) endpoint so
+    /// clients (e.g. `dev server inspect`) can display absolute output paths.
+    output_dir: String,
 }
 
 impl AppState {

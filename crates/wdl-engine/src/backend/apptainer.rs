@@ -534,8 +534,6 @@ mod tests {
     async fn example_task_shellchecks() {
         use tokio::process::Command;
 
-        use crate::config::DEFAULT_TASK_SHELL;
-
         let root = TempDir::new().unwrap();
 
         let mut env = IndexMap::new();

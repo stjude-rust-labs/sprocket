@@ -1,8 +1,8 @@
 //! Representation of the analysis document graph.
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fs;
-use std::panic;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
@@ -33,18 +33,32 @@ use wdl_ast::AstToken as _;
 use wdl_ast::Diagnostic;
 use wdl_ast::SupportedVersion;
 use wdl_ast::SyntaxNode;
+use wdl_ast::version::V1;
 
 use crate::Config;
+use crate::Diagnostics;
 use crate::IncrementalChange;
 use crate::UsingFallbackVersion;
 use crate::document::Document;
 
 /// Represents space for a DFS search of a document graph.
-pub type DfsSpace =
-    petgraph::algo::DfsSpace<NodeIndex, <StableDiGraph<DocumentGraphNode, ()> as Visitable>::Map>;
+pub type DfsSpace = petgraph::algo::DfsSpace<
+    NodeIndex,
+    <StableDiGraph<DocumentGraphNode, EdgeKind> as Visitable>::Map,
+>;
+
+/// The kind of dependency edge between two documents in the graph.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum EdgeKind {
+    /// A URI import (e.g., `import "https://example.com/foo.wdl"`).
+    Uri,
+    /// A symbolic import (e.g., `import spellbook`); the value is the
+    /// symbolic path text.
+    Symbolic(String),
+}
 
 /// Represents the parse state of a document graph node.
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub enum ParseState {
     /// The document is not parsed.
     NotParsed,
@@ -89,6 +103,26 @@ impl ParseState {
             _ => None,
         }
     }
+
+    /// Returns whether symbolic imports may be resolved for this parse state
+    /// under the given configuration.
+    ///
+    /// Symbolic imports require the WDL 1.4 feature flag and a document parsed
+    /// at WDL 1.4 or later. This is the single source of truth shared by the
+    /// analysis queue and document resolution.
+    pub(crate) fn symbolic_imports_enabled(&self, config: &Config) -> bool {
+        if !config.feature_flags().wdl_1_4() {
+            return false;
+        }
+
+        matches!(
+            self,
+            ParseState::Parsed {
+                wdl_version: Some(version),
+                ..
+            } if *version >= SupportedVersion::V1(V1::Four)
+        )
+    }
 }
 
 /// Represents a node in a document graph.
@@ -111,6 +145,9 @@ pub struct DocumentGraphNode {
     document: Option<Document>,
     /// An error that occurred during the analysis phase for this node
     analysis_error: Option<Arc<anyhow::Error>>,
+    /// Symbolic imports that this node attempted but failed to resolve, keyed
+    /// by the symbolic path text. The value is the resolver's error message.
+    failed_symbolic_imports: HashMap<String, String>,
 }
 
 impl DocumentGraphNode {
@@ -122,6 +159,7 @@ impl DocumentGraphNode {
             change: None,
             parse_state: ParseState::NotParsed,
             document: None,
+            failed_symbolic_imports: HashMap::new(),
             analysis_error: None,
         }
     }
@@ -167,20 +205,39 @@ impl DocumentGraphNode {
         trace!("document `{uri}` has changed", uri = self.uri);
 
         // Clear the analyzed document as there has been a change
-        self.document = None;
-        self.analysis_error = None;
+        self.reanalyze();
 
-        if !matches!(
-            self.parse_state,
-            ParseState::Parsed {
-                version: Some(_),
-                ..
-            }
-        ) || discard_pending
-        {
+        if discard_pending {
             self.parse_state = ParseState::NotParsed;
             self.change = None;
+            return;
         }
+
+        // Try to retain the pending changes
+        let mut new_change = None;
+        if let Ok(Some((version, source, _))) = self.apply_changes() {
+            if let Some(v) = version {
+                new_change = Some(IncrementalChange {
+                    version: v,
+                    start: Some(source),
+                    edits: Vec::new(),
+                });
+            }
+        } else if let ParseState::Parsed {
+            version: Some(version),
+            root,
+            ..
+        } = &self.parse_state
+        {
+            new_change = Some(IncrementalChange {
+                version: *version,
+                start: Some(SyntaxNode::new_root(root.clone()).text().to_string()),
+                edits: Vec::new(),
+            });
+        }
+
+        self.parse_state = ParseState::NotParsed;
+        self.change = new_change;
     }
 
     /// Gets the parse state of the document node.
@@ -196,6 +253,14 @@ impl DocumentGraphNode {
 
         // Clear any document change
         self.change = None;
+    }
+
+    /// Clears all failed symbolic import entries for this node.
+    ///
+    /// Call this alongside [`DocumentGraph::remove_dependency_edges`] so that
+    /// stale failure diagnostics do not survive a re-analysis pass.
+    pub fn clear_failed_symbolic_imports(&mut self) {
+        self.failed_symbolic_imports.clear();
     }
 
     /// Gets the analyzed document for the node.
@@ -284,6 +349,53 @@ impl DocumentGraphNode {
         self.full_parse(tokio, client)
     }
 
+    /// Applies any pending changes to the document.
+    ///
+    /// Returns `(version, full source string, line index)`
+    #[allow(clippy::type_complexity)]
+    pub(crate) fn apply_changes(&self) -> Result<Option<(Option<i32>, String, Arc<LineIndex>)>> {
+        let Some(change) = &self.change else {
+            return Ok(None);
+        };
+
+        // The document has been edited; if there is start source, apply the edits to it
+        let (mut source, mut lines) = if let Some(start) = &change.start {
+            let source = start.clone();
+            let lines = Arc::new(LineIndex::new(&source));
+            (source, lines)
+        } else {
+            // Otherwise, apply the edits to the last parse
+            match &self.parse_state {
+                ParseState::Parsed { root, lines, .. } => (
+                    SyntaxNode::new_root(root.clone()).text().to_string(),
+                    lines.clone(),
+                ),
+                _ => bail!("cannot apply edits to a document that was not previously parsed"),
+            }
+        };
+
+        // We keep track of the last line we've processed so we only rebuild the line
+        // index when there is a change that crosses a line
+        let mut last_line = !0u32;
+        for edit in &change.edits {
+            let range = edit.range();
+            if last_line <= range.end.line {
+                // Only rebuild the line index if the edit has changed lines
+                lines = Arc::new(LineIndex::new(&source));
+            }
+
+            last_line = range.start.line;
+            edit.apply(&mut source, &lines)?;
+        }
+
+        if !change.edits.is_empty() {
+            // Rebuild the line index after all edits have been applied
+            lines = Arc::new(LineIndex::new(&source));
+        }
+
+        Ok(Some((Some(change.version), source, lines)))
+    }
+
     /// Performs an incremental parse of the document.
     ///
     /// Returns an error with the given change if the document needs a full
@@ -307,7 +419,8 @@ impl DocumentGraphNode {
 
     /// Performs a full parse of the node.
     fn full_parse(&self, tokio: &Handle, client: &Client) -> Result<ParseState> {
-        let (version, source, lines) = match &self.change {
+        let (version, source, lines) = match self.apply_changes()? {
+            Some(res) => res,
             None => {
                 // Fetch the source
                 let result = match self.uri.to_file_path() {
@@ -326,55 +439,11 @@ impl DocumentGraphNode {
                     Err(e) => return Ok(ParseState::Error(e.into())),
                 }
             }
-            Some(IncrementalChange {
-                version,
-                start,
-                edits,
-            }) => {
-                // The document has been edited; if there is start source, apply the edits to it
-                let (mut source, mut lines) = if let Some(start) = start {
-                    let source = start.clone();
-                    let lines = Arc::new(LineIndex::new(&source));
-                    (source, lines)
-                } else {
-                    // Otherwise, apply the edits to the last parse
-                    match &self.parse_state {
-                        ParseState::Parsed { root, lines, .. } => (
-                            SyntaxNode::new_root(root.clone()).text().to_string(),
-                            lines.clone(),
-                        ),
-                        _ => panic!(
-                            "cannot apply edits to a document that was not previously parsed"
-                        ),
-                    }
-                };
-
-                // We keep track of the last line we've processed so we only rebuild the line
-                // index when there is a change that crosses a line
-                let mut last_line = !0u32;
-                for edit in edits {
-                    let range = edit.range();
-                    if last_line <= range.end.line {
-                        // Only rebuild the line index if the edit has changed lines
-                        lines = Arc::new(LineIndex::new(&source));
-                    }
-
-                    last_line = range.start.line;
-                    edit.apply(&mut source, &lines)?;
-                }
-
-                if !edits.is_empty() {
-                    // Rebuild the line index after all edits have been applied
-                    lines = Arc::new(LineIndex::new(&source));
-                }
-
-                (Some(*version), source, lines)
-            }
         };
 
         // Reparse from the source
         let start = Instant::now();
-        let (document, mut diagnostics) =
+        let (document, parse_diagnostics) =
             wdl_ast::Document::parse(&source, self.config.fallback_version());
         debug!(
             "parsing of `{uri}` completed in {elapsed:?}",
@@ -382,11 +451,16 @@ impl DocumentGraphNode {
             elapsed = start.elapsed()
         );
 
+        let mut diagnostics = Diagnostics::default();
+        diagnostics.extend(parse_diagnostics);
+
         // Apply version fallback logic at this point, so that appropriate diagnostics
         // will prevent subsequent analysis from occurring on an unexpected
         // version
         let mut wdl_version = None;
-        if let Some(version_token) = document.version_statement().map(|stmt| stmt.version()) {
+        if let Some(version_statement) = document.version_statement() {
+            let version_token = version_statement.version();
+
             match (
                 version_token.text().parse::<SupportedVersion>(),
                 self.config.fallback_version(),
@@ -399,7 +473,7 @@ impl DocumentGraphNode {
                 (Err(_), Some(fallback)) => {
                     if let Some(severity) = self.config.diagnostics_config().using_fallback_version
                     {
-                        diagnostics.push(
+                        diagnostics.exceptable_add(
                             Diagnostic::warning(format!(
                                 "unsupported WDL version `{version}`; interpreting document as \
                                  version `{fallback}`",
@@ -411,6 +485,8 @@ impl DocumentGraphNode {
                                 "this version of WDL is not supported",
                                 version_token.span(),
                             ),
+                            version_statement.inner(),
+                            &UsingFallbackVersion::EXCEPTABLE_NODES,
                         );
                     }
                     wdl_version = Some(fallback);
@@ -426,7 +502,7 @@ impl DocumentGraphNode {
             wdl_version,
             root: document.inner().green().into(),
             lines,
-            diagnostics,
+            diagnostics: diagnostics.into(),
         })
     }
 
@@ -472,7 +548,7 @@ pub struct DocumentGraph {
     ///
     /// Edges in the graph denote inverse dependency relationships (i.e. "is
     /// depended upon by").
-    inner: StableDiGraph<DocumentGraphNode, ()>,
+    inner: StableDiGraph<DocumentGraphNode, EdgeKind>,
     /// Map from document URI to graph node index.
     indexes: IndexMap<Arc<Url>, NodeIndex>,
     /// The current set of rooted nodes in the graph.
@@ -506,6 +582,11 @@ impl DocumentGraph {
         }
     }
 
+    /// Gets the analyzer configuration used by this graph.
+    pub fn config(&self) -> &Config {
+        &self.config
+    }
+
     /// Add a node to the document graph.
     pub fn add_node(&mut self, uri: Url, rooted: bool) -> NodeIndex {
         let index = match self.indexes.get(&uri) {
@@ -526,6 +607,13 @@ impl DocumentGraph {
         }
 
         index
+    }
+
+    /// Marks all documents in the graph for reanalysis.
+    pub fn reanalyze_all(&mut self) {
+        for node in self.inner.node_weights_mut() {
+            node.reanalyze();
+        }
     }
 
     /// Removes a root from the document graph.
@@ -574,8 +662,73 @@ impl DocumentGraph {
             self.bfs_mut(index, |graph, dependent: NodeIndex| {
                 let node = graph.get_mut(dependent);
                 trace!("document `{uri}` needs to be reanalyzed", uri = node.uri);
-                node.document = None;
+                node.reanalyze();
             });
+        }
+    }
+
+    /// Forcefully removes a document (or directory of documents) from the
+    /// graph.
+    ///
+    /// Unlike [`Self::remove_root()`], this fully removes the node(s) without
+    /// waiting for garbage collection.
+    pub fn delete(&mut self, uri: &Url) {
+        fn delete_node(graph: &mut DocumentGraph, index: NodeIndex) {
+            let node_uri = graph.inner[index].uri.clone();
+
+            graph.bfs_mut(index, |graph, dependent: NodeIndex| {
+                if dependent == index {
+                    return;
+                }
+
+                let dep_node = graph.get_mut(dependent);
+                trace!(
+                    "document `{uri}` needs to be reanalyzed",
+                    uri = dep_node.uri
+                );
+
+                // Drop any dependents down to an unparsed state
+                dep_node.notify_change(false);
+            });
+
+            graph.roots.swap_remove(&index);
+            graph.indexes.swap_remove(&node_uri);
+            graph
+                .cycles
+                .retain(|(from, to)| *from != index && *to != index);
+            graph.inner.remove_node(index);
+
+            debug!(
+                "document `{uri}` was deleted from the graph",
+                uri = node_uri
+            );
+        }
+
+        let base = match uri.to_file_path() {
+            Ok(base) => base,
+            Err(_) => {
+                if let Some(index) = self.indexes.get(uri).copied() {
+                    delete_node(self, index);
+                }
+                return;
+            }
+        };
+
+        // Find all documents that fall under the deleted path
+        let mut removed = Vec::new();
+        for (node_uri, index) in &self.indexes {
+            let path = match node_uri.to_file_path() {
+                Ok(path) => path,
+                Err(_) => continue,
+            };
+
+            if path.starts_with(&base) {
+                removed.push(*index);
+            }
+        }
+
+        for index in removed {
+            delete_node(self, index);
         }
     }
 
@@ -634,6 +787,41 @@ impl DocumentGraph {
             .map(|e| e.source())
     }
 
+    /// Looks up a previously resolved symbolic import of the importer.
+    ///
+    /// Dependency edges are stored reversed (dependency → dependent), so the
+    /// importer's dependencies are reached by walking its incoming edges.
+    pub fn get_resolved_symbolic_import(
+        &self,
+        importer: NodeIndex,
+        path_text: &str,
+    ) -> Option<&Arc<Url>> {
+        self.inner
+            .edges_directed(importer, Direction::Incoming)
+            .find(|edge| matches!(edge.weight(), EdgeKind::Symbolic(name) if name == path_text))
+            .map(|edge| &self.inner[edge.source()].uri)
+    }
+
+    /// Records a failed symbolic import resolution on the importer node.
+    pub fn insert_failed_symbolic_import(
+        &mut self,
+        importer: NodeIndex,
+        path_text: String,
+        error: String,
+    ) {
+        self.inner[importer]
+            .failed_symbolic_imports
+            .insert(path_text, error);
+    }
+
+    /// Looks up a previously failed symbolic import on the importer node.
+    pub fn get_failed_symbolic_import(&self, importer: NodeIndex, path_text: &str) -> Option<&str> {
+        self.inner[importer]
+            .failed_symbolic_imports
+            .get(path_text)
+            .map(String::as_str)
+    }
+
     /// Removes all dependency edges from the given node.
     pub fn remove_dependency_edges(&mut self, index: NodeIndex) {
         // Retain all edges where the target isn't the given node (i.e. an incoming
@@ -647,7 +835,13 @@ impl DocumentGraph {
     /// Adds a dependency edge from one document to another.
     ///
     /// If a dependency edge already exists, this is a no-op.
-    pub fn add_dependency_edge(&mut self, from: NodeIndex, to: NodeIndex, space: &mut DfsSpace) {
+    pub fn add_dependency_edge(
+        &mut self,
+        from: NodeIndex,
+        to: NodeIndex,
+        kind: EdgeKind,
+        space: &mut DfsSpace,
+    ) {
         // Check to see if there is already a path between the nodes; if so, there's a
         // cycle
         if has_path_connecting(&self.inner, from, to, Some(space)) {
@@ -667,7 +861,7 @@ impl DocumentGraph {
 
             // Note that we store inverse dependency edges in the graph, so the relationship
             // is reversed
-            self.inner.add_edge(to, from, ());
+            self.inner.add_edge(to, from, kind);
         }
     }
 
@@ -687,38 +881,40 @@ impl DocumentGraph {
     /// This removes any non-rooted nodes that have no outgoing edges (i.e. are
     /// not depended upon by another document).
     pub fn gc(&mut self) {
-        let mut collected = HashSet::new();
-        for node in self.inner.node_indices() {
-            if self.roots.contains(&node) {
-                continue;
+        loop {
+            let mut collected = HashSet::new();
+            for node in self.inner.node_indices() {
+                if self.roots.contains(&node) {
+                    continue;
+                }
+
+                if self
+                    .inner
+                    .edges_directed(node, Direction::Outgoing)
+                    .next()
+                    .is_none()
+                {
+                    debug!(
+                        "removing document `{uri}` from the graph",
+                        uri = self.inner[node].uri
+                    );
+                    collected.insert(node);
+                }
             }
 
-            if self
-                .inner
-                .edges_directed(node, Direction::Outgoing)
-                .next()
-                .is_none()
-            {
-                debug!(
-                    "removing document `{uri}` from the graph",
-                    uri = self.inner[node].uri
-                );
-                collected.insert(node);
+            if collected.is_empty() {
+                return;
             }
+
+            for node in &collected {
+                self.inner.remove_node(*node);
+            }
+
+            self.indexes.retain(|_, index| !collected.contains(index));
+
+            self.cycles
+                .retain(|(from, to)| !collected.contains(from) && !collected.contains(to));
         }
-
-        if collected.is_empty() {
-            return;
-        }
-
-        for node in &collected {
-            self.inner.remove_node(*node);
-        }
-
-        self.indexes.retain(|_, index| !collected.contains(index));
-
-        self.cycles
-            .retain(|(from, to)| !collected.contains(from) && !collected.contains(to));
     }
 
     /// Gets all nodes that have a dependency on the given node.
@@ -730,7 +926,145 @@ impl DocumentGraph {
     }
 
     /// Gets the inner stable dependency graph.
-    pub(crate) fn inner(&self) -> &StableDiGraph<DocumentGraphNode, ()> {
+    pub(crate) fn inner(&self) -> &StableDiGraph<DocumentGraphNode, EdgeKind> {
         &self.inner
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
+
+    use url::Url;
+    use wdl_ast::SupportedVersion;
+    use wdl_ast::version::V1;
+
+    use super::*;
+    use crate::SourceEdit;
+    use crate::SourcePosition;
+    use crate::SourcePositionEncoding;
+
+    struct DependencyContext {
+        graph: DocumentGraph,
+        dependency_index: NodeIndex,
+        dependent_index: NodeIndex,
+    }
+
+    /// Creates a [`DocumentGraph`] with two documents, one dependent on the
+    /// other.
+    fn setup_dependent_document_graph() -> DependencyContext {
+        let mut graph = DocumentGraph::new(Config::default());
+
+        let dep_uri = Url::parse("file:///dep.wdl").unwrap();
+        let dependent_uri = Url::parse("file:///dependent.wdl").unwrap();
+
+        let dependency_index = graph.add_node(dep_uri.clone(), true);
+        let dependent_index = graph.add_node(dependent_uri.clone(), true);
+
+        let mut space = petgraph::algo::DfsSpace::default();
+        graph.add_dependency_edge(dependent_index, dependency_index, EdgeKind::Uri, &mut space);
+
+        DependencyContext {
+            graph,
+            dependency_index,
+            dependent_index,
+        }
+    }
+
+    #[test]
+    fn test_delete_retains_current_state() {
+        let DependencyContext {
+            mut graph,
+            dependency_index,
+            dependent_index,
+        } = setup_dependent_document_graph();
+
+        // Parsed document with no pending changes
+        let source = "version 1.1\n";
+        let document = wdl_ast::Document::parse(source, None).0;
+        let root = document.inner().green().into();
+
+        {
+            let node = graph.get_mut(dependent_index);
+            node.parse_state = ParseState::Parsed {
+                version: Some(1),
+                wdl_version: Some(SupportedVersion::V1(V1::One)),
+                root,
+                lines: Arc::new(LineIndex::new(source)),
+                diagnostics: vec![],
+            };
+        }
+
+        let dep_uri = graph.get(dependency_index).uri().clone();
+        graph.delete(&dep_uri);
+
+        // Deletion should retain the current source as a pending change and demote the
+        // dependent node to NotParsed
+        let dependent_graph_node = graph.get(dependent_index);
+        assert!(matches!(
+            dependent_graph_node.parse_state,
+            ParseState::NotParsed
+        ));
+
+        let change = dependent_graph_node
+            .change
+            .as_ref()
+            .expect("should have a pending change");
+        assert_eq!(change.version, 1);
+        assert_eq!(change.start.as_deref(), Some(source));
+        assert!(change.edits.is_empty());
+    }
+
+    #[test]
+    fn test_delete_retains_unapplied_edits() {
+        let DependencyContext {
+            mut graph,
+            dependency_index,
+            dependent_index,
+        } = setup_dependent_document_graph();
+
+        let source = "version 1.1\n";
+        let document = wdl_ast::Document::parse(source, None).0;
+        let root = document.inner().green().into();
+
+        {
+            let node = graph.get_mut(dependent_index);
+            node.parse_state = ParseState::Parsed {
+                version: Some(1),
+                wdl_version: Some(SupportedVersion::V1(V1::One)),
+                root,
+                lines: Arc::new(LineIndex::new(source)),
+                diagnostics: vec![],
+            };
+
+            node.change = Some(IncrementalChange {
+                version: 2,
+                start: None,
+                edits: vec![SourceEdit::new(
+                    SourcePosition::new(1, 0)..SourcePosition::new(1, 0),
+                    SourcePositionEncoding::UTF8,
+                    "task foo {}\n",
+                )],
+            });
+        }
+
+        let dep_uri = graph.get(dependency_index).uri().clone();
+        graph.delete(&dep_uri);
+
+        // Deletion with pending edits should apply pending edits and demote the
+        // dependent node to NotParsed
+        let dependent_graph_node = graph.get(dependent_index);
+        assert!(matches!(
+            dependent_graph_node.parse_state,
+            ParseState::NotParsed
+        ));
+
+        let change = dependent_graph_node
+            .change
+            .as_ref()
+            .expect("should have a pending change");
+        assert_eq!(change.version, 2);
+        assert_eq!(change.start.as_deref(), Some("version 1.1\ntask foo {}\n"));
+        assert!(change.edits.is_empty());
     }
 }

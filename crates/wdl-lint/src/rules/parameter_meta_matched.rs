@@ -13,7 +13,6 @@ use wdl_ast::AstToken;
 use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::SupportedVersion;
-use wdl_ast::SyntaxElement;
 use wdl_ast::SyntaxKind;
 use wdl_ast::v1::Decl;
 use wdl_ast::v1::ParameterMetadataSection;
@@ -227,7 +226,7 @@ fn check_parameter_meta(
         if !actual_map.contains_key(name) {
             diagnostics.exceptable_add(
                 missing_param_meta(parent, name, *span),
-                SyntaxElement::from(param_meta.inner().clone()),
+                param_meta.inner(),
                 exceptable_nodes,
             );
         }
@@ -237,7 +236,7 @@ fn check_parameter_meta(
         if !expected_map.contains_key(name) {
             diagnostics.exceptable_add(
                 extra_param_meta(parent, name, *span),
-                SyntaxElement::from(param_meta.inner().clone()),
+                param_meta.inner(),
                 exceptable_nodes,
             );
         }
@@ -252,7 +251,7 @@ fn check_parameter_meta(
             .into();
         diagnostics.exceptable_add(
             mismatched_param_order(parent, span, &expected_order.join("\n")),
-            SyntaxElement::from(param_meta.inner().clone()),
+            param_meta.inner(),
             exceptable_nodes,
         );
     }

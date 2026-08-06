@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "dependencies": {
+    "coffeeshop": {
+      "source": { "path": "coffeeshop" },
+      "version": "0.1.0",
+      "checksum": "sha256:a407df0c19c5cf9b7c615042d5bbb9cd555d0e4ea97ab02a5b4fa687e8e11c82",
+      "dependencies": {}
+    }
+  }
+}

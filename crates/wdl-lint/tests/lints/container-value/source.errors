@@ -1,76 +1,76 @@
 warning[ContainerUri]: container URI is missing a tag
-   ┌─ tests/lints/container-value/source.wdl:20:20
+   ┌─ tests/lints/container-value/source.wdl:21:20
    │
-20 │         container: "ubuntu"
+21 │         container: "ubuntu"
    │                    ^^^^^^^^
    │
    = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
 
 note[ContainerUri]: container URI uses a mutable tag
-   ┌─ tests/lints/container-value/source.wdl:37:20
+   ┌─ tests/lints/container-value/source.wdl:38:20
    │
-37 │         container: "ubuntu:latest"
+38 │         container: "ubuntu:latest"
    │                    ^^^^^^^^^^^^^^^
    │
    = fix: replace the mutable tag with its SHA256 equivalent (e.g., `ubuntu@sha256:foobar` instead of `ubuntu:latest`)
 
 warning[ContainerUri]: container URI is missing a tag
-   ┌─ tests/lints/container-value/source.wdl:90:17
+   ┌─ tests/lints/container-value/source.wdl:91:17
    │
-90 │         docker: "ubuntu"
+91 │         docker: "ubuntu"
    │                 ^^^^^^^^
    │
    = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
 
 note[ContainerUri]: container URI uses a mutable tag
-    ┌─ tests/lints/container-value/source.wdl:108:17
+    ┌─ tests/lints/container-value/source.wdl:109:17
     │
-108 │         docker: "ubuntu:latest"
+109 │         docker: "ubuntu:latest"
     │                 ^^^^^^^^^^^^^^^
     │
     = fix: replace the mutable tag with its SHA256 equivalent (e.g., `ubuntu@sha256:foobar` instead of `ubuntu:latest`)
 
 note[ContainerUri]: an array with a single value should be a string literal
-    ┌─ tests/lints/container-value/source.wdl:142:21
+    ┌─ tests/lints/container-value/source.wdl:143:21
     │
-142 │         container: ["*"]
+143 │         container: ["*"]
     │                     ^^^
     │
     = fix: change the array to a string literal representing the first value
 
 warning[ContainerUri]: container arrays containing `*` are ambiguous
-    ┌─ tests/lints/container-value/source.wdl:160:13
+    ┌─ tests/lints/container-value/source.wdl:161:13
     │
-160 │             "*",
+161 │             "*",
     │             ^^^
-161 │             "foo",
-162 │             "*",
-    │             ---
+162 │             "foo",
 163 │             "*",
+    │             ---
+164 │             "*",
     │             ---
     │
     = fix: remove these entries or change the array to a string literal with the value of `*`
 
 warning[ContainerUri]: container URI is missing a tag
-    ┌─ tests/lints/container-value/source.wdl:161:13
+    ┌─ tests/lints/container-value/source.wdl:162:13
     │
-161 │             "foo",
+162 │             "foo",
     │             ^^^^^
     │
     = fix: add a tag to the container URI (e.g., `ubuntu@sha256:foobar` instead of `ubuntu`)
 
 warning[ContainerUri]: empty arrays are ambiguous and should contain at least one entry
-    ┌─ tests/lints/container-value/source.wdl:181:20
+    ┌─ tests/lints/container-value/source.wdl:182:20
     │
-181 │         container: []
+182 │         container: []
     │                    ^^
     │
     = fix: add an entry or remove the entry altogether
 
 note[ContainerUri]: container URI uses a mutable tag
-    ┌─ tests/lints/container-value/source.wdl:268:20
+    ┌─ tests/lints/container-value/source.wdl:269:20
     │
-268 │         container: "ubuntu:latest"
+269 │         container: "ubuntu:latest"
     │                    ^^^^^^^^^^^^^^^
     │
     = fix: replace the mutable tag with its SHA256 equivalent (e.g., `ubuntu@sha256:foobar` instead of `ubuntu:latest`)

@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.24.0 - 2026-08-05
+
+### Fixed
+
+* Supported WDL 1.0 `runtime` resource requirements remain available to
+  execution consumers while static type diagnostics remain version-aware
+  ([#1027](https://github.com/stjude-rust-labs/sprocket/pull/1027)).
+* LSP hover and completion for standard library functions are now version-aware:
+  functions and polymorphic signatures whose minimum WDL version exceeds the
+  document's declared version are no longer offered in completion or shown on
+  hover ([#1005](https://github.com/stjude-rust-labs/sprocket/pull/1005)).
+
+## 0.23.0 - 2026-07-15
+
+#### Added
+
+* Analysis resolves symbolic module imports (`import owner/module/path`, including the wildcard `import * from owner/module` and selected-member `import { a, b } from owner/module` forms) through a `wdl-modules` `Resolver`, materializing them to concrete files during analysis ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
+* `MeaninglessLintDirective` rule, which flags `#@ except` comments that don't suppress anything ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
+* `KnownRules` rule, which ensures only known rules are used in `except` directives ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
+* `Analyzer::delete_documents()` to forcefully delete documents from the graph, regardless of
+  dependencies ([#917](https://github.com/stjude-rust-labs/sprocket/pull/917)).
+
+#### Changed
+
+* `Analyzer::new` and `Analyzer::new_with_validator` now take a `ResolutionContext` (a resolver plus an optional manifest path) in place of separate arguments; pass `ResolutionContext::default()` to preserve the previous non-resolving behavior ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
+* `Analyzer::remove_documents()` was renamed to `Analyzer::remove_roots()` ([#917](https://github.com/stjude-rust-labs/sprocket/pull/917)).
+
+#### Fixed
+
+* `runtime` section key type checking (e.g. for `cpu`, `gpu`, `disks`,
+  `maxRetries`, and `returnCodes`) is now version-aware: these keys are no
+  longer type checked in WDL 1.0 documents, since they were not formally
+  typed until WDL 1.1 ([#811](https://github.com/stjude-rust-labs/sprocket/issues/811)).
+
+### Changed
+
+* The analyzer's formatter now honors `[format]` configuration ([#986](https://github.com/stjude-rust-labs/sprocket/pull/986)).
+
+## 0.22.0 - 2026-06-26
+
 #### Changed
 
 * Moved from `toml` to `toml-spanner` for TOML serialization ([#918](https://github.com/stjude-rust-labs/sprocket/pull/918)).
