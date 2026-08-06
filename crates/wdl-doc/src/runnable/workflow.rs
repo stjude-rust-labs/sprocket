@@ -15,6 +15,8 @@ use crate::meta::MetaMapValueSource;
 use crate::meta::doc_comments;
 use crate::meta::main_container;
 use crate::meta::parse_metadata_items;
+use crate::page::DeclarationHero;
+use crate::page::TitleKind;
 use crate::parameter::Parameter;
 
 /// The key used to override the name of the workflow in the meta section.
@@ -116,18 +118,15 @@ impl Workflow {
     /// This will render all metadata key-value pairs except for `description`,
     /// `name`, `category`, `allowNestedInputs`/`allow_nested_inputs`,
     /// and `outputs`.
-    pub fn render_meta(&self, assets: &Path) -> Option<Markup> {
-        self.meta().render_remaining(
-            &[
-                DESCRIPTION_KEY,
-                NAME_KEY,
-                CATEGORY_KEY,
-                "allowNestedInputs",
-                "allow_nested_inputs",
-                "outputs",
-            ],
-            assets,
-        )
+    pub fn render_meta(&self, _assets: &Path) -> Option<Markup> {
+        self.meta().render_remaining(&[
+            DESCRIPTION_KEY,
+            NAME_KEY,
+            CATEGORY_KEY,
+            "allowNestedInputs",
+            "allow_nested_inputs",
+            "outputs",
+        ])
     }
 
     /// Render the `allowNestedInputs`/`allow_nested_inputs` meta entry as a
@@ -144,6 +143,9 @@ impl Workflow {
         {
             return html! {
                 div class="main__badge main__badge--success" {
+                    span class="main__badge-status-icon" aria-hidden="true" {
+                        (maud::PreEscaped(include_str!("../../theme/assets/check.svg")))
+                    }
                     span class="main__badge-text" {
                         "Nested Inputs Allowed"
                     }
@@ -151,7 +153,10 @@ impl Workflow {
             };
         }
         html! {
-            div class="main__badge main__badge--disabled" {
+            div class="main__badge main__badge--error" {
+                span class="main__badge-status-icon" aria-hidden="true" {
+                    (maud::PreEscaped(include_str!("../../theme/assets/x.svg")))
+                }
                 span class="main__badge-text" {
                     "Nested Inputs Not Allowed"
                 }
@@ -179,38 +184,49 @@ impl Workflow {
     }
 
     /// Render the workflow as HTML.
-    pub fn render(&self, assets: &Path) -> (Markup, PageSections) {
+    pub fn render(
+        &self,
+        assets: &Path,
+        links: &PageLinkIndex,
+        page_dir: &Path,
+    ) -> (Markup, PageSections) {
         let mut headers = PageSections::default();
 
-        let meta_markup = if let Some(meta) = self.render_meta(assets) {
-            html! { (meta) }
-        } else {
-            html! {}
-        };
-
-        let (input_markup, inner_headers) = self.render_inputs(assets);
+        let (input_markup, inner_headers) = self.render_inputs(assets, links, page_dir);
 
         headers.extend(inner_headers);
 
+        let name_override = self.name_override();
+        let (title, title_kind) = match name_override.as_deref() {
+            Some(display_name) => (display_name, TitleKind::Plain),
+            None => (self.name.as_str(), TitleKind::Identifier),
+        };
+        let mut hero = DeclarationHero::new("Workflow", title, self.render_description(false))
+            .title_kind(title_kind)
+            .kind_class("text-brand-emerald-400")
+            .pagefind_type("workflow")
+            .badge(self.render_version());
+        if let Some(badge) = self.render_category() {
+            hero = hero.badge(badge);
+        }
+        hero = hero.badge(self.render_allow_nested_inputs());
+        if let Some(path) = self.wdl_path.as_deref() {
+            hero = hero.source_path(path);
+        }
+
         let markup = html! {
-            span class="text-brand-emerald-400" data-pagefind-filter="type:workflow" { "Workflow" }
-            h1 id="title" class="main__title" data-pagefind-meta="title" { (self.render_name()) }
-            div class="markdown-body mb-4" {
-                (self.render_description(false))
-            }
-            div class="main__badge-container" {
-                (self.render_version())
-                @if let Some(badge) = self.render_category() {
-                    (badge)
-                }
-                (self.render_allow_nested_inputs())
+            (hero.render(assets))
+            @if let Some(body) = self.meta().render_authored_body(assets) {
+                (body)
             }
             (self.render_run_with(assets))
-            div class="main__section" {
-                (meta_markup)
+            @if let Some(meta) = self.render_meta(assets) {
+                div class="main__section" {
+                    (meta)
+                }
             }
             (input_markup)
-            (self.render_outputs(assets))
+            (self.render_outputs(assets, links, page_dir))
         };
 
         headers.push(Header::Header("Outputs".to_string(), "outputs".to_string()));
@@ -246,10 +262,13 @@ impl Runnable for Workflow {
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use wdl_ast::Document;
     use wdl_ast::version::V1;
 
     use super::*;
+    use crate::links::PageLinkIndex;
 
     #[test]
     fn test_workflow() {
@@ -356,5 +375,152 @@ mod tests {
                 .unwrap(),
             "The generated greeting."
         );
+    }
+
+    #[test]
+    fn workflow_hero_uses_plain_title_for_meta_name() {
+        let (doc, _) = Document::parse(
+            r#"
+            version 1.2
+
+            workflow bind_runes {
+                meta {
+                    name: "Bind Runes (v2)"
+                }
+            }
+            "#,
+            None,
+        );
+
+        let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
+        let ast_workflow = doc_item.into_workflow_definition().unwrap();
+
+        let workflow = Workflow::new(
+            ast_workflow.name().text().to_string(),
+            SupportedVersion::V1(V1::Two),
+            ast_workflow,
+            None,
+            false,
+        );
+
+        let links = PageLinkIndex::default();
+        let (markup, _) = workflow.render(Path::new("assets"), &links, Path::new(""));
+        let html = markup.into_string();
+
+        // The friendly `meta.name` display name is shown verbatim in the title.
+        assert!(html.contains("Bind Runes (v2)"));
+        // It is a human-facing name, not a WDL identifier, so it must not be
+        // wrapped as a code literal.
+        assert!(!html.contains("heading-code-literal"));
+    }
+
+    #[test]
+    fn workflow_hero_uses_code_literal_for_identifier() {
+        let (doc, _) = Document::parse(
+            r#"
+            version 1.2
+
+            workflow bind_runes {
+            }
+            "#,
+            None,
+        );
+
+        let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
+        let ast_workflow = doc_item.into_workflow_definition().unwrap();
+
+        let workflow = Workflow::new(
+            ast_workflow.name().text().to_string(),
+            SupportedVersion::V1(V1::Two),
+            ast_workflow,
+            None,
+            false,
+        );
+
+        let links = PageLinkIndex::default();
+        let (markup, _) = workflow.render(Path::new("assets"), &links, Path::new(""));
+        let html = markup.into_string();
+
+        // Without a `meta.name` override the title is the raw WDL identifier and
+        // must be rendered as a code literal.
+        assert!(html.contains("<code class=\"heading-code-literal\">bind_runes</code>"));
+    }
+
+    #[test]
+    fn nested_inputs_allowed_badge_is_green_with_checkmark() {
+        let (doc, _) = Document::parse(
+            r#"
+            version 1.2
+
+            workflow nested_inputs {
+                meta {
+                    allowNestedInputs: true
+                }
+            }
+            "#,
+            None,
+        );
+
+        // SAFETY: the test document declares WDL version 1.2.
+        let ast = doc.ast().into_v1().unwrap();
+        // SAFETY: the test document contains one workflow definition.
+        let doc_item = ast.items().next().unwrap();
+        // SAFETY: the only document item is a workflow definition.
+        let ast_workflow = doc_item.into_workflow_definition().unwrap();
+        let workflow = Workflow::new(
+            ast_workflow.name().text().to_string(),
+            SupportedVersion::V1(V1::Two),
+            ast_workflow,
+            None,
+            false,
+        );
+
+        let html = workflow.render_allow_nested_inputs().into_string();
+        assert!(html.contains("main__badge--success"));
+        assert!(html.contains("main__badge-status-icon"));
+        // The check icon is inlined as an SVG so it inherits the badge's text
+        // color via `currentColor` in both themes.
+        assert!(html.contains("<svg"));
+        assert!(html.contains("M12.736 3.97a"));
+        assert!(html.contains("Nested Inputs Allowed"));
+    }
+
+    #[test]
+    fn nested_inputs_disallowed_badge_is_red_with_x() {
+        let (doc, _) = Document::parse(
+            r#"
+            version 1.2
+
+            workflow nested_inputs {
+                meta {
+                    allowNestedInputs: false
+                }
+            }
+            "#,
+            None,
+        );
+
+        // SAFETY: the test document declares WDL version 1.2.
+        let ast = doc.ast().into_v1().unwrap();
+        // SAFETY: the test document contains one workflow definition.
+        let doc_item = ast.items().next().unwrap();
+        // SAFETY: the only document item is a workflow definition.
+        let ast_workflow = doc_item.into_workflow_definition().unwrap();
+        let workflow = Workflow::new(
+            ast_workflow.name().text().to_string(),
+            SupportedVersion::V1(V1::Two),
+            ast_workflow,
+            None,
+            false,
+        );
+
+        let html = workflow.render_allow_nested_inputs().into_string();
+        assert!(html.contains("main__badge--error"));
+        assert!(html.contains("main__badge-status-icon"));
+        // The x icon is inlined as an SVG so it inherits the badge's text color
+        // via `currentColor` in both themes.
+        assert!(html.contains("<svg"));
+        assert!(html.contains("M2.146 2.854a"));
+        assert!(html.contains("Nested Inputs Not Allowed"));
     }
 }

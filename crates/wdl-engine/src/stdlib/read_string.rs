@@ -26,7 +26,7 @@ const FUNCTION_NAME: &str = "read_string";
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#read_string
 fn read_string(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
-        debug_assert!(context.arguments.len() == 1);
+        debug_assert_eq!(context.arguments.len(), 1);
         debug_assert!(context.return_type_eq(PrimitiveType::String));
 
         let path = context

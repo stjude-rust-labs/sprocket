@@ -1,0 +1,6 @@
+Bootstrap Icons copy
+Copyright 2019-Present The Bootstrap Authors
+Source: https://github.com/twbs/icons/blob/main/icons/copy.svg
+License: MIT
+License URL: https://opensource.org/licenses/MIT
+Changes: Set the fill to `currentColor` and marked decorative (`aria-hidden`, `focusable="false"`).

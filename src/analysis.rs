@@ -269,9 +269,12 @@ impl Analysis {
 
         (self.init)();
 
-        let validator = Box::new(move || {
+        let validator = move || {
             let mut validator = Validator::default();
 
+            // The validator must know all lint rule IDs even when tag selection
+            // or explicit severities enable only a subset.
+            validator.extend_known_rules(wdl::lint::ALL_RULE_IDS.iter().cloned());
             if self.enabled_lint_tags.count() > 0 || !self.force_enabled_rules.is_empty() {
                 let visitor = get_lint_visitor(
                     &self.enabled_lint_tags,
@@ -281,14 +284,10 @@ impl Analysis {
                     &self.force_enabled_rules,
                 );
                 validator.add_visitor(visitor);
-            } else {
-                // So the validator is always *aware* of `wdl-lint` rules, even when the linter
-                // isn't added. Keeps `KnownRules` from firing unnecessarily.
-                validator.extend_known_rules(wdl::lint::ALL_RULE_IDS.iter().cloned());
             }
 
             validator
-        });
+        };
 
         let mut analyzer = Analyzer::new_with_validator_and_resolution(
             config,

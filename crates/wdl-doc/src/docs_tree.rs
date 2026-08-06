@@ -21,15 +21,19 @@ use crate::DocError;
 use crate::Markdown;
 use crate::Render;
 use crate::config::ExternalUrls;
+use crate::config::Seo;
 use crate::document::Document;
 use crate::r#enum::Enum;
 use crate::error::DocResult;
 use crate::error::ResultContextExt;
 use crate::full_page;
 use crate::get_assets;
+use crate::links::PageLinkIndex;
 use crate::r#struct::Struct;
 use crate::task::Task;
 use crate::workflow::Workflow;
+use crate::workspace::ModuleMetadata;
+use crate::workspace::WorkspaceMetadata;
 
 /// Filename for the dark theme logo SVG expected to be in the "assets"
 /// directory.
@@ -233,8 +237,10 @@ pub struct DocsTreeBuilder {
     /// If this is `Some(_)` and no `alt_logo` is supplied, this will be used
     /// for both dark and light themes.
     logo: Option<PathBuf>,
-    /// External URLs related to the project, rendered as buttons in the header.
+    /// External URLs related to the project, rendered in the right rail.
     external_urls: ExternalUrls,
+    /// Site-level SEO metadata embedded into each page's `<head>`.
+    seo: Seo,
     /// The path to an alternate light theme custom logo to embed at the top of
     /// the left sidebar.
     alt_logo: Option<PathBuf>,
@@ -242,6 +248,9 @@ pub struct DocsTreeBuilder {
     additional_html: AdditionalHtml,
     /// Start in light mode instead of the default dark mode.
     init_light_mode: bool,
+    /// Optional workspace module metadata, present when the documented
+    /// workspace is a WDL module.
+    workspace_metadata: Option<WorkspaceMetadata>,
 }
 
 impl DocsTreeBuilder {
@@ -256,9 +265,11 @@ impl DocsTreeBuilder {
             custom_theme: None,
             logo: None,
             external_urls: ExternalUrls::default(),
+            seo: Seo::default(),
             alt_logo: None,
             additional_html: AdditionalHtml::default(),
             init_light_mode: false,
+            workspace_metadata: None,
         }
     }
 
@@ -309,9 +320,15 @@ impl DocsTreeBuilder {
         self.maybe_logo(Some(logo))
     }
 
-    /// Set the external URLs for the header.
+    /// Set the external URLs for the right rail.
     pub fn external_urls(mut self, external_urls: ExternalUrls) -> Self {
         self.external_urls = external_urls;
+        self
+    }
+
+    /// Set the site-level SEO metadata embedded into each page's `<head>`.
+    pub fn seo(mut self, seo: Seo) -> Self {
+        self.seo = seo;
         self
     }
 
@@ -339,24 +356,42 @@ impl DocsTreeBuilder {
         self
     }
 
+    /// Set the workspace module metadata with an option.
+    ///
+    /// When present, the documented workspace is a WDL module, and the
+    /// resulting [`DocsTree`] uses the module's manifest name for its root
+    /// node, labels module directories with their manifest name and version,
+    /// and renders a generated module overview on the root index page in
+    /// place of the plain "Home" header.
+    pub(crate) fn maybe_workspace_metadata(mut self, metadata: Option<WorkspaceMetadata>) -> Self {
+        self.workspace_metadata = metadata;
+        self
+    }
+
     /// Build the docs tree.
     pub fn build(self) -> DocResult<DocsTree> {
         self.write_assets()?;
 
-        let node = Node::new(
-            self.root
-                .file_name()
-                .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or("docs".to_string()),
-            PathBuf::from(""),
-        );
+        let root_name = self
+            .workspace_metadata
+            .as_ref()
+            .and_then(|metadata| metadata.root().map(|root| root.name().to_string()))
+            .unwrap_or_else(|| {
+                self.root
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or("docs".to_string())
+            });
+        let node = Node::new(root_name, PathBuf::from(""));
         Ok(DocsTree {
             root: node,
             path: self.root,
             index_page: self.index_page,
             external_urls: self.external_urls,
+            seo: self.seo,
             additional_html: self.additional_html,
             init_light_mode: self.init_light_mode,
+            workspace_metadata: self.workspace_metadata,
         })
     }
 
@@ -531,12 +566,17 @@ pub struct DocsTree {
     /// An optional path to a Markdown file which will be embedded in the
     /// `<root>/index.html` page.
     index_page: Option<PathBuf>,
-    /// External URLs related to the project, rendered as buttons in the header.
+    /// External URLs related to the project, rendered in the right rail.
     external_urls: ExternalUrls,
+    /// Site-level SEO metadata embedded into each page's `<head>`.
+    seo: Seo,
     /// Optional extra HTML to embed in each page.
     additional_html: AdditionalHtml,
     /// Initialize in light mode instead of the default dark mode.
     init_light_mode: bool,
+    /// Optional workspace module metadata, present when the documented
+    /// workspace is a WDL module.
+    workspace_metadata: Option<WorkspaceMetadata>,
 }
 
 impl DocsTree {
@@ -559,6 +599,19 @@ impl DocsTree {
     fn root_relative_to<P: AsRef<Path>>(&self, path: P) -> PathBuf {
         let path = path.as_ref();
         diff_paths(self.root_abs_path(), path).expect("should diff paths")
+    }
+
+    /// Builds the absolute canonical URL for the page written to
+    /// `page_abs_path`, using the configured SEO `base_url`. Returns `None`
+    /// when no `base_url` is set or the page lies outside the docs root.
+    fn canonical_url(&self, page_abs_path: &Path) -> Option<String> {
+        let base = self.seo.base_url.as_ref()?;
+        let relative = page_abs_path
+            .strip_prefix(self.root_abs_path())
+            .ok()?
+            .to_string_lossy()
+            .replace('\\', "/");
+        base.join(&relative).ok().map(|url| url.to_string())
     }
 
     /// Get the absolute path to the assets directory.
@@ -606,7 +659,21 @@ impl DocsTree {
                     .get_mut(cur_name.as_ref())
                     .expect("node should exist");
             } else {
-                let new_path = current_node.path().join(component);
+                // A directory node whose entrypoint collapsed onto it stores
+                // its path as `.../index.html` (see the `index.html` handling
+                // below). When descending into a *sibling* document's
+                // subdirectory, derive the child path from the enclosing
+                // directory, not that collapsed page path, so the file name
+                // does not leak in as a path component.
+                let parent_dir = if current_node.path().ends_with("index.html") {
+                    current_node
+                        .path()
+                        .parent()
+                        .expect("collapsed index path should have a parent")
+                } else {
+                    current_node.path()
+                };
+                let new_path = parent_dir.join(component);
                 let new_node = Node::new(cur_name.to_string(), new_path);
                 current_node.children.insert(cur_name.to_string(), new_node);
                 current_node = current_node
@@ -751,12 +818,8 @@ impl DocsTree {
                                     }}
                                 }}"#,
                                 self.root_abs_path().join(node.path()) == destination,
-                                self.get_asset(base, if self.root_abs_path().join(node.path()) == destination {
-                                        "workflow-selected.svg"
-                                    } else {
-                                        "workflow-unselected.svg"
-                                    },
-                            ))) class="left-sidebar__row" x-bind:class="node.current ? 'bg-slate-600/50 is-scrolled-to' : 'hover:bg-slate-700/40'" {
+                                self.get_asset(base, "workflow.svg"),
+                            )) class="left-sidebar__row" x-bind:class="node.current ? 'bg-slate-600/50 is-scrolled-to' : 'hover:bg-slate-700/40'" {
                                 @if let Some(page) = node.page() {
                                     @match page.page_type() {
                                         PageType::Workflow(wf) => {
@@ -812,6 +875,21 @@ impl DocsTree {
                 .replace(std::path::MAIN_SEPARATOR_STR, "_")
         };
 
+        // Local dependency module entrypoint documents are collapsed onto
+        // their module's root directory (see `WorkspaceMetadata::documentation_path`),
+        // so a node's directory (i.e. its path without a trailing
+        // `index.html`) can be looked up directly as a module root.
+        let node_module = |path: &Path| -> Option<&ModuleMetadata> {
+            let dir = if path.file_name().expect("path should have a file name") == "index.html" {
+                path.parent().expect("path should have a parent")
+            } else {
+                path
+            };
+            self.workspace_metadata
+                .as_ref()
+                .and_then(|metadata| metadata.module_at_root(dir))
+        };
+
         #[derive(Serialize)]
         struct JsNode {
             /// The key of the node.
@@ -828,6 +906,9 @@ impl DocsTree {
             icon: Option<String>,
             /// The href for the node.
             href: Option<String>,
+            /// The manifest version of the module rooted at this node, if
+            /// this node is the root of a WDL module.
+            module_version: Option<String>,
             /// Whether the node is ancestor.
             ancestor: bool,
             /// Whether the node is the current page.
@@ -844,10 +925,13 @@ impl DocsTree {
             .skip(1) // Skip the root node
             .map(|node| {
                 let key = make_key(node.path());
-                let display_name = match node.page() {
-                    Some(page) => page.name().to_string(),
-                    None => node.name().to_string(),
+                let module = node_module(node.path());
+                let display_name = match (module, node.page()) {
+                    (Some(module), _) => module.name().to_string(),
+                    (None, Some(page)) => page.name().to_string(),
+                    (None, None) => node.name().to_string(),
                 };
+                let module_version = module.map(|module| module.version().to_string());
                 let parent = node
                     .path()
                     .parent()
@@ -872,51 +956,26 @@ impl DocsTree {
                 };
                 let ancestor = node.part_of_path(rel_path);
                 let current = path == self.root_abs_path().join(node.path());
-                let icon = match node.page() {
-                    Some(page) => match page.page_type() {
-                        PageType::Task(_) => Some(self.get_asset(
-                            base,
-                            if ancestor {
-                                "task-selected.svg"
-                            } else {
-                                "task-unselected.svg"
-                            },
-                        )),
-                        PageType::Struct(_) => Some(self.get_asset(
-                            base,
-                            if ancestor {
-                                "struct-selected.svg"
-                            } else {
-                                "struct-unselected.svg"
-                            },
-                        )),
-                        PageType::Enum(_) => Some(self.get_asset(
-                            base,
-                            if ancestor {
-                                "enum-selected.svg"
-                            } else {
-                                "enum-unselected.svg"
-                            },
-                        )),
-                        PageType::Workflow(_) => Some(self.get_asset(
-                            base,
-                            if ancestor {
-                                "workflow-selected.svg"
-                            } else {
-                                "workflow-unselected.svg"
-                            },
-                        )),
-                        PageType::Index(_) => Some(self.get_asset(
-                            base,
-                            if ancestor {
-                                "wdl-dir-selected.svg"
-                            } else {
-                                "wdl-dir-unselected.svg"
-                            },
-                        )),
-                    },
-                    None => None,
-                };
+                let icon = node.page().map(|page| {
+                    self.get_asset(
+                        base,
+                        match page.page_type() {
+                            PageType::Task(_) => "task.svg",
+                            PageType::Struct(_) => "struct.svg",
+                            PageType::Enum(_) => "enum.svg",
+                            PageType::Workflow(_) => "workflow.svg",
+                            // WDL modules render as a folder; a standalone WDL
+                            // document renders as a file.
+                            PageType::Index(_) => {
+                                if module.is_some() {
+                                    "wdl-folder.svg"
+                                } else {
+                                    "wdl-file.svg"
+                                }
+                            }
+                        },
+                    )
+                });
                 let nest_level = node
                     .path()
                     .components()
@@ -934,6 +993,7 @@ impl DocsTree {
                     search_name: search_name.clone(),
                     icon,
                     href,
+                    module_version,
                     ancestor,
                     current,
                     nest_level,
@@ -962,9 +1022,16 @@ impl DocsTree {
             .collect::<Vec<String>>()
             .join(", ");
 
+        let is_module = self.workspace_metadata.is_some();
+        let show_workflows_field = if is_module {
+            String::new()
+        } else {
+            "showWorkflows: $persist(false).using(sessionStorage),".to_string()
+        };
+
         let data = format!(
             r#"{{
-                showWorkflows: $persist(false).using(sessionStorage),
+                {show_workflows_field}
                 dirOpen: '{}',
                 dirClosed: '{}',
                 nodes: [{}],
@@ -1017,61 +1084,93 @@ impl DocsTree {
             all_nodes_true,
         );
 
-        html! {
-            div x-data=(data) x-cloak x-init="$nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__container" {
-                // top navbar
-                div class="sticky px-4" {
-                    div class="left-sidebar__tabs-container mt-4" {
-                        button x-on:click="showWorkflows = true; search = ''; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="! showWorkflows ? 'opacity-40 light:opacity-60 hover:opacity-80' : ''" {
-                            img src=(self.get_asset(base, "list-bullet-selected.svg")) class="left-sidebar__icon block light:hidden" alt="List icon";
-                            img src=(self.get_asset(base, "list-bullet-selected.light.svg")) class="left-sidebar__icon hidden light:block" alt="List icon";
-                            p { "Workflows" }
-                        }
-                        button x-on:click="showWorkflows = false; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="showWorkflows ? 'opacity-50 light:opacity-60 hover:opacity-80' : ''" {
-                            img src=(self.get_asset(base, "folder-selected.svg")) class="left-sidebar__icon block light:hidden" alt="List icon";
-                            img src=(self.get_asset(base, "folder-selected.light.svg")) class="left-sidebar__icon hidden light:block" alt="List icon";
-                            p { "Full Directory" }
+        // The root node link and per-node rows are shared between module and
+        // non-module workspaces; only the surrounding chrome (the tabs and
+        // the competing "Workflows" view) differs.
+        let directory_tree = html! {
+            // Root node for the directory tree
+            li {
+                sprocket-tooltip content=(root.name()) class="block" {
+                    a href=(self.root_index_relative_to(base).to_string_lossy()) aria-label=(root.name()) class="left-sidebar__row hover:bg-slate-700/40" {
+                        div class="left-sidebar__content-item-container crop-ellipsis" {
+                            div class="relative shrink-0" {
+                                img src=(self.get_asset(base, "dir-open.svg")) class="left-sidebar__icon block light:hidden" alt="Directory icon";
+                                img src=(self.get_asset(base, "dir-open.light.svg")) class="left-sidebar__icon hidden light:block" alt="Directory icon";
+                            }
+                            div class="text-slate-50" { (root.name()) }
                         }
                     }
                 }
-                // Main content
-                div x-cloak class="left-sidebar__content-container pt-4" {
-                    // Full directory view
-                    ul x-show="! showWorkflows" class="left-sidebar__content" {
-                        // Root node for the directory tree
-                        sprocket-tooltip content=(root.name()) class="block" {
-                            a href=(self.root_index_relative_to(base).to_string_lossy()) aria-label=(root.name()) class="left-sidebar__row hover:bg-slate-700/40" {
-                                div class="left-sidebar__content-item-container crop-ellipsis" {
-                                    div class="relative shrink-0" {
-                                        img src=(self.get_asset(base, "dir-open.svg")) class="left-sidebar__icon block light:hidden" alt="Directory icon";
-                                        img src=(self.get_asset(base, "dir-open.light.svg")) class="left-sidebar__icon hidden light:block" alt="Directory icon";
-                                    }
-                                    div class="text-slate-50" { (root.name()) }
-                                }
-                            }
+            }
+            // Nodes in the directory tree
+            template x-for="node in shownNodes" {
+                li {
+                sprocket-tooltip x-bind:content="node.display_name" class="block isolate" {
+                    a x-bind:href="node.href" x-show="showSelfCache[node.key]" x-on:click="if (node.href === null) toggleChildren(node.key)" x-bind:tabindex="node.href === null ? '0' : null" x-bind:role="node.href === null ? 'button' : null" "x-on:keydown.enter"="if (node.href === null) toggleChildren(node.key)" "x-on:keydown.space.prevent"="if (node.href === null) toggleChildren(node.key)" x-bind:aria-label="node.display_name" class="left-sidebar__row" x-bind:class="`${node.current ? 'is-scrolled-to left-sidebar__row--active' : (node.href === null) ? showChildrenCache[node.key] ? 'left-sidebar__row-folder left-sidebar__row-folder--open' : 'left-sidebar__row-folder left-sidebar__row-folder--closed' : 'left-sidebar__row-page'} ${node.ancestor ? 'left-sidebar__content-item-container--ancestor' : ''}`" {
+                        template x-for="i in Array.from({ length: node.nest_level })" {
+                            div class="left-sidebar__indent -z-1" {}
                         }
-                        // Nodes in the directory tree
-                        template x-for="node in shownNodes" {
-                            sprocket-tooltip x-bind:content="node.display_name" class="block isolate" {
-                                a x-bind:href="node.href" x-show="showSelfCache[node.key]" x-on:click="if (node.href === null) toggleChildren(node.key)" x-bind:aria-label="node.display_name" class="left-sidebar__row" x-bind:class="`${node.current ? 'is-scrolled-to left-sidebar__row--active' : (node.href === null) ? showChildrenCache[node.key] ? 'left-sidebar__row-folder left-sidebar__row-folder--open' : 'left-sidebar__row-folder left-sidebar__row-folder--closed' : 'left-sidebar__row-page'} ${node.ancestor ? 'left-sidebar__content-item-container--ancestor' : ''}`" {
-                                    template x-for="i in Array.from({ length: node.nest_level })" {
-                                        div class="left-sidebar__indent -z-1" {}
-                                    }
-                                    div class="left-sidebar__content-item-container crop-ellipsis" {
-                                        div class="relative left-sidebar__icon shrink-0" {
-                                            img x-bind:src="node.icon || dirOpen" class="left-sidebar__icon block light:hidden" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
-                                            img x-bind:src="(node.icon || dirOpen).replace('.svg', '.light.svg')" class="left-sidebar__icon hidden light:block" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
-                                        }
-                                        div class="crop-ellipsis" x-text="node.display_name" {
-                                        }
-                                    }
-                                }
+                        div class="left-sidebar__content-item-container crop-ellipsis" {
+                            // Disclosure chevron for expandable page nodes (WDL modules and
+                            // documents). Leaf pages get an equal-width spacer so their icons
+                            // stay aligned with expandable siblings.
+                            img x-show="node.href && node.children.length" x-on:click="$event.preventDefault(); $event.stopPropagation(); toggleChildren(node.key);" x-bind:src="dirOpen" x-bind:class="showChildrenCache[node.key] ? '' : 'rotate-180'" class="left-sidebar__chevron block light:hidden" alt="";
+                            img x-show="node.href && node.children.length" x-on:click="$event.preventDefault(); $event.stopPropagation(); toggleChildren(node.key);" x-bind:src="dirOpen.replace('.svg', '.light.svg')" x-bind:class="showChildrenCache[node.key] ? '' : 'rotate-180'" class="left-sidebar__chevron hidden light:block" alt="";
+                            div x-show="node.href && !node.children.length" class="left-sidebar__chevron" {}
+                            div class="relative left-sidebar__icon shrink-0" {
+                                img x-bind:src="(node.module_version && showChildrenCache[node.key]) ? node.icon.replace('wdl-folder.svg', 'wdl-folder-open.svg') : (node.icon || dirOpen)" class="left-sidebar__icon block light:hidden" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
+                                img x-bind:src="((node.module_version && showChildrenCache[node.key]) ? node.icon.replace('wdl-folder.svg', 'wdl-folder-open.svg') : (node.icon || dirOpen)).replace('.svg', '.light.svg')" class="left-sidebar__icon hidden light:block" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
+                            }
+                            div class="crop-ellipsis" x-text="node.display_name" {}
+                            span x-show="node.module_version" x-text="node.module_version" class="left-sidebar__module-version" {}
+                        }
+                    }
+                }
+                }
+            }
+        };
+
+        if is_module {
+            // Module workspaces render one semantic module tree; there is
+            // no separate "Workflows" view competing with it, so the tabs
+            // and the "Full Directory" toggle are omitted entirely.
+            html! {
+                div x-data=(data) x-cloak x-init="$nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__container" {
+                    div x-cloak class="left-sidebar__content-container pt-4" {
+                        ul class="left-sidebar__content" {
+                            (directory_tree)
+                        }
+                    }
+                }
+            }
+        } else {
+            html! {
+                div x-data=(data) x-cloak x-init="$nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__container" {
+                    // top navbar
+                    div class="sticky px-4" {
+                        div class="left-sidebar__tabs-container mt-4" {
+                            button x-on:click="showWorkflows = true; search = ''; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="! showWorkflows ? 'opacity-70 hover:opacity-90' : ''" {
+                                img src=(self.get_asset(base, "list-bullet-selected.svg")) class="left-sidebar__icon block light:hidden" alt="List icon";
+                                img src=(self.get_asset(base, "list-bullet-selected.light.svg")) class="left-sidebar__icon hidden light:block" alt="List icon";
+                                p { "Workflows" }
+                            }
+                            button x-on:click="showWorkflows = false; $nextTick(() => { document.querySelector('.is-scrolled-to')?.scrollIntoView({ block: 'center', behavior: 'instant' }); })" class="left-sidebar__tabs text-slate-50 border-b-slate-50" x-bind:class="showWorkflows ? 'opacity-70 hover:opacity-90' : ''" {
+                                img src=(self.get_asset(base, "folder-selected.svg")) class="left-sidebar__icon block light:hidden" alt="List icon";
+                                img src=(self.get_asset(base, "folder-selected.light.svg")) class="left-sidebar__icon hidden light:block" alt="List icon";
+                                p { "Full Directory" }
                             }
                         }
                     }
-                    // Workflows view
-                    ul x-show="showWorkflows" class="left-sidebar__content" {
-                        (self.sidebar_workflows_view(path))
+                    // Main content
+                    div x-cloak class="left-sidebar__content-container pt-4" {
+                        // Full directory view
+                        ul x-show="! showWorkflows" class="left-sidebar__content" {
+                            (directory_tree)
+                        }
+                        // Workflows view
+                        ul x-show="showWorkflows" class="left-sidebar__content" {
+                            (self.sidebar_workflows_view(path))
+                        }
                     }
                 }
             }
@@ -1079,21 +1178,57 @@ impl DocsTree {
     }
 
     /// Render a right sidebar component.
-    fn render_right_sidebar(&self, headers: PageSections) -> Markup {
+    fn render_right_sidebar(&self, headers: PageSections, assets: &Path) -> Markup {
+        fn project_link(assets: &Path, url: &Url, icon_name: &str, label: &str) -> Markup {
+            html! {
+                a class="right-sidebar__project-link" target="_blank" rel="noopener noreferrer" href=(url) {
+                    img src=(assets.join(format!("{icon_name}.svg")).to_string_lossy()) class="right-sidebar__project-link-icon block light:hidden" alt="";
+                    img src=(assets.join(format!("{icon_name}.light.svg")).to_string_lossy()) class="right-sidebar__project-link-icon hidden light:block" alt="";
+                    span { (label) }
+                }
+            }
+        }
+
+        let ExternalUrls {
+            github,
+            homepage,
+            slack,
+        } = &self.external_urls;
+        let has_project_links = github.is_some() || homepage.is_some() || slack.is_some();
+
         html! {
             div class="right-sidebar__container" {
-                div class="right-sidebar__header" {
-                    "ON THIS PAGE"
-                }
-                (headers.render())
-                div class="right-sidebar__back-to-top-container" {
-                    // TODO: this should be a link to the top of the page, not just a link to the title
-                    a href="#title" class="right-sidebar__back-to-top" {
-                        span class="right-sidebar__back-to-top-icon" {
-                            "↑"
+                div class="right-sidebar__sticky" {
+                    div class="right-sidebar__header" {
+                        "ON THIS PAGE"
+                    }
+                    nav id="page-sections" data-page-sections {
+                        (headers.render())
+                    }
+                    @if has_project_links {
+                        div class="right-sidebar__project-links" aria-label="Project links" {
+                            @if let Some(homepage) = homepage {
+                                (project_link(assets, homepage, "link-chain", "Website"))
+                            }
+                            @if let Some(github) = github {
+                                (project_link(assets, github, "github", "GitHub"))
+                            }
+                            @if let Some(slack) = slack {
+                                (project_link(assets, slack, "slack", "Slack"))
+                            }
                         }
-                        span class="right-sidebar__back-to-top-text" {
-                            "Back to top"
+                    }
+                    div class="right-sidebar__back-to-top-container" {
+                        a
+                            href="#title"
+                            "x-on:click.prevent"="(document.querySelector('.layout__main-center') || document.scrollingElement).scrollTo({ top: 0, behavior: 'smooth' })"
+                            class="right-sidebar__back-to-top" {
+                            span class="right-sidebar__back-to-top-icon" {
+                                "↑"
+                            }
+                            span class="right-sidebar__back-to-top-text" {
+                                "Back to top"
+                            }
                         }
                     }
                 }
@@ -1175,13 +1310,16 @@ impl DocsTree {
     /// Render every page in the tree.
     pub fn render_all(&self) -> DocResult<()> {
         let root = self.root();
+        let links = self.build_link_index();
 
         for node in root.depth_first_traversal() {
             if let Some(page) = node.page() {
-                self.write_page(page.as_ref(), self.root_abs_path().join(node.path()))
-                    .with_context(|| {
-                        format!("failed to write page at `{}`", node.path().display())
-                    })?;
+                self.write_page(
+                    page.as_ref(),
+                    self.root_abs_path().join(node.path()),
+                    &links,
+                )
+                .with_context(|| format!("failed to write page at `{}`", node.path().display()))?;
             }
         }
 
@@ -1221,8 +1359,8 @@ impl DocsTree {
         };
 
         let index_page_content = html! {
-            h5 class="main__homepage-header" {
-                "Home"
+            @if let Some(metadata) = &self.workspace_metadata {
+                (self.render_module_overview(metadata))
             }
             (content)
         };
@@ -1232,7 +1370,10 @@ impl DocsTree {
             self.render_layout(
                 left_sidebar,
                 index_page_content,
-                self.render_right_sidebar(PageSections::default()),
+                self.render_right_sidebar(
+                    PageSections::default(),
+                    &self.assets_relative_to(self.root_abs_path()),
+                ),
                 None,
                 &self.assets_relative_to(self.root_abs_path()),
                 &index_path,
@@ -1240,6 +1381,8 @@ impl DocsTree {
             self.root().path(),
             &self.additional_html,
             self.init_light_mode,
+            &self.seo,
+            self.canonical_url(&index_path).as_deref(),
         );
         std::fs::write(&index_path, html.into_string())
             .map_err(Into::<DocError>::into)
@@ -1252,26 +1395,92 @@ impl DocsTree {
         Ok(())
     }
 
+    /// Renders the generated module overview shown at the top of the root
+    /// index page when the documented workspace is a WDL module.
+    fn render_module_overview(&self, metadata: &WorkspaceMetadata) -> Markup {
+        let root = metadata.root();
+        // Modules to list as cards: the workspace's dependencies when the root
+        // is itself a module, or simply every discovered module for a
+        // manifest-less monorepo root.
+        let modules = metadata
+            .modules()
+            .filter(|module| !module.root().as_os_str().is_empty())
+            .collect::<Vec<_>>();
+        // Without a root module, the overview is titled after the workspace
+        // (the docs root node name).
+        let title = match root {
+            Some(root) => humanize_module_name(root.name()),
+            None => humanize_module_name(self.root().name()),
+        };
+
+        html! {
+            section class="module-overview" {
+                p class="module-overview__eyebrow" {
+                    (if root.is_some() { "WDL Module" } else { "WDL Modules" })
+                }
+                h1 id="title" class="module-overview__title" data-pagefind-meta="title" { (title) }
+                @if let Some(root) = root {
+                    @if let Some(description) = root.description() {
+                        p class="module-overview__description" { (description) }
+                    }
+                    div class="module-overview__metadata" {
+                        div class="module-overview__metadata-item" {
+                            span class="module-overview__metadata-label" { "Version " (root.version()) }
+                        }
+                        div class="module-overview__metadata-item" {
+                            span class="module-overview__metadata-label" { "Entrypoint" }
+                            code class="module-overview__metadata-value" { (root.entrypoint().display().to_string()) }
+                        }
+                    }
+                }
+                @if !modules.is_empty() {
+                    div class="module-overview__dependencies" {
+                        h2 class="module-overview__dependencies-header" {
+                            (if root.is_some() { "Dependencies" } else { "Modules" })
+                        }
+                        div class="module-overview__dependencies-list" {
+                            @for module in &modules {
+                                div class="module-overview__dependency-card" {
+                                    p class="module-overview__dependency-name" { (module.name()) }
+                                    p class="module-overview__dependency-version" { "v" (module.version()) }
+                                    @if let Some(description) = module.description() {
+                                        p class="module-overview__dependency-description" { (description) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     /// Render reusable sidebar control buttons
     fn render_sidebar_control_buttons(&self, assets: &Path) -> Markup {
         html! {
             button
+                type="button"
+                aria-label="Hide sidebar"
                 x-on:click="collapseSidebar()"
-                x-bind:disabled="sidebarState === 'hidden'"
+                x-bind:aria-pressed="sidebarState === 'hidden'"
                 x-bind:class="getSidebarButtonClass('hidden')" {
                 img src=(assets.join("sidebar-icon-hide.svg").to_string_lossy()) alt="" class="block light:hidden" {}
                 img src=(assets.join("sidebar-icon-hide.light.svg").to_string_lossy()) alt="" class="hidden light:block" {}
             }
             button
+                type="button"
+                aria-label="Default sidebar width"
                 x-on:click="restoreSidebar()"
-                x-bind:disabled="sidebarState === 'normal'"
+                x-bind:aria-pressed="sidebarState === 'normal'"
                 x-bind:class="getSidebarButtonClass('normal')" {
                 img src=(assets.join("sidebar-icon-default.svg").to_string_lossy()) alt="" class="block light:hidden" {}
                 img src=(assets.join("sidebar-icon-default.light.svg").to_string_lossy()) alt="" class="hidden light:block" {}
             }
             button
+                type="button"
+                aria-label="Expand sidebar"
                 x-on:click="expandSidebar()"
-                x-bind:disabled="sidebarState === 'xl'"
+                x-bind:aria-pressed="sidebarState === 'xl'"
                 x-bind:class="getSidebarButtonClass('xl')" {
                     img src=(assets.join("sidebar-icon-expand.svg").to_string_lossy()) alt="" class="block light:hidden" {}
                     img src=(assets.join("sidebar-icon-expand.light.svg").to_string_lossy()) alt="" class="hidden light:block" {}
@@ -1281,64 +1490,51 @@ impl DocsTree {
 
     /// Render the header nav.
     fn render_header(&self, assets: &Path, path: &Path) -> Markup {
-        fn external_urls(assets: &Path, external_urls: &ExternalUrls) -> Markup {
-            fn button(assets: &Path, url: &Url, icon_name: &str) -> Markup {
-                html! {
-                    a class="header__button" target="_blank" rel="noopener noreferrer" href=(url) {
-                        img src=(assets.join(format!("{icon_name}.svg")).to_string_lossy()) class="size-6 block light:hidden" alt=(format!("{icon_name} icon"));
-                        img src=(assets.join(format!("{icon_name}.light.svg")).to_string_lossy()) class="size-6 hidden light:block" alt=(format!("{icon_name} icon"));
-                    }
-                }
-            }
-
-            let ExternalUrls { github, homepage } = external_urls;
-            if github.is_none() && homepage.is_none() {
-                return html! {};
-            }
-
-            html! {
-                div class="flex flex-row pr-6" {
-                    div class="w-px h-[80%] border-l border-slate-800 self-center pr-6" {}
-                    div class="flex flex-row gap-4 items-center" {
-                        @if let Some(github) = github {
-                            (button(assets, github, "github"))
-                        }
-                        @if let Some(homepage) = homepage {
-                            (button(assets, homepage, "link-chain"))
-                        }
-                    }
-                }
-            }
-        }
-
         let base = path.parent().expect("path should have a parent");
         html! {
             div
                 class="layout__header"
-                "@keydown.window.slash"="
-                if (!['INPUT', 'TEXTAREA'].includes($event.target.tagName)) {
+                "@keydown.window.meta.k"="
+                if (!['INPUT', 'TEXTAREA'].includes($event.target.tagName) && !$event.target.isContentEditable) {
+                    $event.preventDefault();
+                    $refs.searchBox.focus();
+                }"
+                "@keydown.window.ctrl.k"="
+                if (!['INPUT', 'TEXTAREA'].includes($event.target.tagName) && !$event.target.isContentEditable) {
                     $event.preventDefault();
                     $refs.searchBox.focus();
                 }"
             {
-                div class="w-full grid grid-cols-3 items-center h-12 px-6" {
-                    a
-                        href=(self.root_index_relative_to(base).to_string_lossy())
-                        id="logo"
-                        class="flex items-center justify-start w-32 h-12"
-                    {
-                        img src=(self.get_asset(base, LOGO_FILE_NAME)) class="max-w-full max-h-full w-auto h-auto object-contain p-1 block light:hidden" alt="Logo";
-                        img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="max-w-full max-h-full w-auto h-auto object-contain p-1 hidden light:block" alt="Logo";
+                div class="header__content" {
+                    div class="col-start-1 flex items-center gap-2 min-w-0" {
+                        button
+                            type="button"
+                            class="header__button shrink-0 md:hidden"
+                            aria-label="Toggle navigation"
+                            x-on:click="sidebarState = sidebarState === 'hidden' ? 'normal' : 'hidden'"
+                        {
+                            svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="size-6" aria-hidden="true" {
+                                path stroke-linecap="round" stroke-linejoin="round" d="M3 6h18M3 12h18M3 18h18" {}
+                            }
+                        }
+                        a
+                            href=(self.root_index_relative_to(base).to_string_lossy())
+                            id="logo"
+                            class="header__logo"
+                        {
+                            img src=(self.get_asset(base, LOGO_FILE_NAME)) class="max-w-full max-h-full w-auto h-auto object-contain p-1 block light:hidden" alt="Logo";
+                            img src=(self.get_asset(base, LIGHT_LOGO_FILE_NAME)) class="max-w-full max-h-full w-auto h-auto object-contain p-1 hidden light:block" alt="Logo";
+                        }
                     }
-                    div id="search" class="w-sm h-10 absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" {
+                    div id="search" class="header__search" {
                         input id="searchbox" "x-ref"="searchBox" "x-model.debounce"="$store.search.query" type="text" placeholder="Search...";
                         img src=(assets.join("search.svg").to_string_lossy()) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none block light:hidden" alt="Search icon";
                         img src=(assets.join("search.light.svg").to_string_lossy()) class="absolute left-2 top-1/2 -translate-y-1/2 size-6 pointer-events-none hidden light:block" alt="Search icon";
                         img src=(assets.join("x-mark.svg").to_string_lossy()) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer block light:hidden" alt="Clear icon" x-show="$store.search.query !== ''" x-on:click="$store.search.query = ''";
                         img src=(assets.join("x-mark.light.svg").to_string_lossy()) class="absolute right-2 top-1/2 -translate-y-1/2 size-6 hover:cursor-pointer hidden light:block" alt="Clear icon" x-show="$store.search.query !== ''" x-on:click="$store.search.query = ''";
-                        div id="search-shortcut-hint" x-show="$store.search.query === ''" { "/" }
+                        (render_search_shortcut_hint())
                     }
-                    div class="flex flex-row-reverse items-start justify-between col-start-3 justify-self-end" x-data="{ showTooltip: false }" {
+                    div class="header__actions" x-data="{ showTooltip: false }" {
                         div class="relative" {
                             button
                             x-on:click="
@@ -1350,9 +1546,10 @@ impl DocsTree {
                             "@focusin"="showTooltip = true"
                             "@focusout"="showTooltip = false"
                             id="theme-toggle"
+                            aria-label="Switch theme"
                             class="header__button" {
-                                img src=(assets.join("moon.light.svg").to_string_lossy()) class="size-6 hidden light:block";
-                                img src=(assets.join("sun.svg").to_string_lossy()) class="size-6 block light:hidden";
+                                img src=(assets.join("moon.light.svg").to_string_lossy()) alt="" class="size-6 hidden light:block";
+                                img src=(assets.join("sun.svg").to_string_lossy()) alt="" class="size-6 block light:hidden";
                             }
 
                             div class="absolute top-full flex flex-col items-center left-1/2 -translate-x-1/2 mt-2" x-show="showTooltip" {
@@ -1364,7 +1561,6 @@ impl DocsTree {
                         }
                     }
                 }
-                (external_urls(assets, &self.external_urls))
             }
         }
     }
@@ -1381,7 +1577,7 @@ impl DocsTree {
         path: &Path,
     ) -> Markup {
         html! {
-            div class="layout__container layout__container--alt-layout" x-transition x-data="{
+            div class="layout__container layout__container--alt-layout" x-data="{
                 sidebarState: $persist(window.innerWidth < 768 ? 'hidden' : 'normal').using(sessionStorage),
                 get showSidebarButtons() { return this.sidebarState !== 'hidden'; },
                 get showCenterButtons() { return this.sidebarState === 'hidden'; },
@@ -1399,84 +1595,132 @@ impl DocsTree {
                 collapseSidebar() { this.sidebarState = 'hidden'; },
                 restoreSidebar() { this.sidebarState = 'normal'; },
                 expandSidebar() { this.sidebarState = 'xl'; }
-            }" x-bind:class="containerClasses" {
+            }" x-bind:class="containerClasses" x-effect="document.documentElement.dataset.sidebar = sidebarState" {
                 (self.render_header(assets, path))
-                div class="layout__sidebar-left" x-transition {
+                div
+                    class="layout__sidebar-left"
+                    x-bind:inert="sidebarState === 'hidden' || $store.search.query !== ''"
+                    x-on:click="if (window.innerWidth < 768 && $event.target.closest('a[href]')) collapseSidebar()" {
+                    div class="left-sidebar__controls" x-show="showSidebarButtons" {
+                        (self.render_sidebar_control_buttons(assets))
+                    }
                     (left_sidebar)
                 }
+                div
+                    class="md:hidden fixed inset-0 z-30 bg-black/50"
+                    x-cloak
+                    x-show="sidebarState !== 'hidden'"
+                    x-on:click="collapseSidebar()"
+                    aria-hidden="true" {}
                 div class="layout__main-center" {
-                    div class="layout__main-center-content" {
-                        @if let Some(breadcrumbs) = breadcrumbs {
-                            div class="layout__breadcrumbs" {
-                                (breadcrumbs)
+                    div class="layout__main-shell" {
+                        div class="layout__main-center-content layout__main-body" {
+                            @if let Some(breadcrumbs) = breadcrumbs {
+                                div class="layout__breadcrumbs" x-show="$store.search.query === ''" {
+                                    (breadcrumbs)
+                                }
                             }
-                        }
-                        div class="flex flex-col gap-5" x-show="$store.search.query !== ''" x-data {
-                            h2 class="text-base leading-6 font-medium" x-text="`${$store.search.results.length} results for '${$store.search.query}'`" {}
-                            div x-show="$store.search.loading" { "Loading..." }
-                            ul class="flex flex-col gap-5" {
-                                template x-for="result in $store.search.results" ":key"="result.url" {
-                                    li class="search-result" {
-                                        div class="flex flex-row gap-2 items-center" {
-                                            @let assets_str = assets.to_string_lossy().replace('\\', "/");
-                                            img
-                                                class="size-6"
-                                                x-bind:src=(format!("theme === 'dark' ? `{assets_str}/${{result.meta.image_dark}}` : `{assets_str}/${{result.meta.image_light}}`"))
-                                                x-bind:alt="result.meta.image_alt || result.meta.title";
-                                            a
-                                                ":href"="result.url"
-                                                class="text-2xl leading-8 text-slate-50 font-medium"
-                                                x-text="result.meta.title"
-                                            {}
+                            div class="flex flex-col gap-5" x-show="$store.search.query !== ''" x-data {
+                                h2 class="text-base leading-6 font-medium" x-text="`${$store.search.results.length} results for '${$store.search.query}'`" {}
+                                ul class="flex flex-col gap-5" {
+                                    template x-for="result in $store.search.results" ":key"="result.url" {
+                                        li class="search-result" {
+                                            div class="flex flex-row gap-2 items-center" {
+                                                @let assets_str = assets.to_string_lossy().replace('\\', "/");
+                                                img
+                                                    class="size-6"
+                                                    x-bind:src=(format!("theme === 'dark' ? `{assets_str}/${{result.meta.image_dark}}` : `{assets_str}/${{result.meta.image_light}}`"))
+                                                    x-bind:alt="result.meta.image_alt || result.meta.title";
+                                                a
+                                                    ":href"="result.url"
+                                                    class="text-2xl leading-8 text-slate-50 font-medium"
+                                                    x-text="result.meta.title"
+                                                {}
+                                            }
+                                            p class="search-result-excerpt" x-html="result.excerpt" {}
                                         }
-                                        p class="search-result-excerpt" x-html="result.excerpt" {}
                                     }
-                                }
 
-                                div x-show="!$store.search.loading && $store.search.results.length === 0" {
-                                    // No results found icon
-                                    li class="flex place-content-center" {
-                                        img src=(assets.join("search.svg").to_string_lossy()) class="size-8 block light:hidden" alt="Search icon";
-                                        img src=(assets.join("search.light.svg").to_string_lossy()) class="size-8 hidden light:block" alt="Search icon";
-                                    }
-                                    // No results found message
-                                    li class="flex gap-1 place-content-center text-center break-words whitespace-normal text-sm text-slate-500" {
-                                        span x-text="'No results found for'" {}
-                                        span x-text="`\"${$store.search.query}\"`" class="text-slate-50" {}
+                                    div x-show="!$store.search.loading && $store.search.results.length === 0" {
+                                        // No results found icon
+                                        li class="flex place-content-center" {
+                                            img src=(assets.join("search.svg").to_string_lossy()) class="size-8 block light:hidden" alt="Search icon";
+                                            img src=(assets.join("search.light.svg").to_string_lossy()) class="size-8 hidden light:block" alt="Search icon";
+                                        }
+                                        // No results found message
+                                        li class="flex gap-1 place-content-center text-center break-words whitespace-normal text-sm text-slate-500" {
+                                            span x-text="'No results found for'" {}
+                                            span x-text="`\"${$store.search.query}\"`" class="text-slate-50" {}
+                                        }
                                     }
                                 }
                             }
-                        }
-                        div {
-                            div class="flex gap-1 mb-3" x-show="showCenterButtons" {
-                                (self.render_sidebar_control_buttons(assets))
+                            div {
+                                div class="flex gap-1 mb-3 max-md:hidden" x-show="showCenterButtons" {
+                                    (self.render_sidebar_control_buttons(assets))
+                                }
+                            }
+                            div x-show="$store.search.query === ''" {
+                                (content)
                             }
                         }
-                        div x-show="$store.search.query === ''" {
-                            (content)
+                        div class="layout__main-rail" {
+                            (right_sidebar)
                         }
                     }
-                }
-                div class="layout__sidebar-right" {
-                    (right_sidebar)
                 }
             }
         }
     }
 
+    /// Build an index of uniquely named generated struct and enum pages.
+    ///
+    /// Struct and enum page names that resolve to more than one page are
+    /// excluded so that ambiguous type references remain plain text. Paths are
+    /// stored relative to the docs root.
+    fn build_link_index(&self) -> PageLinkIndex {
+        let pages = self
+            .root()
+            .depth_first_traversal()
+            .into_iter()
+            .filter_map(|node| {
+                let page = node.page()?;
+                match page.page_type() {
+                    PageType::Struct(_) | PageType::Enum(_) => {
+                        Some((page.name().to_string(), node.path().clone()))
+                    }
+                    _ => None,
+                }
+            });
+
+        PageLinkIndex::from_pages(pages)
+    }
+
     /// Write a page to disk at the designated path.
     ///
     /// Path is expected to be an absolute path.
-    fn write_page<P: Into<PathBuf>>(&self, page: &HTMLPage, path: P) -> DocResult<()> {
+    fn write_page<P: Into<PathBuf>>(
+        &self,
+        page: &HTMLPage,
+        path: P,
+        links: &PageLinkIndex,
+    ) -> DocResult<()> {
         let path = path.into();
         let base = path.parent().expect("path should have a parent");
 
+        let page_dir = path
+            .strip_prefix(self.root_abs_path())
+            .ok()
+            .and_then(Path::parent)
+            .map(Path::to_path_buf)
+            .unwrap_or_default();
+
         let (content, headers) = match page.page_type() {
             PageType::Index(doc) => doc.render(),
-            PageType::Struct(s) => s.render(&self.assets_relative_to(base)),
+            PageType::Struct(s) => s.render(&self.assets_relative_to(base), links, &page_dir),
             PageType::Enum(e) => e.render(&self.assets_relative_to(base)),
-            PageType::Task(t) => t.render(&self.assets_relative_to(base)),
-            PageType::Workflow(w) => w.render(&self.assets_relative_to(base)),
+            PageType::Task(t) => t.render(&self.assets_relative_to(base), links, &page_dir),
+            PageType::Workflow(w) => w.render(&self.assets_relative_to(base), links, &page_dir),
         };
 
         let breadcrumbs = self.render_breadcrumbs(&path);
@@ -1488,7 +1732,7 @@ impl DocsTree {
             self.render_layout(
                 left_sidebar,
                 content,
-                self.render_right_sidebar(headers),
+                self.render_right_sidebar(headers, &self.assets_relative_to(base)),
                 Some(breadcrumbs),
                 &self.assets_relative_to(base),
                 &path,
@@ -1496,6 +1740,8 @@ impl DocsTree {
             self.root_relative_to(base),
             &self.additional_html,
             self.init_light_mode,
+            &self.seo,
+            self.canonical_url(&path).as_deref(),
         );
         std::fs::write(&path, html.into_string())
             .map_err(Into::<DocError>::into)
@@ -1523,4 +1769,432 @@ fn sort_workflow_categories(categories: HashSet<String>) -> Vec<String> {
         }
     });
     sorted_categories
+}
+
+/// Renders the platform-aware search keyboard shortcut hint.
+///
+/// Both the macOS (`⌘ K`) and other-platform (`Ctrl K`) variants are always
+/// rendered; the inapplicable variant is hidden at runtime by the theme
+/// JavaScript based on the visitor's platform.
+fn render_search_shortcut_hint() -> Markup {
+    html! {
+        div id="search-shortcut-hint" x-show="$store.search.query === ''" aria-hidden="true" {
+            span class="search-shortcut" data-shortcut="mac" {
+                kbd class="search-shortcut__key" { "⌘" }
+                kbd class="search-shortcut__key" { "K" }
+            }
+            span class="search-shortcut" data-shortcut="other" hidden {
+                kbd class="search-shortcut__key search-shortcut__key--wide" { "Ctrl" }
+                kbd class="search-shortcut__key" { "K" }
+            }
+        }
+    }
+}
+
+/// Converts a kebab-case or snake_case module manifest name into a
+/// human-friendly title by replacing separators with spaces and
+/// capitalizing each word (e.g. `spellcraft-showcase` becomes `Spellcraft
+/// Showcase`).
+fn humanize_module_name(name: &str) -> String {
+    name.split(['-', '_'])
+        .filter(|word| !word.is_empty())
+        .map(|word| {
+            let mut chars = word.chars();
+            match chars.next() {
+                Some(first) => first.to_uppercase().collect::<String>() + chars.as_str(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+
+    use tempfile::TempDir;
+
+    use super::*;
+    use crate::workspace::WorkspaceMetadata;
+
+    #[test]
+    fn search_shortcut_hint_renders_platform_variants() {
+        let html = render_search_shortcut_hint().into_string();
+        assert!(
+            html.contains("data-shortcut=\"mac\""),
+            "expected a macOS shortcut variant, got: {html}"
+        );
+        assert!(
+            html.contains("data-shortcut=\"other\""),
+            "expected a non-macOS shortcut variant, got: {html}"
+        );
+        assert!(
+            html.contains('⌘'),
+            "expected the macOS `⌘` key in the hint, got: {html}"
+        );
+        assert!(
+            html.contains("Ctrl"),
+            "expected the `Ctrl` key in the hint, got: {html}"
+        );
+        assert!(
+            html.contains('K'),
+            "expected the `K` key in the hint, got: {html}"
+        );
+        // The hint must present the `⌘ K` / `Ctrl K` shortcut, not the old `/`.
+        assert!(
+            !html.contains(">/<"),
+            "expected the `/` shortcut hint to be replaced, got: {html}"
+        );
+    }
+
+    /// The minimal module-workspace fixture checked into the repository,
+    /// reused here as a realistic fixture for module-aware navigation
+    /// tests. Unlike the local `wdl-doc-showcase/` demo (which is untracked
+    /// and not guaranteed to exist in a fresh clone), this fixture is
+    /// committed under `tests/fixtures/` specifically so these tests are
+    /// self-contained.
+    fn fixture_root() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/module-workspace")
+    }
+
+    /// Builds a `TempDir` containing copies of the fixture's `module.json`
+    /// manifests, mirroring its on-disk module layout (root plus the local
+    /// `wards` and `enchantment` dependencies the root manifest declares)
+    /// without copying the WDL source files. Suitable for tests that only
+    /// need `WorkspaceMetadata`, not a fully documentable workspace.
+    fn manifest_only_workspace() -> TempDir {
+        let fixture = fixture_root();
+        let dir = tempfile::tempdir().unwrap();
+
+        for relative_manifest in [
+            "module.json",
+            "modules/wards/module.json",
+            "modules/enchantment/module.json",
+        ] {
+            let src = fixture.join(relative_manifest);
+            let dst = dir.path().join(relative_manifest);
+            // SAFETY: `relative_manifest` always has a parent component
+            // (`modules/wards` and friends, or the workspace root itself).
+            fs::create_dir_all(dst.parent().unwrap()).unwrap();
+            fs::copy(&src, &dst).unwrap();
+        }
+
+        dir
+    }
+
+    /// Builds a `TempDir` containing a full copy of the fixture workspace
+    /// (manifests and WDL sources), suitable for actually generating
+    /// documentation end-to-end.
+    fn full_module_workspace() -> TempDir {
+        let fixture = fixture_root();
+        let dir = tempfile::tempdir().unwrap();
+
+        for relative_file in [
+            "module.json",
+            "main.wdl",
+            "modules/wards/module.json",
+            "modules/wards/wards.wdl",
+            "modules/enchantment/module.json",
+            "modules/enchantment/enchantment.wdl",
+        ] {
+            let src = fixture.join(relative_file);
+            let dst = dir.path().join(relative_file);
+            // SAFETY: `relative_file` always has a parent component
+            // (`modules/wards` and friends, or the workspace root itself).
+            fs::create_dir_all(dst.parent().unwrap()).unwrap();
+            fs::copy(&src, &dst).unwrap();
+        }
+
+        dir
+    }
+
+    #[test]
+    fn module_workspace_uses_manifest_root_name_and_labels_module_directories() {
+        let workspace_dir = manifest_only_workspace();
+        let metadata = WorkspaceMetadata::load(workspace_dir.path()).unwrap();
+
+        let docs_dir = tempfile::tempdir().unwrap();
+        let mut tree = DocsTreeBuilder::new(docs_dir.path())
+            .maybe_workspace_metadata(metadata)
+            .build()
+            .unwrap();
+
+        assert_eq!(tree.root().name(), "spellcraft-showcase");
+
+        // Manually mirror the directory node that document generation would
+        // create for the `wards` module's collapsed entrypoint document (see
+        // `WorkspaceMetadata::documentation_path`): a plain "wards" directory
+        // node rooted at `modules/wards`, without needing a full analysis run.
+        let modules_node = Node::new("modules".to_string(), PathBuf::from("modules"));
+        tree.root_mut()
+            .children
+            .insert("modules".to_string(), modules_node);
+        let wards_node = Node::new("wards".to_string(), PathBuf::from("modules/wards"));
+        tree.root_mut()
+            .children
+            .get_mut("modules")
+            .expect("modules node should exist")
+            .children
+            .insert("wards".to_string(), wards_node);
+
+        let page = docs_dir.path().join("modules/wards/index.html");
+        let sidebar = tree.render_left_sidebar(&page).into_string();
+        assert!(sidebar.contains("wards"));
+        assert!(sidebar.contains("1.0.0"));
+        assert!(!sidebar.contains("Workflows"));
+    }
+
+    /// Builds a lightweight task-backed page for tree-shape tests. The page's
+    /// type is irrelevant to `add_page`'s path bookkeeping; only its presence
+    /// on a node matters here.
+    fn task_page(name: &str) -> Rc<HTMLPage> {
+        let source = format!("version 1.0\ntask {name} {{\n    command <<< >>>\n}}\n");
+        let (doc, _) = wdl_ast::Document::parse(&source, None);
+        let item = doc.ast().into_v1().unwrap().items().next().unwrap();
+        let definition = item.into_task_definition().unwrap();
+        let task = Task::new(
+            name.to_string(),
+            wdl_ast::SupportedVersion::V1(wdl_ast::version::V1::Zero),
+            definition,
+            None,
+            false,
+        );
+        Rc::new(HTMLPage::new(name.to_string(), PageType::Task(task)))
+    }
+
+    /// Regression test: a module's collapsed `index.html` must not leak into
+    /// the paths of sibling documents added to the same module directory
+    /// afterward.
+    ///
+    /// The `wards` module's entrypoint (`wards.wdl`) collapses onto the
+    /// `modules/wards` directory node, storing its page at
+    /// `modules/wards/index.html`. A second WDL file in the same module
+    /// (`modules/wards/scrying.wdl`) documents into `modules/wards/scrying/
+    /// `. If the directory node's collapsed path is reused verbatim when
+    /// creating that subdirectory, the sibling's pages end up under a bogus
+    /// `modules/wards/index.html/scrying/...`, whose `index.html` component
+    /// is a file, not a directory (`ENOTDIR` at write time).
+    #[test]
+    fn collapsed_index_does_not_leak_into_sibling_document_paths() {
+        let docs_dir = tempfile::tempdir().unwrap();
+        let mut tree = DocsTreeBuilder::new(docs_dir.path()).build().unwrap();
+
+        // Order matters: the entrypoint (which collapses onto the directory
+        // node) is added before the sibling document, matching the ordering
+        // that triggered the original failure.
+        tree.add_page(
+            docs_dir
+                .path()
+                .join("modules/wards/inspect_wards-task.html"),
+            task_page("inspect_wards"),
+        );
+        tree.add_page(
+            docs_dir.path().join("modules/wards/index.html"),
+            task_page("wards"),
+        );
+        tree.add_page(
+            docs_dir
+                .path()
+                .join("modules/wards/scrying/scry_runes-task.html"),
+            task_page("scry_runes"),
+        );
+
+        let node = tree
+            .get_node("modules/wards/scrying/scry_runes-task.html")
+            .expect("sibling document node should exist");
+        assert_eq!(
+            node.path(),
+            &PathBuf::from("modules/wards/scrying/scry_runes-task.html"),
+            "sibling document path must not contain the collapsed `index.html`"
+        );
+    }
+
+    #[test]
+    fn non_module_workspace_uses_output_dir_name_and_keeps_custom_index() {
+        let docs_dir = tempfile::tempdir().unwrap();
+        let index_source = tempfile::tempdir().unwrap();
+        let index_path = index_source.path().join("index.md");
+        fs::write(&index_path, "Custom homepage content marker").unwrap();
+
+        let tree = DocsTreeBuilder::new(docs_dir.path())
+            .maybe_workspace_metadata(None)
+            .index_page(index_path)
+            .build()
+            .unwrap();
+
+        let expected_name = docs_dir
+            .path()
+            .file_name()
+            .expect("docs dir should have a file name")
+            .to_string_lossy()
+            .to_string();
+        assert_eq!(tree.root().name(), expected_name);
+
+        tree.write_index_page().unwrap();
+        let content = fs::read_to_string(docs_dir.path().join("index.html")).unwrap();
+        assert!(!content.contains("main__homepage-header"));
+        assert!(content.contains("Custom homepage content marker"));
+        assert!(!content.contains("module-overview"));
+    }
+
+    #[tokio::test]
+    async fn module_workspace_renders_module_overview_and_navigation() {
+        let workspace_dir = full_module_workspace();
+        let docs_dir = tempfile::tempdir().unwrap();
+
+        let config = crate::Config::new(
+            wdl_analysis::Config::default()
+                .with_feature_flags(wdl_analysis::FeatureFlags::default().with_wdl_1_4()),
+            workspace_dir.path(),
+            docs_dir.path(),
+        );
+
+        crate::document_workspace(config)
+            .await
+            .expect("documentation generation should succeed");
+
+        let content = fs::read_to_string(docs_dir.path().join("index.html")).unwrap();
+        assert!(content.contains("Spellcraft Showcase"));
+        assert!(content.contains("Version 1.0.0"));
+        assert!(content.contains("Entrypoint"));
+        assert!(content.contains("main.wdl"));
+        assert!(content.contains("Dependencies"));
+        assert!(content.contains("wards"));
+        // The module overview title is a humanized display name, not a WDL
+        // identifier, so it must stay plain prose without code-literal styling.
+        assert!(
+            content.contains(
+                "module-overview__title\" data-pagefind-meta=\"title\">Spellcraft Showcase"
+            ),
+            "expected a plain module overview title, got: {content}"
+        );
+        assert!(
+            !content.contains("heading-code-literal"),
+            "module overview page must not apply code-literal heading styling"
+        );
+    }
+
+    #[test]
+    fn project_links_render_below_page_navigation() {
+        let docs_dir = tempfile::tempdir().expect("temporary docs directory");
+        let tree = DocsTreeBuilder::new(docs_dir.path())
+            .external_urls(ExternalUrls {
+                homepage: Some(Url::parse("https://sprocket.bio").expect("valid test URL")),
+                github: Some(
+                    Url::parse("https://github.com/stjude-rust-labs/sprocket")
+                        .expect("valid test URL"),
+                ),
+                slack: Some(Url::parse("https://example.slack.com").expect("valid test URL")),
+            })
+            .build()
+            .expect("documentation tree");
+
+        let sidebar = tree
+            .render_right_sidebar(PageSections::default(), Path::new("assets"))
+            .into_string();
+        let navigation_position = sidebar.find("data-page-sections").expect("page navigation");
+        let links_position = sidebar
+            .find("right-sidebar__project-links")
+            .expect("project links");
+
+        assert!(navigation_position < links_position);
+        assert!(sidebar.contains(">GitHub</span>"));
+        assert!(sidebar.contains(">Website</span>"));
+        assert!(sidebar.contains(">Slack</span>"));
+        assert!(sidebar.contains("https://github.com/stjude-rust-labs/sprocket"));
+        assert!(sidebar.contains("https://sprocket.bio/"));
+        assert!(sidebar.contains("https://example.slack.com/"));
+        let website_position = sidebar.find(">Website</span>").expect("website link");
+        let github_position = sidebar.find(">GitHub</span>").expect("GitHub link");
+        let slack_position = sidebar.find(">Slack</span>").expect("Slack link");
+        assert!(website_position < github_position);
+        assert!(github_position < slack_position);
+
+        let header = tree
+            .render_header(Path::new("assets"), Path::new("index.html"))
+            .into_string();
+        assert!(!header.contains("https://github.com/stjude-rust-labs/sprocket"));
+        assert!(!header.contains("https://sprocket.bio/"));
+    }
+
+    #[test]
+    fn right_rail_is_nested_beside_the_main_body() {
+        let docs_dir = tempfile::tempdir().expect("temporary docs directory");
+        let tree = DocsTreeBuilder::new(docs_dir.path())
+            .build()
+            .expect("documentation tree");
+        let layout = tree
+            .render_layout(
+                html! {},
+                html! { div id="main-body-marker" {} },
+                html! { aside id="right-rail-marker" {} },
+                Some(html! { span id="breadcrumb-marker" {} }),
+                Path::new("assets"),
+                Path::new("index.html"),
+            )
+            .into_string();
+
+        assert!(layout.contains("layout__main-body"));
+        assert!(layout.contains("layout__main-rail"));
+        assert!(!layout.contains("layout__sidebar-right"));
+        assert!(!layout.contains("x-transition"));
+        assert!(!layout.contains("Loading..."));
+        assert!(
+            layout.contains("class=\"layout__breadcrumbs\" x-show=\"$store.search.query === ''\"")
+        );
+        assert!(layout.contains("class=\"left-sidebar__controls\""));
+        assert!(layout.contains("x-show=\"showSidebarButtons\""));
+
+        let body_position = layout.find("main-body-marker").expect("main body marker");
+        let rail_position = layout.find("right-rail-marker").expect("right rail marker");
+        assert!(body_position < rail_position);
+    }
+
+    #[test]
+    fn project_links_omit_unconfigured_destinations() {
+        let docs_dir = tempfile::tempdir().expect("temporary docs directory");
+        let tree = DocsTreeBuilder::new(docs_dir.path())
+            .external_urls(ExternalUrls {
+                homepage: Some(Url::parse("https://sprocket.bio").expect("valid test URL")),
+                github: None,
+                slack: None,
+            })
+            .build()
+            .expect("documentation tree");
+
+        let sidebar = tree
+            .render_right_sidebar(PageSections::default(), Path::new("assets"))
+            .into_string();
+
+        assert!(sidebar.contains(">Website</span>"));
+        assert!(!sidebar.contains(">GitHub</span>"));
+        assert!(!sidebar.contains(">Slack</span>"));
+    }
+
+    #[test]
+    fn project_link_assets_use_bootstrap_icons() {
+        let assets = get_assets();
+        let slack = std::str::from_utf8(assets.get("slack.svg").expect("bundled Slack icon asset"))
+            .expect("Slack icon is valid UTF-8");
+        let github =
+            std::str::from_utf8(assets.get("github.svg").expect("bundled GitHub icon asset"))
+                .expect("GitHub icon is valid UTF-8");
+        let website = std::str::from_utf8(
+            assets
+                .get("link-chain.svg")
+                .expect("bundled website icon asset"),
+        )
+        .expect("website icon is valid UTF-8");
+
+        assert!(slack.contains("<title>Slack</title>"));
+        assert!(slack.contains("viewBox=\"0 0 16 16\""));
+        assert!(slack.contains("M3.362 10.11"));
+        assert!(github.contains("<title>GitHub</title>"));
+        assert!(github.contains("viewBox=\"0 0 16 16\""));
+        assert!(github.contains("M8 0C3.58 0"));
+        assert!(website.contains("<title>Website</title>"));
+        assert!(website.contains("viewBox=\"0 0 16 16\""));
+        assert!(website.contains("M4.715 6.542"));
+    }
 }
