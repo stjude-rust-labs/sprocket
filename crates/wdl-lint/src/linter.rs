@@ -1,5 +1,6 @@
 //! Implementation of the linter.
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 
 use indexmap::IndexMap;
@@ -10,6 +11,7 @@ use wdl_analysis::VisitReason;
 use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Comment;
+use wdl_ast::Severity;
 use wdl_ast::SupportedVersion;
 use wdl_ast::VersionStatement;
 use wdl_ast::Whitespace;
@@ -39,6 +41,11 @@ pub struct Linter {
     rules: IndexMap<&'static str, Box<dyn Rule>>,
     /// The set of rule ids that are disabled for the current document.
     document_exceptions: HashSet<String>,
+    /// Severity overrides keyed by rule id.
+    ///
+    /// Diagnostics emitted by a rule with an entry here are rewritten to the
+    /// configured severity.
+    severity_overrides: HashMap<String, Severity>,
 }
 
 impl Linter {
@@ -47,6 +54,23 @@ impl Linter {
         Self {
             rules: rules.into_iter().map(|r| (r.id(), r)).collect(),
             document_exceptions: HashSet::default(),
+            severity_overrides: HashMap::default(),
+        }
+    }
+
+    /// Creates a new linter with the given rules and severity overrides.
+    ///
+    /// Diagnostics emitted by a rule with an override are rewritten to the
+    /// configured severity. Disabling a rule is the caller's responsibility;
+    /// disabled rules should not be included in `rules`.
+    pub fn new_with_overrides(
+        rules: impl IntoIterator<Item = Box<dyn Rule>>,
+        severity_overrides: HashMap<String, Severity>,
+    ) -> Self {
+        Self {
+            rules: rules.into_iter().map(|r| (r.id(), r)).collect(),
+            document_exceptions: HashSet::default(),
+            severity_overrides,
         }
     }
 
@@ -59,7 +83,25 @@ impl Linter {
             if self.document_exceptions.contains(id.to_owned()) {
                 continue;
             }
+
+            let start = diagnostics.len();
             cb(diagnostics, rule.as_mut());
+
+            // Rewrite the severity of any diagnostics the rule just added whose
+            // rule id has a configured override. Diagnostics are matched by
+            // their own rule id rather than the emitting rule, so a rule that
+            // emits multiple severities is handled correctly.
+            if !self.severity_overrides.is_empty() {
+                for diagnostic in &mut diagnostics.as_mut_slice()[start..] {
+                    let severity = diagnostic
+                        .rule()
+                        .and_then(|id| self.severity_overrides.get(id))
+                        .copied();
+                    if let Some(severity) = severity {
+                        *diagnostic = diagnostic.clone().with_severity(severity);
+                    }
+                }
+            }
         }
     }
 }
@@ -72,6 +114,7 @@ impl Default for Linter {
                 .map(|r| (r.id(), r as Box<dyn Rule>))
                 .collect(),
             document_exceptions: HashSet::default(),
+            severity_overrides: HashMap::default(),
         }
     }
 }
@@ -157,6 +200,17 @@ impl Visitor for Linter {
     ) {
         self.each_enabled_rule(diagnostics, |diagnostics, rule| {
             rule.struct_definition(diagnostics, reason, def)
+        });
+    }
+
+    fn enum_definition(
+        &mut self,
+        diagnostics: &mut Diagnostics,
+        reason: VisitReason,
+        def: &v1::EnumDefinition,
+    ) {
+        self.each_enabled_rule(diagnostics, |diagnostics, rule| {
+            rule.enum_definition(diagnostics, reason, def)
         });
     }
 

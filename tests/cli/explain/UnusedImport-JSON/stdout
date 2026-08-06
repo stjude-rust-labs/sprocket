@@ -1,0 +1,25 @@
+{
+  "source": "wdl-analysis",
+  "id": "UnusedImport",
+  "description": "Ensures that import namespaces are used in the importing document.",
+  "explanation": "Imported WDL documents should be used in the document that imports them. Unused imports impact parsing and evaluation performance.",
+  "examples": [
+    {
+      "negative": {
+        "snippet": "version 1.2\n\nimport \"foo.wdl\"\n\nworkflow example {\n}\n"
+      },
+      "revised": {
+        "label": "Consider removing the import entirely",
+        "snippet": "version 1.2\n\nworkflow example {\n}\n"
+      }
+    }
+  ],
+  "url": null,
+  "config": [
+    {
+      "name": "severity",
+      "description": "Overrides the rule's severity. Use `off`, `note`, `warning`, or `error`; omit the field to use the built-in severity.",
+      "default": null
+    }
+  ]
+}

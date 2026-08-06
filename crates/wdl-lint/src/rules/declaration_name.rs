@@ -47,7 +47,7 @@ impl DeclarationNameRule {
     /// Create a new instance of `DeclarationNameRule`.
     pub fn new(config: &Config) -> DeclarationNameRule {
         Self {
-            allowed_names: HashSet::from_iter(config.allowed_names.iter().cloned()),
+            allowed_names: HashSet::from_iter(config.resolved(ID).allowed_names),
         }
     }
 }

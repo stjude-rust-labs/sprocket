@@ -10,6 +10,7 @@ use wdl_ast::Diagnostic;
 use wdl_ast::Span;
 use wdl_ast::TreeToken;
 
+use crate::Config;
 use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
@@ -17,21 +18,32 @@ use crate::TagSet;
 /// The identifier for the todos rule.
 const ID: &str = "TodoComment";
 
-/// The `TODO` token.
-const TODO: &str = "TODO";
-
 /// Detects remaining TODOs within comments.
-#[derive(Default, Debug, Clone, Copy)]
-pub struct TodoCommentRule;
+#[derive(Debug, Clone)]
+pub struct TodoCommentRule {
+    /// The comment keywords that trigger the rule.
+    keywords: Vec<String>,
+}
+
+impl TodoCommentRule {
+    /// Creates a new instance of the rule from the given configuration.
+    pub fn new(config: &Config) -> Self {
+        Self {
+            keywords: config.resolved(ID).keywords,
+        }
+    }
+}
 
 /// Creates a "todo comment" diagnostic.
-fn todo_comment(comment: &str, comment_span: Span, offset: usize) -> Diagnostic {
+fn todo_comment(keyword: &str, matched: &str, comment_span: Span, offset: usize) -> Diagnostic {
     let start = comment_span.start() + offset;
 
-    Diagnostic::note(format!("remaining `{TODO}` item found"))
+    Diagnostic::note(format!("remaining `{keyword}` item found"))
         .with_rule(ID)
-        .with_highlight(Span::new(start, comment.len()))
-        .with_fix("remove the `TODO` item once it has been implemented")
+        .with_highlight(Span::new(start, matched.len()))
+        .with_fix(format!(
+            "remove the `{keyword}` item once it has been implemented"
+        ))
 }
 
 impl Rule for TodoCommentRule {
@@ -85,16 +97,53 @@ workflow example {
 
 impl Visitor for TodoCommentRule {
     fn reset(&mut self) {
-        *self = Self;
+        *self = Self {
+            keywords: std::mem::take(&mut self.keywords),
+        };
     }
 
     fn comment(&mut self, diagnostics: &mut Diagnostics, comment: &Comment) {
-        for (offset, pattern) in comment.text().match_indices(TODO) {
-            diagnostics.exceptable_add(
-                todo_comment(pattern, comment.span(), offset),
-                &TreeToken::parent(comment.inner()),
-                &self.exceptable_nodes(),
-            );
+        for keyword in &self.keywords {
+            for (offset, pattern) in comment.text().match_indices(keyword.as_str()) {
+                diagnostics.exceptable_add(
+                    todo_comment(keyword, pattern, comment.span(), offset),
+                    &TreeToken::parent(comment.inner()),
+                    &self.exceptable_nodes(),
+                );
+            }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use wdl_ast::AstNode as _;
+    use wdl_ast::Document;
+
+    use super::*;
+
+    #[test]
+    fn configured_keyword_emits_diagnostic() {
+        // SAFETY: the static configuration uses a known rule and valid keyword.
+        let config = toml_spanner::from_str("[TodoComment]\nkeywords = [\"FIXME\"]\n").unwrap();
+        let mut rule = TodoCommentRule::new(&config);
+        let (document, parse_diagnostics) = Document::parse(
+            "version 1.2\n\n# FIXME: finish this\nworkflow test {}\n",
+            None,
+        );
+        assert!(parse_diagnostics.is_empty());
+        // SAFETY: the parsed source contains one comment token.
+        let comment = document
+            .inner()
+            .descendants_with_tokens()
+            .filter_map(|element| element.into_token())
+            .find_map(Comment::cast)
+            .unwrap();
+        let mut diagnostics = Diagnostics::default();
+
+        rule.comment(&mut diagnostics, &comment);
+
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics.as_mut_slice()[0].rule(), Some(ID));
     }
 }

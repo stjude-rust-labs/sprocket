@@ -9,6 +9,8 @@ use anyhow::Context;
 use anyhow::anyhow;
 use clap::Parser;
 use clap::builder::PossibleValuesParser;
+use codespan_reporting::diagnostic::Diagnostic;
+use codespan_reporting::files::SimpleFiles;
 use strum::VariantArray;
 use tracing::debug;
 use tracing::info;
@@ -18,13 +20,16 @@ use wdl::ast::Severity;
 use wdl::diagnostics::DiagnosticCounts;
 use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
+use wdl::diagnostics::get_diagnostics_display_config;
 use wdl::lint::ALL_TAG_NAMES;
 use wdl::lint::Baseline;
 use wdl::lint::BaselineEntry;
 use wdl::lint::Tag;
 use wdl::lint::TagSet;
 use wdl::lint::baseline::DEFAULT_BASELINE_FILENAME;
+use wdl::lint::find_nearest_rule;
 
+use super::explain::ACCEPTED_RULE_IDS;
 use super::explain::ALL_RULE_IDS;
 use crate::Config;
 use crate::analysis::Analysis;
@@ -56,13 +61,52 @@ pub struct Common {
     /// Repeat the flag multiple times to except multiple rules. This is
     /// additive with exceptions found in config files.
     #[clap(short, long, value_name = "RULE",
-        value_parser = PossibleValuesParser::new(ALL_RULE_IDS.iter()),
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
         ignore_case = true,
         action = clap::ArgAction::Append,
         num_args = 1,
         hide_possible_values = true,
     )]
     pub except: Vec<String>,
+
+    /// Sets a rule's severity to error.
+    ///
+    /// Repeat the flag to escalate multiple rules. Takes precedence over
+    /// severities set in config files.
+    #[clap(long, value_name = "RULE",
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
+        ignore_case = true,
+        action = clap::ArgAction::Append,
+        num_args = 1,
+        hide_possible_values = true,
+    )]
+    pub deny: Vec<String>,
+
+    /// Sets a rule's severity to warning.
+    ///
+    /// Repeat the flag to set multiple rules. Takes precedence over severities
+    /// set in config files.
+    #[clap(long, value_name = "RULE",
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
+        ignore_case = true,
+        action = clap::ArgAction::Append,
+        num_args = 1,
+        hide_possible_values = true,
+    )]
+    pub warn: Vec<String>,
+
+    /// Sets a rule's severity to note.
+    ///
+    /// Repeat the flag to set multiple rules. Takes precedence over severities
+    /// set in config files.
+    #[clap(long, value_name = "RULE",
+        value_parser = PossibleValuesParser::new(ACCEPTED_RULE_IDS.iter()),
+        ignore_case = true,
+        action = clap::ArgAction::Append,
+        num_args = 1,
+        hide_possible_values = true,
+    )]
+    pub note: Vec<String>,
 
     /// Enable all lint rules. This includes additional rules outside the
     /// default set.
@@ -166,10 +210,79 @@ pub struct LintArgs {
     pub common: Common,
 }
 
+fn reject_rule_alias(rule: &str, source: &str) -> anyhow::Result<()> {
+    if let Some(replacement) = wdl::analysis::replacement_rule_id(rule) {
+        return Err(anyhow!(
+            "deprecated rule `{rule}` used in {source}; replace it with `{replacement}`"
+        ));
+    }
+
+    Ok(())
+}
+
 /// Performs the `check` subcommand.
 pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandResult<()> {
-    let mut except = args.common.except;
-    except.extend(config.check.except.iter().cloned());
+    // Command line severity flags take precedence over the configuration file.
+    // `note`, `warn`, then `deny` are applied in order so the strongest flag
+    // wins when a rule appears under more than one.
+    for rule in &args.common.except {
+        reject_rule_alias(rule, "`--except`")?;
+    }
+    for rule in &args.common.note {
+        reject_rule_alias(rule, "`--note`")?;
+    }
+    for rule in &args.common.warn {
+        reject_rule_alias(rule, "`--warn`")?;
+    }
+    for rule in &args.common.deny {
+        reject_rule_alias(rule, "`--deny`")?;
+    }
+    for rule in &config.check.except {
+        reject_rule_alias(rule, "`check.except`")?;
+    }
+
+    let normalize = |name: &str| {
+        ALL_RULE_IDS
+            .iter()
+            .find(|id| id.eq_ignore_ascii_case(name))
+            .cloned()
+            .unwrap_or_else(|| name.to_string())
+    };
+    let cli_severities = args
+        .common
+        .note
+        .iter()
+        .map(|r| (normalize(r), wdl::lint::RuleSeverity::Note))
+        .chain(
+            args.common
+                .warn
+                .iter()
+                .map(|r| (normalize(r), wdl::lint::RuleSeverity::Warning)),
+        )
+        .chain(
+            args.common
+                .deny
+                .iter()
+                .map(|r| (normalize(r), wdl::lint::RuleSeverity::Error)),
+        )
+        .collect::<Vec<_>>();
+    let cli_flagged: HashSet<String> = cli_severities.iter().map(|(r, _)| r.clone()).collect();
+
+    let mut except: Vec<String> = args
+        .common
+        .except
+        .iter()
+        .chain(config.check.except.iter())
+        .cloned()
+        .collect();
+    except.extend(
+        config
+            .check
+            .rules
+            .disabled_rules()
+            .into_iter()
+            .filter(|id| !cli_flagged.iter().any(|f| f.eq_ignore_ascii_case(id))),
+    );
 
     let deny_notes = args.common.deny_notes || config.check.deny_notes;
     let deny_warnings = args.common.deny_warnings || config.check.deny_warnings || deny_notes;
@@ -237,6 +350,8 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
     };
     let mut matcher = baseline.as_ref().map(|b| b.matcher());
 
+    report_unknown_rules(&except, report_mode, colorize)?;
+
     let provided_source_uris = sources
         .iter()
         .flat_map(|s| s.as_url())
@@ -273,11 +388,24 @@ pub async fn check(args: CheckArgs, config: Config, colorize: bool) -> CommandRe
         TagSet::new(&[])
     };
 
+    // Overlay the CLI severity flags onto the configured per-rule severities.
+    let mut lint_config = config.check.rules.lint_config().clone();
+    let mut analysis_overrides = config.check.rules.analysis_severity_overrides();
+    let mut force_enabled = config.check.rules.enabled_rules();
+    for (rule, severity) in &cli_severities {
+        lint_config.set_severity(rule, *severity);
+        analysis_overrides.insert(rule.clone(), severity.as_severity());
+        force_enabled.push(rule.clone());
+    }
+
     let results = Analysis::default()
         .extend_sources(sources)
         .extend_exceptions(except)
         .enabled_lint_tags(enabled_tags)
         .disabled_lint_tags(disabled_tags)
+        .lint_config(lint_config)
+        .analysis_severity_overrides(analysis_overrides)
+        .force_enabled_rules(force_enabled)
         .fallback_version(config.common.wdl.fallback_version.into())
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
@@ -483,4 +611,54 @@ pub async fn lint(args: LintArgs, config: Config, colorize: bool) -> CommandResu
         colorize,
     )
     .await
+}
+
+/// Reports any unknown rules as diagnostics.
+fn report_unknown_rules(
+    excepted: &[String],
+    report_mode: Mode,
+    colorize: bool,
+) -> anyhow::Result<()> {
+    let rules = ACCEPTED_RULE_IDS.clone();
+
+    let mut unknown_rules = excepted
+        .iter()
+        .filter(|exception| {
+            !rules
+                .iter()
+                .any(|rule| rule.eq_ignore_ascii_case(exception))
+        })
+        .map(|rule| (rule, find_nearest_rule(rule)))
+        .collect::<Vec<_>>();
+
+    if !unknown_rules.is_empty() {
+        unknown_rules.sort();
+
+        let (config, writer) = get_diagnostics_display_config(report_mode, colorize);
+        let mut writer = writer.lock();
+        let files = SimpleFiles::<String, String>::new();
+
+        for (unknown_rule, nearest_rule) in unknown_rules {
+            let mut notes = Vec::new();
+
+            if let Some(nearest_rule) = nearest_rule {
+                notes.push(format!("fix: did you mean the `{nearest_rule}` rule?"));
+            }
+
+            notes.push(String::from(
+                "run `sprocket explain --help` to see available rules",
+            ));
+
+            let warning = Diagnostic::warning()
+                .with_message(format!(
+                    "ignoring unknown rule provided via --except: {unknown_rule}",
+                ))
+                .with_notes(notes);
+
+            codespan_reporting::term::emit_to_write_style(&mut writer, config, &files, &warning)
+                .expect("failed to emit unknown rule warning");
+        }
+    }
+
+    Ok(())
 }

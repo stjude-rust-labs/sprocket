@@ -58,6 +58,32 @@ pub struct Args {
     #[arg(long, value_name = "STYLE", global = true, value_parser = ["auto", "unix", "windows"])]
     pub newline_style: Option<NewlineStyle>,
 
+    /// Sort import statements alphabetically (use `--no-sort-imports` to
+    /// disable).
+    #[arg(long, global = true, overrides_with = "no_sort_imports")]
+    pub sort_imports: bool,
+
+    /// Do not sort import statements.
+    #[arg(long, global = true, overrides_with = "sort_imports", hide = true)]
+    pub no_sort_imports: bool,
+
+    /// Sort input declarations (use `--no-sort-inputs` to disable).
+    #[arg(long, global = true, overrides_with = "no_sort_inputs")]
+    pub sort_inputs: bool,
+
+    /// Do not sort input declarations.
+    #[arg(long, global = true, overrides_with = "sort_inputs", hide = true)]
+    pub no_sort_inputs: bool,
+
+    /// Add trailing commas to multiline lists (use `--no-trailing-commas` to
+    /// disable).
+    #[arg(long, global = true, overrides_with = "no_trailing_commas")]
+    pub trailing_commas: bool,
+
+    /// Do not add trailing commas to multiline lists.
+    #[arg(long, global = true, overrides_with = "trailing_commas", hide = true)]
+    pub no_trailing_commas: bool,
+
     /// Subcommand for the `format` command.
     #[command(subcommand)]
     pub command: FormatSubcommand,
@@ -147,12 +173,39 @@ pub async fn format(args: Args, config: Config, colorize: bool) -> CommandResult
 
     let newline_style = args.newline_style.unwrap_or(config.format.newline_style);
 
+    // Command line flags override the configured values; when neither the
+    // enable nor the disable flag is present, the configured value is used.
+    let resolve = |enable: bool, disable: bool, configured: bool| {
+        if enable {
+            true
+        } else if disable {
+            false
+        } else {
+            configured
+        }
+    };
+    let sort_imports = resolve(
+        args.sort_imports,
+        args.no_sort_imports,
+        config.format.sort_imports,
+    );
+    let sort_inputs = resolve(
+        args.sort_inputs,
+        args.no_sort_inputs,
+        config.format.sort_inputs,
+    );
+    let trailing_commas = resolve(
+        args.trailing_commas,
+        args.no_trailing_commas,
+        config.format.trailing_commas,
+    );
+
     let config = FormatConfig::default()
         .indent(indent)
         .max_line_length(max_line_length)
-        .sort_inputs(config.format.sort_inputs)
-        .sort_imports(config.format.sort_imports)
-        .trailing_commas(config.format.trailing_commas)
+        .sort_inputs(sort_inputs)
+        .sort_imports(sort_imports)
+        .trailing_commas(trailing_commas)
         .newline_style(newline_style);
     let formatter = Formatter::new(config);
 

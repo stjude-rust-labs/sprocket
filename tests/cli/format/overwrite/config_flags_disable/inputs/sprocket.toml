@@ -1,0 +1,4 @@
+[format]
+sort_imports = true
+sort_inputs = true
+trailing_commas = true

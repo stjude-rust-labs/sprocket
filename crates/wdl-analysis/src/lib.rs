@@ -66,6 +66,25 @@ pub use validation::*;
 pub use visitor::*;
 pub use wdl_format::Config as FormatConfig;
 
+/// Historical rule ID aliases, mapping a removed rule ID to its replacement.
+///
+/// Aliases are retained only to produce migration diagnostics that point to
+/// the current rule ID.
+pub const RULE_ALIASES: &[(&str, &str)] = &[
+    ("SnakeCase", "NamingConvention"),
+    ("PascalCase", "NamingConvention"),
+];
+
+/// Returns the replacement rule ID for a deprecated alias.
+///
+/// If `id` is not an alias this returns `None`.
+pub fn replacement_rule_id(id: &str) -> Option<&'static str> {
+    RULE_ALIASES
+        .iter()
+        .find(|(alias, _)| alias.eq_ignore_ascii_case(id))
+        .map(|(_, replacement)| *replacement)
+}
+
 /// An extension trait for syntax nodes.
 pub trait Exceptable {
     /// Gets the AST node's rule exceptions set.
@@ -84,7 +103,8 @@ pub trait Exceptable {
 
 impl Exceptable for SyntaxNode {
     fn rule_exceptions(&self) -> HashSet<ExceptRule> {
-        self.siblings_with_tokens(Direction::Prev)
+        let mut exceptions: HashSet<ExceptRule> = self
+            .siblings_with_tokens(Direction::Prev)
             .skip(1) // self is included with siblings
             .map_while(|s| {
                 if s.kind() == SyntaxKind::Whitespace || s.kind() == SyntaxKind::Comment {
@@ -98,10 +118,58 @@ impl Exceptable for SyntaxNode {
             .flat_map(|d| match d {
                 Directive::Except(e) => e,
             })
-            .collect()
+            .collect();
+
+        // Expand deprecated alias exceptions by inserting a replacement
+        // `ExceptRule` that shares the alias's span. The original alias entry is
+        // retained so that migration diagnostics can still point at it.
+        let replacements = exceptions
+            .iter()
+            .filter_map(|rule| {
+                replacement_rule_id(&rule.name).map(|replacement| ExceptRule {
+                    name: replacement.to_string(),
+                    span: rule.span,
+                })
+            })
+            .collect::<Vec<_>>();
+        exceptions.extend(replacements);
+        exceptions
     }
 
     fn is_rule_excepted(&self, id: &str) -> bool {
         self.rule_exceptions().iter().any(|e| e.name == id)
+    }
+}
+
+#[cfg(test)]
+mod alias_tests {
+    use super::*;
+
+    #[test]
+    fn returns_replacements_for_aliases() {
+        assert_eq!(replacement_rule_id("SnakeCase"), Some("NamingConvention"));
+        assert_eq!(replacement_rule_id("PascalCase"), Some("NamingConvention"));
+        assert_eq!(replacement_rule_id("snakecase"), Some("NamingConvention"));
+        assert_eq!(replacement_rule_id("ContainerUri"), None);
+    }
+
+    #[test]
+    fn except_directives_expand_aliases() {
+        use wdl_ast::AstNode as _;
+
+        let (document, diagnostics) = wdl_ast::Document::parse(
+            "version 1.2\n\n#@ except: SnakeCase\ntask BadName {\n    command <<<>>>\n}\n",
+            None,
+        );
+        assert!(diagnostics.is_empty());
+        let wdl_ast::Ast::V1(ast) = document.ast() else {
+            panic!("test document should use WDL v1");
+        };
+        let Some(task) = ast.tasks().next() else {
+            panic!("test document should contain a task");
+        };
+        let exceptions = task.inner().rule_exceptions();
+        assert!(exceptions.iter().any(|e| e.name == "SnakeCase"));
+        assert!(exceptions.iter().any(|e| e.name == "NamingConvention"));
     }
 }

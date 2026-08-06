@@ -1,5 +1,6 @@
 //! Configuration for this crate.
 
+use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use schemars::JsonSchema;
@@ -398,6 +399,26 @@ impl DiagnosticsConfig {
         }
     }
 
+    /// Applies per-rule severity overrides keyed by rule ID.
+    ///
+    /// A value of `None` disables the corresponding diagnostic. IDs that do not
+    /// name a configurable analysis rule are ignored.
+    pub fn with_overrides(mut self, overrides: &BTreeMap<String, Option<Severity>>) -> Self {
+        for (id, severity) in overrides {
+            match id.as_str() {
+                UnusedImportRule::ID => self.unused_import = *severity,
+                UnusedInputRule::ID => self.unused_input = *severity,
+                UnusedDeclarationRule::ID => self.unused_declaration = *severity,
+                UnusedCallRule::ID => self.unused_call = *severity,
+                UnnecessaryFunctionCall::ID => self.unnecessary_function_call = *severity,
+                UsingFallbackVersion::ID => self.using_fallback_version = *severity,
+                MisleadingDeclarationOrderRule::ID => self.misleading_declaration_order = *severity,
+                _ => {}
+            }
+        }
+        self
+    }
+
     /// Returns a modified set of diagnostics that accounts for any `#@ except`
     /// comments that precede the given syntax node.
     pub fn excepted_for_node(mut self, node: &SyntaxNode) -> Self {
@@ -439,7 +460,27 @@ impl DiagnosticsConfig {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::*;
+
+    #[test]
+    fn overrides_set_and_disable_diagnostics() {
+        let overrides = BTreeMap::from([
+            (UnusedImportRule::ID.to_string(), Some(Severity::Error)),
+            (UnusedCallRule::ID.to_string(), None),
+        ]);
+        let config = DiagnosticsConfig::default().with_overrides(&overrides);
+        assert_eq!(config.unused_import, Some(Severity::Error));
+        assert_eq!(config.unused_call, None);
+    }
+
+    #[test]
+    fn overrides_ignore_unknown_rule_ids() {
+        let overrides = BTreeMap::from([("NotARule".to_string(), Some(Severity::Error))]);
+        let config = DiagnosticsConfig::default().with_overrides(&overrides);
+        assert_eq!(config, DiagnosticsConfig::default());
+    }
 
     #[test]
     fn custom_format_config_round_trip() {

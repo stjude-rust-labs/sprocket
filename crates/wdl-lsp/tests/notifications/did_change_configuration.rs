@@ -114,6 +114,7 @@ async fn should_respect_lint_settings() {
     config.lock().await.lint = LintOptions {
         enabled: true,
         config: Arc::default(),
+        ..Default::default()
     };
 
     ctx.notify::<DidChangeConfiguration>(DidChangeConfigurationParams {
@@ -142,10 +143,10 @@ async fn should_respect_lint_settings() {
                 items.iter().any(|item| {
                     matches!(
                         item.code.as_ref(),
-                        Some(NumberOrString::String(code)) if code == "SnakeCase"
+                        Some(NumberOrString::String(code)) if code == "NamingConvention"
                     )
                 }),
-                "expected a `SnakeCase` diagnostic, got: {items:?}"
+                "expected a `NamingConvention` diagnostic, got: {items:?}"
             );
         }
         DocumentDiagnosticReportResult::Report(DocumentDiagnosticReport::Unchanged(_)) => {

@@ -1,8 +1,8 @@
-warning[SnakeCase]: struct member name `NotOk` is not snake_case
+warning[NamingConvention]: struct member name `NotOk` is not snake case
    ┌─ tests/lints/except/source.wdl:16:9
    │
 16 │     Int NotOk       # NOT OK
-   │         ^^^^^ this name must be snake_case
+   │         ^^^^^ this name must be snake case
    │
    = fix: replace `NotOk` with `not_ok`
 

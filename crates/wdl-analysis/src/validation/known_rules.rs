@@ -18,6 +18,7 @@ use crate::KnownRulesRule;
 use crate::VisitReason;
 use crate::Visitor;
 use crate::find_nearest_rule;
+use crate::replacement_rule_id;
 
 /// Creates an "unknown rule" diagnostic.
 fn unknown_rule(id: &str, nearest_rule: Option<String>, span: Span) -> Diagnostic {
@@ -32,6 +33,16 @@ fn unknown_rule(id: &str, nearest_rule: Option<String>, span: Span) -> Diagnosti
     }
 
     diagnostic
+}
+
+/// Creates a diagnostic for a deprecated rule alias.
+fn deprecated_rule_alias(alias: &str, replacement: &str, span: Span) -> Diagnostic {
+    Diagnostic::note(format!(
+        "deprecated rule `{alias}`; replace it with `{replacement}`"
+    ))
+    .with_rule(KnownRulesRule::ID)
+    .with_label("update this `except` directive", span)
+    .with_fix(format!("replace `{alias}` with `{replacement}`"))
 }
 
 /// Detects unknown rules within lint directives.
@@ -97,6 +108,34 @@ impl Visitor for KnownRules {
         };
 
         for rule in except {
+            // Deprecated aliases are not "unknown"; instead, emit a migration
+            // note that points at the current replacement rule ID.
+            if let Some(replacement) = replacement_rule_id(&rule.name) {
+                let diagnostic = deprecated_rule_alias(&rule.name, replacement, rule.span);
+
+                if let Some(target) = comment
+                    .inner()
+                    .siblings_with_tokens(Direction::Next)
+                    .find_map(|sibling| {
+                        if let SyntaxElement::Node(node) = sibling {
+                            Some(node)
+                        } else {
+                            None
+                        }
+                    })
+                {
+                    diagnostics.exceptable_add(
+                        diagnostic,
+                        &target,
+                        &KnownRulesRule::EXCEPTABLE_NODES,
+                    );
+                } else {
+                    diagnostics.add(diagnostic);
+                }
+
+                continue;
+            }
+
             if self.known_rules.contains(&rule.name) {
                 continue;
             }

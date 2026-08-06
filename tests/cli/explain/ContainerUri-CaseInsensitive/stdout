@@ -9,6 +9,9 @@ This rule checks the following:
 - Empty container URI arrays are not disallowed by the specification but are ambiguous and should be avoided.
 - An array of container URIs with a single element should be changed to a single string value.
 
+Configuration:
+  severity (default, off, note, warning, error) under `[check.rules.ContainerUri]`
+
 Examples:
 ```wdl
 version 1.2

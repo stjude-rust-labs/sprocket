@@ -7,12 +7,11 @@ task test_declaration_names {
         description: "This is a test of disallowed declaration names"
     }
 
-    #@ except: SnakeCase
     input {
         # BAD
-        Array[Int] arrayData
+        Array[Int] array_data
         Boolean bool_flag
-        Float floatNumber
+        Float float_number
         Int my_int
         Directory dir
         Directory reference_directory
@@ -40,13 +39,12 @@ task test_declaration_names {
 
     command <<<>>>
 
-    #@ except: SnakeCase
     output {
         # BAD
         Int result_int = 42
         # GOOD
         File file = "output.txt"
-        String resultString = "result"
+        String result_string = "result"
     }
 
     runtime {}

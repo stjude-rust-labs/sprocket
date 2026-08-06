@@ -1,48 +1,48 @@
-warning[SnakeCase]: workflow name `BadWorkflow` is not snake_case
+warning[NamingConvention]: workflow name `BadWorkflow` is not snake case
   ┌─ tests/lints/snake-case/source.wdl:6:10
   │
 6 │ workflow BadWorkflow {
-  │          ^^^^^^^^^^^ this name must be snake_case
+  │          ^^^^^^^^^^^ this name must be snake case
   │
   = fix: replace `BadWorkflow` with `bad_workflow`
 
-warning[SnakeCase]: private declaration name `badPrivateDecl` is not snake_case
+warning[NamingConvention]: private declaration name `badPrivateDecl` is not snake case
   ┌─ tests/lints/snake-case/source.wdl:9:11
   │
 9 │     Float badPrivateDecl = 3.14
-  │           ^^^^^^^^^^^^^^ this name must be snake_case
+  │           ^^^^^^^^^^^^^^ this name must be snake case
   │
   = fix: replace `badPrivateDecl` with `bad_private_decl`
 
-warning[SnakeCase]: task name `BadTask` is not snake_case
+warning[NamingConvention]: task name `BadTask` is not snake case
    ┌─ tests/lints/snake-case/source.wdl:20:6
    │
 20 │ task BadTask {
-   │      ^^^^^^^ this name must be snake_case
+   │      ^^^^^^^ this name must be snake case
    │
    = fix: replace `BadTask` with `bad_task`
 
-warning[SnakeCase]: input name `BadInput` is not snake_case
+warning[NamingConvention]: input name `BadInput` is not snake case
    ┌─ tests/lints/snake-case/source.wdl:29:16
    │
 29 │         String BadInput
-   │                ^^^^^^^^ this name must be snake_case
+   │                ^^^^^^^^ this name must be snake case
    │
    = fix: replace `BadInput` with `bad_input`
 
-warning[SnakeCase]: output name `badOut` is not snake_case
+warning[NamingConvention]: output name `badOut` is not snake case
    ┌─ tests/lints/snake-case/source.wdl:38:14
    │
 38 │         File badOut = "out.txt"
-   │              ^^^^^^ this name must be snake_case
+   │              ^^^^^^ this name must be snake case
    │
    = fix: replace `badOut` with `bad_out`
 
-warning[SnakeCase]: struct member name `bAdFiElD` is not snake_case
+warning[NamingConvention]: struct member name `bAdFiElD` is not snake case
    ┌─ tests/lints/snake-case/source.wdl:83:12
    │
 83 │     String bAdFiElD  # unfortunately, `convert-case` doesn't understand sarcasm case
-   │            ^^^^^^^^ this name must be snake_case
+   │            ^^^^^^^^ this name must be snake case
    │
    = fix: replace `bAdFiElD` with `b_ad_fi_el_d`
 

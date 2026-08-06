@@ -133,6 +133,19 @@ impl Diagnostics {
         self.diagnostics.is_empty()
     }
 
+    /// Returns the number of diagnostics in the collection.
+    pub fn len(&self) -> usize {
+        self.diagnostics.len()
+    }
+
+    /// Returns a mutable slice of the diagnostics in the collection.
+    ///
+    /// This is used by visitors (such as the linter) to post-process the
+    /// severity of diagnostics they have just added.
+    pub fn as_mut_slice(&mut self) -> &mut [Diagnostic] {
+        &mut self.diagnostics
+    }
+
     /// Sorts the diagnostics in the collection.
     pub fn sort(&mut self) {
         self.diagnostics.sort();
@@ -680,6 +693,22 @@ impl Visitor for Validator {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn len_and_slice_track_additions() {
+        use wdl_ast::Severity;
+
+        let mut diagnostics = Diagnostics::default();
+        assert_eq!(diagnostics.len(), 0);
+
+        diagnostics.add(Diagnostic::warning("a").with_rule("R"));
+        assert_eq!(diagnostics.len(), 1);
+
+        for d in diagnostics.as_mut_slice() {
+            *d = d.clone().with_severity(Severity::Error);
+        }
+        assert_eq!(diagnostics.as_mut_slice()[0].severity(), Severity::Error);
+    }
 
     #[test]
     fn test_find_nearest_rule() {
