@@ -304,7 +304,7 @@ fn make_py_method(
             replace_self_with_original_type_path(type_, original_type_path)?;
 
             if let Some(ast_generic_ident) = ast_generic_ident {
-                strip_path_generic(type_, ast_generic_ident.clone())?;
+                strip_path_generic(type_, ast_generic_ident)?;
             }
         }
     }
@@ -496,7 +496,7 @@ fn replace_self_with_original_type_path(type_: &mut Type, original_type_path: &P
 }
 
 /// Recursively removes a generic parameter from all paths in a type.
-fn strip_path_generic(type_: &mut Type, generic_ident: Ident) -> Result<()> {
+fn strip_path_generic(type_: &mut Type, generic_ident: &Ident) -> Result<()> {
     match type_ {
         Type::Path(type_path) => {
             for segments in type_path.path.segments.iter_mut() {
@@ -509,7 +509,7 @@ fn strip_path_generic(type_: &mut Type, generic_ident: Ident) -> Result<()> {
                                 path, qself: None, ..
                             }) = type_
                             && let Some(first) = path.segments.first()
-                            && first.ident == generic_ident
+                            && first.ident == *generic_ident
                         {
                             path_arguments.args.pop();
                         } else {
@@ -521,7 +521,7 @@ fn strip_path_generic(type_: &mut Type, generic_ident: Ident) -> Result<()> {
 
                     for arg in path_arguments.args.iter_mut() {
                         if let GenericArgument::Type(type_) = arg {
-                            strip_path_generic(type_, generic_ident.clone())?;
+                            strip_path_generic(type_, generic_ident)?;
                         }
                     }
 
@@ -546,14 +546,14 @@ fn strip_path_generic(type_: &mut Type, generic_ident: Ident) -> Result<()> {
         | Type::Reference(TypeReference { elem, .. }) => strip_path_generic(elem, generic_ident),
         Type::Tuple(type_tuple) => {
             for elem in type_tuple.elems.iter_mut() {
-                strip_path_generic(elem, generic_ident.clone())?;
+                strip_path_generic(elem, generic_ident)?;
             }
 
             Ok(())
         }
         Type::FnPtr(type_fn_ptr) => {
             for elem in type_fn_ptr.inputs.iter_mut() {
-                strip_path_generic(&mut elem.ty, generic_ident.clone())?;
+                strip_path_generic(&mut elem.ty, generic_ident)?;
             }
 
             if let ReturnType::Type(_, ref mut elem) = type_fn_ptr.output {
@@ -1408,7 +1408,7 @@ mod tests {
 
         for (input, expected) in test_cases {
             let mut output = input.clone();
-            super::strip_path_generic(&mut output, generic_ident.clone()).unwrap();
+            super::strip_path_generic(&mut output, &generic_ident).unwrap();
             pretty_assertions::assert_eq!(
                 output,
                 expected,
