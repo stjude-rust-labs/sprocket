@@ -4,6 +4,7 @@ use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
 use syn::AngleBracketedGenericArguments;
+use syn::Attribute;
 use syn::Error;
 use syn::Expr;
 use syn::ExprArray;
@@ -16,6 +17,8 @@ use syn::Ident;
 use syn::ImplItem;
 use syn::ImplItemFn;
 use syn::ItemImpl;
+use syn::LitStr;
+use syn::Meta;
 use syn::Pat;
 use syn::PatIdent;
 use syn::Path;
@@ -39,6 +42,8 @@ use syn::TypeSlice;
 use syn::TypeTraitObject;
 use syn::Visibility;
 use syn::parse::Nothing;
+use syn::parse::ParseStream;
+use syn::parse::Parser;
 use syn::parse_quote;
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
@@ -51,7 +56,7 @@ pub(crate) fn ast_methods(
     impl_stream: TokenStream,
 ) -> Result<TokenStream> {
     syn::parse2::<Nothing>(args_stream)?;
-    let original = syn::parse2::<ItemImpl>(impl_stream)?;
+    let mut original = syn::parse2::<ItemImpl>(impl_stream)?;
 
     let mut py_impl = original.clone();
 
@@ -70,7 +75,7 @@ pub(crate) fn ast_methods(
     // Create the Python methods from the original methods.
     py_impl.items = original
         .items
-        .iter()
+        .iter_mut()
         .filter_map(filter_py_method)
         .map(|original_fn| {
             make_py_method(original_fn, &ast_generic_ident, &original_type_path).map(ImplItem::Fn)
@@ -188,14 +193,81 @@ fn make_py_self_ty(self_ty: &mut Type) -> Result<Path> {
 /// - Be a function.
 /// - Be public.
 /// - Not be annotated with `#[skip]`.
-fn filter_py_method(original: &ImplItem) -> Option<&ImplItemFn> {
+fn filter_py_method(original: &mut ImplItem) -> Option<&ImplItemFn> {
     if let ImplItem::Fn(original_fn) = original
         && let Visibility::Public(..) = original_fn.vis
+        && !remove_skip_attributes(&mut original_fn.attrs)
     {
-        // TODO: Check for `#[skip]`.
         Some(original_fn)
     } else {
         None
+    }
+}
+
+/// Removes all `#[skip]` or `#[cfg_attr(feature = "unstable-python", skip)]`
+/// attributes from a list, returns true if any were found.
+fn remove_skip_attributes(attrs: &mut Vec<Attribute>) -> bool {
+    /// Succeeds if `stream` parses as exactly `feature = "unstable-python",
+    /// skip`, fails otherwise.
+    ///
+    /// This is used to determine if the inner token stream of
+    /// `#[cfg_attr(...)]` contains `skip`.
+    fn parse_cfg_attr_tokens(stream: ParseStream<'_>) -> Result<()> {
+        let feature = stream.parse::<Ident>()?;
+
+        if feature != "feature" {
+            return Err(stream.error(""));
+        }
+
+        stream.parse::<Token![=]>()?;
+
+        let unstable_python = stream.parse::<LitStr>()?;
+
+        if unstable_python.value() != "unstable-python" {
+            return Err(stream.error(""));
+        }
+
+        stream.parse::<Token![,]>()?;
+
+        let skip = stream.parse::<Ident>()?;
+
+        if skip != "skip" {
+            return Err(stream.error(""));
+        }
+
+        Ok(())
+    }
+
+    // Iterator that removes `#[skip]` and `#[cfg_attr(feature = "unstable-python",
+    // skip)]` from the list of attributes. This iterator must be fully consumed
+    // or not all `#[skip]` attributes will be removed.
+    let mut skip_attrs = attrs.extract_if(.., |attr| {
+        // Check for `#[skip]`.
+        if let Meta::Path(ref path) = attr.meta
+            && path.is_ident("skip")
+        {
+            return true;
+        }
+
+        // Check for `#[cfg_attr(feature = "unstable-python", skip)]`.
+        if let Meta::List(ref meta_list) = attr.meta
+            && meta_list.path.is_ident("cfg_attr")
+            && parse_cfg_attr_tokens
+                .parse2(meta_list.tokens.clone())
+                .is_ok()
+        {
+            return true;
+        }
+
+        false
+    });
+
+    if skip_attrs.next().is_some() {
+        // Remove remaining `#[skip]` attributes from list.
+        skip_attrs.for_each(|_| {});
+        true
+    } else {
+        false
     }
 }
 
@@ -306,10 +378,11 @@ fn is_impl_iterator(type_: &Type) -> Result<bool> {
 
 /// Replaces all instances of `Self` with `original_ident` in a type.
 fn replace_self_with_original_type_path(type_: &mut Type, original_type_path: &Path) -> Result<()> {
-    // Replaces `Self` with `original_type_path` for all path segments and generic parameters.
+    // Replaces `Self` with `original_type_path` for all path segments and generic
+    // parameters.
     fn process_path(path: &mut Path, original_type_path: &Path) -> Result<()> {
-        // `Self` must be the first segment, so we don't need to check any later segments.
-        // <https://doc.rust-lang.org/reference/paths.html#r-paths.qualifiers.type-self.allowed-positions>
+        // `Self` must be the first segment, so we don't need to check any later
+        // segments. <https://doc.rust-lang.org/reference/paths.html#r-paths.qualifiers.type-self.allowed-positions>
         if let Some(first) = path.segments.first()
             && first.ident == "Self"
         {
@@ -924,14 +997,14 @@ mod tests {
 
     #[test]
     fn filter_pub_method() {
-        let original: ImplItem = parse_quote! { pub fn foo(&self) {} };
-        assert!(filter_py_method(&original).is_some());
+        let mut original: ImplItem = parse_quote! { pub fn foo(&self) {} };
+        assert!(filter_py_method(&mut original).is_some());
     }
 
     #[test]
     fn filter_priv_method() {
-        let original: ImplItem = parse_quote! { fn foo(&self) {} };
-        let result = filter_py_method(&original);
+        let mut original: ImplItem = parse_quote! { fn foo(&self) {} };
+        let result = filter_py_method(&mut original);
         assert!(
             result.is_none(),
             "did not filter out private method: {result:?}"
@@ -940,9 +1013,106 @@ mod tests {
 
     #[test]
     fn filter_pub_const() {
-        let original: ImplItem = parse_quote! { pub const FOO: &str = "hello"; };
-        let result = filter_py_method(&original);
+        let mut original: ImplItem = parse_quote! { pub const FOO: &str = "hello"; };
+        let result = filter_py_method(&mut original);
         assert!(result.is_none(), "did not filter out const: {result:?}");
+    }
+
+    #[test]
+    fn filter_skip_attr() {
+        let mut original: ImplItem = parse_quote! { #[skip] pub fn foo(&self) {} };
+        let result = filter_py_method(&mut original);
+
+        assert!(result.is_none(), "did not filter out `#[skip]`: {result:?}");
+
+        let ImplItem::Fn(ImplItemFn { attrs, .. }) = original else {
+            unreachable!()
+        };
+
+        assert!(
+            attrs.is_empty(),
+            "did not remove `#[skip]` attribute: {attrs:?}"
+        );
+    }
+
+    #[test]
+    fn filter_skip_multiple_attr() {
+        let mut original: ImplItem = parse_quote! { #[track_caller] #[skip] pub fn foo(&self) {} };
+        let result = filter_py_method(&mut original);
+
+        assert!(result.is_none(), "did not filter out `#[skip]`: {result:?}");
+
+        let ImplItem::Fn(ImplItemFn { attrs, .. }) = original else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            attrs.len(),
+            1,
+            "did not remove `#[skip]` attribute: {attrs:?}"
+        );
+        assert_eq!(
+            attrs[0],
+            parse_quote!(#[track_caller]),
+            "did not retain `#[track_caller]` attribute: {attrs:?}"
+        );
+    }
+
+    #[test]
+    fn filter_skip_cfg_attr() {
+        let mut original: ImplItem =
+            parse_quote! { #[cfg_attr(feature = "unstable-python", skip)] pub fn foo(&self) {} };
+        let result = filter_py_method(&mut original);
+
+        assert!(
+            result.is_none(),
+            "did not filter out `#[cfg_attr(feature = \"unstable-python\", skip)]`: {result:?}"
+        );
+
+        let ImplItem::Fn(ImplItemFn { attrs, .. }) = original else {
+            unreachable!()
+        };
+
+        assert!(
+            attrs.is_empty(),
+            "did not remove `#[cfg_attr(feature = \"unstable-python\", skip)]` attribute: \
+             {attrs:?}"
+        );
+    }
+
+    #[test]
+    fn filter_skip_cfg_attr_incorrect_feature() {
+        let mut original: ImplItem =
+            parse_quote! { #[cfg_attr(feature = "other-feature", skip)] pub fn foo(&self) {} };
+
+        assert!(filter_py_method(&mut original).is_some());
+
+        let ImplItem::Fn(ImplItemFn { attrs, .. }) = original else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            attrs.len(),
+            1,
+            "incorrectly removed `#[cfg_attr(...)]` with feature other than \"unstable-python\""
+        );
+    }
+
+    #[test]
+    fn filter_skip_cfg_attr_no_skip() {
+        let mut original: ImplItem = parse_quote! { #[cfg_attr(feature = "unstable-python", other_cool_attribute)] pub fn foo(&self) {} };
+
+        assert!(filter_py_method(&mut original).is_some());
+
+        let ImplItem::Fn(ImplItemFn { attrs, .. }) = original else {
+            unreachable!()
+        };
+
+        assert_eq!(
+            attrs.len(),
+            1,
+            "incorrectly removed `#[cfg_attr(...)]` that did not contain `skip`"
+        );
     }
 
     #[test]
@@ -1077,10 +1247,19 @@ mod tests {
             // This is an invalid path because `Self` must be first, so it is skipped.
             (parse_quote!(foo::Self), parse_quote!(foo::Self)),
             (parse_quote!(Vec<Self>), parse_quote!(Vec<Ast>)),
-            (parse_quote!(std::vec::Vec<Self>), parse_quote!(std::vec::Vec<Ast>)),
+            (
+                parse_quote!(std::vec::Vec<Self>),
+                parse_quote!(std::vec::Vec<Ast>),
+            ),
             (parse_quote!(Foo<A = Self>), parse_quote!(Foo<A = Ast>)),
-            (parse_quote!(impl Iterator<Item = Self>), parse_quote!(impl Iterator<Item = Ast>)),
-            (parse_quote!(dyn Iterator<Item = Self>), parse_quote!(dyn Iterator<Item = Ast>)),
+            (
+                parse_quote!(impl Iterator<Item = Self>),
+                parse_quote!(impl Iterator<Item = Ast>),
+            ),
+            (
+                parse_quote!(dyn Iterator<Item = Self>),
+                parse_quote!(dyn Iterator<Item = Ast>),
+            ),
             (
                 Type::Group(TypeGroup {
                     attrs: Vec::new(),
@@ -1100,8 +1279,14 @@ mod tests {
             (parse_quote!([Self]), parse_quote!([Ast])),
             (parse_quote!(&Self), parse_quote!(&Ast)),
             (parse_quote!(&mut Self), parse_quote!(&mut Ast)),
-            (parse_quote!((Self, Self, (String, Self))), parse_quote!((Ast, Ast, (String, Ast)))),
-            (parse_quote!(fn(Self, u8, Self) -> Self), parse_quote!(fn(Ast, u8, Ast) -> Ast)),
+            (
+                parse_quote!((Self, Self, (String, Self))),
+                parse_quote!((Ast, Ast, (String, Ast))),
+            ),
+            (
+                parse_quote!(fn(Self, u8, Self) -> Self),
+                parse_quote!(fn(Ast, u8, Ast) -> Ast),
+            ),
         ];
 
         for (input, expected) in test_cases {
@@ -1119,7 +1304,8 @@ mod tests {
 
     #[test]
     fn replace_self_long_original_type() {
-        // Testing when the original type path has more than one segment and generic parameters.
+        // Testing when the original type path has more than one segment and generic
+        // parameters.
         let original_type_path = parse_quote!(foo::Bar<String>);
         let mut type_ = parse_quote!(Self::baz);
 
