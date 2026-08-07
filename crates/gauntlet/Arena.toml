@@ -2223,7 +2223,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
-message = "testrun.wdl:34:3: note[RequirementsSection]: task `create_cram_directory` contains a deprecated `runtime` section"
+message = "testrun.wdl:34:3: note[DeprecatedRuntimeSection]: task `create_cram_directory` contains a deprecated `runtime` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L34"
 
 [[diagnostics]]
@@ -2258,6 +2258,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
+message = "testrun.wdl:6:6: warning[RequirementsSection]: task `create_cram_directory` is missing a `requirements` section"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L6"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/testrun.wdl"
 message = "testrun.wdl:72:5: note[CallInputKeyword]: the `input:` keyword is unnecessary for WDL version 1.2 and later"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/testrun.wdl/#L72"
 
@@ -2288,8 +2293,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:155:3: note[RequirementsSection]: task `glimpse2_split_reference` contains a deprecated `runtime` section"
+message = "ww-glimpse2.wdl:155:3: note[DeprecatedRuntimeSection]: task `glimpse2_split_reference` contains a deprecated `runtime` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L155"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
+message = "ww-glimpse2.wdl:162:6: warning[RequirementsSection]: task `glimpse2_phase` is missing a `requirements` section"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L162"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
@@ -2308,8 +2318,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:237:3: note[RequirementsSection]: task `glimpse2_phase` contains a deprecated `runtime` section"
+message = "ww-glimpse2.wdl:237:3: note[DeprecatedRuntimeSection]: task `glimpse2_phase` contains a deprecated `runtime` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L237"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
+message = "ww-glimpse2.wdl:244:6: warning[RequirementsSection]: task `glimpse2_phase_cram` is missing a `requirements` section"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L244"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
@@ -2348,8 +2363,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:361:3: note[RequirementsSection]: task `glimpse2_phase_cram` contains a deprecated `runtime` section"
+message = "ww-glimpse2.wdl:361:3: note[DeprecatedRuntimeSection]: task `glimpse2_phase_cram` contains a deprecated `runtime` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L361"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
+message = "ww-glimpse2.wdl:368:6: warning[RequirementsSection]: task `glimpse2_ligate` is missing a `requirements` section"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L368"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
@@ -2398,8 +2418,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:447:3: note[RequirementsSection]: task `glimpse2_ligate` contains a deprecated `runtime` section"
+message = "ww-glimpse2.wdl:447:3: note[DeprecatedRuntimeSection]: task `glimpse2_ligate` contains a deprecated `runtime` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L447"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
+message = "ww-glimpse2.wdl:454:6: warning[RequirementsSection]: task `glimpse2_concordance` is missing a `requirements` section"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L454"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
@@ -2418,8 +2443,13 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:528:3: note[RequirementsSection]: task `glimpse2_concordance` contains a deprecated `runtime` section"
+message = "ww-glimpse2.wdl:528:3: note[DeprecatedRuntimeSection]: task `glimpse2_concordance` contains a deprecated `runtime` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L528"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
+message = "ww-glimpse2.wdl:535:6: warning[RequirementsSection]: task `parse_chunks_file` is missing a `requirements` section"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L535"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
@@ -2438,13 +2468,23 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:584:3: note[RequirementsSection]: task `parse_chunks_file` contains a deprecated `runtime` section"
+message = "ww-glimpse2.wdl:584:3: note[DeprecatedRuntimeSection]: task `parse_chunks_file` contains a deprecated `runtime` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L584"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
-message = "ww-glimpse2.wdl:79:3: note[RequirementsSection]: task `glimpse2_chunk` contains a deprecated `runtime` section"
+message = "ww-glimpse2.wdl:79:3: note[DeprecatedRuntimeSection]: task `glimpse2_chunk` contains a deprecated `runtime` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L79"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
+message = "ww-glimpse2.wdl:86:6: warning[RequirementsSection]: task `glimpse2_split_reference` is missing a `requirements` section"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L86"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/modules/ww-glimpse2/ww-glimpse2.wdl"
+message = "ww-glimpse2.wdl:8:6: warning[RequirementsSection]: task `glimpse2_chunk` is missing a `requirements` section"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/modules/ww-glimpse2/ww-glimpse2.wdl/#L8"
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/modules/ww-ichorcna/testrun.wdl"
@@ -4023,7 +4063,7 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
-message = "testrun.wdl:34:3: note[RequirementsSection]: task `create_cram_directory` contains a deprecated `runtime` section"
+message = "testrun.wdl:34:3: note[DeprecatedRuntimeSection]: task `create_cram_directory` contains a deprecated `runtime` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L34"
 
 [[diagnostics]]
@@ -4054,6 +4094,11 @@ permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b
 [[diagnostics]]
 document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
 message = "testrun.wdl:6:6: note[MetaSections]: task `create_cram_directory` is missing a `parameter_meta` section"
+permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L6"
+
+[[diagnostics]]
+document = "getwilds/wilds-wdl-library:/pipelines/ww-imputation/testrun.wdl"
+message = "testrun.wdl:6:6: warning[RequirementsSection]: task `create_cram_directory` is missing a `requirements` section"
 permalink = "https://github.com/getwilds/wilds-wdl-library/blob/659d5802cc65695b211ae9b72d9095524b33734b/pipelines/ww-imputation/testrun.wdl/#L6"
 
 [[diagnostics]]

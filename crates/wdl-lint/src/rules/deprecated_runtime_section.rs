@@ -1,4 +1,4 @@
-//! A lint rule for missing `requirements` sections.
+//! A lint rule for deprecated `runtime` sections.
 
 use wdl_analysis::Diagnostics;
 use wdl_analysis::Document;
@@ -19,32 +19,35 @@ use crate::Rule;
 use crate::Tag;
 use crate::TagSet;
 
-/// The identifier for the missing requirements rule.
-const ID: &str = "RequirementsSection";
+/// The identifier for the deprecated runtime section rule.
+const ID: &str = "DeprecatedRuntimeSection";
 
-/// Creates a "missing requirements section" diagnostic.
-fn missing_requirements_section(task: &str, span: Span) -> Diagnostic {
-    Diagnostic::warning(format!("task `{task}` is missing a `requirements` section"))
-        .with_rule(ID)
-        .with_label("this task is missing a `requirements` section", span)
-        .with_fix("add a `requirements` section")
+/// Creates a "deprecated runtime section" diagnostic.
+fn deprecated_runtime_section(task: &str, span: Span) -> Diagnostic {
+    Diagnostic::note(format!(
+        "task `{task}` contains a deprecated `runtime` section"
+    ))
+    .with_rule(ID)
+    .with_highlight(span)
+    .with_fix("replace the `runtime` section with a `requirements` section")
 }
 
-/// Detects missing `requirements` section for tasks.
+/// Detects deprecated `runtime` sections.
 #[derive(Default, Debug, Clone, Copy)]
-pub struct RequirementsSectionRule(Option<SupportedVersion>);
+pub struct DeprecatedRuntimeSectionRule(Option<SupportedVersion>);
 
-impl Rule for RequirementsSectionRule {
+impl Rule for DeprecatedRuntimeSectionRule {
     fn id(&self) -> &'static str {
         ID
     }
 
     fn description(&self) -> &'static str {
-        "Ensures that tasks have a `requirements` section (for WDL v1.2 and beyond)."
+        "Detects deprecated `runtime` sections."
     }
 
     fn explanation(&self) -> &'static str {
-        "Tasks that don't declare `requirements` sections are unlikely to be portable."
+        "The `runtime` section is deprecated in WDL v1.2 and later. Replace it with a \
+         `requirements` section."
     }
 
     fn examples(&self) -> &'static [Example] {
@@ -61,6 +64,10 @@ task say_hello {
     command <<<
         echo "Hello, ~{name}!"
     >>>
+
+    runtime {
+        container: "ubuntu:latest"
+    }
 }
 "#,
             },
@@ -87,7 +94,7 @@ task say_hello {
     }
 
     fn tags(&self) -> TagSet {
-        TagSet::new(&[Tag::Completeness, Tag::Portability])
+        TagSet::new(&[Tag::Deprecated])
     }
 
     fn exceptable_nodes(&self) -> Option<&'static [SyntaxKind]> {
@@ -98,18 +105,11 @@ task say_hello {
     }
 
     fn related_rules(&self) -> &'static [&'static str] {
-        &[
-            "ExpectedRuntimeKeys",
-            "MetaDescription",
-            "ParameterMetaMatched",
-            "MetaSections",
-            "OutputSection",
-            "MatchingOutputMeta",
-        ]
+        &["RequirementsSection"]
     }
 }
 
-impl Visitor for RequirementsSectionRule {
+impl Visitor for DeprecatedRuntimeSectionRule {
     fn reset(&mut self) {
         *self = Self::default();
     }
@@ -138,16 +138,25 @@ impl Visitor for RequirementsSectionRule {
             return;
         }
 
-        // This rule should only be present for WDL v1.2 or later. Prior to that
-        // version, the `runtime` section was recommended.
+        // This rule should only be present for WDL v1.2 or later, where the
+        // `runtime` section has been deprecated in favor of `requirements`.
         if let SupportedVersion::V1(minor_version) = self.0.expect("version should exist here")
             && minor_version >= V1::Two
-            && task.requirements().is_none()
+            && let Some(runtime) = task.runtime()
         {
             let name = task.name();
+
             diagnostics.exceptable_add(
-                missing_requirements_section(name.text(), name.span()),
-                task.inner(),
+                deprecated_runtime_section(
+                    name.text(),
+                    runtime
+                        .inner()
+                        .first_token()
+                        .expect("runtime section should have tokens")
+                        .text_range()
+                        .into(),
+                ),
+                runtime.inner(),
                 &self.exceptable_nodes(),
             );
         }
