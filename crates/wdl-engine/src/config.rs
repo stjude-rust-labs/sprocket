@@ -1790,17 +1790,17 @@ pub struct ApptainerConfig {
     /// that is not shared.
     pub image_cache_dir: Option<PathBuf>,
 
-    /// Additional command-line arguments to pass to `apptainer exec` when
-    /// executing tasks.
-    #[toml(default)]
-    #[schemars(default)]
-    pub extra_args: Vec<String>,
-
     /// Maximum number of Apptainer images that may be pulled concurrently.
     ///
     /// When unset, pulls for different images are unlimited. Pulls for the same
     /// image are always serialized.
     pub max_concurrent_pulls: Option<u64>,
+
+    /// Additional command-line arguments to pass to `apptainer exec` when
+    /// executing tasks.
+    #[toml(default)]
+    #[schemars(default)]
+    pub extra_args: Vec<String>,
 }
 
 impl Default for ApptainerConfig {
@@ -1808,8 +1808,8 @@ impl Default for ApptainerConfig {
         Self {
             executable: default_apptainer_executable().into(),
             image_cache_dir: None,
-            extra_args: Default::default(),
             max_concurrent_pulls: None,
+            extra_args: Default::default(),
         }
     }
 }

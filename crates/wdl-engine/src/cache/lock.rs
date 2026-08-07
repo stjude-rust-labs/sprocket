@@ -132,7 +132,7 @@ impl LockedFile {
     ///
     /// Returns `Ok(None)` if the lock is held by another process or thread.
     /// The file is created if it does not exist.
-    #[allow(dead_code)]
+    #[expect(dead_code)]
     pub fn try_acquire_exclusive(path: impl AsRef<Path>) -> Result<Option<Self>> {
         let path = path.as_ref();
         let mut options = fs::OpenOptions::new();
