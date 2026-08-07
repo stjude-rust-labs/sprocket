@@ -1230,7 +1230,10 @@ mod tests {
             .expect("workflow inputs should serialize to a JSON object");
 
         assert_eq!(object.len(), 2, "should have exactly 2 top-level entries");
-        assert_eq!(object.get("name").and_then(|v| v.as_str()), Some("sprocket"));
+        assert_eq!(
+            object.get("name").and_then(|v| v.as_str()),
+            Some("sprocket")
+        );
         assert_eq!(object.get("count").and_then(|v| v.as_i64()), Some(42));
     }
 
