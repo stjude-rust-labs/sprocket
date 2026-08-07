@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.17.2 - 2026-08-07
+
 #### Fixed
 
 * `WorkflowInputs` serialization no longer drops call-nested inputs.
