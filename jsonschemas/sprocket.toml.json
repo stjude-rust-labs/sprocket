@@ -997,6 +997,15 @@
             "null"
           ]
         },
+        "max_concurrent_pulls": {
+          "description": "Maximum number of Apptainer images that may be pulled concurrently.\n\nWhen unset, pulls for different images are unlimited. Pulls for the same\nimage are always serialized.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 0
+        },
         "extra_args": {
           "description": "Additional command-line arguments to pass to `apptainer exec` when\nexecuting tasks.",
           "type": "array",

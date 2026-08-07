@@ -84,7 +84,8 @@ impl LockedFile {
         }
     }
 
-    /// Acquires an exclusive file lock for the given path, waiting if necessary.
+    /// Acquires an exclusive file lock for the given path, waiting if
+    /// necessary.
     ///
     /// The file is created if it does not exist. Existing content is preserved.
     pub async fn acquire_exclusive(path: impl AsRef<Path>) -> Result<Self> {
@@ -128,11 +129,12 @@ impl LockedFile {
         }
     }
 
-    /// Attempts to acquire an exclusive file lock for the given path without blocking.
+    /// Attempts to acquire an exclusive file lock for the given path without
+    /// blocking.
     ///
     /// Returns `Ok(None)` if the lock is held by another process or thread.
     /// The file is created if it does not exist.
-    #[expect(dead_code)]
+    #[cfg_attr(not(test), expect(dead_code))]
     pub fn try_acquire_exclusive(path: impl AsRef<Path>) -> Result<Option<Self>> {
         let path = path.as_ref();
         let mut options = fs::OpenOptions::new();
