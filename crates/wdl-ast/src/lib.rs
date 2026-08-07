@@ -35,6 +35,11 @@ use std::fmt;
 use std::hash::Hash;
 use std::str::FromStr;
 
+pub use element::*;
+#[cfg(feature = "unstable-python")]
+pub use python::PyAstNode;
+#[cfg(feature = "unstable-python")]
+pub use python::PyAstToken;
 pub use rowan::Direction;
 use rowan::NodeOrToken;
 use v1::CloseBrace;
@@ -56,11 +61,10 @@ pub use wdl_grammar::WorkflowDescriptionLanguage;
 pub use wdl_grammar::lexer;
 pub use wdl_grammar::version;
 
-pub mod v1;
-
 mod element;
-
-pub use element::*;
+#[cfg(feature = "unstable-python")]
+pub(crate) mod python;
+pub mod v1;
 
 /// An [`AstNode`] that may have documentation comments attached to it.
 pub trait Documented<N: TreeNode>: AstNode<N> {
@@ -425,6 +429,10 @@ impl TreeToken for SyntaxToken {
 ///
 /// See [Document::ast].
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+)]
 pub enum Ast<N: TreeNode = SyntaxNode> {
     /// The WDL document specifies an unsupported version.
     Unsupported,
@@ -466,6 +474,10 @@ impl<N: TreeNode> Ast<N> {
 /// See [Document::ast] for getting a version-specific Abstract
 /// Syntax Tree.
 #[derive(Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+)]
 pub struct Document<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> AstNode<N> for Document<N> {
@@ -566,6 +578,7 @@ impl Document {
     }
 }
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> Document<N> {
     /// Gets the version statement of the document.
     ///
@@ -621,6 +634,7 @@ impl<N: TreeNode> Document<N> {
 
     /// Morphs a document of one node type to a document of a different node
     /// type.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn morph<U: TreeNode + NewRoot<N>>(self) -> Document<U> {
         Document(U::new_root(self.0))
     }
@@ -634,6 +648,10 @@ impl fmt::Debug for Document {
 
 /// Represents a whitespace token in the AST.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+)]
 pub struct Whitespace<T: TreeToken = SyntaxToken>(T);
 
 impl<T: TreeToken> AstToken<T> for Whitespace<T> {
@@ -660,6 +678,10 @@ pub const DIRECTIVE_DELIMITER: &str = ":";
 
 /// A single rule in an `#@ except:` comment.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(module = "sprocket_bio.ast", frozen, from_py_object, get_all, eq, hash)
+)]
 pub struct ExceptRule {
     /// The name of the rule to except.
     pub name: String,
@@ -698,6 +720,10 @@ impl ExceptRule {
 
 /// A comment directive for WDL tools to respect.
 #[derive(Debug, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(module = "sprocket_bio.ast", frozen, eq,)
+)]
 pub enum Directive {
     /// Ignore any rules contained in the set.
     Except(HashSet<ExceptRule>),
@@ -722,6 +748,10 @@ impl Directive {
 
 /// The type of a [`Comment`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+)]
 pub enum CommentKind {
     /// The comment is a normal line comment
     Line,
@@ -734,6 +764,11 @@ pub enum CommentKind {
 
 /// The type of a [`Directive`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+// TODO: rename_all = "SCREAMING_SNAKE_CASE"
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+)]
 pub enum DirectiveKind {
     /// The comment is an `except` directive.
     Except,
@@ -755,6 +790,10 @@ pub const DOC_COMMENT_PREFIX: &str = "##";
 
 /// Represents a comment token in the AST.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+)]
 pub struct Comment<T: TreeToken = SyntaxToken>(T);
 
 impl<T: TreeToken> AstToken<T> for Comment<T> {
@@ -786,6 +825,7 @@ fn split_directive(comment: &str) -> Option<(DirectiveKind, &str)> {
     ))
 }
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl Comment {
     /// Try to parse the comment as a directive.
     pub fn directive(&self) -> Option<Directive> {
@@ -849,8 +889,13 @@ impl Comment {
 
 /// Represents a version statement in a WDL AST.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+)]
 pub struct VersionStatement<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> VersionStatement<N> {
     /// Gets the version of the version statement.
     pub fn version(&self) -> Version<N::Token> {
@@ -884,6 +929,10 @@ impl<N: TreeNode> AstNode<N> for VersionStatement<N> {
 
 /// Represents a version in the AST.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+)]
 pub struct Version<T: TreeToken = SyntaxToken>(T);
 
 impl<T: TreeToken> AstToken<T> for Version<T> {
@@ -905,8 +954,13 @@ impl<T: TreeToken> AstToken<T> for Version<T> {
 
 /// Represents an identifier token.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+)]
 pub struct Ident<T: TreeToken = SyntaxToken>(T);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<T: TreeToken> Ident<T> {
     /// Gets a hashable representation of the identifier.
     pub fn hashable(&self) -> TokenText<T> {
@@ -940,6 +994,10 @@ impl<T: TreeToken> AstToken<T> for Ident<T> {
 /// With this hash implementation, two tokens compare and hash identically if
 /// their text is identical.
 #[derive(Debug, Clone)]
+#[cfg_attr(
+    feature = "unstable-python",
+    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+)]
 pub struct TokenText<T: TreeToken = SyntaxToken>(T);
 
 impl TokenText {

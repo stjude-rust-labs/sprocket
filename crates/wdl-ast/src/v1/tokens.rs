@@ -10,6 +10,7 @@ macro_rules! define_token_struct {
     ($name:ident, $doc:literal) => {
         #[derive(Clone, Debug)]
         #[doc = concat!("A token representing ", $doc, ".")]
+        #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
         pub struct $name<T: TreeToken = SyntaxToken>(T);
 
         impl<T: TreeToken> AstToken<T> for $name<T> {
