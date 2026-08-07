@@ -84,25 +84,21 @@ impl LockedFile {
         }
     }
 
-    /// Acquires an exclusive file lock for the given path.
+    /// Acquires an exclusive file lock for the given path, waiting if necessary.
     ///
-    /// If the file does not exist, it is created.
-    ///
-    /// If the file exists, it is truncated once the lock is acquired.
-    pub async fn acquire_exclusive_truncated(path: impl AsRef<Path>) -> Result<Self> {
+    /// The file is created if it does not exist. Existing content is preserved.
+    pub async fn acquire_exclusive(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
-        // Create or open the file, but do not truncate it if it exists before the lock
-        // is acquired
         let mut options = fs::OpenOptions::new();
-        options.create(true).write(true);
+        options.create(true).read(true).write(true);
         let file = options.open(path).with_context(|| {
             format!(
-                "failed to create call cache entry file `{path}`",
+                "failed to create or open cache entry file `{path}`",
                 path = path.display()
             )
         })?;
 
-        let file = match file.try_lock() {
+        match file.try_lock() {
             Ok(_) => Ok(Self(file)),
             Err(TryLockError::WouldBlock) => {
                 let path = path.to_path_buf();
@@ -129,7 +125,45 @@ impl LockedFile {
                     path = path.display()
                 )
             }),
-        }?;
+        }
+    }
+
+    /// Attempts to acquire an exclusive file lock for the given path without blocking.
+    ///
+    /// Returns `Ok(None)` if the lock is held by another process or thread.
+    /// The file is created if it does not exist.
+    #[allow(dead_code)]
+    pub fn try_acquire_exclusive(path: impl AsRef<Path>) -> Result<Option<Self>> {
+        let path = path.as_ref();
+        let mut options = fs::OpenOptions::new();
+        options.create(true).read(true).write(true);
+        let file = options.open(path).with_context(|| {
+            format!(
+                "failed to create or open cache entry file `{path}`",
+                path = path.display()
+            )
+        })?;
+
+        match file.try_lock() {
+            Ok(_) => Ok(Some(Self(file))),
+            Err(TryLockError::WouldBlock) => Ok(None),
+            Err(TryLockError::Error(e)) => Err(e).with_context(|| {
+                format!(
+                    "failed to acquire exclusive lock on cache entry file `{path}`",
+                    path = path.display()
+                )
+            }),
+        }
+    }
+
+    /// Acquires an exclusive file lock for the given path.
+    ///
+    /// If the file does not exist, it is created.
+    ///
+    /// If the file exists, it is truncated once the lock is acquired.
+    pub async fn acquire_exclusive_truncated(path: impl AsRef<Path>) -> Result<Self> {
+        let path = path.as_ref();
+        let file = Self::acquire_exclusive(path).await?;
 
         file.set_len(0).with_context(|| {
             format!(
@@ -231,5 +265,39 @@ mod test {
             file.as_file().try_lock_shared(),
             Err(TryLockError::WouldBlock)
         ));
+    }
+
+    #[tokio::test]
+    async fn try_acquire_exclusive_reports_contention() {
+        let file = NamedTempFile::new().unwrap();
+        let first = LockedFile::acquire_exclusive(file.path()).await.unwrap();
+        assert!(
+            LockedFile::try_acquire_exclusive(file.path())
+                .unwrap()
+                .is_none()
+        );
+        drop(first);
+        assert!(
+            LockedFile::try_acquire_exclusive(file.path())
+                .unwrap()
+                .is_some()
+        );
+    }
+
+    #[tokio::test]
+    async fn acquire_exclusive_does_not_truncate() {
+        let file = NamedTempFile::new().unwrap();
+
+        {
+            let mut locked = LockedFile::acquire_exclusive(file.path()).await.unwrap();
+            locked.write_all(b"hello").unwrap();
+        }
+
+        {
+            let mut locked = LockedFile::acquire_exclusive(file.path()).await.unwrap();
+            let mut buf = String::new();
+            locked.read_to_string(&mut buf).unwrap();
+            assert_eq!(buf, "hello");
+        }
     }
 }
