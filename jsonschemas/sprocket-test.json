@@ -1,18 +1,26 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Sprocket test definitions",
-  "description": "JSON schema for `sprocket` test definition YAML files.",
+  "title": "DocumentTests",
+  "description": "Collection of tests for an entire WDL document.",
   "type": "object",
-  "additionalProperties": {
-    "type": "array",
-    "items": {
-      "$ref": "#/$defs/TestDefinition"
+  "properties": {
+    "targets": {
+      "description": "Tasks or Workflows with test definitions.\n\nEach task or workflow may have one or more test definitions.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "$ref": "#/$defs/TestDefinition"
+        }
+      }
     }
   },
+  "required": [
+    "targets"
+  ],
   "$defs": {
     "TestDefinition": {
-      "title": "Test definition",
-      "description": "A test definition, defining one or more executions.",
+      "description": "A test definition. Defines at least a single execution, but may define many\nexecutions.",
       "type": "object",
       "properties": {
         "name": {
@@ -33,19 +41,18 @@
           "type": "object",
           "patternProperties": {
             "^[$].*": {
-              "description": "A grouping of input sequences that will be iterated through together.",
               "type": "object",
               "additionalProperties": {
-                "type": "array"
+                "type": "array",
+                "items": true
               }
             },
             "^[^$].*": {
-              "description": "Standard inputs that will be combinatorially expanded.",
-              "type": "array"
+              "type": "array",
+              "items": true
             }
           },
-          "additionalProperties": false,
-          "default": {}
+          "additionalProperties": false
         },
         "assertions": {
           "description": "Assertions (shared for all executions).\n\nIf no assertions defined, it is assumed that failing execution for any\nreason is considered a test fail.",
@@ -67,7 +74,7 @@
           "default": 0
         },
         "should_fail": {
-          "description": "Whether the test is expected to fail.\n\nFor workflows, any failure is expected.\nFor tasks, any nonzero exit code is expected.\nCannot be combined with `exit_code` (any value, including `exit_code:\n0`).",
+          "description": "Whether the test is expected to fail.\n\nFor workflows, any failure is expected.\nFor tasks, any nonzero exit code is expected.\n\nCannot be combined with `exit_code` (any value, including `exit_code:\n0`).",
           "type": "boolean",
           "default": false
         },
@@ -76,16 +83,14 @@
           "type": "array",
           "items": {
             "type": "string"
-          },
-          "default": []
+          }
         },
         "stderr": {
           "description": "Regular expressions that should match within STDERR of the task (ignored\nwhen testing workflows).",
           "type": "array",
           "items": {
             "type": "string"
-          },
-          "default": []
+          }
         },
         "outputs": {
           "description": "Assertions about WDL outputs.",

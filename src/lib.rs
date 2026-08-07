@@ -57,7 +57,6 @@ mod eval;
 mod inputs;
 pub mod server;
 pub mod system;
-mod test;
 
 /// The Sprocket ignore file name.
 const IGNORE_FILENAME: &str = ".sprocketignore";

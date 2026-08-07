@@ -1,0 +1,7 @@
+error: no target named `does_not_exist` in `foo.wdl`
+  ┌─ foo.yml:1:1
+  │
+1 │ does_not_exist:
+  │ ^^^^^^^^^^^^^^
+
+error: failing due to 1 error
