@@ -1,15 +1,22 @@
 //! Implementation of the `dev flowchart mermaid` subcommand.
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 use std::fmt::Write as _;
 
 use anyhow::Context;
 use anyhow::anyhow;
+use indexmap::IndexSet;
+use petgraph::Direction;
+use wdl::analysis::Diagnostics;
 use wdl::analysis::Document;
+use wdl::analysis::eval::v1::WorkflowGraphBuilder;
+use wdl::analysis::eval::v1::WorkflowGraphNode;
 use wdl::ast::Ast;
 use wdl::ast::AstNode as _;
 use wdl::ast::AstToken as _;
 use wdl::ast::Severity;
+use wdl::ast::SyntaxNode;
 use wdl::ast::v1::ConditionalStatementClauseKind;
 use wdl::ast::v1::WorkflowDefinition;
 use wdl::ast::v1::WorkflowStatement;
@@ -138,10 +145,11 @@ fn render_mermaid(
 
     let statements: Vec<_> = workflow.statements().collect();
     let mut ctx = MermaidCtx {
+        dependencies: build_dependencies(workflow, doc),
         max_depth,
         ..Default::default()
     };
-    ctx.emit_statements(&statements, doc, &mut out, INDENT, &[]);
+    ctx.emit_statements(&statements, doc, &mut out, INDENT);
 
     out
 }
@@ -171,6 +179,19 @@ impl Exit {
     }
 }
 
+/// The entry and exit points emitted for a workflow statement.
+#[derive(Clone)]
+struct Rendered {
+    entry: String,
+    exits: Vec<Exit>,
+}
+
+/// The root and exit points emitted for a statement block.
+struct Block {
+    roots: Vec<String>,
+    exits: Vec<Exit>,
+}
+
 /// Counter-based context for generating unique `Mermaid` node IDs.
 #[derive(Default)]
 struct MermaidCtx {
@@ -182,6 +203,10 @@ struct MermaidCtx {
     max_depth: Option<usize>,
     /// Current recursion depth.
     current_depth: usize,
+    /// Dependencies between visible workflow statements.
+    dependencies: HashMap<SyntaxNode, IndexSet<SyntaxNode>>,
+    /// Entry and exit points emitted for each visible workflow statement.
+    emitted: HashMap<SyntaxNode, Rendered>,
 }
 
 impl MermaidCtx {
@@ -192,28 +217,70 @@ impl MermaidCtx {
         id
     }
 
-    /// Emits a sequence of statements into `out`.
-    ///
-    /// `incoming` carries the set of exit points (node IDs and optional edge
-    /// labels) that should connect to the first statement. Returns the exit
-    /// points of the last statement, or `incoming` when `stmts` is empty.
+    /// Emits a sequence of statements and their dependency edges into `out`.
     fn emit_statements(
         &mut self,
         stmts: &[WorkflowStatement],
         doc: &Document,
         out: &mut String,
         indent: &str,
-        incoming: &[Exit],
-    ) -> Vec<Exit> {
-        if stmts.is_empty() {
-            return incoming.to_vec();
+    ) -> Block {
+        let statements: Vec<_> = stmts
+            .iter()
+            .filter_map(|statement| statement_key(statement).map(|key| (key, statement)))
+            .collect();
+        let keys: IndexSet<_> = statements.iter().map(|(key, _)| key.clone()).collect();
+
+        for (key, statement) in &statements {
+            let rendered = self.emit_statement(statement, doc, out, indent);
+            self.emitted.insert(key.clone(), rendered);
         }
 
-        let mut exits = incoming.to_vec();
-        for stmt in stmts {
-            exits = self.emit_statement(stmt, doc, out, indent, &exits);
+        for (target, _) in &statements {
+            let Some(rendered) = self.emitted.get(target) else {
+                continue;
+            };
+            for dependency in self.dependencies.get(target).into_iter().flatten() {
+                let Some(source) = self.emitted.get(dependency) else {
+                    continue;
+                };
+                for exit in &source.exits {
+                    emit_edge(
+                        out,
+                        indent,
+                        &exit.id,
+                        &rendered.entry,
+                        exit.label.as_deref(),
+                    );
+                }
+            }
         }
-        exits
+
+        let depended_on: IndexSet<_> = keys
+            .iter()
+            .flat_map(|key| self.dependencies.get(key).into_iter().flatten())
+            .filter(|dependency| keys.contains(*dependency))
+            .cloned()
+            .collect();
+
+        Block {
+            roots: keys
+                .iter()
+                .filter(|key| {
+                    self.dependencies
+                        .get(*key)
+                        .into_iter()
+                        .flatten()
+                        .all(|dependency| !keys.contains(dependency))
+                })
+                .filter_map(|key| self.emitted.get(key).map(|rendered| rendered.entry.clone()))
+                .collect(),
+            exits: keys
+                .difference(&depended_on)
+                .filter_map(|key| self.emitted.get(key))
+                .flat_map(|rendered| rendered.exits.clone())
+                .collect(),
+        }
     }
 
     /// Emits a single statement into `out` and returns its exit points.
@@ -223,8 +290,7 @@ impl MermaidCtx {
         doc: &Document,
         out: &mut String,
         indent: &str,
-        incoming: &[Exit],
-    ) -> Vec<Exit> {
+    ) -> Rendered {
         match stmt {
             WorkflowStatement::Call(call) => {
                 let names: Vec<_> = call.target().names().map(|n| n.text().to_owned()).collect();
@@ -256,25 +322,16 @@ impl MermaidCtx {
                         callee,
                         out,
                         indent,
-                        incoming,
                     );
                 }
 
                 // Single-name call — resolve against the current document.
                 if let Some(wf_def) = resolve_workflow_local(doc, &target_str) {
-                    return self.emit_workflow_call(
-                        &label,
-                        &target_str,
-                        &wf_def,
-                        doc,
-                        out,
-                        indent,
-                        incoming,
-                    );
+                    return self.emit_workflow_call(&label, &target_str, &wf_def, doc, out, indent);
                 }
 
                 // Task (leaf) node.
-                self.emit_call_node(&label, &target_str, out, indent, incoming)
+                self.emit_call_node(&label, &target_str, out, indent)
             }
 
             WorkflowStatement::Scatter(scatter) => {
@@ -289,26 +346,24 @@ impl MermaidCtx {
                 )
                 .unwrap();
 
-                for exit in incoming {
-                    emit_edge(out, indent, &exit.id, &procs_id, exit.label.as_deref());
-                }
-
                 // SAFETY: `write!` on `String` never fails.
                 writeln!(out, "{indent}subgraph {group_id}[\"scatter ({var})\"]").unwrap();
 
                 let body: Vec<_> = scatter.statements().collect();
-                let inner_exits =
-                    self.emit_statements(&body, doc, out, &format!("{indent}{INDENT}"), &[]);
+                let block = self.emit_statements(&body, doc, out, &format!("{indent}{INDENT}"));
 
                 // SAFETY: `write!` on `String` never fails.
                 writeln!(out, "{indent}end").unwrap();
 
                 emit_edge(out, indent, &procs_id, &group_id, None);
 
-                if inner_exits.is_empty() {
-                    vec![Exit::unlabeled(group_id)]
-                } else {
-                    inner_exits
+                Rendered {
+                    entry: procs_id,
+                    exits: if block.exits.is_empty() {
+                        vec![Exit::unlabeled(group_id)]
+                    } else {
+                        block.exits
+                    },
                 }
             }
 
@@ -329,11 +384,7 @@ impl MermaidCtx {
                     // SAFETY: `write!` on `String` never fails.
                     writeln!(out, "{indent}{diamond_id}{{\"if\"}}").unwrap();
 
-                    for exit in incoming {
-                        emit_edge(out, indent, &exit.id, &diamond_id, exit.label.as_deref());
-                    }
-
-                    let mut all_exits: Vec<Exit> = Vec::new();
+                    let mut exits = Vec::new();
 
                     for clause in &clauses {
                         let edge_label = match clause.kind() {
@@ -349,22 +400,26 @@ impl MermaidCtx {
                         };
 
                         let body: Vec<_> = clause.statements().collect();
-                        let body_incoming = vec![Exit::labeled(diamond_id.clone(), edge_label)];
-                        let exits = self.emit_statements(&body, doc, out, indent, &body_incoming);
-
-                        if exits.len() == 1 && exits[0].id == diamond_id {
-                            all_exits.push(Exit::unlabeled(diamond_id.clone()));
+                        let block = self.emit_statements(&body, doc, out, indent);
+                        for root in block.roots {
+                            emit_edge(out, indent, &diamond_id, &root, Some(&edge_label));
+                        }
+                        if block.exits.is_empty() {
+                            exits.push(Exit::labeled(diamond_id.clone(), edge_label));
                         } else {
-                            all_exits.extend(exits);
+                            exits.extend(block.exits);
                         }
                     }
 
                     // Without an `else`, the diamond is also an exit via the skip path.
-                    if !has_else && !all_exits.iter().any(|e| e.id == diamond_id) {
-                        all_exits.push(Exit::labeled(diamond_id, "no"));
+                    if !has_else {
+                        exits.push(Exit::labeled(diamond_id.clone(), "no"));
                     }
 
-                    all_exits
+                    Rendered {
+                        entry: diamond_id,
+                        exits,
+                    }
                 } else {
                     // Plain `if` (no else): condition in diamond, yes/no edges.
                     let condition = clauses
@@ -376,28 +431,31 @@ impl MermaidCtx {
                     // SAFETY: `write!` on `String` never fails.
                     writeln!(out, "{indent}{diamond_id}{{\"{condition}\"}}").unwrap();
 
-                    for exit in incoming {
-                        emit_edge(out, indent, &exit.id, &diamond_id, exit.label.as_deref());
-                    }
-
                     let body: Vec<_> = clauses
                         .first()
                         .map(|c| c.statements().collect())
                         .unwrap_or_default();
-                    let body_incoming = vec![Exit::labeled(diamond_id.clone(), "yes")];
-                    let mut all_exits =
-                        self.emit_statements(&body, doc, out, indent, &body_incoming);
-
-                    // The "no" path skips the body entirely.
-                    if !all_exits.iter().any(|e| e.id == diamond_id) {
-                        all_exits.push(Exit::labeled(diamond_id, "no"));
+                    let block = self.emit_statements(&body, doc, out, indent);
+                    for root in block.roots {
+                        emit_edge(out, indent, &diamond_id, &root, Some("yes"));
+                    }
+                    let mut exits = block.exits;
+                    if exits.is_empty() {
+                        exits.push(Exit::labeled(diamond_id.clone(), "yes"));
                     }
 
-                    all_exits
+                    // The "no" path skips the body entirely.
+                    exits.push(Exit::labeled(diamond_id.clone(), "no"));
+
+                    Rendered {
+                        entry: diamond_id,
+                        exits,
+                    }
                 }
             }
 
-            WorkflowStatement::Declaration(_) => incoming.to_vec(),
+            // SAFETY: declarations are filtered out before this method is called.
+            WorkflowStatement::Declaration(_) => unreachable!(),
         }
     }
 
@@ -408,8 +466,7 @@ impl MermaidCtx {
         target: &str,
         out: &mut String,
         indent: &str,
-        incoming: &[Exit],
-    ) -> Vec<Exit> {
+    ) -> Rendered {
         let node_id = self.next_id();
 
         if target == label {
@@ -420,17 +477,15 @@ impl MermaidCtx {
             writeln!(out, "{indent}{node_id}[\"{label}<br/><i>{target}</i>\"]").unwrap();
         }
 
-        for exit in incoming {
-            emit_edge(out, indent, &exit.id, &node_id, exit.label.as_deref());
+        Rendered {
+            entry: node_id.clone(),
+            exits: vec![Exit::unlabeled(node_id)],
         }
-
-        vec![Exit::unlabeled(node_id)]
     }
 
     /// Emits a called workflow as an expanded `subgraph`, then recursively
     /// descends into its body. Falls back to a leaf node when the workflow
     /// has already been expanded (cycle guard).
-    #[expect(clippy::too_many_arguments)]
     fn emit_workflow_call(
         &mut self,
         label: &str,
@@ -439,19 +494,18 @@ impl MermaidCtx {
         callee_doc: &Document,
         out: &mut String,
         indent: &str,
-        incoming: &[Exit],
-    ) -> Vec<Exit> {
+    ) -> Rendered {
         let uri = callee_doc.uri().to_string();
         let cycle_key = format!("{uri}#{}", wf_def.name().text());
 
         // Cycle guard: render as a plain node if already expanding this workflow.
         if !self.expanded.insert(cycle_key) {
-            return self.emit_call_node(label, target, out, indent, incoming);
+            return self.emit_call_node(label, target, out, indent);
         }
 
         // Depth guard: render as a plain node if the depth limit has been reached.
         if self.max_depth.is_some_and(|max| self.current_depth >= max) {
-            return self.emit_call_node(label, target, out, indent, incoming);
+            return self.emit_call_node(label, target, out, indent);
         }
 
         self.current_depth += 1;
@@ -467,22 +521,22 @@ impl MermaidCtx {
         writeln!(out, "{indent}subgraph {group_id}[\"{subgraph_label}\"]").unwrap();
 
         let body: Vec<_> = wf_def.statements().collect();
-        let inner_exits =
-            self.emit_statements(&body, callee_doc, out, &format!("{indent}{INDENT}"), &[]);
+        self.dependencies
+            .extend(build_dependencies(wf_def, callee_doc));
+        let block = self.emit_statements(&body, callee_doc, out, &format!("{indent}{INDENT}"));
 
         // SAFETY: `write!` on `String` never fails.
         writeln!(out, "{indent}end").unwrap();
 
         self.current_depth -= 1;
 
-        for exit in incoming {
-            emit_edge(out, indent, &exit.id, &group_id, exit.label.as_deref());
-        }
-
-        if inner_exits.is_empty() {
-            vec![Exit::unlabeled(group_id)]
-        } else {
-            inner_exits
+        Rendered {
+            entry: group_id.clone(),
+            exits: if block.exits.is_empty() {
+                vec![Exit::unlabeled(group_id)]
+            } else {
+                block.exits
+            },
         }
     }
 }
@@ -518,9 +572,241 @@ fn resolve_workflow_local(doc: &Document, name: &str) -> Option<WorkflowDefiniti
     v1.workflows().find(|w| w.name().text() == name)
 }
 
+/// Builds dependencies between visible statements from the evaluation graph.
+fn build_dependencies(
+    workflow: &WorkflowDefinition,
+    doc: &Document,
+) -> HashMap<SyntaxNode, IndexSet<SyntaxNode>> {
+    let mut diagnostics = Diagnostics::default();
+    let graph = WorkflowGraphBuilder::default().build(
+        workflow,
+        &mut diagnostics,
+        |_| false,
+        |name| doc.struct_by_name(name).is_some() || doc.enum_by_name(name).is_some(),
+    );
+    debug_assert!(
+        diagnostics.is_empty(),
+        "the analyzed workflow should produce a valid evaluation graph"
+    );
+
+    let mut dependencies = HashMap::<_, IndexSet<_>>::new();
+    for target_index in graph.node_indices() {
+        let target_node = &graph[target_index];
+        if !matches!(
+            target_node,
+            WorkflowGraphNode::Call(_)
+                | WorkflowGraphNode::Conditional(..)
+                | WorkflowGraphNode::Scatter(..)
+        ) {
+            continue;
+        }
+        let target = target_node.inner().clone();
+        let mut pending: Vec<_> = graph
+            .neighbors_directed(target_index, Direction::Incoming)
+            .collect();
+        let mut visited = HashSet::new();
+
+        while let Some(source_index) = pending.pop() {
+            if !visited.insert(source_index) {
+                continue;
+            }
+
+            let source_node = &graph[source_index];
+            if !matches!(
+                source_node,
+                WorkflowGraphNode::Input(_)
+                    | WorkflowGraphNode::Decl(_)
+                    | WorkflowGraphNode::Output(_)
+                    | WorkflowGraphNode::ConditionalClause(..)
+            ) && source_node.inner() != &target
+            {
+                dependencies
+                    .entry(target.clone())
+                    .or_default()
+                    .insert(source_node.inner().clone());
+            } else {
+                pending.extend(graph.neighbors_directed(source_index, Direction::Incoming));
+            }
+        }
+    }
+
+    dependencies
+}
+
+/// Gets the syntax node that identifies a visible workflow statement.
+fn statement_key(statement: &WorkflowStatement) -> Option<SyntaxNode> {
+    (!matches!(statement, WorkflowStatement::Declaration(_))).then(|| statement.inner().clone())
+}
+
 /// Escapes characters that have special meaning in `Mermaid` label strings.
 fn escape(s: &str) -> String {
     s.replace('"', "&quot;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    async fn render(source: &str) -> String {
+        // SAFETY: the operating system can create a temporary directory for the test.
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("test.wdl");
+        // SAFETY: the temporary directory exists and is writable for the test.
+        std::fs::write(&path, source).unwrap();
+        // SAFETY: `path` identifies the WDL file created above.
+        let source: Source = path.to_string_lossy().parse().unwrap();
+        let results = Analysis::default()
+            .add_source(source.clone())
+            .run(Mode::default(), false)
+            .await
+            // SAFETY: the local test document and its imports are valid.
+            .unwrap();
+        let document = results
+            .filter(&[&source])
+            .next()
+            // SAFETY: the test source was added to this analysis.
+            .unwrap()
+            .document()
+            .clone();
+        let workflow = document
+            .root()
+            .ast()
+            .into_v1()
+            // SAFETY: each test source declares a supported WDL version.
+            .unwrap()
+            .workflows()
+            .next()
+            // SAFETY: each test source declares one workflow.
+            .unwrap();
+
+        render_mermaid(&workflow, &document, Some(0))
+    }
+
+    #[tokio::test]
+    async fn renders_calls_from_their_dependencies() {
+        let source = r#"
+version 1.0
+
+task produce {
+    command <<<
+        echo value
+    >>>
+
+    output {
+        String value = stdout()
+    }
+}
+
+task consume {
+    input {
+        String value
+    }
+
+    command <<<
+        echo ~{value}
+    >>>
+}
+
+workflow test {
+    call produce
+    call consume as left { input: value = produce.value }
+    call consume as right { input: value = produce.value }
+}
+"#;
+
+        let diagram = render(source).await;
+
+        assert!(diagram.contains("n0 --> n1"));
+        assert!(diagram.contains("n0 --> n2"));
+        assert!(!diagram.contains("n1 --> n2"));
+    }
+
+    #[tokio::test]
+    async fn preserves_both_paths_through_declaration_only_conditionals() {
+        let diagram = render(
+            r#"
+version 1.0
+
+task consume {
+    input { String value }
+    command <<< echo ~{value} >>>
+}
+
+workflow test {
+    input { Boolean enabled }
+    if (enabled) {
+        String selected = "yes"
+    }
+    call consume { input: value = select_first([selected, "no"]) }
+}
+"#,
+        )
+        .await;
+
+        assert!(diagram.contains("n0 -->|yes| n1"));
+        assert!(diagram.contains("n0 -->|no| n1"));
+    }
+
+    #[tokio::test]
+    async fn preserves_fallthrough_from_multi_clause_conditionals() {
+        let diagram = render(
+            r#"
+version 1.3
+
+task consume {
+    input { String value }
+    command <<< echo ~{value} >>>
+}
+
+workflow test {
+    input { String mode }
+    if (mode == "a") {
+        String selected = "a"
+    } else if (mode == "b") {
+        String selected = "b"
+    }
+    call consume { input: value = select_first([selected, "none"]) }
+}
+"#,
+        )
+        .await;
+
+        assert!(diagram.contains("n0 -->|no| n1"));
+    }
+
+    #[tokio::test]
+    async fn renders_deterministically() {
+        let source = r#"
+version 1.0
+
+task produce {
+    command <<< echo value >>>
+    output { String value = stdout() }
+}
+
+task combine {
+    input {
+        String left
+        String right
+    }
+    command <<< echo ~{left} ~{right} >>>
+}
+
+workflow test {
+    call produce as left
+    call produce as right
+    call combine { input:
+        left = left.value,
+        right = right.value,
+    }
+}
+"#;
+        let expected = render(source).await;
+
+        for _ in 0..16 {
+            assert_eq!(render(source).await, expected);
+        }
+    }
 }
