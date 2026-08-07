@@ -159,11 +159,11 @@ struct Exit {
 }
 
 impl Exit {
-    fn unlabelled(id: String) -> Self {
+    fn unlabeled(id: String) -> Self {
         Self { id, label: None }
     }
 
-    fn labelled(id: String, label: impl Into<String>) -> Self {
+    fn labeled(id: String, label: impl Into<String>) -> Self {
         Self {
             id,
             label: Some(label.into()),
@@ -306,7 +306,7 @@ impl MermaidCtx {
                 emit_edge(out, indent, &procs_id, &group_id, None);
 
                 if inner_exits.is_empty() {
-                    vec![Exit::unlabelled(group_id)]
+                    vec![Exit::unlabeled(group_id)]
                 } else {
                     inner_exits
                 }
@@ -349,11 +349,11 @@ impl MermaidCtx {
                         };
 
                         let body: Vec<_> = clause.statements().collect();
-                        let body_incoming = vec![Exit::labelled(diamond_id.clone(), edge_label)];
+                        let body_incoming = vec![Exit::labeled(diamond_id.clone(), edge_label)];
                         let exits = self.emit_statements(&body, doc, out, indent, &body_incoming);
 
                         if exits.len() == 1 && exits[0].id == diamond_id {
-                            all_exits.push(Exit::unlabelled(diamond_id.clone()));
+                            all_exits.push(Exit::unlabeled(diamond_id.clone()));
                         } else {
                             all_exits.extend(exits);
                         }
@@ -361,7 +361,7 @@ impl MermaidCtx {
 
                     // Without an `else`, the diamond is also an exit via the skip path.
                     if !has_else && !all_exits.iter().any(|e| e.id == diamond_id) {
-                        all_exits.push(Exit::labelled(diamond_id, "no"));
+                        all_exits.push(Exit::labeled(diamond_id, "no"));
                     }
 
                     all_exits
@@ -384,13 +384,13 @@ impl MermaidCtx {
                         .first()
                         .map(|c| c.statements().collect())
                         .unwrap_or_default();
-                    let body_incoming = vec![Exit::labelled(diamond_id.clone(), "yes")];
+                    let body_incoming = vec![Exit::labeled(diamond_id.clone(), "yes")];
                     let mut all_exits =
                         self.emit_statements(&body, doc, out, indent, &body_incoming);
 
                     // The "no" path skips the body entirely.
                     if !all_exits.iter().any(|e| e.id == diamond_id) {
-                        all_exits.push(Exit::labelled(diamond_id, "no"));
+                        all_exits.push(Exit::labeled(diamond_id, "no"));
                     }
 
                     all_exits
@@ -424,7 +424,7 @@ impl MermaidCtx {
             emit_edge(out, indent, &exit.id, &node_id, exit.label.as_deref());
         }
 
-        vec![Exit::unlabelled(node_id)]
+        vec![Exit::unlabeled(node_id)]
     }
 
     /// Emits a called workflow as an expanded `subgraph`, then recursively
@@ -480,7 +480,7 @@ impl MermaidCtx {
         }
 
         if inner_exits.is_empty() {
-            vec![Exit::unlabelled(group_id)]
+            vec![Exit::unlabeled(group_id)]
         } else {
             inner_exits
         }
