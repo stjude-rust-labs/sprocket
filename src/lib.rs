@@ -178,6 +178,9 @@ async fn real_main() -> CommandResult<()> {
         Commands::Dev(commands::DevCommands::Doc(args)) => {
             commands::doc::doc(args, config, colorize).await
         }
+        Commands::Dev(commands::DevCommands::Flowchart(args)) => {
+            commands::flowchart::flowchart(args, &config, colorize).await
+        }
         Commands::Dev(commands::DevCommands::Lock(args)) => {
             commands::lock::lock(args, config, colorize).await
         }

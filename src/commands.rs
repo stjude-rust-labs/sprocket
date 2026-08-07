@@ -16,6 +16,7 @@ pub mod completions;
 pub mod config;
 pub mod doc;
 pub mod explain;
+pub mod flowchart;
 pub mod format;
 pub mod inputs;
 pub mod inspect;
@@ -139,6 +140,9 @@ pub enum Commands {
 pub enum DevCommands {
     /// Document a workspace.
     Doc(doc::Args),
+    /// Renders a `WDL` workflow as a diagram.
+    #[command(subcommand)]
+    Flowchart(flowchart::Args),
     /// Locks Docker images to a sha256 digest.
     Lock(lock::Args),
     /// Run-management server commands (start, submit, status, inspect, cancel,
