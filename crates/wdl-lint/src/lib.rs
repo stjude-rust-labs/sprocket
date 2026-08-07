@@ -156,6 +156,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::<rules::EmptyOutputs>::default(),
         Box::new(rules::BashSetSyntax::new(config)),
         Box::<rules::InlineInstall>::default(),
+        Box::<rules::StructOverMap>::default(),
     ];
 
     // Ensure all the rule IDs are unique and pascal case and that related rules are
