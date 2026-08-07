@@ -14,7 +14,7 @@
 -            Int x
 -        }
 -}
-/ No newline at end of file
+\ No newline at end of file
 +    input {
 +        Int x
 +    }
