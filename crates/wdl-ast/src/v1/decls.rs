@@ -23,6 +23,7 @@ use crate::TreeToken;
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct MapType<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> MapType<N> {
     /// Gets the key and value types of the `Map`.
     pub fn types(&self) -> (PrimitiveType<N>, Type<N>) {
@@ -83,6 +84,7 @@ impl fmt::Display for MapType {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct ArrayType<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> ArrayType<N> {
     /// Gets the element type of the array.
     pub fn element_type(&self) -> Type<N> {
@@ -142,6 +144,7 @@ impl fmt::Display for ArrayType {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct PairType<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> PairType<N> {
     /// Gets the first and second types of the `Pair`.
     pub fn types(&self) -> (Type<N>, Type<N>) {
@@ -199,6 +202,7 @@ impl fmt::Display for PairType {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct ObjectType<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> ObjectType<N> {
     /// Determines if the type is optional.
     pub fn is_optional(&self) -> bool {
@@ -247,6 +251,7 @@ impl fmt::Display for ObjectType {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct TypeRef<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> TypeRef<N> {
     /// Gets the name of the type reference.
     pub fn name(&self) -> Ident<N::Token> {
@@ -298,6 +303,17 @@ impl fmt::Display for TypeRef {
 
 /// Represents a kind of primitive type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(
+        module = "sprocket_bio.ast.v1",
+        frozen,
+        from_py_object,
+        rename_all = "SCREAMING_SNAKE_CASE",
+        eq,
+        ord
+    )
+)]
 pub enum PrimitiveTypeKind {
     /// The primitive is a `Boolean`.
     Boolean,
@@ -318,6 +334,7 @@ pub enum PrimitiveTypeKind {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct PrimitiveType<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> PrimitiveType<N> {
     /// Gets the kind of the primitive type.
     pub fn kind(&self) -> PrimitiveTypeKind {
@@ -406,9 +423,11 @@ pub enum Type<N: TreeNode = SyntaxNode> {
     Primitive(PrimitiveType<N>),
 }
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> Type<N> {
     //// Returns whether or not the given syntax kind can be cast to
     /// [`Type`].
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn can_cast(kind: SyntaxKind) -> bool {
         matches!(
             kind,
@@ -424,6 +443,7 @@ impl<N: TreeNode> Type<N> {
     /// Casts the given node to [`Type`].
     ///
     /// Returns `None` if the node cannot be cast.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn cast(inner: N) -> Option<Self> {
         match inner.kind() {
             SyntaxKind::MapTypeNode => {
@@ -449,6 +469,7 @@ impl<N: TreeNode> Type<N> {
     }
 
     /// Gets a reference to the inner node.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn inner(&self) -> &N {
         match self {
             Self::Map(ty) => ty.inner(),
@@ -477,6 +498,7 @@ impl<N: TreeNode> Type<N> {
     /// * If `self` is a [`Type::Map`], then a reference to the inner
     ///   [`MapType`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn as_map_type(&self) -> Option<&MapType<N>> {
         match self {
             Self::Map(ty) => Some(ty),
@@ -489,6 +511,7 @@ impl<N: TreeNode> Type<N> {
     /// * If `self` is a [`Type::Map`], then the inner [`MapType`] is returned
     ///   wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn into_map_type(self) -> Option<MapType<N>> {
         match self {
             Self::Map(ty) => Some(ty),
@@ -501,6 +524,7 @@ impl<N: TreeNode> Type<N> {
     /// # Panics
     ///
     /// Panics if the type is not a map type.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn unwrap_map_type(self) -> MapType<N> {
         match self {
             Self::Map(ty) => ty,
@@ -513,6 +537,7 @@ impl<N: TreeNode> Type<N> {
     /// * If `self` is a [`Type::Array`], then a reference to the inner
     ///   [`ArrayType`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn as_array_type(&self) -> Option<&ArrayType<N>> {
         match self {
             Self::Array(ty) => Some(ty),
@@ -525,6 +550,7 @@ impl<N: TreeNode> Type<N> {
     /// * If `self` is a [`Type::Array`], then the inner [`ArrayType`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn into_array_type(self) -> Option<ArrayType<N>> {
         match self {
             Self::Array(ty) => Some(ty),
@@ -537,6 +563,7 @@ impl<N: TreeNode> Type<N> {
     /// # Panics
     ///
     /// Panics if the type is not an array type.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn unwrap_array_type(self) -> ArrayType<N> {
         match self {
             Self::Array(ty) => ty,
@@ -549,6 +576,7 @@ impl<N: TreeNode> Type<N> {
     /// * If `self` is a [`Type::Pair`], then a reference to the inner
     ///   [`PairType`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn as_pair_type(&self) -> Option<&PairType<N>> {
         match self {
             Self::Pair(ty) => Some(ty),
@@ -561,6 +589,7 @@ impl<N: TreeNode> Type<N> {
     /// * If `self` is a [`Type::Pair`], then the inner [`PairType`] is returned
     ///   wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn into_pair_type(self) -> Option<PairType<N>> {
         match self {
             Self::Pair(ty) => Some(ty),
@@ -573,6 +602,7 @@ impl<N: TreeNode> Type<N> {
     /// # Panics
     ///
     /// Panics if the type is not a pair type.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn unwrap_pair_type(self) -> PairType<N> {
         match self {
             Self::Pair(ty) => ty,
@@ -585,6 +615,7 @@ impl<N: TreeNode> Type<N> {
     /// * If `self` is a [`Type::Object`], then a reference to the inner
     ///   [`ObjectType`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn as_object_type(&self) -> Option<&ObjectType<N>> {
         match self {
             Self::Object(ty) => Some(ty),
@@ -597,6 +628,7 @@ impl<N: TreeNode> Type<N> {
     /// * If `self` is a [`Type::Object`], then the inner [`ObjectType`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn into_object_type(self) -> Option<ObjectType<N>> {
         match self {
             Self::Object(ty) => Some(ty),
@@ -609,6 +641,7 @@ impl<N: TreeNode> Type<N> {
     /// # Panics
     ///
     /// Panics if the type is not an object type.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn unwrap_object_type(self) -> ObjectType<N> {
         match self {
             Self::Object(ty) => ty,
@@ -621,6 +654,7 @@ impl<N: TreeNode> Type<N> {
     /// * If `self` is a [`Type::Ref`], then a reference to the inner
     ///   [`TypeRef`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn as_type_ref(&self) -> Option<&TypeRef<N>> {
         match self {
             Self::Ref(ty) => Some(ty),
@@ -633,6 +667,7 @@ impl<N: TreeNode> Type<N> {
     /// * If `self` is a [`Type::Ref`], then the inner [`TypeRef`] is returned
     ///   wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn into_type_ref(self) -> Option<TypeRef<N>> {
         match self {
             Self::Ref(ty) => Some(ty),
@@ -645,6 +680,7 @@ impl<N: TreeNode> Type<N> {
     /// # Panics
     ///
     /// Panics if the type is not a type reference.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn unwrap_type_ref(self) -> TypeRef<N> {
         match self {
             Self::Ref(ty) => ty,
@@ -657,6 +693,7 @@ impl<N: TreeNode> Type<N> {
     /// * If `self` is a [`Type::Primitive`], then a reference to the inner
     ///   [`PrimitiveType`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn as_primitive_type(&self) -> Option<&PrimitiveType<N>> {
         match self {
             Self::Primitive(ty) => Some(ty),
@@ -669,6 +706,7 @@ impl<N: TreeNode> Type<N> {
     /// * If `self` is a [`Type::Primitive`], then the inner [`PrimitiveType`]
     ///   is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn into_primitive_type(self) -> Option<PrimitiveType<N>> {
         match self {
             Self::Primitive(ty) => Some(ty),
@@ -681,6 +719,7 @@ impl<N: TreeNode> Type<N> {
     /// # Panics
     ///
     /// Panics if the type is not a primitive type.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn unwrap_primitive_type(self) -> PrimitiveType<N> {
         match self {
             Self::Primitive(ty) => ty,
@@ -689,11 +728,13 @@ impl<N: TreeNode> Type<N> {
     }
 
     /// Finds the first child that can be cast to a [`Type`].
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn child(node: &N) -> Option<Self> {
         node.children().find_map(Self::cast)
     }
 
     /// Finds all children that can be cast to a [`Type`].
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn children(node: &N) -> impl Iterator<Item = Self> + use<'_, N> {
         node.children().filter_map(Self::cast)
     }
@@ -731,6 +772,7 @@ impl fmt::Display for Type {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct UnboundDecl<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> UnboundDecl<N> {
     /// Gets the `env` token, if present.
     ///
@@ -790,6 +832,7 @@ impl Documented<SyntaxNode> for UnboundDecl<SyntaxNode> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct BoundDecl<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> BoundDecl<N> {
     /// Gets the `env` token, if present.
     ///
@@ -859,9 +902,11 @@ pub enum Decl<N: TreeNode = SyntaxNode> {
     Unbound(UnboundDecl<N>),
 }
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> Decl<N> {
     /// Returns whether or not the given syntax kind can be cast to
     /// [`Decl`].
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn can_cast(kind: SyntaxKind) -> bool {
         kind == SyntaxKind::BoundDeclNode || kind == SyntaxKind::UnboundDeclNode
     }
@@ -869,6 +914,7 @@ impl<N: TreeNode> Decl<N> {
     /// Casts the given node to [`Decl`].
     ///
     /// Returns `None` if the node cannot be cast.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn cast(inner: N) -> Option<Self> {
         match inner.kind() {
             SyntaxKind::BoundDeclNode => Some(Self::Bound(
@@ -882,6 +928,7 @@ impl<N: TreeNode> Decl<N> {
     }
 
     /// Gets a reference to the inner node.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn inner(&self) -> &N {
         match self {
             Self::Bound(d) => d.inner(),
@@ -931,6 +978,7 @@ impl<N: TreeNode> Decl<N> {
     /// * If `self` is a [`Decl::Bound`], then a reference to the inner
     ///   [`BoundDecl`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn as_bound_decl(&self) -> Option<&BoundDecl<N>> {
         match self {
             Self::Bound(d) => Some(d),
@@ -943,6 +991,7 @@ impl<N: TreeNode> Decl<N> {
     /// * If `self` is a [`Decl::Bound`], then the inner [`BoundDecl`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn into_bound_decl(self) -> Option<BoundDecl<N>> {
         match self {
             Self::Bound(d) => Some(d),
@@ -955,6 +1004,7 @@ impl<N: TreeNode> Decl<N> {
     /// # Panics
     ///
     /// Panics if the declaration is not a bound declaration.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn unwrap_bound_decl(self) -> BoundDecl<N> {
         match self {
             Self::Bound(d) => d,
@@ -967,6 +1017,7 @@ impl<N: TreeNode> Decl<N> {
     /// * If `self` is a [`Decl::Unbound`], then a reference to the inner
     ///   [`UnboundDecl`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn as_unbound_decl(&self) -> Option<&UnboundDecl<N>> {
         match self {
             Self::Unbound(d) => Some(d),
@@ -979,6 +1030,7 @@ impl<N: TreeNode> Decl<N> {
     /// * If `self` is a [`Decl::Unbound`], then the inner [`UnboundDecl`] is
     ///   returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn into_unbound_decl(self) -> Option<UnboundDecl<N>> {
         match self {
             Self::Unbound(d) => Some(d),
@@ -991,6 +1043,7 @@ impl<N: TreeNode> Decl<N> {
     /// # Panics
     ///
     /// Panics if the declaration is not an unbound declaration.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn unwrap_unbound_decl(self) -> UnboundDecl<N> {
         match self {
             Self::Unbound(d) => d,
@@ -999,11 +1052,13 @@ impl<N: TreeNode> Decl<N> {
     }
 
     /// Finds the first child that can be cast to a [`Decl`].
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn child(node: &N) -> Option<Self> {
         node.children().find_map(Self::cast)
     }
 
     /// Finds all children that can be cast to a [`Decl`].
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn children(node: &N) -> impl Iterator<Item = Self> + use<'_, N> {
         node.children().filter_map(Self::cast)
     }

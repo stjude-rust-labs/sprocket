@@ -43,6 +43,7 @@ pub use workflow::*;
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct Ast<N: TreeNode = SyntaxNode>(pub(crate) N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> Ast<N> {
     /// Gets all of the document items in the AST.
     pub fn items(&self) -> impl Iterator<Item = DocumentItem<N>> + use<'_, N> {

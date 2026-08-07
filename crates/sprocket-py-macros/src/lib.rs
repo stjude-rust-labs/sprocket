@@ -62,7 +62,7 @@ use syn::Error;
 /// struct Ast<N: TreeNode = SyntaxNode>(N);
 ///
 /// /// Some documentation...
-/// #[pyclass(module = "sprocket_bio.ast.v1", name = "Ast", extends = PyAstNode, frozen, skip_from_py_object, eq)]
+/// #[pyclass(module = "sprocket_bio.ast.v1", name = "Ast", extends = PyAstNode, frozen, from_py_object, eq)]
 /// #[derive(Clone, PartialEq)]
 /// struct PyAst(ThreadSafeSyntaxNode);
 ///

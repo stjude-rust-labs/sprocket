@@ -368,6 +368,7 @@ fn unescape_command_text(s: &str, heredoc: bool, buffer: &mut String) {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct TaskDefinition<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> TaskDefinition<N> {
     /// Gets the name of the task.
     pub fn name(&self) -> Ident<N::Token> {
@@ -788,9 +789,11 @@ pub enum SectionParent<N: TreeNode = SyntaxNode> {
     Struct(StructDefinition<N>),
 }
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> SectionParent<N> {
     /// Returns whether or not the given syntax kind can be cast to
     /// [`SectionParent`].
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn can_cast(kind: SyntaxKind) -> bool {
         matches!(
             kind,
@@ -803,6 +806,7 @@ impl<N: TreeNode> SectionParent<N> {
     /// Casts the given node to [`SectionParent`].
     ///
     /// Returns `None` if the node cannot be cast.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn cast(inner: N) -> Option<Self> {
         match inner.kind() {
             SyntaxKind::TaskDefinitionNode => Some(Self::Task(
@@ -819,6 +823,7 @@ impl<N: TreeNode> SectionParent<N> {
     }
 
     /// Gets a reference to the inner node.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn inner(&self) -> &N {
         match self {
             Self::Task(element) => element.inner(),
@@ -841,6 +846,7 @@ impl<N: TreeNode> SectionParent<N> {
     /// * If `self` is a [`SectionParent::Task`], then a reference to the inner
     ///   [`TaskDefinition`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn as_task(&self) -> Option<&TaskDefinition<N>> {
         match self {
             Self::Task(task) => Some(task),
@@ -853,6 +859,7 @@ impl<N: TreeNode> SectionParent<N> {
     /// * If `self` is a [`SectionParent::Task`], then the inner
     ///   [`TaskDefinition`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn into_task(self) -> Option<TaskDefinition<N>> {
         match self {
             Self::Task(task) => Some(task),
@@ -865,6 +872,7 @@ impl<N: TreeNode> SectionParent<N> {
     /// # Panics
     ///
     /// Panics if it is not a task definition.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn unwrap_task(self) -> TaskDefinition<N> {
         match self {
             Self::Task(task) => task,
@@ -877,6 +885,7 @@ impl<N: TreeNode> SectionParent<N> {
     /// * If `self` is a [`SectionParent::Workflow`], then a reference to the
     ///   inner [`WorkflowDefinition`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn as_workflow(&self) -> Option<&WorkflowDefinition<N>> {
         match self {
             Self::Workflow(workflow) => Some(workflow),
@@ -889,6 +898,7 @@ impl<N: TreeNode> SectionParent<N> {
     /// * If `self` is a [`SectionParent::Workflow`], then the inner
     ///   [`WorkflowDefinition`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn into_workflow(self) -> Option<WorkflowDefinition<N>> {
         match self {
             Self::Workflow(workflow) => Some(workflow),
@@ -901,6 +911,7 @@ impl<N: TreeNode> SectionParent<N> {
     /// # Panics
     ///
     /// Panics if it is not a workflow definition.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn unwrap_workflow(self) -> WorkflowDefinition<N> {
         match self {
             Self::Workflow(workflow) => workflow,
@@ -913,6 +924,7 @@ impl<N: TreeNode> SectionParent<N> {
     /// * If `self` is a [`SectionParent::Struct`], then a reference to the
     ///   inner [`StructDefinition`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn as_struct(&self) -> Option<&StructDefinition<N>> {
         match self {
             Self::Struct(r#struct) => Some(r#struct),
@@ -925,6 +937,7 @@ impl<N: TreeNode> SectionParent<N> {
     /// * If `self` is a [`SectionParent::Struct`], then the inner
     ///   [`StructDefinition`] is returned wrapped in [`Some`].
     /// * Else, [`None`] is returned.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn into_struct(self) -> Option<StructDefinition<N>> {
         match self {
             Self::Struct(r#struct) => Some(r#struct),
@@ -937,6 +950,7 @@ impl<N: TreeNode> SectionParent<N> {
     /// # Panics
     ///
     /// Panics if it is not a struct definition.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn unwrap_struct(self) -> StructDefinition<N> {
         match self {
             Self::Struct(def) => def,
@@ -945,11 +959,13 @@ impl<N: TreeNode> SectionParent<N> {
     }
 
     /// Finds the first child that can be cast to a [`SectionParent`].
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn child(node: &N) -> Option<Self> {
         node.children().find_map(Self::cast)
     }
 
     /// Finds all children that can be cast to a [`SectionParent`].
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn children(node: &N) -> impl Iterator<Item = Self> + use<'_, N> {
         node.children().filter_map(Self::cast)
     }
@@ -960,6 +976,7 @@ impl<N: TreeNode> SectionParent<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct InputSection<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> InputSection<N> {
     /// Gets the declarations of the input section.
     pub fn declarations(&self) -> impl Iterator<Item = Decl<N>> + use<'_, N> {
@@ -995,6 +1012,7 @@ impl<N: TreeNode> AstNode<N> for InputSection<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct OutputSection<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> OutputSection<N> {
     /// Gets the declarations of the output section.
     pub fn declarations(&self) -> impl Iterator<Item = BoundDecl<N>> + use<'_, N> {
@@ -1443,6 +1461,7 @@ impl<N: TreeNode> AstNode<N> for RequirementsItem<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct TaskHintsSection<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> TaskHintsSection<N> {
     /// Gets the items in the hints section.
     pub fn items(&self) -> impl Iterator<Item = TaskHintsItem<N>> + use<'_, N> {
@@ -1478,6 +1497,7 @@ impl<N: TreeNode> AstNode<N> for TaskHintsSection<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct TaskHintsItem<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> TaskHintsItem<N> {
     /// Gets the name of the hints item.
     pub fn name(&self) -> Ident<N::Token> {
@@ -1595,6 +1615,7 @@ impl<N: TreeNode> AstNode<N> for RuntimeItem<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct MetadataSection<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> MetadataSection<N> {
     /// Gets the items of the metadata section.
     pub fn items(&self) -> impl Iterator<Item = MetadataObjectItem<N>> + use<'_, N> {
@@ -1635,6 +1656,7 @@ impl<N: TreeNode> AstNode<N> for MetadataSection<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct MetadataObjectItem<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> MetadataObjectItem<N> {
     /// Gets the name of the item.
     pub fn name(&self) -> Ident<N::Token> {
@@ -1837,6 +1859,7 @@ impl<N: TreeNode> AstNode<N> for LiteralNull<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct MetadataObject<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> MetadataObject<N> {
     /// Gets the items of the metadata object.
     pub fn items(&self) -> impl Iterator<Item = MetadataObjectItem<N>> + use<'_, N> {
@@ -1866,6 +1889,7 @@ impl<N: TreeNode> AstNode<N> for MetadataObject<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct MetadataArray<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> MetadataArray<N> {
     /// Gets the elements of the metadata array.
     pub fn elements(&self) -> impl Iterator<Item = MetadataValue<N>> + use<'_, N> {
@@ -1895,6 +1919,7 @@ impl<N: TreeNode> AstNode<N> for MetadataArray<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct ParameterMetadataSection<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> ParameterMetadataSection<N> {
     /// Gets the items of the parameter metadata section.
     pub fn items(&self) -> impl Iterator<Item = MetadataObjectItem<N>> + use<'_, N> {

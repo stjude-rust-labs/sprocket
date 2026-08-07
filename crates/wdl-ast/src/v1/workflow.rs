@@ -69,6 +69,7 @@ pub const WORKFLOW_HINT_KEYS: &[(&str, &str)] = &[(
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct WorkflowDefinition<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> WorkflowDefinition<N> {
     /// Gets the name of the workflow.
     pub fn name(&self) -> Ident<N::Token> {
@@ -739,6 +740,16 @@ impl<N: TreeNode> WorkflowStatement<N> {
 
 /// A kind of conditional statement clause.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "unstable-python",
+    pyo3::pyclass(
+        module = "sprocket_bio.ast.v1",
+        frozen,
+        from_py_object,
+        rename_all = "SCREAMING_SNAKE_CASE",
+        eq
+    )
+)]
 pub enum ConditionalStatementClauseKind {
     /// The initial `if` clause.
     If,
@@ -782,6 +793,7 @@ impl<N: TreeNode> AstNode<N> for ConditionalStatementClause<N> {
     }
 }
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> ConditionalStatementClause<N> {
     /// Gets the expression of the conditional clause.
     pub fn expr(&self) -> Option<Expr<N>> {
@@ -812,6 +824,7 @@ impl<N: TreeNode> ConditionalStatementClause<N> {
     }
 
     /// Gets the `else` keyword token, if present.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn else_keyword(&self) -> Option<N::Token> {
         self.0
             .children_with_tokens()
@@ -822,6 +835,7 @@ impl<N: TreeNode> ConditionalStatementClause<N> {
     }
 
     /// Gets the `if` keyword token, if present.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn if_keyword(&self) -> Option<N::Token> {
         self.0
             .children_with_tokens()
@@ -832,6 +846,7 @@ impl<N: TreeNode> ConditionalStatementClause<N> {
     }
 
     /// Finds all children that can be cast to a [`ConditionalStatementClause`].
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn children(node: &N) -> impl Iterator<Item = Self> + use<'_, N> {
         node.children().filter_map(Self::cast)
     }
@@ -842,6 +857,7 @@ impl<N: TreeNode> ConditionalStatementClause<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct ConditionalStatement<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> ConditionalStatement<N> {
     /// Gets all of the clauses of a conditional statement.
     pub fn clauses(&self) -> impl Iterator<Item = ConditionalStatementClause<N>> {
@@ -890,6 +906,7 @@ impl<N: TreeNode> AstNode<N> for ConditionalStatement<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct ScatterStatement<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> ScatterStatement<N> {
     /// Gets the scatter variable identifier.
     pub fn variable(&self) -> Ident<N::Token> {
@@ -936,6 +953,7 @@ impl<N: TreeNode> AstNode<N> for ScatterStatement<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct CallStatement<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> CallStatement<N> {
     /// Gets the target of the call.
     pub fn target(&self) -> CallTarget<N> {
@@ -985,6 +1003,7 @@ impl<N: TreeNode> AstNode<N> for CallStatement<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct CallTarget<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> CallTarget<N> {
     /// Gets an iterator of the names of the call target.
     ///
@@ -1020,6 +1039,7 @@ impl<N: TreeNode> AstNode<N> for CallTarget<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct CallAlias<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> CallAlias<N> {
     /// Gets the alias name.
     pub fn name(&self) -> Ident<N::Token> {
@@ -1049,6 +1069,7 @@ impl<N: TreeNode> AstNode<N> for CallAlias<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct CallAfter<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> CallAfter<N> {
     /// Gets the name from the `after` clause.
     pub fn name(&self) -> Ident<N::Token> {
@@ -1078,6 +1099,7 @@ impl<N: TreeNode> AstNode<N> for CallAfter<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct CallInputItem<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> CallInputItem<N> {
     /// Gets the name of the input.
     pub fn name(&self) -> Ident<N::Token> {
@@ -1128,6 +1150,7 @@ impl<N: TreeNode> AstNode<N> for CallInputItem<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct WorkflowHintsSection<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> WorkflowHintsSection<N> {
     /// Gets the items in the hints section.
     pub fn items(&self) -> impl Iterator<Item = WorkflowHintsItem<N>> + use<'_, N> {
@@ -1162,6 +1185,7 @@ impl<N: TreeNode> AstNode<N> for WorkflowHintsSection<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct WorkflowHintsItem<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> WorkflowHintsItem<N> {
     /// Gets the name of the hints item.
     pub fn name(&self) -> Ident<N::Token> {
@@ -1325,6 +1349,7 @@ impl<N: TreeNode> AstNode<N> for WorkflowHintsItemValue<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct WorkflowHintsObject<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> WorkflowHintsObject<N> {
     /// Gets the items of the workflow hints object.
     pub fn items(&self) -> impl Iterator<Item = WorkflowHintsObjectItem<N>> + use<'_, N> {
@@ -1354,6 +1379,7 @@ impl<N: TreeNode> AstNode<N> for WorkflowHintsObject<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct WorkflowHintsObjectItem<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> WorkflowHintsObjectItem<N> {
     /// Gets the name of the item.
     pub fn name(&self) -> Ident<N::Token> {
@@ -1388,6 +1414,7 @@ impl<N: TreeNode> AstNode<N> for WorkflowHintsObjectItem<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct WorkflowHintsArray<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> WorkflowHintsArray<N> {
     /// Gets the elements of the workflow hints array.
     pub fn elements(&self) -> impl Iterator<Item = WorkflowHintsItemValue<N>> + use<'_, N> {
