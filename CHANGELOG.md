@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* `dev server` task endpoints now return `404 Not Found` for missing task
+  lookups, including missing task logs, instead of returning empty log results
+  or generic internal errors
+  ([#956](https://github.com/stjude-rust-labs/sprocket/pull/956)).
+
 ## 0.29.0 - 2026-08-05
 
 ### Changed
