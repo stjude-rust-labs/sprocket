@@ -368,8 +368,9 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
         self.state.guest_path(path)
     }
 
-    fn notify_file_created(&mut self, path: &HostPath) -> Result<()> {
-        self.state.insert_backend_input(ContentKind::File, path)?;
+    fn notify_temp_file_created(&mut self, path: &HostPath) -> Result<()> {
+        self.state
+            .insert_backend_input(ContentKind::TempFile, path)?;
         Ok(())
     }
 }
@@ -1695,6 +1696,7 @@ impl Evaluator {
                         hints: &hints,
                         default_container,
                         shell: &self.config.task.shell,
+                        guest_inputs_dir: self.backend.guest_inputs_dir(),
                         backend_inputs: state.backend_inputs.as_slice(),
                     };
 

@@ -38,6 +38,8 @@ use crate::v1::requirements::ContainerSource;
 ///
 /// This is a monotonic value that should increase whenever the serialization of
 /// call cache entries change.
+///
+/// Bumping the version causes a change to cache key derivation.
 const CURRENT_CACHE_VERSION: u32 = 0;
 
 /// The default cache subdirectory for the call cache.
@@ -50,6 +52,78 @@ mod hash;
 mod lock;
 
 pub use hash::Hashable;
+
+/// Hashes the evaluated command of a cache key request.
+///
+/// References to guest paths that are not temporary files are normalized to
+/// just the input's file name.
+///
+/// References to guest paths of temporary files are ignored entirely.
+fn hash_command(request: KeyRequest<'_>) -> ArrayString<64> {
+    let mut hasher = blake3::Hasher::new();
+    match request.guest_inputs_dir {
+        Some(prefix) => {
+            // Find the next prefix in the command string
+            let mut current = request.command;
+            while let Some(start) = current.find(prefix) {
+                // Hash what came before the match
+                if start > 0 {
+                    (&current[..start]).hash(&mut hasher);
+                }
+
+                // Find the longest match from the backend input guest paths
+                let end = match request
+                    .backend_inputs
+                    .iter()
+                    .enumerate()
+                    .filter_map(|(input_index, input)| {
+                        let p = input.guest_path()?.as_str();
+                        current[start..]
+                            .starts_with(p)
+                            .then_some((input_index, p.len()))
+                    })
+                    .max_by_key(|(_, len)| *len)
+                {
+                    Some((index, len)) => {
+                        let end = start + len;
+                        let input = &request.backend_inputs[index];
+                        input.kind().hash(&mut hasher);
+                        match input.kind() {
+                            ContentKind::File | ContentKind::Directory => {
+                                // Hash just the file name
+                                // SAFETY: guest paths are always Unix style and have a slash
+                                let slash = start + current[start..end].rfind('/').unwrap();
+                                (&current[slash + 1..end]).hash(&mut hasher);
+                            }
+                            ContentKind::TempFile => {
+                                // Ignore the guest path entirely
+                            }
+                        }
+
+                        end
+                    }
+                    None => {
+                        // Otherwise, no match, so hash just the prefix
+                        prefix.hash(&mut hasher);
+                        start + prefix.len()
+                    }
+                };
+
+                current = &current[end..];
+            }
+
+            // Hash the remainder of the command
+            if !current.is_empty() {
+                current.hash(&mut hasher);
+            }
+        }
+        None => {
+            request.command.hash(&mut hasher);
+        }
+    }
+
+    hasher.finalize().to_hex()
+}
 
 /// Contains keys that are excluded from cache entry checking.
 ///
@@ -155,8 +229,6 @@ impl Content {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct CallCacheEntry {
-    /// The monotonic version of the cache entry.
-    version: u32,
     /// The digest of the command's evaluated task.
     command: ArrayString<64>,
     /// The container image that was actually used during execution.
@@ -174,8 +246,8 @@ pub struct CallCacheEntry {
     requirements: HashMap<String, ArrayString<64>>,
     /// The hint digests of the task.
     hints: HashMap<String, ArrayString<64>>,
-    /// The digests of the backend inputs of the task.
-    inputs: HashMap<String, ArrayString<64>>,
+    /// The sorted digests of the backend inputs of the task.
+    inputs: Vec<ArrayString<64>>,
     /// The task's last exit code.
     exit: i32,
     /// The task's last stdout content.
@@ -215,8 +287,8 @@ pub struct Key {
     requirements: HashMap<String, ArrayString<64>>,
     /// The hint digests of the task.
     hints: HashMap<String, ArrayString<64>>,
-    /// The content digests of the backend inputs to the task.
-    backend_inputs: HashMap<String, ArrayString<64>>,
+    /// The sorted content digests of the backend inputs to the task.
+    inputs: Vec<ArrayString<64>>,
 }
 
 impl Key {
@@ -277,6 +349,18 @@ impl Key {
             Ok(())
         }
 
+        if self.inputs.len() < entry.inputs.len() {
+            bail!("a file or directory input was removed since last evaluation");
+        }
+
+        if self.inputs.len() > entry.inputs.len() {
+            bail!("a file or directory input was added since last evaluation");
+        }
+
+        if self.inputs != entry.inputs {
+            bail!("the content of a file or directory input was modified");
+        }
+
         if self.command != entry.command {
             bail!("the command of the task was modified");
         }
@@ -296,12 +380,7 @@ impl Key {
             &exclusions.requirements,
         )?;
         compare_maps(&self.hints, &entry.hints, "task hint", &exclusions.hints)?;
-        compare_maps(
-            &self.backend_inputs,
-            &entry.inputs,
-            "task input",
-            &exclusions.inputs,
-        )?;
+
         Ok(())
     }
 }
@@ -355,6 +434,10 @@ pub struct KeyRequest<'a> {
     ///
     /// This field contributes to the digests stored in a cache entry.
     pub hints: &'a Object,
+    /// The backend's guest input directory.
+    ///
+    /// This field is used to detect guest input paths in the evaluated command.
+    pub guest_inputs_dir: Option<&'a str>,
     /// The backend inputs of the task.
     ///
     /// This field contributes to the digests stored in a cache entry.
@@ -416,10 +499,8 @@ impl CallCache {
     /// This will calculate digests for the command, requirements, hints, and
     /// inputs.
     pub async fn key(&self, request: KeyRequest<'_>) -> Result<Key> {
-        // Calculate the command digest.
-        let mut hasher = blake3::Hasher::new();
-        request.command.hash(&mut hasher);
-        let command_digest = hasher.finalize().to_hex();
+        // Calculate the command digest
+        let command_digest = hash_command(request);
 
         // Calculate the requirement digests
         let requirement_digests = request
@@ -444,18 +525,25 @@ impl CallCache {
             .collect();
 
         // Calculate the digests of the backend inputs
-        let mut backend_inputs = HashMap::with_capacity(request.backend_inputs.len());
+        let mut inputs = Vec::with_capacity(request.backend_inputs.len());
         for input in request.backend_inputs {
             let digest = input
                 .path()
                 .calculate_digest(self.0.transferer.as_ref(), input.kind(), self.0.mode)
                 .await?;
 
-            backend_inputs.insert(input.path().to_string(), digest.to_hex());
+            inputs.push(digest.to_hex());
         }
+
+        // Sort the input digests so that they can be easily compared with an entry
+        inputs.sort();
 
         // Calculate the task's cache key
         let mut hasher = blake3::Hasher::new();
+        CURRENT_CACHE_VERSION
+            .to_le_bytes()
+            .as_ref()
+            .hash(&mut hasher);
         request.document_uri.hash(&mut hasher);
         request.backend.hash(&mut hasher);
         request.task_name.hash(&mut hasher);
@@ -477,7 +565,7 @@ impl CallCache {
             shell: request.shell.into(),
             requirements: requirement_digests,
             hints: hint_digests,
-            backend_inputs,
+            inputs,
         })
     }
 
@@ -499,14 +587,6 @@ impl CallCache {
         // Deserialize the entry and ensure it matches the current evaluation
         let entry: CallCacheEntry = serde_json::from_reader(BufReader::new(file))
             .with_context(|| format!("failed to deserialize call cache entry `{key}`"))?;
-
-        if entry.version != CURRENT_CACHE_VERSION {
-            bail!(
-                "cache entry `{key}` has a mismatched version: expected version is \
-                 {CURRENT_CACHE_VERSION}, but the entry is {version}",
-                version = entry.version
-            );
-        }
 
         // Ensure the key matches the cache entry
         key.ensure_matches(&entry, &self.0.exclusions)?;
@@ -545,14 +625,13 @@ impl CallCache {
         let file = LockedFile::acquire_exclusive_truncated(&self.0.entry_path(&key)).await?;
 
         let entry = CallCacheEntry {
-            version: CURRENT_CACHE_VERSION,
             command: key.command,
             container: result.container.clone(),
             default_container: key.default_container,
             shell: key.shell,
             requirements: key.requirements,
             hints: key.hints,
-            inputs: key.backend_inputs,
+            inputs: key.inputs,
             exit: result.exit_code,
             stdout: Content::from_evaluation_path(
                 self.0.transferer.as_ref(),
@@ -661,7 +740,7 @@ mod test {
                 backend_inputs: [Input::new(
                     ContentKind::File,
                     EvaluationPath::from_local_path(input),
-                    Some(GuestPath::new("/mnt/task/0/input")),
+                    Some(GuestPath::new("/mnt/task/inputs/0/input")),
                 )],
             }
         }
@@ -675,11 +754,12 @@ mod test {
                 backend: "foo",
                 task_name: "test",
                 inputs: &self.inputs,
-                command: "cat /mnt/task/0/input",
+                command: "cat /mnt/task/inputs/0/input",
                 default_container: self.default_container.as_deref(),
                 shell: "bash",
                 requirements: &self.requirements,
                 hints: &self.hints,
+                guest_inputs_dir: Some("/mnt/task/inputs/"),
                 backend_inputs: &self.backend_inputs,
             }
         }
@@ -834,6 +914,110 @@ mod test {
             ctx.cache.get(&key).await.unwrap_err().to_string(),
             "the command of the task was modified"
         );
+    }
+
+    #[tokio::test]
+    async fn modified_guest_path() {
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(
+            Some(&root_dir.path().join("cache")),
+            ContentDigestMode::Strong,
+            transfer,
+            Arc::new(CallCacheExclusions {
+                inputs: HashSet::new(),
+                requirements: HashSet::new(),
+                hints: HashSet::new(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        let mut task = prepare_task(root_dir.path()).await;
+        populate_cache(&cache, &task).await;
+
+        // Change the input's guest path, but keep the file name the same
+        task.backend_inputs[0] = Input::new(
+            task.backend_inputs[0].kind(),
+            task.backend_inputs[0].path().clone(),
+            Some(GuestPath::new("/mnt/task/inputs/100/input")),
+        );
+
+        // Ensure the entry can still be retrieved
+        let key = cache
+            .key(KeyRequest {
+                command: "cat /mnt/task/inputs/100/input",
+                ..task.key_request()
+            })
+            .await
+            .unwrap();
+        cache.get(&key).await.unwrap();
+
+        // Change the input's file name
+        task.backend_inputs[0] = Input::new(
+            task.backend_inputs[0].kind(),
+            task.backend_inputs[0].path().clone(),
+            Some(GuestPath::new("/mnt/task/inputs/0/foo")),
+        );
+
+        // Ensure the entry is invalid because it detected a modification to the command
+        let key = cache
+            .key(KeyRequest {
+                command: "cat /mnt/task/inputs/0/foo",
+                ..task.key_request()
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            cache.get(&key).await.unwrap_err().to_string(),
+            "the command of the task was modified"
+        );
+    }
+
+    #[tokio::test]
+    async fn modified_temp_file_name() {
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let transfer = Arc::new(DigestTransferer::new([]));
+        let cache = CallCache::new(
+            Some(&root_dir.path().join("cache")),
+            ContentDigestMode::Strong,
+            transfer,
+            Arc::new(CallCacheExclusions {
+                inputs: HashSet::new(),
+                requirements: HashSet::new(),
+                hints: HashSet::new(),
+            }),
+        )
+        .await
+        .unwrap();
+
+        let mut task = prepare_task(root_dir.path()).await;
+
+        // Change the input to a temporary file
+        task.backend_inputs[0] = Input::new(
+            ContentKind::TempFile,
+            task.backend_inputs[0].path().clone(),
+            Some(GuestPath::new("/mnt/task/inputs/0/ABC")),
+        );
+
+        populate_cache(&cache, &task).await;
+
+        // Change the input's guest path
+        task.backend_inputs[0] = Input::new(
+            ContentKind::TempFile,
+            task.backend_inputs[0].path().clone(),
+            Some(GuestPath::new("/mnt/task/inputs/0/XYZ")),
+        );
+
+        // Ensure the entry can still be retrieved as temporary file names are ignored
+        let key = cache
+            .key(KeyRequest {
+                command: "cat /mnt/task/inputs/0/input",
+                ..task.key_request()
+            })
+            .await
+            .unwrap();
+        cache.get(&key).await.unwrap();
     }
 
     #[tokio::test]
@@ -1045,10 +1229,7 @@ mod test {
             .unwrap();
         assert_eq!(
             ctx.cache.get(&key).await.unwrap_err().to_string(),
-            format!(
-                "task input `{}` was removed",
-                ctx.task.paths.input.display()
-            )
+            "a file or directory input was removed since last evaluation",
         );
     }
 
@@ -1070,7 +1251,7 @@ mod test {
                     Input::new(
                         ContentKind::File,
                         EvaluationPath::from_local_path(input2.clone()),
-                        Some(GuestPath::new("/mnt/task/0/input2")),
+                        Some(GuestPath::new("/mnt/task/inputs/0/input2")),
                     ),
                 ],
                 ..request
@@ -1079,7 +1260,7 @@ mod test {
             .unwrap();
         assert_eq!(
             ctx.cache.get(&key).await.unwrap_err().to_string(),
-            format!("task input `{}` was added", input2.display())
+            "a file or directory input was added since last evaluation",
         );
     }
 
@@ -1095,10 +1276,7 @@ mod test {
         let key = ctx.cache.key(ctx.task.key_request()).await.unwrap();
         assert_eq!(
             ctx.cache.get(&key).await.unwrap_err().to_string(),
-            format!(
-                "task input `{}` was modified",
-                ctx.task.paths.input.display()
-            )
+            "the content of a file or directory input was modified",
         );
     }
 
