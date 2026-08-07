@@ -158,6 +158,19 @@ pub struct Invocation {
     target: Option<String>,
 }
 
+/// Extensions recognized as input file formats (kept in sync with
+/// `crate::inputs::file::read_input_file`).
+const RECOGNIZED_INPUT_FILE_EXTENSIONS: &[&str] = &["json", "yml", "yaml"];
+
+/// Returns `true` if `s` looks like a forgotten `@`-prefixed input file.
+fn looks_like_forgotten_input_file(s: &str) -> bool {
+    std::path::Path::new(s)
+        .extension()
+        .and_then(std::ffi::OsStr::to_str)
+        .map(|ext| RECOGNIZED_INPUT_FILE_EXTENSIONS.contains(&ext))
+        .unwrap_or(false)
+}
+
 impl Invocation {
     /// Prefixes a key with the target name if needed.
     ///
@@ -208,6 +221,11 @@ impl Invocation {
                 self.last_pair_key = Some(prefixed);
             }
             Err(_) if self.last_pair_key.is_some() => {
+                if looks_like_forgotten_input_file(input) {
+                    bail!(
+                        "unrecognized input `{input}`: this looks like an input file; did you forget to prefix it with `@` (e.g., `@{input}`)?"
+                    );
+                }
                 let cwd = std::env::current_dir()
                     .context("failed to determine the current working directory")?;
 
@@ -844,6 +862,33 @@ mod tests {
         assert_eq!(values[0].value.as_str().unwrap(), "a.txt");
         assert_eq!(values[1].value.as_str().unwrap(), "b.txt");
         assert_eq!(values[2].value.as_str().unwrap(), "c.txt");
+    }
+
+    #[tokio::test]
+    async fn bare_json_file_without_at_prefix_errors_clearly() {
+        let error = Invocation::coalesce(["align.threads=20", "read_group.json"], None)
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("did you forget to prefix it with `@`"));
+    }
+
+    #[tokio::test]
+    async fn bare_yaml_file_without_at_prefix_errors_clearly() {
+        let error = Invocation::coalesce(["config=hello", "settings.yaml"], None)
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("did you forget to prefix it with `@`"));
+    }
+
+    #[tokio::test]
+    async fn bare_txt_glob_continuation_still_works() {
+        let invocation = Invocation::coalesce(
+            ["files=a.txt", "b.txt", "c.txt"],
+            Some("task".to_string()),
+        )
+        .await
+        .unwrap();
+        assert_eq!(invocation.inputs.get("task.files").unwrap().len(), 3);
     }
 
     #[tokio::test]
