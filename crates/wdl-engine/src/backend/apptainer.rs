@@ -5,24 +5,15 @@
 //!
 //! The entrypoint for both of these is [`ApptainerRuntime::generate_script`].
 
-use std::collections::HashMap;
 use std::fmt::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
-use std::path::absolute;
-use std::process::Stdio;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use anyhow::Context as _;
 use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
-use tokio::process::Command;
-use tokio::sync::OnceCell;
-use tokio_retry2::Retry;
-use tokio_retry2::RetryError;
-use tokio_retry2::strategy::ExponentialBackoff;
 use tokio_util::sync::CancellationToken;
 use tracing::debug;
 use tracing::warn;
@@ -54,34 +45,37 @@ const APPTAINER_ENV_PREFIX: &str = "APPTAINERENV";
 /// The environment variable prefix for Singularity.
 const SINGULARITY_ENV_PREFIX: &str = "SINGULARITYENV";
 
+mod image_cache;
+
+use image_cache::ApptainerImageCache;
+
 /// Represents the Apptainer container runtime.
 #[derive(Debug)]
 pub struct ApptainerRuntime {
-    /// The cache directory for `.sif` images.
-    cache_dir: PathBuf,
-    /// The map of container source to `.sif` path.
-    images: Mutex<HashMap<ContainerSource, Arc<OnceCell<PathBuf>>>>,
+    /// The coordinator for the runtime's `.sif` image cache.
+    ///
+    /// Shared with every other runtime in this process constructed with the
+    /// same `image_cache_dir`, and coordinated with runtimes in other
+    /// processes that share the same cache directory on disk.
+    image_cache: Arc<ApptainerImageCache>,
 }
 
 impl ApptainerRuntime {
     /// Creates a new [`ApptainerRuntime`] with the specified root directory.
     ///
-    /// If `image_cache_dir` is provided, it is used as the directory for
-    /// caching `.sif` images. Otherwise, a default subdirectory is created
-    /// within the given root.
-    pub fn new(root_dir: &Path, image_cache_dir: Option<&Path>) -> Result<Self> {
-        let cache_dir = image_cache_dir
-            .map(Path::to_path_buf)
+    /// If `config.image_cache_dir` is set, it is used as the directory for
+    /// caching `.sif` images, shared with every other runtime constructed
+    /// with the same directory. Otherwise, a default subdirectory of
+    /// `root_dir` is used, and the cache is not shared with a runtime
+    /// constructed from a different `root_dir`.
+    pub async fn new(root_dir: &Path, config: &ApptainerConfig) -> Result<Self> {
+        let cache_dir = config
+            .image_cache_dir
+            .clone()
             .unwrap_or_else(|| root_dir.join(IMAGES_CACHE_DIR));
 
         Ok(Self {
-            cache_dir: absolute(&cache_dir).with_context(|| {
-                format!(
-                    "failed to make path `{path}` absolute",
-                    path = cache_dir.display()
-                )
-            })?,
-            images: Default::default(),
+            image_cache: ApptainerImageCache::get(&cache_dir, config.max_concurrent_pulls).await?,
         })
     }
 
@@ -287,71 +281,37 @@ impl ApptainerRuntime {
             bail!("unknown container source `{s}`");
         }
 
-        // For registry-based images, pull and cache.
-        let once = {
-            let mut map = self.images.lock().unwrap();
-            map.entry(container.clone())
-                .or_insert_with(|| Arc::new(OnceCell::new()))
-                .clone()
-        };
-
-        let pull = once.get_or_try_init(|| async move {
-            // SAFETY: the next two `unwrap` calls are safe because the source can't be a
-            // file or an unknown source at this point
-            let mut path = self.cache_dir.join(container.scheme().unwrap());
-            for part in container.name().unwrap().split("/") {
-                for part in part.split(':') {
-                    path.push(part);
-                }
-            }
-
-            path.add_extension("sif");
-
-            if path.exists() {
-                debug!(path = %path.display(), "Apptainer image `{container:#}` already cached; using existing image");
-                return Ok(path);
-            }
-
-            if let Some(parent) = path.parent() {
-                tokio::fs::create_dir_all(parent).await.with_context(|| {
-                    format!(
-                        "failed to create directory `{parent}`",
-                        parent = parent.display()
-                    )
-                })?;
-            }
-
-            let container = format!("{container:#}");
-            let executable = executable.to_string();
-
-            Retry::spawn_notify(
-                // TODO ACF 2025-09-22: configure the retry behavior based on actual experience
-                // with flakiness of the container registries. This is a
-                // finger-in-the-wind guess at some reasonable parameters that
-                // shouldn't lead to us making our own problems worse by
-                // overwhelming registries with repeated retries.
-                ExponentialBackoff::from_millis(50)
-                    .max_delay_millis(60_000)
-                    .take(10),
-                || Self::try_pull_image(&executable, &container, &path),
-                {
-                    let executable = executable.clone();
-                    move |e: &anyhow::Error, _| {
-                        warn!(e = %e, "`{executable} pull` failed");
-                    }
-                },
-            )
+        // For registry-based images, delegate coordination and the actual pull to
+        // the shared image cache.
+        let final_path = Self::registry_image_path(self.image_cache.cache_dir(), container);
+        self.image_cache
+            .pull(executable, container, &final_path, token)
             .await
-            .with_context(|| format!("failed pulling Apptainer image `{container}`"))?;
+    }
 
-            debug!(path = %path.display(), "Apptainer image `{container}` pulled successfully");
-            Ok(path)
-        });
-
-        tokio::select! {
-            _ = token.cancelled() => Ok(None),
-            res = pull => res.map(|p| Some(p.clone())),
+    /// Computes the final `.sif` path for a registry-based `container` within
+    /// `cache_dir`.
+    ///
+    /// The layout is `cache_dir/<scheme>/<name-parts>.sif`, splitting the
+    /// container's name on `/` and `:` so a path segment, tag, or digest each
+    /// becomes its own directory component. This layout must stay
+    /// byte-for-byte identical to what earlier engine releases produced,
+    /// since an existing cache directory may already contain images at these
+    /// paths.
+    fn registry_image_path(cache_dir: &Path, container: &ContainerSource) -> PathBuf {
+        // SAFETY: the next two `unwrap` calls are safe because callers only reach
+        // this helper for registry sources (`Docker`, `Library`, `Oras`); local
+        // `SifFile` and `Unknown` sources are handled earlier in `pull_image` and
+        // never reach this helper.
+        let mut path = cache_dir.join(container.scheme().unwrap());
+        for part in container.name().unwrap().split("/") {
+            for part in part.split(':') {
+                path.push(part);
+            }
         }
+
+        path.add_extension("sif");
+        path
     }
 
     /// Attempts to pull the first available image from a list of candidates.
@@ -386,83 +346,6 @@ impl ApptainerRuntime {
 
         Some(results)
     }
-
-    /// Tries to pull an image.
-    ///
-    /// The tricky thing about this function is determining whether a failure is
-    /// transient or permanent. When in doubt, choose transient; the downside is
-    /// a permanent failure may take longer to finally bring down an
-    /// execution, but this is better for a long-running task than letting a
-    /// transient failure bring it down before a retry.
-    ///
-    /// `apptainer pull` doesn't have a well-defined interface for us to tell
-    /// whether a failure is transient, but as we gain experience recognizing
-    /// its output patterns, we can enhance the fidelity of the error
-    /// handling.
-    async fn try_pull_image(
-        executable: &str,
-        image: &str,
-        path: &Path,
-    ) -> Result<(), RetryError<anyhow::Error>> {
-        debug!("spawning `{executable}` to pull image `{image}`");
-
-        let child = Command::new(executable)
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .arg("pull")
-            .arg(path)
-            .arg(image)
-            .spawn()
-            .with_context(|| {
-                format!(
-                    "failed to spawn `{executable} pull '{path}' '{image}'`",
-                    path = path.display()
-                )
-            })
-            // If the system can't handle spawning a process, we're better off failing quickly
-            .map_err(RetryError::permanent)?;
-
-        let output = child
-            .wait_with_output()
-            .await
-            .context(format!("failed to wait for `{executable}`"))
-            .map_err(RetryError::permanent)?;
-        if !output.status.success() {
-            let permanent = if let Ok(stderr) = str::from_utf8(&output.stderr) {
-                let mut permanent = false;
-                // A collection of strings observed in `apptainer pull` stderr in unrecoverable
-                // conditions. Finding one of these in the output marks the attempt as a
-                // permanent failure.
-                let needles = ["manifest unknown", "403 (Forbidden)"];
-                for needle in needles {
-                    if stderr.contains(needle) {
-                        permanent = true;
-                        break;
-                    }
-                }
-
-                permanent
-            } else {
-                false
-            };
-
-            let e = anyhow!(
-                "`{executable}` failed: {status}: {stderr}",
-                status = output.status,
-                stderr = str::from_utf8(&output.stderr)
-                    .unwrap_or("<output not UTF-8>")
-                    .trim()
-            );
-            return if permanent {
-                Err(RetryError::permanent(e))
-            } else {
-                Err(RetryError::transient(e))
-            };
-        }
-
-        Ok(())
-    }
 }
 
 #[cfg(test)]
@@ -481,6 +364,170 @@ mod tests {
     use crate::config::DEFAULT_TASK_SHELL;
 
     #[tokio::test]
+    async fn shared_image_cache() {
+        let root_a = TempDir::new().unwrap();
+        let root_b = TempDir::new().unwrap();
+        let shared_cache_dir = TempDir::new().unwrap();
+
+        let config = ApptainerConfig {
+            image_cache_dir: Some(shared_cache_dir.path().to_path_buf()),
+            ..Default::default()
+        };
+
+        let runtime_a = ApptainerRuntime::new(&root_a.path().join("runs"), &config)
+            .await
+            .unwrap();
+        let runtime_b = ApptainerRuntime::new(&root_b.path().join("runs"), &config)
+            .await
+            .unwrap();
+
+        assert!(
+            Arc::ptr_eq(&runtime_a.image_cache, &runtime_b.image_cache),
+            "runtimes sharing `image_cache_dir` should reuse the same process-wide coordinator"
+        );
+    }
+
+    #[tokio::test]
+    async fn per_run_image_cache() {
+        let root_a = TempDir::new().unwrap();
+        let root_b = TempDir::new().unwrap();
+        let config = ApptainerConfig::default();
+
+        let runtime_a = ApptainerRuntime::new(&root_a.path().join("runs"), &config)
+            .await
+            .unwrap();
+        let runtime_b = ApptainerRuntime::new(&root_b.path().join("runs"), &config)
+            .await
+            .unwrap();
+
+        assert!(
+            !Arc::ptr_eq(&runtime_a.image_cache, &runtime_b.image_cache),
+            "runtimes with different run roots and no shared `image_cache_dir` should not reuse a \
+             coordinator"
+        );
+        assert_eq!(
+            runtime_a.image_cache.cache_dir(),
+            root_a.path().join("runs").join(IMAGES_CACHE_DIR),
+            "runtime_a's cache directory should be exactly `<run_root>/apptainer-images`"
+        );
+        assert_eq!(
+            runtime_b.image_cache.cache_dir(),
+            root_b.path().join("runs").join(IMAGES_CACHE_DIR),
+            "runtime_b's cache directory should be exactly `<run_root>/apptainer-images`"
+        );
+    }
+
+    #[tokio::test]
+    async fn registry_image_path_matches_legacy_layout() {
+        let root = TempDir::new().unwrap();
+        let runtime = ApptainerRuntime::new(&root.path().join("runs"), &ApptainerConfig::default())
+            .await
+            .unwrap();
+
+        let container: ContainerSource = "docker://ubuntu:latest".parse().unwrap();
+        let path =
+            ApptainerRuntime::registry_image_path(runtime.image_cache.cache_dir(), &container);
+
+        assert_eq!(
+            path,
+            runtime
+                .image_cache
+                .cache_dir()
+                .join("docker")
+                .join("ubuntu")
+                .join("latest.sif"),
+            "`docker://ubuntu:latest` must resolve to `<cache>/docker/ubuntu/latest.sif`, \
+             matching the on-disk layout produced by earlier engine releases"
+        );
+    }
+
+    /// Restores `path`'s permissions to `mode`.
+    ///
+    /// Used so a deliberately read-only cache directory can be made writable
+    /// again before its [`TempDir`] is dropped.
+    #[cfg(unix)]
+    fn set_mode(path: &Path, mode: u32) {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut perms = std::fs::metadata(path).unwrap().permissions();
+        perms.set_mode(mode);
+        std::fs::set_permissions(path, perms).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn existing_image_resolves_from_a_read_only_cache() {
+        // A shared cache directory that a run may read but not write is a real
+        // deployment shape: an administrator populates the cache and exposes it
+        // read-only to every compute node. Constructing a runtime must not write
+        // anything to the cache, and an image already present in the legacy layout
+        // must resolve without creating the coordination directory.
+        let root = TempDir::new().unwrap();
+        let cache_dir = TempDir::new().unwrap();
+
+        let container: ContainerSource = "docker://ubuntu:latest".parse().unwrap();
+        let final_path = ApptainerRuntime::registry_image_path(cache_dir.path(), &container);
+        std::fs::create_dir_all(final_path.parent().unwrap()).unwrap();
+        std::fs::write(&final_path, b"legacy sif").unwrap();
+
+        set_mode(cache_dir.path(), 0o555);
+
+        let config = ApptainerConfig {
+            image_cache_dir: Some(cache_dir.path().to_path_buf()),
+            ..Default::default()
+        };
+
+        // Every fallible step runs inside this block so the cache directory is
+        // always made writable again before the assertions run, keeping the
+        // `TempDir` cleanup working even when an assertion fails.
+        let outcome = async {
+            let runtime = ApptainerRuntime::new(&root.path().join("runs"), &config).await?;
+            let hit = runtime
+                .pull_image(
+                    "this-executable-must-never-run",
+                    &container,
+                    CancellationToken::new(),
+                )
+                .await?;
+            let miss = runtime
+                .pull_image(
+                    "this-executable-must-never-run",
+                    &"docker://ubuntu:absent".parse::<ContainerSource>().unwrap(),
+                    CancellationToken::new(),
+                )
+                .await;
+            anyhow::Ok((hit, miss))
+        }
+        .await;
+
+        let coordination_dir_exists = cache_dir
+            .path()
+            .join(image_cache::COORDINATION_DIR_NAME)
+            .exists();
+        set_mode(cache_dir.path(), 0o755);
+
+        let (hit, miss) = outcome.expect("a read-only cache must still serve an existing image");
+        assert_eq!(
+            hit.expect("the existing image should resolve"),
+            final_path,
+            "an image already present in the cache must resolve to its existing path"
+        );
+        assert!(
+            !coordination_dir_exists,
+            "serving an existing image must not create the cache coordination directory"
+        );
+
+        let error = format!(
+            "{error:#}",
+            error = miss.expect_err("a cache miss in a read-only cache must fail clearly")
+        );
+        assert!(
+            error.contains("Apptainer image cache"),
+            "a read-only cache miss should report why coordination could not start: {error}"
+        );
+    }
+
+    #[tokio::test]
     async fn example_task_generates() {
         let root = TempDir::new().unwrap();
 
@@ -488,7 +535,9 @@ mod tests {
         env.insert("FOO".to_string(), "bar".to_string());
         env.insert("BAZ".to_string(), "\"quux\"".to_string());
 
-        let runtime = ApptainerRuntime::new(&root.path().join("runs"), None).unwrap();
+        let runtime = ApptainerRuntime::new(&root.path().join("runs"), &ApptainerConfig::default())
+            .await
+            .unwrap();
         let _ = runtime
             .generate_script(
                 &ApptainerConfig::default(),
@@ -540,7 +589,9 @@ mod tests {
         env.insert("FOO".to_string(), "bar".to_string());
         env.insert("BAZ".to_string(), "\"quux\"".to_string());
 
-        let runtime = ApptainerRuntime::new(&root.path().join("runs"), None).unwrap();
+        let runtime = ApptainerRuntime::new(&root.path().join("runs"), &ApptainerConfig::default())
+            .await
+            .unwrap();
         let (script, _) = runtime
             .generate_script(
                 &ApptainerConfig::default(),

@@ -991,11 +991,20 @@
           "default": "apptainer"
         },
         "image_cache_dir": {
-          "description": "Path to a shared directory for caching pulled `.sif` images.\n\nWhen set, pulled images are stored in this directory and shared\nacross runs. When unset, images are stored in a per-run directory\nthat is not shared.",
+          "description": "Path to a shared directory for caching pulled `.sif` images.\n\nWhen set, pulled images are stored in this directory and shared\nacross runs. When unset, images are stored in a per-run directory\nthat is not shared.\n\nA directory shared by more than one host, or by more than one\nSprocket process, must live on a filesystem that honors advisory file\nlocks across every host that mounts it, that makes a rename within a\nsingle directory atomic, and whose hosts keep reasonably synchronized\nUTC clocks. Sprocket coordinates concurrent pulls using advisory\nlocks, publishes each image by renaming it into place, and schedules\nretries after a failed pull using UTC timestamps, so a filesystem\nthat does not support these semantics cannot safely coordinate\nconcurrent processes and may allow duplicate or partially written\nimages.",
           "type": [
             "string",
             "null"
           ]
+        },
+        "max_concurrent_pulls": {
+          "description": "Maximum number of Apptainer images that may be pulled concurrently.\n\nWhen unset, pulls for different images are unlimited. Pulls for the same\nimage are always serialized. The value must be greater than zero.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint64",
+          "minimum": 1
         },
         "extra_args": {
           "description": "Additional command-line arguments to pass to `apptainer exec` when\nexecuting tasks.",

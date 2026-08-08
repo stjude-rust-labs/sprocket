@@ -724,7 +724,7 @@ impl LsfApptainerBackend {
     /// duration of the entire top-level evaluation. It is used to store
     /// Apptainer images which should only be created once per container per
     /// run.
-    pub fn new(
+    pub async fn new(
         config: Arc<Config>,
         run_root_dir: &Path,
         events: Events,
@@ -749,10 +749,7 @@ impl LsfApptainerBackend {
                 .unwrap_or(DEFAULT_MAX_CONCURRENCY) as usize,
         );
 
-        let apptainer = ApptainerRuntime::new(
-            run_root_dir,
-            backend_config.apptainer.image_cache_dir.as_deref(),
-        )?;
+        let apptainer = ApptainerRuntime::new(run_root_dir, &backend_config.apptainer).await?;
 
         Ok(Self {
             config,

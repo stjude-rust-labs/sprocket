@@ -47,7 +47,7 @@ const CALL_CACHE_SUBDIR: &str = "calls";
 const CACHE_LOCK_FILE_NAME: &str = ".lock";
 
 mod hash;
-mod lock;
+pub(crate) mod lock;
 
 pub use hash::Hashable;
 
