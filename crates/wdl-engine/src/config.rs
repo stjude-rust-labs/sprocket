@@ -573,18 +573,13 @@ impl Config {
             BackendConfig::Tes { .. } => Ok(Arc::new(
                 TesBackend::new(self.clone(), events, cancellation).await?,
             )),
-            BackendConfig::LsfApptainer { .. } => Ok(Arc::new(LsfApptainerBackend::new(
-                self.clone(),
-                run_root_dir,
-                events,
-                cancellation,
-            )?)),
-            BackendConfig::SlurmApptainer { .. } => Ok(Arc::new(SlurmApptainerBackend::new(
-                self.clone(),
-                run_root_dir,
-                events,
-                cancellation,
-            )?)),
+            BackendConfig::LsfApptainer { .. } => Ok(Arc::new(
+                LsfApptainerBackend::new(self.clone(), run_root_dir, events, cancellation).await?,
+            )),
+            BackendConfig::SlurmApptainer { .. } => Ok(Arc::new(
+                SlurmApptainerBackend::new(self.clone(), run_root_dir, events, cancellation)
+                    .await?,
+            )),
         }
     }
 }

@@ -47,10 +47,6 @@
 //! been stepped backward may bypass, shorten, or extend the intended backoff
 //! window.
 
-// This module is not yet wired into `ApptainerRuntime`; a later task in the
-// apptainer image cache plan does so.
-#![cfg_attr(not(test), expect(dead_code))]
-
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
@@ -341,10 +337,6 @@ async fn remove_failure_marker(path: &Path) -> Result<()> {
 ///
 /// Classifies a failure as permanent when its stderr contains a known
 /// unrecoverable pattern, and transient otherwise.
-///
-/// This duplicates similar logic in [`super::ApptainerRuntime`]; a later
-/// task in the apptainer image cache plan consolidates the two, at which
-/// point this copy adds `kill_on_drop(true)`, which the original lacks.
 async fn try_pull_once(
     executable: &str,
     image: &str,
@@ -421,6 +413,15 @@ async fn retrying_pull(executable: &str, image: &str, path: &Path) -> Result<()>
 }
 
 impl ApptainerImageCache {
+    /// Returns the root cache directory this coordinator manages.
+    ///
+    /// This is the absolute, normalized path passed to [`Self::get`], and is
+    /// exposed so a caller can derive the final path for an image within the
+    /// cache without duplicating that normalization itself.
+    pub(crate) fn cache_dir(&self) -> &Path {
+        &self.cache_dir
+    }
+
     /// Gets or creates the coordinator for the given cache directory.
     ///
     /// Coordinators are cached per process so that concurrent callers with
