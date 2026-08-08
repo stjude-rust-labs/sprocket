@@ -405,10 +405,39 @@ mod tests {
             "runtimes with different run roots and no shared `image_cache_dir` should not reuse a \
              coordinator"
         );
-        assert_ne!(
+        assert_eq!(
             runtime_a.image_cache.cache_dir(),
+            root_a.path().join("runs").join(IMAGES_CACHE_DIR),
+            "runtime_a's cache directory should be exactly `<run_root>/apptainer-images`"
+        );
+        assert_eq!(
             runtime_b.image_cache.cache_dir(),
-            "runtimes with different run roots should resolve to different cache directories"
+            root_b.path().join("runs").join(IMAGES_CACHE_DIR),
+            "runtime_b's cache directory should be exactly `<run_root>/apptainer-images`"
+        );
+    }
+
+    #[tokio::test]
+    async fn registry_image_path_matches_legacy_layout() {
+        let root = TempDir::new().unwrap();
+        let runtime = ApptainerRuntime::new(&root.path().join("runs"), &ApptainerConfig::default())
+            .await
+            .unwrap();
+
+        let container: ContainerSource = "docker://ubuntu:latest".parse().unwrap();
+        let path =
+            ApptainerRuntime::registry_image_path(runtime.image_cache.cache_dir(), &container);
+
+        assert_eq!(
+            path,
+            runtime
+                .image_cache
+                .cache_dir()
+                .join("docker")
+                .join("ubuntu")
+                .join("latest.sif"),
+            "`docker://ubuntu:latest` must resolve to `<cache>/docker/ubuntu/latest.sif`, \
+             matching the on-disk layout produced by earlier engine releases"
         );
     }
 

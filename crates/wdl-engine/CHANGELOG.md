@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Apptainer `.sif` image pulls are now coordinated across concurrent runs and
+  processes: a given image is pulled at most once, whether the runs share a
+  configured `apptainer.image_cache_dir` or fall back to their own per-run
+  cache directory. Added an optional `apptainer.max_concurrent_pulls` setting
+  to cap how many pulls may run at the same time; when unset, pulls for
+  distinct images are unlimited (pulls for the same image are always
+  serialized).
+
+#### Changed
+
+* `ApptainerRuntime::new` is now `async` and now takes `&ApptainerConfig`
+  instead of `Option<&Path>`, so it can join the coordinated image cache
+  described above. This is a breaking change for direct callers of
+  `ApptainerRuntime::new`. `LsfApptainerBackend::new` and
+  `SlurmApptainerBackend::new` are likewise now `async` to accommodate the
+  change.
+
 #### Fixed
 
 * `WorkflowInputs` serialization no longer drops call-nested inputs.
