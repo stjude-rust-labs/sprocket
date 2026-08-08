@@ -178,8 +178,15 @@ fn to_slot_limit(max_concurrent_pulls: Option<u64>) -> Result<Option<usize>> {
 
 /// Derives the stable key used to identify `container` within the cache's
 /// coordination files.
+///
+/// Uses `container`'s alternate (`{:#}`) `Display` form, which includes its
+/// protocol prefix (e.g. `docker://`, `oras://`), rather than the
+/// non-alternate form, which omits it. Hashing the non-alternate form would
+/// alias sources that share a name but differ only in protocol (for
+/// example `docker://same-name` and `oras://same-name`), causing them to
+/// incorrectly share a per-image lock and failure marker.
 fn image_key(container: &ContainerSource) -> arrayvec::ArrayString<64> {
-    blake3::hash(container.to_string().as_bytes()).to_hex()
+    blake3::hash(format!("{container:#}").as_bytes()).to_hex()
 }
 
 /// Writes `contents` to `path` atomically using a temporary file within
@@ -752,6 +759,15 @@ impl ApptainerImageCache {
     ///
     /// The returned lock must be held for the duration of the pull;
     /// dropping it releases the slot for another contender.
+    ///
+    /// Each complete sweep over the fixed slot files runs inside
+    /// [`tokio::task::spawn_blocking`] via [`try_acquire_any_slot`], so the
+    /// synchronous `open()` and advisory-lock calls it makes never run on a
+    /// Tokio worker thread. The `.await` points that remain between sweeps
+    /// (joining the blocking task, then the retry sleep) keep the loop
+    /// cancellation-safe: dropping or aborting the future that calls this
+    /// method can only happen between sweeps, never inside one, so a
+    /// cancellation is never left waiting on a synchronous filesystem call.
     async fn acquire_slot(&self) -> Result<Option<LockedFile>> {
         let Some(limit) = self.max_concurrent_pulls else {
             return Ok(None);
@@ -762,16 +778,38 @@ impl ApptainerImageCache {
             .join(COORDINATION_DIR_NAME)
             .join(SLOTS_DIR_NAME);
         loop {
-            for i in 0..limit {
-                let slot_path = slots_dir.join(format!("{i}.lock"));
-                if let Some(lock) = LockedFile::try_acquire_exclusive(&slot_path)? {
-                    return Ok(Some(lock));
-                }
+            let dir = slots_dir.clone();
+            let lock = tokio::task::spawn_blocking(move || try_acquire_any_slot(&dir, limit))
+                .await
+                .context("failed to join Apptainer image cache slot-acquisition task")??;
+
+            if let Some(lock) = lock {
+                return Ok(Some(lock));
             }
 
             tokio::time::sleep(SLOT_RETRY_INTERVAL).await;
         }
     }
+}
+
+/// Performs one complete, synchronous sweep over the fixed slot files
+/// `0..limit` under `slots_dir`, returning the first one that can be locked
+/// exclusively without blocking, or `None` if every slot is currently held.
+///
+/// This function itself performs synchronous `open()` and advisory-lock
+/// system calls (via [`LockedFile::try_acquire_exclusive`]) and must only be
+/// called from inside [`tokio::task::spawn_blocking`], as
+/// [`ApptainerImageCache::acquire_slot`] does, never directly from an async
+/// context.
+fn try_acquire_any_slot(slots_dir: &Path, limit: usize) -> Result<Option<LockedFile>> {
+    for i in 0..limit {
+        let slot_path = slots_dir.join(format!("{i}.lock"));
+        if let Some(lock) = LockedFile::try_acquire_exclusive(&slot_path)? {
+            return Ok(Some(lock));
+        }
+    }
+
+    Ok(None)
 }
 
 #[cfg(test)]
@@ -1039,6 +1077,105 @@ exit {status}
 
     #[cfg(unix)]
     #[tokio::test]
+    async fn same_name_different_protocol_are_not_aliased() {
+        // `Docker` and `Oras` sources sharing the same inner name string must
+        // not collide: `ContainerSource`'s non-alternate `Display` omits the
+        // protocol, so hashing `container.to_string()` would alias
+        // `docker://shared-name:latest` and `oras://shared-name:latest`,
+        // making them share a per-image lock and failure marker even though
+        // they are different images.
+        let docker = ContainerSource::Docker("shared-name:latest".to_string());
+        let oras = ContainerSource::Oras("shared-name:latest".to_string());
+        assert_ne!(
+            image_key(&docker),
+            image_key(&oras),
+            "image_key must be protocol-preserving so that different protocols sharing the same \
+             name are not aliased to the same coordination key"
+        );
+
+        let dir = tempfile::tempdir().unwrap();
+        let cache = ApptainerImageCache::new_uncoordinated(dir.path(), None)
+            .await
+            .unwrap();
+
+        let exe_docker = dir.path().join("fake-apptainer-docker");
+        let counter_docker = dir.path().join("counter-docker");
+        let release_docker = dir.path().join("release-docker");
+        write_waiting_executable(&exe_docker, &counter_docker, &release_docker, 0);
+
+        let exe_oras = dir.path().join("fake-apptainer-oras");
+        let counter_oras = dir.path().join("counter-oras");
+        let release_oras = dir.path().join("release-oras");
+        write_waiting_executable(&exe_oras, &counter_oras, &release_oras, 0);
+
+        let final_docker = dir.path().join("docker-image.sif");
+        let final_oras = dir.path().join("oras-image.sif");
+
+        let task_docker = {
+            let cache = Arc::clone(&cache);
+            let exe = exe_docker.clone();
+            let container = docker.clone();
+            let final_path = final_docker.clone();
+            tokio::spawn(async move {
+                cache
+                    .pull(
+                        exe.to_str().unwrap(),
+                        &container,
+                        &final_path,
+                        CancellationToken::new(),
+                    )
+                    .await
+            })
+        };
+
+        // Give the Docker pull a head start. Under the aliasing bug this
+        // would leave it holding the (incorrectly) shared per-image lock, so
+        // the Oras pull below would never start until the Docker pull's
+        // release file is written.
+        wait_until(Duration::from_secs(5), || {
+            read_counter(&counter_docker) >= 1
+        })
+        .await;
+
+        let task_oras = {
+            let cache = Arc::clone(&cache);
+            let exe = exe_oras.clone();
+            let container = oras.clone();
+            let final_path = final_oras.clone();
+            tokio::spawn(async move {
+                cache
+                    .pull(
+                        exe.to_str().unwrap(),
+                        &container,
+                        &final_path,
+                        CancellationToken::new(),
+                    )
+                    .await
+            })
+        };
+
+        // The Oras pull must start even though the Docker pull for the same
+        // name is still waiting on its own release file: distinct protocols
+        // must not share coordination.
+        wait_until(Duration::from_secs(5), || read_counter(&counter_oras) >= 1).await;
+
+        std::fs::write(&release_docker, b"go").unwrap();
+        std::fs::write(&release_oras, b"go").unwrap();
+
+        task_docker
+            .await
+            .unwrap()
+            .unwrap()
+            .expect("docker pull should succeed");
+        task_oras
+            .await
+            .unwrap()
+            .unwrap()
+            .expect("oras pull should succeed");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
     async fn distinct_images_are_limited_by_available_slots() {
         let dir = tempfile::tempdir().unwrap();
         let cache = ApptainerImageCache::new_uncoordinated(dir.path(), Some(1))
@@ -1117,6 +1254,49 @@ exit {status}
             .unwrap()
             .unwrap()
             .expect("pull b should succeed");
+    }
+
+    #[tokio::test]
+    async fn acquire_slot_waits_across_multiple_sweeps_then_succeeds() {
+        // Directly protects the `acquire_slot` async boundary: each retry
+        // sweep over the fixed slot files runs inside
+        // `tokio::task::spawn_blocking`, but the surrounding loop must still
+        // behave exactly as before from the caller's perspective (wait while
+        // the only slot is held, then succeed once it is released), across
+        // several real sweep-and-sleep iterations.
+        let dir = tempfile::tempdir().unwrap();
+        let cache = ApptainerImageCache::new_uncoordinated(dir.path(), Some(1))
+            .await
+            .unwrap();
+
+        let held = cache
+            .acquire_slot()
+            .await
+            .unwrap()
+            .expect("the only slot should be free initially");
+
+        let waiter = {
+            let cache = Arc::clone(&cache);
+            tokio::spawn(async move { cache.acquire_slot().await })
+        };
+
+        // `SLOT_RETRY_INTERVAL` is 50ms; waiting several multiples of it
+        // forces the waiter through multiple full sweeps (each a separate
+        // `spawn_blocking` call) before the slot is released below.
+        tokio::time::sleep(SLOT_RETRY_INTERVAL * 4).await;
+        assert!(
+            !waiter.is_finished(),
+            "the waiter must still be retrying while the only slot is held"
+        );
+
+        drop(held);
+
+        let reacquired = waiter
+            .await
+            .unwrap()
+            .unwrap()
+            .expect("the waiter should acquire the slot once it is released");
+        drop(reacquired);
     }
 
     #[cfg(unix)]
