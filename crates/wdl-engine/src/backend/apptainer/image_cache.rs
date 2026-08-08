@@ -40,7 +40,12 @@
 //! This protocol depends on the cache directory sitting on a filesystem
 //! whose advisory locks are honored across every host that shares it and
 //! whose rename within a single directory is atomic; both guarantees above
-//! rely on that support being present.
+//! rely on that support being present. All hosts sharing the cache directory
+//! must also have reasonably synchronized UTC clocks, because backoff
+//! eligibility is determined by comparing the marker's `retry_at` field
+//! against each host's `Utc::now()`; a host whose clock is skewed or has
+//! been stepped backward may bypass, shorten, or extend the intended backoff
+//! window.
 
 // This module is not yet wired into `ApptainerRuntime`; a later task in the
 // apptainer image cache plan does so.
