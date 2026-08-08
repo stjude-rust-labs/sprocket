@@ -441,6 +441,92 @@ mod tests {
         );
     }
 
+    /// Restores `path`'s permissions to `mode`.
+    ///
+    /// Used so a deliberately read-only cache directory can be made writable
+    /// again before its [`TempDir`] is dropped.
+    #[cfg(unix)]
+    fn set_mode(path: &Path, mode: u32) {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut perms = std::fs::metadata(path).unwrap().permissions();
+        perms.set_mode(mode);
+        std::fs::set_permissions(path, perms).unwrap();
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn existing_image_resolves_from_a_read_only_cache() {
+        // A shared cache directory that a run may read but not write is a real
+        // deployment shape: an administrator populates the cache and exposes it
+        // read-only to every compute node. Constructing a runtime must not write
+        // anything to the cache, and an image already present in the legacy layout
+        // must resolve without creating the coordination directory.
+        let root = TempDir::new().unwrap();
+        let cache_dir = TempDir::new().unwrap();
+
+        let container: ContainerSource = "docker://ubuntu:latest".parse().unwrap();
+        let final_path = ApptainerRuntime::registry_image_path(cache_dir.path(), &container);
+        std::fs::create_dir_all(final_path.parent().unwrap()).unwrap();
+        std::fs::write(&final_path, b"legacy sif").unwrap();
+
+        set_mode(cache_dir.path(), 0o555);
+
+        let config = ApptainerConfig {
+            image_cache_dir: Some(cache_dir.path().to_path_buf()),
+            ..Default::default()
+        };
+
+        // Every fallible step runs inside this block so the cache directory is
+        // always made writable again before the assertions run, keeping the
+        // `TempDir` cleanup working even when an assertion fails.
+        let outcome = async {
+            let runtime = ApptainerRuntime::new(&root.path().join("runs"), &config).await?;
+            let hit = runtime
+                .pull_image(
+                    "this-executable-must-never-run",
+                    &container,
+                    CancellationToken::new(),
+                )
+                .await?;
+            let miss = runtime
+                .pull_image(
+                    "this-executable-must-never-run",
+                    &"docker://ubuntu:absent".parse::<ContainerSource>().unwrap(),
+                    CancellationToken::new(),
+                )
+                .await;
+            anyhow::Ok((hit, miss))
+        }
+        .await;
+
+        let coordination_dir_exists = cache_dir
+            .path()
+            .join(image_cache::COORDINATION_DIR_NAME)
+            .exists();
+        set_mode(cache_dir.path(), 0o755);
+
+        let (hit, miss) = outcome.expect("a read-only cache must still serve an existing image");
+        assert_eq!(
+            hit.expect("the existing image should resolve"),
+            final_path,
+            "an image already present in the cache must resolve to its existing path"
+        );
+        assert!(
+            !coordination_dir_exists,
+            "serving an existing image must not create the cache coordination directory"
+        );
+
+        let error = format!(
+            "{error:#}",
+            error = miss.expect_err("a cache miss in a read-only cache must fail clearly")
+        );
+        assert!(
+            error.contains("Apptainer image cache"),
+            "a read-only cache miss should report why coordination could not start: {error}"
+        );
+    }
+
     #[tokio::test]
     async fn example_task_generates() {
         let root = TempDir::new().unwrap();

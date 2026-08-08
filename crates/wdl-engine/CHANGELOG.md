@@ -15,7 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cache directory. Added an optional `apptainer.max_concurrent_pulls` setting
   to cap how many pulls may run at the same time; when unset, pulls for
   distinct images are unlimited (pulls for the same image are always
-  serialized).
+  serialized). A cache directory shared by more than one host or process must
+  live on a filesystem that honors cross-host advisory file locks and atomic
+  same-directory renames, and whose hosts keep reasonably synchronized UTC
+  clocks. The cache's coordination state is created lazily on the first cache
+  miss, so a cache the process may read but not write still serves the images
+  it already holds.
 
 #### Changed
 

@@ -1783,12 +1783,24 @@ pub struct ApptainerConfig {
     /// When set, pulled images are stored in this directory and shared
     /// across runs. When unset, images are stored in a per-run directory
     /// that is not shared.
+    ///
+    /// A directory shared by more than one host, or by more than one
+    /// Sprocket process, must live on a filesystem that honors advisory file
+    /// locks across every host that mounts it, that makes a rename within a
+    /// single directory atomic, and whose hosts keep reasonably synchronized
+    /// UTC clocks. Sprocket coordinates concurrent pulls using advisory
+    /// locks, publishes each image by renaming it into place, and schedules
+    /// retries after a failed pull using UTC timestamps, so a filesystem
+    /// that does not support these semantics cannot safely coordinate
+    /// concurrent processes and may allow duplicate or partially written
+    /// images.
     pub image_cache_dir: Option<PathBuf>,
 
     /// Maximum number of Apptainer images that may be pulled concurrently.
     ///
     /// When unset, pulls for different images are unlimited. Pulls for the same
-    /// image are always serialized.
+    /// image are always serialized. The value must be greater than zero.
+    #[schemars(range(min = 1))]
     pub max_concurrent_pulls: Option<u64>,
 
     /// Additional command-line arguments to pass to `apptainer exec` when

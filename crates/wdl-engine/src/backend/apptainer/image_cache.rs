@@ -25,12 +25,18 @@
 //!
 //! A pull writes to a temporary file in the same directory as its final
 //! `.sif` destination and only renames it into place once the pull
-//! succeeds, so a reader ever sees either no file or a complete one, never
-//! a partial one. A failed pull is recorded in a persisted failure marker
-//! under `.sprocket/failures/`, which every coordinator sharing the cache
-//! directory consults before starting a new pull, and which records an
+//! succeeds, so a reader only ever sees either no file or a complete one,
+//! never a partial one. A failed pull is recorded in a persisted failure
+//! marker under `.sprocket/failures/`, which every coordinator sharing the
+//! cache directory consults before starting a new pull, and which records an
 //! exponentially increasing delay before a new attempt for that image
 //! becomes eligible again.
+//!
+//! The coordination layout is created lazily, only once a request for a
+//! registry image finds no `.sif` already cached for it. A cache that a
+//! process may read but not write therefore still serves images it already
+//! holds, which matters when an administrator populates a shared cache and
+//! exposes it read-only to the hosts that consume it.
 //!
 //! A caller waiting on a pull may cancel its own wait at any time. Doing so
 //! only stops that caller from waiting; it does not cancel the underlying
@@ -63,10 +69,12 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use chrono::DateTime;
+use chrono::SecondsFormat;
 use chrono::Utc;
 use serde::Deserialize;
 use serde::Serialize;
 use tokio::process::Command;
+use tokio::sync::OnceCell;
 use tokio::sync::watch;
 use tokio_retry2::Retry;
 use tokio_retry2::RetryError;
@@ -79,7 +87,7 @@ use crate::cache::lock::LockedFile;
 use crate::v1::requirements::ContainerSource;
 
 /// The name of the coordination directory within a cache directory.
-const COORDINATION_DIR_NAME: &str = ".sprocket";
+pub(super) const COORDINATION_DIR_NAME: &str = ".sprocket";
 
 /// The name of the per-image lock directory within the coordination
 /// directory.
@@ -105,14 +113,40 @@ const CACHE_POLICY_VERSION: u32 = 1;
 /// The current [`FailureMarker`] schema version.
 const FAILURE_MARKER_VERSION: u32 = 1;
 
-/// The nominal number of milliseconds to wait between attempts to acquire a
-/// concurrency slot, before jitter is applied by
-/// [`jittered_slot_retry_delay`].
-const SLOT_RETRY_INTERVAL_MILLIS: u64 = 50;
+/// The nominal number of milliseconds to wait before the first retry of a
+/// sweep over the concurrency slot files.
+const SLOT_RETRY_INITIAL_INTERVAL_MILLIS: u64 = 50;
 
-/// The maximum jitter, in milliseconds and in either direction, applied to
-/// `SLOT_RETRY_INTERVAL_MILLIS` by [`jittered_slot_retry_delay`].
-const SLOT_RETRY_JITTER_MILLIS: u64 = 25;
+/// The largest nominal number of milliseconds to wait between sweeps over
+/// the concurrency slot files.
+const SLOT_RETRY_MAX_INTERVAL_MILLIS: u64 = 2_000;
+
+/// The largest number of times the nominal slot retry interval doubles.
+///
+/// `SLOT_RETRY_INITIAL_INTERVAL_MILLIS` doubled six times is 3200
+/// milliseconds, which already exceeds `SLOT_RETRY_MAX_INTERVAL_MILLIS`, so
+/// no further doubling can change the capped result. Clamping the exponent
+/// here also keeps the shift used by [`slot_retry_interval_millis`] far away
+/// from overflowing.
+const SLOT_RETRY_MAX_DOUBLINGS: u32 = 6;
+
+/// The divisor applied to a nominal slot retry interval to obtain the
+/// maximum jitter applied in either direction around it.
+///
+/// A divisor of two spreads each sampled delay across half the nominal
+/// interval on either side, so the smallest possible jitter magnitude is
+/// half of `SLOT_RETRY_INITIAL_INTERVAL_MILLIS` and is therefore never zero.
+const SLOT_RETRY_JITTER_DIVISOR: u64 = 2;
+
+/// The smallest age at which a leftover partial file beside a final `.sif`
+/// is treated as abandoned by a crashed process and removed.
+///
+/// The legacy cache layout maps a container name onto a path, so two
+/// distinct container sources can share one final `.sif` path while using
+/// different per-image locks. A partial file beside that path may therefore
+/// belong to a pull that another process is actively running, and only a
+/// conservatively old one can be assumed abandoned.
+const STALE_PARTIAL_MIN_AGE: Duration = Duration::from_secs(24 * 60 * 60);
 
 /// Stderr substrings that mark a pull failure as permanent rather than
 /// transient.
@@ -176,6 +210,10 @@ struct Operation {
 /// lock so that only one process pulls a given image at a time. Pulls for
 /// different images may optionally be capped using a fixed number of slot
 /// files under the cache directory.
+///
+/// Constructing a coordinator touches no filesystem state. The coordination
+/// layout is created and validated lazily, by [`Self::ensure_initialized`],
+/// only once a request misses the cache and a pull is actually required.
 #[derive(Debug)]
 pub(crate) struct ApptainerImageCache {
     /// The root cache directory.
@@ -187,6 +225,14 @@ pub(crate) struct ApptainerImageCache {
     /// Callers are expected to have already rejected `Some(0)`, as
     /// [`crate::config::ApptainerConfig::validate`] does.
     max_concurrent_pulls: Option<usize>,
+    /// Whether the on-disk coordination layout has been created and its
+    /// recorded policy validated against `max_concurrent_pulls`.
+    ///
+    /// Concurrent callers that all miss the cache share one initialization
+    /// attempt and therefore one result. A failed attempt leaves the cell
+    /// empty so a later request can try again, which matters when the
+    /// failure was transient.
+    initialized: OnceCell<()>,
     /// In-process pull operations, keyed by container source.
     ///
     /// Entries use a weak reference so that a completed operation is dropped
@@ -201,6 +247,21 @@ pub(crate) struct ApptainerImageCache {
 fn registry() -> &'static Mutex<HashMap<PathBuf, Weak<ApptainerImageCache>>> {
     static REGISTRY: OnceLock<Mutex<HashMap<PathBuf, Weak<ApptainerImageCache>>>> = OnceLock::new();
     REGISTRY.get_or_init(Default::default)
+}
+
+/// Returns the cache directories currently present in the process-wide
+/// registry, whether or not their coordinator is still alive.
+///
+/// Exposed only to tests so that pruning of entries whose coordinator has
+/// been dropped can be observed directly.
+#[cfg(test)]
+fn registry_entries() -> Vec<PathBuf> {
+    registry()
+        .lock()
+        .expect("failed to lock registry")
+        .keys()
+        .cloned()
+        .collect()
 }
 
 /// Converts a configured pull limit to the `usize` used for filesystem slot
@@ -429,6 +490,10 @@ impl ApptainerImageCache {
     /// If a live coordinator already exists for the directory, it is reused
     /// only when its `max_concurrent_pulls` matches the requested value;
     /// otherwise this returns a configuration error.
+    ///
+    /// This performs no filesystem access beyond making `cache_dir`
+    /// absolute; the cache's coordination layout is created lazily by
+    /// [`Self::ensure_initialized`] when a pull is first required.
     pub(crate) async fn get(
         cache_dir: &Path,
         max_concurrent_pulls: Option<u64>,
@@ -450,7 +515,7 @@ impl ApptainerImageCache {
             return Self::reuse_or_reject(existing, max_concurrent_pulls);
         }
 
-        let cache = Arc::new(Self::initialize(cache_dir.clone(), max_concurrent_pulls).await?);
+        let cache = Arc::new(Self::new(cache_dir.clone(), max_concurrent_pulls));
 
         let mut registered = registry().lock().expect("failed to lock registry");
         // Another task may have raced us to construct a coordinator for the same
@@ -459,6 +524,12 @@ impl ApptainerImageCache {
         if let Some(existing) = registered.get(&cache_dir).and_then(Weak::upgrade) {
             return Self::reuse_or_reject(existing, max_concurrent_pulls);
         }
+        // Runs that do not configure a shared cache directory each get their own,
+        // so without this a long-lived process would accumulate one permanently
+        // dead entry per run. Pruning here keeps that growth bounded by the
+        // number of live coordinators plus the entries added since the last
+        // insertion.
+        registered.retain(|_, cache| cache.strong_count() > 0);
         registered.insert(cache_dir, Arc::downgrade(&cache));
         Ok(cache)
     }
@@ -476,6 +547,17 @@ impl ApptainerImageCache {
         }
 
         Ok(existing)
+    }
+
+    /// Creates a coordinator for `cache_dir` without touching the
+    /// filesystem.
+    fn new(cache_dir: PathBuf, max_concurrent_pulls: Option<usize>) -> Self {
+        Self {
+            cache_dir,
+            max_concurrent_pulls,
+            initialized: OnceCell::new(),
+            operations: Mutex::new(HashMap::new()),
+        }
     }
 
     /// Creates a coordinator for the given cache directory without
@@ -496,14 +578,26 @@ impl ApptainerImageCache {
             )
         })?;
         let max_concurrent_pulls = to_slot_limit(max_concurrent_pulls)?;
-        Ok(Arc::new(
-            Self::initialize(cache_dir, max_concurrent_pulls).await?,
-        ))
+        Ok(Arc::new(Self::new(cache_dir, max_concurrent_pulls)))
+    }
+
+    /// Creates the on-disk coordination layout for this cache and validates
+    /// its recorded policy, at most once per coordinator.
+    ///
+    /// Concurrent callers share a single attempt and therefore observe the
+    /// same result. A failed attempt is not remembered, so a later request
+    /// retries rather than being permanently poisoned by a transient
+    /// failure.
+    async fn ensure_initialized(&self) -> Result<()> {
+        self.initialized
+            .get_or_try_init(|| Self::initialize(&self.cache_dir, self.max_concurrent_pulls))
+            .await
+            .copied()
     }
 
     /// Initializes the on-disk coordination layout for `cache_dir` and
     /// validates its recorded policy.
-    async fn initialize(cache_dir: PathBuf, max_concurrent_pulls: Option<usize>) -> Result<Self> {
+    async fn initialize(cache_dir: &Path, max_concurrent_pulls: Option<usize>) -> Result<()> {
         let sprocket_dir = cache_dir.join(COORDINATION_DIR_NAME);
         let images_dir = sprocket_dir.join(IMAGES_DIR_NAME);
         let failures_dir = sprocket_dir.join(FAILURES_DIR_NAME);
@@ -517,13 +611,7 @@ impl ApptainerImageCache {
             })?;
         }
 
-        Self::apply_policy(&cache_dir, &sprocket_dir, &slots_dir, max_concurrent_pulls).await?;
-
-        Ok(Self {
-            cache_dir,
-            max_concurrent_pulls,
-            operations: Mutex::new(HashMap::new()),
-        })
+        Self::apply_policy(cache_dir, &sprocket_dir, &slots_dir, max_concurrent_pulls).await
     }
 
     /// Reads, validates, or records the cache policy, and ensures slot files
@@ -618,9 +706,11 @@ impl ApptainerImageCache {
     /// and other local callers requesting the same image.
     ///
     /// If `final_path` already exists, its path is returned without pulling
-    /// again. Returns `Ok(None)` if `token` is cancelled before the pull
-    /// completes; the pull itself continues running for the benefit of any
-    /// other waiter.
+    /// again and without creating or reading any coordination state, so a
+    /// cache the process may read but not write still serves the images it
+    /// already holds. Returns `Ok(None)` if `token` is cancelled before the
+    /// pull completes; the pull itself continues running for the benefit of
+    /// any other waiter.
     pub(crate) async fn pull(
         self: &Arc<Self>,
         executable: &str,
@@ -629,8 +719,18 @@ impl ApptainerImageCache {
         token: CancellationToken,
     ) -> Result<Option<PathBuf>> {
         if final_path.exists() {
+            debug!(
+                path = %final_path.display(),
+                "Apptainer image `{container:#}` already cached; using existing image"
+            );
             return Ok(Some(final_path.to_path_buf()));
         }
+
+        // Creating the coordination layout and validating the recorded policy
+        // happen before any shared operation is started, so a policy mismatch
+        // fails before a pull is attempted and no coordination state is touched
+        // for a cache that never misses.
+        self.ensure_initialized().await?;
 
         let operation = self.attach_or_start(executable, container, final_path);
         Self::wait_for_operation(operation, token).await
@@ -747,6 +847,11 @@ impl ApptainerImageCache {
         let _image_lock = LockedFile::acquire_exclusive(&image_lock_path).await?;
 
         if final_path.exists() {
+            debug!(
+                path = %final_path.display(),
+                "Apptainer image `{container:#}` was cached by another process while this one \
+                 waited for its image lock; using existing image"
+            );
             return Ok(final_path.to_path_buf());
         }
 
@@ -755,7 +860,7 @@ impl ApptainerImageCache {
         if let Some(marker) = read_failure_marker(&failure_path).await?
             && Utc::now() < marker.retry_at
         {
-            bail!("{error}", error = marker.error);
+            return Err(replayed_failure_error(container, &marker));
         }
 
         let _slot = self.acquire_slot().await?;
@@ -764,13 +869,18 @@ impl ApptainerImageCache {
         // coordinator may have published the image or recorded a failure while
         // we waited.
         if final_path.exists() {
+            debug!(
+                path = %final_path.display(),
+                "Apptainer image `{container:#}` was cached by another process while this one \
+                 waited for a pull slot; using existing image"
+            );
             return Ok(final_path.to_path_buf());
         }
         let previous_marker = read_failure_marker(&failure_path).await?;
         if let Some(marker) = &previous_marker
             && Utc::now() < marker.retry_at
         {
-            bail!("{error}", error = marker.error);
+            return Err(replayed_failure_error(container, marker));
         }
 
         let parent = final_path.parent().unwrap_or_else(|| Path::new("."));
@@ -790,6 +900,11 @@ impl ApptainerImageCache {
                     path = final_path.display()
                 )
             })?;
+
+        // Runs under the per-image lock and before the pull begins, so no other
+        // coordinator is pulling this image at the same time.
+        remove_stale_partials(parent, file_name).await;
+
         let tmp_path = parent.join(format!(
             "{file_name}.partial.{pid}.{nonce:016x}",
             pid = std::process::id(),
@@ -807,11 +922,36 @@ impl ApptainerImageCache {
                             path = final_path.display()
                         )
                     })?;
-                remove_failure_marker(&failure_path).await?;
+                // The image is published at this point, so a failure to clear the
+                // now-stale marker must not turn this success into an error. The
+                // marker is harmless because every request checks the final path
+                // before it reads a marker.
+                if let Err(e) = remove_failure_marker(&failure_path).await {
+                    let e = format!("{e:#}");
+                    warn!(
+                        e = %e,
+                        "failed to remove the stale Apptainer image cache failure marker \
+                         `{path}` after publishing `{container:#}`",
+                        path = failure_path.display()
+                    );
+                }
+                debug!(
+                    path = %final_path.display(),
+                    "Apptainer image `{container:#}` pulled successfully"
+                );
                 Ok(final_path.to_path_buf())
             }
             Err(e) => {
-                let _ = tokio::fs::remove_file(&tmp_path).await;
+                if let Err(removal) = tokio::fs::remove_file(&tmp_path).await
+                    && removal.kind() != std::io::ErrorKind::NotFound
+                {
+                    warn!(
+                        e = %removal,
+                        "failed to remove the Apptainer image cache temporary file `{path}` \
+                         after a failed pull of `{container:#}`",
+                        path = tmp_path.display()
+                    );
+                }
                 write_failure_marker(
                     &failures_dir,
                     &failure_path,
@@ -838,6 +978,12 @@ impl ApptainerImageCache {
     /// cancellation-safe: dropping or aborting the future that calls this
     /// method can only happen between sweeps, never inside one, so a
     /// cancellation is never left waiting on a synchronous filesystem call.
+    ///
+    /// The interval between sweeps backs off exponentially, per call, so a
+    /// waiter that has been queued for a long time stops hammering a shared
+    /// filesystem with metadata operations. Every call starts again from
+    /// [`SLOT_RETRY_INITIAL_INTERVAL_MILLIS`], because each call represents
+    /// a fresh contender rather than a continuation of an earlier wait.
     async fn acquire_slot(&self) -> Result<Option<LockedFile>> {
         let Some(limit) = self.max_concurrent_pulls else {
             return Ok(None);
@@ -847,6 +993,7 @@ impl ApptainerImageCache {
             .cache_dir
             .join(COORDINATION_DIR_NAME)
             .join(SLOTS_DIR_NAME);
+        let mut failed_sweeps = 0;
         loop {
             let dir = slots_dir.clone();
             let lock = tokio::task::spawn_blocking(move || try_acquire_any_slot(&dir, limit))
@@ -857,9 +1004,125 @@ impl ApptainerImageCache {
                 return Ok(Some(lock));
             }
 
-            tokio::time::sleep(jittered_slot_retry_delay()).await;
+            tokio::time::sleep(jittered_slot_retry_delay(failed_sweeps)).await;
+            failed_sweeps = failed_sweeps.saturating_add(1);
         }
     }
+}
+
+/// Removes partial files left beside `final_file_name` in `parent` by a
+/// crashed pull.
+///
+/// Only regular files whose name begins with `{final_file_name}.partial.`
+/// and that have not been modified within [`STALE_PARTIAL_MIN_AGE`] are
+/// removed, so a partial file belonging to a pull that is still running
+/// elsewhere is left alone. Cleanup is opportunistic; a directory that
+/// cannot be read, an entry whose metadata cannot be inspected, and a file
+/// that cannot be removed are all reported and then ignored, because none of
+/// them prevents the pull that follows from succeeding.
+async fn remove_stale_partials(parent: &Path, final_file_name: &str) {
+    let prefix = format!("{final_file_name}.partial.");
+    let mut entries = match tokio::fs::read_dir(parent).await {
+        Ok(entries) => entries,
+        Err(e) => {
+            warn!(
+                e = %e,
+                "failed to scan Apptainer image cache directory `{path}` for abandoned partial \
+                 files",
+                path = parent.display()
+            );
+            return;
+        }
+    };
+
+    loop {
+        let entry = match entries.next_entry().await {
+            Ok(Some(entry)) => entry,
+            Ok(None) => return,
+            Err(e) => {
+                warn!(
+                    e = %e,
+                    "failed to scan Apptainer image cache directory `{path}` for abandoned \
+                     partial files",
+                    path = parent.display()
+                );
+                return;
+            }
+        };
+
+        if !entry.file_name().to_string_lossy().starts_with(&prefix) {
+            continue;
+        }
+
+        let path = entry.path();
+        let metadata = match entry.metadata().await {
+            Ok(metadata) => metadata,
+            Err(e) => {
+                warn!(
+                    e = %e,
+                    "failed to inspect the Apptainer image cache partial file `{path}`",
+                    path = path.display()
+                );
+                continue;
+            }
+        };
+
+        if !metadata.is_file() {
+            continue;
+        }
+
+        let stale = metadata
+            .modified()
+            .map(|modified| {
+                // A file modified in the future, which `elapsed` reports as an
+                // error, is treated as recent so a skewed clock cannot cause a
+                // live pull's file to be deleted.
+                modified
+                    .elapsed()
+                    .is_ok_and(|age| age >= STALE_PARTIAL_MIN_AGE)
+            })
+            .unwrap_or_else(|e| {
+                warn!(
+                    e = %e,
+                    "failed to read the modification time of the Apptainer image cache partial \
+                     file `{path}`",
+                    path = path.display()
+                );
+                false
+            });
+        if !stale {
+            continue;
+        }
+
+        match tokio::fs::remove_file(&path).await {
+            Ok(()) => debug!(
+                path = %path.display(),
+                "removed an abandoned Apptainer image cache partial file"
+            ),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+            Err(e) => warn!(
+                e = %e,
+                "failed to remove the abandoned Apptainer image cache partial file `{path}`",
+                path = path.display()
+            ),
+        }
+    }
+}
+
+/// Returns the error reported for a request that observed a recorded
+/// failure marker whose backoff has not yet elapsed.
+///
+/// Centralized so both the gate before a concurrency slot is acquired and
+/// the gate after one is acquired report a replayed failure identically.
+fn replayed_failure_error(container: &ContainerSource, marker: &FailureMarker) -> anyhow::Error {
+    anyhow!(
+        "cached Apptainer pull failure for `{container:#}`; no pull was attempted; \
+         {consecutive_failures} consecutive failures are recorded and a new attempt becomes \
+         eligible at {retry_at}; the recorded error was: {error}",
+        consecutive_failures = marker.consecutive_failures,
+        retry_at = marker.retry_at.to_rfc3339_opts(SecondsFormat::Secs, true),
+        error = marker.error,
+    )
 }
 
 /// Performs one complete, synchronous sweep over the fixed slot files
@@ -882,20 +1145,37 @@ fn try_acquire_any_slot(slots_dir: &Path, limit: usize) -> Result<Option<LockedF
     Ok(None)
 }
 
-/// Returns a slot retry delay sampled uniformly from
-/// `SLOT_RETRY_INTERVAL_MILLIS` minus `SLOT_RETRY_JITTER_MILLIS` through
-/// `SLOT_RETRY_INTERVAL_MILLIS` plus `SLOT_RETRY_JITTER_MILLIS`, inclusive.
+/// Returns the nominal slot retry interval, in milliseconds, that applies
+/// after `failed_sweeps` sweeps have already found every slot held.
+///
+/// The interval starts at [`SLOT_RETRY_INITIAL_INTERVAL_MILLIS`] and doubles
+/// after each failed sweep until it reaches
+/// [`SLOT_RETRY_MAX_INTERVAL_MILLIS`], where it stays.
+fn slot_retry_interval_millis(failed_sweeps: u32) -> u64 {
+    (SLOT_RETRY_INITIAL_INTERVAL_MILLIS << failed_sweeps.min(SLOT_RETRY_MAX_DOUBLINGS))
+        .min(SLOT_RETRY_MAX_INTERVAL_MILLIS)
+}
+
+/// Returns a slot retry delay sampled uniformly from the nominal interval
+/// for `failed_sweeps`, plus or minus that interval divided by
+/// [`SLOT_RETRY_JITTER_DIVISOR`], inclusive.
 ///
 /// Without jitter, many Sprocket processes contending for the same fixed
 /// slot files would tend to wake and sweep them at the same moment, over
-/// and over, rather than spreading their attempts out. The file locks
-/// remain the sole source of truth for who holds a slot; this jitter only
-/// changes when a process next attempts a sweep, never whether that sweep
-/// succeeds.
-fn jittered_slot_retry_delay() -> Duration {
-    let low = SLOT_RETRY_INTERVAL_MILLIS - SLOT_RETRY_JITTER_MILLIS;
-    let high = SLOT_RETRY_INTERVAL_MILLIS + SLOT_RETRY_JITTER_MILLIS;
-    Duration::from_millis(rand::random_range(low..=high))
+/// and over, rather than spreading their attempts out. Without backing off,
+/// a waiter that has been queued behind a long pull would keep sweeping
+/// every few tens of milliseconds for the whole pull, which is expensive on
+/// the shared filesystem the slot files live on. The file locks remain the
+/// sole source of truth for who holds a slot; this delay only changes when a
+/// process next attempts a sweep, never whether that sweep succeeds.
+///
+/// The returned delay is always at least half and at most one and a half
+/// times the nominal interval, and therefore never exceeds one and a half
+/// times [`SLOT_RETRY_MAX_INTERVAL_MILLIS`].
+fn jittered_slot_retry_delay(failed_sweeps: u32) -> Duration {
+    let nominal = slot_retry_interval_millis(failed_sweeps);
+    let jitter = nominal / SLOT_RETRY_JITTER_DIVISOR;
+    Duration::from_millis(rand::random_range(nominal - jitter..=nominal + jitter))
 }
 
 #[cfg(test)]
@@ -1382,16 +1662,86 @@ exit 1
     }
 
     #[test]
+    fn slot_retry_interval_follows_expected_progression() {
+        // Fifty milliseconds through two seconds, doubling after each failed
+        // sweep, then flat at the two second cap.
+        let expected = [50, 100, 200, 400, 800, 1_600, 2_000, 2_000, 2_000, 2_000];
+        for (failed_sweeps, &millis) in expected.iter().enumerate() {
+            assert_eq!(
+                slot_retry_interval_millis(failed_sweeps as u32),
+                millis,
+                "unexpected nominal slot retry interval after {failed_sweeps} failed sweeps"
+            );
+        }
+
+        assert_eq!(
+            slot_retry_interval_millis(u32::MAX),
+            SLOT_RETRY_MAX_INTERVAL_MILLIS,
+            "an unbounded number of failed sweeps must stay at the capped interval"
+        );
+    }
+
+    #[test]
     fn jittered_slot_retry_delay_stays_within_bounds() {
         // Samples the helper many times rather than asserting on the
-        // distribution: the requirement is only that every sample stays
-        // within the documented 25ms through 75ms bound, not that the
-        // underlying RNG is unbiased.
-        for _ in 0..1_000 {
-            let delay = jittered_slot_retry_delay();
+        // distribution: the requirement is only that every sample stays within
+        // half of the nominal interval on either side, not that the underlying
+        // RNG is unbiased.
+        let ceiling = Duration::from_millis(
+            SLOT_RETRY_MAX_INTERVAL_MILLIS + SLOT_RETRY_MAX_INTERVAL_MILLIS / 2,
+        );
+
+        for failed_sweeps in 0..12u32 {
+            let nominal = slot_retry_interval_millis(failed_sweeps);
+            let jitter = nominal / SLOT_RETRY_JITTER_DIVISOR;
             assert!(
-                delay >= Duration::from_millis(25) && delay <= Duration::from_millis(75),
-                "sampled slot retry delay {delay:?} fell outside the expected 25ms..=75ms bound"
+                jitter > 0,
+                "the jitter applied after {failed_sweeps} failed sweeps must never collapse to \
+                 zero"
+            );
+
+            let low = Duration::from_millis(nominal - jitter);
+            let high = Duration::from_millis(nominal + jitter);
+            for _ in 0..1_000 {
+                let delay = jittered_slot_retry_delay(failed_sweeps);
+                assert!(
+                    delay >= low && delay <= high,
+                    "sampled slot retry delay {delay:?} for {failed_sweeps} failed sweeps fell \
+                     outside the expected {low:?}..={high:?} bound"
+                );
+                assert!(
+                    delay <= ceiling,
+                    "sampled slot retry delay {delay:?} exceeded the {ceiling:?} ceiling derived \
+                     from the capped interval"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn slot_retry_delay_backs_off_across_sweeps() {
+        // The shortest delay a long-queued waiter can draw must exceed the
+        // longest delay a fresh waiter can draw, so a waiter that has been
+        // queued behind a long pull stops sweeping the shared filesystem at the
+        // initial rate.
+        let first_high = Duration::from_millis(
+            SLOT_RETRY_INITIAL_INTERVAL_MILLIS
+                + SLOT_RETRY_INITIAL_INTERVAL_MILLIS / SLOT_RETRY_JITTER_DIVISOR,
+        );
+        let late_low = Duration::from_millis(
+            SLOT_RETRY_MAX_INTERVAL_MILLIS
+                - SLOT_RETRY_MAX_INTERVAL_MILLIS / SLOT_RETRY_JITTER_DIVISOR,
+        );
+        assert!(late_low > first_high);
+
+        for _ in 0..1_000 {
+            assert!(
+                jittered_slot_retry_delay(0) <= first_high,
+                "a fresh waiter must keep sweeping at the initial rate"
+            );
+            assert!(
+                jittered_slot_retry_delay(SLOT_RETRY_MAX_DOUBLINGS) >= late_low,
+                "a long-queued waiter must have backed off well beyond the initial rate"
             );
         }
     }
@@ -1408,6 +1758,10 @@ exit 1
         let cache = ApptainerImageCache::new_uncoordinated(dir.path(), Some(1))
             .await
             .unwrap();
+        cache
+            .ensure_initialized()
+            .await
+            .expect("the coordination layout should initialize");
 
         let held = cache
             .acquire_slot()
@@ -1420,17 +1774,18 @@ exit 1
             tokio::spawn(async move { cache.acquire_slot().await })
         };
 
-        // Each jittered retry sleeps somewhere between
-        // `SLOT_RETRY_INTERVAL_MILLIS - SLOT_RETRY_JITTER_MILLIS` and
-        // `SLOT_RETRY_INTERVAL_MILLIS + SLOT_RETRY_JITTER_MILLIS` (see
-        // `jittered_slot_retry_delay`). Waiting for several worst-case-length
-        // sleeps forces the waiter through multiple full sweeps (each a
-        // separate `spawn_blocking` call) before the slot is released below,
-        // regardless of where in that range each individual jittered delay
-        // happens to land.
-        let max_retry_delay =
-            Duration::from_millis(SLOT_RETRY_INTERVAL_MILLIS + SLOT_RETRY_JITTER_MILLIS);
-        tokio::time::sleep(max_retry_delay * 4).await;
+        // The first two retries can sleep at most one and a half times the
+        // initial interval and then one and a half times twice that interval
+        // (see `jittered_slot_retry_delay`), so waiting for the sum of those two
+        // worst cases forces the waiter through at least three full sweeps, each
+        // a separate `spawn_blocking` call, before the slot is released below.
+        let worst_case_first_two_retries = Duration::from_millis(
+            slot_retry_interval_millis(0)
+                + slot_retry_interval_millis(0) / SLOT_RETRY_JITTER_DIVISOR
+                + slot_retry_interval_millis(1)
+                + slot_retry_interval_millis(1) / SLOT_RETRY_JITTER_DIVISOR,
+        );
+        tokio::time::sleep(worst_case_first_two_retries).await;
         assert!(
             !waiter.is_finished(),
             "the waiter must still be retrying while the only slot is held"
@@ -1452,7 +1807,7 @@ exit 1
         let dir = tempfile::tempdir().unwrap();
         let first = ApptainerImageCache::new_uncoordinated(dir.path(), Some(2))
             .await
-            .expect("first coordinator should initialize the cache policy");
+            .expect("first coordinator should be created");
 
         let exe = dir.path().join("fake-apptainer");
         let counter = dir.path().join("counter");
@@ -1470,10 +1825,29 @@ exit 1
             .await
             .unwrap()
             .expect("initial pull should succeed");
+        assert_eq!(read_counter(&counter), 1);
 
-        let error = ApptainerImageCache::new_uncoordinated(dir.path(), None)
+        let second = ApptainerImageCache::new_uncoordinated(dir.path(), None)
+            .await
+            .expect("constructing a coordinator must not touch the recorded policy");
+
+        // The mismatch is detected while initializing the coordination layout,
+        // which happens after the cache misses but before any pull is started.
+        let error = second
+            .pull(
+                exe.to_str().unwrap(),
+                &ContainerSource::Docker("test/policy-image-other:latest".to_string()),
+                &dir.path().join("policy-image-other.sif"),
+                CancellationToken::new(),
+            )
             .await
             .expect_err("a coordinator requesting a different policy should fail");
+        assert_eq!(
+            read_counter(&counter),
+            1,
+            "a policy mismatch must be reported before any pull is attempted"
+        );
+
         let message = format!("{error:#}");
         assert!(
             message.contains("Some(2)"),
@@ -1525,12 +1899,191 @@ exit 1
         );
         assert!(
             stale_partial.exists(),
-            "the cache must not delete unrelated stale partial files it did not create"
+            "a partial file too recent to be considered abandoned must never be treated as a \
+             cached image nor removed"
         );
         assert_eq!(
             read_counter(&counter),
             1,
             "the cache must still perform a real pull despite the stale partial file"
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn successful_publish_survives_a_failed_marker_cleanup() {
+        // A publish that has already renamed its temporary file into place is
+        // complete; failing to delete the now-stale failure marker afterwards
+        // must not turn that success into an error. The stale marker is harmless
+        // because the final path fast path runs before any marker read.
+        let dir = tempfile::tempdir().unwrap();
+        let cache = ApptainerImageCache::new_uncoordinated(dir.path(), None)
+            .await
+            .unwrap();
+
+        let exe = dir.path().join("fake-apptainer-cleanup");
+        let counter = dir.path().join("counter");
+        let release = dir.path().join("release");
+        write_waiting_executable(&exe, &counter, &release, 0);
+
+        let container = ContainerSource::Docker("test/cleanup-image:latest".to_string());
+        let final_path = dir.path().join("cleanup-image.sif");
+        let failures_dir = dir
+            .path()
+            .join(COORDINATION_DIR_NAME)
+            .join(FAILURES_DIR_NAME);
+        let failure_path = failures_dir.join(format!("{}.json", image_key(&container)));
+
+        std::fs::create_dir_all(&failures_dir).unwrap();
+        let now = Utc::now();
+        std::fs::write(
+            &failure_path,
+            serde_json::to_vec_pretty(&FailureMarker {
+                version: FAILURE_MARKER_VERSION,
+                consecutive_failures: 3,
+                error: "an earlier pull failed".to_string(),
+                failed_at: now - chrono::Duration::seconds(10),
+                retry_at: now - chrono::Duration::seconds(1),
+            })
+            .unwrap(),
+        )
+        .unwrap();
+
+        let pull = {
+            let cache = Arc::clone(&cache);
+            let exe = exe.clone();
+            let container = container.clone();
+            let final_path = final_path.clone();
+            tokio::spawn(async move {
+                cache
+                    .pull(
+                        exe.to_str().unwrap(),
+                        &container,
+                        &final_path,
+                        CancellationToken::new(),
+                    )
+                    .await
+            })
+        };
+
+        // Both marker reads happen before the executable is spawned, so replacing
+        // the marker now only affects the post-publish cleanup. Replacing the
+        // marker file with a non-empty directory makes `unlink` fail regardless
+        // of the caller's privileges rather than relying on file permissions,
+        // which a privileged caller would bypass.
+        wait_until(Duration::from_secs(5), || read_counter(&counter) >= 1).await;
+        std::fs::remove_file(&failure_path).unwrap();
+        std::fs::create_dir(&failure_path).unwrap();
+        std::fs::write(failure_path.join("not-a-marker"), b"blocks removal").unwrap();
+
+        std::fs::write(&release, b"go").unwrap();
+
+        let path = pull
+            .await
+            .unwrap()
+            .expect("a publish whose marker cleanup fails must still succeed")
+            .expect("the pull should not have been cancelled");
+        assert_eq!(path, final_path);
+        assert_eq!(
+            std::fs::read(&final_path).unwrap(),
+            FAKE_IMAGE_BYTES.as_bytes(),
+            "the published image must contain the pulled bytes"
+        );
+        assert!(
+            failure_path.is_dir(),
+            "the un-removable marker should still be present"
+        );
+
+        // A later request takes the final path fast path, so the stale marker is
+        // never consulted again.
+        let again = cache
+            .pull(
+                exe.to_str().unwrap(),
+                &container,
+                &final_path,
+                CancellationToken::new(),
+            )
+            .await
+            .expect("the published image should still resolve")
+            .expect("the pull should not have been cancelled");
+        assert_eq!(again, final_path);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn old_partial_files_are_removed_and_recent_ones_are_kept() {
+        // A crashed process can leave a uniquely named partial file beside the
+        // final SIF. Old ones are swept away before a new pull, but recent ones
+        // may still belong to a live pull in another process (the legacy path
+        // mapping can alias distinct container sources onto one image lock), so
+        // they are left alone. Files that do not match the final name's partial
+        // prefix are never touched.
+        let dir = tempfile::tempdir().unwrap();
+        let cache = ApptainerImageCache::new_uncoordinated(dir.path(), None)
+            .await
+            .unwrap();
+
+        let final_path = dir.path().join("partials.sif");
+        let old_partial = dir
+            .path()
+            .join("partials.sif.partial.4242.00000000deadbeef");
+        let recent_partial = dir
+            .path()
+            .join("partials.sif.partial.4243.00000000feedface");
+        let other_image_partial = dir.path().join("other.sif.partial.4244.00000000cafed00d");
+        let unrelated = dir.path().join("partials.sif.notes");
+
+        for path in [
+            &old_partial,
+            &recent_partial,
+            &other_image_partial,
+            &unrelated,
+        ] {
+            std::fs::write(path, b"leftover").unwrap();
+        }
+
+        // Ages the candidate deterministically rather than waiting out the real
+        // staleness threshold.
+        std::fs::File::options()
+            .write(true)
+            .open(&old_partial)
+            .unwrap()
+            .set_modified(std::time::SystemTime::now() - Duration::from_secs(48 * 60 * 60))
+            .unwrap();
+
+        let exe = dir.path().join("fake-apptainer-partials");
+        let counter = dir.path().join("counter");
+        let release = dir.path().join("release");
+        write_waiting_executable(&exe, &counter, &release, 0);
+        std::fs::write(&release, b"go").unwrap();
+
+        let path = cache
+            .pull(
+                exe.to_str().unwrap(),
+                &ContainerSource::Docker("test/partials-image:latest".to_string()),
+                &final_path,
+                CancellationToken::new(),
+            )
+            .await
+            .unwrap()
+            .expect("the pull should succeed");
+
+        assert_eq!(path, final_path);
+        assert!(
+            !old_partial.exists(),
+            "an abandoned partial file older than the staleness threshold should be removed"
+        );
+        assert!(
+            recent_partial.exists(),
+            "a recently modified partial file may belong to a live pull and must be kept"
+        );
+        assert!(
+            other_image_partial.exists(),
+            "a partial file belonging to a different final image must never be removed"
+        );
+        assert!(
+            unrelated.exists(),
+            "a file that does not match the partial prefix must never be removed"
         );
     }
 
@@ -1686,7 +2239,13 @@ exit 1
                 )
                 .await
                 .expect_err("the eligible pull should fail");
-            assert!(format!("{error:#}").contains("403 (Forbidden)"));
+            let message = format!("{error:#}");
+            assert!(message.contains("403 (Forbidden)"));
+            assert!(
+                !message.contains("no pull was attempted"),
+                "a failure from a real attempt must not be reported as a replayed one at step \
+                 {i}: {message}"
+            );
             assert_eq!(
                 read_counter(&counter),
                 invocations_before + 1,
@@ -1721,7 +2280,30 @@ exit 1
                 invocations_before_retry,
                 "a request issued before retry_at must not cause a new invocation at step {i}"
             );
-            assert!(format!("{blocked_error:#}").contains("403 (Forbidden)"));
+            let blocked_message = format!("{blocked_error:#}");
+            assert!(
+                blocked_message.contains("403 (Forbidden)"),
+                "a replayed failure should quote the recorded error at step {i}: {blocked_message}"
+            );
+            assert!(
+                blocked_message.contains("no pull was attempted"),
+                "a replayed failure should say no pull was attempted at step {i}: \
+                 {blocked_message}"
+            );
+            assert!(
+                blocked_message.contains(&format!(
+                    "{count} consecutive failure",
+                    count = marker.consecutive_failures
+                )),
+                "a replayed failure should report the consecutive failure count at step {i}: \
+                 {blocked_message}"
+            );
+            assert!(
+                blocked_message
+                    .contains(&marker.retry_at.to_rfc3339_opts(SecondsFormat::Secs, true)),
+                "a replayed failure should report when a retry becomes eligible at step {i}: \
+                 {blocked_message}"
+            );
 
             // Advance through the deadline by rewriting the marker's `retry_at` into the
             // past.
@@ -1945,5 +2527,52 @@ exit 1
         let message = format!("{error:#}");
         assert!(message.contains("Some(3)"));
         assert!(message.contains("Some(4)"));
+    }
+
+    #[tokio::test]
+    async fn registry_prunes_entries_for_dropped_coordinators() {
+        // Every run gets its own cache directory unless one is configured, so a
+        // long-lived server would otherwise accumulate one permanently dead
+        // registry entry per run.
+        let dead_dirs: Vec<_> = (0..8).map(|_| tempfile::tempdir().unwrap()).collect();
+        let mut coordinators = Vec::new();
+        for dir in &dead_dirs {
+            coordinators.push(
+                ApptainerImageCache::get(dir.path(), None)
+                    .await
+                    .expect("a coordinator should be created for each run directory"),
+            );
+        }
+        drop(coordinators);
+
+        let before = registry_entries();
+        for dir in &dead_dirs {
+            assert!(
+                before.iter().any(|path| path == dir.path()),
+                "a dropped coordinator should still leave its dead entry behind until a later \
+                 insertion prunes it"
+            );
+        }
+
+        let live_dir = tempfile::tempdir().unwrap();
+        let _live = ApptainerImageCache::get(live_dir.path(), None)
+            .await
+            .expect("a coordinator should be created for the live directory");
+
+        let after = registry_entries();
+        for dir in &dead_dirs {
+            assert!(
+                !after.iter().any(|path| path == dir.path()),
+                "inserting a coordinator should prune entries whose coordinator was dropped"
+            );
+        }
+        assert!(
+            after.iter().any(|path| path == live_dir.path()),
+            "the newly inserted coordinator should remain registered"
+        );
+        assert!(
+            after.len() < before.len(),
+            "pruning eight dead entries while inserting one must shrink the registry"
+        );
     }
 }
