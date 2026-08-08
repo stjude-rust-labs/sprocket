@@ -1,10 +1,45 @@
 //! Cross-process coordination for the Apptainer `.sif` image cache.
 //!
-//! [`ApptainerImageCache`] serializes pulls for the same image across
-//! processes using advisory file locks, optionally caps how many distinct
-//! images may be pulled concurrently, and publishes a successfully pulled
-//! image with a temporary file and rename so a partially pulled image is
-//! never mistaken for a complete one.
+//! A single Sprocket invocation can start many per-task runtimes, and each
+//! spawns its own Apptainer process, so a cold cache directory is
+//! routinely opened by many processes at once. Without coordination those
+//! processes would race to pull the same image redundantly, wasting
+//! bandwidth and disk, and a reader could observe a partially written
+//! `.sif` file. [`ApptainerImageCache`] exists to prevent both.
+//!
+//! Coordination happens in two layers. Within one process, concurrent
+//! requests for the same [`ContainerSource`] attach to a single spawned
+//! pull operation and observe its result through a `tokio::sync::watch`
+//! channel, so the process itself never starts two pulls for the same
+//! image. Across processes, which may run on different hosts sharing this
+//! cache directory over a network filesystem, a per-image advisory file
+//! lock under `.sprocket/images/` serializes pulls for the same image so
+//! only one process pulls it at a time.
+//!
+//! A cache directory may also be configured with a limit on how many
+//! distinct images may be pulled concurrently. When set, a fixed set of
+//! slot lock files under `.sprocket/slots/` acts as a cache-wide advisory
+//! semaphore; a process acquires one exclusively before pulling and
+//! releases it once the pull finishes, sweeping the slots and retrying
+//! with jitter while every slot is held.
+//!
+//! A pull writes to a temporary file in the same directory as its final
+//! `.sif` destination and only renames it into place once the pull
+//! succeeds, so a reader ever sees either no file or a complete one, never
+//! a partial one. A failed pull is recorded in a persisted failure marker
+//! under `.sprocket/failures/`, which every coordinator sharing the cache
+//! directory consults before starting a new pull; this marker is the basis
+//! a later task uses to implement an actual retry backoff schedule.
+//!
+//! A caller waiting on a pull may cancel its own wait at any time. Doing so
+//! only stops that caller from waiting; it does not cancel the underlying
+//! pull, which keeps running to completion for the benefit of any other
+//! local or cross-process waiter still attached to it.
+//!
+//! This protocol depends on the cache directory sitting on a filesystem
+//! whose advisory locks are honored across every host that shares it and
+//! whose rename within a single directory is atomic; both guarantees above
+//! rely on that support being present.
 
 // This module is not yet wired into `ApptainerRuntime`; a later task in the
 // apptainer image cache plan does so.
@@ -68,8 +103,14 @@ const CACHE_POLICY_VERSION: u32 = 1;
 /// The current [`FailureMarker`] schema version.
 const FAILURE_MARKER_VERSION: u32 = 1;
 
-/// How long to wait between attempts to acquire a concurrency slot.
-const SLOT_RETRY_INTERVAL: Duration = Duration::from_millis(50);
+/// The nominal number of milliseconds to wait between attempts to acquire a
+/// concurrency slot, before jitter is applied by
+/// [`jittered_slot_retry_delay`].
+const SLOT_RETRY_INTERVAL_MILLIS: u64 = 50;
+
+/// The maximum jitter, in milliseconds and in either direction, applied to
+/// `SLOT_RETRY_INTERVAL_MILLIS` by [`jittered_slot_retry_delay`].
+const SLOT_RETRY_JITTER_MILLIS: u64 = 25;
 
 /// Stderr substrings that mark a pull failure as permanent rather than
 /// transient.
@@ -359,14 +400,6 @@ async fn retrying_pull(executable: &str, image: &str, path: &Path) -> Result<()>
     .await
 }
 
-/// Converts a completed pull outcome into the caller-facing result.
-fn outcome_to_result(outcome: &PullOutcome) -> Result<Option<PathBuf>> {
-    match outcome {
-        Ok(path) => Ok(Some(path.clone())),
-        Err(message) => Err(anyhow!("{message}")),
-    }
-}
-
 impl ApptainerImageCache {
     /// Gets or creates the coordinator for the given cache directory.
     ///
@@ -633,7 +666,10 @@ impl ApptainerImageCache {
 
         loop {
             if let Some(outcome) = receiver.borrow_and_update().clone() {
-                return outcome_to_result(&outcome);
+                return match outcome.as_ref() {
+                    Ok(path) => Ok(Some(path.clone())),
+                    Err(message) => Err(anyhow!("{message}")),
+                };
             }
 
             tokio::select! {
@@ -787,7 +823,7 @@ impl ApptainerImageCache {
                 return Ok(Some(lock));
             }
 
-            tokio::time::sleep(SLOT_RETRY_INTERVAL).await;
+            tokio::time::sleep(jittered_slot_retry_delay()).await;
         }
     }
 }
@@ -810,6 +846,22 @@ fn try_acquire_any_slot(slots_dir: &Path, limit: usize) -> Result<Option<LockedF
     }
 
     Ok(None)
+}
+
+/// Returns a slot retry delay sampled uniformly from
+/// `SLOT_RETRY_INTERVAL_MILLIS` minus `SLOT_RETRY_JITTER_MILLIS` through
+/// `SLOT_RETRY_INTERVAL_MILLIS` plus `SLOT_RETRY_JITTER_MILLIS`, inclusive.
+///
+/// Without jitter, many Sprocket processes contending for the same fixed
+/// slot files would tend to wake and sweep them at the same moment, over
+/// and over, rather than spreading their attempts out. The file locks
+/// remain the sole source of truth for who holds a slot; this jitter only
+/// changes when a process next attempts a sweep, never whether that sweep
+/// succeeds.
+fn jittered_slot_retry_delay() -> Duration {
+    let low = SLOT_RETRY_INTERVAL_MILLIS - SLOT_RETRY_JITTER_MILLIS;
+    let high = SLOT_RETRY_INTERVAL_MILLIS + SLOT_RETRY_JITTER_MILLIS;
+    Duration::from_millis(rand::random_range(low..=high))
 }
 
 #[cfg(test)]
@@ -1256,6 +1308,21 @@ exit {status}
             .expect("pull b should succeed");
     }
 
+    #[test]
+    fn jittered_slot_retry_delay_stays_within_bounds() {
+        // Samples the helper many times rather than asserting on the
+        // distribution: the requirement is only that every sample stays
+        // within the documented 25ms through 75ms bound, not that the
+        // underlying RNG is unbiased.
+        for _ in 0..1_000 {
+            let delay = jittered_slot_retry_delay();
+            assert!(
+                delay >= Duration::from_millis(25) && delay <= Duration::from_millis(75),
+                "sampled slot retry delay {delay:?} fell outside the expected 25ms..=75ms bound"
+            );
+        }
+    }
+
     #[tokio::test]
     async fn acquire_slot_waits_across_multiple_sweeps_then_succeeds() {
         // Directly protects the `acquire_slot` async boundary: each retry
@@ -1280,10 +1347,17 @@ exit {status}
             tokio::spawn(async move { cache.acquire_slot().await })
         };
 
-        // `SLOT_RETRY_INTERVAL` is 50ms; waiting several multiples of it
-        // forces the waiter through multiple full sweeps (each a separate
-        // `spawn_blocking` call) before the slot is released below.
-        tokio::time::sleep(SLOT_RETRY_INTERVAL * 4).await;
+        // Each jittered retry sleeps somewhere between
+        // `SLOT_RETRY_INTERVAL_MILLIS - SLOT_RETRY_JITTER_MILLIS` and
+        // `SLOT_RETRY_INTERVAL_MILLIS + SLOT_RETRY_JITTER_MILLIS` (see
+        // `jittered_slot_retry_delay`). Waiting for several worst-case-length
+        // sleeps forces the waiter through multiple full sweeps (each a
+        // separate `spawn_blocking` call) before the slot is released below,
+        // regardless of where in that range each individual jittered delay
+        // happens to land.
+        let max_retry_delay =
+            Duration::from_millis(SLOT_RETRY_INTERVAL_MILLIS + SLOT_RETRY_JITTER_MILLIS);
+        tokio::time::sleep(max_retry_delay * 4).await;
         assert!(
             !waiter.is_finished(),
             "the waiter must still be retrying while the only slot is held"
