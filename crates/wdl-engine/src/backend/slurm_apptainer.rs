@@ -25,8 +25,6 @@ use anyhow::Result;
 use anyhow::anyhow;
 use anyhow::bail;
 use bytesize::ByteSize;
-use crankshaft::engine::service::name::GeneratorIterator;
-use crankshaft::engine::service::name::UniqueAlphanumeric;
 use crankshaft::events::Event as CrankshaftEvent;
 use crankshaft::events::send_event;
 use futures::FutureExt;
@@ -56,7 +54,6 @@ use crate::Object;
 use crate::PrimitiveValue;
 use crate::TaskInputs;
 use crate::backend::ExecuteTaskRequest;
-use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
 use crate::config::Config;
@@ -380,8 +377,6 @@ struct Job {
 /// State used by the Slurm task monitor.
 #[derive(Debug)]
 struct MonitorState {
-    /// The name generator for tasks.
-    names: GeneratorIterator<UniqueAlphanumeric>,
     /// The map of jobs being monitored.
     ///
     /// The key is the Slurm job identifier.
@@ -392,10 +387,6 @@ impl MonitorState {
     /// Constructs a new monitor state.
     fn new() -> Self {
         Self {
-            names: GeneratorIterator::new(
-                UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
-                INITIAL_EXPECTED_NAMES,
-            ),
             jobs: HashMap::new(),
         }
     }
@@ -565,20 +556,7 @@ impl Monitor {
         command_path: &Path,
         transferer: &dyn Transferer,
     ) -> Result<SubmittedJob> {
-        let task_name = {
-            let mut state = self.state.lock().expect("failed to lock state");
-
-            let task_name = format!(
-                "{id}-{generated}",
-                id = request.id,
-                generated = state
-                    .names
-                    .next()
-                    .expect("generator should never be exhausted")
-            );
-
-            task_name
-        };
+        let task_name = request.name.to_string();
 
         let mut command = Command::new("sbatch");
 
