@@ -4,15 +4,15 @@
 -- states reported by the server.
 --
 -- SQLite cannot alter a CHECK constraint in place, so each table is rebuilt.
--- Dropping a table that other tables reference performs an implicit delete of
--- its rows, which trips foreign key enforcement even when constraints are
--- deferred. Foreign keys must therefore be disabled, and `pragma foreign_keys`
--- is a no-op inside a transaction, which is why this migration opts out of
--- sqlx's wrapping transaction.
+-- `drop table runs` implicitly deletes rows that `tasks` and `index_log`
+-- reference, so with foreign keys enforced the drop fails outright; deferring
+-- enforcement only moves the failure to the commit, as renaming a replacement
+-- table into place does not clear the violations the delete recorded. Foreign
+-- keys must therefore be disabled, and `pragma foreign_keys` is a no-op inside
+-- a transaction, which is why sqlx's wrapping transaction is declined here.
 --
--- Opting out of that transaction does not mean giving one up: the rebuild
--- itself runs inside an explicit transaction so that a failure part way
--- through cannot leave a database with half of its tables replaced.
+-- The rebuild still runs in the explicit transaction below, so a failure part
+-- way through cannot leave a database with half of its tables replaced.
 
 pragma foreign_keys = off;
 

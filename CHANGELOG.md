@@ -10,29 +10,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 * `dev server` now reports finer-grained progress. A run is `analyzing` while
-  its WDL document and imports are resolved and type checked, leaving `queued`
-  to mean waiting for an execution slot. A task now gets a database row as soon
-  as the engine begins evaluating it rather than when it reaches the backend,
-  and reports `initializing` while its inputs, command, and requirements are
-  evaluated, `localizing` while its inputs are transferred, and `cached` when
-  its result is reused from the call cache. This makes a run that is uploading
-  large inputs, or one whose tasks were entirely served from the call cache,
-  distinguishable from a run that is stuck
-  ([#935](https://github.com/stjude-rust-labs/sprocket/issues/935)).
+  its document is resolved and type checked, and a task reports `initializing`,
+  `localizing` while its inputs are transferred, or `cached` when the call
+  cache serves it
+  ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
 
 ### Fixed
 
-* Work a backend runs on its own behalf is no longer reported as a task of the
-  run. The Docker backend runs a container to restore ownership of a task's
-  work directory, which `dev server` recorded among the run's tasks and `run`
-  counted on its progress display, even though no WDL task corresponds to it
-  ([#935](https://github.com/stjude-rust-labs/sprocket/issues/935)).
+* Work a backend runs on its own behalf, such as the Docker backend's container
+  that restores ownership of a work directory, is no longer reported among a
+  run's tasks
+  ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
 
-* Canceling a `dev server` run that is transferring an input now records the
-  run as `canceled` rather than `failed`, and a run that reaches its outcome
-  before the cancellation is recorded keeps that outcome instead of remaining
-  `canceling` forever
-  ([#935](https://github.com/stjude-rust-labs/sprocket/issues/935)).
+* Canceling a `dev server` run mid-transfer now records the run as `canceled`
+  rather than `failed`, and no longer overwrites an outcome the run reached
+  first ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
 
 * `dev server` task endpoints now return `404 Not Found` for missing task
   lookups, including missing task logs, instead of returning empty log results

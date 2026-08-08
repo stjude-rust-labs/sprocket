@@ -3,14 +3,16 @@
 -- Narrows the `runs` and `tasks` status constraints back to the original set
 -- of states.
 --
+-- The rebuild drops tables that others reference, so foreign keys must be
+-- disabled, and `pragma foreign_keys` is a no-op inside a transaction, which
+-- is why sqlx's wrapping transaction is declined here; see the forward
+-- migration for why deferring enforcement instead is not enough. The rebuild
+-- still runs in the explicit transaction below.
+--
 -- This is lossy: rows in a state that the original schema cannot express are
 -- collapsed onto the nearest state it can. An `analyzing` run becomes
 -- `queued`, an `initializing` or `localizing` task becomes `pending`, and a
 -- `cached` task becomes `completed`.
---
--- As with the forward migration, foreign keys must be disabled for the
--- rebuild, which is why sqlx's wrapping transaction is declined and an
--- explicit one is used instead.
 
 pragma foreign_keys = off;
 

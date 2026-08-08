@@ -49,12 +49,6 @@ pub(crate) const STDOUT_FILE_NAME: &str = "stdout";
 /// The default stderr file name.
 pub(crate) const STDERR_FILE_NAME: &str = "stderr";
 
-/// The number of initial expected task names.
-///
-/// This controls the initial size of the bloom filter and how many names are
-/// prepopulated into a name generator.
-pub(crate) const INITIAL_EXPECTED_NAMES: usize = 1000;
-
 /// Represents a `File` or `Directory` input to a backend.
 #[derive(Debug, Clone)]
 pub(crate) struct Input {
