@@ -54,6 +54,8 @@ const APPTAINER_ENV_PREFIX: &str = "APPTAINERENV";
 /// The environment variable prefix for Singularity.
 const SINGULARITY_ENV_PREFIX: &str = "SINGULARITYENV";
 
+mod image_cache;
+
 /// Represents the Apptainer container runtime.
 #[derive(Debug)]
 pub struct ApptainerRuntime {
