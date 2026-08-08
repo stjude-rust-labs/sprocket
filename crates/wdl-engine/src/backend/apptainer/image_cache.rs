@@ -28,8 +28,9 @@
 //! succeeds, so a reader ever sees either no file or a complete one, never
 //! a partial one. A failed pull is recorded in a persisted failure marker
 //! under `.sprocket/failures/`, which every coordinator sharing the cache
-//! directory consults before starting a new pull; this marker is the basis
-//! a later task uses to implement an actual retry backoff schedule.
+//! directory consults before starting a new pull, and which records an
+//! exponentially increasing delay before a new attempt for that image
+//! becomes eligible again.
 //!
 //! A caller waiting on a pull may cancel its own wait at any time. Doing so
 //! only stops that caller from waiting; it does not cancel the underlying
@@ -145,9 +146,8 @@ struct FailureMarker {
     failed_at: DateTime<Utc>,
     /// The time at which a new pull attempt becomes eligible.
     ///
-    /// Task 2 of the apptainer image cache plan does not implement a real
-    /// backoff schedule; this is always set equal to `failed_at`. A later
-    /// task applies an actual delay.
+    /// Set to `failed_at` plus the delay `retry_delay` computes from
+    /// `consecutive_failures`.
     retry_at: DateTime<Utc>,
 }
 
@@ -275,10 +275,22 @@ async fn read_failure_marker(path: &Path) -> Result<Option<FailureMarker>> {
     }
 }
 
+/// Returns the delay to wait before a new pull attempt becomes eligible
+/// after `consecutive_failures` consecutive failed pulls.
+///
+/// The delay doubles with each additional failure, from one second up to a
+/// sixty-four second cap that applies from the seventh consecutive failure
+/// onward.
+fn retry_delay(consecutive_failures: u32) -> Duration {
+    Duration::from_secs(1_u64 << consecutive_failures.saturating_sub(1).min(6))
+}
+
 /// Atomically writes an updated failure marker recording `error`.
 ///
 /// If `previous` is present, its consecutive failure count is incremented;
-/// otherwise the count starts at one.
+/// otherwise the count starts at one. The marker's `retry_at` is set to the
+/// current time plus the delay `retry_delay` computes for that failure
+/// count.
 async fn write_failure_marker(
     failures_dir: &Path,
     path: &Path,
@@ -286,12 +298,15 @@ async fn write_failure_marker(
     error: &str,
 ) -> Result<()> {
     let now = Utc::now();
+    let consecutive_failures = previous.map_or(1, |marker| marker.consecutive_failures + 1);
+    let delay = chrono::Duration::from_std(retry_delay(consecutive_failures))
+        .context("failed to convert Apptainer image cache retry delay to a `chrono::Duration`")?;
     let marker = FailureMarker {
         version: FAILURE_MARKER_VERSION,
-        consecutive_failures: previous.map_or(1, |marker| marker.consecutive_failures + 1),
+        consecutive_failures,
         error: error.to_string(),
         failed_at: now,
-        retry_at: now,
+        retry_at: now + delay,
     };
 
     write_atomic(
@@ -648,6 +663,19 @@ impl ApptainerImageCache {
             // Ignored because a send error only means every waiter already gave
             // up; the pull itself already ran to completion either way.
             let _ = task_operation.sender.send(Some(Arc::new(outcome)));
+
+            // Drop this operation's own entry from the shared map so a later request
+            // for this container starts a fresh operation rather than finding a
+            // `Weak` that can never be upgraded again. Identity is compared first
+            // because a cancelled waiter drops only its own receiver, never this
+            // task, so `task_operation` remains the map's sole strong owner up to
+            // this point and no other request could have replaced this entry.
+            let mut operations = cache.operations.lock().expect("failed to lock operations");
+            if let Some(current) = operations.get(&container)
+                && Weak::ptr_eq(current, &Arc::downgrade(&task_operation))
+            {
+                operations.remove(&container);
+            }
         });
 
         operation
@@ -939,6 +967,45 @@ exit {status}
     #[cfg(unix)]
     fn write_failing_executable(path: &Path) {
         let script = "#!/bin/sh\necho '403 (Forbidden)' >&2\nexit 1\n";
+        std::fs::write(path, script).unwrap();
+        set_executable(path);
+    }
+
+    /// Writes a fake `apptainer`-like executable to `path` that increments
+    /// `counter_path` on every invocation, under the same portable
+    /// `mkdir`-based lock [`write_waiting_executable`] uses, then either
+    /// succeeds by writing [`FAKE_IMAGE_BYTES`] to its destination argument
+    /// if `succeed_flag_path` exists, or fails with output the cache
+    /// classifies as a permanent failure otherwise.
+    #[cfg(unix)]
+    fn write_toggleable_executable(path: &Path, counter_path: &Path, succeed_flag_path: &Path) {
+        let script = format!(
+            r#"#!/bin/sh
+set -eu
+dest="$2"
+lockdir="{counter}.lockdir"
+until mkdir "$lockdir" 2>/dev/null; do
+  sleep 0.01
+done
+current=0
+if [ -f "{counter}" ]; then
+  current=$(cat "{counter}")
+fi
+current=$((current + 1))
+printf '%s' "$current" > "{counter}"
+rmdir "$lockdir"
+if [ -f "{flag}" ]; then
+  printf '%s' '{bytes}' > "$dest"
+  exit 0
+fi
+echo '403 (Forbidden)' >&2
+exit 1
+"#,
+            counter = counter_path.display(),
+            flag = succeed_flag_path.display(),
+            bytes = FAKE_IMAGE_BYTES,
+        );
+
         std::fs::write(path, script).unwrap();
         set_executable(path);
     }
@@ -1517,6 +1584,20 @@ exit {status}
             "the temporary partial file must be cleaned up after a failed pull"
         );
 
+        let failure_path = dir
+            .path()
+            .join(COORDINATION_DIR_NAME)
+            .join(FAILURES_DIR_NAME)
+            .join(format!("{}.json", image_key(&container)));
+
+        // Advance past the first failure's one second backoff delay by rewriting the
+        // marker's `retry_at` directly, without pausing or advancing Tokio's clock
+        // (which does not control the `Utc::now()` timestamps markers use).
+        let mut marker: FailureMarker =
+            serde_json::from_slice(&std::fs::read(&failure_path).unwrap()).unwrap();
+        marker.retry_at = Utc::now() - chrono::Duration::seconds(1);
+        std::fs::write(&failure_path, serde_json::to_vec_pretty(&marker).unwrap()).unwrap();
+
         // A second attempt should still fail, and the recorded failure marker's
         // consecutive count should have increased.
         let error = cache
@@ -1530,16 +1611,310 @@ exit {status}
             .expect_err("a subsequent pull should also fail");
         assert!(format!("{error:#}").contains("403 (Forbidden)"));
 
-        let failure_path = dir
-            .path()
-            .join(COORDINATION_DIR_NAME)
-            .join(FAILURES_DIR_NAME)
-            .join(format!("{}.json", image_key(&container)));
         let marker: FailureMarker =
             serde_json::from_slice(&std::fs::read(&failure_path).unwrap()).unwrap();
         assert_eq!(
             marker.consecutive_failures, 2,
             "the marker should record two consecutive failures"
+        );
+    }
+
+    #[test]
+    fn retry_delay_follows_expected_schedule() {
+        // One second through sixty-four seconds, doubling for each additional
+        // consecutive failure, then flat at the sixty-four second cap for every
+        // failure count beyond the seventh.
+        let expected_secs = [1, 2, 4, 8, 16, 32, 64, 64, 64, 64];
+        for (i, &secs) in expected_secs.iter().enumerate() {
+            let consecutive_failures = (i + 1) as u32;
+            assert_eq!(
+                retry_delay(consecutive_failures),
+                Duration::from_secs(secs),
+                "unexpected retry delay for {consecutive_failures} consecutive failures"
+            );
+        }
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn failure_backoff() {
+        // Marker timestamps are `Utc::now()`, which a paused Tokio clock does not
+        // control, so this test never pauses or advances Tokio time. Instead it
+        // rewrites the on-disk marker's `retry_at` directly to simulate the
+        // backoff deadline elapsing; the cache treats that file as
+        // authoritative, so this has the same observable effect on eligibility
+        // as real time actually passing, without an eight-step test waiting up to
+        // 191 seconds of real delay.
+        let dir = tempfile::tempdir().unwrap();
+        let cache = ApptainerImageCache::new_uncoordinated(dir.path(), None)
+            .await
+            .unwrap();
+
+        let exe = dir.path().join("fake-apptainer-backoff");
+        let counter = dir.path().join("counter");
+        // Never created, so the fake executable always takes its failing branch.
+        let succeed_flag = dir.path().join("succeed");
+        write_toggleable_executable(&exe, &counter, &succeed_flag);
+
+        let container = ContainerSource::Docker("test/backoff-image:latest".to_string());
+        let final_path = dir.path().join("backoff-image.sif");
+        let failure_path = dir
+            .path()
+            .join(COORDINATION_DIR_NAME)
+            .join(FAILURES_DIR_NAME)
+            .join(format!("{}.json", image_key(&container)));
+
+        // One consecutive failure doubles the delay from one second, capping at
+        // sixty-four seconds from the seventh failure onward.
+        let expected_delay_secs = [1, 2, 4, 8, 16, 32, 64, 64];
+
+        for (i, &expected_secs) in expected_delay_secs.iter().enumerate() {
+            let invocations_before = read_counter(&counter);
+
+            let error = cache
+                .pull(
+                    exe.to_str().unwrap(),
+                    &container,
+                    &final_path,
+                    CancellationToken::new(),
+                )
+                .await
+                .expect_err("the eligible pull should fail");
+            assert!(format!("{error:#}").contains("403 (Forbidden)"));
+            assert_eq!(
+                read_counter(&counter),
+                invocations_before + 1,
+                "the eligible request at step {i} should cause exactly one new invocation"
+            );
+
+            let marker: FailureMarker =
+                serde_json::from_slice(&std::fs::read(&failure_path).unwrap()).unwrap();
+            assert_eq!(
+                marker.consecutive_failures,
+                (i + 1) as u32,
+                "unexpected consecutive failure count at step {i}"
+            );
+            assert_eq!(
+                (marker.retry_at - marker.failed_at).to_std().unwrap(),
+                Duration::from_secs(expected_secs),
+                "unexpected backoff delay recorded at step {i}"
+            );
+
+            let invocations_before_retry = read_counter(&counter);
+            let blocked_error = cache
+                .pull(
+                    exe.to_str().unwrap(),
+                    &container,
+                    &final_path,
+                    CancellationToken::new(),
+                )
+                .await
+                .expect_err("a request issued before retry_at should still fail");
+            assert_eq!(
+                read_counter(&counter),
+                invocations_before_retry,
+                "a request issued before retry_at must not cause a new invocation at step {i}"
+            );
+            assert!(format!("{blocked_error:#}").contains("403 (Forbidden)"));
+
+            // Advance through the deadline by rewriting the marker's `retry_at` into the
+            // past.
+            let mut past_marker = marker;
+            past_marker.retry_at = Utc::now() - chrono::Duration::seconds(1);
+            std::fs::write(
+                &failure_path,
+                serde_json::to_vec_pretty(&past_marker).unwrap(),
+            )
+            .unwrap();
+        }
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn success_resets_backoff() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = ApptainerImageCache::new_uncoordinated(dir.path(), None)
+            .await
+            .unwrap();
+
+        let exe = dir.path().join("fake-apptainer-toggle");
+        let counter = dir.path().join("counter");
+        let succeed_flag = dir.path().join("succeed");
+        write_toggleable_executable(&exe, &counter, &succeed_flag);
+
+        let container = ContainerSource::Docker("test/reset-image:latest".to_string());
+        let final_path = dir.path().join("reset-image.sif");
+        let failure_path = dir
+            .path()
+            .join(COORDINATION_DIR_NAME)
+            .join(FAILURES_DIR_NAME)
+            .join(format!("{}.json", image_key(&container)));
+
+        // `succeed_flag` does not exist yet, so this first pull fails and records a
+        // marker with a one second delay.
+        let error = cache
+            .pull(
+                exe.to_str().unwrap(),
+                &container,
+                &final_path,
+                CancellationToken::new(),
+            )
+            .await
+            .expect_err("the first pull should fail");
+        assert!(format!("{error:#}").contains("403 (Forbidden)"));
+
+        let marker: FailureMarker =
+            serde_json::from_slice(&std::fs::read(&failure_path).unwrap()).unwrap();
+        assert_eq!(marker.consecutive_failures, 1);
+        assert_eq!(
+            (marker.retry_at - marker.failed_at).to_std().unwrap(),
+            Duration::from_secs(1),
+            "the first failure should record a one second delay"
+        );
+
+        // Advance past the one second delay by rewriting the marker's `retry_at`
+        // directly, the same on-disk authoritative state a waiting process
+        // would eventually observe once real time passed, without pausing or
+        // advancing Tokio's clock (which does not control `Utc::now()`).
+        let mut past_marker = marker;
+        past_marker.retry_at = Utc::now() - chrono::Duration::seconds(1);
+        std::fs::write(
+            &failure_path,
+            serde_json::to_vec_pretty(&past_marker).unwrap(),
+        )
+        .unwrap();
+
+        // Let the fake executable succeed and pull again.
+        std::fs::write(&succeed_flag, b"go").unwrap();
+        let path = cache
+            .pull(
+                exe.to_str().unwrap(),
+                &container,
+                &final_path,
+                CancellationToken::new(),
+            )
+            .await
+            .unwrap()
+            .expect("the second pull should succeed once the backoff has elapsed");
+        assert_eq!(path, final_path);
+        assert!(
+            !failure_path.exists(),
+            "a successful publish must remove the failure marker"
+        );
+
+        // Delete the final SIF to force another pull, and let the fake executable fail
+        // again.
+        std::fs::remove_file(&final_path).unwrap();
+        std::fs::remove_file(&succeed_flag).unwrap();
+        let error = cache
+            .pull(
+                exe.to_str().unwrap(),
+                &container,
+                &final_path,
+                CancellationToken::new(),
+            )
+            .await
+            .expect_err("the forced pull should fail again");
+        assert!(format!("{error:#}").contains("403 (Forbidden)"));
+
+        let marker: FailureMarker =
+            serde_json::from_slice(&std::fs::read(&failure_path).unwrap()).unwrap();
+        assert_eq!(
+            marker.consecutive_failures, 1,
+            "a successful publish should reset the failure count"
+        );
+        assert_eq!(
+            (marker.retry_at - marker.failed_at).to_std().unwrap(),
+            Duration::from_secs(1),
+            "the new marker should return to a one second delay"
+        );
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn cancelled_waiter_does_not_cancel_pull() {
+        let dir = tempfile::tempdir().unwrap();
+        let cache = ApptainerImageCache::new_uncoordinated(dir.path(), None)
+            .await
+            .unwrap();
+
+        let exe = dir.path().join("fake-apptainer-cancel");
+        let counter = dir.path().join("counter");
+        let release = dir.path().join("release");
+        write_waiting_executable(&exe, &counter, &release, 0);
+
+        let container = ContainerSource::Docker("test/cancel-image:latest".to_string());
+        let final_path = dir.path().join("cancel-image.sif");
+
+        let cancel_token = CancellationToken::new();
+        let cancelled_waiter = {
+            let cache = Arc::clone(&cache);
+            let exe = exe.clone();
+            let container = container.clone();
+            let final_path = final_path.clone();
+            let token = cancel_token.clone();
+            tokio::spawn(async move {
+                cache
+                    .pull(exe.to_str().unwrap(), &container, &final_path, token)
+                    .await
+            })
+        };
+
+        let surviving_waiter = {
+            let cache = Arc::clone(&cache);
+            let exe = exe.clone();
+            let container = container.clone();
+            let final_path = final_path.clone();
+            tokio::spawn(async move {
+                cache
+                    .pull(
+                        exe.to_str().unwrap(),
+                        &container,
+                        &final_path,
+                        CancellationToken::new(),
+                    )
+                    .await
+            })
+        };
+
+        wait_until(Duration::from_secs(5), || read_counter(&counter) >= 1).await;
+
+        cancel_token.cancel();
+        let cancelled_result = cancelled_waiter
+            .await
+            .unwrap()
+            .expect("a cancelled waiter should not itself return an error");
+        assert!(
+            cancelled_result.is_none(),
+            "a cancelled waiter should observe `Ok(None)`"
+        );
+
+        assert_eq!(
+            read_counter(&counter),
+            1,
+            "cancelling one waiter must not trigger a second invocation of the shared pull"
+        );
+        assert!(
+            !surviving_waiter.is_finished(),
+            "the surviving waiter must still be waiting on the shared pull"
+        );
+
+        std::fs::write(&release, b"go").unwrap();
+
+        let path = surviving_waiter
+            .await
+            .unwrap()
+            .unwrap()
+            .expect("the surviving waiter should still receive the pull result");
+        assert_eq!(path, final_path);
+        assert!(
+            final_path.exists(),
+            "the final SIF should exist after the shared pull completes"
+        );
+        assert_eq!(
+            read_counter(&counter),
+            1,
+            "only one invocation total should have occurred despite the cancellation"
         );
     }
 
