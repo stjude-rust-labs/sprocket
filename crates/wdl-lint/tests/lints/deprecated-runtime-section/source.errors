@@ -1,8 +1,8 @@
 note[DeprecatedRuntimeSection]: task `deprecated_runtime` contains a deprecated `runtime` section
-   ┌─ tests/lints/deprecated-runtime-section/source.wdl:12:5
-   │
-12 │     runtime {
-   │     ^^^^^^^
-   │
-   = fix: replace the `runtime` section with a `requirements` section
+  ┌─ tests/lints/deprecated-runtime-section/source.wdl:8:5
+  │
+8 │     runtime {}
+  │     ^^^^^^^
+  │
+  = fix: replace the `runtime` section with a `requirements` section
 
