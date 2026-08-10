@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* `dev server` gained subcommand aliases and short options for some currently-only-long options ([#1102](https://github.com/stjude-rust-labs/sprocket/pull/1102)).
+
 ### Fixed
 
 * `dev server` task endpoints now return `404 Not Found` for missing task
