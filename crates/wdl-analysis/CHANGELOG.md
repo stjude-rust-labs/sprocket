@@ -7,11 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+## 0.24.0 - 2026-08-05
+
 ### Fixed
 
 * Supported WDL 1.0 `runtime` resource requirements remain available to
   execution consumers while static type diagnostics remain version-aware
-  ([#1026](https://github.com/stjude-rust-labs/sprocket/issues/1026)).
+  ([#1027](https://github.com/stjude-rust-labs/sprocket/pull/1027)).
 * LSP hover and completion for standard library functions are now version-aware:
   functions and polymorphic signatures whose minimum WDL version exceeds the
   document's declared version are no longer offered in completion or shown on

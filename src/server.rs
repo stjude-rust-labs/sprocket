@@ -30,6 +30,7 @@ pub(crate) use api::v1::info::ServerInfoResponse;
 pub use api::v1::paths;
 pub(crate) use api::v1::runs::CancelRunResponse;
 pub(crate) use api::v1::runs::ListRunsResponse;
+pub(crate) use api::v1::runs::Run;
 pub(crate) use api::v1::runs::RunResponse;
 pub(crate) use api::v1::runs::SubmitRunRequest;
 pub(crate) use api::v1::tasks::ListTasksResponse;
@@ -132,4 +133,41 @@ pub async fn run(config: Config, report_mode: Mode, colorize: bool) -> anyhow::R
     run_with_listener(config, report_mode, colorize, listener).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::body::Body;
+    use axum::http::Request;
+    use axum::http::StatusCode;
+    use tokio::sync::mpsc;
+    use tower::ServiceExt;
+
+    use super::*;
+    use crate::system::v1::exec::svc::RunManagerCmd;
+
+    #[tokio::test]
+    async fn router_serves_openapi_and_nested_api_routes() -> anyhow::Result<()> {
+        let (run_manager_tx, _run_manager_rx) = mpsc::channel::<RunManagerCmd>(1);
+        let state = AppState::builder()
+            .run_manager_tx(run_manager_tx)
+            .failure_mode(ServerFailureMode::Slow)
+            .output_dir(String::new())
+            .build();
+        let app = create_router()
+            .state(state)
+            .cors_layer(CorsLayer::new())
+            .call();
+
+        let request = Request::builder()
+            .uri("/api/v1/openapi.json")
+            .body(Body::empty())?;
+        let response = app.clone().oneshot(request).await?;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let request = Request::builder().uri("/api/v1/nope").body(Body::empty())?;
+        let response = app.oneshot(request).await?;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        Ok(())
+    }
 }
