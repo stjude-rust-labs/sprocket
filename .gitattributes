@@ -19,6 +19,10 @@ crates/wdl-doc/tests/output_docs/**/*.html text eol=lf
 crates/wdl-doc/tests/output_docs/style.css text eol=lf
 crates/wdl-doc/tests/output_docs/index.js text eol=lf
 
+# The minified bundle contains significant tabs at physical line endings inside
+# HTML serializer lookup strings.
+crates/wdl-doc/theme/dist/index.js whitespace=-trailing-space
+
 # Ignore line endings for these files as they are intentionally inconsistent
 crates/wdl-format/tests/format/newline-style/source.formatted.wdl -text
 

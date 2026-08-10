@@ -2415,7 +2415,9 @@ fn atom_expr(
     peeked: Token,
 ) -> Result<CompletedMarker, (Marker, ParseDiagnostic)> {
     match peeked {
-        Token::NoneKeyword => none(parser, marker),
+        Token::NoneKeyword if parser.version() >= SupportedVersion::V1(V1::One) => {
+            none(parser, marker)
+        }
         Token::Float | Token::Integer => number(parser, marker, false),
         Token::TrueKeyword | Token::FalseKeyword => boolean(parser, marker),
         Token::SingleQuote => single_quote_string(parser, marker, true),

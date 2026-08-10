@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* `dev server` task endpoints now return `404 Not Found` for missing task
+  lookups, including missing task logs, instead of returning empty log results
+  or generic internal errors
+  ([#956](https://github.com/stjude-rust-labs/sprocket/pull/956)).
+
+## 0.29.0 - 2026-08-05
+
+### Changed
+
+* `sprocket dev doc` now renders module-aware navigation, richer declaration
+  pages, linked local types, improved code blocks, and a responsive layout with
+  article-aligned GitHub, website, and optional Slack links
+  ([#1049](https://github.com/stjude-rust-labs/sprocket/pull/1049)).
+* `sprocket dev doc` now accepts SEO metadata under `[doc.seo]` (title,
+  description, author, keywords, base URL, social image, locale, Twitter
+  handle, robots, and theme color); each page's `<title>` becomes
+  `"<page> | <title>"` and the configured values populate the `<head>` with
+  standard, Open Graph, and Twitter Card tags
+  ([#1049](https://github.com/stjude-rust-labs/sprocket/pull/1049)).
+* `sprocket dev doc` now discovers WDL modules by recursively scanning the
+  workspace for `module.json` manifests, so nested and sibling modules (e.g. a
+  monorepo of modules under a manifest-less root) are each documented as
+  modules. A `module.json` that fails to parse is skipped with a warning
+  rather than aborting the run
+  ([#1049](https://github.com/stjude-rust-labs/sprocket/pull/1049)).
+
+### Fixed
+
+* For `sprocket dev server status`, the `--limit` parameter is now respected: passing `--limit N` displays at most N runs by fetching a single page. When `--limit` is omitted, all runs are displayed by paginating through the server's results. The footer distinguishes between "total run(s) in the system" (no filter) and "total matching run(s)" (with a `--status` filter) so a filtered count is not misreported as global. The `--json` output now includes a `total` field alongside `runs` ([#1050](https://github.com/stjude-rust-labs/sprocket/pull/1050)).
 * For `sprocket run`, the execution backend is now considered for the call
   cache key derivation, which prevents unexpected behavior when switching
   executing backends. NOTE: this will cause existing call cache entries to be
@@ -20,7 +49,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `sprocket.toml` ([#1043](https://github.com/stjude-rust-labs/sprocket/pull/1043)).
 * WDL 1.0 `runtime` resource requirements such as `cpu` are again passed to
   execution backends instead of being treated as hints
-  ([#1026](https://github.com/stjude-rust-labs/sprocket/issues/1026)).
+  ([#1027](https://github.com/stjude-rust-labs/sprocket/pull/1027)).
+* `sprocket check` will no longer trigger `KnownRules` for rules excepted over the
+  command line or in `sprocket.toml` ([#1060](https://github.com/stjude-rust-labs/sprocket/pull/1060)).
 
 ## 0.28.0 - 2026-07-15
 

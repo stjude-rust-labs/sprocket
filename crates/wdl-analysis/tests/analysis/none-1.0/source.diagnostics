@@ -1,0 +1,6 @@
+error: unknown name `None`
+   ┌─ tests/analysis/none-1.0/source.wdl:10:63
+   │
+10 │   String? maybe_value = if (value == "match") then value else None
+   │                                                               ^^^^
+

@@ -110,6 +110,8 @@ jobs:
       # TODO: nextest doesn't support doc tests yet (https://github.com/nextest-rs/nextest/issues/16)
       - name: Run tests
         shell: bash
+        env:
+          RUST_LOG: info,thirtyfour::manager::driver=debug
         run: cargo llvm-cov nextest --profile=ci --workspace --locked --all-targets --exclude fuzz --all-features --no-fail-fast --codecov --output-path codecov.json && cargo test --workspace --exclude fuzz --doc
 
       - name: Upload coverage to Codecov
@@ -119,6 +121,42 @@ jobs:
           files: codecov.json
           fail_ci_if_error: true
           exclude: "crates/gauntlet"
+
+  a11y:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+      - name: Cache build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          save-if: ${{ github.ref == 'refs/heads/main' }}
+          cache-bin: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+      - name: Pre-warm Pagefind
+        run: npx -y pagefind@1.5.0 --help
+      - name: Build sprocket
+        run: cargo build --release --locked --bin sprocket
+      - name: Generate documentation
+        run: ./target/release/sprocket dev doc crates/wdl-doc/tests/ui/base/assets --output "$RUNNER_TEMP/a11y-docs"
+      - name: Install audit dependencies
+        working-directory: crates/wdl-doc/a11y
+        run: npm install
+      - name: Run accessibility audit (light + dark)
+        run: |
+          python3 -m http.server 8080 --directory "$RUNNER_TEMP/a11y-docs" &
+          server=$!
+          for _ in $(seq 1 30); do
+            curl -sf http://localhost:8080/index.html >/dev/null && break
+            sleep 1
+          done
+          node crates/wdl-doc/a11y/run.mjs http://localhost:8080 "$RUNNER_TEMP/a11y-docs"
+          status=$?
+          kill "$server"
+          exit "$status"
 
   engine-test:
     runs-on: ${{ matrix.os }}
