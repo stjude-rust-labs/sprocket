@@ -101,6 +101,7 @@ task say_hello {
         Some(&[
             SyntaxKind::VersionStatementNode,
             SyntaxKind::TaskDefinitionNode,
+            SyntaxKind::RuntimeSectionNode,
         ])
     }
 

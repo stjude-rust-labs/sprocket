@@ -99,6 +99,7 @@ task say_hello {
 
     fn related_rules(&self) -> &'static [&'static str] {
         &[
+            "DeprecatedRuntimeSection",
             "ExpectedRuntimeKeys",
             "MetaDescription",
             "ParameterMetaMatched",

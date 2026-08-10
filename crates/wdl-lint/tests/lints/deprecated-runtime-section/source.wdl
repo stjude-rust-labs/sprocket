@@ -3,23 +3,13 @@
 version 1.3
 
 task deprecated_runtime {
-    meta {}
-
     command <<<>>>
 
-    output {}
-
-    runtime {
-    }
+    runtime {}
 }
 
 task requirements_only {
-    meta {}
-
     command <<<>>>
-
-    output {}
-
-    requirements {
-    }
+    
+    requirements {}
 }
