@@ -1113,7 +1113,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__server__subcmd__inspect)
-            opts="-p -v -q -c -s -h -V --json --detailed --host --port --verbose --quiet --color --config --skip-config-search --help --version <RUN>"
+            opts="-d -p -v -q -c -s -h -V --json --detailed --host --port --verbose --quiet --color --config --skip-config-search --help --version <RUN>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1275,13 +1275,17 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__server__subcmd__status)
-            opts="-p -v -q -c -s -h -V --status --limit --json --host --port --verbose --quiet --color --config --skip-config-search --help --version [RUN]"
+            opts="-t -p -v -q -c -s -h -V --status --limit --json --host --port --verbose --quiet --color --config --skip-config-search --help --version [RUN]"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
                 --status)
+                    COMPREPLY=($(compgen -f "${cur}"))
+                    return 0
+                    ;;
+                -t)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0
                     ;;

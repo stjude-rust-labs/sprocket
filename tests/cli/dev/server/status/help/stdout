@@ -9,7 +9,7 @@ Arguments:
           May be a UUID or the human-readable generated name of the run (e.g. `happy-dolphin-42`). If omitted, all runs are listed.
 
 Options:
-      --status <STATUS>
+  -t, --status <STATUS>
           Filter the run list by status.
           
           Valid values: `queued`, `running`, `completed`, `failed`, `canceling`, `canceled`. Only used when no `RUN` is provided.

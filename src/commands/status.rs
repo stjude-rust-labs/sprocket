@@ -38,7 +38,7 @@ pub struct Args {
     ///
     /// Valid values: `queued`, `running`, `completed`, `failed`, `canceling`,
     /// `canceled`. Only used when no `RUN` is provided.
-    #[clap(short, long, value_name = "STATUS")]
+    #[clap(short = 't', long, value_name = "STATUS")]
     status: Option<String>,
 
     /// Maximum number of runs to display.
