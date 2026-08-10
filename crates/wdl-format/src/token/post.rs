@@ -537,9 +537,7 @@ impl Postprocessor {
             let mut cached_on = None;
 
             if let Some(max) = max_length {
-                if let PreToken::Literal(_, kind) = token
-                    && let Some(LineBreak::Before) = can_be_line_broken(*kind)
-                {
+                if let PreToken::Literal(_, kind) = token {
                     // Check if we need a break to match a prior tandem break
                     if let Some(top_of_stack) = break_stack.last_mut() {
                         if *kind == top_of_stack.close {
@@ -554,33 +552,35 @@ impl Postprocessor {
                             top_of_stack.depth += 1;
                         }
                     }
-                    if post_buffer.last_line_width(config) > max {
-                        // the line is already too long
-                        self.interrupted = true;
-                        self.end_line(&mut post_buffer);
-                        if let Some(also_break_on) = tandem_line_break(*kind) {
-                            self.indent_level += 1;
-                            self.interrupted = false;
-                            let tandem_break = TandemBreak {
-                                open: *kind,
-                                close: also_break_on,
-                                depth: 0,
-                            };
-                            break_stack.push(tandem_break);
+                    if let Some(LineBreak::Before) = can_be_line_broken(*kind) {
+                        if post_buffer.last_line_width(config) > max {
+                            // the line is already too long
+                            self.interrupted = true;
+                            self.end_line(&mut post_buffer);
+                            if let Some(also_break_on) = tandem_line_break(*kind) {
+                                self.indent_level += 1;
+                                self.interrupted = false;
+                                let tandem_break = TandemBreak {
+                                    open: *kind,
+                                    close: also_break_on,
+                                    depth: 0,
+                                };
+                                break_stack.push(tandem_break);
+                            }
+                        } else {
+                            // cache the current state so we can revert to it if
+                            // the line is too long after the next step.
+                            cache = Some(post_buffer.clone());
+                            cached_self = Some(self.clone());
+                            cached_on = Some(*kind);
                         }
-                    } else {
-                        // cache the current state so we can revert to it if
-                        // the line is too long after the next step.
+                    } else if let Some(k) = prev_kind.take()
+                        && matches!(can_be_line_broken(k), Some(LineBreak::After))
+                    {
                         cache = Some(post_buffer.clone());
                         cached_self = Some(self.clone());
-                        cached_on = Some(*kind);
+                        cached_on = Some(k);
                     }
-                } else if let Some(k) = prev_kind.take()
-                    && matches!(can_be_line_broken(k), Some(LineBreak::After))
-                {
-                    cache = Some(post_buffer.clone());
-                    cached_self = Some(self.clone());
-                    cached_on = Some(k);
                 }
                 prev_kind = None;
             }
@@ -621,7 +621,6 @@ impl Postprocessor {
             // check if we should line break now, after the step has been taken
             if let Some(max) = max_length
                 && let PreToken::Literal(_, kind) = token
-                && let Some(LineBreak::After) = can_be_line_broken(*kind)
             {
                 // will be cleared to `None` if a linebreak is added this pass
                 prev_kind = Some(*kind);
@@ -642,7 +641,10 @@ impl Postprocessor {
                         top_of_stack.depth += 1;
                     }
                 }
-                if post_buffer.last_line_width(config) > max {
+
+                if let Some(LineBreak::After) = can_be_line_broken(*kind)
+                    && post_buffer.last_line_width(config) > max
+                {
                     self.interrupted = true;
                     self.end_line(&mut post_buffer);
                     if let Some(also_break_on) = tandem_line_break(*kind) {
