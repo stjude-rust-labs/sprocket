@@ -143,6 +143,7 @@ pub enum DevCommands {
     Lock(lock::Args),
     /// Run-management server commands (start, submit, status, inspect, cancel,
     /// retry).
+    #[command(alias = "s")]
     Server(server::Args),
     /// Runs unit tests for a WDL workspace.
     Test(test::Args),

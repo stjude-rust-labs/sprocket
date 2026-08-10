@@ -34,10 +34,13 @@ pub enum ServerSubcommand {
     /// Run the HTTP API server for run execution.
     Start(StartArgs),
     /// Submit a workflow to a Sprocket HTTP API server.
+    #[command(alias = "su")]
     Submit(submit::Args),
     /// Show the status of one or all runs.
+    #[command(alias = "st")]
     Status(status::Args),
     /// Show detailed information about a run.
+    #[command(alias = "i")]
     Inspect(inspect::Args),
     /// Cancel a running or queued run.
     Cancel(cancel::Args),

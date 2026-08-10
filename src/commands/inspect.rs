@@ -42,7 +42,7 @@ pub struct Args {
     ///
     /// Lists every task with its status, duration, and any error. In `--json`
     /// mode, embeds the full task list under a `tasks` key.
-    #[clap(long)]
+    #[clap(short, long)]
     detailed: bool,
 
     #[command(flatten)]
