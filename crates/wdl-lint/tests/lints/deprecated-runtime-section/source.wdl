@@ -1,4 +1,4 @@
-#@ except: RequirementsSection, MetaDescription, EmptyOutputs, BashSetSyntax
+#@ except: RequirementsSection, MetaDescription, EmptyOutputs, BashSetSyntax, MetaSections
 
 version 1.3
 
@@ -10,6 +10,6 @@ task deprecated_runtime {
 
 task requirements_only {
     command <<<>>>
-    
+
     requirements {}
 }
