@@ -6,11 +6,3 @@ warning[RequirementsSection]: task `bad` is missing a `requirements` section
   │
   = fix: add a `requirements` section
 
-warning[RequirementsSection]: task `deprecated_runtime` is missing a `requirements` section
-   ┌─ tests/lints/missing-requirements-block/source.wdl:24:6
-   │
-24 │ task deprecated_runtime {
-   │      ^^^^^^^^^^^^^^^^^^ this task is missing a `requirements` section
-   │
-   = fix: add a `requirements` section
-

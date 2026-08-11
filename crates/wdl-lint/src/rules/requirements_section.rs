@@ -144,6 +144,7 @@ impl Visitor for RequirementsSectionRule {
         if let SupportedVersion::V1(minor_version) = self.0.expect("version should exist here")
             && minor_version >= V1::Two
             && task.requirements().is_none()
+            && task.runtime().is_none()
         {
             let name = task.name();
             diagnostics.exceptable_add(
