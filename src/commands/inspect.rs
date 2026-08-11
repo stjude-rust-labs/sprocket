@@ -27,12 +27,11 @@ use crate::server::paths;
 #[derive(Parser, Debug)]
 #[command(author, version, about)]
 pub struct Args {
-    /// The run to inspect.
+    /// The run(s) to inspect.
     ///
-    /// May be a UUID or the human-readable generated name of the run (e.g.
-    /// `happy-dolphin-42`).
-    #[clap(value_name = "RUN")]
-    run_id: String,
+    /// May be UUIDs or human-readable generated names (e.g. `happy-dolphin-42`).
+    #[clap(value_name = "RUN", num_args = 1..)]
+    runs: Vec<String>,
 
     /// Output the raw JSON response instead of the formatted summary.
     #[clap(long)]
@@ -186,22 +185,8 @@ pub fn task_detail_line(task: &Task, colorize: bool) -> String {
 /// Fetches and displays detailed information about a single run.
 pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let base_url = args.client_args.base_url(&config);
-    let uuid = resolve_run_id(&args.run_id, &base_url).await?;
 
-    let url = format!("{base_url}{path}", path = paths::get_run(uuid));
-    let counts = fetch_task_counts(&base_url, uuid).await?;
-
-    // Fetch the per-task breakdown only when requested.
-    let tasks = if args.detailed {
-        Some(fetch_run_tasks(&base_url, uuid).await?)
-    } else {
-        None
-    };
-
-    // Fetch static server metadata so we can surface the server's output
-    // directory alongside the run's relative directory. The fetch is
-    // best-effort: if `/info` is unavailable (e.g. older server) we skip the
-    // extra line rather than failing the overall command.
+    // Fetch static server metadata once.
     let server_info = match fetch_server_info(&base_url).await {
         Ok(info) => Some(info),
         Err(err) => {
@@ -211,33 +196,79 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
     };
 
     if args.json {
-        let mut raw: serde_json::Value = get_json(&url, "run").await?;
-        if let serde_json::Value::Object(map) = &mut raw {
-            map.insert(
-                "task_counts".to_string(),
-                serde_json::to_value(&counts).context("failed to serialize task counts")?,
-            );
-            if let Some(tasks) = &tasks {
+        let mut results = Vec::new();
+        for run_arg in &args.runs {
+            let uuid = resolve_run_id(run_arg, &base_url).await?;
+            let url = format!("{base_url}{path}", path = paths::get_run(uuid));
+            let counts = fetch_task_counts(&base_url, uuid).await?;
+            let tasks = if args.detailed {
+                Some(fetch_run_tasks(&base_url, uuid).await?)
+            } else {
+                None
+            };
+            let mut raw: serde_json::Value = get_json(&url, "run").await?;
+            if let serde_json::Value::Object(map) = &mut raw {
                 map.insert(
-                    "tasks".to_string(),
-                    serde_json::to_value(tasks).context("failed to serialize tasks")?,
+                    "task_counts".to_string(),
+                    serde_json::to_value(&counts).context("failed to serialize task counts")?,
                 );
+                if let Some(tasks) = &tasks {
+                    map.insert(
+                        "tasks".to_string(),
+                        serde_json::to_value(tasks).context("failed to serialize tasks")?,
+                    );
+                }
+                if let Some(info) = &server_info {
+                    map.insert(
+                        "output_dir".to_string(),
+                        serde_json::Value::String(info.output_dir.clone()),
+                    );
+                }
             }
-            if let Some(info) = &server_info {
-                map.insert(
-                    "output_dir".to_string(),
-                    serde_json::Value::String(info.output_dir.clone()),
-                );
-            }
+            results.push(raw);
         }
-        println!(
-            "{}",
-            serde_json::to_string_pretty(&raw).context("failed to pretty-print response")?
-        );
+
+        if args.runs.len() == 1 {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&results[0]).context("failed to pretty-print response")?
+            );
+        } else {
+            println!(
+                "{}",
+                serde_json::to_string_pretty(&results).context("failed to pretty-print response")?
+            );
+        }
         return Ok(());
     }
 
-    let body: RunResponse = get_json(&url, "run").await?;
+    for (idx, run_arg) in args.runs.iter().enumerate() {
+        if idx > 0 {
+            println!();
+        }
+
+        let uuid = resolve_run_id(run_arg, &base_url).await?;
+        let url = format!("{base_url}{path}", path = paths::get_run(uuid));
+        let counts = fetch_task_counts(&base_url, uuid).await?;
+        let tasks = if args.detailed {
+            Some(fetch_run_tasks(&base_url, uuid).await?)
+        } else {
+            None
+        };
+        let body: RunResponse = get_json(&url, "run").await?;
+        inspect_single_run(&body, &counts, &tasks, server_info.as_ref(), colorize);
+    }
+
+    Ok(())
+}
+
+fn inspect_single_run(
+    body: &RunResponse,
+    counts: &RunTaskCountsResponse,
+    tasks: &Option<Vec<Task>>,
+    server_info: Option<&crate::commands::client::ServerInfoResponse>,
+    colorize: bool,
+) {
 
     let run = &body.run;
 
