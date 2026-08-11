@@ -747,7 +747,8 @@ impl<N: TreeNode> WorkflowStatement<N> {
         frozen,
         from_py_object,
         rename_all = "SCREAMING_SNAKE_CASE",
-        eq
+        eq,
+        str,
     )
 )]
 pub enum ConditionalStatementClauseKind {

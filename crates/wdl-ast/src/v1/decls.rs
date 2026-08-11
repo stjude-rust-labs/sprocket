@@ -20,7 +20,7 @@ use crate::TreeToken;
 
 /// Represents a `Map` type.
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
 pub struct MapType<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -81,7 +81,7 @@ impl fmt::Display for MapType {
 
 /// Represents an `Array` type.
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
 pub struct ArrayType<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -141,7 +141,7 @@ impl fmt::Display for ArrayType {
 
 /// Represents a `Pair` type.
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
 pub struct PairType<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -199,7 +199,7 @@ impl fmt::Display for PairType {
 
 /// Represents a `Object` type.
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
 pub struct ObjectType<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -248,7 +248,7 @@ impl fmt::Display for ObjectType {
 
 /// Represents a reference to a type.
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
 pub struct TypeRef<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -331,7 +331,7 @@ pub enum PrimitiveTypeKind {
 
 /// Represents a primitive type.
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
 pub struct PrimitiveType<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -407,7 +407,7 @@ impl fmt::Display for PrimitiveType {
 
 /// Represents a type.
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
 pub enum Type<N: TreeNode = SyntaxNode> {
     /// The type is a map.
     Map(MapType<N>),
