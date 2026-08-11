@@ -13,6 +13,7 @@ use syn::Result;
 use syn::parse_quote;
 
 use super::Args;
+use super::StrArg;
 
 /// Represents whether an AST element is a node or token.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -150,6 +151,19 @@ fn make_py_attrs(py_struct: &mut ItemStruct, original: &ItemStruct, args: Args, 
         // `Debug` is purposefully not implemented, silence the lint.
         parse_quote!(#[allow(missing_debug_implementations)]),
     ]);
+
+    if let Some(rename_all) = args.rename_all {
+        py_struct
+            .attrs
+            .push(parse_quote!(#[pyo3(rename_all = #rename_all)]));
+    }
+
+    if let Some(str_) = args.str_ {
+        py_struct.attrs.push(match str_ {
+            StrArg::Default => parse_quote!(#[pyo3(str)]),
+            StrArg::FormatString(format_str) => parse_quote!(#[pyo3(str = #format_str)]),
+        });
+    }
 }
 
 /// Modifies the fields of `py_struct`.
@@ -274,7 +288,7 @@ mod tests {
     }
 
     #[test]
-    fn attrs_module() {
+    fn attrs_with_args() {
         let original: ItemStruct = parse_quote! { struct Foo; };
         let mut py_struct = original.clone();
 
@@ -283,6 +297,8 @@ mod tests {
             &original,
             Args {
                 module: LitStr::new("sprocket_bio.custom_module", Span::call_site()),
+                rename_all: Some(LitStr::new("SCREAMING_SNAKE_CASE", Span::call_site())),
+                str_: Some(StrArg::Default),
             },
             AstKind::Token,
         );
@@ -291,6 +307,8 @@ mod tests {
             parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.custom_module", name = "Foo", extends = crate::PyAstToken, frozen, from_py_object, eq)]),
             parse_quote!(#[derive(Clone, PartialEq)]),
             parse_quote!(#[allow(missing_debug_implementations)]),
+            parse_quote!(#[pyo3(rename_all = "SCREAMING_SNAKE_CASE")]),
+            parse_quote!(#[pyo3(str)]),
         ];
 
         pretty_assertions::assert_eq!(py_struct.attrs, expected);

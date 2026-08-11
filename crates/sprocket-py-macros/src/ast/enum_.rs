@@ -17,6 +17,7 @@ use syn::punctuated::Punctuated;
 use syn::token::Paren;
 
 use super::Args;
+use super::StrArg;
 
 /// Builds the Python binding equivalent of an AST enum.
 pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
@@ -111,8 +112,8 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
     Ok(quote! {
         #py_enum
 
-        // Converting from the original struct to the Python struct. This is used in the original
-        // struct's `IntoPyObject` impl.
+        // Converting from the original enum to the Python enum. This is used in the original
+        // enum's `IntoPyObject` impl.
         impl ::std::convert::From<#ident> for #py_ident {
             fn from(value: #ident) -> Self {
                 match value {
@@ -170,4 +171,77 @@ fn make_py_attrs(py_enum: &mut ItemEnum, original: &ItemEnum, args: Args) {
         // `Debug` is purposefully not implemented, silence the lint.
         parse_quote!(#[allow(missing_debug_implementations)]),
     ]);
+
+    if let Some(rename_all) = args.rename_all {
+        py_enum
+            .attrs
+            .push(parse_quote!(#[pyo3(rename_all = #rename_all)]));
+    }
+
+    if let Some(str_) = args.str_ {
+        py_enum.attrs.push(match str_ {
+            StrArg::Default => parse_quote!(#[pyo3(str)]),
+            StrArg::FormatString(format_str) => parse_quote!(#[pyo3(str = #format_str)]),
+        });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use proc_macro2::Span;
+
+    use super::*;
+
+    #[test]
+    fn attrs() {
+        let original: ItemEnum = parse_quote! {
+            /// Doc comment
+            /** Another doc comment */
+            #[derive(Hash)]
+            enum Foo {}
+        };
+        let mut py_enum = original.clone();
+
+        make_py_attrs(&mut py_enum, &original, Args::default());
+
+        let expected = [
+            parse_quote!(#[doc = r" Doc comment"]),
+            parse_quote!(#[doc = r" Another doc comment "]),
+            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "Foo", frozen, from_py_object, eq)]),
+            parse_quote!(#[derive(Clone, PartialEq)]),
+            parse_quote!(#[allow(missing_debug_implementations)]),
+        ];
+
+        pretty_assertions::assert_eq!(py_enum.attrs, expected);
+    }
+
+    #[test]
+    fn attrs_with_args() {
+        let original: ItemEnum = parse_quote! {
+            /// Hello, there!
+            enum Bar {}
+        };
+        let mut py_enum = original.clone();
+
+        make_py_attrs(
+            &mut py_enum,
+            &original,
+            Args {
+                module: LitStr::new("sprocket_bio.custom_module", Span::call_site()),
+                rename_all: Some(LitStr::new("SCREAMING_SNAKE_CASE", Span::call_site())),
+                str_: Some(StrArg::FormatString(LitStr::new("Bar", Span::call_site()))),
+            },
+        );
+
+        let expected = [
+            parse_quote!(#[doc = r" Hello, there!"]),
+            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.custom_module", name = "Bar", frozen, from_py_object, eq)]),
+            parse_quote!(#[derive(Clone, PartialEq)]),
+            parse_quote!(#[allow(missing_debug_implementations)]),
+            parse_quote!(#[pyo3(rename_all = "SCREAMING_SNAKE_CASE")]),
+            parse_quote!(#[pyo3(str = "Bar")]),
+        ];
+
+        pretty_assertions::assert_eq!(py_enum.attrs, expected);
+    }
 }

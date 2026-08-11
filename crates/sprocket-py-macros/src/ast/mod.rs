@@ -19,8 +19,29 @@ use syn::parse::Parser;
 struct Args {
     /// The module the type is defined in, from Python's perspective.
     ///
-    /// This is forwarded to `#[pyclass(module = ...)]`.
+    /// This is forwarded to `#[pyclass]`, and defaults to `module =
+    /// "sprocket_bio.ast.v1"`.
     module: LitStr,
+    /// Applies renaming rules to every getters and setters of a struct, or
+    /// every variants of an enum.
+    ///
+    /// This is forwarded to `#[pyclass]`, and by default is omitted.
+    rename_all: Option<LitStr>,
+    /// Implements `__str__` using the `Display` implementation of the
+    /// underlying Rust datatype or by passing an optional format string
+    /// `str="{format_string:?}"`.
+    ///
+    /// This is forwarded to `#[pyclass]`, and by default is omitted.
+    str_: Option<StrArg>,
+}
+
+/// Represents the `str` [argument](Args).
+#[derive(PartialEq, Debug)]
+enum StrArg {
+    /// `#[ast(str)]`
+    Default,
+    /// `#[ast(str = "{format_string:?}")]`
+    FormatString(LitStr),
 }
 
 impl Args {
@@ -31,6 +52,20 @@ impl Args {
         let args_parser = syn::meta::parser(|meta| {
             if meta.path.is_ident("module") {
                 args.module = meta.value()?.parse()?;
+                return Ok(());
+            }
+
+            if meta.path.is_ident("rename_all") {
+                args.rename_all = Some(meta.value()?.parse()?);
+                return Ok(());
+            }
+
+            if meta.path.is_ident("str") {
+                args.str_ = Some(if meta.input.is_empty() {
+                    StrArg::Default
+                } else {
+                    StrArg::FormatString(meta.value()?.parse()?)
+                });
                 return Ok(());
             }
 
@@ -47,6 +82,8 @@ impl Default for Args {
     fn default() -> Self {
         Self {
             module: LitStr::new("sprocket_bio.ast.v1", Span::call_site()),
+            rename_all: None,
+            str_: None,
         }
     }
 }
@@ -92,6 +129,31 @@ mod tests {
         let args = Args::parse(args_stream).unwrap();
 
         assert_eq!(args, Args::default());
+    }
+
+    #[test]
+    fn rename_all_arg() {
+        let args_stream = quote!(rename_all = "SCREAMING_SNAKE_CASE");
+        let args = Args::parse(args_stream).unwrap();
+
+        assert_eq!(args.rename_all.unwrap().value(), "SCREAMING_SNAKE_CASE");
+    }
+
+    #[test]
+    fn str_arg() {
+        let str_default_stream = quote!(str);
+        let str_default_args = Args::parse(str_default_stream).unwrap();
+
+        assert_eq!(str_default_args.str_, Some(StrArg::Default));
+
+        let str_format_stream = quote!(str = "Hello, {name:?}!");
+        let str_format_args = Args::parse(str_format_stream).unwrap();
+
+        let Some(StrArg::FormatString(fmt_str)) = str_format_args.str_ else {
+            panic!("`str` is not a format string: {:?}", str_format_args.str_);
+        };
+
+        assert_eq!(fmt_str.value(), "Hello, {name:?}!");
     }
 
     #[test]
