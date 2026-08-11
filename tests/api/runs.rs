@@ -65,7 +65,9 @@ async fn create_test_server(
         Mode::default(),
         true,
         db.clone(),
-    );
+    )
+    .await
+    .expect("failed to create run manager service");
 
     // Wait manager to be ready
     let (tx, rx) = oneshot::channel();
@@ -2079,7 +2081,9 @@ async fn events_are_received_during_execution(pool: sqlx::SqlitePool) {
         Mode::default(),
         true,
         db.clone(),
-    );
+    )
+    .await
+    .expect("failed to create run manager service");
 
     // Write workflow with task that will generate events
     let workflow_path = wdl_dir.join("test.wdl");

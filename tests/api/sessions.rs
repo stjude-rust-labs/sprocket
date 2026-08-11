@@ -56,7 +56,9 @@ async fn create_test_server(
         Mode::default(),
         true,
         db.clone(),
-    );
+    )
+    .await
+    .expect("failed to create run manager service");
 
     // Wait for manager to be ready
     let (tx, rx) = oneshot::channel();

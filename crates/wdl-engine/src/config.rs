@@ -36,7 +36,6 @@ use toml_spanner::helper::display;
 use toml_spanner::helper::flatten_any;
 use toml_spanner::helper::parse_string;
 use tracing::error;
-use tracing::warn;
 use url::Url;
 use wdl_analysis::Diagnostics;
 use wdl_analysis::DiagnosticsConfig;
@@ -68,7 +67,6 @@ use crate::Object;
 use crate::SYSTEM;
 use crate::Value;
 use crate::backend::ExecuteTaskRequest;
-use crate::backend::TaskExecutionBackend;
 use crate::convert_unit_string;
 use crate::diagnostics::unknown_enum_choice;
 use crate::http::Transferer;
@@ -544,48 +542,6 @@ impl Config {
         }
         // Use the default
         Ok(Cow::Owned(BackendConfig::default()))
-    }
-
-    /// Creates a new task execution backend based on this configuration.
-    pub(crate) async fn create_backend(
-        self: &Arc<Self>,
-        run_root_dir: &Path,
-        events: Events,
-        cancellation: CancellationContext,
-    ) -> Result<Arc<dyn TaskExecutionBackend>> {
-        use crate::backend::*;
-
-        match self.backend()?.as_ref() {
-            BackendConfig::Local { .. } => {
-                warn!(
-                    "the engine is configured to use the local backend: tasks will not be run \
-                     inside of a container"
-                );
-                Ok(Arc::new(LocalBackend::new(
-                    self.clone(),
-                    events,
-                    cancellation,
-                )?))
-            }
-            BackendConfig::Docker { .. } => Ok(Arc::new(
-                DockerBackend::new(self.clone(), events, cancellation).await?,
-            )),
-            BackendConfig::Tes { .. } => Ok(Arc::new(
-                TesBackend::new(self.clone(), events, cancellation).await?,
-            )),
-            BackendConfig::LsfApptainer { .. } => Ok(Arc::new(LsfApptainerBackend::new(
-                self.clone(),
-                run_root_dir,
-                events,
-                cancellation,
-            )?)),
-            BackendConfig::SlurmApptainer { .. } => Ok(Arc::new(SlurmApptainerBackend::new(
-                self.clone(),
-                run_root_dir,
-                events,
-                cancellation,
-            )?)),
-        }
     }
 }
 
@@ -1260,13 +1216,20 @@ impl TaskConfig {
         Ok(())
     }
 
-    /// Get the configured cache dir if it is set.
-    pub fn cache_dir(&self) -> Option<PathBuf> {
-        if self.cache_dir == cache_dir_sentinel() {
-            None
+    /// Gets the call cache directory.
+    pub fn cache_dir(&self) -> Result<PathBuf> {
+        const CALL_CACHE_SUBDIR: &str = "calls";
+
+        if self.using_system_cache_dir() {
+            cache_dir().map(|d| d.join(CALL_CACHE_SUBDIR))
         } else {
-            Some(PathBuf::from(&self.cache_dir))
+            Ok(PathBuf::from(&self.cache_dir))
         }
+    }
+
+    /// Determines if the system cache directory is being used.
+    pub fn using_system_cache_dir(&self) -> bool {
+        self.cache_dir == cache_dir_sentinel()
     }
 }
 
@@ -1785,10 +1748,10 @@ pub struct ApptainerConfig {
 
     /// Path to a shared directory for caching pulled `.sif` images.
     ///
-    /// When set, pulled images are stored in this directory and shared
-    /// across runs. When unset, images are stored in a per-run directory
-    /// that is not shared.
-    pub image_cache_dir: Option<PathBuf>,
+    /// Defaults to an operating system specific cache directory for the user.
+    #[toml(default = String::from(cache_dir_sentinel()))]
+    #[schemars(default = "cache_dir_sentinel")]
+    pub image_cache_dir: String,
 
     /// Additional command-line arguments to pass to `apptainer exec` when
     /// executing tasks.
@@ -1801,7 +1764,7 @@ impl Default for ApptainerConfig {
     fn default() -> Self {
         Self {
             executable: default_apptainer_executable().into(),
-            image_cache_dir: None,
+            image_cache_dir: cache_dir_sentinel().into(),
             extra_args: Default::default(),
         }
     }
@@ -1811,6 +1774,22 @@ impl ApptainerConfig {
     /// Validate that Apptainer is appropriately configured.
     pub async fn validate(&self) -> Result<(), anyhow::Error> {
         Ok(())
+    }
+
+    /// Get the image cache dir.
+    pub fn image_cache_dir(&self) -> Result<PathBuf> {
+        const IMAGES_CACHE_SUBDIR: &str = "images";
+
+        if self.image_cache_dir == cache_dir_sentinel() {
+            cache_dir().map(|d| d.join(IMAGES_CACHE_SUBDIR))
+        } else {
+            Ok(PathBuf::from(&self.image_cache_dir))
+        }
+    }
+
+    /// Determines if the system image cache directory is being used.
+    pub fn using_system_image_cache_dir(&self) -> bool {
+        self.image_cache_dir == cache_dir_sentinel()
     }
 }
 
@@ -1943,18 +1922,9 @@ impl Condition {
     /// returns the result.
     ///
     /// Returns an error if the evaluation resulted in an error.
-    pub(crate) async fn evaluate(
-        &self,
-        request: &ExecuteTaskRequest<'_>,
-        transferer: &dyn Transferer,
-    ) -> Result<bool> {
+    pub(crate) async fn evaluate(&self, request: &ExecuteTaskRequest<'_>) -> Result<bool> {
         /// Helper that implements `EvaluationContext`.
-        struct Context<'a> {
-            /// The task execution request.
-            request: &'a ExecuteTaskRequest<'a>,
-            /// The file transferer for evaluation.
-            transferer: &'a dyn Transferer,
-        }
+        struct Context<'a>(&'a ExecuteTaskRequest<'a>);
 
         impl EvaluationContext for Context<'_> {
             fn version(&self) -> SupportedVersion {
@@ -1963,19 +1933,19 @@ impl Condition {
 
             fn resolve_name(&self, name: &str, span: Span) -> Result<Value, Diagnostic> {
                 match name {
-                    "cpu" => Ok(self.request.constraints.cpu.into()),
-                    "memory" => Ok((self.request.constraints.memory as i64).into()),
-                    "gpu" => Ok((!self.request.constraints.gpu.is_empty()).into()),
-                    "fpga" => Ok((!self.request.constraints.fpga.is_empty()).into()),
+                    "cpu" => Ok(self.0.constraints.cpu.into()),
+                    "memory" => Ok((self.0.constraints.memory as i64).into()),
+                    "gpu" => Ok((!self.0.constraints.gpu.is_empty()).into()),
+                    "fpga" => Ok((!self.0.constraints.fpga.is_empty()).into()),
                     "disks" => Ok(self
-                        .request
+                        .0
                         .constraints
                         .disks
                         .iter()
                         .map(|(_, s)| *s)
                         .sum::<i64>()
                         .into()),
-                    "hint" => Ok(self.request.hints.clone().into()),
+                    "hint" => Ok(self.0.hints.clone().into()),
                     _ => Err(unknown_name(name, span)),
                 }
             }
@@ -1993,21 +1963,29 @@ impl Condition {
             }
 
             fn base_dir(&self) -> &EvaluationPath {
-                self.request.base_dir
+                self.0.base_dir
             }
 
             fn temp_dir(&self) -> &Path {
-                self.request.temp_dir
+                self.0.temp_dir
             }
 
             fn transferer(&self) -> &dyn Transferer {
-                self.transferer
+                self.0.engine.transferer()
+            }
+
+            fn events(&self) -> &Events {
+                self.0.events
+            }
+
+            fn cancellation(&self) -> &CancellationContext {
+                self.0.cancellation
             }
 
             fn object_access(&self, object: &Object, name: &str) -> Option<Value> {
                 // If the object being accessed is not the hint object, let the access proceed
                 // normally
-                if !Arc::ptr_eq(&object.members, &self.request.hints.members) {
+                if !Arc::ptr_eq(&object.members, &self.0.hints.members) {
                     return None;
                 }
 
@@ -2015,7 +1993,7 @@ impl Condition {
                 // then falls back to the task's hints; if the name is not present in either, a
                 // `None` value is returned instead of an error
                 Some(
-                    self.request
+                    self.0
                         .inputs
                         .hint(name)
                         .or_else(|| object.get(name))
@@ -2044,15 +2022,7 @@ impl Condition {
         }
 
         let expr = Expr::cast(self.expr.clone().into()).expect("should be an expression node");
-        match eval(
-            Context {
-                request,
-                transferer,
-            },
-            &expr,
-        )
-        .await
-        {
+        match eval(Context(request), &expr).await {
             Ok(res) => Ok(res),
             Err(diagnostic) => {
                 let file: SimpleFile<_, _> = SimpleFile::new("<condition>", &self.raw);
@@ -3048,6 +3018,9 @@ mod test {
     use tempfile::tempdir;
 
     use super::*;
+    use crate::CancellationContext;
+    use crate::Engine;
+    use crate::Events;
     use crate::ONE_GIBIBYTE;
     use crate::TaskInputs;
     use crate::backend::TaskExecutionConstraints;
@@ -3786,11 +3759,22 @@ type = 'lsf_apptainer'
         struct Transferer;
 
         impl crate::http::Transferer for Transferer {
-            fn download<'a>(&'a self, _: &'a Url) -> BoxFuture<'a, Result<Location>> {
+            fn download<'a>(
+                &'a self,
+                _: &'a Url,
+                _: &'a Events,
+                _: &'a CancellationContext,
+            ) -> BoxFuture<'a, Result<Location>> {
                 unimplemented!()
             }
 
-            fn upload<'a>(&'a self, _: &'a Path, _: &'a Url) -> BoxFuture<'a, Result<()>> {
+            fn upload<'a>(
+                &'a self,
+                _: &'a Path,
+                _: &'a Url,
+                _: &'a Events,
+                _: &'a CancellationContext,
+            ) -> BoxFuture<'a, Result<()>> {
                 unimplemented!()
             }
 
@@ -3821,37 +3805,37 @@ type = 'lsf_apptainer'
             let dir = tempdir().context("failed to create temporary directory")?;
             let condition = Condition::new(expression).expect("invalid expression");
             condition
-                .evaluate(
-                    &ExecuteTaskRequest {
-                        name: "test-0",
-                        command: "",
-                        inputs: &context.inputs,
-                        backend_inputs: &[],
-                        requirements: &Object::empty(),
-                        hints: &context.hints,
-                        env: &Default::default(),
-                        constraints: &TaskExecutionConstraints {
-                            container: None,
-                            cpu: context.cpu,
-                            memory: context.memory,
-                            gpu: if context.gpu {
-                                vec![String::new()]
-                            } else {
-                                Default::default()
-                            },
-                            fpga: if context.fpga {
-                                vec![String::new()]
-                            } else {
-                                Default::default()
-                            },
-                            disks: IndexMap::from_iter([("".into(), context.disks)]),
+                .evaluate(&ExecuteTaskRequest {
+                    engine: &Engine::new_with_transferer(Config::default(), Transferer).await?,
+                    name: "test",
+                    command: "",
+                    inputs: &context.inputs,
+                    backend_inputs: &[],
+                    requirements: &Object::empty(),
+                    hints: &context.hints,
+                    env: &Default::default(),
+                    constraints: &TaskExecutionConstraints {
+                        sources: Vec::new(),
+                        cpu: context.cpu,
+                        memory: context.memory,
+                        gpu: if context.gpu {
+                            vec![String::new()]
+                        } else {
+                            Default::default()
                         },
-                        base_dir: &EvaluationPath::from_local_path(dir.path().into()),
-                        attempt_dir: &dir.path().join("0"),
-                        temp_dir: &dir.path().join("tmp"),
+                        fpga: if context.fpga {
+                            vec![String::new()]
+                        } else {
+                            Default::default()
+                        },
+                        disks: IndexMap::from_iter([("".into(), context.disks)]),
                     },
-                    &Transferer,
-                )
+                    base_dir: &EvaluationPath::from_local_path(dir.path().into()),
+                    attempt_dir: &dir.path().join("0"),
+                    temp_dir: &dir.path().join("tmp"),
+                    events: &Events::disabled(),
+                    cancellation: &CancellationContext::default(),
+                })
                 .await
         }
 

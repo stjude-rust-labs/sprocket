@@ -453,7 +453,9 @@ pub(crate) mod test {
     use tempfile::tempdir;
 
     use super::*;
+    use crate::CancellationContext;
     use crate::ContentKind;
+    use crate::Events;
     use crate::http::Location;
 
     /// Helper for clearing the cached digests for tests
@@ -468,6 +470,7 @@ pub(crate) mod test {
             .clear();
     }
 
+    #[derive(Default)]
     pub struct DigestTransferer(HashMap<&'static str, Option<Arc<ContentDigest>>>);
 
     impl DigestTransferer {
@@ -482,14 +485,21 @@ pub(crate) mod test {
     }
 
     impl Transferer for DigestTransferer {
-        fn download<'a>(&'a self, _source: &'a Url) -> BoxFuture<'a, Result<Location>> {
+        fn download<'a>(
+            &'a self,
+            _: &'a Url,
+            _: &'a Events,
+            _: &'a CancellationContext,
+        ) -> BoxFuture<'a, Result<Location>> {
             unimplemented!()
         }
 
         fn upload<'a>(
             &'a self,
-            _source: &'a Path,
-            _destination: &'a Url,
+            _: &'a Path,
+            _: &'a Url,
+            _: &'a Events,
+            _: &'a CancellationContext,
         ) -> BoxFuture<'a, Result<()>> {
             unimplemented!()
         }

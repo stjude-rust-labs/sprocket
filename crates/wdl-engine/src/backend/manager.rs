@@ -13,10 +13,23 @@ use futures::channel::oneshot;
 use ordered_float::OrderedFloat;
 use tracing::debug;
 
-use crate::CancellationContext;
 use crate::CancellationContextState;
 use crate::EngineEvent;
-use crate::Events;
+use crate::backend::ExecuteTaskRequest;
+
+/// Implemented by tasks dispatched to the manager.
+pub trait ManagedTask {
+    /// The output type of the task.
+    type Output;
+
+    /// Gets the execution request associated with the managed task.
+    fn request(&self) -> &ExecuteTaskRequest<'_>;
+
+    /// Runs the managed task with the given output type.
+    ///
+    /// Returns `Ok(None)` if the task was canceled.
+    async fn run(self) -> Result<Option<Self::Output>>;
+}
 
 /// Represents a parked task.
 struct ParkedTask {
@@ -31,14 +44,7 @@ struct ParkedTask {
 }
 
 /// Represents a limits for a task manager.
-struct Limits {
-    /// The mutable limits state.
-    state: Arc<Mutex<LimitsState>>,
-    /// The engine events.
-    events: Events,
-    /// The evaluation cancellation context.
-    cancellation: CancellationContext,
-}
+struct Limits(Arc<Mutex<LimitsState>>);
 
 /// Represents state used by a limited task manager.
 struct LimitsState {
@@ -166,22 +172,11 @@ pub struct TaskManager {
 impl TaskManager {
     /// Constructs a new task manager with the given total CPU, maximum CPU per
     /// task, total memory, and maximum memory per task.
-    pub fn new(
-        cpu: f64,
-        max_cpu: f64,
-        memory: u64,
-        max_memory: u64,
-        events: Events,
-        cancellation: CancellationContext,
-    ) -> Self {
+    pub fn new(cpu: f64, max_cpu: f64, memory: u64, max_memory: u64) -> Self {
         Self {
             max_cpu,
             max_memory,
-            limits: Some(Limits {
-                state: Arc::new(Mutex::new(LimitsState::new(cpu, memory))),
-                events,
-                cancellation,
-            }),
+            limits: Some(Limits(Arc::new(Mutex::new(LimitsState::new(cpu, memory))))),
         }
     }
 
@@ -201,9 +196,11 @@ impl TaskManager {
     ///
     /// If there are not enough local resources available for running the task,
     /// it will be parked until the requested resources become available.
-    pub async fn run<T, O>(&self, cpu: f64, memory: u64, task: T) -> Result<Option<O>>
+    ///
+    /// Returns `Ok(None)` if the task was canceled.
+    pub async fn run<T>(&self, cpu: f64, memory: u64, task: T) -> Result<Option<T::Output>>
     where
-        T: Future<Output = Result<Option<O>>>,
+        T: ManagedTask,
     {
         // Ensure the task does not exceed the maximum CPU
         if cpu > self.max_cpu {
@@ -226,7 +223,7 @@ impl TaskManager {
         match &self.limits {
             Some(limits) => {
                 let mut parked = {
-                    let mut state = limits.state.lock().expect("failed to lock state");
+                    let mut state = limits.0.lock().expect("failed to lock state");
 
                     // If the task can't run due to unavailable resources, park the task until
                     // resources are available
@@ -269,14 +266,15 @@ impl TaskManager {
                 };
 
                 // Run the task, waiting for it to be unparked if necessary
+                let cancellation = task.request().cancellation.clone();
                 let res = match &mut parked {
                     Some((notify, _)) => {
-                        if let Some(sender) = limits.events.engine() {
+                        if let Some(sender) = task.request().events.engine() {
                             let _ = sender.send(EngineEvent::TaskParked);
                         }
 
                         // Wait for cancellation or notice of being unparked
-                        let token = limits.cancellation.first();
+                        let token = cancellation.first();
                         let canceled = tokio::select! {
                             biased;
                             _ = token.cancelled() => true,
@@ -286,16 +284,16 @@ impl TaskManager {
                             }
                         };
 
-                        if let Some(sender) = limits.events.engine() {
+                        if let Some(sender) = task.request().events.engine() {
                             let _ = sender.send(EngineEvent::TaskUnparked { canceled });
                         }
 
-                        if canceled { Ok(None) } else { task.await }
+                        if canceled { Ok(None) } else { task.run().await }
                     }
-                    None => task.await,
+                    None => task.run().await,
                 };
 
-                let mut state = limits.state.lock().expect("failed to lock state");
+                let mut state = limits.0.lock().expect("failed to lock state");
                 match parked {
                     Some((_, id)) if state.parked.iter().any(|t| t.id == id) => {
                         // Task is still parked, it must have been canceled; don't increment the
@@ -312,7 +310,7 @@ impl TaskManager {
 
                 // If a cancellation has occurred, clear the parked tasks; otherwise, unpark
                 // what tasks we can
-                if limits.cancellation.state() != CancellationContextState::NotCanceled {
+                if cancellation.state() != CancellationContextState::NotCanceled {
                     state.parked.clear();
                 } else {
                     state.unpark_tasks();
@@ -322,7 +320,7 @@ impl TaskManager {
             }
             None => {
                 // Task manager is unlimited, just await the task
-                task.await
+                task.run().await
             }
         }
     }

@@ -47,7 +47,6 @@ use tracing::warn;
 
 use super::ApptainerRuntime;
 use super::TaskExecutionBackend;
-use crate::CancellationContext;
 use crate::EvaluationPath;
 use crate::Events;
 use crate::ONE_GIBIBYTE;
@@ -60,7 +59,6 @@ use crate::backend::TaskExecutionResult;
 use crate::config::Config;
 use crate::config::SlurmApptainerBackendConfig;
 use crate::config::TaskResourceLimitBehavior;
-use crate::http::Transferer;
 use crate::v1::requirements;
 
 /// The name of the file where the Apptainer command invocation will be written.
@@ -370,6 +368,8 @@ struct Job {
     crankshaft_id: u64,
     /// The last known state of the job.
     state: JobState,
+    /// The events associated with the job.
+    events: Events,
     /// The channel to notify of the completion of the job; provides the job's
     /// exit code.
     completed: oneshot::Sender<Result<JobExitCode>>,
@@ -397,6 +397,7 @@ impl MonitorState {
         &mut self,
         job_id: u64,
         crankshaft_id: TaskId,
+        events: &Events,
         completed: oneshot::Sender<Result<JobExitCode>>,
     ) {
         let prev = self.jobs.insert(
@@ -404,6 +405,7 @@ impl MonitorState {
             Job {
                 crankshaft_id,
                 state: JobState::Pending,
+                events: events.clone(),
                 completed,
             },
         );
@@ -419,7 +421,7 @@ impl MonitorState {
     /// Update the jobs based on the current output of `sacct`.
     ///
     /// This is also responsible for sending "task started" events.
-    fn update_jobs(&mut self, output: &str, events: &Events) {
+    fn update_jobs(&mut self, output: &str) {
         for line in output.lines() {
             let mut fields = line.split('|');
 
@@ -456,7 +458,7 @@ impl MonitorState {
                 // If the job state is now running, send the started event
                 if record.state == JobState::Running {
                     send_event!(
-                        events.crankshaft(),
+                        job.events.crankshaft(),
                         CrankshaftEvent::TaskStarted {
                             id: job.crankshaft_id
                         },
@@ -468,7 +470,7 @@ impl MonitorState {
                     // started event now
                     if job.state != JobState::Running {
                         send_event!(
-                            events.crankshaft(),
+                            job.events.crankshaft(),
                             CrankshaftEvent::TaskStarted {
                                 id: job.crankshaft_id
                             },
@@ -531,10 +533,10 @@ struct Monitor {
 
 impl Monitor {
     /// Constructs a new Slurm monitor using the given update interval.
-    fn new(interval: Duration, events: Events) -> Self {
+    fn new(interval: Duration) -> Self {
         let (tx, rx) = oneshot::channel();
         let state = Arc::new(Mutex::new(MonitorState::new()));
-        tokio::spawn(Self::monitor(state.clone(), interval, events, rx));
+        tokio::spawn(Self::monitor(state.clone(), interval, rx));
 
         Self {
             state,
@@ -551,7 +553,6 @@ impl Monitor {
         request: &ExecuteTaskRequest<'_>,
         crankshaft_id: TaskId,
         command_path: &Path,
-        transferer: &dyn Transferer,
     ) -> Result<SubmittedJob> {
         let task_name = request.name.to_string();
 
@@ -579,7 +580,7 @@ impl Monitor {
         // Evaluate the conditional args
         // First one that evaluates to `true` wins
         for conditional in &config.sbatch.conditional {
-            if conditional.condition.evaluate(request, transferer).await? {
+            if conditional.condition.evaluate(request).await? {
                 command.args(&conditional.args);
                 break;
             }
@@ -681,7 +682,7 @@ impl Monitor {
 
         let (tx, rx) = oneshot::channel();
         let mut state = self.state.lock().expect("failed to lock state");
-        state.add_job(job_id, crankshaft_id, tx);
+        state.add_job(job_id, crankshaft_id, request.events, tx);
         drop(state);
 
         Ok(SubmittedJob {
@@ -694,7 +695,6 @@ impl Monitor {
     async fn monitor(
         state: Arc<Mutex<MonitorState>>,
         interval: Duration,
-        events: Events,
         mut drop: oneshot::Receiver<()>,
     ) {
         debug!(
@@ -723,7 +723,7 @@ impl Monitor {
                     match Self::read_jobs(&jobs).await.and_then(|output| String::from_utf8(output).context("`sacct` output was not UTF-8")) {
                         Ok(output) => {
                             let mut state = state.lock().expect("failed to lock state");
-                            state.update_jobs(&output, &events);
+                            state.update_jobs(&output);
                         }
                         Err(e) => {
                             error!("failed to read Slurm job state: {e:#}");
@@ -783,10 +783,6 @@ impl Monitor {
 pub struct SlurmApptainerBackend {
     /// The shared engine configuration.
     config: Arc<Config>,
-    /// The engine events.
-    events: Events,
-    /// The evaluation cancellation context.
-    cancellation: CancellationContext,
     /// The underlying Apptainer runtime to use.
     apptainer: ApptainerRuntime,
     /// The Slurm task monitor.
@@ -797,12 +793,7 @@ pub struct SlurmApptainerBackend {
 
 impl SlurmApptainerBackend {
     /// Create a new backend.
-    pub fn new(
-        config: Arc<Config>,
-        run_root_dir: &Path,
-        events: Events,
-        cancellation: CancellationContext,
-    ) -> Result<Self> {
+    pub async fn new(config: Arc<Config>) -> Result<Self> {
         // Ensure the configured backend is Slurm Apptainer
         let backend_config = config.backend()?;
 
@@ -810,10 +801,9 @@ impl SlurmApptainerBackend {
             .as_slurm_apptainer()
             .context("configured backend is not Slurm Apptainer")?;
 
-        let monitor = Monitor::new(
-            Duration::from_secs(backend_config.interval.unwrap_or(DEFAULT_MONITOR_INTERVAL)),
-            events.clone(),
-        );
+        let monitor = Monitor::new(Duration::from_secs(
+            backend_config.interval.unwrap_or(DEFAULT_MONITOR_INTERVAL),
+        ));
 
         let permits = Semaphore::new(
             backend_config
@@ -821,15 +811,10 @@ impl SlurmApptainerBackend {
                 .unwrap_or(DEFAULT_MAX_CONCURRENCY) as usize,
         );
 
-        let apptainer = ApptainerRuntime::new(
-            run_root_dir,
-            backend_config.apptainer.image_cache_dir.as_deref(),
-        )?;
+        let apptainer = ApptainerRuntime::new(backend_config.apptainer.image_cache_dir()?).await?;
 
         Ok(Self {
             config,
-            events,
-            cancellation,
             apptainer,
             monitor,
             permits,
@@ -949,10 +934,10 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             }
         }
 
-        let containers = requirements::container(inputs, requirements, &self.config.task.container);
+        let sources = requirements::container(inputs, requirements, &self.config.task.container);
 
         Ok(super::TaskExecutionConstraints {
-            container: Some(containers),
+            sources,
             // TODO ACF 2025-10-13: populate more meaningful values for these based on the given
             // Slurm partition.
             //
@@ -969,8 +954,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
 
     fn execute<'a>(
         &'a self,
-        transferer: &'a Arc<dyn Transferer>,
-        request: ExecuteTaskRequest<'a>,
+        request: &'a ExecuteTaskRequest<'a>,
     ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
             let backend_config = self.config.backend()?;
@@ -985,7 +969,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             // cancellation context
             let task_token = CancellationToken::new();
             send_event!(
-                self.events.crankshaft(),
+                request.events.crankshaft(),
                 CrankshaftEvent::TaskCreated {
                     id: crankshaft_id,
                     name: name.clone(),
@@ -1033,19 +1017,18 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                         )
                     })?;
 
-                let Some((apptainer_script, container)) = self
+                let Some((apptainer_script, image)) = self
                     .apptainer
                     .generate_script(
                         &backend_config.apptainer,
                         &self.config.task.shell,
-                        &request,
-                        self.cancellation.first(),
-                        self.events.crankshaft().map(|e| (e.clone(), crankshaft_id)),
+                        request,
+                        crankshaft_id,
                     )
                     .await?
                 else {
                     send_event!(
-                        self.events.crankshaft(),
+                        request.events.crankshaft(),
                         CrankshaftEvent::TaskCanceled {
                             id: crankshaft_id,
                         },
@@ -1079,21 +1062,21 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                     .await
                     .context("failed to acquire permit for submitting job")?;
 
-                let job = self.monitor.submit_job(backend_config, &request, crankshaft_id, &apptainer_command_path, transferer.as_ref()).await?;
+                let job = self.monitor.submit_job(backend_config, request, crankshaft_id, &apptainer_command_path).await?;
                 drop(permit);
 
                 let job_id = job.id;
 
                 let cancelled = async {
                     send_event!(
-                        self.events.crankshaft(),
+                        request.events.crankshaft(),
                         CrankshaftEvent::TaskCanceled { id: crankshaft_id },
                     );
 
                     self.kill_job(job_id).await
                 };
 
-                let token = self.cancellation.second();
+                let token = request.cancellation.second();
 
                 // Wait for completion or cancellation
                 let exit_code = tokio::select! {
@@ -1116,7 +1099,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                             let exit_status = exit_code.into_exit_status();
 
                             send_event!(
-                                self.events.crankshaft(),
+                                request.events.crankshaft(),
                                 CrankshaftEvent::TaskCompleted {
                                     id: crankshaft_id,
                                     exit_statuses: NonEmpty::new(exit_status),
@@ -1132,7 +1115,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                 };
 
             Ok(Some(TaskExecutionResult {
-                container: Some(container),
+                image: Some(image),
                 exit_code: exit_code as i32,
                 work_dir: EvaluationPath::from_local_path(work_dir),
                 stdout: PrimitiveValue::new_file(
@@ -1155,7 +1138,7 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
             let result = run.await;
             if let Err(e) = &result {
                 send_event!(
-                    self.events.crankshaft(),
+                    request.events.crankshaft(),
                     CrankshaftEvent::TaskFailed {
                         id: crankshaft_id,
                         message: e.to_string(),

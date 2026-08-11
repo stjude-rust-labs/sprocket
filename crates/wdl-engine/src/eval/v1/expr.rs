@@ -1734,7 +1734,9 @@ pub(crate) mod test {
     use wdl_grammar::lexer::Lexer;
 
     use super::*;
+    use crate::CancellationContext;
     use crate::EvaluationPath;
+    use crate::Events;
     use crate::TypeNameRefValue;
     use crate::eval::Scope;
     use crate::eval::ScopeRef;
@@ -1804,14 +1806,19 @@ pub(crate) mod test {
     }
 
     impl Transferer for TestEnv {
-        fn download<'a>(&'a self, url: &'a Url) -> BoxFuture<'a, Result<Location>> {
+        fn download<'a>(
+            &'a self,
+            source: &'a Url,
+            _: &'a Events,
+            _: &'a CancellationContext,
+        ) -> BoxFuture<'a, Result<Location>> {
             async {
                 // For tests, redirect requests to example.com to files relative to the work dir
-                if url.authority() == "example.com" {
+                if source.authority() == "example.com" {
                     return Ok(Location::Path(
                         self.test_dir
                             .path()
-                            .join(url.path().strip_prefix('/').unwrap_or(url.path())),
+                            .join(source.path().strip_prefix('/').unwrap_or(source.path())),
                     ));
                 }
 
@@ -1820,7 +1827,13 @@ pub(crate) mod test {
             .boxed()
         }
 
-        fn upload<'a>(&'a self, _: &'a Path, _: &'a Url) -> BoxFuture<'a, Result<()>> {
+        fn upload<'a>(
+            &'a self,
+            _: &'a Path,
+            _: &'a Url,
+            _: &'a Events,
+            _: &'a CancellationContext,
+        ) -> BoxFuture<'a, Result<()>> {
             unimplemented!()
         }
 
@@ -1853,6 +1866,10 @@ pub(crate) mod test {
         stdout: Option<Value>,
         /// The stderr value from a task's execution.
         stderr: Option<Value>,
+        /// The evaluation events.
+        events: Events,
+        /// The cancellation context to use for the test.
+        cancellation: CancellationContext,
     }
 
     impl<'a> TestEvaluationContext<'a> {
@@ -1862,6 +1879,8 @@ pub(crate) mod test {
                 version,
                 stdout: None,
                 stderr: None,
+                events: Events::disabled(),
+                cancellation: Default::default(),
             }
         }
 
@@ -1937,6 +1956,14 @@ pub(crate) mod test {
 
         fn transferer(&self) -> &dyn Transferer {
             self.env
+        }
+
+        fn events(&self) -> &Events {
+            &self.events
+        }
+
+        fn cancellation(&self) -> &CancellationContext {
+            &self.cancellation
         }
     }
 

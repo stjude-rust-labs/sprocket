@@ -982,11 +982,9 @@
           "default": "apptainer"
         },
         "image_cache_dir": {
-          "description": "Path to a shared directory for caching pulled `.sif` images.\n\nWhen set, pulled images are stored in this directory and shared\nacross runs. When unset, images are stored in a per-run directory\nthat is not shared.",
-          "type": [
-            "string",
-            "null"
-          ]
+          "description": "Path to a shared directory for caching pulled `.sif` images.\n\nDefaults to an operating system specific cache directory for the user.",
+          "type": "string",
+          "default": "system"
         },
         "extra_args": {
           "description": "Additional command-line arguments to pass to `apptainer exec` when\nexecuting tasks.",

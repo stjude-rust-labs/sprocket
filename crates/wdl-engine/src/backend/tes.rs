@@ -27,7 +27,6 @@ use futures::FutureExt;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use secrecy::ExposeSecret;
-use tokio::sync::broadcast;
 use tokio::task::JoinSet;
 use tracing::debug;
 use tracing::info;
@@ -36,11 +35,9 @@ use super::ExecuteTaskRequest;
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
-use crate::CancellationContext;
 use crate::EngineEvent;
 use crate::EvaluationPath;
 use crate::EvaluationPathKind;
-use crate::Events;
 use crate::INITIAL_EXPECTED_NAMES;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
@@ -54,12 +51,11 @@ use crate::config::ContentDigestMode;
 use crate::config::TesBackendAuthConfig;
 use crate::digest::UrlDigestExt;
 use crate::digest::calculate_local_digest;
-use crate::http::Transferer;
 use crate::v1::DEFAULT_DISK_MOUNT_POINT;
 use crate::v1::DEFAULT_TASK_REQUIREMENT_DISKS;
 use crate::v1::hints;
 use crate::v1::requirements;
-use crate::v1::requirements::ContainerSource;
+use crate::v1::requirements::ImageSource;
 
 /// The guest working directory.
 const GUEST_WORK_DIR: &str = "/mnt/task/work";
@@ -82,10 +78,6 @@ pub struct TesBackend {
     config: Arc<Config>,
     /// The underlying Crankshaft backend.
     inner: tes::Backend,
-    /// The sender for engine events.
-    events: Option<broadcast::Sender<EngineEvent>>,
-    /// The evaluation cancellation context.
-    cancellation: CancellationContext,
 }
 
 impl TesBackend {
@@ -93,11 +85,7 @@ impl TesBackend {
     /// configuration.
     ///
     /// The provided configuration is expected to have already been validated.
-    pub async fn new(
-        config: Arc<Config>,
-        events: Events,
-        cancellation: CancellationContext,
-    ) -> Result<Self> {
+    pub async fn new(config: Arc<Config>) -> Result<Self> {
         info!("initializing TES backend");
 
         let backend_config = config.backend()?;
@@ -136,16 +124,10 @@ impl TesBackend {
                 .interval(backend_config.interval.unwrap_or(DEFAULT_TES_INTERVAL))
                 .build(),
             names.clone(),
-            events.crankshaft().cloned(),
         )
         .await;
 
-        Ok(Self {
-            config,
-            inner,
-            events: events.engine().cloned(),
-            cancellation,
-        })
+        Ok(Self { config, inner })
     }
 }
 
@@ -160,20 +142,20 @@ impl TaskExecutionBackend for TesBackend {
         requirements: &Object,
         hints: &Object,
     ) -> Result<TaskExecutionConstraints> {
-        let containers = requirements::container(inputs, requirements, &self.config.task.container);
-        for container in &containers {
-            match container {
-                ContainerSource::Docker(_)
-                | ContainerSource::Library(_)
-                | ContainerSource::Oras(_) => {}
-                ContainerSource::SifFile(_) => {
+        let sources = requirements::container(inputs, requirements, &self.config.task.container);
+        for source in &sources {
+            match source {
+                ImageSource::Docker(_) | ImageSource::Library(_) | ImageSource::Oras(_) => {}
+                ImageSource::SifFile(_) => {
                     bail!(
-                        "TES backend does not support local SIF file `{container:#}`; use a \
+                        "TES backend does not support local SIF file `{source:#}`; use a \
                          registry-based container image instead"
                     )
                 }
-                ContainerSource::Unknown(_) => {
-                    bail!("TES backend does not support unknown container source `{container:#}`")
+                ImageSource::Unknown(_) => {
+                    bail!(
+                        "TES backend does not support unknown container image source `{source:#}`"
+                    )
                 }
             }
         }
@@ -184,7 +166,7 @@ impl TaskExecutionBackend for TesBackend {
         }
 
         Ok(TaskExecutionConstraints {
-            container: Some(containers),
+            sources,
             cpu: requirements::cpu(inputs, requirements),
             memory: requirements::memory(inputs, requirements)? as u64,
             gpu: Default::default(),
@@ -202,8 +184,7 @@ impl TaskExecutionBackend for TesBackend {
 
     fn execute<'a>(
         &'a self,
-        transferer: &'a Arc<dyn Transferer>,
-        request: ExecuteTaskRequest<'a>,
+        request: &'a ExecuteTaskRequest<'a>,
     ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
             let backend_config = self.config.backend()?;
@@ -214,7 +195,6 @@ impl TaskExecutionBackend for TesBackend {
             let preemptible = hints::preemptible(request.inputs, request.hints)?;
             let max_memory =
                 hints::max_memory(request.inputs, request.hints)?.map(|m| m as f64 / ONE_GIBIBYTE);
-            let name = request.name.to_string();
 
             // Write the evaluated command to disk
             // This is done even for remote execution so that a copy exists locally
@@ -263,8 +243,10 @@ impl TaskExecutionBackend for TesBackend {
                         // Input is local, spawn an upload of it
                         let kind = input.kind();
                         let path = path.to_path_buf();
-                        let transferer = transferer.clone();
+                        let engine = request.engine.clone();
+                        let events = request.events.clone();
                         let inputs_url = inputs_url.clone();
+                        let cancellation = request.cancellation.clone();
                         uploads.spawn(async move {
                             let url = inputs_url.join_digest(
                                 calculate_local_digest(&path, kind, ContentDigestMode::Strong)
@@ -276,8 +258,9 @@ impl TaskExecutionBackend for TesBackend {
                                         )
                                     })?,
                             );
-                            transferer
-                                .upload(&path, &url)
+                            engine
+                                .transferer()
+                                .upload(&path, &url, &events, &cancellation)
                                 .await
                                 .with_context(|| {
                                     format!(
@@ -312,9 +295,11 @@ impl TaskExecutionBackend for TesBackend {
             // digesting each local input and uploading it to remote storage, which
             // dominates the runtime of large inputs
             if !uploads.is_empty()
-                && let Some(sender) = &self.events
+                && let Some(sender) = request.events.engine()
             {
-                let _ = sender.send(EngineEvent::TaskLocalizing { name: name.clone() });
+                let _ = sender.send(EngineEvent::TaskLocalizing {
+                    name: request.name.to_string(),
+                });
             }
 
             // Wait for any uploads to complete
@@ -338,6 +323,7 @@ impl TaskExecutionBackend for TesBackend {
 
             let output_dir = format!(
                 "{name}-{timestamp}/",
+                name = request.name,
                 timestamp = chrono::Utc::now().format("%Y%m%d-%H%M%S")
             );
 
@@ -415,22 +401,13 @@ impl TaskExecutionBackend for TesBackend {
             let mut preemptible = preemptible;
             loop {
                 let task = Task::builder()
-                    .name(&name)
+                    .name(request.name)
                     .executions(NonEmpty::new(
                         Execution::builder()
-                            .images(
-                                request
-                                    .constraints
-                                    .container
-                                    .as_ref()
-                                    .expect("constraints should have a container")
-                                    .iter()
-                                    .map(|c| match c {
-                                        // For Docker container image sources, omit the protocol
-                                        ContainerSource::Docker(s) => s.clone(),
-                                        c => format!("{c:#}"),
-                                    }),
-                            )?
+                            .images(request.constraints.sources.iter().map(|c| match c {
+                                ImageSource::Docker(s) => s.clone(),
+                                c => format!("{c:#}"),
+                            }))?
                             .program(&self.config.task.shell)
                             .args([GUEST_COMMAND_PATH.to_string()])
                             .work_dir(GUEST_WORK_DIR)
@@ -454,7 +431,15 @@ impl TaskExecutionBackend for TesBackend {
                     .volumes(volumes.clone())
                     .build();
 
-                let results = match self.inner.run(task, self.cancellation.second())?.await {
+                let results = match self
+                    .inner
+                    .run(
+                        task,
+                        request.events.crankshaft().cloned(),
+                        request.cancellation.second(),
+                    )?
+                    .await
+                {
                     Ok(results) => results,
                     Err(TaskRunError::Preempted) if preemptible > 0 => {
                         // Decrement the preemptible count and retry
@@ -466,19 +451,15 @@ impl TaskExecutionBackend for TesBackend {
                 };
 
                 assert_eq!(results.len(), 1, "there should only be one output");
-                let result = results.first();
+                let result = results.into_iter().next().unwrap();
 
                 // Push an empty path segment so that future joins of the work directory URL
                 // treat it as a directory
                 work_dir_url.path_segments_mut().unwrap().push("");
 
                 return Ok(Some(TaskExecutionResult {
-                    container: request
-                        .constraints
-                        .container
-                        .as_ref()
-                        .and_then(|c| c.first())
-                        .cloned(),
+                    // SAFETY: parsing of an image source is infallible
+                    image: result.image.map(|s| s.parse().unwrap()),
                     exit_code: result.status.code().expect("should have exit code"),
                     work_dir: EvaluationPath::try_from(work_dir_url)?,
                     stdout: PrimitiveValue::new_file(stdout_url).into(),

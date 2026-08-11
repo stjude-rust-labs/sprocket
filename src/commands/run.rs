@@ -44,6 +44,7 @@ use wdl::engine::CLEANUP_TASK_NAME_PREFIX;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::Config as EngineConfig;
+use wdl::engine::Engine;
 use wdl::engine::EngineEvent;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
@@ -997,7 +998,6 @@ pub async fn run(
     }
 
     let document = results.filter(&[&source]).next().unwrap().document();
-
     let (target, inputs) = resolve_inputs(&args, document).await?;
 
     // Held for the rest of this function: dropping it stops the heartbeat and
@@ -1040,13 +1040,17 @@ pub async fn run(
     let cwd = std::env::current_dir().context("failed to get current working directory")?;
     let base_dir = EvaluationPath::from(cwd.as_path());
 
+    let engine = Engine::new(config.run.engine)
+        .await
+        .context("failed to create WDL evaluation engine")?;
+
     let mut execute = Box::pin(execute_target(
         db.clone(),
         &ctx,
         document.clone(),
-        config.run.engine,
-        cancellation.clone(),
+        engine,
         events,
+        cancellation.clone(),
         &target,
         inputs,
         &run_dir,

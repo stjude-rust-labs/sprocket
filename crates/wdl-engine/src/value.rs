@@ -4041,7 +4041,9 @@ mod test {
     use wdl_ast::SupportedVersion;
 
     use super::*;
+    use crate::CancellationContext;
     use crate::EvaluationPath;
+    use crate::Events;
     use crate::http::Transferer;
 
     #[test]
@@ -4202,6 +4204,14 @@ mod test {
                 unimplemented!()
             }
 
+            fn events(&self) -> &Events {
+                unimplemented!()
+            }
+
+            fn cancellation(&self) -> &CancellationContext {
+                unimplemented!()
+            }
+
             fn host_path(&self, path: &GuestPath) -> Option<HostPath> {
                 if path.as_str() == "/mnt/task/input/0/path" {
                     Some(HostPath::new("/some/host/path"))
@@ -4329,6 +4339,14 @@ mod test {
                 unimplemented!()
             }
 
+            fn events(&self) -> &Events {
+                unimplemented!()
+            }
+
+            fn cancellation(&self) -> &CancellationContext {
+                unimplemented!()
+            }
+
             fn guest_path(&self, path: &HostPath) -> Option<GuestPath> {
                 if path.as_str() == "/some/host/path" {
                     Some(GuestPath::new("/mnt/task/input/0/path"))
@@ -4420,6 +4438,14 @@ mod test {
             }
 
             fn transferer(&self) -> &dyn Transferer {
+                unimplemented!()
+            }
+
+            fn events(&self) -> &Events {
+                unimplemented!()
+            }
+
+            fn cancellation(&self) -> &CancellationContext {
                 unimplemented!()
             }
 

@@ -54,6 +54,7 @@ use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
+use wdl::engine::Engine;
 use wdl::engine::EvaluatedTask;
 use wdl::engine::EvaluationError;
 use wdl::engine::EvaluationPath;
@@ -605,7 +606,7 @@ impl StatusBar {
 struct Runner {
     root: PathBuf,
     fixtures: Arc<EvaluationPath>,
-    engine_config: Arc<wdl::engine::Config>,
+    engine: Engine,
     status_bar: StatusBar,
     indicatif_writer: IndicatifWriter<Stdout>,
     permits: usize,
@@ -828,7 +829,7 @@ impl Runner {
     ) {
         let is_workflow = matches!(inputs, EngineInputs::Workflow(_));
         let fixtures = self.fixtures.clone();
-        let engine = self.engine_config.clone();
+        let engine = self.engine.clone();
         let run_dir = root.join(id.iteration_num.to_string());
         let events = Events::new(1024);
         let target = id.target.clone();
@@ -842,13 +843,13 @@ impl Runner {
                 let cancellation_clone = cancellation.clone();
                 let mut task = Box::pin(async move {
                     let evaluator =
-                        Evaluator::new(&document, &target, inputs, &fixtures, engine, &run_dir_clone);
+                        Evaluator::new(&document, &target, inputs, &fixtures, &engine, &run_dir_clone);
 
                     if is_workflow {
-                        RunResult::Workflow(evaluator.run(cancellation_clone, events).await)
+                        RunResult::Workflow(evaluator.run(events, cancellation_clone).await)
                     } else {
                         RunResult::Task(Box::new(
-                            evaluator.evaluate_task(cancellation_clone, events).await,
+                            evaluator.evaluate_task(events, cancellation_clone).await,
                         ))
                     }
                 }.with_subscriber(NoSubscriber::new()));
@@ -1135,11 +1136,14 @@ pub async fn test(
     config.run.engine.task.memory_limit_behavior = TaskResourceLimitBehavior::TryWithMax;
     config.validate()?;
 
+    let engine = Engine::new(config.run.engine)
+        .await
+        .context("failed to create WDL evaluation engine")?;
     let cancellation = CancellationContext::new(FailureMode::Fast);
     let runner = Runner {
         root: run_dir,
         fixtures: fixture_origins.into(),
-        engine_config: config.run.engine.into(),
+        engine,
         status_bar: if args.no_status {
             StatusBar::disabled()
         } else {

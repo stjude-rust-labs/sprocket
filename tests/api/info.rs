@@ -52,7 +52,9 @@ async fn create_test_server(
         Mode::default(),
         true,
         db,
-    );
+    )
+    .await
+    .expect("failed to spawn run manager service");
 
     // Wait for the manager to be ready.
     let (tx, rx) = oneshot::channel();
