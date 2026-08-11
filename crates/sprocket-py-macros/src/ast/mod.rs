@@ -22,11 +22,6 @@ struct Args {
     /// This is forwarded to `#[pyclass]`, and defaults to `module =
     /// "sprocket_bio.ast.v1"`.
     module: LitStr,
-    /// Applies renaming rules to every getters and setters of a struct, or
-    /// every variants of an enum.
-    ///
-    /// This is forwarded to `#[pyclass]`, and by default is omitted.
-    rename_all: Option<LitStr>,
     /// Implements `__str__` using the `Display` implementation of the
     /// underlying Rust datatype.
     ///
@@ -42,11 +37,6 @@ impl Args {
         let args_parser = syn::meta::parser(|meta| {
             if meta.path.is_ident("module") {
                 args.module = meta.value()?.parse()?;
-                return Ok(());
-            }
-
-            if meta.path.is_ident("rename_all") {
-                args.rename_all = Some(meta.value()?.parse()?);
                 return Ok(());
             }
 
@@ -68,7 +58,6 @@ impl Default for Args {
     fn default() -> Self {
         Self {
             module: LitStr::new("sprocket_bio.ast.v1", Span::call_site()),
-            rename_all: None,
             str_: false,
         }
     }
@@ -115,14 +104,6 @@ mod tests {
         let args = Args::parse(args_stream).unwrap();
 
         assert_eq!(args, Args::default());
-    }
-
-    #[test]
-    fn rename_all_arg() {
-        let args_stream = quote!(rename_all = "SCREAMING_SNAKE_CASE");
-        let args = Args::parse(args_stream).unwrap();
-
-        assert_eq!(args.rename_all.unwrap().value(), "SCREAMING_SNAKE_CASE");
     }
 
     #[test]

@@ -187,12 +187,6 @@ fn make_py_attrs(py_enum: &mut ItemEnum, original: &ItemEnum, args: &Args) {
         parse_quote!(#[allow(missing_debug_implementations)]),
     ]);
 
-    if let Some(ref rename_all) = args.rename_all {
-        py_enum
-            .attrs
-            .push(parse_quote!(#[pyo3(rename_all = #rename_all)]));
-    }
-
     if args.str_ {
         py_enum.attrs.push(parse_quote!(#[pyo3(str)]));
     }
@@ -240,7 +234,6 @@ mod tests {
             &original,
             &Args {
                 module: LitStr::new("sprocket_bio.custom_module", Span::call_site()),
-                rename_all: Some(LitStr::new("SCREAMING_SNAKE_CASE", Span::call_site())),
                 str_: true,
             },
         );
@@ -250,7 +243,6 @@ mod tests {
             parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.custom_module", name = "Bar", frozen, from_py_object, eq)]),
             parse_quote!(#[derive(Clone, PartialEq)]),
             parse_quote!(#[allow(missing_debug_implementations)]),
-            parse_quote!(#[pyo3(rename_all = "SCREAMING_SNAKE_CASE")]),
             parse_quote!(#[pyo3(str)]),
         ];
 

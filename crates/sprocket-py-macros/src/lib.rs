@@ -32,9 +32,6 @@ use syn::Error;
 /// - `module = "my.python.submodule"`: The module the AST element is defined
 ///   in, from Python's perspective. This is forwarded to `#[pyclass]`, and
 ///   defaults to `module = "sprocket_bio.ast.v1"`.
-/// - `rename_all = "renaming_rule"`: Applies renaming rules to every getters
-///   and setters of a struct, or every variants of an enum. This is forwarded
-///   to `#[pyclass]`, and by default is omitted.
 /// - `str`: Implements `__str__` using the [`Display`](std::fmt::Display)
 ///   implementation of the underlying Rust datatype. This is forwarded to
 ///   `#[pyclass]`, and by default is omitted. Note that format strings (like
