@@ -521,7 +521,10 @@ impl Postprocessor {
         config: &Config,
     ) {
         assert!(!self.interrupted);
-        assert!(self.position == LinePosition::StartOfLine, "flush must be called from start of line");
+        assert!(
+            self.position == LinePosition::StartOfLine,
+            "`flush()` must be called from the start of a line"
+        );
 
         let max_length = config.max_line_length.get();
 
