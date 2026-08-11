@@ -35,7 +35,7 @@ pub(super) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
     // Remove generics.
     py_struct.generics = Generics::default();
 
-    make_py_attrs(&mut py_struct, original, args, ast_kind);
+    make_py_attrs(&mut py_struct, original, &args, ast_kind);
 
     make_py_fields(&mut py_struct, original, ast_kind)?;
 
@@ -49,6 +49,20 @@ pub(super) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
         },
         Span::call_site(),
     );
+    let display_impl = if let Some(StrArg::Default) = args.str_ {
+        quote! {
+            // Implements `Display` for the Python struct by relying on the original struct's
+            // impl. This is only needed for `#[ast(str)]`, as `Display` is not needed on the
+            // Python struct when `str` is omitted or `str = "{format_string:?}`.
+            impl ::std::fmt::Display for #py_ident {
+                fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                    <#ident as ::std::fmt::Display>::fmt(&self.clone().into(), f)
+                }
+            }
+        }
+    } else {
+        TokenStream::new()
+    };
 
     Ok(quote! {
         #py_struct
@@ -102,6 +116,8 @@ pub(super) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
                     .map(Bound::into_any)
             }
         }
+
+        #display_impl
     })
 }
 
@@ -126,14 +142,14 @@ fn ast_kind(original: &ItemStruct) -> Result<AstKind> {
 /// This first removes all of `py_struct`'s attributes except for its doc
 /// comments. Then, it appends attributes like `#[pyclass]` that are necessary
 /// for making it a Python type.
-fn make_py_attrs(py_struct: &mut ItemStruct, original: &ItemStruct, args: Args, ast_kind: AstKind) {
+fn make_py_attrs(py_struct: &mut ItemStruct, original: &ItemStruct, args: &Args, ast_kind: AstKind) {
     // Only copy over doc comments, remove all other attributes.
     py_struct.attrs.retain(|attr| attr.path().is_ident("doc"));
 
     py_struct.attrs.extend_from_slice(&[
         // Make generated struct a pyclass.
         {
-            let module = args.module;
+            let module = &args.module;
             let class_name = LitStr::new(&original.ident.to_string(), original.ident.span());
             let extends = Ident::new(
                 match ast_kind {
@@ -152,13 +168,13 @@ fn make_py_attrs(py_struct: &mut ItemStruct, original: &ItemStruct, args: Args, 
         parse_quote!(#[allow(missing_debug_implementations)]),
     ]);
 
-    if let Some(rename_all) = args.rename_all {
+    if let Some(ref rename_all) = args.rename_all {
         py_struct
             .attrs
             .push(parse_quote!(#[pyo3(rename_all = #rename_all)]));
     }
 
-    if let Some(str_) = args.str_ {
+    if let Some(ref str_) = args.str_ {
         py_struct.attrs.push(match str_ {
             StrArg::Default => parse_quote!(#[pyo3(str)]),
             StrArg::FormatString(format_str) => parse_quote!(#[pyo3(str = #format_str)]),
@@ -258,7 +274,7 @@ mod tests {
         };
         let mut py_struct = original.clone();
 
-        make_py_attrs(&mut py_struct, &original, Args::default(), AstKind::Node);
+        make_py_attrs(&mut py_struct, &original, &Args::default(), AstKind::Node);
 
         let expected = [
             parse_quote!(#[doc = r" Doc comment"]),
@@ -276,7 +292,7 @@ mod tests {
         let original: ItemStruct = parse_quote! { struct Foo; };
         let mut py_struct = original.clone();
 
-        make_py_attrs(&mut py_struct, &original, Args::default(), AstKind::Token);
+        make_py_attrs(&mut py_struct, &original, &Args::default(), AstKind::Token);
 
         let expected = [
             parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "Foo", extends = crate::PyAstToken, frozen, from_py_object, eq)]),
@@ -295,7 +311,7 @@ mod tests {
         make_py_attrs(
             &mut py_struct,
             &original,
-            Args {
+            &Args {
                 module: LitStr::new("sprocket_bio.custom_module", Span::call_site()),
                 rename_all: Some(LitStr::new("SCREAMING_SNAKE_CASE", Span::call_site())),
                 str_: Some(StrArg::Default),

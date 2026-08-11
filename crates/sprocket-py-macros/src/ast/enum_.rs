@@ -28,7 +28,7 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
     // Remove generics.
     py_enum.generics = Generics::default();
 
-    make_py_attrs(&mut py_enum, original, args);
+    make_py_attrs(&mut py_enum, original, &args);
 
     // Strip generic from all variants, add "Py" prefix
     for variant in &mut py_enum.variants {
@@ -108,6 +108,20 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
             Fields::Named(_) => unreachable!("struct variants were previously filtered out"),
         }
     });
+    let display_impl = if let Some(StrArg::Default) = args.str_ {
+        quote! {
+            // Implements `Display` for the Python enum by relying on the original enum's
+            // impl. This is only needed for `#[ast(str)]`, as `Display` is not needed on the
+            // Python enum when `str` is omitted or `str = "{format_string:?}`.
+            impl ::std::fmt::Display for #py_ident {
+                fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
+                    <#ident as ::std::fmt::Display>::fmt(&self.clone().into(), f)
+                }
+            }
+        }
+    } else {
+        TokenStream::new()
+    };
 
     Ok(quote! {
         #py_enum
@@ -145,6 +159,8 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
                 #py_ident::from(self).into_pyobject(py)
             }
         }
+
+        #display_impl
     })
 }
 
@@ -153,14 +169,14 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
 /// This first removes all of `py_enum`'s attributes except for its doc
 /// comments. Then, it appends attributes like `#[pyclass]` that are necessary
 /// for making it a Python type.
-fn make_py_attrs(py_enum: &mut ItemEnum, original: &ItemEnum, args: Args) {
+fn make_py_attrs(py_enum: &mut ItemEnum, original: &ItemEnum, args: &Args) {
     // Only copy over doc comments, remove all other attributes.
     py_enum.attrs.retain(|attr| attr.path().is_ident("doc"));
 
     py_enum.attrs.extend_from_slice(&[
         // Make generated enum a pyclass.
         {
-            let module = args.module;
+            let module = &args.module;
             let class_name = LitStr::new(&original.ident.to_string(), original.ident.span());
 
             parse_quote!(#[::pyo3::pyclass(module = #module, name = #class_name, frozen, from_py_object, eq)])
@@ -172,13 +188,13 @@ fn make_py_attrs(py_enum: &mut ItemEnum, original: &ItemEnum, args: Args) {
         parse_quote!(#[allow(missing_debug_implementations)]),
     ]);
 
-    if let Some(rename_all) = args.rename_all {
+    if let Some(ref rename_all) = args.rename_all {
         py_enum
             .attrs
             .push(parse_quote!(#[pyo3(rename_all = #rename_all)]));
     }
 
-    if let Some(str_) = args.str_ {
+    if let Some(ref str_) = args.str_ {
         py_enum.attrs.push(match str_ {
             StrArg::Default => parse_quote!(#[pyo3(str)]),
             StrArg::FormatString(format_str) => parse_quote!(#[pyo3(str = #format_str)]),
@@ -202,7 +218,7 @@ mod tests {
         };
         let mut py_enum = original.clone();
 
-        make_py_attrs(&mut py_enum, &original, Args::default());
+        make_py_attrs(&mut py_enum, &original, &Args::default());
 
         let expected = [
             parse_quote!(#[doc = r" Doc comment"]),
@@ -226,7 +242,7 @@ mod tests {
         make_py_attrs(
             &mut py_enum,
             &original,
-            Args {
+            &Args {
                 module: LitStr::new("sprocket_bio.custom_module", Span::call_site()),
                 rename_all: Some(LitStr::new("SCREAMING_SNAKE_CASE", Span::call_site())),
                 str_: Some(StrArg::FormatString(LitStr::new("Bar", Span::call_site()))),
