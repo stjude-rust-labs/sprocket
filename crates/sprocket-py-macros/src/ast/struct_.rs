@@ -13,7 +13,6 @@ use syn::Result;
 use syn::parse_quote;
 
 use super::Args;
-use super::StrArg;
 
 /// Represents whether an AST element is a node or token.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -49,11 +48,11 @@ pub(super) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
         },
         Span::call_site(),
     );
-    let display_impl = if let Some(StrArg::Default) = args.str_ {
+    let display_impl = if args.str_ {
         quote! {
             // Implements `Display` for the Python struct by relying on the original struct's
             // impl. This is only needed for `#[ast(str)]`, as `Display` is not needed on the
-            // Python struct when `str` is omitted or `str = "{format_string:?}`.
+            // Python struct when `str` is omitted.
             impl ::std::fmt::Display for #py_ident {
                 fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                     <#ident as ::std::fmt::Display>::fmt(&self.clone().into(), f)
@@ -142,7 +141,12 @@ fn ast_kind(original: &ItemStruct) -> Result<AstKind> {
 /// This first removes all of `py_struct`'s attributes except for its doc
 /// comments. Then, it appends attributes like `#[pyclass]` that are necessary
 /// for making it a Python type.
-fn make_py_attrs(py_struct: &mut ItemStruct, original: &ItemStruct, args: &Args, ast_kind: AstKind) {
+fn make_py_attrs(
+    py_struct: &mut ItemStruct,
+    original: &ItemStruct,
+    args: &Args,
+    ast_kind: AstKind,
+) {
     // Only copy over doc comments, remove all other attributes.
     py_struct.attrs.retain(|attr| attr.path().is_ident("doc"));
 
@@ -174,11 +178,8 @@ fn make_py_attrs(py_struct: &mut ItemStruct, original: &ItemStruct, args: &Args,
             .push(parse_quote!(#[pyo3(rename_all = #rename_all)]));
     }
 
-    if let Some(ref str_) = args.str_ {
-        py_struct.attrs.push(match str_ {
-            StrArg::Default => parse_quote!(#[pyo3(str)]),
-            StrArg::FormatString(format_str) => parse_quote!(#[pyo3(str = #format_str)]),
-        });
+    if args.str_ {
+        py_struct.attrs.push(parse_quote!(#[pyo3(str)]));
     }
 }
 
@@ -314,7 +315,7 @@ mod tests {
             &Args {
                 module: LitStr::new("sprocket_bio.custom_module", Span::call_site()),
                 rename_all: Some(LitStr::new("SCREAMING_SNAKE_CASE", Span::call_site())),
-                str_: Some(StrArg::Default),
+                str_: true,
             },
             AstKind::Token,
         );

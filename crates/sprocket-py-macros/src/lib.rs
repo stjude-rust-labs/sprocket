@@ -35,11 +35,11 @@ use syn::Error;
 /// - `rename_all = "renaming_rule"`: Applies renaming rules to every getters
 ///   and setters of a struct, or every variants of an enum. This is forwarded
 ///   to `#[pyclass]`, and by default is omitted.
-/// - `str` / `str = "{format_string:?}"`: Implements `__str__` using the
-///   [`Display`](std::fmt::Display) implementation of the underlying Rust
-///   datatype or by passing an optional format string
-///   `str="{format_string:?}"`. This is forwarded to `#[pyclass]`, and by
-///   default is omitted.
+/// - `str`: Implements `__str__` using the [`Display`](std::fmt::Display)
+///   implementation of the underlying Rust datatype. This is forwarded to
+///   `#[pyclass]`, and by default is omitted. Note that format strings (like
+///   `str = "{format_str:?}"`) are not supported because this macro internally
+///   uses `#[pyclass(name = ...)]`.
 ///
 /// # Requirements
 ///

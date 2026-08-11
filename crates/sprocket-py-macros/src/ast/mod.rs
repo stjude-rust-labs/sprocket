@@ -28,20 +28,10 @@ struct Args {
     /// This is forwarded to `#[pyclass]`, and by default is omitted.
     rename_all: Option<LitStr>,
     /// Implements `__str__` using the `Display` implementation of the
-    /// underlying Rust datatype or by passing an optional format string
-    /// `str="{format_string:?}"`.
+    /// underlying Rust datatype.
     ///
     /// This is forwarded to `#[pyclass]`, and by default is omitted.
-    str_: Option<StrArg>,
-}
-
-/// Represents the `str` [argument](Args).
-#[derive(PartialEq, Debug)]
-enum StrArg {
-    /// `#[ast(str)]`
-    Default,
-    /// `#[ast(str = "{format_string:?}")]`
-    FormatString(LitStr),
+    str_: bool,
 }
 
 impl Args {
@@ -61,11 +51,7 @@ impl Args {
             }
 
             if meta.path.is_ident("str") {
-                args.str_ = Some(if meta.input.is_empty() {
-                    StrArg::Default
-                } else {
-                    StrArg::FormatString(meta.value()?.parse()?)
-                });
+                args.str_ = true;
                 return Ok(());
             }
 
@@ -83,7 +69,7 @@ impl Default for Args {
         Self {
             module: LitStr::new("sprocket_bio.ast.v1", Span::call_site()),
             rename_all: None,
-            str_: None,
+            str_: false,
         }
     }
 }
@@ -144,16 +130,17 @@ mod tests {
         let str_default_stream = quote!(str);
         let str_default_args = Args::parse(str_default_stream).unwrap();
 
-        assert_eq!(str_default_args.str_, Some(StrArg::Default));
+        assert!(str_default_args.str_);
 
+        // This is supported by `#[pyclass]`, but is incompatible with `#[pyclass(name = ...)]` so
+        // we don't allow it.
         let str_format_stream = quote!(str = "Hello, {name:?}!");
-        let str_format_args = Args::parse(str_format_stream).unwrap();
+        let result = Args::parse(str_format_stream);
 
-        let Some(StrArg::FormatString(fmt_str)) = str_format_args.str_ else {
-            panic!("`str` is not a format string: {:?}", str_format_args.str_);
-        };
-
-        assert_eq!(fmt_str.value(), "Hello, {name:?}!");
+        assert!(
+            result.is_err(),
+            "should have errored on format string: {result:?}"
+        );
     }
 
     #[test]

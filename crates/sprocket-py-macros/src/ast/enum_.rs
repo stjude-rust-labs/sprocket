@@ -17,7 +17,6 @@ use syn::punctuated::Punctuated;
 use syn::token::Paren;
 
 use super::Args;
-use super::StrArg;
 
 /// Builds the Python binding equivalent of an AST enum.
 pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
@@ -108,11 +107,11 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
             Fields::Named(_) => unreachable!("struct variants were previously filtered out"),
         }
     });
-    let display_impl = if let Some(StrArg::Default) = args.str_ {
+    let display_impl = if args.str_ {
         quote! {
             // Implements `Display` for the Python enum by relying on the original enum's
             // impl. This is only needed for `#[ast(str)]`, as `Display` is not needed on the
-            // Python enum when `str` is omitted or `str = "{format_string:?}`.
+            // Python enum when `str` is omitted.
             impl ::std::fmt::Display for #py_ident {
                 fn fmt(&self, f: &mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result {
                     <#ident as ::std::fmt::Display>::fmt(&self.clone().into(), f)
@@ -194,11 +193,8 @@ fn make_py_attrs(py_enum: &mut ItemEnum, original: &ItemEnum, args: &Args) {
             .push(parse_quote!(#[pyo3(rename_all = #rename_all)]));
     }
 
-    if let Some(ref str_) = args.str_ {
-        py_enum.attrs.push(match str_ {
-            StrArg::Default => parse_quote!(#[pyo3(str)]),
-            StrArg::FormatString(format_str) => parse_quote!(#[pyo3(str = #format_str)]),
-        });
+    if args.str_ {
+        py_enum.attrs.push(parse_quote!(#[pyo3(str)]));
     }
 }
 
@@ -245,7 +241,7 @@ mod tests {
             &Args {
                 module: LitStr::new("sprocket_bio.custom_module", Span::call_site()),
                 rename_all: Some(LitStr::new("SCREAMING_SNAKE_CASE", Span::call_site())),
-                str_: Some(StrArg::FormatString(LitStr::new("Bar", Span::call_site()))),
+                str_: true,
             },
         );
 
@@ -255,7 +251,7 @@ mod tests {
             parse_quote!(#[derive(Clone, PartialEq)]),
             parse_quote!(#[allow(missing_debug_implementations)]),
             parse_quote!(#[pyo3(rename_all = "SCREAMING_SNAKE_CASE")]),
-            parse_quote!(#[pyo3(str = "Bar")]),
+            parse_quote!(#[pyo3(str)]),
         ];
 
         pretty_assertions::assert_eq!(py_enum.attrs, expected);
