@@ -145,6 +145,7 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::<rules::HostPathLiteralsRule>::default(),
         Box::<rules::ContainerUriRule>::default(),
         Box::<rules::RequirementsSectionRule>::default(),
+        Box::<rules::DeprecatedRuntimeSectionRule>::default(),
         Box::<rules::ExceptDirectiveValidRule>::default(),
         Box::<rules::ParameterDescriptionRule>::default(),
         Box::<rules::ConciseInputRule>::default(),
