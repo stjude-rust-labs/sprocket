@@ -113,8 +113,8 @@ mod tests {
 
         assert!(str_default_args.str_);
 
-        // This is supported by `#[pyclass]`, but is incompatible with `#[pyclass(name = ...)]` so
-        // we don't allow it.
+        // This is supported by `#[pyclass]`, but is incompatible with `#[pyclass(name =
+        // ...)]` so we don't allow it.
         let str_format_stream = quote!(str = "Hello, {name:?}!");
         let result = Args::parse(str_format_stream);
 
