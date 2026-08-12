@@ -2,7 +2,7 @@
 ## The `input:` keyword is optional in version 1.3 and should be omitted.
 
 #@ except: BashSetSyntax, MatchingOutputMeta, MetaDescription, ParameterMetaMatched
-#@ except: RequirementsSection
+#@ except: DeprecatedRuntimeSection, RequirementsSection
 
 version 1.3
 

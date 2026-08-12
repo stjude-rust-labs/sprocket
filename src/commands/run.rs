@@ -998,3 +998,43 @@ fn initialize_file_logging(handle: FileReloadHandle, run_dir: &Path) -> Result<(
         .reload(layer().with_ansi(false).with_writer(log_file))
         .context("failed to initialize file logging")
 }
+
+#[cfg(test)]
+mod tests {
+    use wdl::engine::Value;
+
+    use super::*;
+
+    /// Regression test for https://github.com/stjude-rust-labs/sprocket/issues/1051.
+    ///
+    /// Reproduces the reported repro: a workflow input (`wf.name`) plus a
+    /// `requirements` override on a nested call
+    /// (`wf.hello.requirements.memory`). Both must survive the
+    /// `inputs_to_json` round-trip used by `dev server submit`/`retry`.
+    #[test]
+    fn inputs_to_json_preserves_nested_call_requirements() {
+        let mut task_inputs = TaskInputs::default();
+        task_inputs.override_requirement("memory", Value::from("2 GB".to_string()));
+
+        let mut workflow_inputs = WorkflowInputs::default();
+        workflow_inputs.set("name", Value::from("sprocket".to_string()));
+        workflow_inputs
+            .calls_mut()
+            .insert("hello".to_string(), Inputs::Task(task_inputs));
+
+        let json = inputs_to_json("wf", &Inputs::Workflow(workflow_inputs))
+            .expect("should serialize to JSON");
+        let value: serde_json::Value = serde_json::from_str(&json).expect("should be valid JSON");
+        let obj = value.as_object().expect("should be a JSON object");
+
+        assert_eq!(
+            obj.get("wf.name").and_then(JsonValue::as_str),
+            Some("sprocket")
+        );
+        assert_eq!(
+            obj.get("wf.hello.requirements.memory")
+                .and_then(JsonValue::as_str),
+            Some("2 GB")
+        );
+    }
+}

@@ -618,7 +618,7 @@ impl<'a> State<'a> {
             // matching guest prefix
             for (host, guest) in self.path_map.iter() {
                 // Check to see if the provided guest path is prefixed by this entry
-                if let Some(remainder) = strip_path_prefix(path.0.as_str(), guest.0.as_str()) {
+                if let Some(remainder) = strip_path_prefix(path, guest) {
                     // If the host is a URL, parse it and join it with the remainder
                     if is_supported_url(host.as_str()) {
                         let mut host: Url = host.as_str().parse().ok()?;
@@ -635,7 +635,7 @@ impl<'a> State<'a> {
                     }
 
                     // Otherwise, join paths
-                    let joined = Path::new(host.0.as_str()).join(remainder);
+                    let joined = Path::new(host.as_str()).join(remainder);
                     return Some(HostPath::new(joined.into_os_string().into_string().ok()?));
                 }
             }
@@ -669,12 +669,10 @@ impl<'a> State<'a> {
 
                 match (&path_url, &host_url) {
                     (None, None) => {
-                        if let Some(remainder) = strip_path_prefix(path.0.as_str(), host.0.as_str())
-                        {
+                        if let Some(remainder) = strip_path_prefix(path, host) {
                             // Note: guest paths are always Unix-style paths
                             return Some(GuestPath::new(format!(
-                                "{base}/{remainder}",
-                                base = guest.0.trim_end_matches('/'),
+                                "{guest}/{remainder}",
                                 remainder = remainder.replace('\\', "/")
                             )));
                         }
@@ -682,10 +680,7 @@ impl<'a> State<'a> {
                     (Some(path_url), Some(host_url)) => {
                         if let Some(remainder) = strip_url_path_prefix(path_url, host_url) {
                             // Note: guest paths are always Unix-style paths
-                            return Some(GuestPath::new(format!(
-                                "{base}/{remainder}",
-                                base = guest.0.trim_end_matches('/')
-                            )));
+                            return Some(GuestPath::new(format!("{guest}/{remainder}",)));
                         }
                     }
                     _ => continue,
@@ -1303,7 +1298,7 @@ impl<'a> State<'a> {
                     }
 
                     // Check for known input paths if this is a guest path
-                    if let Some(host) = self.host_path(&GuestPath(path.0.clone())) {
+                    if let Some(host) = self.host_path(&path.into()) {
                         return Ok(host);
                     }
 
@@ -2014,7 +2009,7 @@ impl Evaluator {
             let Some(guest) = state
                 .path_map
                 .right_values()
-                .find(|p| symlink_guest_path.starts_with(p.0.as_str()))
+                .find(|p| symlink_guest_path.starts_with(p))
             else {
                 bail!(
                     "`{path}` links to guest path `{link_path}` but it is not to a task input or \
@@ -2054,12 +2049,12 @@ impl Evaluator {
                             )
                         })?
                 } else {
-                    Path::new(host.0.as_str())
+                    host.as_ref()
                 };
 
             // Translate the guest path to the corresponding host path
             let symlink_host_path: Cow<'_, Path> = if let Ok(stripped) =
-                symlink_guest_path.strip_prefix(guest.0.as_str())
+                symlink_guest_path.strip_prefix(guest)
                 && !stripped.as_os_str().is_empty()
             {
                 Cow::Owned(base_host_path.join(stripped))

@@ -29,6 +29,12 @@
   </p>
 </p>
 
+## 🐍 Minimum Supported Python Version
+
+The minimum supported Python version is currently 3.10.
+
+`sprocket_bio` supports the oldest Python version still receiving security updates. It will drop support for Python versions as they reach end-of-life. For more information, please see [Python's Version Status page](https://devguide.python.org/versions/).
+
 ## 🖥️ Development
 
 `sprocket_bio` requires Python 3.10 or greater, which you can [install from python.org](https://www.python.org/downloads/) or from your favorite package manager. Once you have Python installed, you can set up your development environment with the following commands:

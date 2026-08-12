@@ -793,10 +793,9 @@ impl Serialize for WorkflowInputs {
             let serialized = serde_json::to_value(v).map_err(|_| {
                 serde::ser::Error::custom(format!("failed to serialize inputs for call `{k}`"))
             })?;
-            let mut map = serde_json::Map::new();
             if let JsonValue::Object(obj) = serialized {
                 for (inner, value) in obj {
-                    map.insert(format!("{k}.{inner}"), value);
+                    map.serialize_entry(&format!("{k}.{inner}"), &value)?;
                 }
             }
         }
@@ -1157,5 +1156,174 @@ impl Serialize for Inputs {
             Self::Task(inputs) => inputs.serialize(serializer),
             Self::Workflow(inputs) => inputs.serialize(serializer),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Regression test for issue #1051: `WorkflowInputs::Serialize` was
+    /// dropping call-nested inputs (task input overrides, requirements,
+    /// hints) because of a variable-shadowing bug in the calls-iteration
+    /// loop.
+    #[test]
+    fn workflow_serialize_preserves_call_inputs() {
+        // Workflow with:
+        //   - top-level input `name = "sprocket"`
+        //   - call `hello` with:
+        //       - task input `name = "sprocket"`
+        //       - requirement override `memory = "5 GB"`
+        //       - hint override `some_hint = "value"`
+        let mut workflow = WorkflowInputs::default();
+        workflow.set("name", String::from("sprocket"));
+
+        let mut hello = TaskInputs::default();
+        hello.set("name", String::from("sprocket"));
+        hello.override_requirement("memory", String::from("5 GB"));
+        hello.override_hint("some_hint", String::from("value"));
+        workflow
+            .calls_mut()
+            .insert("hello".to_string(), Inputs::Task(hello));
+
+        let serialized = serde_json::to_value(&workflow).expect("should serialize");
+        let object = serialized
+            .as_object()
+            .expect("workflow inputs should serialize to a JSON object");
+
+        assert_eq!(
+            object.get("name").and_then(|v| v.as_str()),
+            Some("sprocket"),
+            "top-level workflow input `name` should be present"
+        );
+        assert_eq!(
+            object.get("hello.name").and_then(|v| v.as_str()),
+            Some("sprocket"),
+            "call-nested input `hello.name` should be present"
+        );
+        assert_eq!(
+            object
+                .get("hello.requirements.memory")
+                .and_then(|v| v.as_str()),
+            Some("5 GB"),
+            "call-nested requirement `hello.requirements.memory` should be present"
+        );
+        assert_eq!(
+            object.get("hello.hints.some_hint").and_then(|v| v.as_str()),
+            Some("value"),
+            "call-nested hint `hello.hints.some_hint` should be present"
+        );
+    }
+
+    /// Regression check: workflow inputs with no nested calls must still
+    /// serialize correctly (this path was never broken but is worth locking
+    /// in).
+    #[test]
+    fn workflow_serialize_only_workflow_inputs_still_works() {
+        let mut workflow = WorkflowInputs::default();
+        workflow.set("name", String::from("sprocket"));
+        workflow.set("count", 42i64);
+
+        let serialized = serde_json::to_value(&workflow).expect("should serialize");
+        let object = serialized
+            .as_object()
+            .expect("workflow inputs should serialize to a JSON object");
+
+        assert_eq!(object.len(), 2, "should have exactly 2 top-level entries");
+        assert_eq!(
+            object.get("name").and_then(|v| v.as_str()),
+            Some("sprocket")
+        );
+        assert_eq!(object.get("count").and_then(|v| v.as_i64()), Some(42));
+    }
+
+    /// Verifies that multiple calls with disjoint inputs all survive
+    /// serialization.
+    #[test]
+    fn workflow_serialize_multiple_calls() {
+        let mut workflow = WorkflowInputs::default();
+
+        let mut first = TaskInputs::default();
+        first.set("greeting", String::from("hello"));
+        workflow
+            .calls_mut()
+            .insert("first".to_string(), Inputs::Task(first));
+
+        let mut second = TaskInputs::default();
+        second.set("greeting", String::from("bonjour"));
+        second.override_requirement("cpu", 4i64);
+        workflow
+            .calls_mut()
+            .insert("second".to_string(), Inputs::Task(second));
+
+        let serialized = serde_json::to_value(&workflow).expect("should serialize");
+        let object = serialized
+            .as_object()
+            .expect("workflow inputs should serialize to a JSON object");
+
+        assert_eq!(
+            object.get("first.greeting").and_then(|v| v.as_str()),
+            Some("hello"),
+            "first call's input should be present"
+        );
+        assert_eq!(
+            object.get("second.greeting").and_then(|v| v.as_str()),
+            Some("bonjour"),
+            "second call's input should be present"
+        );
+        assert_eq!(
+            object
+                .get("second.requirements.cpu")
+                .and_then(|v| v.as_i64()),
+            Some(4),
+            "second call's requirement override should be present"
+        );
+    }
+
+    /// Verifies the recursive case: a call that is itself a nested workflow.
+    /// The inner `WorkflowInputs::Serialize` must also propagate its call
+    /// entries to the outer serializer.
+    #[test]
+    fn workflow_serialize_nested_workflow_call() {
+        // Outer workflow contains a call to another workflow, which itself
+        // contains a task call. Verify all levels survive the recursion.
+        let mut inner_task = TaskInputs::default();
+        inner_task.override_requirement("memory", String::from("2 GB"));
+
+        let mut inner_workflow = WorkflowInputs::default();
+        inner_workflow.set("greeting", String::from("hi"));
+        inner_workflow
+            .calls_mut()
+            .insert("inner_task".to_string(), Inputs::Task(inner_task));
+
+        let mut outer = WorkflowInputs::default();
+        outer.set("name", String::from("sprocket"));
+        outer
+            .calls_mut()
+            .insert("sub".to_string(), Inputs::Workflow(inner_workflow));
+
+        let serialized = serde_json::to_value(&outer).expect("should serialize");
+        let object = serialized
+            .as_object()
+            .expect("workflow inputs should serialize to a JSON object");
+
+        assert_eq!(
+            object.get("name").and_then(|v| v.as_str()),
+            Some("sprocket"),
+            "outer top-level input should be present"
+        );
+        assert_eq!(
+            object.get("sub.greeting").and_then(|v| v.as_str()),
+            Some("hi"),
+            "inner workflow's top-level input should be present with `sub.` prefix"
+        );
+        assert_eq!(
+            object
+                .get("sub.inner_task.requirements.memory")
+                .and_then(|v| v.as_str()),
+            Some("2 GB"),
+            "doubly-nested requirement should survive recursion through both \
+             `WorkflowInputs::Serialize` calls"
+        );
     }
 }

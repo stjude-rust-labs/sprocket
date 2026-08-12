@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fixing a bug where `dev server inspect` would display the output-directory
   prefix twice for runs started via `sprocket run`
   ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
+* `dev server` task endpoints now return `404 Not Found` for missing task
+  lookups, including missing task logs, instead of returning empty log results
+  or generic internal errors
+  ([#956](https://github.com/stjude-rust-labs/sprocket/pull/956)).
 
 ## 0.29.0 - 2026-08-05
 
