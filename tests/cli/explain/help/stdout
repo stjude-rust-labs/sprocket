@@ -70,6 +70,7 @@ Available rules:
   - DenyGlobStar
   - DeprecatedObject
   - DeprecatedPlaceholder
+  - DeprecatedRuntimeSection
   - DescriptionLength
   - DocCommentTabs
   - DocMetaStrings

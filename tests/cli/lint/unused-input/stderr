@@ -1,0 +1,14 @@
+note[MetaSections]: workflow `test` is missing both `meta` and `parameter_meta` sections
+  ┌─ unused-input.wdl:3:10
+  │
+3 │ workflow test {
+  │          ^^^^ this workflow is missing both `meta` and `parameter_meta` sections
+  │
+  = fix: add both the `meta` and `parameter_meta` sections
+
+warning[UnusedInput]: unused input `unused_value`
+  ┌─ unused-input.wdl:5:13
+  │
+5 │         Int unused_value
+  │             ^^^^^^^^^^^^
+
