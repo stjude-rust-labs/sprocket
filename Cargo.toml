@@ -210,6 +210,7 @@ nonempty.workspace = true
 opener.workspace = true
 path-clean.workspace = true
 pathdiff.workspace = true
+petgraph.workspace = true
 petname.workspace = true
 pretty_assertions.workspace = true
 rand.workspace = true

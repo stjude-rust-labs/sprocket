@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added `sprocket dev flowchart mermaid` to render WDL workflows as Mermaid diagrams.
+
 ### Changed
 
 * `sprocket dev server inspect` now shows the run's `Directory:` and

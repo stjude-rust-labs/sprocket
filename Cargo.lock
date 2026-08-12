@@ -5065,6 +5065,7 @@ dependencies = [
  "opener",
  "path-clean",
  "pathdiff",
+ "petgraph",
  "petname",
  "pretty_assertions",
  "rand 0.10.1",
