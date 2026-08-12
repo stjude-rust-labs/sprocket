@@ -2935,7 +2935,7 @@ mod tests {
         ]
     }
 
-    #[test]
+    #[test_log::test]
     fn smoke() {
         let scopes = example_scopes();
 
@@ -2972,7 +2972,7 @@ mod tests {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn type_conflicts() {
         // Test scopes with type conflicts
         // if (...) {
