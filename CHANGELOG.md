@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Added `sprocket dev flowchart mermaid` to render WDL workflows as Mermaid diagrams.
+
 ### Fixed
 
 * `dev server` task endpoints now return `404 Not Found` for missing task

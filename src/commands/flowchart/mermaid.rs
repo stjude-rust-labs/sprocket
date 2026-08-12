@@ -37,14 +37,6 @@ pub struct Args {
     #[clap(value_name = "SOURCE")]
     pub source: Source,
 
-    /// The name of the workflow to render.
-    ///
-    /// If not specified and the document contains exactly one workflow, that
-    /// workflow is used. If the document contains multiple workflows, this
-    /// argument is required.
-    #[clap(short, long, value_name = "NAME")]
-    pub workflow: Option<String>,
-
     /// The maximum recursion depth when expanding called workflows.
     ///
     /// Defaults to unlimited. Pass `0` to disable expansion entirely (all
@@ -95,30 +87,10 @@ pub async fn mermaid(args: Args, config: &Config, colorize: bool) -> CommandResu
         return Err(anyhow!("document does not use a supported WDL v1 version").into());
     };
 
-    let mut workflows: Vec<_> = v1.workflows().collect();
-
-    let workflow = match &args.workflow {
-        Some(name) => workflows
-            .into_iter()
-            .find(|w| w.name().text() == name.as_str())
-            .ok_or_else(|| anyhow!("no workflow named `{name}` was found in the document"))?,
-        None => {
-            if workflows.len() > 1 {
-                let names: Vec<_> = workflows
-                    .iter()
-                    .map(|w| w.name().text().to_owned())
-                    .collect();
-                return Err(anyhow!(
-                    "document contains multiple workflows (`{}`); use `--workflow` to specify one",
-                    names.join("`, `")
-                )
-                .into());
-            }
-            workflows
-                .pop()
-                .ok_or_else(|| anyhow!("document does not contain any workflows"))?
-        }
-    };
+    let workflow = v1
+        .workflows()
+        .next()
+        .ok_or_else(|| anyhow!("document does not contain any workflows"))?;
 
     let diagram = render_mermaid(&workflow, &document, args.depth);
     println!("{diagram}");
@@ -196,8 +168,7 @@ struct Block {
 #[derive(Default)]
 struct MermaidCtx {
     counter: usize,
-    /// Tracks which workflow URIs have already been expanded to prevent
-    /// infinite recursion through mutually-recursive workflows.
+    /// Tracks workflow URI-and-name keys that have already been expanded.
     expanded: HashSet<String>,
     /// Maximum recursion depth for workflow expansion. `None` means unlimited.
     max_depth: Option<usize>,
@@ -372,10 +343,7 @@ impl MermaidCtx {
                 let has_else = clauses
                     .iter()
                     .any(|c| c.kind() == ConditionalStatementClauseKind::Else);
-                let is_multi_clause = clauses.len() > 1
-                    || clauses
-                        .first()
-                        .is_some_and(|c| c.kind() != ConditionalStatementClauseKind::If);
+                let is_multi_clause = clauses.len() > 1;
 
                 let diamond_id = self.next_id();
 
@@ -498,7 +466,7 @@ impl MermaidCtx {
         let uri = callee_doc.uri().to_string();
         let cycle_key = format!("{uri}#{}", wf_def.name().text());
 
-        // Cycle guard: render as a plain node if already expanding this workflow.
+        // Render as a plain node if this workflow has already been expanded.
         if !self.expanded.insert(cycle_key) {
             return self.emit_call_node(label, target, out, indent);
         }
@@ -640,7 +608,8 @@ fn statement_key(statement: &WorkflowStatement) -> Option<SyntaxNode> {
 
 /// Escapes characters that have special meaning in `Mermaid` label strings.
 fn escape(s: &str) -> String {
-    s.replace('"', "&quot;")
+    s.replace('&', "&amp;")
+        .replace('"', "&quot;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
 }
@@ -649,7 +618,7 @@ fn escape(s: &str) -> String {
 mod tests {
     use super::*;
 
-    async fn render(source: &str) -> String {
+    async fn render(source: &str, depth: Option<usize>) -> String {
         // SAFETY: the operating system can create a temporary directory for the test.
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("test.wdl");
@@ -681,7 +650,58 @@ mod tests {
             // SAFETY: each test source declares one workflow.
             .unwrap();
 
-        render_mermaid(&workflow, &document, Some(0))
+        render_mermaid(&workflow, &document, depth)
+    }
+
+    async fn render_with_child(root: &str, child: &str, depth: Option<usize>) -> String {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("test.wdl");
+        std::fs::write(&path, root).unwrap();
+        std::fs::write(directory.path().join("child.wdl"), child).unwrap();
+        let source: Source = path.to_string_lossy().parse().unwrap();
+        let results = Analysis::default()
+            .add_source(source.clone())
+            .run(Mode::default(), false)
+            .await
+            .unwrap();
+        let document = results
+            .filter(&[&source])
+            .next()
+            .unwrap()
+            .document()
+            .clone();
+        let workflow = document
+            .root()
+            .ast()
+            .into_v1()
+            .unwrap()
+            .workflows()
+            .next()
+            .unwrap();
+        render_mermaid(&workflow, &document, depth)
+    }
+
+    #[test]
+    fn escapes_mermaid_label_entities() {
+        assert_eq!(escape("~{bam} & < > \""), "~{bam} &amp; &lt; &gt; &quot;");
+    }
+
+    #[tokio::test]
+    async fn expands_workflows_below_the_depth_cap() {
+        let root = "version 1.0\nimport \"child.wdl\" as child\nworkflow root { scatter (item in \
+                    [1]) { call child.child } }";
+        let child =
+            "version 1.0\ntask noop { command <<< echo noop >>> }\nworkflow child { call noop }";
+
+        let capped = render_with_child(root, child, Some(0)).await;
+
+        assert!(capped.contains("n2[\"child<br/><i>child.child</i>\"]"));
+        assert!(!capped.contains("subgraph n2[\"child (child.child)\"]"));
+        assert!(
+            render_with_child(root, child, Some(1))
+                .await
+                .contains("subgraph n2[\"child (child.child)\"]")
+        );
     }
 
     #[tokio::test]
@@ -716,7 +736,7 @@ workflow test {
 }
 "#;
 
-        let diagram = render(source).await;
+        let diagram = render(source, Some(0)).await;
 
         assert!(diagram.contains("n0 --> n1"));
         assert!(diagram.contains("n0 --> n2"));
@@ -742,6 +762,7 @@ workflow test {
     call consume { input: value = select_first([selected, "no"]) }
 }
 "#,
+            Some(0),
         )
         .await;
 
@@ -770,6 +791,7 @@ workflow test {
     call consume { input: value = select_first([selected, "none"]) }
 }
 "#,
+            Some(0),
         )
         .await;
 
@@ -803,10 +825,10 @@ workflow test {
     }
 }
 "#;
-        let expected = render(source).await;
+        let expected = render(source, Some(0)).await;
 
         for _ in 0..16 {
-            assert_eq!(render(source).await, expected);
+            assert_eq!(render(source, Some(0)).await, expected);
         }
     }
 }

@@ -808,20 +808,12 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__flowchart__subcmd__mermaid)
-            opts="-w -m -v -q -c -s -h -V --workflow --depth --report-mode --verbose --quiet --color --config --skip-config-search --help --version <SOURCE>"
+            opts="-m -v -q -c -s -h -V --depth --report-mode --verbose --quiet --color --config --skip-config-search --help --version <SOURCE>"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
             fi
             case "${prev}" in
-                --workflow)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
-                -w)
-                    COMPREPLY=($(compgen -f "${cur}"))
-                    return 0
-                    ;;
                 --depth)
                     COMPREPLY=($(compgen -f "${cur}"))
                     return 0

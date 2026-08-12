@@ -140,7 +140,7 @@ pub enum Commands {
 pub enum DevCommands {
     /// Document a workspace.
     Doc(doc::Args),
-    /// Renders a `WDL` workflow as a diagram.
+    /// Renders a WDL workflow as a diagram.
     #[command(subcommand)]
     Flowchart(flowchart::Args),
     /// Locks Docker images to a sha256 digest.
