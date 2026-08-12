@@ -26,6 +26,7 @@ use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use wdl::diagnostics::Mode;
+use wdl::engine::config::LocalBackendConfig;
 
 /// Create a test server with real database and filesystem.
 #[bon::builder]
@@ -2256,10 +2257,14 @@ async fn missing_run_action_endpoints_return_404(pool: sqlx::SqlitePool) {
 /// as the cancellation that task execution reports, so the run's outcome has to
 /// be classified from the cancellation context.
 #[sqlx::test]
-#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
 async fn cancel_run_during_input_transfer(pool: sqlx::SqlitePool) {
     use tokio::io::AsyncReadExt as _;
     use tokio::io::AsyncWriteExt as _;
+
+    let mut engine = wdl::engine::Config::default();
+    engine
+        .backends
+        .insert("default".into(), LocalBackendConfig::default().into());
 
     /// The advertised size of the input the origin never finishes sending.
     const INPUT_SIZE: usize = 1024 * 1024;
@@ -2305,6 +2310,7 @@ async fn cancel_run_during_input_transfer(pool: sqlx::SqlitePool) {
 
     let (app, db, temp) = create_test_server()
         .pool(pool)
+        .engine(engine)
         .allowed_urls(vec![format!("http://127.0.0.1:{port}/")])
         .call()
         .await;

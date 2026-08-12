@@ -57,7 +57,7 @@ pub fn status_color(status: &RunStatus) -> Color {
         RunStatus::Canceled => Color::Yellow,
         RunStatus::Canceling => Color::Yellow,
         RunStatus::Running => Color::Cyan,
-        RunStatus::Analyzing => Color::Cyan,
+        RunStatus::Analyzing => Color::Magenta,
         RunStatus::Queued => Color::White,
     }
 }
