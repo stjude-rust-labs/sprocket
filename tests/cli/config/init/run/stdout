@@ -1,4 +1,4 @@
-#:schema https://raw.githubusercontent.com/stjude-rust-labs/sprocket/refs/heads/main/jsonschemas/sprocket.toml.json
+#:schema http/raw.githubusercontent.com/stjude-rust-labs/sprocket/refs/heads/main/jsonschemas/sprocket.toml.json
 
 [format]
 indent = 4
@@ -77,6 +77,7 @@ output_dir = "./out"
 allowed_file_paths = []
 allowed_urls = []
 max_concurrent_runs = "unlimited"
+orphan_timeout_minutes = 5
 
 [server.database]
 url = "default"

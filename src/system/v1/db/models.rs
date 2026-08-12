@@ -32,6 +32,13 @@ pub enum RunStatus {
     Canceling,
     /// The run was canceled.
     Canceled,
+    /// The run was orphaned.
+    ///
+    /// The process that owned it stopped without reaching a terminal state, so
+    /// Sprocket can no longer observe or cancel it. Distinct from `Failed`
+    /// because the workflow never reported an error; work already dispatched
+    /// to an external backend may still be running.
+    Orphaned,
 }
 
 impl fmt::Display for RunStatus {
@@ -43,6 +50,7 @@ impl fmt::Display for RunStatus {
             RunStatus::Failed => write!(f, "failed"),
             RunStatus::Canceling => write!(f, "canceling"),
             RunStatus::Canceled => write!(f, "canceled"),
+            RunStatus::Orphaned => write!(f, "orphaned"),
         }
     }
 }
@@ -58,6 +66,7 @@ impl FromStr for RunStatus {
             "failed" => Ok(RunStatus::Failed),
             "canceling" => Ok(RunStatus::Canceling),
             "canceled" => Ok(RunStatus::Canceled),
+            "orphaned" => Ok(RunStatus::Orphaned),
             _ => Err(()),
         }
     }
@@ -112,6 +121,8 @@ pub enum TaskStatus {
     Canceled,
     /// Task was preempted.
     Preempted,
+    /// Task was orphaned along with the run that owned it.
+    Orphaned,
 }
 
 impl fmt::Display for TaskStatus {
@@ -123,6 +134,7 @@ impl fmt::Display for TaskStatus {
             TaskStatus::Failed => write!(f, "failed"),
             TaskStatus::Canceled => write!(f, "canceled"),
             TaskStatus::Preempted => write!(f, "preempted"),
+            TaskStatus::Orphaned => write!(f, "orphaned"),
         }
     }
 }
@@ -138,6 +150,7 @@ impl FromStr for TaskStatus {
             "failed" => Ok(TaskStatus::Failed),
             "canceled" => Ok(TaskStatus::Canceled),
             "preempted" => Ok(TaskStatus::Preempted),
+            "orphaned" => Ok(TaskStatus::Orphaned),
             _ => Err(format!("invalid task status: {}", s)),
         }
     }
@@ -187,6 +200,11 @@ pub struct Session {
     pub created_by: String,
     /// Timestamp when the session was created.
     pub created_at: DateTime<Utc>,
+    /// Timestamp of the most recent liveness heartbeat recorded by the process
+    /// that owns this session.
+    ///
+    /// `None` for sessions created before heartbeats were introduced.
+    pub heartbeat_at: Option<DateTime<Utc>>,
 }
 
 /// Run record.

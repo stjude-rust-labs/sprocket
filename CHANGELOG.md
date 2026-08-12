@@ -7,7 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Runs whose owning process stops reporting are marked `orphaned` after
+  `server.orphan_timeout_minutes` (default `5`), rather than remaining
+  `running` indefinitely
+  ([#1109](https://github.com/stjude-rust-labs/sprocket/pull/1109)).
+
 ### Fixed
+
+* `dev server cancel` no longer reports success for a run this server instance
+  is not tracking. Cancelling a run left behind by a previous server process
+  silently did nothing while the run stayed `running`; it now returns
+  `409 Conflict` explaining that the run was orphaned
+  ([#1109](https://github.com/stjude-rust-labs/sprocket/pull/1109)).
 
 * `dev server` task endpoints now return `404 Not Found` for missing task
   lookups, including missing task logs, instead of returning empty log results

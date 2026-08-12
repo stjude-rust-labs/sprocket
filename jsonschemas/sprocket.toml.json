@@ -1249,6 +1249,13 @@
         "engine": {
           "description": "The engine configuration to use during execution.",
           "$ref": "#/$defs/WdlEngineConfig"
+        },
+        "orphan_timeout_minutes": {
+          "description": "How many minutes a session may go without recording a heartbeat before\nthe runs it owns are marked `orphaned`. Applies to `sprocket run`\ninvocations as well as servers.",
+          "type": "integer",
+          "format": "uint64",
+          "minimum": 0,
+          "default": 5
         }
       },
       "additionalProperties": false

@@ -58,6 +58,7 @@ pub fn status_color(status: &RunStatus) -> Color {
         RunStatus::Canceling => Color::Yellow,
         RunStatus::Running => Color::Cyan,
         RunStatus::Queued => Color::White,
+        RunStatus::Orphaned => Color::Red,
     }
 }
 
@@ -70,6 +71,7 @@ pub fn task_status_color(status: TaskStatus) -> Color {
         TaskStatus::Failed => Color::Red,
         TaskStatus::Canceled => Color::Yellow,
         TaskStatus::Preempted => Color::Yellow,
+        TaskStatus::Orphaned => Color::Red,
     }
 }
 
@@ -93,6 +95,7 @@ pub fn task_counts_summary(counts: &RunTaskCountsResponse, colorize: bool) -> Op
         ("failed", counts.failed, TaskStatus::Failed),
         ("canceled", counts.canceled, TaskStatus::Canceled),
         ("preempted", counts.preempted, TaskStatus::Preempted),
+        ("orphaned", counts.orphaned, TaskStatus::Orphaned),
     ];
 
     let parts = entries
@@ -368,6 +371,7 @@ mod tests {
             failed,
             canceled,
             preempted,
+            orphaned: 0,
             total: pending + running + completed + failed + canceled + preempted,
         }
     }
