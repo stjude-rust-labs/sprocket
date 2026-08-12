@@ -303,17 +303,7 @@ impl fmt::Display for TypeRef {
 
 /// Represents a kind of primitive type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(
-    feature = "unstable-python",
-    pyo3::pyclass(
-        module = "sprocket_bio.ast.v1",
-        frozen,
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-        eq,
-        ord
-    )
-)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)] // TODO: add `ord`
 pub enum PrimitiveTypeKind {
     /// The primitive is a `Boolean`.
     Boolean,

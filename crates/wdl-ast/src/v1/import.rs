@@ -74,16 +74,7 @@ impl<N: TreeNode> ImportSource<N> {
 /// Callers dispatch on this and then reach for `members`,
 /// `explicit_namespace`, or `aliases` as the form requires.
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(
-    feature = "unstable-python",
-    pyo3::pyclass(
-        module = "sprocket_bio.ast.v1",
-        frozen,
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-        eq
-    )
-)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub enum ImportForm {
     /// `import <source> [as <alias>] (alias <Old> as <New>)*`. Introduces
     /// a namespace through which the imported module's tasks and workflows

@@ -740,17 +740,7 @@ impl<N: TreeNode> WorkflowStatement<N> {
 
 /// A kind of conditional statement clause.
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(
-    feature = "unstable-python",
-    pyo3::pyclass(
-        module = "sprocket_bio.ast.v1",
-        frozen,
-        from_py_object,
-        rename_all = "SCREAMING_SNAKE_CASE",
-        eq,
-        str,
-    )
-)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
 pub enum ConditionalStatementClauseKind {
     /// The initial `if` clause.
     If,
