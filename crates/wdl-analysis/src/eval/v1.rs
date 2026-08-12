@@ -1286,7 +1286,7 @@ mod test {
 
     use super::*;
 
-    #[test]
+    #[test_log::test]
     fn test_input_dependency_handling() {
         let source = r#"
         version 1.1

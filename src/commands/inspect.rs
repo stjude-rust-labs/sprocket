@@ -134,6 +134,33 @@ const TASK_STATUS_WIDTH: usize = 12;
 /// Width of the task duration column in the detailed task table.
 const TASK_DURATION_WIDTH: usize = 14;
 
+/// Resolves the run's directory to display, joining it with the server's
+/// output-directory root when that root is known.
+///
+/// When `output_dir` is `Some` and `directory` is run-relative (i.e. starts
+/// with the standard `runs/` subdirectory, as stored for runs created after
+/// this joining behavior was introduced), the result is an absolute,
+/// copy-pasteable path that combines the server's output-directory root with
+/// `directory`.
+///
+/// Falls back to `directory` as-is when `output_dir` is `None` (e.g. the
+/// server's `/info` endpoint is unavailable), or when `directory` does not
+/// look run-relative — which is the case for runs recorded before this
+/// joining behavior was introduced, whose stored `directory` already has an
+/// output-directory prefix baked in. Joining those legacy values again would
+/// duplicate the prefix, so they're displayed unmodified instead.
+pub fn resolve_display_directory(output_dir: Option<&str>, directory: &str) -> std::path::PathBuf {
+    let directory_path = std::path::Path::new(directory);
+    let is_run_relative = directory_path
+        .strip_prefix(crate::system::v1::fs::RUNS_DIR)
+        .is_ok();
+
+    match (output_dir, is_run_relative) {
+        (Some(output_dir), true) => std::path::Path::new(output_dir).join(directory),
+        _ => directory_path.to_path_buf(),
+    }
+}
+
 /// Builds a single aligned row describing a task for the detailed listing.
 ///
 /// The row contains the task name, status, duration, and a trailing detail
@@ -284,22 +311,25 @@ pub async fn inspect(args: Args, config: Config, colorize: bool) -> CommandResul
     }
 
     if let Some(directory) = &run.directory {
-        field!("Directory:", format!("`{directory}`"));
+        // When the server's output-directory root is known, join it with the
+        // run-relative directory so the printed paths are absolute and can be
+        // copy-pasted directly, rather than requiring the user to manually
+        // combine a separate `Output Dir:` line with a relative path.
+        let display_directory = resolve_display_directory(
+            server_info.as_ref().map(|info| info.output_dir.as_str()),
+            directory,
+        );
+
+        field!("Directory:", format!("`{}`", display_directory.display()));
 
         // Note the outputs file location if outputs are available.
         if run.outputs.is_some() {
-            let outputs_path = std::path::Path::new(directory).join("outputs.json");
+            let outputs_path = display_directory.join("outputs.json");
             field!(
                 "Outputs:",
                 format!("available at `{}`", outputs_path.display())
             );
         }
-    }
-
-    // Surface the server's output-directory root so users can resolve the
-    // run-relative paths above to absolute filesystem locations.
-    if let Some(info) = &server_info {
-        field!("Output Dir:", format!("`{}`", info.output_dir));
     }
 
     if let Some(error) = &run.error {
@@ -497,5 +527,41 @@ mod tests {
         assert!(!line.contains("elapsed"));
         assert!(!line.contains("exit"));
         assert_eq!(line, line.trim_end());
+    }
+
+    #[test]
+    fn resolve_display_directory_joins_when_output_dir_known() {
+        let path =
+            resolve_display_directory(Some("/srv/out"), "runs/main/2026-08-05_184704202824237");
+        assert_eq!(
+            path,
+            std::path::PathBuf::from("/srv/out/runs/main/2026-08-05_184704202824237")
+        );
+    }
+
+    #[test]
+    fn resolve_display_directory_does_not_double_prefix_legacy_directories() {
+        // Runs recorded before run-relative storage was introduced have a
+        // `directory` value that already includes the (possibly relative)
+        // output-directory prefix baked in (e.g. `./out/runs/...`). Joining
+        // that with the server's current output_dir would duplicate it, so
+        // it should be displayed unmodified instead.
+        let path = resolve_display_directory(
+            Some("/srv/out"),
+            "./out/runs/main/2026-07-31_162307281141000",
+        );
+        assert_eq!(
+            path,
+            std::path::PathBuf::from("./out/runs/main/2026-07-31_162307281141000")
+        );
+    }
+
+    #[test]
+    fn resolve_display_directory_falls_back_when_output_dir_unknown() {
+        let path = resolve_display_directory(None, "runs/main/2026-08-05_184704202824237");
+        assert_eq!(
+            path,
+            std::path::PathBuf::from("runs/main/2026-08-05_184704202824237")
+        );
     }
 }

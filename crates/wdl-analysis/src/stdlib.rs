@@ -5186,7 +5186,7 @@ mod test {
 
     use super::*;
 
-    #[test]
+    #[test_log::test]
     fn verify_stdlib_signatures() {
         let mut signatures = Vec::new();
         for (name, f) in STDLIB.functions() {
@@ -5306,7 +5306,7 @@ mod test {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn it_binds_a_simple_function() {
         let f = STDLIB.function("floor").expect("should have function");
         assert_eq!(f.minimum_version(), SupportedVersion::V1(V1::Zero));
@@ -5367,7 +5367,7 @@ mod test {
         assert_eq!(binding.return_type().to_string(), "Int");
     }
 
-    #[test]
+    #[test_log::test]
     fn it_binds_a_generic_function() {
         let f = STDLIB.function("values").expect("should have function");
         assert_eq!(f.minimum_version(), SupportedVersion::V1(V1::Two));
@@ -5433,7 +5433,7 @@ mod test {
         assert_eq!(binding.return_type().to_string(), "Array[Object]");
     }
 
-    #[test]
+    #[test_log::test]
     fn it_removes_qualifiers() {
         let f = STDLIB.function("select_all").expect("should have function");
         assert_eq!(f.minimum_version(), SupportedVersion::V1(V1::Zero));
@@ -5472,7 +5472,7 @@ mod test {
         assert_eq!(binding.return_type().to_string(), "Array[Array[String]]");
     }
 
-    #[test]
+    #[test_log::test]
     fn it_binds_concrete_overloads() {
         let f = STDLIB.function("max").expect("should have function");
         assert_eq!(f.minimum_version(), SupportedVersion::V1(V1::One));
@@ -5595,7 +5595,7 @@ mod test {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn it_binds_generic_overloads() {
         let f = STDLIB
             .function("select_first")
