@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* Apptainer `.sif` image pulls are now coordinated across concurrent runs and
+  across Sprocket processes that share a cache directory, so a given image is
+  pulled at most once instead of once per run. Added an optional
+  `apptainer.max_concurrent_pulls` setting to cap how many pulls for distinct
+  images may run at the same time; when unset, pulls for distinct images are
+  unlimited (pulls for the same image are always serialized).
+
 ### Fixed
 
 * `dev server` task endpoints now return `404 Not Found` for missing task

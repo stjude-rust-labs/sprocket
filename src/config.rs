@@ -1473,6 +1473,44 @@ mod test {
     }
 
     #[test]
+    fn schema_rejects_zero_apptainer_pull_concurrency() {
+        let schema = serde_json::to_value(schema_for!(Config)).unwrap();
+        let validator = jsonschema::draft202012::new(&schema).unwrap();
+
+        let rejected = toml::from_str::<serde_json::Value>(
+            r#"
+[run.backends.hpc]
+type = "lsf_apptainer"
+
+[run.backends.hpc.apptainer]
+max_concurrent_pulls = 0
+"#,
+        )
+        .unwrap();
+        assert!(
+            validator.iter_errors(&rejected).next().is_some(),
+            "the generated schema should reject `max_concurrent_pulls = 0`, which the engine \
+             rejects at runtime"
+        );
+
+        let accepted = toml::from_str::<serde_json::Value>(
+            r#"
+[run.backends.hpc]
+type = "lsf_apptainer"
+
+[run.backends.hpc.apptainer]
+max_concurrent_pulls = 1
+"#,
+        )
+        .unwrap();
+        assert_eq!(
+            validator.iter_errors(&accepted).count(),
+            0,
+            "the generated schema should accept the smallest valid `max_concurrent_pulls`"
+        );
+    }
+
+    #[test]
     fn doc_slack_url_is_optional_and_validated() {
         let mut config = DocConfig::default();
         assert_eq!(config.slack_url(), None);
