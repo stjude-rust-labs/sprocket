@@ -68,7 +68,6 @@ jobs:
           args: --release --out dist --find-interpreter --include-debuginfo
           target: ${{ matrix.platform.target }}
           manylinux: auto
-          sccache: ${{ !startsWith(github.ref, 'refs/tags/') }} # TODO: remove
 
       - name: Upload wheels
         uses: actions/upload-artifact@v6
@@ -116,7 +115,6 @@ jobs:
           args: --release --out dist --find-interpreter --include-debuginfo
           target: ${{ matrix.platform.target }}
           manylinux: musllinux_1_2
-          sccache: ${{ !startsWith(github.ref, 'refs/tags/') }} # TODO: remove
 
       - name: Upload wheels
         uses: actions/upload-artifact@v6
@@ -162,7 +160,6 @@ jobs:
           command: build
           args: --release --out dist --find-interpreter --include-debuginfo
           target: ${{ matrix.platform.target }}
-          sccache: ${{ !startsWith(github.ref, 'refs/tags/') }} # TODO: remove
 
       - name: Upload wheels
         uses: actions/upload-artifact@v6
@@ -205,7 +202,6 @@ jobs:
           command: build
           args: --release --out dist --find-interpreter --include-debuginfo
           target: ${{ matrix.platform.target }}
-          sccache: ${{ !startsWith(github.ref, 'refs/tags/') }} # TODO: remove
 
       - name: Upload wheels
         uses: actions/upload-artifact@v6
