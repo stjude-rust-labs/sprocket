@@ -243,7 +243,7 @@ jobs:
       attestations: write
     environment:
       name: pypi
-      url: https://test.pypi.org/p/sprocket-bio
+      url: https://pypi.org/p/sprocket-bio
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v8
@@ -254,5 +254,3 @@ jobs:
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          repository-url: https://test.pypi.org/legacy/
