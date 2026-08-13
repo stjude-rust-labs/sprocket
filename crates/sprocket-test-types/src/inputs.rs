@@ -55,10 +55,7 @@ fn group_length_mismatch(
             format!("`{}` has {group_length} entries", group.0.value),
             convert_yaml_span(group.0.defined.span()),
         )
-        .with_help(
-            "all sequences in a group must have the same length, with the first group setting the \
-             precedent",
-        )
+        .with_help("all sequences in a group must have the same length")
 }
 
 #[expect(dead_code, reason = "Only used for schema generation.")]

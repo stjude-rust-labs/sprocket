@@ -7,7 +7,7 @@ error: uneven length for group `two`
 7 │         two:
   │         --- `two` has 2 entries
   │
-  = help: all sequences in a group must have the same length, with the first group setting the precedent
+  = help: all sequences in a group must have the same length
 
 error: the key `one` is defined multiple times
    ┌─ foo/foo.yml:15:9
