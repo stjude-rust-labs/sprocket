@@ -138,7 +138,7 @@ impl Assertions {
             .map_or(0, |exit_code| exit_code.value)
     }
 
-    /// Parse the assertions from the serde definitions.
+    /// Parse the assertions from the user supplied values.
     pub(crate) fn parse(raw: RawAssertions) -> Result<Self, Diagnostics> {
         let mut diagnostics = Diagnostics::default();
 
