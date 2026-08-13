@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* `sprocket --no-ignore` disables `.sprocketignore` processing while WDL
+  documents are discovered ([#1110](https://github.com/stjude-rust-labs/sprocket/pull/1110)).
+
 ### Changed
 
 * `sprocket dev server inspect` now shows the run's `Directory:` and

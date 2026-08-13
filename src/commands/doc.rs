@@ -24,7 +24,6 @@ use wdl::doc::error::DocErrorKind;
 use wdl::doc::install_theme;
 
 use crate::Config;
-use crate::IGNORE_FILENAME;
 use crate::analysis::Source;
 use crate::commands::CommandResult;
 
@@ -197,7 +196,7 @@ pub async fn doc(args: Args, config: Config, colorize: bool) -> CommandResult<()
     let analysis_config = AnalysisConfig::default()
         .with_fallback_version(config.common.wdl.fallback_version.into())
         .with_feature_flags(config.common.wdl.feature_flags)
-        .with_ignore_filename(Some(IGNORE_FILENAME.to_string()))
+        .with_ignore_filename(config.common.ignore_filename())
         .with_diagnostics_config(DiagnosticsConfig::except_all());
 
     let index_page = args.index_page.or(config.doc.index_page());

@@ -34,6 +34,9 @@ Options:
   -q, --quiet...
           Decrease logging verbosity
 
+      --no-ignore
+          Ignore `.sprocketignore` files while discovering WDL documents
+
       --color <COLOR>
           Controls output colorization
 

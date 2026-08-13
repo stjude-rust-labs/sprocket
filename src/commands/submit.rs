@@ -89,6 +89,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         config.common.wdl.fallback_version.into(),
         config.modules.clone(),
         config.common.wdl.feature_flags,
+        config.common.ignore_filename(),
         report_mode,
         colorize,
     )
