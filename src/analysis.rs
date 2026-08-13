@@ -145,6 +145,12 @@ impl Analysis {
         self
     }
 
+    /// Sets the ignore filename.
+    pub fn ignore_filename(mut self, filename: Option<String>) -> Self {
+        self.ignore_filename = filename;
+        self
+    }
+
     /// Sets the `[modules]` configuration.
     pub fn modules_config(mut self, config: wdl_modules::resolver::ModulesConfig) -> Self {
         self.modules_config = Some(config);

@@ -113,6 +113,7 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
             config.common.wdl.fallback_version.into(),
             config.modules.clone(),
             config.common.wdl.feature_flags,
+            config.common.ignore_filename(),
             report_mode,
             colorize,
         )
@@ -291,6 +292,7 @@ mod tests {
             None,
             wdl_modules::resolver::ModulesConfig::default(),
             wdl::analysis::FeatureFlags::default(),
+            Some(crate::IGNORE_FILENAME.to_string()),
             Mode::default(),
             true,
         )

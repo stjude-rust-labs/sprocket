@@ -682,6 +682,7 @@ pub async fn run(
         })
         .modules_config(config.modules.clone())
         .feature_flags(config.common.wdl.feature_flags)
+        .ignore_filename(config.common.ignore_filename())
         .run(report_mode, colorize)
         .await
         .map_err(CommandError::from)?;
@@ -965,9 +966,12 @@ async fn setup_run_context(
     .await
     .context("failed to create run record")?;
 
-    // Update the run directory in the database
+    // Update the run directory in the database. Store the path relative to
+    // the output directory (matching the format used by dev-server-initiated
+    // runs in `system::v1::exec`) so API clients can reliably combine it with
+    // the server's output-directory root to form an absolute path.
     let run_dir_str = run_dir
-        .root()
+        .relative_path()
         .to_str()
         .context("run directory path is not valid UTF-8")?;
     db.update_run_directory(run_id, run_dir_str)

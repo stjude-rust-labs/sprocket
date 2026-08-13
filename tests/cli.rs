@@ -259,21 +259,18 @@ fn resolve_env_config(test_path: &Path) -> Result<Option<NamedTempFile>> {
 
 /// Normalizes a string for OS platform differences and dynamic content.
 fn normalize_string(input: &str, temp_dir: &Path) -> String {
-    // NOTE: the drive prefix removal (e.g., `C:`) must occur after backslash
-    // normalization so that paths like `C:\foo` are first converted to `C:/foo`
-    // before the prefix is stripped.
-    let s = input
-        .replace(&*temp_dir.to_string_lossy(), "_TEMP_DIR_")
+    // Replace native, JSON-escaped, and slash-normalized forms of the temporary
+    // directory without rewriting unrelated backslashes or URL delimiters.
+    let temp_dir = temp_dir.to_string_lossy();
+    let escaped_temp_dir = temp_dir.replace('\\', "\\\\");
+    let slash_temp_dir = temp_dir.replace('\\', "/");
+    let mut s = input
+        .replace(escaped_temp_dir.as_str(), "_TEMP_DIR_")
+        .replace(slash_temp_dir.as_str(), "_TEMP_DIR_")
+        .replace(temp_dir.as_ref(), "_TEMP_DIR_")
         .replace("\r\n", "\n")
         .replace("\\r\\n", "\\n")
-        .replace("sprocket.exe", "sprocket")
-        .replace("\\", "/")
-        .replace("//", "/");
-
-    // Strip Windows drive prefixes (e.g., `C:`) from absolute paths.
-    static DRIVE_PREFIX: std::sync::LazyLock<regex::Regex> =
-        std::sync::LazyLock::new(|| regex::Regex::new(r"[A-Za-z]:(/\S)").unwrap());
-    let s = DRIVE_PREFIX.replace_all(&s, "$1");
+        .replace("sprocket.exe", "sprocket");
 
     // Normalize Windows OS error messages to their Unix equivalents.
     const WINDOWS_TO_UNIX_ERRORS: &[(&str, &str)] = &[
@@ -291,7 +288,6 @@ fn normalize_string(input: &str, temp_dir: &Path) -> String {
         ),
     ];
 
-    let mut s = s.into_owned();
     for (windows, unix) in WINDOWS_TO_UNIX_ERRORS {
         s = s.replace(windows, unix);
     }

@@ -35,6 +35,8 @@ use wdl::engine::Config as EngineConfig;
 use wdl::format::Config as FormatConfig;
 use wdl_modules::resolver::ModulesConfig;
 
+use crate::IGNORE_FILENAME;
+
 /// Default host.
 const fn default_host() -> &'static str {
     "127.0.0.1"
@@ -226,6 +228,10 @@ pub struct CommonConfig {
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
     #[schemars(default)]
     pub color: ColorMode,
+    /// Ignore `.sprocketignore` files while discovering WDL documents.
+    #[toml(skip)]
+    #[schemars(skip)]
+    pub no_ignore: bool,
     /// The report mode.
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
     #[schemars(default)]
@@ -234,6 +240,13 @@ pub struct CommonConfig {
     #[toml(default, style = Header)]
     #[schemars(default)]
     pub wdl: WdlConfig,
+}
+
+impl CommonConfig {
+    /// Gets the ignore filename for document discovery.
+    pub fn ignore_filename(&self) -> Option<String> {
+        (!self.no_ignore).then(|| IGNORE_FILENAME.to_string())
+    }
 }
 
 /// Represents a fallback WDL version to use.

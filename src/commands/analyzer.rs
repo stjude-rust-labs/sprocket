@@ -15,7 +15,6 @@ use wdl::lsp::UserOptions;
 
 use crate::Config;
 use crate::FilterReloadHandle;
-use crate::IGNORE_FILENAME;
 use crate::Subscriber;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
@@ -74,7 +73,7 @@ pub async fn analyzer(
             name: "Sprocket".into(),
             version: env!("CARGO_PKG_VERSION").into(),
             exceptions: args.except,
-            ignore_filename: Some(IGNORE_FILENAME.to_string()),
+            ignore_filename: config.common.ignore_filename(),
             feature_flags: config.common.wdl.feature_flags,
             resolution_context,
             baseline: {

@@ -89,6 +89,12 @@ Options:
           
           Note that not all execution backends support this option.
 
+      --no-ignore
+          Ignore `.sprocketignore` files while discovering WDL documents
+
+      --suffix <SUFFIX>
+          Optional suffix to append to the run directory name
+
       --color <COLOR>
           Controls output colorization
 
@@ -98,9 +104,6 @@ Options:
           - never:  Never colorize output
           
           [default: auto]
-
-      --suffix <SUFFIX>
-          Optional suffix to append to the run directory name
 
   -c, --config <CONFIG>
           Path to the configuration file

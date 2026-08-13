@@ -78,7 +78,15 @@ async fn create_server_app(
 
     let db = open_database(&db_path).await?;
     let failure_mode = ServerFailureMode::from(config.server.engine.failure_mode);
-    let output_dir = config.server.output_dir.display().to_string();
+    // Resolve the output directory to an absolute path so clients (e.g. `dev
+    // server inspect`) can join it with a run-relative path to produce a
+    // usable, copy-pasteable filesystem path, regardless of the server
+    // process's working directory or whether the configured path was
+    // relative (e.g. `./out`).
+    let output_dir = std::path::absolute(&config.server.output_dir)
+        .unwrap_or_else(|_| config.server.output_dir.clone())
+        .display()
+        .to_string();
     let (_, run_manager_tx) = RunManagerSvc::spawn(
         DEFAULT_CHANNEL_BUFFER_SIZE,
         config.clone(),

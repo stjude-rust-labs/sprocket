@@ -375,6 +375,8 @@ pub struct RunnableExecutor {
     fallback_version: Option<SupportedVersion>,
     /// Feature flags used for analysis.
     feature_flags: FeatureFlags,
+    /// Whether to ignore `.sprocketignore` files during document discovery.
+    no_ignore: bool,
     /// Module resolver configuration used for analysis.
     modules_config: wdl_modules::resolver::ModulesConfig,
     /// Validated source location of the WDL document.
@@ -411,6 +413,7 @@ impl RunnableExecutor {
             self.fallback_version,
             self.modules_config.clone(),
             self.feature_flags,
+            self.no_ignore,
             self.report_mode,
             self.colorize,
         )
@@ -631,6 +634,7 @@ pub async fn analyze_wdl_document(
     fallback_version: Option<SupportedVersion>,
     modules_config: wdl_modules::resolver::ModulesConfig,
     feature_flags: FeatureFlags,
+    no_ignore: bool,
     report_mode: Mode,
     colorize: bool,
 ) -> Result<AnalysisResult> {
@@ -639,6 +643,7 @@ pub async fn analyze_wdl_document(
         .fallback_version(fallback_version)
         .modules_config(modules_config)
         .feature_flags(feature_flags)
+        .ignore_filename((!no_ignore).then(|| crate::IGNORE_FILENAME.to_string()))
         .run(report_mode, colorize)
         .await
         .map_err(|errors| {

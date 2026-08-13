@@ -1,0 +1,2 @@
+echo "dir"
+mkdir "some_dir"
