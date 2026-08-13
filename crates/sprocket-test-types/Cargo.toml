@@ -6,7 +6,7 @@ edition.workspace = true
 authors.workspace = true
 homepage.workspace = true
 rust-version.workspace = true
-repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/wdl-analysis"
+repository = "https://github.com/stjude-rust-labs/sprocket/tree/main/crates/sprocket-test-types"
 description = "Type definitions for Sprocket test YAML files."
 documentation = "https://docs.rs/sprocket-test-types"
 
