@@ -15,9 +15,9 @@ use thiserror::Error;
 use url::Url;
 
 use crate::lockfile::GitCommit;
-use crate::resolver::git::CredentialMode;
-use crate::resolver::git::GitError;
-use crate::resolver::git::list_advertised_refs;
+use crate::resolver::git::ops::CredentialMode;
+use crate::resolver::git::ops::GitError;
+use crate::resolver::git::ops::list_advertised_refs;
 use crate::version_requirement::VersionRequirement;
 
 /// Errors produced by version selection.

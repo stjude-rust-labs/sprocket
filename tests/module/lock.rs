@@ -475,3 +475,105 @@ fn lock_reports_not_a_sprocket_module_when_module_json_missing() {
     );
     assert!(String::from_utf8_lossy(&output.stderr).contains("is not a WDL module"));
 }
+
+#[test]
+fn tree_locked_fails_when_the_lockfile_is_stale() {
+    let fixture = ModuleFixture::with_local_dep_added();
+    let manifest_path = fixture.consumer().join("module.json");
+    let manifest = fs::read_to_string(&manifest_path).unwrap();
+    fs::write(
+        &manifest_path,
+        manifest.replace(r#""utils""#, r#""renamed_utils""#),
+    )
+    .unwrap();
+
+    let output = sprocket(&["dev", "module", "tree", "--locked"])
+        .current_dir(fixture.consumer())
+        .output()
+        .expect("failed to run sprocket dev module tree");
+
+    assert!(
+        !output.status.success(),
+        "command unexpectedly succeeded: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("`module-lock.json` is out of date with `module.json`")
+    );
+}
+
+#[test]
+fn tree_locked_fails_when_the_lockfile_is_absent() {
+    let fixture = ModuleFixture::with_local_dep();
+
+    let output = sprocket(&["dev", "module", "tree", "--locked"])
+        .current_dir(fixture.consumer())
+        .output()
+        .expect("failed to run sprocket dev module tree");
+
+    assert!(
+        !output.status.success(),
+        "command unexpectedly succeeded: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert!(String::from_utf8_lossy(&output.stderr).contains("no `module-lock.json`"));
+}
+
+#[test]
+fn run_locked_refuses_to_regenerate_a_missing_lockfile() {
+    let fixture = ModuleFixture::with_local_dep();
+    let output = sprocket(&["dev", "module", "add", "utils", "../dep", "--no-lock"])
+        .current_dir(fixture.consumer())
+        .output()
+        .expect("failed to run sprocket dev module add");
+    assert!(
+        output.status.success(),
+        "command failed {status}: {stderr}",
+        status = output.status,
+        stderr = String::from_utf8_lossy(&output.stderr)
+    );
+
+    let output = sprocket(&["run", "--locked", "index.wdl"])
+        .current_dir(fixture.consumer())
+        .output()
+        .expect("failed to run sprocket run");
+
+    assert!(
+        !output.status.success(),
+        "command unexpectedly succeeded: {}",
+        String::from_utf8_lossy(&output.stdout)
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("`module-lock.json` is missing or out of date with `module.json`")
+    );
+    assert!(
+        !fixture.consumer().join("module-lock.json").exists(),
+        "`--locked` must not regenerate the lockfile"
+    );
+}
+
+#[test]
+fn lock_short_circuits_without_touching_a_current_lockfile() {
+    let fixture = ModuleFixture::with_local_dep_added();
+    let lockfile = fixture.consumer().join("module-lock.json");
+    let first = fs::metadata(&lockfile).unwrap().modified().unwrap();
+
+    let output = sprocket(&["dev", "module", "lock"])
+        .current_dir(fixture.consumer())
+        .output()
+        .expect("failed to run sprocket dev module lock");
+
+    assert!(
+        output.status.success(),
+        "command failed {status}: {stderr}",
+        status = output.status,
+        stderr = String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        fs::metadata(&lockfile).unwrap().modified().unwrap(),
+        first,
+        "a current lockfile must not be rewritten"
+    );
+}

@@ -10,6 +10,42 @@ use wdl_modules::Manifest;
 use crate::fixtures::*;
 
 #[test]
+fn add_relocks_a_second_dependency_when_the_lockfile_was_current() {
+    let fixture = ModuleFixture::with_local_dep_added();
+    let other = fixture.dir.path().join("other");
+    fs::create_dir_all(&other).unwrap();
+    fs::write(
+        other.join("module.json"),
+        r#"{"name":"other","license":"MIT","entrypoint":"index.wdl"}"#,
+    )
+    .unwrap();
+    fs::write(other.join("index.wdl"), "version 1.3\n").unwrap();
+
+    let output = sprocket(&["dev", "module", "add", "other", "../other"])
+        .current_dir(fixture.consumer())
+        .output()
+        .expect("failed to run sprocket dev module add");
+
+    assert!(
+        output.status.success(),
+        "command failed {status}: {stderr}",
+        status = output.status,
+        stderr = String::from_utf8_lossy(&output.stderr)
+    );
+    let lockfile = read_lockfile(&fixture.consumer());
+    let names: Vec<_> = lockfile
+        .dependencies
+        .keys()
+        .map(|name| name.manifest().to_string())
+        .collect();
+    assert!(
+        names.iter().any(|name| name == "other"),
+        "the lockfile must gain the added dependency even though it was current before the add: \
+         {names:?}"
+    );
+}
+
+#[test]
 fn add_local_path_dep_edits_manifest_and_locks() {
     let fixture = ModuleFixture::with_local_dep();
     let output = sprocket(&["dev", "module", "add", "utils", "../dep"])
@@ -572,7 +608,7 @@ fn add_rejects_conflicting_selector_flags() {
 }
 
 #[test]
-fn add_rejects_scp_style_git_urls() {
+fn add_converts_scp_style_git_urls() {
     let dir = tempfile::tempdir().unwrap();
     fs::write(
         dir.path().join("module.json"),
@@ -584,15 +620,23 @@ fn add_rejects_scp_style_git_urls() {
         "module",
         "add",
         "git@github.com:org/repo.git",
+        "--branch",
+        "main",
         "--no-lock",
     ])
     .current_dir(dir.path())
     .output()
     .expect("failed to run sprocket");
-    assert!(!output.status.success());
-    let stderr = String::from_utf8_lossy(&output.stderr);
+
     assert!(
-        stderr.contains("ssh://git@github.com/org/repo.git"),
-        "stderr should suggest the ssh:// form: {stderr}"
+        output.status.success(),
+        "command failed {status}: {stderr}",
+        status = output.status,
+        stderr = String::from_utf8_lossy(&output.stderr)
+    );
+    let manifest = fs::read_to_string(dir.path().join("module.json")).unwrap();
+    assert!(
+        manifest.contains("ssh://git@github.com/org/repo.git"),
+        "the manifest should record the converted ssh URL: {manifest}"
     );
 }

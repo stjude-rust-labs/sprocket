@@ -15,13 +15,13 @@ use wdl_modules::resolver::lock::signer_identity_map;
 use wdl_modules::resolver::lock::update_relock;
 
 use super::display::dependency_update;
-use super::mutation::LockedProject;
-use super::mutation::ProjectUpdate;
 use super::project::Locator;
 use super::project::Project;
+use super::project::WriteIntent;
 use super::project::discover;
 use super::project::load_lockfile;
 use super::project::trace_project;
+use super::project::write_lockfile;
 use super::resolver::ResolverEnvironment;
 use super::signer_policy::TrustModeArg;
 use super::signer_policy::enforce_lockfile_signer_policy;
@@ -62,15 +62,16 @@ pub async fn update(args: Args, config: Config, output: CommandOutput) -> Comman
     let project = discover(&args.locator)?;
     if args.dry_run {
         trace_project("module update", &project);
-        let plan = plan_update(&args, &config, &project).await?;
+        let existing = load_lockfile(&project)?.unwrap_or_default();
+        let plan = plan_update(&args, &config, &project, &existing).await?;
         tracing::debug!("dry run completed without writing lockfile");
         print_update_outcome(output, &plan.outcome.stats, true);
         return Ok(());
     }
 
-    let project = LockedProject::acquire(project)?;
-    trace_project("module update", project.project());
-    let plan = plan_update(&args, &config, project.project()).await?;
+    trace_project("module update", &project);
+    let existing = load_lockfile(&project)?.unwrap_or_default();
+    let plan = plan_update(&args, &config, &project, &existing).await?;
     enforce_lockfile_signer_policy(
         &plan.existing,
         &plan.outcome.lockfile,
@@ -78,9 +79,14 @@ pub async fn update(args: Args, config: Config, output: CommandOutput) -> Comman
         signer_change_mode(&config, args.trust_mode),
         output,
     )?;
-    project.commit(ProjectUpdate::Lockfile(&plan.outcome.lockfile))?;
+    write_lockfile(
+        &project,
+        &plan.outcome.lockfile,
+        project.manifest(),
+        WriteIntent::Refresh,
+    )?;
     tracing::debug!(
-        lockfile = %project.project().lockfile_path().display(),
+        lockfile = %project.lockfile_path().display(),
         "wrote module lockfile"
     );
     print_update_outcome(output, &plan.outcome.stats, false);
@@ -102,8 +108,9 @@ async fn plan_update(
     args: &Args,
     config: &Config,
     project: &Project,
+    existing: &Lockfile,
 ) -> anyhow::Result<UpdatePlan> {
-    let existing = load_lockfile(project)?.unwrap_or_default();
+    let existing = existing.clone();
     let mut names = BTreeSet::new();
     if args.names.is_empty() {
         names.extend(project.manifest().dependencies.keys().cloned());

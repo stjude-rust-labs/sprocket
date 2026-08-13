@@ -354,7 +354,7 @@ pub enum ResolverError {
     /// A Git operation failed.
     #[cfg(feature = "git-resolver")]
     #[error(transparent)]
-    Git(#[from] crate::resolver::git::GitError),
+    Git(#[from] crate::resolver::git::ops::GitError),
 
     /// A materialized module contains a symbolic link, which is not
     /// permitted anywhere in a module tree.

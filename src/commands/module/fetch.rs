@@ -4,6 +4,7 @@ use clap::Parser;
 use wdl_modules::module::Module;
 
 use super::project::Locator;
+use super::project::LockedFlag;
 use super::project::discover;
 use super::project::require_lockfile;
 use super::project::trace_project;
@@ -18,6 +19,10 @@ const FETCH: Action = Action::new("Fetched", "fetch");
 /// Arguments to `sprocket dev module fetch`.
 #[derive(Parser, Debug)]
 pub struct Args {
+    /// Shared lockfile strictness flag.
+    #[command(flatten)]
+    locked: LockedFlag,
+
     /// Shared module locator.
     #[command(flatten)]
     locator: Locator,
@@ -28,7 +33,7 @@ pub async fn fetch(args: Args, config: Config, output: CommandOutput) -> Command
     tracing::trace!("starting `sprocket dev module fetch`");
     let project = discover(&args.locator)?;
     trace_project("module fetch", &project);
-    let lock = require_lockfile(&project)?;
+    let lock = require_lockfile(&project, args.locked)?;
     tracing::debug!(
         dependencies = lock.dependencies.len(),
         "loaded module lockfile for fetch"

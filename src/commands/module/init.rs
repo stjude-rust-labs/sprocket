@@ -11,6 +11,7 @@ use clap::Parser;
 use serde_json::Map;
 use serde_json::Value;
 use wdl::ast::SupportedVersion;
+use wdl_modules::normalize_git_remote;
 
 use crate::commands::CommandResult;
 use crate::commands::output::Action;
@@ -429,9 +430,7 @@ fn infer_repository(path: &Path) -> Option<String> {
 
 /// Removes credentials and request metadata from an inferred repository URL.
 fn sanitize_repository(repository: &str) -> Option<String> {
-    let Ok(mut url) = url::Url::parse(repository) else {
-        return Some(repository.to_string());
-    };
+    let mut url = normalize_git_remote(repository)?;
     if matches!(url.scheme(), "http" | "https") {
         url.set_username("").ok()?;
         url.set_password(None).ok()?;
@@ -479,7 +478,7 @@ mod tests {
         );
         assert_eq!(
             sanitize_repository("git@example.com:owner/repo.git").as_deref(),
-            Some("git@example.com:owner/repo.git")
+            Some("ssh://git@example.com/owner/repo.git")
         );
     }
 

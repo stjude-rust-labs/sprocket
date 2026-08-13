@@ -16,9 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added `GitSelector::kind` for stable selector-kind labels
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 * Added `ModuleProject`, `ModuleProject::validate`,
-  `ProjectValidationError`, `ManifestDocument`, reusable module-project
-  validation, and crash-safe project mutation APIs, plus trust-store helpers
-  for accepting lockfile signers
+  `ProjectValidationError`, `ManifestDocument`, `project::LockedLockfile`,
+  and `ModuleProject::write_manifest`, plus reusable module-project validation
+  and trust-store helpers for accepting lockfile signers
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* Added the `remote` module with `normalize_git_remote`, which converts Git
+  remotes and local paths to URLs, and `git_remote_kind` for classifying a
+  remote string
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 
 #### Changed
@@ -41,6 +45,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Moved specialized lockfile diff and relock APIs from
   `wdl_modules::resolver` to `wdl_modules::resolver::lock`; primary resolver
   construction and policy types remain available from `wdl_modules::resolver`
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* `ManifestError::InvalidDependencyName` is now a struct variant carrying the
+  offending `name` and the underlying `DependencyNameError` as its source
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+
+#### Removed
+
+* Removed `LockedModuleProject`, `ProjectUpdate`, `ProjectMutationError`, and
+  `project::load_lockfile_at`; `module-lock.json` now carries its own advisory
+  lock through `project::LockedLockfile` and `module.json` is written unlocked
+  through `ModuleProject::write_manifest`
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 
 ## 0.3.0 - 2026-07-15

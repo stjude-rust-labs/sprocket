@@ -19,13 +19,13 @@ use wdl_modules::resolver::lock::signer_identity_map;
 use wdl_modules::resolver::lock::update_relock;
 
 use super::display::version_constraint;
-use super::mutation::LockedProject;
-use super::mutation::ProjectUpdate;
 use super::project::Locator;
 use super::project::Project;
+use super::project::WriteIntent;
 use super::project::discover;
 use super::project::load_lockfile;
 use super::project::trace_project;
+use super::project::write_lockfile;
 use super::resolver::ResolverEnvironment;
 use super::signer_policy::TrustModeArg;
 use super::signer_policy::enforce_lockfile_signer_policy;
@@ -68,14 +68,15 @@ pub async fn upgrade(args: Args, config: Config, output: CommandOutput) -> Comma
     let project = discover(&args.locator)?;
     if args.dry_run {
         trace_project("module upgrade", &project);
-        let plan = plan_upgrade(&args, &config, &project).await?;
+        let existing = load_lockfile(&project)?.unwrap_or_default();
+        let plan = plan_upgrade(&args, &config, &project, &existing).await?;
         print_upgrade_plan(output, plan);
         return Ok(());
     }
 
-    let project = LockedProject::acquire(project)?;
-    trace_project("module upgrade", project.project());
-    let plan = plan_upgrade(&args, &config, project.project()).await?;
+    trace_project("module upgrade", &project);
+    let existing = load_lockfile(&project)?.unwrap_or_default();
+    let plan = plan_upgrade(&args, &config, &project, &existing).await?;
     let UpgradePlan::Changes(changes) = plan else {
         print_upgrade_plan(output, plan);
         return Ok(());
@@ -87,17 +88,22 @@ pub async fn upgrade(args: Args, config: Config, output: CommandOutput) -> Comma
         signer_change_mode(&config, args.trust_mode),
         output,
     )?;
-    project.commit(ProjectUpdate::Both {
-        manifest: &changes.manifest,
-        lockfile: &changes.outcome.lockfile,
-    })?;
+    project
+        .write_manifest(&changes.manifest)
+        .map_err(anyhow::Error::from)?;
+    write_lockfile(
+        &project,
+        &changes.outcome.lockfile,
+        changes.manifest.manifest(),
+        WriteIntent::Refresh,
+    )?;
     tracing::debug!(
-        manifest = %project.project().manifest_path().display(),
+        manifest = %project.manifest_path().display(),
         changed = changes.changed.len(),
         "wrote upgraded version selectors"
     );
     tracing::debug!(
-        lockfile = %project.project().lockfile_path().display(),
+        lockfile = %project.lockfile_path().display(),
         "wrote module lockfile"
     );
     let count = changes.changed.len();
@@ -140,6 +146,7 @@ async fn plan_upgrade(
     args: &Args,
     config: &Config,
     project: &Project,
+    existing: &Lockfile,
 ) -> anyhow::Result<UpgradePlan> {
     let mut selected = Vec::new();
     if args.names.is_empty() {
@@ -197,7 +204,7 @@ async fn plan_upgrade(
         "checking latest dependency versions"
     );
 
-    let existing = load_lockfile(project)?.unwrap_or_default();
+    let existing = existing.clone();
     let environment = ResolverEnvironment::from_config(config)?;
     let resolver = environment.resolver(existing.clone())?;
 
@@ -244,7 +251,7 @@ async fn plan_upgrade(
             .get(name)
             .with_context(|| format!("dependency `{}` is not declared", name.manifest()))?;
         let source = with_version_requirement(source, new_req)?;
-        document.set_dependency(name.manifest(), &source)?;
+        document.insert_dependency(name.manifest(), &source)?;
     }
     let module = Module::new(
         std::sync::Arc::new(document.manifest().clone()),

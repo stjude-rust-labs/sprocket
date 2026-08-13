@@ -17,9 +17,10 @@
 //! Use [`project::ModuleProject`] to load an exact `module.json` path or
 //! discover the nearest ancestor project. Use [`project::ManifestDocument`] to
 //! edit `module.json` losslessly while preserving extension fields and
-//! revalidating each change before it becomes visible. Use
-//! [`project::LockedModuleProject`] to persist `module.json` and the sibling
-//! `module-lock.json` together with caller-rooted recovery state, and use
+//! validating each change before it lands. Use
+//! [`project::ModuleProject::write_manifest`] to replace `module.json` through
+//! an atomic rename and [`project::LockedLockfile`] to read or rewrite the
+//! sibling `module-lock.json` under its own advisory lock, and use
 //! [`resolver::trust::TrustStore`] to accept lockfile signers in a user-level
 //! trust store outside the project tree.
 //!
@@ -46,11 +47,13 @@ pub mod module;
 pub mod module_walk;
 pub mod project;
 pub mod relative_path;
+pub mod remote;
 pub mod resolver;
 pub mod signing;
 mod strict_json;
 pub mod symbolic_path;
 pub mod tree;
+pub use crate::remote::normalize_git_remote;
 pub mod version_requirement;
 
 pub use crate::lockfile::Lockfile;

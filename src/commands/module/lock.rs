@@ -3,12 +3,13 @@
 use clap::Parser;
 use wdl_modules::resolver::lock::RelockStats;
 
-use super::mutation::LockedProject;
-use super::mutation::ProjectUpdate;
 use super::project::Locator;
+use super::project::LockfileWrite;
+use super::project::WriteIntent;
 use super::project::discover;
 use super::project::load_lockfile;
 use super::project::trace_project;
+use super::project::write_lockfile;
 use super::relock::RelockPlanner;
 use super::signer_policy::TrustModeArg;
 use super::signer_policy::signer_change_mode;
@@ -77,7 +78,8 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
     }
 
     if args.dry_run {
-        let plan = RelockPlanner::new(&config, &project)
+        let baseline = lock.clone().unwrap_or_default();
+        let plan = RelockPlanner::new(&config, &project, &baseline)
             .plan(std::sync::Arc::new(project.manifest().clone()))
             .await?;
         tracing::debug!("dry run completed without writing lockfile or trust store");
@@ -104,27 +106,25 @@ pub async fn lock(args: Args, config: Config, output: CommandOutput) -> CommandR
         return Ok(());
     }
 
-    let project = LockedProject::acquire(project)?;
-    if load_lockfile(project.project())?
-        .as_ref()
-        .is_some_and(|lockfile| lockfile.satisfies_manifest(project.project().manifest()))
+    let baseline = lock.clone().unwrap_or_default();
+    let outcome = RelockPlanner::new(&config, &project, &baseline)
+        .plan_and_enforce(
+            std::sync::Arc::new(project.manifest().clone()),
+            signer_change_mode(&config, args.trust_mode),
+            output,
+        )
+        .await?;
+    if write_lockfile(
+        &project,
+        &outcome.lockfile,
+        project.manifest(),
+        WriteIntent::Satisfy,
+    )? == LockfileWrite::Kept
     {
         output.current("module lockfile is up to date");
         return Ok(());
     }
 
-    let outcome = RelockPlanner::new(&config, project.project())
-        .plan_and_enforce(
-            std::sync::Arc::new(project.project().manifest().clone()),
-            signer_change_mode(&config, args.trust_mode),
-            output,
-        )
-        .await?;
-    project.commit(ProjectUpdate::Lockfile(&outcome.lockfile))?;
-    tracing::debug!(
-        lockfile = %project.project().lockfile_path().display(),
-        "wrote module lockfile"
-    );
     let dependencies = outcome.lockfile.dependencies.len();
     output.completed(
         LOCK,

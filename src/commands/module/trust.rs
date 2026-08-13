@@ -8,6 +8,7 @@ use wdl_modules::signing::VerifyingKey;
 use wdl_modules::signing::parse_openssh_public_key_identity;
 
 use super::project::Locator;
+use super::project::LockedFlag;
 use super::project::discover;
 use super::project::require_lockfile;
 use super::project::trace_project;
@@ -55,6 +56,10 @@ pub struct AddArgs {
 /// Arguments to `sprocket dev module trust all`.
 #[derive(Parser, Debug)]
 pub struct AllArgs {
+    /// Shared lockfile strictness flag.
+    #[command(flatten)]
+    locked: LockedFlag,
+
     /// Shared module locator.
     #[command(flatten)]
     locator: Locator,
@@ -110,7 +115,7 @@ pub async fn all(args: AllArgs, output: CommandOutput) -> CommandResult<()> {
     let project = discover(&args.locator)?;
     trace_project("module trust all", &project);
 
-    let lockfile = require_lockfile(&project)?;
+    let lockfile = require_lockfile(&project, args.locked)?;
     let trust_path = crate::analysis::default_trust_path();
     let trusted = TrustStoreFile::load(trust_path)?.accept_lockfile_signers(&lockfile)?;
 

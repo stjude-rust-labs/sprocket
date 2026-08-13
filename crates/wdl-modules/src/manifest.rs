@@ -13,6 +13,7 @@ use url::Url;
 use crate::DEFAULT_ENTRYPOINT_FILENAME;
 use crate::DEFAULT_README_FILENAME;
 use crate::dependency::DependencyName;
+use crate::dependency::DependencyNameError;
 use crate::dependency::DependencySource;
 use crate::dependency::DependencySourceError;
 use crate::license::LicenseError;
@@ -60,8 +61,14 @@ pub enum ManifestError {
     ReadmeTrue,
 
     /// A dependency key is not a valid WDL identifier.
-    #[error("`dependencies` key `{0}` is not a valid WDL identifier")]
-    InvalidDependencyName(String),
+    #[error("`dependencies` key `{name}` is not a valid WDL identifier")]
+    InvalidDependencyName {
+        /// The offending dependency key.
+        name: String,
+        /// Why the key is not a valid dependency name.
+        #[source]
+        source: DependencyNameError,
+    },
 
     /// Two dependency keys resolve to the same dependency (either
     /// identical or equivalent after hyphen-to-underscore normalization).
@@ -311,7 +318,10 @@ impl TryFrom<ManifestFields> for Manifest {
         for (key, value) in fields.dependencies {
             let name = key
                 .parse()
-                .map_err(|_| ManifestError::InvalidDependencyName(key))?;
+                .map_err(|source| ManifestError::InvalidDependencyName {
+                    name: key.clone(),
+                    source,
+                })?;
             if let Some((existing, _)) = deps.get_key_value(&name) {
                 return Err(ManifestError::DuplicateDependencyName(
                     existing.manifest().to_string(),
@@ -739,6 +749,6 @@ mod tests {
             }"#,
         )
         .unwrap_err();
-        assert!(matches!(err, ManifestError::InvalidDependencyName(_)));
+        assert!(matches!(err, ManifestError::InvalidDependencyName { .. }));
     }
 }

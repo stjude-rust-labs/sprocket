@@ -146,7 +146,7 @@ pub(super) fn locked_git_entry_with(
 }
 
 #[test]
-fn git_resolver_facade_exposes_only_command_api() {
+fn facade_exposes_only_command_api() {
     /// Asserts that a facade type is safe to share between resolver tasks.
     fn assert_send_sync<T: Send + Sync>() {}
     assert_send_sync::<GitResolver>();

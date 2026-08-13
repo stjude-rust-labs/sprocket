@@ -2,11 +2,13 @@
 
 use clap::Parser;
 
-use super::mutation::LockedProject;
-use super::mutation::ProjectUpdate;
 use super::project::Locator;
+use super::project::LockfileWrite;
+use super::project::WriteIntent;
 use super::project::discover;
+use super::project::load_lockfile;
 use super::project::trace_project;
+use super::project::write_lockfile;
 use super::relock::RelockPlanner;
 use super::signer_policy::TrustModeArg;
 use super::signer_policy::signer_change_mode;
@@ -42,9 +44,9 @@ pub async fn remove(args: Args, config: Config, output: CommandOutput) -> Comman
         no_lock = args.no_lock,
         "starting `sprocket dev module remove`"
     );
-    let locked = LockedProject::acquire(discover(&args.locator)?)?;
-    let project = locked.project();
-    trace_project("module remove", project);
+    let project = discover(&args.locator)?;
+    trace_project("module remove", &project);
+    let baseline = load_lockfile(&project)?.unwrap_or_default();
     let mut document = project.document().clone();
     if !document
         .remove_dependency(&args.name)
@@ -60,7 +62,7 @@ pub async fn remove(args: Args, config: Config, output: CommandOutput) -> Comman
         None
     } else {
         Some(
-            RelockPlanner::new(&config, project)
+            RelockPlanner::new(&config, &project, &baseline)
                 .plan_and_enforce(
                     std::sync::Arc::new(document.manifest().clone()),
                     signer_change_mode(&config, args.trust_mode),
@@ -70,13 +72,18 @@ pub async fn remove(args: Args, config: Config, output: CommandOutput) -> Comman
         )
     };
 
-    locked.commit(match relock.as_ref() {
-        Some(outcome) => ProjectUpdate::Both {
-            manifest: &document,
-            lockfile: &outcome.lockfile,
-        },
-        None => ProjectUpdate::Manifest(&document),
-    })?;
+    project
+        .write_manifest(&document)
+        .map_err(anyhow::Error::from)?;
+    let written = match relock.as_ref() {
+        Some(outcome) => Some(write_lockfile(
+            &project,
+            &outcome.lockfile,
+            document.manifest(),
+            WriteIntent::Satisfy,
+        )?),
+        None => None,
+    };
     tracing::debug!(
         dependency = args.name,
         manifest = %project.manifest_path().display(),
@@ -84,6 +91,12 @@ pub async fn remove(args: Args, config: Config, output: CommandOutput) -> Comman
     );
 
     if let Some(outcome) = relock {
+        if written == Some(LockfileWrite::Kept) {
+            tracing::debug!("kept the module lockfile another process had already written");
+            output.completed(REMOVE, format!("`{}`", args.name));
+            output.current("module lockfile is up to date");
+            return Ok(());
+        }
         tracing::debug!(lockfile = %project.lockfile_path().display(), "wrote module lockfile");
         output.completed(REMOVE, format!("`{}`", args.name));
         let dependencies = outcome.lockfile.dependencies.len();

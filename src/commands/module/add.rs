@@ -11,12 +11,13 @@ use wdl_modules::resolver::GitPlatform;
 
 use super::display::git_selector;
 use super::display::short_commit;
-use super::mutation::LockedProject;
-use super::mutation::ProjectUpdate;
 use super::project::Locator;
+use super::project::LockfileWrite;
+use super::project::WriteIntent;
 use super::project::discover;
 use super::project::load_lockfile;
 use super::project::trace_project;
+use super::project::write_lockfile;
 use super::relock::RelockPlanner;
 use super::signer_policy::TrustModeArg;
 use super::signer_policy::signer_change_mode;
@@ -90,9 +91,9 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
         "starting `sprocket dev module add`"
     );
     let (name, source_arg) = dependency_name_and_source(&args)?;
-    let locked = LockedProject::acquire(discover(&args.locator)?)?;
-    let project = locked.project();
-    trace_project("module add", project);
+    let project = discover(&args.locator)?;
+    trace_project("module add", &project);
+    let baseline = load_lockfile(&project)?.unwrap_or_default();
     let built = source::DependencySourceBuilder::new(&args, &config, &name, &source_arg)
         .build()
         .await?;
@@ -103,19 +104,29 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
             dependency = name.manifest(),
             "dependency already exists with the same source"
         );
-        let lockfile = load_lockfile(project)?;
-        let lock_is_current = lockfile
-            .as_ref()
-            .is_some_and(|lockfile| lockfile.satisfies_manifest(project.manifest()));
+        let lock_is_current = baseline.satisfies_manifest(project.manifest());
         if !args.no_lock && !lock_is_current {
-            let outcome = RelockPlanner::new(&config, project)
+            let outcome = RelockPlanner::new(&config, &project, &baseline)
                 .plan_and_enforce(
                     std::sync::Arc::new(project.manifest().clone()),
                     signer_change_mode(&config, args.trust_mode),
                     output,
                 )
                 .await?;
-            locked.commit(ProjectUpdate::Lockfile(&outcome.lockfile))?;
+            if write_lockfile(
+                &project,
+                &outcome.lockfile,
+                project.manifest(),
+                WriteIntent::Satisfy,
+            )? == LockfileWrite::Kept
+            {
+                output.current("module lockfile is up to date");
+                print_source_details(output, &source);
+                if let Some(note) = built.note {
+                    output.detail("Note", note);
+                }
+                return Ok(());
+            }
             let dependencies = outcome.lockfile.dependencies.len();
             output.completed(
                 LOCK,
@@ -142,13 +153,13 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
     }
 
     document
-        .set_dependency(name.manifest(), &source)
+        .insert_dependency(name.manifest(), &source)
         .map_err(anyhow::Error::from)?;
     let relock = if args.no_lock {
         None
     } else {
         Some(
-            RelockPlanner::new(&config, project)
+            RelockPlanner::new(&config, &project, &baseline)
                 .plan_and_enforce(
                     std::sync::Arc::new(document.manifest().clone()),
                     signer_change_mode(&config, args.trust_mode),
@@ -158,13 +169,18 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
         )
     };
 
-    locked.commit(match relock.as_ref() {
-        Some(outcome) => ProjectUpdate::Both {
-            manifest: &document,
-            lockfile: &outcome.lockfile,
-        },
-        None => ProjectUpdate::Manifest(&document),
-    })?;
+    project
+        .write_manifest(&document)
+        .map_err(anyhow::Error::from)?;
+    let written = match relock.as_ref() {
+        Some(outcome) => Some(write_lockfile(
+            &project,
+            &outcome.lockfile,
+            document.manifest(),
+            WriteIntent::Satisfy,
+        )?),
+        None => None,
+    };
     tracing::debug!(
         dependency = name.manifest(),
         manifest = %project.manifest_path().display(),
@@ -172,6 +188,16 @@ pub async fn add(args: Args, config: Config, output: CommandOutput) -> CommandRe
     );
 
     if let Some(outcome) = relock {
+        if written == Some(LockfileWrite::Kept) {
+            tracing::debug!("kept the module lockfile another process had already written");
+            output.completed(ADD, format!("`{}`", name.manifest()));
+            print_source_details(output, &source);
+            output.current("module lockfile is up to date");
+            if let Some(note) = built.note {
+                output.detail("Note", note);
+            }
+            return Ok(());
+        }
         tracing::debug!(lockfile = %project.lockfile_path().display(), "wrote module lockfile");
         output.completed(ADD, format!("`{}`", name.manifest()));
         print_source_details(output, &source);

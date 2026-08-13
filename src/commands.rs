@@ -22,7 +22,6 @@ pub mod inspect;
 pub mod lock;
 pub mod module;
 pub(crate) mod output;
-pub mod printer;
 pub mod retry;
 pub mod run;
 pub mod server;

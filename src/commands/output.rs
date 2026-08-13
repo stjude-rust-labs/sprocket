@@ -1,8 +1,11 @@
 //! User-facing command output.
 
 use std::fmt;
+use std::io;
+use std::io::Write as _;
 
-use crate::commands::printer::Printer;
+use anyhow::Context as _;
+use colored::Colorize as _;
 
 /// A command operation with completed and planned forms.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -18,68 +21,126 @@ impl Action {
     }
 }
 
+/// Color applied to the leading action verb of a status line.
+#[derive(Clone, Copy, Debug)]
+enum ActionColor {
+    /// Successful or constructive action.
+    Green,
+    /// Update or dry-run change action.
+    Yellow,
+    /// Informational action.
+    Cyan,
+    /// Failed action.
+    Red,
+}
+
+impl ActionColor {
+    /// Applies this color to an action verb.
+    fn apply(self, verb: &str) -> String {
+        match self {
+            Self::Green => verb.green().bold().to_string(),
+            Self::Yellow => verb.yellow().bold().to_string(),
+            Self::Cyan => verb.cyan().bold().to_string(),
+            Self::Red => verb.red().bold().to_string(),
+        }
+    }
+}
+
 /// Presentation shared by interactive commands.
+///
+/// Owns the colorization decision so subcommands do not thread a bare `bool`
+/// through every call. Cheap to copy; construct it once from the resolved color
+/// mode and pass it down by value.
 #[derive(Clone, Copy, Debug)]
 pub struct CommandOutput {
-    printer: Printer,
+    /// Whether to colorize the leading action verb.
+    colorize: bool,
 }
 
 impl CommandOutput {
     /// Creates command output using the resolved color mode.
     pub(crate) fn new(colorize: bool) -> Self {
-        Self {
-            printer: Printer::new(colorize),
-        }
+        Self { colorize }
     }
 
     /// Prints a completed operation.
     pub(crate) fn completed(self, action: Action, subject: impl fmt::Display) {
-        self.printer.status(action.completed, subject);
+        self.action(action.completed, subject, ActionColor::Green);
     }
 
     /// Prints an operation that would occur without mutation.
     pub(crate) fn planned(self, action: Action, subject: impl fmt::Display) {
-        self.printer
-            .change(&format!("Would {}", action.planned), subject);
+        self.action(
+            &format!("Would {}", action.planned),
+            subject,
+            ActionColor::Yellow,
+        );
     }
 
     /// Prints a successful no-op.
     pub(crate) fn current(self, subject: impl fmt::Display) {
-        self.printer.info("Current", subject);
+        self.action("Current", subject, ActionColor::Cyan);
     }
 
     /// Prints a skipped operation.
     pub(crate) fn skipped(self, subject: impl fmt::Display) {
-        self.printer.info("Skipped", subject);
+        self.action("Skipped", subject, ActionColor::Cyan);
     }
 
     /// Prints a failed operation.
     pub(crate) fn failed(self, subject: impl fmt::Display) {
-        self.printer.failure("Failed", subject);
+        self.action("Failed", subject, ActionColor::Red);
     }
 
-    /// Prints supporting information beneath an outcome.
+    /// Prints an indented label and value beneath an outcome.
     pub(crate) fn detail(self, label: &str, value: impl fmt::Display) {
-        self.printer.detail(label, value);
+        if self.colorize {
+            println!("  {:<10} {value}", label.cyan().bold());
+        } else {
+            println!("  {label:<10} {value}");
+        }
     }
 
-    /// Prints command payload to stdout.
+    /// Prints command payload to stdout without decoration.
     pub(crate) fn payload(self, value: impl fmt::Display) {
-        self.printer.payload(value);
+        println!("{value}");
     }
 
-    /// Prints interactive context to stderr.
+    /// Prints interactive context to stderr without decoration.
     pub(crate) fn diagnostic(self, value: impl fmt::Display) {
-        self.printer.diagnostic(value);
+        eprintln!("{value}");
     }
 
     /// Prints a blank interactive-context line to stderr.
     pub(crate) fn diagnostic_blank(self) {
-        self.printer.diagnostic_blank();
+        eprintln!();
     }
 
-    /// Reads confirmation from stdin after prompting on stderr.
+    /// Prints a confirmation prompt to stderr and reads one line from stdin.
+    ///
+    /// Appends ` [y/N] ` to the prompt. Any case variant of `y` or `yes`
+    /// accepts; anything else, including EOF and an empty line, declines.
     pub(crate) fn confirm(self, prompt: impl fmt::Display) -> anyhow::Result<bool> {
-        self.printer.confirm(prompt)
+        eprint!("{prompt} [y/N] ");
+        io::stderr().flush().context("flushing prompt")?;
+
+        let mut input = String::new();
+        io::stdin()
+            .read_line(&mut input)
+            .context("reading prompt response")?;
+
+        Ok(matches!(
+            input.trim().to_ascii_lowercase().as_str(),
+            "y" | "yes"
+        ))
+    }
+
+    /// Prints an action line with only the verb colored.
+    fn action(self, verb: &str, rest: impl fmt::Display, color: ActionColor) {
+        if self.colorize {
+            println!("{} {rest}", color.apply(verb));
+        } else {
+            println!("{verb} {rest}");
+        }
     }
 }

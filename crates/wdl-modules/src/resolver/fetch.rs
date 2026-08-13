@@ -62,7 +62,7 @@ impl GitFetcher {
         scope: DependencyScope,
     ) -> Result<String, ResolverError> {
         let net = self.policy.git_policy(scope);
-        crate::resolver::git::discover_default_branch(
+        crate::resolver::git::ops::discover_default_branch(
             url,
             self.policy.credential_mode(scope, url),
             net.max_advertised_refs,
@@ -90,12 +90,13 @@ impl GitFetcher {
         let mode = self.policy.credential_mode(scope, url);
 
         // Fast path: a prefix of an advertised ref's SHA needs no clone.
-        let refs = crate::resolver::git::list_advertised_refs(url, net.max_advertised_refs, mode)?;
-        if let Some(sha) = crate::resolver::git::unique_ref_prefix_match(&refs, prefix) {
+        let refs =
+            crate::resolver::git::ops::list_advertised_refs(url, net.max_advertised_refs, mode)?;
+        if let Some(sha) = crate::resolver::git::ops::unique_ref_prefix_match(&refs, prefix) {
             return Ok(sha.to_string());
         }
 
-        crate::resolver::git::resolve_commit_prefix(work_dir, url, prefix, mode)
+        crate::resolver::git::ops::resolve_commit_prefix(work_dir, url, prefix, mode)
             .map_err(ResolverError::from)
     }
 
@@ -106,9 +107,9 @@ impl GitFetcher {
         commit: &str,
         paths: &[&str],
         scope: DependencyScope,
-        cache: crate::resolver::git::CacheLocation<'_>,
+        cache: crate::resolver::git::ops::CacheLocation<'_>,
     ) -> Result<bool, ResolverError> {
-        let fetched = crate::resolver::git::ensure_materialized(
+        let fetched = crate::resolver::git::ops::ensure_materialized(
             cache,
             url,
             commit,
@@ -194,7 +195,7 @@ mod tests {
 
         let cache = tempdir()?;
         let leaf = cache.path().join(&sha);
-        let location = crate::resolver::git::CacheLocation {
+        let location = crate::resolver::git::ops::CacheLocation {
             root: cache.path(),
             leaf: &leaf,
         };

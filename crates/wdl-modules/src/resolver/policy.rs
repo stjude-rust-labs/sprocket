@@ -20,7 +20,7 @@ use crate::resolver::DependencyScope;
 use crate::resolver::config::LargeFileWarning;
 use crate::resolver::config::ModulesConfig;
 use crate::resolver::error::ResolverError;
-use crate::resolver::git::CredentialMode;
+use crate::resolver::git::ops::CredentialMode;
 
 /// Configuration key for top-level dependency hosts.
 const ALLOWED_HOSTS_CONFIG_KEY: &str = "allowed_hosts";

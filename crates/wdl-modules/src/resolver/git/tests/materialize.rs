@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use tempfile::tempdir;
 
-use super::super::materialize::exclude_set;
-use super::super::materialize::read_manifest;
-use super::super::materialize::resolve_normalized_subpath;
+use super::super::exclude_set;
+use super::super::read_manifest;
+use super::super::resolve_normalized_subpath;
 use super::json_path;
 use super::module;
 use super::resolve_and_lock;

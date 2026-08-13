@@ -2,12 +2,16 @@
 
 use std::path::PathBuf;
 
+use anyhow::Context as _;
 use wdl_modules::Lockfile;
 use wdl_modules::Resolver as _;
 use wdl_modules::dependency::DependencyName;
 use wdl_modules::dependency::DependencySource;
 use wdl_modules::dependency::GitModulePath;
 use wdl_modules::dependency::GitSelector;
+use wdl_modules::normalize_git_remote;
+use wdl_modules::remote::GitRemoteKind;
+use wdl_modules::remote::git_remote_kind;
 use wdl_modules::resolver::DependencyScope;
 use wdl_modules::resolver::GitPlatform;
 use wdl_modules::version_requirement::VersionRequirement;
@@ -180,8 +184,7 @@ enum SourceKind {
     Url,
     /// A hosted Git repository shorthand such as `openwdl/wdl`.
     Shorthand,
-    /// An unsupported scp-like Git location such as
-    /// `git@example.com:org/repo.git`.
+    /// Git's scp-like syntax, such as `git@example.com:org/repo.git`.
     ScpLike,
     /// A local filesystem path such as `../modules/tasks`.
     LocalPath,
@@ -189,14 +192,13 @@ enum SourceKind {
 
 /// Classifies a source argument without accessing the filesystem or network.
 fn infer_source_kind(raw: &str) -> SourceKind {
-    if url::Url::parse(raw).is_ok() {
-        SourceKind::Url
-    } else if scp_like_parts(raw).is_some() {
-        SourceKind::ScpLike
-    } else if GitPlatform::shorthand_repo_name(raw).is_some() {
-        SourceKind::Shorthand
-    } else {
-        SourceKind::LocalPath
+    match git_remote_kind(raw) {
+        GitRemoteKind::Url => SourceKind::Url,
+        GitRemoteKind::Scp => SourceKind::ScpLike,
+        GitRemoteKind::Path if GitPlatform::shorthand_repo_name(raw).is_some() => {
+            SourceKind::Shorthand
+        }
+        GitRemoteKind::Path => SourceKind::LocalPath,
     }
 }
 
@@ -246,12 +248,18 @@ fn resolve_git_url(
             Ok(Some(url))
         }
         SourceKind::ScpLike => {
-            let (user_host, path) =
-                scp_like_parts(source).expect("source kind was inferred from scp-like syntax");
-            anyhow::bail!(
-                "`{source}` looks like an scp-style Git URL, which is not supported; use \
-                 `ssh://{user_host}/{path}` instead"
+            let url = normalize_git_remote(source).with_context(|| {
+                format!(
+                    "`{source}` looks like an scp-style Git location but could not be converted \
+                     to an `ssh` URL"
+                )
+            })?;
+            tracing::trace!(
+                source,
+                url = %url,
+                "converted scp-like dependency source to an ssh URL"
             );
+            Ok(Some(url))
         }
         SourceKind::LocalPath => {
             tracing::trace!(
@@ -275,19 +283,6 @@ pub(super) fn selector_arg_kind(args: &Args) -> &'static str {
         "version"
     } else {
         "auto"
-    }
-}
-
-/// Splits Git's scp-like `user@host:path` syntax into its parts.
-///
-/// Returns `None` for anything that is not scp-like (plain paths, Windows
-/// drive-letter paths, URLs).
-fn scp_like_parts(source: &str) -> Option<(&str, &str)> {
-    let (user_host, path) = source.split_once(':')?;
-    if user_host.contains('@') && !user_host.contains('/') && !path.starts_with("//") {
-        Some((user_host, path))
-    } else {
-        None
     }
 }
 
@@ -442,6 +437,23 @@ mod tests {
             SourceKind::ScpLike
         );
         assert_eq!(infer_source_kind("./openwdl/wdl"), SourceKind::LocalPath);
+    }
+
+    #[tokio::test]
+    async fn dependency_source_builder_accepts_scp_like_git_url() {
+        let source = "git@github.com:org/repo.git";
+        let mut args = make_args(source);
+        args.commit = Some("0123456789012345678901234567890123456789".to_string());
+        let config = Config::default();
+        let built = DependencySourceBuilder::new(&args, &config, &dependency_name(), source)
+            .build()
+            .await
+            // SAFETY: explicit commit construction does not access the repository.
+            .unwrap();
+
+        assert!(
+            matches!(built.source, DependencySource::Git { url, .. } if url.as_str() == "ssh://git@github.com/org/repo.git")
+        );
     }
 
     #[tokio::test]
@@ -633,14 +645,26 @@ mod tests {
     }
 
     #[test]
-    fn scp_like_parts_detects_scp_syntax_only() {
+    fn infer_source_kind_detects_scp_syntax() {
         assert_eq!(
-            scp_like_parts("git@github.com:org/repo.git"),
-            Some(("git@github.com", "org/repo.git"))
+            infer_source_kind("git@github.com:org/repo.git"),
+            SourceKind::ScpLike
         );
-        assert_eq!(scp_like_parts("./local/path"), None);
-        assert_eq!(scp_like_parts("C:\\repos\\module"), None);
-        assert_eq!(scp_like_parts("https://example.com/repo"), None);
-        assert_eq!(scp_like_parts("org/repo"), None);
+    }
+
+    #[test]
+    fn infer_source_kind_treats_a_bare_host_and_path_as_scp_syntax() {
+        assert_eq!(
+            infer_source_kind("github.com:org/repo.git"),
+            SourceKind::ScpLike
+        );
+    }
+
+    #[test]
+    fn infer_source_kind_rejects_a_windows_drive_path_as_scp_syntax() {
+        assert_eq!(
+            infer_source_kind("C:\\repos\\module"),
+            SourceKind::LocalPath
+        );
     }
 }

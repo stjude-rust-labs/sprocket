@@ -129,6 +129,11 @@ pub struct Args {
     #[clap(short, long, value_name = "OUTPUT_DIR")]
     pub output_dir: Option<PathBuf>,
 
+    /// Fail if `module-lock.json` is missing or out of date instead of
+    /// regenerating it before evaluation.
+    #[clap(long)]
+    pub locked: bool,
+
     /// The output name to index on.
     ///
     /// If provided, the run outputs will be indexed using the specified output
@@ -645,10 +650,16 @@ pub async fn run(
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     args.apply_engine_config(&mut config.run.engine);
 
-    // Regenerate a stale or missing module lockfile before executing so
-    // the run proceeds against a consistent, reproducible tree.
+    // Bring a stale or missing module lockfile up to date before executing so
+    // the run proceeds against a consistent, reproducible tree, unless
+    // `--locked` asked for the run to fail instead.
     if let Some(dir) = source.local_start_dir() {
-        crate::commands::module::auto_lock::ensure_lockfile_current(&config, &dir)
+        let policy = if args.locked {
+            crate::commands::module::auto_lock::LockfilePolicy::RequireCurrent
+        } else {
+            crate::commands::module::auto_lock::LockfilePolicy::Regenerate
+        };
+        crate::commands::module::auto_lock::ensure_lockfile_current(&config, &dir, policy)
             .await
             .map_err(CommandError::from)?;
     }

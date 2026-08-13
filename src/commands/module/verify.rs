@@ -10,6 +10,7 @@ use wdl_modules::resolver::VerifyLockedReport;
 use wdl_modules::signing::ModuleSignature;
 
 use super::project::Locator;
+use super::project::LockedFlag;
 use super::project::Project;
 use super::project::discover;
 use super::project::require_lockfile;
@@ -32,6 +33,10 @@ pub struct Args {
     /// Require every package in scope to have a cryptographic signature.
     #[arg(long)]
     pub require_signatures: bool,
+
+    /// Shared lockfile strictness flag.
+    #[command(flatten)]
+    locked: LockedFlag,
 
     /// Shared module locator.
     #[command(flatten)]
@@ -61,7 +66,13 @@ pub async fn verify(args: Args, config: Config, output: CommandOutput) -> Comman
     match args.target {
         Some(VerifyTarget::Signature) => verify_signature(&project, &checksum, output)?,
         Some(VerifyTarget::Lockfile) => {
-            let unsigned = verify_lockfile(&project, &config, output, args.require_signatures)?;
+            let unsigned = verify_lockfile(
+                &project,
+                &config,
+                output,
+                args.require_signatures,
+                args.locked,
+            )?;
             fail_if_required_signatures_missing(None, &unsigned, false, args.require_signatures)?;
         }
         None => verify_all(
@@ -70,6 +81,7 @@ pub async fn verify(args: Args, config: Config, output: CommandOutput) -> Comman
             &checksum,
             output,
             args.require_signatures,
+            args.locked,
         )?,
     }
 
@@ -83,6 +95,7 @@ fn verify_all(
     checksum: &ContentHash,
     output: CommandOutput,
     require_signatures: bool,
+    locked: LockedFlag,
 ) -> anyhow::Result<()> {
     let mut unsigned_current = None;
     let mut unsigned_dependencies = Vec::new();
@@ -98,9 +111,10 @@ fn verify_all(
         print_unsigned_current_summary(output, require_signatures);
     }
 
-    let missing_dependency_lockfile = if project.lockfile_path().exists() {
+    let missing_dependency_lockfile = if locked.enabled || project.lockfile_path().exists() {
         tracing::debug!("verifying lockfile as part of full verification");
-        unsigned_dependencies = verify_lockfile(project, config, output, require_signatures)?;
+        unsigned_dependencies =
+            verify_lockfile(project, config, output, require_signatures, locked)?;
         false
     } else if require_signatures && !project.manifest().dependencies.is_empty() {
         output.failed("signature verification for dependencies (no `module-lock.json`)");
@@ -147,9 +161,9 @@ fn verify_lockfile(
     config: &Config,
     output: CommandOutput,
     require_signatures: bool,
+    locked: LockedFlag,
 ) -> anyhow::Result<Vec<DependencyName>> {
-    tracing::trace!(lockfile = %project.lockfile_path().display(), "reading module lockfile");
-    let lock = require_lockfile(project)?;
+    let lock = require_lockfile(project, locked)?;
 
     let module = Module::new(
         std::sync::Arc::new(project.manifest().clone()),
@@ -294,12 +308,12 @@ fn fail_if_required_signatures_missing(
         );
     }
 
-    if problems.is_empty() {
-        Ok(())
-    } else {
+    if !problems.is_empty() {
         anyhow::bail!(
             "verification with `--require-signatures` requires signatures for every package:\n  {}",
             problems.join("\n  ")
         );
     }
+
+    Ok(())
 }

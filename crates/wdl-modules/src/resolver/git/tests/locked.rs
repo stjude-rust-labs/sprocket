@@ -27,7 +27,7 @@ fn hash_from_byte(byte: u8) -> crate::hash::ContentHash {
 }
 
 /// Builds a resolver with one named locked Git dependency.
-fn locked_git_resolver(
+fn locked_resolver(
     cache: &tempfile::TempDir,
     dep: &str,
     entry: DependencyEntry,
@@ -58,7 +58,7 @@ async fn ensure_locked_rejects_forbidden_git_url_before_fetch() {
         signer: None,
         dependencies: Default::default(),
     };
-    let r = locked_git_resolver(&cache, "widget", entry);
+    let r = locked_resolver(&cache, "widget", entry);
 
     let workdir = tempdir().unwrap();
     let consumer_dir = workdir.path().join("consumer");

@@ -17,8 +17,6 @@ pub(crate) mod fetch;
 #[cfg(feature = "git-resolver")]
 mod git;
 #[cfg(feature = "git-resolver")]
-mod git_resolver;
-#[cfg(feature = "git-resolver")]
 pub mod lock;
 #[cfg(feature = "git-resolver")]
 pub(crate) mod policy;
@@ -51,13 +49,13 @@ pub use crate::resolver::error::GitRefKind;
 pub use crate::resolver::error::MissingFileKind;
 pub use crate::resolver::error::ResolverError;
 #[cfg(feature = "git-resolver")]
-pub use crate::resolver::git_resolver::CacheCleanStats;
+pub use crate::resolver::git::CacheCleanStats;
 #[cfg(feature = "git-resolver")]
-pub use crate::resolver::git_resolver::GitResolver;
+pub use crate::resolver::git::GitResolver;
 #[cfg(feature = "git-resolver")]
-pub use crate::resolver::git_resolver::GitResolverBuilder;
+pub use crate::resolver::git::GitResolverBuilder;
 #[cfg(feature = "git-resolver")]
-pub use crate::resolver::git_resolver::VerifyLockedReport;
+pub use crate::resolver::git::VerifyLockedReport;
 #[cfg(feature = "git-resolver")]
 pub use crate::resolver::policy::ResolverPolicy;
 pub use crate::resolver::scope::DependencyScope;

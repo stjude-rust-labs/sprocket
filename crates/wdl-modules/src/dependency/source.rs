@@ -282,7 +282,7 @@ pub enum GitSelector {
     Tag(String),
     /// A Git branch name.
     Branch(String),
-    /// A Git commit SHA, or any unique prefix of one (7–40 hex chars).
+    /// A Git commit SHA, or any unique prefix of one (4 to 40 hex chars).
     /// The resolver expands a prefix to the full SHA at lock time.
     Commit(GitCommitish),
 }

@@ -4,32 +4,6 @@ use wdl_modules::dependency::GitSelector;
 use wdl_modules::lockfile::ResolvedSource;
 use wdl_modules::resolver::lock::DependencyUpdate;
 
-/// Formats a dependency update for an action line.
-#[cfg(test)]
-fn update_message(
-    name: &impl std::fmt::Display,
-    from_path: Option<&str>,
-    to_path: Option<&str>,
-    from_selector: Option<&str>,
-    to_selector: Option<&str>,
-    from_commit: Option<&str>,
-    to_commit: Option<&str>,
-) -> String {
-    let details = update_details(
-        from_path,
-        to_path,
-        from_selector,
-        to_selector,
-        from_commit,
-        to_commit,
-    );
-    if details.is_empty() {
-        format!("Updated `{name}`")
-    } else {
-        format!("Updated `{name}` ({details})")
-    }
-}
-
 /// Formats a Git selector for user-facing output.
 pub(super) fn git_selector(selector: &GitSelector) -> String {
     selector_detail(&selector.to_string())
@@ -150,6 +124,31 @@ pub(super) fn short_commit(commit: &str) -> &str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Formats a dependency update for an action line.
+    fn update_message(
+        name: &impl std::fmt::Display,
+        from_path: Option<&str>,
+        to_path: Option<&str>,
+        from_selector: Option<&str>,
+        to_selector: Option<&str>,
+        from_commit: Option<&str>,
+        to_commit: Option<&str>,
+    ) -> String {
+        let details = update_details(
+            from_path,
+            to_path,
+            from_selector,
+            to_selector,
+            from_commit,
+            to_commit,
+        );
+        if details.is_empty() {
+            format!("Updated `{name}`")
+        } else {
+            format!("Updated `{name}` ({details})")
+        }
+    }
 
     #[test]
     fn update_message_describes_path_changes_clearly() {

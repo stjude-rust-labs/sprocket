@@ -5,20 +5,17 @@
 //! walks upward from a caller-supplied start path until it finds `module.json`
 //! or reaches a `.git` boundary, so project discovery returns `Ok(None)` when
 //! no ancestor project exists. [`ManifestDocument`] preserves unknown manifest
-//! extension fields while revalidating each edit immediately. When callers
-//! need to write the manifest and lockfile together, [`LockedModuleProject`]
-//! blocks on a global lock under a caller-rooted state directory, keeps
-//! recovery journals there, and writes no mutation state inside the project
-//! itself.
+//! extension fields and validates each edit before it lands.
 
 /// Lossless `module.json` document editing helpers.
 mod document;
-/// Caller-rooted locking and paired persistence helpers.
-mod mutation;
+/// Advisory locking for the project lockfile.
+mod lockfile;
 /// Project validation helpers for manifest-referenced files and content
 /// hashing.
 mod validation;
 
+use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -26,9 +23,7 @@ use thiserror::Error;
 
 pub use self::document::ManifestDocument;
 pub use self::document::ManifestDocumentError;
-pub use self::mutation::LockedModuleProject;
-pub use self::mutation::ProjectMutationError;
-pub use self::mutation::ProjectUpdate;
+pub use self::lockfile::LockedLockfile;
 pub use self::validation::ProjectFileKind;
 pub use self::validation::ProjectValidationError;
 use crate::Lockfile;
@@ -189,33 +184,76 @@ impl ModuleProject {
 
     /// Loads the sibling `module-lock.json` when it exists.
     ///
-    /// This returns `Ok(None)` when the sibling lockfile path is absent.
+    /// See [`LockedLockfile::read`] for the locking and empty-file behavior.
     pub fn load_lockfile(&self) -> Result<Option<Lockfile>, ProjectError> {
-        let bytes = match std::fs::read(&self.lockfile_path) {
-            Ok(bytes) => bytes,
-            Err(source) if source.kind() == std::io::ErrorKind::NotFound => {
-                return Ok(None);
-            }
-            Err(source) => {
-                return Err(ProjectError::Io {
-                    path: self.lockfile_path.clone(),
-                    source,
-                });
-            }
-        };
-        Lockfile::parse(&bytes)
-            .map(Some)
-            .map_err(|source| ProjectError::Lockfile {
-                path: self.lockfile_path.clone(),
-                source,
-            })
+        LockedLockfile::read(&self.lockfile_path)
     }
 
-    #[cfg(test)]
-    fn with_test_lockfile_path(mut self, lockfile_path: PathBuf) -> Self {
-        self.lockfile_path = lockfile_path;
-        self
+    /// Writes `document` to this project's `module.json`.
+    ///
+    /// The manifest is replaced by an atomic rename, so a reader sees either
+    /// the previous file or the complete new one. No lock is taken, because a
+    /// text editor or another tool may rewrite the manifest at any time; the
+    /// last writer wins.
+    pub fn write_manifest(&self, document: &ManifestDocument) -> Result<(), ProjectError> {
+        let bytes = document
+            .to_bytes()
+            .map_err(|source| ProjectError::Manifest {
+                path: self.manifest_path.clone(),
+                source,
+            })?;
+        write_atomically(&self.manifest_path, &bytes)
     }
+}
+
+/// Replaces `path` with `bytes` through an atomic rename.
+///
+/// The temporary file is created in the destination directory so the rename
+/// stays on one filesystem, and its permissions are aligned with the
+/// destination before the rename.
+fn write_atomically(path: &Path, bytes: &[u8]) -> Result<(), ProjectError> {
+    let directory = path.parent().unwrap_or_else(|| Path::new("."));
+    let mut temp =
+        tempfile::NamedTempFile::new_in(directory).map_err(|source| ProjectError::Io {
+            path: directory.to_path_buf(),
+            source,
+        })?;
+    temp.write_all(bytes).map_err(|source| ProjectError::Io {
+        path: temp.path().to_path_buf(),
+        source,
+    })?;
+    align_temp_permissions(&temp, path)?;
+    temp.persist(path).map_err(|e| ProjectError::Io {
+        path: path.to_path_buf(),
+        source: e.error,
+    })?;
+    Ok(())
+}
+
+/// Aligns a temporary file's permissions with the destination before rename.
+fn align_temp_permissions(temp: &tempfile::NamedTempFile, path: &Path) -> Result<(), ProjectError> {
+    if let Ok(metadata) = std::fs::metadata(path) {
+        temp.as_file()
+            .set_permissions(metadata.permissions())
+            .map_err(|source| ProjectError::Io {
+                path: temp.path().to_path_buf(),
+                source,
+            })?;
+        return Ok(());
+    }
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt as _;
+        temp.as_file()
+            .set_permissions(std::fs::Permissions::from_mode(0o644))
+            .map_err(|source| ProjectError::Io {
+                path: temp.path().to_path_buf(),
+                source,
+            })?;
+    }
+
+    Ok(())
 }
 
 #[cfg(test)]
@@ -272,5 +310,44 @@ mod tests {
         let project = ModuleProject::load(path).unwrap();
 
         assert!(project.load_lockfile().unwrap().is_none());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn write_atomically_gives_new_files_mode_0644()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join(crate::MANIFEST_FILENAME);
+
+        write_atomically(&path, b"{}\n")?;
+
+        assert_eq!(
+            std::fs::metadata(&path)?.permissions().mode() & 0o777,
+            0o644
+        );
+        Ok(())
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn write_manifest_preserves_an_existing_mode()
+    -> std::result::Result<(), Box<dyn std::error::Error>> {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let directory = tempfile::tempdir()?;
+        let path = directory.path().join(crate::MANIFEST_FILENAME);
+        std::fs::write(&path, MANIFEST)?;
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
+        let project = ModuleProject::load(&path)?;
+
+        project.write_manifest(project.document())?;
+
+        assert_eq!(
+            std::fs::metadata(&path)?.permissions().mode() & 0o777,
+            0o600
+        );
+        Ok(())
     }
 }

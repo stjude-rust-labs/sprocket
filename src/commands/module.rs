@@ -12,7 +12,6 @@ mod display;
 pub mod fetch;
 pub mod init;
 pub mod lock;
-mod mutation;
 mod project;
 mod relock;
 pub mod remove;
@@ -36,9 +35,11 @@ pub enum ModuleCommands {
     Add(add::Args),
     /// Remove a dependency from `module.json` and relock.
     Remove(remove::Args),
-    /// Resolve dependencies and write `module-lock.json`.
+    /// Resolve dependencies missing from `module-lock.json`, leaving locked
+    /// entries that still satisfy `module.json` untouched.
     Lock(lock::Args),
-    /// Update locked dependencies within manifest constraints.
+    /// Re-resolve locked dependencies to the newest versions `module.json`
+    /// allows, whether or not they are already current.
     Update(update::Args),
     /// Raise manifest constraints to the latest versions, then relock.
     Upgrade(upgrade::Args),

@@ -2,7 +2,7 @@ use std::fs;
 
 use tempfile::tempdir;
 
-use super::super::resolve::locked_selector_satisfies;
+use super::super::locked_selector_satisfies;
 use super::json_path;
 use super::locked_git_entry;
 use super::module;

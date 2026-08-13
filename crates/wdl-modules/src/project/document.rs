@@ -10,11 +10,11 @@ use crate::manifest::ManifestError;
 pub enum ManifestDocumentError {
     /// The `module.json` bytes failed strict manifest validation.
     #[error("invalid module manifest")]
-    Manifest(#[source] ManifestError),
+    Manifest(#[from] ManifestError),
 
     /// The `module.json` bytes failed JSON parsing or serialization.
     #[error("invalid manifest JSON")]
-    Json(#[source] serde_json::Error),
+    Json(#[from] serde_json::Error),
 
     /// The root JSON value was not an object.
     #[error("`module.json` root must be an object")]
@@ -29,8 +29,9 @@ pub enum ManifestDocumentError {
 ///
 /// This value stays in memory until a caller writes [`Self::to_bytes`] back to
 /// the exact `module.json` path chosen by [`super::ModuleProject`]. Each edit
-/// preserves unrelated extension fields and becomes visible only after the
-/// edited document reparses as a valid manifest.
+/// preserves unrelated extension fields and keeps [`Self::manifest`] in step
+/// with the document; an edit that cannot be represented fails before either
+/// one changes.
 ///
 /// ```rust
 /// use std::path::PathBuf;
@@ -46,7 +47,7 @@ pub enum ManifestDocumentError {
 /// }"#,
 /// )?;
 ///
-/// document.set_dependency(
+/// document.insert_dependency(
 ///     "helpers",
 ///     &DependencySource::LocalPath {
 ///         path: PathBuf::from("../helpers"),
@@ -78,8 +79,8 @@ impl ManifestDocument {
     /// Parses raw `module.json` bytes without discarding unknown extension
     /// fields.
     pub fn parse(bytes: &[u8]) -> Result<Self, ManifestDocumentError> {
-        let manifest = Manifest::parse(bytes).map_err(ManifestDocumentError::Manifest)?;
-        let value = serde_json::from_slice(bytes).map_err(ManifestDocumentError::Json)?;
+        let manifest = Manifest::parse(bytes)?;
+        let value = serde_json::from_slice(bytes)?;
         Ok(Self { value, manifest })
     }
 
@@ -89,20 +90,30 @@ impl ManifestDocument {
         &self.manifest
     }
 
-    /// Sets or replaces one dependency entry in `module.json`.
+    /// Inserts or replaces one dependency entry in `module.json`.
     ///
     /// Unrelated manifest fields and dependency extension fields stay intact.
-    /// The in-memory document changes only after the edited result reparses as
-    /// a valid manifest, so failed edits leave both the document bytes and the
-    /// validated view unchanged.
-    pub fn set_dependency(
+    /// The name is parsed and the source serialized before the document
+    /// changes, so a rejected edit leaves both the document and the validated
+    /// view untouched.
+    pub fn insert_dependency(
         &mut self,
         name: &str,
         source: &DependencySource,
     ) -> Result<(), ManifestDocumentError> {
         let name = Self::parse_dependency_name(name)?;
-        let mut value = self.value.clone();
-        let root = value
+        let serialized = serde_json::to_value(source)?;
+        // Dependency names treat hyphens and underscores as the same
+        // character, so `spell-book` and `spell_book` are one dependency while
+        // the JSON object is keyed by whichever spelling the author wrote.
+        // Inserting the normalized key alone would leave the author's spelling
+        // behind as a second entry for the same dependency.
+        let superseded = self
+            .matching_dependency_key(&name)
+            .filter(|existing| *existing != name.manifest())
+            .map(str::to_string);
+        let root = self
+            .value
             .as_object_mut()
             .ok_or(ManifestDocumentError::RootNotObject)?;
         let dependencies = root
@@ -110,43 +121,42 @@ impl ManifestDocument {
             .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()))
             .as_object_mut()
             .ok_or(ManifestDocumentError::DependenciesNotObject)?;
-        if let Some(existing) = self.matching_dependency_key(&name)
-            && existing != name.manifest()
-        {
-            dependencies.remove(existing);
+        if let Some(superseded) = superseded {
+            dependencies.remove(&superseded);
         }
-        dependencies.insert(
-            name.into_manifest(),
-            serde_json::to_value(source).map_err(ManifestDocumentError::Json)?,
-        );
+        dependencies.insert(name.manifest().to_string(), serialized);
         dependencies.sort_keys();
-        self.replace_validated(value)
+        // `DependencyName` compares by normalized identifier, so inserting
+        // over an equivalent key would keep the old spelling in the map while
+        // the document carries the new one.
+        self.manifest.dependencies.remove(&name);
+        self.manifest.dependencies.insert(name, source.clone());
+        Ok(())
     }
 
     /// Removes a dependency from `module.json` when present.
     ///
-    /// Returns `true` when a dependency was removed. Removal still reparses
-    /// the whole document before it becomes visible, so failed edits leave the
-    /// document unchanged.
+    /// Returns `true` when a dependency was removed, and leaves the document
+    /// untouched when the dependency is absent.
     pub fn remove_dependency(&mut self, name: &str) -> Result<bool, ManifestDocumentError> {
         let name = Self::parse_dependency_name(name)?;
-        let mut value = self.value.clone();
-        let root = value
+        let Some(existing) = self.matching_dependency_key(&name).map(str::to_string) else {
+            return Ok(false);
+        };
+        let root = self
+            .value
             .as_object_mut()
             .ok_or(ManifestDocumentError::RootNotObject)?;
         let Some(dependencies) = root.get_mut("dependencies") else {
             return Ok(false);
         };
-        let Some(existing) = self.matching_dependency_key(&name) else {
-            return Ok(false);
-        };
         let removed = dependencies
             .as_object_mut()
             .ok_or(ManifestDocumentError::DependenciesNotObject)?
-            .remove(existing)
+            .remove(&existing)
             .is_some();
         if removed {
-            self.replace_validated(value)?;
+            self.manifest.dependencies.remove(&name);
         }
         Ok(removed)
     }
@@ -154,26 +164,18 @@ impl ManifestDocument {
     /// Serializes the current document as pretty-printed `module.json` bytes
     /// with a trailing newline.
     pub fn to_bytes(&self) -> Result<Vec<u8>, ManifestDocumentError> {
-        let mut bytes =
-            serde_json::to_vec_pretty(&self.value).map_err(ManifestDocumentError::Json)?;
+        let mut bytes = serde_json::to_vec_pretty(&self.value)?;
         bytes.push(b'\n');
         Ok(bytes)
     }
 
-    /// Replaces the stored JSON value after revalidating the full document.
-    fn replace_validated(&mut self, value: serde_json::Value) -> Result<(), ManifestDocumentError> {
-        let mut bytes = serde_json::to_vec_pretty(&value).map_err(ManifestDocumentError::Json)?;
-        bytes.push(b'\n');
-        let manifest = Manifest::parse(&bytes).map_err(ManifestDocumentError::Manifest)?;
-        self.value = value;
-        self.manifest = manifest;
-        Ok(())
-    }
-
     /// Parses one dependency key with manifest validation rules.
     fn parse_dependency_name(name: &str) -> Result<DependencyName, ManifestDocumentError> {
-        name.parse().map_err(|_| {
-            ManifestDocumentError::Manifest(ManifestError::InvalidDependencyName(name.to_string()))
+        name.parse().map_err(|source| {
+            ManifestDocumentError::Manifest(ManifestError::InvalidDependencyName {
+                name: name.to_string(),
+                source,
+            })
         })
     }
 
@@ -208,7 +210,7 @@ mod tests {
         let source: DependencySource =
             serde_json::from_str(r#"{"path":"./beta","x-source-extra":"kept"}"#).unwrap();
 
-        document.set_dependency("beta", &source).unwrap();
+        document.insert_dependency("beta", &source).unwrap();
 
         let value: serde_json::Value =
             serde_json::from_slice(&document.to_bytes().unwrap()).unwrap();
@@ -234,7 +236,7 @@ mod tests {
             serde_json::from_str(r#"{"path":"./bad","x-source-extra":null}"#).unwrap();
 
         let error = document
-            .set_dependency("not valid", &source)
+            .insert_dependency("not valid", &source)
             .expect_err("an invalid dependency name must fail strict manifest parsing");
 
         assert!(error.to_string().contains("manifest"));
@@ -242,7 +244,7 @@ mod tests {
     }
 
     #[test]
-    fn set_dependency_replaces_equivalent_hyphenated_name() {
+    fn insert_dependency_replaces_equivalent_hyphenated_name() {
         let manifest = r#"{
           "name": "example",
           "license": "MIT",
@@ -254,12 +256,44 @@ mod tests {
         let replacement: DependencySource =
             serde_json::from_str(r#"{"path":"./updated"}"#).unwrap();
 
-        document.set_dependency("spell_book", &replacement).unwrap();
+        document
+            .insert_dependency("spell_book", &replacement)
+            .unwrap();
 
         let value: serde_json::Value =
             serde_json::from_slice(&document.to_bytes().unwrap()).unwrap();
         assert_eq!(value["dependencies"]["spell_book"]["path"], "./updated");
         assert!(value["dependencies"]["spell-book"].is_null());
+    }
+
+    #[test]
+    fn insert_dependency_respells_the_key_in_the_manifest_view() {
+        let manifest = r#"{
+          "name": "example",
+          "license": "MIT",
+          "dependencies": {
+            "spell-book": { "path": "./alpha" }
+          }
+        }"#;
+        let mut document = ManifestDocument::parse(manifest.as_bytes()).unwrap();
+        let replacement: DependencySource =
+            serde_json::from_str(r#"{"path":"./updated"}"#).unwrap();
+
+        document
+            .insert_dependency("spell_book", &replacement)
+            .unwrap();
+
+        let spellings: Vec<_> = document
+            .manifest()
+            .dependencies
+            .keys()
+            .map(|name| name.manifest().to_string())
+            .collect();
+        assert_eq!(
+            spellings,
+            vec!["spell_book".to_string()],
+            "the manifest view must carry the spelling written to the document"
+        );
     }
 
     #[test]

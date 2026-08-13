@@ -183,7 +183,7 @@ impl Analysis {
             return Ok(wdl::analysis::ResolutionContext::default());
         }
 
-        resolution_context_from_paths(modules_config, &self.feature_flags, &starts)
+        resolution_context_from_paths(modules_config, &starts)
     }
 
     /// Runs the analysis and returns all results (if any exist).
@@ -349,14 +349,9 @@ pub(crate) fn build_resolver(
     use anyhow::Context as _;
 
     let lockfile_path = manifest_path.with_file_name(wdl_modules::LOCKFILE_FILENAME);
-    let lockfile = if lockfile_path.exists() {
-        let lock_bytes = std::fs::read(&lockfile_path)
-            .with_context(|| format!("reading `{}`", lockfile_path.display()))?;
-        wdl_modules::Lockfile::parse(&lock_bytes)
-            .with_context(|| format!("parsing `{}`", lockfile_path.display()))?
-    } else {
-        wdl_modules::Lockfile::default()
-    };
+    let lockfile = wdl_modules::project::LockedLockfile::read(&lockfile_path)
+        .with_context(|| format!("reading `{}`", lockfile_path.display()))?
+        .unwrap_or_default();
 
     let cache_root = modules_config
         .cache_path
@@ -396,9 +391,7 @@ pub(crate) fn resolution_context_for_manifest(
     manifest: wdl_modules::Manifest,
 ) -> anyhow::Result<wdl::analysis::ResolutionContext> {
     let lockfile_path = manifest_path.with_file_name(wdl_modules::LOCKFILE_FILENAME);
-    if lockfile_path.exists()
-        && let Ok(lock_bytes) = std::fs::read(&lockfile_path)
-        && let Ok(lock) = wdl_modules::Lockfile::parse(&lock_bytes)
+    if let Ok(Some(lock)) = wdl_modules::project::LockedLockfile::read(&lockfile_path)
         && !lock.satisfies_manifest(&manifest)
     {
         tracing::warn!(
@@ -429,7 +422,6 @@ pub(crate) fn resolution_context_for_manifest(
 /// is malformed or when `starts` spans more than one manifest.
 pub(crate) fn resolution_context_from_paths(
     modules_config: &wdl_modules::resolver::ModulesConfig,
-    _feature_flags: &FeatureFlags,
     starts: &[PathBuf],
 ) -> anyhow::Result<wdl::analysis::ResolutionContext> {
     let mut manifests = HashMap::new();
@@ -706,17 +698,13 @@ mod tests {
         std::fs::create_dir_all(&nested).unwrap();
 
         let config = modules_config(module_dir.path().join("cache"));
-        let feature_flags = super::FeatureFlags::default().with_wdl_1_4();
 
         // The CLI surface starts from a source directory at the module root.
-        let from_sources = resolution_context_from_paths(
-            &config,
-            &feature_flags,
-            &[module_dir.path().to_path_buf()],
-        )
-        .expect("resolution context construction should succeed");
+        let from_sources =
+            resolution_context_from_paths(&config, &[module_dir.path().to_path_buf()])
+                .expect("resolution context construction should succeed");
         // The LSP surface starts from a working directory nested in the module.
-        let from_cwd = resolution_context_from_paths(&config, &feature_flags, &[nested])
+        let from_cwd = resolution_context_from_paths(&config, &[nested])
             .expect("resolution context construction should succeed");
 
         assert_eq!(from_sources.module_root(), Some(module_dir.path()));

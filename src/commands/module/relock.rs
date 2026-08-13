@@ -12,7 +12,6 @@ use wdl_modules::resolver::lock::partial_relock;
 use wdl_modules::resolver::lock::signer_identity_map;
 
 use super::project::Project;
-use super::project::load_lockfile;
 use super::resolver::ResolverEnvironment;
 use super::signer_policy::SignerChangeMode;
 use super::signer_policy::enforce_lockfile_signer_policy;
@@ -36,19 +35,26 @@ pub(super) struct RelockPlanner<'a> {
     config: &'a Config,
     /// The project whose lockfile is being refreshed.
     project: &'a Project,
+    /// The lockfile currently on disk, which the caller has already read.
+    existing: &'a Lockfile,
 }
 
 impl<'a> RelockPlanner<'a> {
-    /// Creates a partial relock planner for a project.
-    pub(super) fn new(config: &'a Config, project: &'a Project) -> Self {
-        Self { config, project }
+    /// Creates a partial relock planner for a project and its current
+    /// lockfile.
+    pub(super) fn new(config: &'a Config, project: &'a Project, existing: &'a Lockfile) -> Self {
+        Self {
+            config,
+            project,
+            existing,
+        }
     }
 
     /// Re-resolves dependencies for a manifest and merges the result with the
     /// previous lockfile without applying signer-change policy.
     pub(super) async fn plan(&self, manifest: Arc<Manifest>) -> anyhow::Result<RelockPlan> {
         let module = Module::new(manifest, self.project.root().to_path_buf());
-        let existing = load_lockfile(self.project)?.unwrap_or_default();
+        let existing = self.existing.clone();
         tracing::debug!(
             existing = existing.dependencies.len(),
             declared = module.manifest.dependencies.len(),
@@ -121,7 +127,7 @@ mod tests {
         let mut config = Config::default();
         config.modules.cache_path = Some(work.path().join("cache"));
 
-        let plan = RelockPlanner::new(&config, &project)
+        let plan = RelockPlanner::new(&config, &project, &Lockfile::default())
             .plan(std::sync::Arc::new(project.manifest().clone()))
             .await
             .unwrap();

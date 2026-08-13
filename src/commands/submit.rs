@@ -59,6 +59,11 @@ pub struct SubmitRunRequestArgs {
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
     report_mode: Option<Mode>,
+
+    /// Fail if `module-lock.json` is missing or out of date instead of
+    /// regenerating it before submission.
+    #[clap(long)]
+    locked: bool,
 }
 
 /// Arguments for the `submit` subcommand.
@@ -82,10 +87,16 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         ref other => other.clone(),
     };
 
-    // Regenerate a stale or missing module lockfile before submitting so
-    // the workflow runs against a consistent, reproducible tree.
+    // Bring a stale or missing module lockfile up to date before submitting so
+    // the workflow runs against a consistent, reproducible tree, unless
+    // `--locked` asked for the submission to fail instead.
     if let Some(dir) = source.local_start_dir() {
-        crate::commands::module::auto_lock::ensure_lockfile_current(&config, &dir).await?;
+        let policy = if args.run_request_args.locked {
+            crate::commands::module::auto_lock::LockfilePolicy::RequireCurrent
+        } else {
+            crate::commands::module::auto_lock::LockfilePolicy::Regenerate
+        };
+        crate::commands::module::auto_lock::ensure_lockfile_current(&config, &dir, policy).await?;
     }
 
     let document = analyze_source(
@@ -255,6 +266,7 @@ command <<<>>>
                     index_on: None,
                     target: Some("my_task".to_string()),
                     report_mode: None,
+                    locked: false,
                 },
             },
             config,
@@ -325,6 +337,7 @@ command <<<>>>
                     index_on: None,
                     target: Some("my_task".to_string()),
                     report_mode: None,
+                    locked: false,
                 },
             },
             Config::default(),
@@ -364,6 +377,7 @@ command <<<>>>
                     index_on: None,
                     target: Some("my_task".to_string()),
                     report_mode: None,
+                    locked: false,
                 },
             },
             Config::default(),

@@ -1,22 +1,35 @@
-//! Automatic lockfile regeneration before `run` and `submit`.
+//! Lockfile freshness enforcement before `run` and `submit`.
 //!
 //! This is the intentional cross-group module API: `run` and `submit` call
-//! [`ensure_lockfile_current`] to refresh a stale or missing lockfile before
-//! executing.
+//! [`ensure_lockfile_current`] before executing, which either refreshes a stale
+//! or missing lockfile or, under `--locked`, refuses to execute against one.
 
 use std::path::Path;
 
-use super::mutation::LockedProject;
-use super::mutation::ProjectUpdate;
+use super::project::WriteIntent;
 use super::project::load_lockfile;
+use super::project::write_lockfile;
 use super::relock::RelockPlanner;
 use super::signer_policy::SignerChangeMode;
 use crate::commands::output::CommandOutput;
 use crate::config::Config;
 
-/// Regenerates `module-lock.json` before execution when it is missing or
-/// out of date with the governing `module.json`.
-pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> anyhow::Result<()> {
+/// What to do when `module-lock.json` is missing or out of date.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum LockfilePolicy {
+    /// Regenerate the lockfile so execution proceeds against a current tree.
+    Regenerate,
+    /// Refuse to execute, leaving the lockfile untouched.
+    RequireCurrent,
+}
+
+/// Brings `module-lock.json` in line with the governing `module.json` before
+/// execution, or fails when `policy` forbids regenerating it.
+pub(crate) async fn ensure_lockfile_current(
+    config: &Config,
+    start: &Path,
+    policy: LockfilePolicy,
+) -> anyhow::Result<()> {
     let Some(project) = wdl_modules::project::ModuleProject::discover(start)? else {
         return Ok(());
     };
@@ -24,7 +37,7 @@ pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> an
         return Ok(());
     }
 
-    // Avoid acquiring the mutation lock when the current lockfile already
+    // Avoid taking the lockfile's exclusive lock when the lockfile already
     // satisfies the manifest.
     let existing = load_lockfile(&project)?;
     if existing
@@ -33,32 +46,33 @@ pub(crate) async fn ensure_lockfile_current(config: &Config, start: &Path) -> an
     {
         return Ok(());
     }
-
-    let project = LockedProject::acquire(project)?;
-    // Another process may have regenerated the lockfile between the optimistic
-    // check above and this lock acquisition.
-    let existing = load_lockfile(project.project())?;
-    if existing
-        .as_ref()
-        .is_some_and(|lock| lock.satisfies_manifest(project.project().manifest()))
-    {
-        return Ok(());
+    if policy == LockfilePolicy::RequireCurrent {
+        anyhow::bail!(
+            "`module-lock.json` is missing or out of date with `module.json`; run `sprocket dev \
+             module lock`"
+        );
     }
 
     tracing::info!(
-        manifest = %project.project().manifest_path().display(),
+        manifest = %project.manifest_path().display(),
         lockfile_present = existing.is_some(),
         "`module-lock.json` is missing or out of date; regenerating before execution"
     );
-    let planner = RelockPlanner::new(config, project.project());
+    let baseline = existing.unwrap_or_default();
+    let planner = RelockPlanner::new(config, &project, &baseline);
     let outcome = planner
         .plan_and_enforce(
-            std::sync::Arc::new(project.project().manifest().clone()),
+            std::sync::Arc::new(project.manifest().clone()),
             SignerChangeMode::Strict,
             CommandOutput::new(false),
         )
         .await?;
-    project.commit(ProjectUpdate::Lockfile(&outcome.lockfile))?;
+    write_lockfile(
+        &project,
+        &outcome.lockfile,
+        project.manifest(),
+        WriteIntent::Satisfy,
+    )?;
     Ok(())
 }
 
@@ -94,7 +108,7 @@ mod tests {
 
         let mut config = Config::default();
         config.modules.cache_path = Some(work.path().join("cache"));
-        ensure_lockfile_current(&config, &consumer_dir)
+        ensure_lockfile_current(&config, &consumer_dir, LockfilePolicy::Regenerate)
             .await
             .expect("regeneration should succeed for a local path dependency");
 
@@ -115,7 +129,7 @@ mod tests {
         )
         .unwrap();
 
-        ensure_lockfile_current(&Config::default(), work.path())
+        ensure_lockfile_current(&Config::default(), work.path(), LockfilePolicy::Regenerate)
             .await
             .expect("no dependencies means nothing to lock");
         assert!(

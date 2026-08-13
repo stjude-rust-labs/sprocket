@@ -7,6 +7,7 @@ use wdl_modules::Lockfile;
 use wdl_modules::module::Module;
 
 use super::project::Locator;
+use super::project::LockedFlag;
 use super::project::discover;
 use super::project::require_lockfile;
 use super::project::trace_project;
@@ -31,6 +32,10 @@ pub struct Args {
     /// Remove every module from the cache instead of this module's lock tree.
     #[arg(long)]
     pub all: bool,
+
+    /// Shared lockfile strictness flag.
+    #[command(flatten)]
+    locked: LockedFlag,
 
     /// Shared module locator.
     #[command(flatten)]
@@ -79,7 +84,7 @@ pub async fn clean(args: Args, config: Config, output: CommandOutput) -> Command
 
     let project = discover(&args.locator)?;
     trace_project("module cache clean", &project);
-    let lock = require_lockfile(&project)?;
+    let lock = require_lockfile(&project, args.locked)?;
     let module = Module::new(
         std::sync::Arc::new(project.manifest().clone()),
         project.root().to_path_buf(),

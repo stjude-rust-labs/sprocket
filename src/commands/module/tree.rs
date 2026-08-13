@@ -8,6 +8,7 @@ use wdl_modules::lockfile::DependencyMap;
 
 use super::display::resolved_source;
 use super::project::Locator;
+use super::project::LockedFlag;
 use super::project::discover;
 use super::project::require_lockfile;
 use super::project::trace_project;
@@ -21,6 +22,10 @@ pub struct TreeArgs {
     #[arg(long)]
     pub depth: Option<usize>,
 
+    /// Shared lockfile strictness flag.
+    #[command(flatten)]
+    locked: LockedFlag,
+
     /// Shared module locator.
     #[command(flatten)]
     locator: Locator,
@@ -33,6 +38,10 @@ pub struct ListArgs {
     #[arg(long)]
     pub all: bool,
 
+    /// Shared lockfile strictness flag.
+    #[command(flatten)]
+    locked: LockedFlag,
+
     /// Shared module locator.
     #[command(flatten)]
     locator: Locator,
@@ -43,7 +52,7 @@ pub async fn tree(args: TreeArgs, output: CommandOutput) -> CommandResult<()> {
     tracing::trace!(depth = ?args.depth, "starting `sprocket dev module tree`");
     let project = discover(&args.locator)?;
     trace_project("module tree", &project);
-    let lock = require_lockfile(&project)?;
+    let lock = require_lockfile(&project, args.locked)?;
     tracing::debug!(
         dependencies = lock.dependencies.len(),
         "loaded module lockfile for tree"
@@ -64,7 +73,7 @@ pub async fn list(args: ListArgs, output: CommandOutput) -> CommandResult<()> {
     tracing::trace!(all = args.all, "starting `sprocket dev module list`");
     let project = discover(&args.locator)?;
     trace_project("module list", &project);
-    let lock = require_lockfile(&project)?;
+    let lock = require_lockfile(&project, args.locked)?;
 
     let rows = if args.all {
         let mut rows = BTreeSet::new();

@@ -20,8 +20,8 @@ use crate::lockfile::ResolvedSource;
 use crate::module::Module;
 use crate::resolver::ResolverError;
 use crate::resolver::cache::CacheKey;
-use crate::resolver::git::CACHE_MARKER_FILENAME;
-use crate::resolver::git::GitError;
+use crate::resolver::git::ops::CACHE_MARKER_FILENAME;
+use crate::resolver::git::ops::GitError;
 
 /// Writes and loads a consumer module fixture at the supplied root.
 fn consumer(root: &Path) -> Module {
