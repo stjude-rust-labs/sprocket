@@ -666,6 +666,10 @@ impl Postprocessor {
             }
         }
 
+        // Any tandem break still open at the end of the flush will never be
+        // closed, so unwind the indentation it introduced.
+        self.indent_level = self.indent_level.saturating_sub(break_stack.len());
+
         out_stream.extend(post_buffer);
     }
 
