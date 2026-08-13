@@ -140,6 +140,8 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13" # TODO: why does Maturin hard-code this version?
+          # We need to specify the architecture, or it will download x64 Python on x86 builds.
+          architecture: ${{ matrix.platform.python_arch }}
 
       - name: Activate virtual environment
         run: |
