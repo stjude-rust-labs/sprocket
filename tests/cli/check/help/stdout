@@ -74,6 +74,12 @@ Options:
   -q, --quiet...
           Decrease logging verbosity
 
+  -l, --lint
+          Enable lint checks in addition to validation errors
+
+      --no-ignore
+          Ignore `.sprocketignore` files while discovering WDL documents
+
       --color <COLOR>
           Controls output colorization
 
@@ -83,9 +89,6 @@ Options:
           - never:  Never colorize output
           
           [default: auto]
-
-  -l, --lint
-          Enable lint checks in addition to validation errors
 
   -c, --config <CONFIG>
           Path to the configuration file
