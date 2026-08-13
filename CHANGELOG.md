@@ -7,8 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* `sprocket --no-ignore` disables `.sprocketignore` processing while WDL
+  documents are discovered ([#1110](https://github.com/stjude-rust-labs/sprocket/pull/1110)).
+* `sprocket dev test` now produces spanned diagnostics for YAML files ([#982](https://github.com/stjude-rust-labs/sprocket/pull/982)).
+
+### Changed
+
+* `sprocket dev server inspect` now shows the run's `Directory:` and
+  `Outputs:` paths as absolute, copy-pasteable paths (joining the server's
+  output-directory root with the run-relative path) when the server's `/info`
+  endpoint is available, instead of requiring the user to manually combine a
+  separate `Output Dir:` line with a relative path
+  ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
+
 ### Fixed
 
+* The server's reported `output_dir` (used by `dev server inspect`) is now
+  resolved to an absolute path, even when configured with a relative path
+  (e.g. `./out`), so it can be reliably combined with a run's relative
+  directory ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
+* `sprocket run` now stores each run's directory relative to the output
+  directory (matching the format already used by dev-server-initiated runs),
+  fixing a bug where `dev server inspect` would display the output-directory
+  prefix twice for runs started via `sprocket run`
+  ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
 * `dev server` task endpoints now return `404 Not Found` for missing task
   lookups, including missing task logs, instead of returning empty log results
   or generic internal errors

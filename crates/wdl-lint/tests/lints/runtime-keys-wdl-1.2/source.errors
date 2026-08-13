@@ -1,4 +1,4 @@
-note[RequirementsSection]: task `a_task_with_no_keys` contains a deprecated `runtime` section
+note[DeprecatedRuntimeSection]: task `a_task_with_no_keys` contains a deprecated `runtime` section
    ┌─ tests/lints/runtime-keys-wdl-1.2/source.wdl:13:5
    │
 13 │     runtime {}

@@ -230,7 +230,7 @@ mod test {
     use crate::types::PrimitiveType;
     use crate::types::StructType;
 
-    #[test]
+    #[test_log::test]
     fn test_sizable_constraint() {
         let constraint = SizeableConstraint;
         assert!(!constraint.satisfied(&Type::from(PrimitiveType::Boolean).optional()));
@@ -305,7 +305,7 @@ mod test {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn test_struct_constraint() {
         let constraint = StructConstraint;
         assert!(!constraint.satisfied(&Type::from(PrimitiveType::Boolean).optional()));
@@ -336,7 +336,7 @@ mod test {
         ));
     }
 
-    #[test]
+    #[test_log::test]
     fn test_json_constraint() {
         let constraint = JsonSerializableConstraint;
         assert!(constraint.satisfied(&Type::from(PrimitiveType::Boolean).optional()));
@@ -373,7 +373,7 @@ mod test {
         ));
     }
 
-    #[test]
+    #[test_log::test]
     fn test_map_key_constraint() {
         let constraint = MapKeyConstraint;
         assert!(constraint.satisfied(&PrimitiveType::Boolean.into()));
@@ -393,7 +393,7 @@ mod test {
         assert!(!constraint.satisfied(&Type::Object));
     }
 
-    #[test]
+    #[test_log::test]
     fn test_primitive_constraint() {
         let constraint = PrimitiveTypeConstraint;
         assert!(constraint.satisfied(&Type::from(PrimitiveType::Boolean).optional()));

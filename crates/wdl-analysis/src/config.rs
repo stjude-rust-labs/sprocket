@@ -441,14 +441,14 @@ impl DiagnosticsConfig {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_log::test]
     fn custom_format_config_round_trip() {
         let custom_format_config = FormatConfig::default().trailing_commas(false);
         let analysis_config = Config::default().with_format_config(custom_format_config);
         assert_eq!(analysis_config.format(), &custom_format_config);
     }
 
-    #[test]
+    #[test_log::test]
     fn no_format_config_is_default() {
         let default_format_config = FormatConfig::default();
         let analysis_config = Config::default();

@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   directory tree had been deleted and recreated while the daemon held a cached
   view of it
   ([#1094](https://github.com/stjude-rust-labs/sprocket/pull/1094)).
+* `Directory` -> `String` coercions will no longer preserve trailing slashes ([#1107](https://github.com/stjude-rust-labs/sprocket/pull/1107)).
 
 ## 0.17.1 - 2026-08-05
 
