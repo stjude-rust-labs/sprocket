@@ -27,6 +27,7 @@ use futures::FutureExt;
 use futures::future::BoxFuture;
 use nonempty::NonEmpty;
 use secrecy::ExposeSecret;
+use tokio::sync::broadcast;
 use tokio::task::JoinSet;
 use tracing::debug;
 use tracing::info;
@@ -36,14 +37,15 @@ use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
 use crate::CancellationContext;
+use crate::EngineEvent;
 use crate::EvaluationPath;
 use crate::EvaluationPathKind;
 use crate::Events;
+use crate::INITIAL_EXPECTED_NAMES;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::PrimitiveValue;
 use crate::TaskInputs;
-use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::backend::STDERR_FILE_NAME;
 use crate::backend::STDOUT_FILE_NAME;
 use crate::backend::WORK_DIR_NAME;
@@ -80,8 +82,8 @@ pub struct TesBackend {
     config: Arc<Config>,
     /// The underlying Crankshaft backend.
     inner: tes::Backend,
-    /// The name generator for tasks.
-    names: Arc<Mutex<GeneratorIterator<UniqueAlphanumeric>>>,
+    /// The sender for engine events.
+    events: Option<broadcast::Sender<EngineEvent>>,
     /// The evaluation cancellation context.
     cancellation: CancellationContext,
 }
@@ -141,7 +143,7 @@ impl TesBackend {
         Ok(Self {
             config,
             inner,
-            names,
+            events: events.engine().clone(),
             cancellation,
         })
     }
@@ -212,16 +214,7 @@ impl TaskExecutionBackend for TesBackend {
             let preemptible = hints::preemptible(request.inputs, request.hints)?;
             let max_memory =
                 hints::max_memory(request.inputs, request.hints)?.map(|m| m as f64 / ONE_GIBIBYTE);
-            let name = format!(
-                "{id}-{generated}",
-                id = request.id,
-                generated = self
-                    .names
-                    .lock()
-                    .expect("generator should always acquire")
-                    .next()
-                    .expect("generator should never be exhausted")
-            );
+            let name = request.name.to_string();
 
             // Write the evaluated command to disk
             // This is done even for remote execution so that a copy exists locally
@@ -313,6 +306,15 @@ impl TaskExecutionBackend for TesBackend {
                         );
                     }
                 }
+            }
+
+            // Notify that the task is transferring inputs; for TES this covers both
+            // digesting each local input and uploading it to remote storage, which
+            // dominates the runtime of large inputs
+            if !uploads.is_empty()
+                && let Some(sender) = &self.events
+            {
+                let _ = sender.send(EngineEvent::TaskLocalizing { name: name.clone() });
             }
 
             // Wait for any uploads to complete

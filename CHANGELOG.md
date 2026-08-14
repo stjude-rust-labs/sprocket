@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* `dev server` now reports finer-grained progress. A run is `analyzing` while
+  its document is resolved and type checked, and a task reports `initializing`,
+  `localizing` while its inputs are transferred, or `cached` when the call
+  cache serves the task result
+  ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
 * `sprocket --no-ignore` disables `.sprocketignore` processing while WDL
   documents are discovered ([#1110](https://github.com/stjude-rust-labs/sprocket/pull/1110)).
 * `sprocket dev test` now produces spanned diagnostics for YAML files ([#982](https://github.com/stjude-rust-labs/sprocket/pull/982)).
@@ -23,6 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
 
 ### Fixed
+
+* Work a backend runs on its own behalf, such as the Docker backend's container
+  that restores ownership of a work directory, is no longer reported among a
+  run's tasks
+  ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
+
+* Canceling a `dev server` run mid-transfer now records the run as `canceled`
+  rather than `failed`, and no longer overwrites an outcome the run reached
+  first ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
 
 * The server's reported `output_dir` (used by `dev server inspect`) is now
   resolved to an absolute path, even when configured with a relative path

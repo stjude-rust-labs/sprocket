@@ -45,6 +45,12 @@ use crate::cache::Hashable;
 /// This is defined as a constant as it's a commonly performed conversion.
 const ONE_GIBIBYTE: f64 = 1024.0 * 1024.0 * 1024.0;
 
+/// The number of initial expected task names.
+///
+/// This controls the initial size of the bloom filter and how many names are
+/// prepopulated into a name generator.
+const INITIAL_EXPECTED_NAMES: usize = 1000;
+
 /// Resolves a type name from a document.
 ///
 /// This function will import the type into the type cache if not already

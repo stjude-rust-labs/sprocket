@@ -3823,7 +3823,7 @@ type = 'lsf_apptainer'
             condition
                 .evaluate(
                     &ExecuteTaskRequest {
-                        id: "test",
+                        name: "test-0",
                         command: "",
                         inputs: &context.inputs,
                         backend_inputs: &[],
