@@ -1,7 +1,1 @@
-error: failed to create task evaluator
-
-Caused by:
-    0: failed to create task execution backend
-    1: failed to initialize Docker backend
-    2: failed to connect to the local Docker daemon
-    3: Socket not found: /var/run/docker.sock
+outputs were also written to `./out/runs/serde_array_json/_TIMESTAMP_/outputs.json`

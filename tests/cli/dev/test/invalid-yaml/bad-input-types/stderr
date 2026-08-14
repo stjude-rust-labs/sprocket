@@ -8,4 +8,3 @@ error: converting to WDL inputs for test `fully_invalid_types` for WDL document 
 Caused by:
     0: invalid input key `add.lhs`
     1: expected type `Int` for input `lhs`, but found type `String`
-error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
