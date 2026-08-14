@@ -58,6 +58,12 @@ Options:
   -q, --quiet...
           Decrease logging verbosity
 
+      --html-body-close <FILE>
+          Path to an HTML file that should have its contents embedded in each HTML page, immediately before the closing `<body>` tag
+
+      --no-ignore
+          Ignore `.sprocketignore` files while discovering WDL documents
+
       --color <COLOR>
           Controls output colorization
 
@@ -68,16 +74,13 @@ Options:
           
           [default: auto]
 
-      --html-body-close <FILE>
-          Path to an HTML file that should have its contents embedded in each HTML page, immediately before the closing `<body>` tag
-
-  -c, --config <CONFIG>
-          Path to the configuration file
-
       --theme <DIR>
           An optional path to a custom theme directory.
           
           This argument is meant to be used by developers of the `wdl` crates; customizing the theme used for the generated documentation is currently unsupported.
+
+  -c, --config <CONFIG>
+          Path to the configuration file
 
       --install
           Install the theme if it is not already installed.

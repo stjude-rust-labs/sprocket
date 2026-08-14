@@ -1302,6 +1302,7 @@ mod test {
     use super::*;
 
     #[tokio::test]
+    #[test_log::test]
     async fn it_returns_empty_results() {
         let analyzer = Analyzer::default();
         let results = analyzer.analyze(()).await.unwrap();
@@ -1309,6 +1310,7 @@ mod test {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn it_analyzes_a_document() {
         let dir = TempDir::new().expect("failed to create temporary directory");
         let path = dir.path().join("foo.wdl");
@@ -1370,6 +1372,7 @@ workflow test {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn it_reanalyzes_a_document_on_change() {
         let dir = TempDir::new().expect("failed to create temporary directory");
         let path = dir.path().join("foo.wdl");
@@ -1445,6 +1448,7 @@ workflow something_else {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn it_reanalyzes_a_document_on_incremental_change() {
         let dir = TempDir::new().expect("failed to create temporary directory");
         let path = dir.path().join("foo.wdl");
@@ -1512,6 +1516,7 @@ workflow test {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn it_removes_documents() {
         let dir = TempDir::new().expect("failed to create temporary directory");
         let foo = dir.path().join("foo.wdl");
@@ -1574,6 +1579,7 @@ workflow test {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn selected_imported_task_conflicts_with_local_workflow() {
         let dir = TempDir::new().expect("failed to create temporary directory");
         fs::write(
@@ -1621,6 +1627,7 @@ workflow run {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn symbolic_import_resolves_through_mock_resolver() {
         use wdl_modules::Manifest;
         use wdl_modules::lockfile::ResolvedSource;
@@ -1761,6 +1768,7 @@ workflow run {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn concurrent_symbolic_imports_faster_than_serial() {
         use std::sync::atomic::AtomicUsize;
         use std::sync::atomic::Ordering;
@@ -1901,6 +1909,7 @@ workflow run {
     }
 
     #[tokio::test]
+    #[test_log::test]
     async fn it_deletes_documents() {
         let dir = TempDir::new().expect("failed to create temporary directory");
         let foo = dir.path().join("foo.wdl");
