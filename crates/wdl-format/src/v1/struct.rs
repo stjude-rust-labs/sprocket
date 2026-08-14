@@ -35,6 +35,7 @@ pub fn format_struct_definition(
     (&open_brace).write(stream, config);
     stream.end_line();
     stream.increment_indent();
+    stream.end_line();
 
     let mut meta = None;
     let mut parameter_meta = None;
@@ -79,6 +80,7 @@ pub fn format_struct_definition(
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("struct definition close brace")).write(stream, config);
     stream.end_line();
 }
@@ -130,6 +132,7 @@ pub fn format_literal_struct(
     assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
+    stream.end_line();
 
     let mut members = Vec::new();
     let mut commas = Vec::new();
@@ -155,17 +158,23 @@ pub fn format_literal_struct(
         }
     }
 
+    let mut items = members.iter().peekable();
     let mut commas = commas.iter();
-    for member in members {
-        (&member).write(stream, config);
-        if let Some(comma) = commas.next() {
+    while let Some(item) = items.next() {
+        (item).write(stream, config);
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
             (comma).write(stream, config);
+            if items.peek().is_some() {
+                stream.end_line();
+            }
         } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
-        stream.end_line();
     }
 
     stream.decrement_indent();
+    stream.end_line();
     (&close_brace.expect("literal struct close brace")).write(stream, config);
 }

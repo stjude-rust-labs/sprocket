@@ -3,7 +3,6 @@
 //! Generally speaking, unless you are working with the internals of code
 //! formatting, you're not going to be working with these.
 
-use std::collections::HashMap;
 use std::fmt::Display;
 use std::rc::Rc;
 
@@ -211,6 +210,7 @@ impl TokenStream<PostToken> {
     /// Gets the maximum width of the [`TokenStream`].
     ///
     /// This is suitable to call if the stream represents multiple lines.
+    #[expect(dead_code)]
     fn max_width(&self, config: &Config) -> usize {
         let mut max: usize = 0;
         let mut cur_width: usize = 0;
@@ -246,12 +246,14 @@ enum LineBreak {
 }
 
 /// Returns whether a token can be line broken.
+///
+/// Note that this function only returns `true` for tokens that do not otherwise
+/// get linebroken. Tokens which are either always or sometimes linebroken
+/// should be handled during [`PreToken`] processing.
 fn can_be_line_broken(kind: SyntaxKind) -> Option<LineBreak> {
     match kind {
-        SyntaxKind::CloseBrace
-        | SyntaxKind::CloseBracket
+        SyntaxKind::CloseBracket
         | SyntaxKind::CloseParen
-        | SyntaxKind::CloseHeredoc
         | SyntaxKind::Assignment
         | SyntaxKind::Plus
         | SyntaxKind::Minus
@@ -272,10 +274,8 @@ fn can_be_line_broken(kind: SyntaxKind) -> Option<LineBreak> {
         | SyntaxKind::IfKeyword
         | SyntaxKind::ElseKeyword
         | SyntaxKind::ThenKeyword => Some(LineBreak::Before),
-        SyntaxKind::OpenBrace
-        | SyntaxKind::OpenBracket
+        SyntaxKind::OpenBracket
         | SyntaxKind::OpenParen
-        | SyntaxKind::OpenHeredoc
         | SyntaxKind::Colon
         | SyntaxKind::PlaceholderOpen
         | SyntaxKind::Comma => Some(LineBreak::After),
@@ -332,7 +332,7 @@ struct TandemBreak {
 }
 
 /// Current position in a line.
-#[derive(Default, Eq, PartialEq)]
+#[derive(Copy, Clone, Default, Eq, PartialEq)]
 enum LinePosition {
     /// The start of a line.
     #[default]
@@ -343,7 +343,7 @@ enum LinePosition {
 }
 
 /// A postprocessor of [tokens](PreToken).
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct Postprocessor {
     /// The current position in the line.
     position: LinePosition,
@@ -368,19 +368,16 @@ impl Postprocessor {
         let mut buffer = TokenStream::<PreToken>::default();
 
         for token in input {
-            match token {
-                PreToken::LineEnd => {
-                    self.flush(&buffer, &mut output, config);
-                    self.trim_whitespace(&mut output);
-                    output.push(PostToken::Newline);
+            if matches!(token, PreToken::LineEnd) {
+                buffer.push(token);
+                self.flush(&buffer, &mut output, config);
+                self.trim_whitespace(&mut output);
+                output.push(PostToken::Newline);
 
-                    buffer.clear();
-                    self.interrupted = false;
-                    self.position = LinePosition::StartOfLine;
-                }
-                _ => {
-                    buffer.push(token);
-                }
+                buffer.clear();
+                self.interrupted = false;
+            } else {
+                buffer.push(token);
             }
         }
 
@@ -396,8 +393,6 @@ impl Postprocessor {
         stream: &mut TokenStream<PostToken>,
     ) {
         if stream.is_empty() {
-            self.interrupted = false;
-            self.position = LinePosition::StartOfLine;
             self.indent(stream);
         }
         match token {
@@ -420,11 +415,9 @@ impl Postprocessor {
             }
             PreToken::IndentStart => {
                 self.indent_level += 1;
-                self.end_line(stream);
             }
             PreToken::IndentEnd => {
                 self.indent_level = self.indent_level.saturating_sub(1);
-                self.end_line(stream);
             }
             PreToken::LineSpacingPolicy(policy) => {
                 self.line_spacing_policy = policy;
@@ -474,7 +467,7 @@ impl Postprocessor {
                         Comment::Inline(value) => {
                             assert!(self.position == LinePosition::MiddleOfLine);
                             if let Some(next) = next
-                                && next != &PreToken::LineEnd
+                                && !matches!(next, &PreToken::LineEnd)
                             {
                                 self.interrupted = true;
                             }
@@ -526,126 +519,151 @@ impl Postprocessor {
         config: &Config,
     ) {
         assert!(!self.interrupted);
-        assert!(self.position == LinePosition::StartOfLine);
-        let mut post_buffer = TokenStream::<PostToken>::default();
-        let mut pre_buffer = in_stream.iter().peekable();
-        let starting_indent = self.indent_level;
-        let starting_temp_indent = self.temp_indent.clone();
-        while let Some(token) = pre_buffer.next() {
-            let next = pre_buffer.peek().copied();
-            self.step(token.clone(), next, &mut post_buffer);
-        }
+        assert!(
+            self.position == LinePosition::StartOfLine,
+            "`flush()` must be called from the start of a line"
+        );
 
-        // If all lines are short enough, we can just add the post_buffer to the
-        // out_stream and be done.
-        if config.max_line_length.get().is_none()
-            || post_buffer.max_width(config) <= config.max_line_length.get().unwrap()
-        {
-            out_stream.extend(post_buffer);
-            return;
-        }
-
-        // At least one line in the post_buffer is too long.
-        // We iterate through the in_stream to find potential line breaks,
-        // and then we iterate through the in_stream again to actually insert
-        // them in the proper places.
-
-        let max_length = config.max_line_length.get().unwrap();
-
-        let mut potential_line_breaks: HashMap<usize, SyntaxKind> = HashMap::new();
-        for (i, token) in in_stream.iter().enumerate() {
-            if let PreToken::Literal(_, kind) = token {
-                match can_be_line_broken(*kind) {
-                    Some(LineBreak::Before) => {
-                        potential_line_breaks.insert(i, *kind);
-                    }
-                    Some(LineBreak::After) => {
-                        potential_line_breaks.insert(i + 1, *kind);
-                    }
-                    None => {}
-                }
-            }
-        }
-
-        if potential_line_breaks.is_empty() {
-            // There are no potential line breaks, so we can't do anything.
-            out_stream.extend(post_buffer);
-            return;
-        }
-
-        // Set up the buffers for the second pass.
-        post_buffer.clear();
-        let mut pre_buffer = in_stream.iter().enumerate().peekable();
-
-        // Reset self.
-        self.interrupted = false;
-        self.position = LinePosition::StartOfLine;
-        self.temp_indent = starting_temp_indent;
-        self.indent_level = starting_indent;
+        let max_length = config.max_line_length.get();
 
         let mut break_stack: Vec<TandemBreak> = Vec::new();
+        let mut prev_kind = None;
 
-        while let Some((i, token)) = pre_buffer.next() {
+        let mut pre_buffer = in_stream.iter().peekable();
+        let mut post_buffer = TokenStream::<PostToken>::default();
+
+        while let Some(token) = pre_buffer.next() {
             let mut cache = None;
-            if let Some(break_kind) = potential_line_breaks.get(&i) {
+            let mut cached_self = None;
+            let mut cached_on = None;
+
+            if let Some(max) = max_length {
+                if let PreToken::Literal(_, kind) = token {
+                    // Check if we need a break to match a prior tandem break
+                    if let Some(top_of_stack) = break_stack.last_mut() {
+                        if *kind == top_of_stack.close {
+                            if top_of_stack.depth > 0 {
+                                top_of_stack.depth -= 1;
+                            } else {
+                                break_stack.pop();
+                                self.indent_level -= 1;
+                                self.end_line(&mut post_buffer);
+                            }
+                        } else if *kind == top_of_stack.open {
+                            top_of_stack.depth += 1;
+                        }
+                    }
+                    if let Some(LineBreak::Before) = can_be_line_broken(*kind) {
+                        if post_buffer.last_line_width(config) > max {
+                            // the line is already too long
+                            self.interrupted = true;
+                            self.end_line(&mut post_buffer);
+                            if let Some(also_break_on) = tandem_line_break(*kind) {
+                                self.indent_level += 1;
+                                self.interrupted = false;
+                                let tandem_break = TandemBreak {
+                                    open: *kind,
+                                    close: also_break_on,
+                                    depth: 0,
+                                };
+                                break_stack.push(tandem_break);
+                            }
+                        } else {
+                            // cache the current state so we can revert to it if
+                            // the line is too long after the next step.
+                            cache = Some(post_buffer.clone());
+                            cached_self = Some(self.clone());
+                            cached_on = Some(*kind);
+                        }
+                    } else if let Some(k) = prev_kind.take()
+                        && matches!(can_be_line_broken(k), Some(LineBreak::After))
+                    {
+                        cache = Some(post_buffer.clone());
+                        cached_self = Some(self.clone());
+                        cached_on = Some(k);
+                    }
+                }
+                prev_kind = None;
+            }
+
+            let next = pre_buffer.peek().copied();
+            self.step(token.clone(), next, &mut post_buffer);
+
+            // If we cached before the step and the line is now too long, revert, line
+            // break, then repeat the step we just took.
+            if max_length.is_some_and(|max| post_buffer.last_line_width(config) > max)
+                && let Some(cache) = cache.take()
+                && let Some(cached_self) = cached_self.take()
+                && let Some(cached_on) = cached_on.take()
+            {
+                // revert
+                post_buffer = cache;
+                // reset self
+                *self = cached_self;
+
+                // line break
+                self.interrupted = true;
+                self.end_line(&mut post_buffer);
+                if let Some(also_break_on) = tandem_line_break(cached_on) {
+                    self.indent_level += 1;
+                    self.interrupted = false;
+                    let tandem_break = TandemBreak {
+                        open: cached_on,
+                        close: also_break_on,
+                        depth: 0,
+                    };
+                    break_stack.push(tandem_break);
+                }
+
+                // repeat step
+                self.step(token.clone(), next, &mut post_buffer);
+            }
+
+            // check if we should line break now, after the step has been taken
+            if let Some(max) = max_length
+                && let PreToken::Literal(_, kind) = token
+            {
+                // will be cleared to `None` if a linebreak is added this pass
+                prev_kind = Some(*kind);
+
                 // Check if we need a break to match a prior tandem break
                 if let Some(top_of_stack) = break_stack.last_mut() {
-                    if *break_kind == top_of_stack.close {
+                    if *kind == top_of_stack.close {
                         if top_of_stack.depth > 0 {
                             top_of_stack.depth -= 1;
                         } else {
                             break_stack.pop();
                             self.indent_level -= 1;
                             self.end_line(&mut post_buffer);
+
+                            prev_kind = None;
                         }
-                    } else if *break_kind == top_of_stack.open {
+                    } else if *kind == top_of_stack.open {
                         top_of_stack.depth += 1;
                     }
                 }
-                // Cache the current state so we can revert to it if
-                // necessary.
-                cache = Some(post_buffer.clone());
-            }
 
-            self.step(
-                token.clone(),
-                pre_buffer.peek().map(|(_, v)| &**v),
-                &mut post_buffer,
-            );
+                if let Some(LineBreak::After) = can_be_line_broken(*kind)
+                    && post_buffer.last_line_width(config) > max
+                {
+                    self.interrupted = true;
+                    self.end_line(&mut post_buffer);
+                    if let Some(also_break_on) = tandem_line_break(*kind) {
+                        self.indent_level += 1;
+                        self.interrupted = false;
+                        let tandem_break = TandemBreak {
+                            open: *kind,
+                            close: also_break_on,
+                            depth: 0,
+                        };
+                        break_stack.push(tandem_break);
+                    }
 
-            if let Some(cache) = cache
-                && post_buffer.last_line_width(config) > max_length
-            {
-                // The line is too long after the next step. Revert to the
-                // cached state and insert a line break.
-                post_buffer = cache;
-                self.interrupted = true;
-                self.end_line(&mut post_buffer);
-                self.step(
-                    token.clone(),
-                    pre_buffer.peek().map(|(_, v)| &**v),
-                    &mut post_buffer,
-                );
-
-                // Check if this introduces a tandem break
-                // SAFETY: if cache is Some(_) this step must have a potential line break
-                let break_kind = potential_line_breaks.get(&i).unwrap();
-                if let Some(also_break_on) = tandem_line_break(*break_kind) {
-                    let tandem_break = TandemBreak {
-                        open: *break_kind,
-                        close: also_break_on,
-                        depth: 0,
-                    };
-                    break_stack.push(tandem_break);
-                    self.indent_level += 1;
+                    prev_kind = None;
                 }
             }
         }
 
-        // reduce indent for breaks never added
-        for _ in break_stack {
-            self.indent_level = self.indent_level.saturating_sub(1);
-        }
         out_stream.extend(post_buffer);
     }
 
@@ -715,11 +733,11 @@ impl Postprocessor {
     /// Creates a blank line and then indents.
     fn blank_line(&mut self, stream: &mut TokenStream<PostToken>) {
         self.trim_whitespace(stream);
+        self.position = LinePosition::StartOfLine;
         if !stream.is_empty() {
             stream.push(PostToken::Newline);
         }
         stream.push(PostToken::Newline);
-        self.position = LinePosition::StartOfLine;
         self.indent(stream);
     }
 
