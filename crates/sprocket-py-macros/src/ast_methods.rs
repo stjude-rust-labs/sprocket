@@ -279,6 +279,7 @@ fn remove_skip_attributes(attrs: &mut Vec<Attribute>) -> bool {
 /// - Strips `ast_generic_ident` from the return type using
 ///   [`strip_path_generic()`].
 /// - Adds the "py_" prefix to the method name.
+/// - Adds `#[pyo3(name = "...")]` for the original method name.
 /// - Makes the method private.
 /// - Makes the Python method call the original method, through
 ///   [`make_py_method_body()`] or [`make_py_method_body_impl_iterator()`].
@@ -313,6 +314,15 @@ fn make_py_method(
     // Add "py_" prefix.
     let py_ident = format_ident!("py_{}", py_fn.sig.ident);
     let original_method_ident = std::mem::replace(&mut py_fn.sig.ident, py_ident);
+
+    // Add `#[pyo3(name = "...")]`.
+    py_fn.attrs.push({
+        let original_method_litstr = LitStr::new(
+            &original_method_ident.to_string(),
+            original_method_ident.span(),
+        );
+        parse_quote!(#[pyo3(name = #original_method_litstr)])
+    });
 
     // Make private.
     py_fn.vis = Visibility::Inherited;
