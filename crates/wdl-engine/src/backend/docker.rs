@@ -1,6 +1,7 @@
 //! Implementation of the Docker backend.
 
 use std::fs;
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::Mutex;
 
@@ -73,6 +74,57 @@ const CLEANUP_TASK_CPU: f64 = 0.1;
 /// The Docker daemon requires memory values to be at least 4MiB.
 #[cfg(unix)]
 const CLEANUP_TASK_MEMORY: u64 = 4096 * 1024;
+
+/// The message Docker uses when it cannot find the source of a bind mount.
+const BIND_SOURCE_MISSING: &str = "bind source path does not exist: ";
+
+/// The prefix Docker Desktop prepends to the host paths it reports.
+const HOST_MOUNT_PREFIX: &str = "/host_mnt";
+
+/// Extracts the source path of a failed bind mount from a Docker error
+/// message.
+///
+/// Returns `None` when the message is not a complaint about a missing bind
+/// mount source. Docker Desktop reports the path as the daemon sees it, so a
+/// `/host_mnt` prefix is removed to recover the path as it exists on this
+/// machine.
+fn bind_source_path(message: &str) -> Option<&Path> {
+    let (_, path) = message.rsplit_once(BIND_SOURCE_MISSING)?;
+    let path = path.trim_end();
+    Some(Path::new(
+        path.strip_prefix(HOST_MOUNT_PREFIX)
+            .filter(|stripped| stripped.starts_with('/'))
+            .unwrap_or(path),
+    ))
+}
+
+/// Explains a rejected bind mount whose source is present on this machine.
+///
+/// Docker resolves bind mounts through the daemon's view of the filesystem
+/// rather than through the host's. A path that exists locally is still
+/// rejected when it falls outside the directories shared with the daemon and,
+/// on Docker Desktop, a directory tree that was deleted and recreated stays
+/// briefly stale in that view. Both cases otherwise surface as Docker
+/// claiming that a directory the engine created moments earlier does not
+/// exist.
+///
+/// Errors of any other kind, along with those naming a path that genuinely is
+/// missing, are returned unchanged.
+fn explain_missing_bind_source(e: anyhow::Error) -> anyhow::Error {
+    let message = format!("{e:#}");
+    let Some(path) = bind_source_path(&message).filter(|path| path.exists()) else {
+        return e;
+    };
+
+    let path = path.display().to_string();
+    e.context(format!(
+        "Docker cannot access `{path}`, but that path exists on this machine; Docker resolves \
+         bind mounts through the daemon's view of the filesystem, so ensure the path is shared \
+         with Docker (see Settings > Resources > File Sharing in Docker Desktop); a directory \
+         that was recently deleted and recreated also stays briefly stale in that view, in which \
+         case retrying shortly or writing to a different output directory will succeed"
+    ))
+}
 
 /// Represents a task that runs with a Docker container.
 struct DockerTask<'a> {
@@ -251,7 +303,7 @@ impl<'a> DockerTask<'a> {
         let statuses = match self.backend.run(task, self.cancellation.second())?.await {
             Ok(statuses) => statuses,
             Err(TaskRunError::Canceled) => return Ok(None),
-            Err(e) => return Err(e.into()),
+            Err(e) => return Err(explain_missing_bind_source(e.into())),
         };
 
         assert_eq!(statuses.len(), 1, "there should only be one exit status");
@@ -714,5 +766,67 @@ impl TaskExecutionBackend for DockerBackend {
             }
         }
         .boxed()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use anyhow::anyhow;
+    use tempfile::TempDir;
+
+    use super::*;
+
+    /// Builds the error Docker produces when a bind mount source is missing.
+    fn bind_error(path: &str) -> anyhow::Error {
+        anyhow!(
+            "Docker responded with status code 400: invalid mount config for type \"bind\": bind \
+             source path does not exist: {path}"
+        )
+    }
+
+    #[test]
+    fn unrelated_messages_have_no_bind_source() {
+        assert!(bind_source_path("Docker responded with status code 500").is_none());
+    }
+
+    #[test]
+    fn bind_source_is_recovered_from_the_daemon_path() {
+        assert_eq!(
+            bind_source_path(&bind_error("/host_mnt/tmp/work").to_string()),
+            Some(Path::new("/tmp/work"))
+        );
+        assert_eq!(
+            bind_source_path(&bind_error("/tmp/work").to_string()),
+            Some(Path::new("/tmp/work"))
+        );
+    }
+
+    #[test]
+    fn a_host_mount_prefix_is_only_stripped_from_a_path_boundary() {
+        assert_eq!(
+            bind_source_path(&bind_error("/host_mnted/work").to_string()),
+            Some(Path::new("/host_mnted/work"))
+        );
+    }
+
+    #[test]
+    fn a_genuinely_missing_source_is_not_explained() {
+        let e = explain_missing_bind_source(bind_error("/does/not/exist"));
+        assert!(!format!("{e:#}").contains("exists on this machine"));
+    }
+
+    #[test]
+    fn a_present_source_is_explained() {
+        // SAFETY: creating a temporary directory only fails if the system has no
+        // usable temporary directory, which would fail the test suite as a whole.
+        let dir = TempDir::new().unwrap();
+        let path = dir.path().to_str().expect("path should be UTF-8");
+
+        let e = explain_missing_bind_source(bind_error(path));
+        let message = format!("{e:#}");
+        assert!(message.contains(&format!("Docker cannot access `{path}`")));
+        assert!(message.contains("File Sharing"));
+        // The underlying Docker error is preserved for diagnosis.
+        assert!(message.contains("status code 400"));
     }
 }

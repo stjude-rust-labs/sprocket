@@ -133,6 +133,12 @@ impl Diagnostics {
         self.diagnostics.is_empty()
     }
 
+    /// Returns whether any diagnostics have a severity of [`Severity::Error`].
+    pub fn has_errors(&self) -> bool {
+        self.iter()
+            .any(|diagnostic| diagnostic.severity() == Severity::Error)
+    }
+
     /// Sorts the diagnostics in the collection.
     pub fn sort(&mut self) {
         self.diagnostics.sort();
@@ -681,7 +687,7 @@ impl Visitor for Validator {
 mod tests {
     use super::*;
 
-    #[test]
+    #[test_log::test]
     fn test_find_nearest_rule() {
         let validator = Validator::default();
 

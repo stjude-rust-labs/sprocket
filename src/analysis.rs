@@ -145,6 +145,12 @@ impl Analysis {
         self
     }
 
+    /// Sets the ignore filename.
+    pub fn ignore_filename(mut self, filename: Option<String>) -> Self {
+        self.ignore_filename = filename;
+        self
+    }
+
     /// Sets the `[modules]` configuration.
     pub fn modules_config(mut self, config: wdl_modules::resolver::ModulesConfig) -> Self {
         self.modules_config = Some(config);
@@ -223,9 +229,12 @@ impl Analysis {
 
         (self.init)();
 
-        let validator = Box::new(move || {
+        let validator = move || {
             let mut validator = Validator::default();
 
+            // So the validator is always *aware* of all `wdl-lint` rules, even when the
+            // linter isn't. Keeps `KnownRules` from firing unnecessarily.
+            validator.extend_known_rules(wdl::lint::ALL_RULE_IDS.iter().cloned());
             if self.enabled_lint_tags.count() > 0 {
                 let visitor = get_lint_visitor(
                     &self.enabled_lint_tags,
@@ -234,14 +243,10 @@ impl Analysis {
                     &self.lint_config,
                 );
                 validator.add_visitor(visitor);
-            } else {
-                // So the validator is always *aware* of `wdl-lint` rules, even when the linter
-                // isn't added. Keeps `KnownRules` from firing unnecessarily.
-                validator.extend_known_rules(wdl::lint::ALL_RULE_IDS.iter().cloned());
             }
 
             validator
-        });
+        };
 
         let mut analyzer = Analyzer::new_with_validator_and_resolution(
             config,

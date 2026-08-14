@@ -2,6 +2,7 @@
 members = [
     "crates/gauntlet",
     "crates/sprocket-py",
+    "crates/sprocket-test-types",
     "crates/wdl",
     "crates/wdl-analysis",
     "crates/wdl-ast",
@@ -97,6 +98,7 @@ schemars = "1.2.1"
 secrecy = "0.10.3"
 semver = "1.0.28"
 serde = { version = "1", features = ["derive"] }
+serde-saphyr = "0.0.29"
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 serde_with = "3.16.1"
 serde_yaml_ng = "0.10.0"
@@ -106,6 +108,7 @@ shlex = "2.0.1"
 similar = "3.1.1"
 smallvec = "1.15.1"
 spdx = "0.13.4"
+sprocket-test-types = { version = "0.1.0", path = "crates/sprocket-test-types" }
 sqlx = { version = "0.9.0", features = ["runtime-tokio", "sqlite", "chrono", "uuid", "migrate"] }
 ssh-key = "0.6.7"
 strsim = "0.11.1"
@@ -113,6 +116,7 @@ struct-patch = "0.12.0"
 strum = { version = "0.28", features = ["derive"] }
 sysinfo = "0.39.0"
 tempfile = "3.24.0"
+test-log = { version = "0.2.21", default-features = false, features = ["color", "trace"] }
 thirtyfour = "0.37.1"
 thiserror = "2.0.18"
 tokio = { version = "1.49.0", features = ["full"] }
@@ -134,8 +138,8 @@ utoipa = { version = "5.4.0", features = ["axum_extras", "chrono", "uuid"] }
 utoipa-swagger-ui = { version = "9.0.2", features = ["axum", "vendored"] }
 uuid = { version = "1.20.0", features = ["serde", "v4"] }
 walkdir = "2.5.0"
-wdl = { version = "0.23.3", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
-wdl-modules = { version = "0.3.0", path = "crates/wdl-modules", features = ["git-resolver"] }
+wdl = { version = "0.23.4", path = "crates/wdl", features = ["engine", "lint", "lsp", "doc", "diagnostics"] }
+wdl-modules = { version = "0.3.1", path = "crates/wdl-modules", features = ["git-resolver"] }
 which = "8.0.0"
 whoami = "2.1.0"
 windows-sys = "0.61"
@@ -165,7 +169,7 @@ manual_assert_eq = "warn"
 
 [package]
 name = "sprocket"
-version = "0.28.0"
+version = "0.29.0"
 description = "A command line tool for working with Workflow Description Language (WDL) documents"
 authors.workspace = true
 license.workspace = true
@@ -204,7 +208,6 @@ futures.workspace = true
 git-testament.workspace = true
 indexmap.workspace = true
 indicatif.workspace = true
-itertools.workspace = true
 mimalloc.workspace = true
 nonempty.workspace = true
 opener.workspace = true
@@ -221,6 +224,7 @@ serde_json.workspace = true
 serde_yaml_ng.workspace = true
 shellexpand = { workspace = true, features = ["full"] }
 similar.workspace = true
+sprocket-test-types.workspace = true
 sqlx.workspace = true
 strum.workspace = true
 tempfile.workspace = true

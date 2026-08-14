@@ -7,14 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-### Fixed
+#### Fixed
+
+* `WorkflowInputs` serialization no longer drops call-nested inputs.
+  Previously, the `Serialize` impl silently discarded per-call inputs
+  (including task input overrides, requirements, and hints for calls inside a
+  workflow) due to a variable-shadowing bug in the calls-iteration loop
+  ([#1070](https://github.com/stjude-rust-labs/sprocket/pull/1070)).
+* The Docker backend now explains bind mount failures that name a path which
+  is present on the host. Docker resolves bind mounts through the daemon's
+  view of the filesystem, so a work directory the engine had just created was
+  reported as not existing whenever it fell outside the shared folders, or its
+  directory tree had been deleted and recreated while the daemon held a cached
+  view of it
+  ([#1094](https://github.com/stjude-rust-labs/sprocket/pull/1094)).
+* `Directory` -> `String` coercions will no longer preserve trailing slashes ([#1107](https://github.com/stjude-rust-labs/sprocket/pull/1107)).
+
+## 0.17.1 - 2026-08-05
+
+#### Added
+
+* The LSF and Slurm backends now write files to the attempt directory recording
+  the command used to queue the task and the resulting job identifiers ([#1057](https://github.com/stjude-rust-labs/sprocket/pull/1057)).
+
+#### Fixed
 
 * The execution backend is now considered for the call cache key derivation,
   which prevents unexpected behavior when switching executing backends. NOTE:
   this fix will cause existing call cache entries to be ignored ([#1039](https://github.com/stjude-rust-labs/sprocket/pull/1039)).
 * WDL 1.0 `runtime` resource requirements such as `cpu` are again enforced and
   passed to execution backends
-  ([#1026](https://github.com/stjude-rust-labs/sprocket/issues/1026)).
+  ([#1027](https://github.com/stjude-rust-labs/sprocket/pull/1027)).
 
 ## 0.17.0 - 2026-07-15
 

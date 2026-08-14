@@ -1,0 +1,4 @@
+Sprocket test result summary:
+☠️ `foo::say_hello::loose1` had errors: 1 execution errored (out of 1 test execution)
+☠️ `foo::say_hello::loose2` had errors: 1 execution errored (out of 1 test execution)
+☠️ `foo::say_hello::stillloose3` had errors: 1 execution errored (out of 1 test execution)

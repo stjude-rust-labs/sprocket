@@ -54,7 +54,7 @@ fn find_tests(runtime: &tokio::runtime::Handle) -> Vec<Trial> {
             }
 
             let test_name = path
-                .file_stem()
+                .file_name()
                 .map(OsStr::to_string_lossy)
                 .unwrap()
                 .into_owned();
@@ -184,7 +184,7 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     let analyzer = Analyzer::new(config, |_, _, _, _| async {});
 
     let results =
-        if SINGLE_DOCUMENT_TESTS.contains(&base.file_stem().and_then(OsStr::to_str).unwrap()) {
+        if SINGLE_DOCUMENT_TESTS.contains(&base.file_name().and_then(OsStr::to_str).unwrap()) {
             // Single-document tests add and analyze only `source.wdl`.
             let document = base.join("source.wdl");
             let uri = path_to_uri(&document).expect("should be valid URI");

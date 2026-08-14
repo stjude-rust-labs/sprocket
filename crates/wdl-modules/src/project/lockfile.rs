@@ -120,6 +120,7 @@ fn wait_for_lock(
     match try_lock() {
         Ok(()) => Ok(()),
         Err(TryLockError::WouldBlock) => {
+            #[cfg(feature = "git-resolver")]
             tracing::info!(
                 lockfile = %path.display(),
                 "waiting to acquire the module lockfile lock"

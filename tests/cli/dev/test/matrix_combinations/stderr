@@ -1,0 +1,21 @@
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: unexpected evaluation error: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock
+error: flag_filter::validate_flag_filter::valid_FlagFilter_passes (iteration #1) failed but was expected to succeed: see `_TEMP_DIR_/test/runs/_UUID_/validate_flag_filter/valid_FlagFilter_passes/1`: failed to create task execution backend: failed to initialize Docker backend: failed to connect to the local Docker daemon: Socket not found: /var/run/docker.sock

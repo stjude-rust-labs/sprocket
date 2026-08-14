@@ -46,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its `module.json`, pointing to `sprocket dev module lock`
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 
+* `sprocket --no-ignore` disables `.sprocketignore` processing while WDL
+  documents are discovered ([#1110](https://github.com/stjude-rust-labs/sprocket/pull/1110)).
+* `sprocket dev test` now produces spanned diagnostics for YAML files
+  ([#982](https://github.com/stjude-rust-labs/sprocket/pull/982)).
+
 ### Changed
 
 * `module.json` no longer declares a module `version`; Git version tags are the
@@ -60,7 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sources carry no checksum or signer and are read as-is without verification
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 * The `commit` dependency selector now accepts any unique commit-SHA prefix
-  (7–40 hex characters), expanded to the full SHA at lock time
+  (4 to 40 hex characters), expanded to the full SHA at lock time
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 * Cycle detection now identifies modules by source coordinates (repository URL
   and sub-path, or local directory), so a module that transitively depends on
@@ -86,8 +91,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `module-lock.json` before executing, rather than only warning
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 
+* `sprocket dev server inspect` now shows the run's `Directory:` and
+  `Outputs:` paths as absolute, copy-pasteable paths (joining the server's
+  output-directory root with the run-relative path) when the server's `/info`
+  endpoint is available, instead of requiring the user to manually combine a
+  separate `Output Dir:` line with a relative path
+  ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
+
 ### Fixed
 
+* The server's reported `output_dir` (used by `dev server inspect`) is now
+  resolved to an absolute path, even when configured with a relative path
+  (e.g. `./out`), so it can be reliably combined with a run's relative
+  directory ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
+* `sprocket run` now stores each run's directory relative to the output
+  directory (matching the format already used by dev-server-initiated runs),
+  fixing a bug where `dev server inspect` would display the output-directory
+  prefix twice for runs started via `sprocket run`
+  ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
+* `dev server` task endpoints now return `404 Not Found` for missing task
+  lookups, including missing task logs, instead of returning empty log results
+  or generic internal errors
+  ([#956](https://github.com/stjude-rust-labs/sprocket/pull/956)).
+
+## 0.29.0 - 2026-08-05
+
+### Changed
+
+* `sprocket dev doc` now renders module-aware navigation, richer declaration
+  pages, linked local types, improved code blocks, and a responsive layout with
+  article-aligned GitHub, website, and optional Slack links
+  ([#1049](https://github.com/stjude-rust-labs/sprocket/pull/1049)).
+* `sprocket dev doc` now accepts SEO metadata under `[doc.seo]` (title,
+  description, author, keywords, base URL, social image, locale, Twitter
+  handle, robots, and theme color); each page's `<title>` becomes
+  `"<page> | <title>"` and the configured values populate the `<head>` with
+  standard, Open Graph, and Twitter Card tags
+  ([#1049](https://github.com/stjude-rust-labs/sprocket/pull/1049)).
+* `sprocket dev doc` now discovers WDL modules by recursively scanning the
+  workspace for `module.json` manifests, so nested and sibling modules (e.g. a
+  monorepo of modules under a manifest-less root) are each documented as
+  modules. A `module.json` that fails to parse is skipped with a warning
+  rather than aborting the run
+  ([#1049](https://github.com/stjude-rust-labs/sprocket/pull/1049)).
+
+### Fixed
+
+* For `sprocket dev server status`, the `--limit` parameter is now respected: passing `--limit N` displays at most N runs by fetching a single page. When `--limit` is omitted, all runs are displayed by paginating through the server's results. The footer distinguishes between "total run(s) in the system" (no filter) and "total matching run(s)" (with a `--status` filter) so a filtered count is not misreported as global. The `--json` output now includes a `total` field alongside `runs` ([#1050](https://github.com/stjude-rust-labs/sprocket/pull/1050)).
 * For `sprocket run`, the execution backend is now considered for the call
   cache key derivation, which prevents unexpected behavior when switching
   executing backends. NOTE: this will cause existing call cache entries to be
@@ -99,9 +149,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `sprocket.toml` ([#1043](https://github.com/stjude-rust-labs/sprocket/pull/1043)).
 * WDL 1.0 `runtime` resource requirements such as `cpu` are again passed to
   execution backends instead of being treated as hints
-  ([#1026](https://github.com/stjude-rust-labs/sprocket/issues/1026)).
+  ([#1027](https://github.com/stjude-rust-labs/sprocket/pull/1027)).
 * `sprocket dev module init` now converts SCP-style Git remotes before validating
   the generated manifest ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* `sprocket check` will no longer trigger `KnownRules` for rules excepted over the
+  command line or in `sprocket.toml` ([#1060](https://github.com/stjude-rust-labs/sprocket/pull/1060)).
 
 ## 0.28.0 - 2026-07-15
 

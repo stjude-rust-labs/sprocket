@@ -85,6 +85,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
 
 [[package]]
+name = "annotate-snippets"
+version = "0.12.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f211a51805bc641f3ad5b7664c77d2547af685cc33b4cd8d31964027a46f13f1"
+dependencies = [
+ "anstyle",
+ "memchr",
+ "unicode-width",
+]
+
+[[package]]
 name = "anstream"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1582,6 +1593,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "encoding_rs_io"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fba3fe847045ecff794b9c138293a80db914678c453ad63fbf0c6a9eb6e00b22"
+dependencies = [
+ "encoding_rs",
+]
+
+[[package]]
+name = "env_filter"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "900d271a03799a1ee8d1ca9b19893b48ca674a9284fefcfb85f05e74ed314217"
+dependencies = [
+ "log",
+ "regex",
+]
+
+[[package]]
+name = "env_logger"
+version = "0.11.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de671bd27a75a797dc9ae289ba1e77276e75e2026408aab65185384e2d5cd3f6"
+dependencies = [
+ "anstream",
+ "anstyle",
+ "env_filter",
+ "log",
+]
+
+[[package]]
 name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2034,6 +2076,16 @@ dependencies = [
  "log",
  "regex-automata",
  "regex-syntax",
+]
+
+[[package]]
+name = "granit-parser"
+version = "0.0.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d03f81ad4732830d85cfd417a9f62cde6dadda4354d37d078a6084a19560aa2d"
+dependencies = [
+ "arraydeque",
+ "smallvec",
 ]
 
 [[package]]
@@ -4708,6 +4760,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-saphyr"
+version = "0.0.29"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7bd22781911de0ca6debda95f073c8f18bec65d1a94f1fa9573f3102e514cea4"
+dependencies = [
+ "ahash 0.8.12",
+ "annotate-snippets",
+ "base64 0.22.1",
+ "encoding_rs_io",
+ "getrandom 0.3.4",
+ "granit-parser",
+ "nohash-hasher",
+ "num-traits",
+ "serde_core",
+ "smallvec",
+ "zmij",
+]
+
+[[package]]
 name = "serde-xml-rs"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5055,7 +5126,7 @@ dependencies = [
 
 [[package]]
 name = "sprocket"
-version = "0.28.0"
+version = "0.29.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5078,7 +5149,6 @@ dependencies = [
  "http-body-util",
  "indexmap 2.14.0",
  "indicatif",
- "itertools 0.15.0",
  "jsonschema",
  "libc",
  "libtest-mimic",
@@ -5099,6 +5169,7 @@ dependencies = [
  "shellexpand",
  "shlex 2.0.1",
  "similar",
+ "sprocket-test-types",
  "sqlx",
  "ssh-key",
  "strum",
@@ -5134,6 +5205,23 @@ dependencies = [
  "pyo3",
  "wdl-diagnostics",
  "wdl-grammar",
+]
+
+[[package]]
+name = "sprocket-test-types"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "indexmap 2.14.0",
+ "itertools 0.15.0",
+ "regex",
+ "schemars 1.2.1",
+ "serde",
+ "serde-saphyr",
+ "serde_json",
+ "wdl-analysis",
+ "wdl-ast",
+ "wdl-engine",
 ]
 
 [[package]]
@@ -5620,6 +5708,38 @@ dependencies = [
  "tokio-retry2 0.6.2",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "test-log"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b9c218384242b5c89b68303ab6f6fc53a312d923f0c14dc6bb860c6aeee40f1"
+dependencies = [
+ "env_logger",
+ "test-log-macros",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "test-log-core"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c26ef8b00e4d382e59f6a8ddb3cd790b3a5bb29f21a358a9a69ea2f29f13f27b"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.118",
+]
+
+[[package]]
+name = "test-log-macros"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "944ad38adcbb71eaa682c56bceeb079e4ca82b4b3edc2a0fde5cb297b77dac8d"
+dependencies = [
+ "syn 2.0.118",
+ "test-log-core",
 ]
 
 [[package]]
@@ -6501,7 +6621,7 @@ dependencies = [
 
 [[package]]
 name = "wdl"
-version = "0.23.3"
+version = "0.23.4"
 dependencies = [
  "anyhow",
  "clap",
@@ -6519,7 +6639,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-analysis"
-version = "0.23.0"
+version = "0.24.0"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -6547,6 +6667,7 @@ dependencies = [
  "smallvec",
  "strsim",
  "tempfile",
+ "test-log",
  "tokio",
  "toml-spanner",
  "tracing",
@@ -6561,7 +6682,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-ast"
-version = "0.26.0"
+version = "0.26.1"
 dependencies = [
  "approx",
  "codespan-reporting",
@@ -6578,7 +6699,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-diagnostics"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "clap",
@@ -6591,7 +6712,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-doc"
-version = "0.15.3"
+version = "0.16.0"
 dependencies = [
  "ammonia",
  "anyhow",
@@ -6614,12 +6735,13 @@ dependencies = [
  "tracing-subscriber",
  "wdl-analysis",
  "wdl-ast",
+ "wdl-modules",
  "which",
 ]
 
 [[package]]
 name = "wdl-engine"
-version = "0.17.0"
+version = "0.17.1"
 dependencies = [
  "anyhow",
  "approx",
@@ -6674,7 +6796,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-format"
-version = "0.20.0"
+version = "0.20.1"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -6689,7 +6811,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-grammar"
-version = "0.25.0"
+version = "0.25.1"
 dependencies = [
  "anyhow",
  "codespan-reporting",
@@ -6704,7 +6826,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lint"
-version = "0.25.0"
+version = "0.26.0"
 dependencies = [
  "anyhow",
  "arrayvec",
@@ -6739,7 +6861,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-lsp"
-version = "0.21.0"
+version = "0.21.1"
 dependencies = [
  "anyhow",
  "async-lsp",
@@ -6767,7 +6889,7 @@ dependencies = [
 
 [[package]]
 name = "wdl-modules"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "async-trait",
  "base64 0.23.0",

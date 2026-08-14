@@ -28,6 +28,9 @@ Options:
 
           Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`. On Unix systems, the latest run is symlinked at `<output_dir>/runs/<target>/_latest`.
 
+      --locked
+          Fail if `module-lock.json` is missing or out of date instead of regenerating it before evaluation
+
       --index-on <OUTPUT_NAME>
           The output name to index on.
 
@@ -75,14 +78,17 @@ Options:
 
           [env: GOOGLE_HMAC_SECRET]
 
-      --no-call-cache
-          Disables the use of the call cache for this run
-
   -v, --verbose...
           Increase logging verbosity
 
+      --no-call-cache
+          Disables the use of the call cache for this run
+
   -q, --quiet...
           Decrease logging verbosity
+
+      --no-ignore
+          Ignore `.sprocketignore` files while discovering WDL documents
 
       --color <COLOR>
           Controls output colorization

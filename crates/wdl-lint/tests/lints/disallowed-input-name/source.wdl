@@ -2,7 +2,7 @@
 
 version 1.3
 
-#@ except: EmptyOutputs, RequirementsSection, SnakeCase
+#@ except: DeprecatedRuntimeSection, EmptyOutputs, RequirementsSection, SnakeCase
 task foo {
     meta {
         description: "This is a test of disallowed input names"

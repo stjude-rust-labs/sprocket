@@ -58,6 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   through `ModuleProject::write_manifest`
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 
+## 0.3.1 - 2026-08-05
+
 ## 0.3.0 - 2026-07-15
 
 ## 0.2.1 - 2026-06-26

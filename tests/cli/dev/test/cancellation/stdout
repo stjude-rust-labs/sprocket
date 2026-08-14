@@ -1,0 +1,3 @@
+Sprocket test result summary:
+✅ `source::failing_workflow::failing_workflow` success! (1 successful test execution)
+☠️ `source::super_slow_task::super_slow_task` had errors: 1 execution errored (out of 1 test execution)

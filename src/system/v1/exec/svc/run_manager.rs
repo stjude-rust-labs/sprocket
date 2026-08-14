@@ -63,6 +63,8 @@ pub struct RunManagerSvc {
     fallback_version: FallbackVersion,
     /// Feature flags used during analysis.
     feature_flags: wdl::analysis::FeatureFlags,
+    /// Whether to ignore `.sprocketignore` files during document discovery.
+    no_ignore: bool,
     /// Module resolver configuration used during analysis.
     modules_config: wdl_modules::resolver::ModulesConfig,
     /// The output directory root.
@@ -103,6 +105,7 @@ impl RunManagerSvc {
     ) -> Self {
         let fallback_version = config.common.wdl.fallback_version;
         let feature_flags = config.common.wdl.feature_flags;
+        let no_ignore = config.common.no_ignore;
         let modules_config = config.modules.clone();
         let config = config.server;
         let semaphore =
@@ -114,6 +117,7 @@ impl RunManagerSvc {
             config,
             fallback_version,
             feature_flags,
+            no_ignore,
             modules_config,
             output_dir,
             db,
@@ -324,6 +328,7 @@ impl RunManagerSvc {
             .run_name(run_generated_name.clone())
             .maybe_fallback_version(self.fallback_version.into())
             .feature_flags(self.feature_flags)
+            .no_ignore(self.no_ignore)
             .modules_config(self.modules_config.clone())
             .source(source)
             .maybe_target(target)
@@ -591,6 +596,7 @@ async fn get_task_logs(
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<ListTaskLogsResponse, DatabaseError> {
+    db.get_task(&name).await?;
     let logs = db.get_task_logs(&name, stream, limit, offset).await?;
     let total = db.count_task_logs(&name, stream).await?;
     Ok(ListTaskLogsResponse { logs, total })

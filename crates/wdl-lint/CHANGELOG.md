@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+- Added `DeprecatedRuntimeSection` lint rule ([#1040](https://github.com/stjude-rust-labs/sprocket/pull/1040)).
+
+#### Changed
+
+- Updated `RequirementsSection` to only check for missing `requirements` sections ([#1040](https://github.com/stjude-rust-labs/sprocket/pull/1040)).
+
+## 0.26.0 - 2026-08-05
+
 * New lint rule `InlineInstall` ([#1023](https://github.com/stjude-rust-labs/sprocket/pull/1023)).
 * Added `Tag::Performance` ([#1023](https://github.com/stjude-rust-labs/sprocket/pull/1023)).
 

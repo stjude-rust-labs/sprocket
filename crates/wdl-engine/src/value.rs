@@ -72,12 +72,22 @@ use crate::path;
 ///
 /// The host in this context is where the WDL evaluation is taking place.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct HostPath(pub Arc<String>);
+pub struct HostPath(Arc<String>);
 
 impl HostPath {
     /// Constructs a new host path from a string.
+    ///
+    /// NOTE: Any trailing slashes will be stripped.
     pub fn new(path: impl Into<String>) -> Self {
-        Self(Arc::new(path.into()))
+        let path = path.into();
+
+        if path.ends_with('/') {
+            // https://github.com/openwdl/wdl/pull/745
+            let trimmed = path.trim_end_matches('/');
+            return Self(Arc::new(trimmed.into()));
+        }
+
+        Self(Arc::new(path))
     }
 
     /// Gets the string representation of the host path.
@@ -105,13 +115,25 @@ impl HostPath {
 
     /// Determines if the host path is relative.
     pub fn is_relative(&self) -> bool {
-        !path::is_supported_url(&self.0) && Path::new(self.0.as_str()).is_relative()
+        !path::is_supported_url(&self.0) && Path::new(&*self.0).is_relative()
+    }
+}
+
+impl AsRef<str> for HostPath {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl AsRef<Path> for HostPath {
+    fn as_ref(&self) -> &Path {
+        Path::new(&*self.0)
     }
 }
 
 impl fmt::Display for HostPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        f.write_str(&self.0)
     }
 }
 
@@ -137,7 +159,7 @@ fn write_escaped_wdl_string(f: &mut fmt::Formatter<'_>, s: &str) -> fmt::Result 
 
 impl From<Arc<String>> for HostPath {
     fn from(path: Arc<String>) -> Self {
-        Self(path)
+        Self::new(Arc::unwrap_or_clone(path))
     }
 }
 
@@ -149,13 +171,13 @@ impl From<HostPath> for Arc<String> {
 
 impl From<String> for HostPath {
     fn from(s: String) -> Self {
-        Arc::new(s).into()
+        HostPath::new(s)
     }
 }
 
-impl<'a> From<&'a str> for HostPath {
-    fn from(s: &'a str) -> Self {
-        s.to_string().into()
+impl From<&str> for HostPath {
+    fn from(s: &str) -> Self {
+        HostPath::new(s)
     }
 }
 
@@ -167,7 +189,7 @@ impl From<url::Url> for HostPath {
 
 impl From<HostPath> for PathBuf {
     fn from(path: HostPath) -> Self {
-        PathBuf::from(path.0.as_str())
+        PathBuf::from(path.as_str())
     }
 }
 
@@ -181,12 +203,14 @@ impl From<&HostPath> for PathBuf {
 ///
 /// The guest in this context is the container where tasks are run.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub struct GuestPath(pub Arc<String>);
+pub struct GuestPath(Arc<String>);
 
 impl GuestPath {
     /// Constructs a new guest path from a string.
+    ///
+    /// NOTE: Any trailing slashes will be stripped.
     pub fn new(path: impl Into<String>) -> Self {
-        Self(Arc::new(path.into()))
+        HostPath::new(path).into()
     }
 
     /// Gets the string representation of the guest path.
@@ -197,19 +221,37 @@ impl GuestPath {
 
 impl fmt::Display for GuestPath {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        self.0.fmt(f)
+        f.write_str(&self.0)
+    }
+}
+
+impl AsRef<Path> for GuestPath {
+    fn as_ref(&self) -> &Path {
+        Path::new(&*self.0)
     }
 }
 
 impl From<Arc<String>> for GuestPath {
     fn from(path: Arc<String>) -> Self {
-        Self(path)
+        Self::new(Arc::unwrap_or_clone(path))
     }
 }
 
 impl From<GuestPath> for Arc<String> {
     fn from(path: GuestPath) -> Self {
         path.0
+    }
+}
+
+impl From<HostPath> for GuestPath {
+    fn from(path: HostPath) -> Self {
+        Self(path.0)
+    }
+}
+
+impl From<&HostPath> for GuestPath {
+    fn from(path: &HostPath) -> Self {
+        Self(path.0.clone())
     }
 }
 
@@ -1447,14 +1489,10 @@ impl PrimitiveValue {
                         )
                     }
                     PrimitiveValue::Directory(v) => {
-                        write!(
-                            f,
-                            "{v}",
-                            v = self
-                                .context
-                                .and_then(|c| c.guest_path(v).map(|p| Cow::Owned(p.0)))
-                                .unwrap_or(Cow::Borrowed(&v.0))
-                        )
+                        match self.context.and_then(|c| c.guest_path(v)) {
+                            Some(guest_path) => write!(f, "{guest_path}"),
+                            None => write!(f, "{v}"),
+                        }
                     }
                 }
             }

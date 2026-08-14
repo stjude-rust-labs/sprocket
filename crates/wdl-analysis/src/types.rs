@@ -1505,7 +1505,7 @@ mod test {
 
     use super::*;
 
-    #[test]
+    #[test_log::test]
     fn primitive_type_display() {
         assert_eq!(PrimitiveType::Boolean.to_string(), "Boolean");
         assert_eq!(PrimitiveType::Integer.to_string(), "Int");
@@ -1539,7 +1539,7 @@ mod test {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn array_type_display() {
         assert_eq!(
             ArrayType::new(PrimitiveType::String).to_string(),
@@ -1563,7 +1563,7 @@ mod test {
         assert_eq!(ty.to_string(), "Array[Array[String?]+?]+?");
     }
 
-    #[test]
+    #[test_log::test]
     fn pair_type_display() {
         assert_eq!(
             PairType::new(PrimitiveType::String, PrimitiveType::Boolean).to_string(),
@@ -1591,7 +1591,7 @@ mod test {
         assert_eq!(ty.to_string(), "Pair[Array[File?]+?, Array[File?]+?]?");
     }
 
-    #[test]
+    #[test_log::test]
     fn map_type_display() {
         assert_eq!(
             MapType::new(PrimitiveType::String, PrimitiveType::Boolean).to_string(),
@@ -1616,7 +1616,7 @@ mod test {
         assert_eq!(ty.to_string(), "Map[String, Array[File?]+?]?");
     }
 
-    #[test]
+    #[test_log::test]
     fn struct_type_display() {
         assert_eq!(
             StructType::new("Foobar", std::iter::empty::<(String, Type)>()).to_string(),
@@ -1624,23 +1624,23 @@ mod test {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn object_type_display() {
         assert_eq!(Type::Object.to_string(), "Object");
         assert_eq!(Type::OptionalObject.to_string(), "Object?");
     }
 
-    #[test]
+    #[test_log::test]
     fn union_type_display() {
         assert_eq!(Type::Union.to_string(), "Union");
     }
 
-    #[test]
+    #[test_log::test]
     fn none_type_display() {
         assert_eq!(Type::None.to_string(), "None");
     }
 
-    #[test]
+    #[test_log::test]
     fn primitive_type_coercion() {
         // All types should be coercible to self, and required should coerce to optional
         // (but not vice versa)
@@ -1667,7 +1667,7 @@ mod test {
         assert!(!PrimitiveType::Float.is_coercible_to(&PrimitiveType::Integer));
     }
 
-    #[test]
+    #[test_log::test]
     fn object_type_coercion() {
         assert!(Type::Object.is_coercible_to(&Type::Object));
         assert!(Type::Object.is_coercible_to(&Type::OptionalObject));
@@ -1719,7 +1719,7 @@ mod test {
         assert!(!Type::OptionalObject.is_coercible_to(&ty));
     }
 
-    #[test]
+    #[test_log::test]
     fn array_type_coercion() {
         // Array[X] -> Array[Y]
         assert!(
@@ -1778,7 +1778,7 @@ mod test {
         assert!(!type2.is_coercible_to(&type1));
     }
 
-    #[test]
+    #[test_log::test]
     fn pair_type_coercion() {
         // Pair[W, X] -> Pair[Y, Z]
         assert!(
@@ -1833,7 +1833,7 @@ mod test {
         assert!(!type2.is_coercible_to(&type1));
     }
 
-    #[test]
+    #[test_log::test]
     fn map_type_coercion() {
         // Map[W, X] -> Map[Y, Z]
         assert!(
@@ -1979,7 +1979,7 @@ mod test {
         assert!(!type1.is_coercible_to(&Type::Object));
     }
 
-    #[test]
+    #[test_log::test]
     fn struct_type_coercion() {
         // S -> S (identical)
         let type1: Type = StructType::new(
@@ -2150,7 +2150,7 @@ mod test {
         assert!(!type1.is_coercible_to(&Type::Object));
     }
 
-    #[test]
+    #[test_log::test]
     fn union_type_coercion() {
         // Union -> anything (ok)
         for ty in [
@@ -2194,7 +2194,7 @@ mod test {
         }
     }
 
-    #[test]
+    #[test_log::test]
     fn none_type_coercion() {
         // None -> optional type (ok)
         for ty in [
@@ -2253,7 +2253,7 @@ mod test {
         }
     }
 
-    #[test]
+    #[test_log::test]
     fn primitive_equality() {
         for ty in [
             Type::from(PrimitiveType::Boolean),
@@ -2274,7 +2274,7 @@ mod test {
         }
     }
 
-    #[test]
+    #[test_log::test]
     fn array_equality() {
         // Array[String] == Array[String]
         let a: Type = ArrayType::new(PrimitiveType::String).into();
@@ -2310,7 +2310,7 @@ mod test {
         assert!(!a.eq(&Type::None));
     }
 
-    #[test]
+    #[test_log::test]
     fn pair_equality() {
         // Pair[String, Int] == Pair[String, Int]
         let a: Type = PairType::new(PrimitiveType::String, PrimitiveType::Integer).into();
@@ -2338,7 +2338,7 @@ mod test {
         assert!(!a.eq(&Type::None));
     }
 
-    #[test]
+    #[test_log::test]
     fn map_equality() {
         // Map[String, Int] == Map[String, Int]
         let a: Type = MapType::new(PrimitiveType::String, PrimitiveType::Integer).into();
@@ -2364,7 +2364,7 @@ mod test {
         assert!(!a.eq(&Type::None));
     }
 
-    #[test]
+    #[test_log::test]
     fn struct_equality() {
         let a: Type = StructType::new("Foo", [("foo", PrimitiveType::String)]).into();
         assert!(a.eq(&a));
@@ -2378,7 +2378,7 @@ mod test {
         assert!(!a.eq(&b));
     }
 
-    #[test]
+    #[test_log::test]
     fn object_equality() {
         assert!(Type::Object.eq(&Type::Object));
         assert!(!Type::OptionalObject.eq(&Type::Object));
@@ -2386,7 +2386,7 @@ mod test {
         assert!(Type::OptionalObject.eq(&Type::OptionalObject));
     }
 
-    #[test]
+    #[test_log::test]
     fn union_equality() {
         assert!(Type::Union.eq(&Type::Union));
         assert!(!Type::None.eq(&Type::Union));
@@ -2394,7 +2394,7 @@ mod test {
         assert!(Type::None.eq(&Type::None));
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_new_with_explicit_type() {
         // Create enum with explicit `String` type, all choices coerce to `String`.
         let status = EnumType::new(
@@ -2418,7 +2418,7 @@ mod test {
         assert_eq!(status.choices().len(), 3);
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_new_fails_when_not_coercible() {
         // Try to create enum with `Int` type but `String` choices.
         let result = EnumType::new(
@@ -2437,7 +2437,7 @@ mod test {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_infer_finds_common_type() {
         // All `Int` choices should infer `Int` type.
         let priority = EnumType::infer(
@@ -2459,7 +2459,7 @@ mod test {
         assert_eq!(priority.choices().len(), 3);
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_infer_coerces_int_to_float() {
         // Mix of `Int` and `Float` should coerce to `Float`.
         let mixed = EnumType::infer(
@@ -2477,7 +2477,7 @@ mod test {
         assert_eq!(mixed.choices().len(), 2);
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_infer_fails_without_common_type() {
         // `String` and `Int` have no common type.
         let result = EnumType::infer(
@@ -2494,7 +2494,7 @@ mod test {
         );
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_empty_has_union_type() {
         // Empty enum should have `Union` type.
         let result = EnumType::infer("Empty", Vec::<(String, Type)>::new(), &[]);
@@ -2505,7 +2505,7 @@ mod test {
         assert_eq!(empty.choices().len(), 0);
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_display() {
         let enum_type = EnumType::new(
             "Color",
@@ -2518,7 +2518,7 @@ mod test {
         assert_eq!(enum_type.to_string(), "Color");
     }
 
-    #[test]
+    #[test_log::test]
     fn enum_type_not_coercible_to_other_enums() {
         let color = EnumType::new(
             "Color",

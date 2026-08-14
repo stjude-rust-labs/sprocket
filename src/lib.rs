@@ -57,7 +57,6 @@ mod eval;
 mod inputs;
 pub mod server;
 pub mod system;
-mod test;
 
 /// The Sprocket ignore file name.
 const IGNORE_FILENAME: &str = ".sprocketignore";
@@ -75,6 +74,10 @@ struct Cli {
     /// The verbosity for log messages.
     #[command(flatten)]
     verbosity: Verbosity<WarnLevel>,
+
+    /// Ignore `.sprocketignore` files while discovering WDL documents.
+    #[arg(long, global = true)]
+    no_ignore: bool,
 
     /// Controls output colorization.
     #[arg(long, default_value = "auto", global = true)]
@@ -96,7 +99,7 @@ struct Cli {
 async fn real_main() -> CommandResult<()> {
     let cli = Cli::parse();
 
-    let config = match &cli.command {
+    let mut config = match &cli.command {
         Commands::Config(config_args) if config_args.is_init() => {
             // For `config init`, skip loading and use default
             Config::default()
@@ -140,6 +143,8 @@ async fn real_main() -> CommandResult<()> {
             }
         }
     };
+
+    config.common.no_ignore |= cli.no_ignore;
 
     // Write effective configuration to the log
     trace!(
