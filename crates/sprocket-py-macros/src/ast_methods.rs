@@ -217,7 +217,7 @@ fn remove_skip_attributes(attrs: &mut Vec<Attribute>) -> bool {
         let feature = stream.parse::<Ident>()?;
 
         if feature != "feature" {
-            return Err(stream.error(""));
+            return Err(stream.error("expected `feature`"));
         }
 
         stream.parse::<Token![=]>()?;
@@ -225,7 +225,7 @@ fn remove_skip_attributes(attrs: &mut Vec<Attribute>) -> bool {
         let unstable_python = stream.parse::<LitStr>()?;
 
         if unstable_python.value() != "unstable-python" {
-            return Err(stream.error(""));
+            return Err(stream.error("expected `\"unstable-python\"`"));
         }
 
         stream.parse::<Token![,]>()?;
@@ -233,7 +233,7 @@ fn remove_skip_attributes(attrs: &mut Vec<Attribute>) -> bool {
         let skip = stream.parse::<Ident>()?;
 
         if skip != "skip" {
-            return Err(stream.error(""));
+            return Err(stream.error("expected `skip`"));
         }
 
         Ok(())
