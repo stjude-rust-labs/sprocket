@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Duplicate sections in a task, workflow, or struct are no longer dropped; every section is retained in the order it was written. A task that has both a `requirements` and a `runtime` section now retains both ([#1112](https://github.com/stjude-rust-labs/sprocket/pull/1112)).
+
 ## 0.20.1 - 2026-08-05
 
 #### Fixed

@@ -22,6 +22,23 @@ fn import_sort_key(stmt: &ImportStatement) -> (u8, String) {
     }
 }
 
+/// Writes each section of a definition's canonical slot, following each with a
+/// blank line.
+///
+/// A slot holds more than one section only when the document is invalid (e.g. a
+/// task with two `runtime` sections); every section is still written, in source
+/// order, so that formatting never discards input.
+pub(crate) fn write_sections(
+    sections: &[&FormatElement],
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
+    for section in sections {
+        section.write(stream, config);
+        stream.blank_line();
+    }
+}
+
 pub mod decl;
 pub mod r#enum;
 pub mod expr;
