@@ -278,14 +278,23 @@ pub(crate) trait Runnable: DefinitionMeta {
         (markup, headers)
     }
 
-    /// Render the outputs of the runnable.
-    fn render_outputs(&self, assets: &Path, links: &PageLinkIndex, page_dir: &Path) -> Markup {
-        html! {
+    /// Render the outputs of the runnable when any exist.
+    fn render_outputs(
+        &self,
+        assets: &Path,
+        links: &PageLinkIndex,
+        page_dir: &Path,
+    ) -> Option<Markup> {
+        if self.outputs().is_empty() {
+            return None;
+        }
+
+        Some(html! {
             div class="main__section" {
                 h2 id="outputs" class="main__section-header" { "Outputs" }
                 (render_non_required_parameters_table(self.outputs().iter(), assets, links, page_dir))
             }
-        }
+        })
     }
 }
 
