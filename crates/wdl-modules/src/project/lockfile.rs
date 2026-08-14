@@ -1,12 +1,12 @@
 //! Advisory locking for `module-lock.json`.
 //!
-//! `module-lock.json` is the file this crate owns, so it is the file that
-//! carries the lock. A reader takes a shared lock through
-//! [`LockedLockfile::read`], which never creates the file, and a writer takes
-//! the exclusive lock through [`LockedLockfile::acquire`] at the moment it is
-//! about to write. Because the lock lives on the file being rewritten, the
-//! contents are replaced in place rather than through a rename, which would
-//! install a new inode and leave the lock guarding the old one.
+//! `module-lock.json` carries the lock that coordinates its readers and
+//! writers. [`LockedLockfile::read`] opens an existing file under a shared lock
+//! and never creates it. [`LockedLockfile::acquire`] opens or creates the file
+//! under an exclusive lock so the caller can inspect its current contents and
+//! decide whether to replace them. A replacement is written in place through
+//! the held handle rather than through a rename, because a rename would install
+//! a new inode and leave the lock guarding the old one.
 
 use std::fs::File;
 use std::fs::OpenOptions;

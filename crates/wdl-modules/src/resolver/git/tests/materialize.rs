@@ -4,9 +4,6 @@ use std::sync::Arc;
 
 use tempfile::tempdir;
 
-use super::super::exclude_set;
-use super::super::read_manifest;
-use super::super::resolve_normalized_subpath;
 use super::json_path;
 use super::module;
 use super::resolve_and_lock;
@@ -19,6 +16,9 @@ use crate::manifest::ManifestError;
 use crate::resolver::MissingFileKind;
 use crate::resolver::Resolver;
 use crate::resolver::ResolverError;
+use crate::resolver::git::exclude_set;
+use crate::resolver::git::read_manifest;
+use crate::resolver::git::resolve_normalized_subpath;
 
 /// Parses a fixture-relative path.
 fn rel(s: &str) -> crate::relative_path::RelativePath {

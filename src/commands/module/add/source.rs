@@ -16,8 +16,8 @@ use wdl_modules::resolver::DependencyScope;
 use wdl_modules::resolver::GitPlatform;
 use wdl_modules::version_requirement::VersionRequirement;
 
-use super::super::resolver::ResolverEnvironment;
 use super::Args;
+use crate::commands::module::resolver::ResolverEnvironment;
 use crate::config::Config;
 
 /// A dependency source and optional discovery note ready for manifest output.
@@ -297,8 +297,8 @@ mod tests {
     use git2::Repository;
     use git2::Signature;
 
-    use super::super::super::project::Locator;
     use super::*;
+    use crate::commands::module::project::Locator;
 
     /// A temporary Git repository used for source-discovery tests.
     struct GitFixture {

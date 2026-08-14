@@ -2,7 +2,6 @@ use std::fs;
 
 use tempfile::tempdir;
 
-use super::super::locked_selector_satisfies;
 use super::json_path;
 use super::locked_git_entry;
 use super::module;
@@ -18,6 +17,7 @@ use crate::resolver::DependencyScope;
 use crate::resolver::ModulesConfig;
 use crate::resolver::Resolver;
 use crate::resolver::ResolverError;
+use crate::resolver::git::locked_selector_satisfies;
 use crate::resolver::policy::ResolverPolicy;
 
 /// Writes a `module.sig` next to `dir`'s `module.json` over the
