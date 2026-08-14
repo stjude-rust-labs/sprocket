@@ -1,4 +1,4 @@
-//! TODO
+//! The `#[ast]` implementation for structs.
 
 use proc_macro2::Ident;
 use proc_macro2::Span;

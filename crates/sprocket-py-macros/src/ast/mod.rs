@@ -1,4 +1,4 @@
-//! TODO
+//! The `#[ast]` implementation.
 
 mod enum_;
 mod struct_;

@@ -1,4 +1,4 @@
-//! TODO
+//! The `#[ast_methods]` implementation.
 
 use proc_macro2::TokenStream;
 use quote::format_ident;
