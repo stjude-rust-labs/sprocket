@@ -93,7 +93,7 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
 
             // We qualify `Self::Output` because this would be ambiguous for enums with a variant
             // named `Output`.
-            fn into_pyobject(self, py: ::pyo3::marker::Python<'py>) -> Result<<Self as ::pyo3::conversion::IntoPyObject<'py>>::Output, Self::Error> {
+            fn into_pyobject(self, py: ::pyo3::marker::Python<'py>) -> ::std::result::Result<<Self as ::pyo3::conversion::IntoPyObject<'py>>::Output, Self::Error> {
                 #py_ident::from(self).into_pyobject(py)
             }
         }

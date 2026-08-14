@@ -89,7 +89,7 @@ pub(super) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
             type Output = ::pyo3::Bound<'py, Self::Target>;
             type Error = ::pyo3::PyErr;
 
-            fn into_pyobject(self, py: ::pyo3::marker::Python<'py>) -> Result<Self::Output, Self::Error> {
+            fn into_pyobject(self, py: ::pyo3::marker::Python<'py>) -> ::std::result::Result<Self::Output, Self::Error> {
                 use ::pyo3::prelude::*;
 
                 // Make `self` a subclass of `PyAstNode` or `PyAstToken`, allocate it on Python's
@@ -106,7 +106,7 @@ pub(super) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
             type Output = ::pyo3::Bound<'py, Self::Target>;
             type Error = ::pyo3::PyErr;
 
-            fn into_pyobject(self, py: ::pyo3::marker::Python<'py>) -> Result<Self::Output, Self::Error> {
+            fn into_pyobject(self, py: ::pyo3::marker::Python<'py>) -> ::std::result::Result<Self::Output, Self::Error> {
                 use ::pyo3::prelude::*;
 
                 // Convert `self` to its Python counterpart, make it a subclass of `PyAstNode` or
