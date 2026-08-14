@@ -2,10 +2,12 @@
 
 use std::fmt;
 use std::io;
+use std::io::IsTerminal as _;
 use std::io::Write as _;
 
 use anyhow::Context as _;
 use colored::Colorize as _;
+use dialoguer::Confirm;
 
 /// A command operation with completed and planned forms.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -116,19 +118,27 @@ impl CommandOutput {
         eprintln!();
     }
 
-    /// Prints a confirmation prompt to stderr and reads one line from stdin.
+    /// Prints a confirmation prompt and reads one key from the terminal.
     ///
-    /// Appends ` [y/N] ` to the prompt. Any case variant of `y` or `yes`
-    /// accepts; anything else, including EOF and an empty line, declines.
+    /// The prompt defaults to `no`, so Enter and `n` decline while `y`
+    /// accepts. When stdin or stderr is redirected, the line-based fallback
+    /// keeps the prompt usable from scripts and tests.
     pub(crate) fn confirm(self, prompt: impl fmt::Display) -> anyhow::Result<bool> {
+        let prompt = prompt.to_string();
+        if io::stdin().is_terminal() && io::stderr().is_terminal() {
+            return Confirm::new()
+                .with_prompt(prompt)
+                .default(false)
+                .interact()
+                .context("reading prompt response");
+        }
+
         eprint!("{prompt} [y/N] ");
         io::stderr().flush().context("flushing prompt")?;
-
         let mut input = String::new();
         io::stdin()
             .read_line(&mut input)
             .context("reading prompt response")?;
-
         Ok(matches!(
             input.trim().to_ascii_lowercase().as_str(),
             "y" | "yes"

@@ -31,7 +31,7 @@ fn lock_prompts_before_trusting_new_signer_key() {
     );
     let stderr = String::from_utf8_lossy(&lock.stderr);
     assert!(stderr.contains("module signer key requires trust"));
-    assert!(stderr.contains("[y/N]"));
+    assert!(stderr.contains("[y/N]"), "unexpected prompt: {stderr:?}");
     assert!(stderr.contains("refusing to update `module-lock.json`"));
     assert!(!consumer.join("module-lock.json").exists());
 
