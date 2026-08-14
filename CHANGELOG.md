@@ -48,8 +48,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * `sprocket --no-ignore` disables `.sprocketignore` processing while WDL
   documents are discovered ([#1110](https://github.com/stjude-rust-labs/sprocket/pull/1110)).
-* `sprocket dev test` now produces spanned diagnostics for YAML files
-  ([#982](https://github.com/stjude-rust-labs/sprocket/pull/982)).
+* `sprocket dev test` now produces spanned diagnostics for YAML files ([#982](https://github.com/stjude-rust-labs/sprocket/pull/982)).
 
 ### Changed
 
@@ -150,8 +149,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * WDL 1.0 `runtime` resource requirements such as `cpu` are again passed to
   execution backends instead of being treated as hints
   ([#1027](https://github.com/stjude-rust-labs/sprocket/pull/1027)).
-* `sprocket dev module init` now converts SCP-style Git remotes before validating
-  the generated manifest ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
 * `sprocket check` will no longer trigger `KnownRules` for rules excepted over the
   command line or in `sprocket.toml` ([#1060](https://github.com/stjude-rust-labs/sprocket/pull/1060)).
 
