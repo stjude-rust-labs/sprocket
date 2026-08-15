@@ -334,16 +334,16 @@ pub fn ast(args_stream: TokenStream, item_stream: TokenStream) -> TokenStream {
 /// #[pymethods]
 /// impl PyEnumDefinition {
 ///     /// Some documentation...
-///     fn py_name(&self) -> Ident {
+///     fn name(&self) -> Ident {
 ///         EnumDefinition::from(self.clone()).name()
 ///     }
 ///
 ///     /// Other docs...
-///     fn py_keyword(&self) -> EnumKeyword {
+///     fn keyword(&self) -> EnumKeyword {
 ///         EnumDefinition::from(self.clone()).keyword()
 ///     }
 ///
-///     fn py_choices<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
+///     fn choices<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyList>> {
 ///         PyList::new(py, EnumDefinition::from(self.clone()).choices())
 ///     }
 /// }

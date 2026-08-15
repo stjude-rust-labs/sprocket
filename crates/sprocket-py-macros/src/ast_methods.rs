@@ -277,8 +277,6 @@ fn remove_skip_attributes(attrs: &mut Vec<Attribute>) -> bool {
 ///
 /// - Strips `ast_generic_ident` from the return type using
 ///   [`strip_path_generic()`].
-/// - Adds the "py_" prefix to the method name.
-/// - Adds `#[pyo3(name = "...")]` for the original method name.
 /// - Makes the method private.
 /// - Makes the Python method call the original method, through
 ///   [`make_py_method_body()`] or [`make_py_method_body_impl_iterator()`].
@@ -310,27 +308,14 @@ fn make_py_method(
         }
     }
 
-    // Add "py_" prefix.
-    let py_ident = format_ident!("py_{}", py_fn.sig.ident);
-    let original_method_ident = std::mem::replace(&mut py_fn.sig.ident, py_ident);
-
-    // Add `#[pyo3(name = "...")]`.
-    py_fn.attrs.push({
-        let original_method_litstr = LitStr::new(
-            &original_method_ident.to_string(),
-            original_method_ident.span(),
-        );
-        parse_quote!(#[pyo3(name = #original_method_litstr)])
-    });
-
     // Make private.
     py_fn.vis = Visibility::Inherited;
 
     // Set method body.
     if impl_iterator {
-        make_py_method_body_impl_iterator(&mut py_fn, original_type_path, &original_method_ident)?;
+        make_py_method_body_impl_iterator(&mut py_fn, original_type_path)?;
     } else {
-        make_py_method_body(&mut py_fn, original_type_path, &original_method_ident)?;
+        make_py_method_body(&mut py_fn, original_type_path)?;
     }
 
     Ok(py_fn)
@@ -596,40 +581,21 @@ fn strip_path_generic(type_: &mut Type, generic_ident: &Ident) -> Result<()> {
 /// For methods that take `&self` or `&mut self`, this will set the Python
 /// method body to:
 ///
-/// ```
-/// # #[derive(Clone)]
-/// # struct Struct;
-/// # impl Struct {
-/// #     fn method(&self) {}
-/// #     fn py_method(&self) {
+/// ```ignore
 /// Struct::from(self.clone()).method(/* ... */)
-/// #     }
-/// # }
 /// ```
 ///
 /// For methods that take `self` or `self: Box<Self>`, this will set the Python
 /// method body to:
 ///
-/// ```
-/// # struct Struct;
-/// # impl Struct {
-/// #     fn method(self) {}
-/// #     fn py_method(self) {
+/// ```ignore
 /// Struct::from(self).method(/* ... */)
-/// #     }
-/// # }
 /// ```
 ///
 /// For associated functions, this will set the Python method body to:
 ///
-/// ```
-/// # struct Struct;
-/// # impl Struct {
-/// #     fn method() {}
-/// #     fn py_method() {
+/// ```ignore
 /// Struct::method(/* ...  */)
-/// #     }
-/// # }
 /// ```
 ///
 /// # Errors
@@ -642,8 +608,8 @@ fn strip_path_generic(type_: &mut Type, generic_ident: &Ident) -> Result<()> {
 fn make_py_method_body(
     py_fn: &mut ImplItemFn,
     original_type_path: &Path,
-    original_method_ident: &Ident,
 ) -> Result<()> {
+    let method_ident = &py_fn.sig.ident;
     // Convert function inputs into function arguments. (Ex. turn `a: usize, b:
     // String` into `a, b`.)
     let method_args = fn_inputs_to_args(&py_fn.sig.inputs)?;
@@ -654,7 +620,7 @@ fn make_py_method_body(
             kind: ReceiverKind::Reference(..),
             ..
         })) => parse_quote!({
-            #original_type_path::from(self.clone()).#original_method_ident(#method_args)
+            #original_type_path::from(self.clone()).#method_ident(#method_args)
         }),
 
         // Method that consumes `self`
@@ -662,12 +628,12 @@ fn make_py_method_body(
             kind: ReceiverKind::Value | ReceiverKind::Typed(..),
             ..
         })) => parse_quote!({
-            #original_type_path::from(self).#original_method_ident(#method_args)
+            #original_type_path::from(self).#method_ident(#method_args)
         }),
 
         // Associated function
         Some(FnArg::Typed(_)) | None => parse_quote!({
-            #original_type_path::#original_method_ident(#method_args)
+            #original_type_path::#method_ident(#method_args)
         }),
 
         Some(FnArg::Receiver(receiver)) => {
@@ -721,8 +687,8 @@ fn make_py_method_body(
 fn make_py_method_body_impl_iterator(
     py_fn: &mut ImplItemFn,
     original_type_path: &Path,
-    original_method_ident: &Ident,
 ) -> Result<()> {
+    let method_ident = &py_fn.sig.ident;
     // Convert function inputs into function arguments. (Ex. turn `a: usize, b:
     // String` into `a, b`.) This is purposefully called before we add `py:
     // Python<'py>` to the function input, as the Python marker token is not passed
@@ -756,7 +722,7 @@ fn make_py_method_body_impl_iterator(
             kind: ReceiverKind::Reference(..),
             ..
         })) => parse_quote!({
-            ::pyo3::types::PyList::new(py, #original_type_path::from(self.clone()).#original_method_ident(#method_args))
+            ::pyo3::types::PyList::new(py, #original_type_path::from(self.clone()).#method_ident(#method_args))
         }),
 
         // Method that consumes `self`
@@ -764,12 +730,12 @@ fn make_py_method_body_impl_iterator(
             kind: ReceiverKind::Value | ReceiverKind::Typed(..),
             ..
         })) => parse_quote!({
-            ::pyo3::types::PyList::new(py, #original_type_path::from(self).#original_method_ident(#method_args))
+            ::pyo3::types::PyList::new(py, #original_type_path::from(self).#method_ident(#method_args))
         }),
 
         // Associated function
         Some(FnArg::Typed(_)) | None => parse_quote!({
-            ::pyo3::types::PyList::new(py, #original_type_path::#original_method_ident(#method_args))
+            ::pyo3::types::PyList::new(py, #original_type_path::#method_ident(#method_args))
         }),
 
         Some(FnArg::Receiver(receiver)) => {
@@ -1146,8 +1112,7 @@ mod tests {
         let py_fn = make_py_method(&original_fn, ast_generic_ident, &original_type_path).unwrap();
 
         let expected = parse_quote! {
-            #[pyo3(name = "method")]
-            fn py_method() {
+            fn method() {
                 Ast::method()
             }
         };
@@ -1164,8 +1129,7 @@ mod tests {
         let py_fn = make_py_method(&original_fn, ast_generic_ident, &original_type_path).unwrap();
 
         let expected = parse_quote! {
-            #[pyo3(name = "method")]
-            fn py_method() -> Ast {
+            fn method() -> Ast {
                 Ast::method()
             }
         };
@@ -1182,8 +1146,7 @@ mod tests {
         let py_fn = make_py_method(&original_fn, ast_generic_ident, &original_type_path).unwrap();
 
         let expected = parse_quote! {
-            #[pyo3(name = "method")]
-            fn py_method() {
+            fn method() {
                 Ast::method()
             }
         };
@@ -1200,8 +1163,7 @@ mod tests {
         let py_fn = make_py_method(&original_fn, ast_generic_ident, &original_type_path).unwrap();
 
         let expected = parse_quote! {
-            #[pyo3(name = "method")]
-            fn py_method<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
+            fn method<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
                 ::pyo3::types::PyList::new(py, Ast::method())
             }
         };
@@ -1441,13 +1403,13 @@ mod tests {
     #[test]
     fn py_method_body_reference_receiver() {
         let mut py_fn = parse_quote!(
-            fn py_method(&self, a: usize) {}
+            fn method(&self, a: usize) {}
         );
 
-        make_py_method_body(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method)).unwrap();
+        make_py_method_body(&mut py_fn, &parse_quote!(Ast)).unwrap();
 
         let expected = parse_quote! {
-            fn py_method(&self, a: usize) {
+            fn method(&self, a: usize) {
                 Ast::from(self.clone()).method(a)
             }
         };
@@ -1458,13 +1420,13 @@ mod tests {
     #[test]
     fn py_method_body_mut_reference_receiver() {
         let mut py_fn = parse_quote!(
-            fn py_method(&mut self) {}
+            fn method(&mut self) {}
         );
 
-        make_py_method_body(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method)).unwrap();
+        make_py_method_body(&mut py_fn, &parse_quote!(Ast)).unwrap();
 
         let expected = parse_quote! {
-            fn py_method(&mut self) {
+            fn method(&mut self) {
                 Ast::from(self.clone()).method()
             }
         };
@@ -1475,13 +1437,13 @@ mod tests {
     #[test]
     fn py_method_body_value_receiver() {
         let mut py_fn = parse_quote!(
-            fn py_method(self, [a, b]: [usize; 2]) {}
+            fn method(self, [a, b]: [usize; 2]) {}
         );
 
-        make_py_method_body(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method)).unwrap();
+        make_py_method_body(&mut py_fn, &parse_quote!(Ast)).unwrap();
 
         let expected = parse_quote! {
-            fn py_method(self, [a, b]: [usize; 2]) {
+            fn method(self, [a, b]: [usize; 2]) {
                 Ast::from(self).method([a, b])
             }
         };
@@ -1492,13 +1454,13 @@ mod tests {
     #[test]
     fn py_method_body_associated_args() {
         let mut py_fn = parse_quote!(
-            fn py_method(a: String) -> bool {}
+            fn method(a: String) -> bool {}
         );
 
-        make_py_method_body(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method)).unwrap();
+        make_py_method_body(&mut py_fn, &parse_quote!(Ast)).unwrap();
 
         let expected = parse_quote! {
-            fn py_method(a: String) -> bool {
+            fn method(a: String) -> bool {
                 Ast::method(a)
             }
         };
@@ -1509,13 +1471,13 @@ mod tests {
     #[test]
     fn py_method_body_associated_no_args() {
         let mut py_fn = parse_quote!(
-            fn py_method() -> bool {}
+            fn method() -> bool {}
         );
 
-        make_py_method_body(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method)).unwrap();
+        make_py_method_body(&mut py_fn, &parse_quote!(Ast)).unwrap();
 
         let expected = parse_quote! {
-            fn py_method() -> bool {
+            fn method() -> bool {
                 Ast::method()
             }
         };
@@ -1526,14 +1488,14 @@ mod tests {
     #[test]
     fn py_method_body_impl_iterator_receiver() {
         let mut py_fn = parse_quote!(
-            fn py_method(&self) -> impl Iterator<Item = ()> {}
+            fn method(&self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method))
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast))
             .unwrap();
 
         let expected = parse_quote! {
-            fn py_method<'py>(&self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
+            fn method<'py>(&self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
                 ::pyo3::types::PyList::new(py, Ast::from(self.clone()).method())
             }
         };
@@ -1544,14 +1506,14 @@ mod tests {
     #[test]
     fn py_method_body_impl_iterator_reference_receiver() {
         let mut py_fn = parse_quote!(
-            fn py_method(&self) -> impl Iterator<Item = ()> {}
+            fn method(&self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method))
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast))
             .unwrap();
 
         let expected = parse_quote! {
-            fn py_method<'py>(&self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
+            fn method<'py>(&self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
                 ::pyo3::types::PyList::new(py, Ast::from(self.clone()).method())
             }
         };
@@ -1562,14 +1524,14 @@ mod tests {
     #[test]
     fn py_method_body_impl_iterator_mut_reference_receiver() {
         let mut py_fn = parse_quote!(
-            fn py_method(&mut self) -> impl Iterator<Item = ()> {}
+            fn method(&mut self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method))
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast))
             .unwrap();
 
         let expected = parse_quote! {
-            fn py_method<'py>(&mut self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
+            fn method<'py>(&mut self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
                 ::pyo3::types::PyList::new(py, Ast::from(self.clone()).method())
             }
         };
@@ -1580,14 +1542,14 @@ mod tests {
     #[test]
     fn py_method_body_impl_iterator_value_receiver() {
         let mut py_fn = parse_quote!(
-            fn py_method(self) -> impl Iterator<Item = ()> {}
+            fn method(self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method))
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast))
             .unwrap();
 
         let expected = parse_quote! {
-            fn py_method<'py>(self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
+            fn method<'py>(self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
                 ::pyo3::types::PyList::new(py, Ast::from(self).method())
             }
         };
@@ -1598,14 +1560,14 @@ mod tests {
     #[test]
     fn py_method_body_impl_iterator_associated_args() {
         let mut py_fn = parse_quote!(
-            fn py_method((a, b): (u8, u16)) -> impl Iterator<Item = ()> {}
+            fn method((a, b): (u8, u16)) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method))
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast))
             .unwrap();
 
         let expected = parse_quote! {
-            fn py_method<'py>((a, b): (u8, u16), py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
+            fn method<'py>((a, b): (u8, u16), py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
                 ::pyo3::types::PyList::new(py, Ast::method((a, b)))
             }
         };
@@ -1616,14 +1578,14 @@ mod tests {
     #[test]
     fn py_method_body_impl_iterator_associated_no_args() {
         let mut py_fn = parse_quote!(
-            fn py_method() -> impl Iterator<Item = ()> {}
+            fn method() -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast), &parse_quote!(method))
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast))
             .unwrap();
 
         let expected = parse_quote! {
-            fn py_method<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
+            fn method<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
                 ::pyo3::types::PyList::new(py, Ast::method())
             }
         };
