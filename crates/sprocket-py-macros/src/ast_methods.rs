@@ -180,7 +180,6 @@ fn make_py_self_ty(self_ty: &mut Type) -> Result<Path> {
         .last_mut()
         .expect("type paths should contain at least one segment");
 
-    // TODO: Verify only argument is `AstKind` ident.
     last_segment.arguments = PathArguments::None;
     last_segment.ident = format_ident!("Py{}", last_segment.ident);
 
@@ -478,7 +477,7 @@ fn replace_self_with_original_type_path(type_: &mut Type, original_type_path: &P
                 Ok(())
             }
             Type::Infer(_) | Type::Macro(_) | Type::Never(_) => Ok(()),
-            _ => todo!(),
+            _ => Err(Error::new_spanned(type_, "`#[ast_methods]` does not support this type")),
         }
     }
 

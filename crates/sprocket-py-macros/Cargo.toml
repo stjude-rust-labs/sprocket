@@ -15,7 +15,7 @@ proc-macro2 = "1.0.107"
 # Generate token streams from code
 quote = "1.0.47"
 # Parses token streams into syntax trees
-syn = { version = "3.0.2", features = ["full", "extra-traits"] } # TODO: simplify features
+syn = { version = "3.0.2", features = ["full", "extra-traits"] }
 
 [dev-dependencies]
 pretty_assertions.workspace = true
