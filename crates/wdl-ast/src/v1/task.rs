@@ -1374,6 +1374,7 @@ impl<N: TreeNode> CommandPart<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct RequirementsSection<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> RequirementsSection<N> {
     /// Gets the items in the requirements section.
     pub fn items(&self) -> impl Iterator<Item = RequirementsItem<N>> + use<'_, N> {
@@ -1388,6 +1389,7 @@ impl<N: TreeNode> RequirementsSection<N> {
 
     /// Gets the `container` item as a
     /// [`Container`](requirements::item::Container) (if it exists).
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn container(&self) -> Option<requirements::item::Container<N>> {
         // NOTE: validation should ensure that, at most, one `container` item exists in
         // the `requirements` section.
@@ -1423,6 +1425,7 @@ impl<N: TreeNode> AstNode<N> for RequirementsSection<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct RequirementsItem<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> RequirementsItem<N> {
     /// Gets the name of the requirements item.
     pub fn name(&self) -> Ident<N::Token> {
@@ -1436,6 +1439,7 @@ impl<N: TreeNode> RequirementsItem<N> {
 
     /// Consumes `self` and attempts to cast the requirements item to a
     /// [`Container`](requirements::item::Container).
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn into_container(self) -> Option<requirements::item::Container<N>> {
         requirements::item::Container::try_from(self).ok()
     }
@@ -1534,6 +1538,7 @@ impl<N: TreeNode> AstNode<N> for TaskHintsItem<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct RuntimeSection<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> RuntimeSection<N> {
     /// Gets the items in the runtime section.
     pub fn items(&self) -> impl Iterator<Item = RuntimeItem<N>> + use<'_, N> {
@@ -1548,6 +1553,7 @@ impl<N: TreeNode> RuntimeSection<N> {
 
     /// Gets the `container` item as a [`Container`](runtime::item::Container)
     /// (if it exists).
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn container(&self) -> Option<runtime::item::Container<N>> {
         // NOTE: validation should ensure that, at most, one `container`/`docker` item
         // exists in the `runtime` section.
@@ -1577,6 +1583,7 @@ impl<N: TreeNode> AstNode<N> for RuntimeSection<N> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct RuntimeItem<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> RuntimeItem<N> {
     /// Gets the name of the runtime item.
     pub fn name(&self) -> Ident<N::Token> {
@@ -1590,6 +1597,7 @@ impl<N: TreeNode> RuntimeItem<N> {
 
     /// Consumes `self` and attempts to cast the runtime item to a
     /// [`Container`](runtime::item::Container).
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn into_container(self) -> Option<runtime::item::Container<N>> {
         runtime::item::Container::try_from(self).ok()
     }
