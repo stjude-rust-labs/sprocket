@@ -1878,6 +1878,7 @@ impl<N: TreeNode> AstNode<N> for LiteralFloat<N> {
 
 /// Represents the kind of a literal string.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub enum LiteralStringKind {
     /// The string is a single quoted string.
     SingleQuoted,
@@ -1984,6 +1985,7 @@ impl<T: TreeToken> LiteralStringText<T> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct LiteralString<N: TreeNode = SyntaxNode>(pub(super) N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> LiteralString<N> {
     /// Gets the kind of the string literal.
     pub fn kind(&self) -> LiteralStringKind {
@@ -2035,6 +2037,7 @@ impl<N: TreeNode> LiteralString<N> {
     /// unescaping the string.
     ///
     /// Returns `None` if not a multi-line string.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn strip_whitespace(&self) -> Option<Vec<StrippedStringPart<N>>> {
         if self.kind() != LiteralStringKind::Multiline {
             return None;
@@ -2189,6 +2192,7 @@ impl<N: TreeNode> AstNode<N> for LiteralString<N> {
 
 /// Represents a part of a string.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub enum StringPart<N: TreeNode = SyntaxNode> {
     /// A textual part of the string.
     Text(StringText<N::Token>),

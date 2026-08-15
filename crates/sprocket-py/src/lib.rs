@@ -295,6 +295,8 @@ mod _sprocket_bio {
             #[pymodule_export]
             use wdl_ast::v1::PyLiteralString;
             #[pymodule_export]
+            use wdl_ast::v1::PyLiteralStringKind;
+            #[pymodule_export]
             use wdl_ast::v1::PyLiteralStringText;
             #[pymodule_export]
             use wdl_ast::v1::PyLiteralStruct;
@@ -410,6 +412,8 @@ mod _sprocket_bio {
             use wdl_ast::v1::PySingleQuote;
             #[pymodule_export]
             use wdl_ast::v1::PySlash;
+            #[pymodule_export]
+            use wdl_ast::v1::PyStringPart;
             #[pymodule_export]
             use wdl_ast::v1::PyStringText;
             #[pymodule_export]
