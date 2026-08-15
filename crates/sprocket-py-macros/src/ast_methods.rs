@@ -1144,6 +1144,7 @@ mod tests {
         let py_fn = make_py_method(&original_fn, ast_generic_ident, &original_type_path).unwrap();
 
         let expected = parse_quote! {
+            #[pyo3(name = "method")]
             fn py_method() {
                 Ast::method()
             }
@@ -1161,6 +1162,7 @@ mod tests {
         let py_fn = make_py_method(&original_fn, ast_generic_ident, &original_type_path).unwrap();
 
         let expected = parse_quote! {
+            #[pyo3(name = "method")]
             fn py_method() -> Ast {
                 Ast::method()
             }
@@ -1178,6 +1180,7 @@ mod tests {
         let py_fn = make_py_method(&original_fn, ast_generic_ident, &original_type_path).unwrap();
 
         let expected = parse_quote! {
+            #[pyo3(name = "method")]
             fn py_method() {
                 Ast::method()
             }
@@ -1195,6 +1198,7 @@ mod tests {
         let py_fn = make_py_method(&original_fn, ast_generic_ident, &original_type_path).unwrap();
 
         let expected = parse_quote! {
+            #[pyo3(name = "method")]
             fn py_method<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
                 ::pyo3::types::PyList::new(py, Ast::method())
             }
