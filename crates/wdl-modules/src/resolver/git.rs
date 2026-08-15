@@ -2,7 +2,7 @@
 //!
 //! This module owns the resolver state, Git operations, cache lifecycle, and
 //! all phases of dependency resolution and materialization. Low-level Git
-//! operations live in [`ops`], while tests live in [`tests`].
+//! operations live in [`ops`], while tests live in `tests`.
 //!
 //! Git dependency materialization owns sparse-checkout planning, cache
 //! materialization, manifest reading, and symbolic-path resolution backing
@@ -396,19 +396,7 @@ impl GitResolver {
 
         let fetched = match result {
             Ok(fetched) => fetched,
-            Err(err) => {
-                if plan.leaf.starts_with(self.cache_root())
-                    && plan.leaf.exists()
-                    && let Err(io_err) = std::fs::remove_dir_all(&plan.leaf)
-                {
-                    tracing::warn!(
-                        path = %plan.leaf.display(),
-                        error = %io_err,
-                        "failed to clean up cache leaf after materialization failure",
-                    );
-                }
-                return Err(err);
-            }
+            Err(err) => return Err(err),
         };
 
         tracing::trace!(
@@ -1268,7 +1256,7 @@ pub(super) fn resolve_normalized_subpath(
 
 /// Compiles a manifest's `exclude` patterns into a [`globset::GlobSet`].
 ///
-/// Patterns use gitignore-style semantics per the module specification:
+/// Patterns follow gitignore-style semantics from the module specification.
 /// `*` matches any run of non-separator characters, `**` matches across
 /// separators, and a plain directory name excludes the directory and
 /// everything beneath it. To honor the directory-subtree rule, each

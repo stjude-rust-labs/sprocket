@@ -168,6 +168,7 @@ wdl_1_4 = false
 [modules]
 default_git_platform = "github"
 large_file_warning = "1.0 MiB"
+max_transfer_bytes = "2.0 GiB"
 require_signed = false
 trust_mode = "confirm"
 allowed_schemes = ["https", "ssh"]

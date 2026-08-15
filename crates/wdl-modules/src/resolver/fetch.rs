@@ -35,7 +35,7 @@ impl GitFetcher {
         crate::resolver::versions::discover_remote_tags(
             url,
             net.max_advertised_refs,
-            self.policy.credential_mode(scope, url),
+            self.policy.fetch_policy(scope, url),
         )
         .map_err(ResolverError::from)
     }
@@ -50,7 +50,7 @@ impl GitFetcher {
         crate::resolver::versions::discover_remote_branches(
             url,
             net.max_advertised_refs,
-            self.policy.credential_mode(scope, url),
+            self.policy.fetch_policy(scope, url),
         )
         .map_err(ResolverError::from)
     }
@@ -61,11 +61,10 @@ impl GitFetcher {
         url: &Url,
         scope: DependencyScope,
     ) -> Result<String, ResolverError> {
-        let net = self.policy.git_policy(scope);
         crate::resolver::git::ops::discover_default_branch(
             url,
-            self.policy.credential_mode(scope, url),
-            net.max_advertised_refs,
+            self.policy.fetch_policy(scope, url),
+            self.policy.git_policy(scope).max_advertised_refs,
         )
         .map_err(ResolverError::from)
     }
@@ -86,17 +85,19 @@ impl GitFetcher {
         scope: DependencyScope,
         work_dir: &Path,
     ) -> Result<String, ResolverError> {
-        let net = self.policy.git_policy(scope);
-        let mode = self.policy.credential_mode(scope, url);
+        let policy = self.policy.fetch_policy(scope, url);
 
         // Fast path: a prefix of an advertised ref's SHA needs no clone.
-        let refs =
-            crate::resolver::git::ops::list_advertised_refs(url, net.max_advertised_refs, mode)?;
+        let refs = crate::resolver::git::ops::list_advertised_refs(
+            url,
+            self.policy.git_policy(scope).max_advertised_refs,
+            policy,
+        )?;
         if let Some(sha) = crate::resolver::git::ops::unique_ref_prefix_match(&refs, prefix) {
             return Ok(sha.to_string());
         }
 
-        crate::resolver::git::ops::resolve_commit_prefix(work_dir, url, prefix, mode)
+        crate::resolver::git::ops::resolve_commit_prefix(work_dir, url, prefix, policy)
             .map_err(ResolverError::from)
     }
 
@@ -114,9 +115,11 @@ impl GitFetcher {
             url,
             commit,
             paths.iter().copied(),
-            self.policy.credential_mode(scope, url),
-            self.policy.max_materialized_files,
-            self.policy.max_materialized_bytes,
+            self.policy.fetch_policy(scope, url),
+            crate::resolver::git::ops::TreeLimits {
+                max_files: self.policy.max_materialized_files,
+                max_bytes: self.policy.max_materialized_bytes,
+            },
         )?;
         Ok(fetched)
     }

@@ -39,6 +39,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Added the `[modules] default_git_platform` setting for selecting the hosted
   Git platform used by `owner/repo` shorthand
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* Added the `[modules] max_transfer_bytes` setting, which aborts a Git fetch
+  once it exceeds the configured size; it defaults to 2 GiB and accepts
+  `unlimited`
+  ([#1115](https://github.com/stjude-rust-labs/sprocket/pull/1115)).
 * Resolver errors now explain when a dependency path is missing `module.json`,
   meaning that the target is not a Sprocket module or the `path` is wrong
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
@@ -112,6 +116,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lookups, including missing task logs, instead of returning empty log results
   or generic internal errors
   ([#956](https://github.com/stjude-rust-labs/sprocket/pull/956)).
+* Git dependencies fetched over SSH now authenticate through `ssh-agent`; the
+  credential callback no longer returns a credential type that `libgit2` did
+  not request
+  ([#1115](https://github.com/stjude-rust-labs/sprocket/pull/1115)).
+* A failing Git credential helper is now reported as an authentication
+  failure, which names the credential settings to check, instead of a generic
+  Git error ([#1115](https://github.com/stjude-rust-labs/sprocket/pull/1115)).
+* A cached Git dependency whose sparse-checkout metadata cannot be parsed is
+  now evicted and re-cloned instead of reused
+  ([#1115](https://github.com/stjude-rust-labs/sprocket/pull/1115)).
 
 ## 0.29.0 - 2026-08-05
 

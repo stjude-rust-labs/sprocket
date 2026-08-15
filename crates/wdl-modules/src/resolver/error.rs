@@ -416,7 +416,7 @@ pub enum ResolverError {
     RelativePath(#[from] crate::relative_path::RelativePathError),
 }
 
-/// The kind of Git reference named in a [`ResolverError::UnknownGitRef`].
+/// The kind of Git reference named in a `ResolverError::UnknownGitRef` variant.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum GitRefKind {
     /// The reference was an annotated or lightweight tag.

@@ -1651,6 +1651,10 @@
           "description": "Threshold for the large-file warning, or [`LargeFileWarning::Disabled`]\nwhen the user opts out. Defaults to 1 MiB.",
           "$ref": "#/$defs/LargeFileWarning"
         },
+        "max_transfer_bytes": {
+          "description": "Maximum bytes accepted from a Git remote during one fetch. Defaults\nto 2 GiB.",
+          "$ref": "#/$defs/TransferLimit"
+        },
         "require_signed": {
           "description": "Reject any unsigned module in the dependency tree.",
           "type": "boolean",
@@ -1784,6 +1788,21 @@
               "pattern": "^\\d+(?:\\.\\d+)?\\s*(?:[KMGTPEkmgtpe][Ii]?[Bb]?|[Bb])$"
             }
           ]
+        }
+      ]
+    },
+    "TransferLimit": {
+      "description": "Maximum bytes accepted from a Git remote during one fetch.",
+      "anyOf": [
+        {
+          "description": "No transfer limit is enforced.",
+          "type": "string",
+          "pattern": "^[Uu][Nn][Ll][Ii][Mm][Ii][Tt][Ee][Dd]$"
+        },
+        {
+          "description": "A fetch receiving more than this many bytes is aborted.",
+          "type": "string",
+          "pattern": "^\\d+(?:\\.\\d+)?\\s*(?:[KMGTPEkmgtpe][Ii]?[Bb]?|[Bb])$"
         }
       ]
     },

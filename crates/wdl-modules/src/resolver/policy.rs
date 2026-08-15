@@ -1,14 +1,15 @@
 //! Network and resource enforcement policy for the module resolver.
 //!
-//! This module translates a [`ModulesConfig`](super::config::ModulesConfig)
-//! into a [`ResolverPolicy`] that is evaluated at fetch time. Each Git URL is
-//! checked against the policy before any network activity occurs: the URL
-//! scheme must appear in the configured allow list, the hostname must not be on
-//! the explicit deny list, the hostname must not be a non-public IP address or
-//! resolve to one, and the hostname must satisfy the per-scope host policy
-//! (open or allowlisted). Top-level and transitive dependencies carry separate
-//! [`GitNetworkPolicy`] instances, which allows stricter rules for code pulled
-//! in transitively (e.g., no SSH, no credentials).
+//! A [`ResolverPolicy`] derives from a [`ModulesConfig`] and is evaluated at
+//! fetch time. The resolver checks every Git URL before any network activity
+//! occurs. The scheme must appear in the configured allow list; the hostname
+//! must be absent from the explicit deny list, must not be a non-public IP
+//! address or resolve to one, and must satisfy the per-scope host policy
+//! (open or allowlisted).
+//!
+//! Top-level and transitive dependencies carry separate [`GitNetworkPolicy`]
+//! instances, so transitively pulled code can be held to stricter rules
+//! (e.g., no SSH, no credentials).
 
 use std::num::TryFromIntError;
 
@@ -21,6 +22,7 @@ use crate::resolver::config::LargeFileWarning;
 use crate::resolver::config::ModulesConfig;
 use crate::resolver::error::ResolverError;
 use crate::resolver::git::ops::CredentialMode;
+use crate::resolver::git::ops::FetchPolicy;
 
 /// Configuration key for top-level dependency hosts.
 const ALLOWED_HOSTS_CONFIG_KEY: &str = "allowed_hosts";
@@ -83,7 +85,7 @@ impl HostPolicy {
     }
 }
 
-/// Network and resource policy for a specific dependency scope.
+/// Network limits applied to Git operations within one dependency scope.
 #[derive(Clone, Debug)]
 pub(crate) struct GitNetworkPolicy {
     /// Permitted URL schemes.
@@ -92,6 +94,8 @@ pub(crate) struct GitNetworkPolicy {
     pub(crate) host_policy: HostPolicy,
     /// Maximum advertised refs.
     pub(crate) max_advertised_refs: usize,
+    /// Maximum bytes accepted from a single Git fetch.
+    pub(crate) max_transfer_bytes: Option<u64>,
 }
 
 /// The full resolver policy, derived from config at construction.
@@ -146,6 +150,7 @@ impl TryFrom<&ModulesConfig> for ResolverPolicy {
                         source: e,
                     }
                 })?,
+                max_transfer_bytes: config.max_transfer_bytes.as_bytes(),
             },
             transitive: GitNetworkPolicy {
                 allowed_schemes: config.allowed_transitive_schemes.clone(),
@@ -156,6 +161,7 @@ impl TryFrom<&ModulesConfig> for ResolverPolicy {
                         source: e,
                     }
                 })?,
+                max_transfer_bytes: config.max_transfer_bytes.as_bytes(),
             },
             denied_hosts: config.denied_hosts.clone(),
             max_materialized_files: config
@@ -188,6 +194,14 @@ impl ResolverPolicy {
         match scope {
             DependencyScope::TopLevel => &self.top_level,
             DependencyScope::Transitive => &self.transitive,
+        }
+    }
+
+    /// Returns the credential and transfer policy for a Git fetch.
+    pub(crate) fn fetch_policy(&self, scope: DependencyScope, url: &Url) -> FetchPolicy {
+        FetchPolicy {
+            credentials: self.credential_mode(scope, url),
+            max_transfer_bytes: self.git_policy(scope).max_transfer_bytes,
         }
     }
 
