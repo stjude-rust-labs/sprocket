@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Formatting no longer panics on `input` hints keys that use dotted struct
+  member paths, such as `foo.bar` ([#854](https://github.com/stjude-rust-labs/sprocket/issues/854)).
+
 ## 0.20.1 - 2026-08-05
 
 #### Fixed
