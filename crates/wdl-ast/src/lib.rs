@@ -578,7 +578,6 @@ impl Document {
     }
 }
 
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> Document<N> {
     /// Gets the version statement of the document.
     ///
@@ -634,7 +633,6 @@ impl<N: TreeNode> Document<N> {
 
     /// Morphs a document of one node type to a document of a different node
     /// type.
-    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn morph<U: TreeNode + NewRoot<N>>(self) -> Document<U> {
         Document(U::new_root(self.0))
     }
