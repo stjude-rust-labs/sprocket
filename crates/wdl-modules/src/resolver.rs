@@ -44,6 +44,10 @@ pub use crate::resolver::config::LargeFileWarningError;
 #[cfg(feature = "git-resolver")]
 pub use crate::resolver::config::ModulesConfig;
 #[cfg(feature = "git-resolver")]
+pub use crate::resolver::config::TransferLimit;
+#[cfg(feature = "git-resolver")]
+pub use crate::resolver::config::TransferLimitError;
+#[cfg(feature = "git-resolver")]
 pub use crate::resolver::config::TrustMode;
 pub use crate::resolver::error::GitRefKind;
 pub use crate::resolver::error::MissingFileKind;

@@ -21,7 +21,7 @@
 //! [`project::ModuleProject::write_manifest`] to replace `module.json` through
 //! an atomic rename and [`project::LockedLockfile`] to read or rewrite the
 //! sibling `module-lock.json` under its own advisory lock, and use
-//! [`resolver::trust::TrustStore`] to accept lockfile signers in a user-level
+//! `resolver::TrustStore` to accept lockfile signers in a user-level
 //! trust store outside the project tree.
 //!
 //! ```rust

@@ -28,6 +28,12 @@ pub struct ModulesConfig {
     #[schemars(default)]
     pub large_file_warning: LargeFileWarning,
 
+    /// Maximum bytes accepted from a Git remote during one fetch. Defaults
+    /// to 2 GiB.
+    #[toml(default, FromToml with = parse_string, ToToml with = display)]
+    #[schemars(default)]
+    pub max_transfer_bytes: TransferLimit,
+
     /// Reject any unsigned module in the dependency tree.
     #[toml(default)]
     #[schemars(default)]
@@ -141,6 +147,7 @@ impl Default for ModulesConfig {
             cache_path: None,
             default_git_platform: GitPlatform::default(),
             large_file_warning: LargeFileWarning::default(),
+            max_transfer_bytes: TransferLimit::default(),
             require_signed: false,
             trust_mode: TrustMode::default(),
             allowed_schemes: default_top_level_schemes(),
@@ -362,6 +369,72 @@ impl std::fmt::Display for LargeFileWarning {
     }
 }
 
+/// String-only representation used to generate the [`TransferLimit`] schema.
+#[derive(Debug, JsonSchema)]
+#[schemars(untagged, inline)]
+#[expect(dead_code, reason = "Only used for schema generation.")]
+enum TransferLimitSchema {
+    /// No transfer limit is enforced.
+    Unlimited(#[schemars(pattern(r"^[Uu][Nn][Ll][Ii][Mm][Ii][Tt][Ee][Dd]$"))] String),
+    /// A fetch receiving more than this many bytes is aborted.
+    Bytes(#[schemars(pattern(r"^\d+(?:\.\d+)?\s*(?:[KMGTPEkmgtpe][Ii]?[Bb]?|[Bb])$"))] String),
+}
+
+/// Maximum bytes accepted from a Git remote during one fetch.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, JsonSchema)]
+#[schemars(with = "TransferLimitSchema")]
+pub enum TransferLimit {
+    /// No transfer limit is enforced.
+    Unlimited,
+    /// A fetch receiving more than this many bytes is aborted.
+    Bytes(u64),
+}
+
+impl Default for TransferLimit {
+    fn default() -> Self {
+        Self::Bytes(2 * 1024 * 1024 * 1024)
+    }
+}
+
+impl TransferLimit {
+    /// Returns the limit in bytes, or `None` when unlimited.
+    pub(crate) fn as_bytes(self) -> Option<u64> {
+        match self {
+            Self::Unlimited => None,
+            Self::Bytes(bytes) => Some(bytes),
+        }
+    }
+}
+
+impl FromStr for TransferLimit {
+    type Err = TransferLimitError;
+
+    fn from_str(source: &str) -> Result<Self, Self::Err> {
+        if source.eq_ignore_ascii_case("unlimited") {
+            return Ok(Self::Unlimited);
+        }
+        let bytes = source
+            .parse::<bytesize::ByteSize>()
+            .map_err(|_| TransferLimitError(source.to_string()))?
+            .as_u64();
+        Ok(Self::Bytes(bytes))
+    }
+}
+
+impl std::fmt::Display for TransferLimit {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Unlimited => formatter.write_str("unlimited"),
+            Self::Bytes(bytes) => write!(formatter, "{}", bytesize::ByteSize(*bytes)),
+        }
+    }
+}
+
+/// Error parsing a [`TransferLimit`] string.
+#[derive(Debug, Error)]
+#[error("`{0}` is not a valid transfer limit (expected e.g. `2GiB`, `500MB`, or `unlimited`)")]
+pub struct TransferLimitError(String);
+
 /// Error parsing a [`LargeFileWarning`] string.
 #[derive(Debug, Error)]
 #[error("`{0}` is not a valid file-size string (expected e.g. `1MiB`, `500KB`, or `none`)")]
@@ -467,5 +540,34 @@ mod tests {
         let err =
             toml_spanner::from_str::<ModulesConfig>(r#"large_file_warning = "abc""#).unwrap_err();
         assert!(err.to_string().contains("abc"), "wrong message: {err}");
+    }
+
+    #[test]
+    fn transfer_limit_round_trips() {
+        assert_eq!(
+            "unlimited".parse::<TransferLimit>().unwrap(),
+            TransferLimit::Unlimited
+        );
+        assert_eq!(TransferLimit::Unlimited.as_bytes(), None);
+        assert_eq!(
+            "2GiB".parse::<TransferLimit>().unwrap(),
+            TransferLimit::Bytes(2_147_483_648)
+        );
+        assert_eq!(TransferLimit::default().to_string(), "2.0 GiB");
+        assert!("abc".parse::<TransferLimit>().is_err());
+    }
+
+    #[test]
+    fn parses_transfer_limit_from_toml() {
+        let cfg: ModulesConfig = toml_spanner::from_str(r#"max_transfer_bytes = "2GiB""#).unwrap();
+        assert_eq!(cfg.max_transfer_bytes, TransferLimit::Bytes(2_147_483_648));
+
+        let cfg: ModulesConfig =
+            toml_spanner::from_str(r#"max_transfer_bytes = "UnLiMiTeD""#).unwrap();
+        assert_eq!(cfg.max_transfer_bytes, TransferLimit::Unlimited);
+
+        assert!(
+            toml_spanner::from_str::<ModulesConfig>("max_transfer_bytes = 2147483648").is_err()
+        );
     }
 }
