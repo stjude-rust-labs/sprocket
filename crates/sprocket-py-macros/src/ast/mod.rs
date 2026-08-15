@@ -22,8 +22,13 @@ struct Args {
     /// This is forwarded to `#[pyclass]`, and defaults to `module =
     /// "sprocket_bio.ast.v1"`.
     module: LitStr,
+    /// Implements `__eq__` using the `PartialEq` implementation of the original
+    /// type.
+    ///
+    /// This is forwarded to `#[pyclass]`, and by default is omitted.
+    eq: bool,
     /// Implements `__str__` using the `Display` implementation of the
-    /// underlying Rust datatype.
+    /// original type.
     ///
     /// This is forwarded to `#[pyclass]`, and by default is omitted.
     str_: bool,
@@ -37,6 +42,11 @@ impl Args {
         let args_parser = syn::meta::parser(|meta| {
             if meta.path.is_ident("module") {
                 args.module = meta.value()?.parse()?;
+                return Ok(());
+            }
+
+            if meta.path.is_ident("eq") {
+                args.eq = true;
                 return Ok(());
             }
 
@@ -58,6 +68,7 @@ impl Default for Args {
     fn default() -> Self {
         Self {
             module: LitStr::new("sprocket_bio.ast.v1", Span::call_site()),
+            eq: false,
             str_: false,
         }
     }

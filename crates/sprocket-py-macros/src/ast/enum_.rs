@@ -46,6 +46,20 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
     let py_ident = &py_enum.ident;
     let (original_to_py_match_arms, py_to_original_match_arms) =
         conversion_match_arms(original, py_ident, only_unit_variants);
+    let partial_eq_impl = if args.eq {
+        quote! {
+            // Implements `PartialEq` for the Python enum by relying on the original enum's
+            // impl. We can't derive `PartialEq`, as it will compare `ThreadSafeSyntax{Node,Token}`
+            // and ignore custom implementations.
+            impl ::std::cmp::PartialEq for #py_ident {
+                fn eq(&self, other: &#py_ident) -> bool {
+                    #ident::from(self.clone()) == #ident::from(other.clone())
+                }
+            }
+        }
+    } else {
+        TokenStream::new()
+    };
     let display_impl = if args.str_ {
         quote! {
             // Implements `Display` for the Python enum by relying on the original enum's
@@ -98,6 +112,8 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
             }
         }
 
+        #partial_eq_impl
+
         #display_impl
     })
 }
@@ -130,14 +146,18 @@ fn make_py_attrs(
             let module = &args.module;
             let class_name = LitStr::new(&original.ident.to_string(), original.ident.span());
 
-            parse_quote!(#[::pyo3::pyclass(module = #module, name = #class_name, frozen, from_py_object, eq)])
+            parse_quote!(#[::pyo3::pyclass(module = #module, name = #class_name, frozen, from_py_object)])
         },
-        // `Clone` is required by `from_py_object`, and `PartialEq` is for parity with the original
-        // enum.
-        parse_quote!(#[derive(Clone, PartialEq)]),
+        // We rely on the Python enum being cloneable in `#[ast_methods]` and several generated
+        // implementations.
+        parse_quote!(#[derive(Clone)]),
         // `Debug` is purposefully not implemented, silence the lint.
         parse_quote!(#[allow(missing_debug_implementations)]),
     ]);
+
+    if args.eq {
+        py_enum.attrs.push(parse_quote!(#[pyo3(eq)]));
+    }
 
     if args.str_ {
         py_enum.attrs.push(parse_quote!(#[pyo3(str)]));
@@ -347,8 +367,8 @@ mod tests {
         let expected = [
             parse_quote!(#[doc = r" Doc comment"]),
             parse_quote!(#[doc = r" Another doc comment "]),
-            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "Foo", frozen, from_py_object, eq)]),
-            parse_quote!(#[derive(Clone, PartialEq)]),
+            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "Foo", frozen, from_py_object)]),
+            parse_quote!(#[derive(Clone)]),
             parse_quote!(#[allow(missing_debug_implementations)]),
         ];
 
@@ -368,6 +388,7 @@ mod tests {
             &original,
             &Args {
                 module: LitStr::new("sprocket_bio.custom_module", Span::call_site()),
+                eq: true,
                 str_: true,
             },
             false,
@@ -375,9 +396,10 @@ mod tests {
 
         let expected = [
             parse_quote!(#[doc = r" Hello, there!"]),
-            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.custom_module", name = "Bar", frozen, from_py_object, eq)]),
-            parse_quote!(#[derive(Clone, PartialEq)]),
+            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.custom_module", name = "Bar", frozen, from_py_object)]),
+            parse_quote!(#[derive(Clone)]),
             parse_quote!(#[allow(missing_debug_implementations)]),
+            parse_quote!(#[pyo3(eq)]),
             parse_quote!(#[pyo3(str)]),
         ];
 
@@ -397,8 +419,8 @@ mod tests {
         make_py_attrs(&mut py_enum, &original, &Args::default(), true);
 
         let expected = [
-            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "MyEnum", frozen, from_py_object, eq)]),
-            parse_quote!(#[derive(Clone, PartialEq)]),
+            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "MyEnum", frozen, from_py_object)]),
+            parse_quote!(#[derive(Clone)]),
             parse_quote!(#[allow(missing_debug_implementations)]),
             parse_quote!(#[pyo3(rename_all = "SCREAMING_SNAKE_CASE")]),
         ];

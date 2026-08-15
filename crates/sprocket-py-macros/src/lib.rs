@@ -266,6 +266,7 @@ use syn::Error;
 /// |Name|Default|Description|
 /// |-|-|-|
 /// |`module`|`"sprocket_bio.ast.v1"`|The module the AST element is defined in, from Python's perspective.|
+/// |`eq`|Omitted|Implements `__eq__` for the type using its [`PartialEq`] implementation.|
 /// |`str`|Omitted|Implements `__str__` for the type using its [`Display`](std::fmt::Display) implementation. Note that unlike `#[pyclass]`, format strings (such as `str = "{var:?}"`) are not supported.|
 #[proc_macro_attribute]
 pub fn ast(args_stream: TokenStream, item_stream: TokenStream) -> TokenStream {

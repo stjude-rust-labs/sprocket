@@ -48,6 +48,20 @@ pub(super) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
         },
         Span::call_site(),
     );
+    let partial_eq_impl = if args.eq {
+        quote! {
+            // Implements `PartialEq` for the Python struct by relying on the original struct's
+            // impl. We can't derive `PartialEq`, as it will compare `ThreadSafeSyntax{Node,Token}`
+            // and ignore custom implementations.
+            impl ::std::cmp::PartialEq for #py_ident {
+                fn eq(&self, other: &#py_ident) -> bool {
+                    #ident::from(self.clone()) == #ident::from(other.clone())
+                }
+            }
+        }
+    } else {
+        TokenStream::new()
+    };
     let display_impl = if args.str_ {
         quote! {
             // Implements `Display` for the Python struct by relying on the original struct's
@@ -116,6 +130,8 @@ pub(super) fn build(original: &ItemStruct, args: Args) -> Result<TokenStream> {
             }
         }
 
+        #partial_eq_impl
+
         #display_impl
     })
 }
@@ -163,14 +179,18 @@ fn make_py_attrs(
                 Span::call_site(),
             );
 
-            parse_quote!(#[::pyo3::pyclass(module = #module, name = #class_name, extends = crate::#extends, frozen, from_py_object, eq)])
+            parse_quote!(#[::pyo3::pyclass(module = #module, name = #class_name, extends = crate::#extends, frozen, from_py_object)])
         },
-        // `#[pymethods]` relies on the Python struct being cloneable. We additionally derive
-        // `PartialEq` for parity with the original struct.
-        parse_quote!(#[derive(Clone, PartialEq)]),
+        // We rely on the Python struct being cloneable in `#[ast_methods]` and several generated
+        // implementations.
+        parse_quote!(#[derive(Clone)]),
         // `Debug` is purposefully not implemented, silence the lint.
         parse_quote!(#[allow(missing_debug_implementations)]),
     ]);
+
+    if args.eq {
+        py_struct.attrs.push(parse_quote!(#[pyo3(eq)]));
+    }
 
     if args.str_ {
         py_struct.attrs.push(parse_quote!(#[pyo3(str)]));
@@ -274,8 +294,8 @@ mod tests {
         let expected = [
             parse_quote!(#[doc = r" Doc comment"]),
             parse_quote!(#[doc = r" Another doc comment "]),
-            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "Foo", extends = crate::PyAstNode, frozen, from_py_object, eq)]),
-            parse_quote!(#[derive(Clone, PartialEq)]),
+            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "Foo", extends = crate::PyAstNode, frozen, from_py_object)]),
+            parse_quote!(#[derive(Clone)]),
             parse_quote!(#[allow(missing_debug_implementations)]),
         ];
 
@@ -290,8 +310,8 @@ mod tests {
         make_py_attrs(&mut py_struct, &original, &Args::default(), AstKind::Token);
 
         let expected = [
-            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "Foo", extends = crate::PyAstToken, frozen, from_py_object, eq)]),
-            parse_quote!(#[derive(Clone, PartialEq)]),
+            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.ast.v1", name = "Foo", extends = crate::PyAstToken, frozen, from_py_object)]),
+            parse_quote!(#[derive(Clone)]),
             parse_quote!(#[allow(missing_debug_implementations)]),
         ];
 
@@ -308,15 +328,17 @@ mod tests {
             &original,
             &Args {
                 module: LitStr::new("sprocket_bio.custom_module", Span::call_site()),
+                eq: true,
                 str_: true,
             },
             AstKind::Token,
         );
 
         let expected = [
-            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.custom_module", name = "Foo", extends = crate::PyAstToken, frozen, from_py_object, eq)]),
-            parse_quote!(#[derive(Clone, PartialEq)]),
+            parse_quote!(#[::pyo3::pyclass(module = "sprocket_bio.custom_module", name = "Foo", extends = crate::PyAstToken, frozen, from_py_object)]),
+            parse_quote!(#[derive(Clone)]),
             parse_quote!(#[allow(missing_debug_implementations)]),
+            parse_quote!(#[pyo3(eq)]),
             parse_quote!(#[pyo3(str)]),
         ];
 
