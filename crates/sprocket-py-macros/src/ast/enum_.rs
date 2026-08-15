@@ -30,7 +30,7 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
     // Remove generics.
     py_enum.generics = Generics::default();
 
-    let only_unit_variants = has_only_unit_variants(&original);
+    let only_unit_variants = has_only_unit_variants(original);
 
     make_py_attrs(&mut py_enum, original, &args, only_unit_variants);
 

@@ -477,7 +477,10 @@ fn replace_self_with_original_type_path(type_: &mut Type, original_type_path: &P
                 Ok(())
             }
             Type::Infer(_) | Type::Macro(_) | Type::Never(_) => Ok(()),
-            _ => Err(Error::new_spanned(type_, "`#[ast_methods]` does not support this type")),
+            _ => Err(Error::new_spanned(
+                type_,
+                "`#[ast_methods]` does not support this type",
+            )),
         }
     }
 
