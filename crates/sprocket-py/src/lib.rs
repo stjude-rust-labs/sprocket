@@ -64,6 +64,10 @@ mod _sprocket_bio {
     mod ast {
         use pyo3::prelude::*;
         #[pymodule_export]
+        use wdl_ast::Directive;
+        #[pymodule_export]
+        use wdl_ast::ExceptRule;
+        #[pymodule_export]
         use wdl_ast::PyAst;
         #[pymodule_export]
         use wdl_ast::PyAstNode;
@@ -72,9 +76,15 @@ mod _sprocket_bio {
         #[pymodule_export]
         use wdl_ast::PyComment;
         #[pymodule_export]
+        use wdl_ast::PyCommentKind;
+        #[pymodule_export]
+        use wdl_ast::PyDirectiveKind;
+        #[pymodule_export]
         use wdl_ast::PyDocument;
         #[pymodule_export]
         use wdl_ast::PyIdent;
+        #[pymodule_export]
+        use wdl_ast::PyTokenText;
         #[pymodule_export]
         use wdl_ast::PyVersion;
         #[pymodule_export]
@@ -100,6 +110,8 @@ mod _sprocket_bio {
             use wdl_ast::v1::PyAsKeyword;
             #[pymodule_export]
             use wdl_ast::v1::PyAssignment;
+            #[pymodule_export]
+            use wdl_ast::v1::PyAst;
             #[pymodule_export]
             use wdl_ast::v1::PyAsterisk;
             #[pymodule_export]
@@ -144,6 +156,8 @@ mod _sprocket_bio {
             use wdl_ast::v1::PyConditionalStatement;
             #[pymodule_export]
             use wdl_ast::v1::PyConditionalStatementClause;
+            #[pymodule_export]
+            use wdl_ast::v1::PyConditionalStatementClauseKind;
             #[pymodule_export]
             use wdl_ast::v1::PyDecl;
             #[pymodule_export]
@@ -208,6 +222,8 @@ mod _sprocket_bio {
             use wdl_ast::v1::PyIfKeyword;
             #[pymodule_export]
             use wdl_ast::v1::PyImportAlias;
+            #[pymodule_export]
+            use wdl_ast::v1::PyImportForm;
             #[pymodule_export]
             use wdl_ast::v1::PyImportKeyword;
             #[pymodule_export]
@@ -366,6 +382,8 @@ mod _sprocket_bio {
             use wdl_ast::v1::PyPlus;
             #[pymodule_export]
             use wdl_ast::v1::PyPrimitiveType;
+            #[pymodule_export]
+            use wdl_ast::v1::PyPrimitiveTypeKind;
             #[pymodule_export]
             use wdl_ast::v1::PyQuestionMark;
             #[pymodule_export]
