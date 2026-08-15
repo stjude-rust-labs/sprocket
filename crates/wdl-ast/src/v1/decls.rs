@@ -20,7 +20,7 @@ use crate::TreeToken;
 
 /// Represents a `Map` type.
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq, str))]
 pub struct MapType<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -81,7 +81,7 @@ impl fmt::Display for MapType {
 
 /// Represents an `Array` type.
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq, str))]
 pub struct ArrayType<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -141,7 +141,7 @@ impl fmt::Display for ArrayType {
 
 /// Represents a `Pair` type.
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq, str))]
 pub struct PairType<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -199,7 +199,7 @@ impl fmt::Display for PairType {
 
 /// Represents a `Object` type.
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq, str))]
 pub struct ObjectType<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -248,7 +248,7 @@ impl fmt::Display for ObjectType {
 
 /// Represents a reference to a type.
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq, str))]
 pub struct TypeRef<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -303,7 +303,7 @@ impl fmt::Display for TypeRef {
 
 /// Represents a kind of primitive type.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)] // TODO: add `ord`
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))] // TODO: add `ord`
 pub enum PrimitiveTypeKind {
     /// The primitive is a `Boolean`.
     Boolean,
@@ -321,7 +321,7 @@ pub enum PrimitiveTypeKind {
 
 /// Represents a primitive type.
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq, str))]
 pub struct PrimitiveType<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -397,7 +397,7 @@ impl fmt::Display for PrimitiveType {
 
 /// Represents a type.
 #[derive(Clone, Debug, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq, str))]
 pub enum Type<N: TreeNode = SyntaxNode> {
     /// The type is a map.
     Map(MapType<N>),
@@ -759,7 +759,7 @@ impl fmt::Display for Type {
 
 /// Represents an unbound declaration.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct UnboundDecl<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -819,7 +819,7 @@ impl Documented<SyntaxNode> for UnboundDecl<SyntaxNode> {
 
 /// Represents a bound declaration in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct BoundDecl<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -884,7 +884,7 @@ impl Documented<SyntaxNode> for BoundDecl<SyntaxNode> {
 
 /// Represents a declaration in an input section.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub enum Decl<N: TreeNode = SyntaxNode> {
     /// The declaration is bound.
     Bound(BoundDecl<N>),

@@ -365,7 +365,7 @@ fn unescape_command_text(s: &str, heredoc: bool, buffer: &mut String) {
 
 /// Represents a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct TaskDefinition<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -456,7 +456,7 @@ impl Documented<SyntaxNode> for TaskDefinition<SyntaxNode> {
 
 /// Represents an item in a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub enum TaskItem<N: TreeNode = SyntaxNode> {
     /// The item is an input section.
     Input(InputSection<N>),
@@ -779,7 +779,7 @@ impl<N: TreeNode> TaskItem<N> {
 
 /// Represents the parent of a section.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub enum SectionParent<N: TreeNode = SyntaxNode> {
     /// The parent is a task.
     Task(TaskDefinition<N>),
@@ -973,7 +973,7 @@ impl<N: TreeNode> SectionParent<N> {
 
 /// Represents an input section in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct InputSection<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -1009,7 +1009,7 @@ impl<N: TreeNode> AstNode<N> for InputSection<N> {
 
 /// Represents an output section in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct OutputSection<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -1056,7 +1056,7 @@ pub enum StrippedCommandPart<N: TreeNode = SyntaxNode> {
 
 /// Represents a command section in a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct CommandSection<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -1292,7 +1292,7 @@ impl<N: TreeNode> AstNode<N> for CommandSection<N> {
 
 /// Represents a textual part of a command.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct CommandText<T: TreeToken = SyntaxToken>(T);
 
 impl<T: TreeToken> CommandText<T> {
@@ -1325,7 +1325,7 @@ impl<T: TreeToken> AstToken<T> for CommandText<T> {
 
 /// Represents a part of a command.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub enum CommandPart<N: TreeNode = SyntaxNode> {
     /// A textual part of the command.
     Text(CommandText<N::Token>),
@@ -1371,7 +1371,7 @@ impl<N: TreeNode> CommandPart<N> {
 
 /// Represents a requirements section in a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct RequirementsSection<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -1422,7 +1422,7 @@ impl<N: TreeNode> AstNode<N> for RequirementsSection<N> {
 
 /// Represents an item in a requirements section.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct RequirementsItem<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -1464,7 +1464,7 @@ impl<N: TreeNode> AstNode<N> for RequirementsItem<N> {
 
 /// Represents a hints section in a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct TaskHintsSection<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -1500,7 +1500,7 @@ impl<N: TreeNode> AstNode<N> for TaskHintsSection<N> {
 
 /// Represents an item in a task hints section.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct TaskHintsItem<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -1535,7 +1535,7 @@ impl<N: TreeNode> AstNode<N> for TaskHintsItem<N> {
 
 /// Represents a runtime section in a task definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct RuntimeSection<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -1580,7 +1580,7 @@ impl<N: TreeNode> AstNode<N> for RuntimeSection<N> {
 
 /// Represents an item in a runtime section.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct RuntimeItem<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -1622,7 +1622,7 @@ impl<N: TreeNode> AstNode<N> for RuntimeItem<N> {
 
 /// Represents a metadata section in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct MetadataSection<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -1663,7 +1663,7 @@ impl<N: TreeNode> AstNode<N> for MetadataSection<N> {
 
 /// Represents a metadata object item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct MetadataObjectItem<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -1698,7 +1698,7 @@ impl<N: TreeNode> AstNode<N> for MetadataObjectItem<N> {
 
 /// Represents a metadata value.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub enum MetadataValue<N: TreeNode = SyntaxNode> {
     /// The value is a literal boolean.
     Boolean(LiteralBoolean<N>),
@@ -1844,7 +1844,7 @@ impl<N: TreeNode> AstNode<N> for MetadataValue<N> {
 
 /// Represents a literal null.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct LiteralNull<N: TreeNode = SyntaxNode>(N);
 
 impl<N: TreeNode> AstNode<N> for LiteralNull<N> {
@@ -1866,7 +1866,7 @@ impl<N: TreeNode> AstNode<N> for LiteralNull<N> {
 
 /// Represents a metadata object.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct MetadataObject<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -1896,7 +1896,7 @@ impl<N: TreeNode> AstNode<N> for MetadataObject<N> {
 
 /// Represents a metadata array.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct MetadataArray<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -1926,7 +1926,7 @@ impl<N: TreeNode> AstNode<N> for MetadataArray<N> {
 
 /// Represents a parameter metadata section in a task or workflow definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct ParameterMetadataSection<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]

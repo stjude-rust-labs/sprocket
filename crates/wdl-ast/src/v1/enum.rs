@@ -19,7 +19,7 @@ use crate::TreeNode;
 
 /// Represents an enum definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct EnumDefinition<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -142,7 +142,7 @@ impl Documented<SyntaxNode> for EnumDefinition<SyntaxNode> {
 
 /// Represents an enum type parameter (e.g., [String]).
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct EnumTypeParameter<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -175,7 +175,7 @@ impl<N: TreeNode> AstNode<N> for EnumTypeParameter<N> {
 
 /// Represents an enum choice.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct EnumChoice<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]

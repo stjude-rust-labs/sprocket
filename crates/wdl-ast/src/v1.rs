@@ -40,7 +40,7 @@ pub use workflow::*;
 ///
 /// [1]: crate::SyntaxTree
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct Ast<N: TreeNode = SyntaxNode>(pub(crate) N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -95,7 +95,7 @@ impl<N: TreeNode> AstNode<N> for Ast<N> {
 
 /// Represents a document item.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub enum DocumentItem<N: TreeNode = SyntaxNode> {
     /// The item is an import statement.
     Import(ImportStatement<N>),

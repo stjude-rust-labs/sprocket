@@ -25,7 +25,7 @@ use crate::TreeNode;
 
 /// Represents a struct definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(str))]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq, str))]
 pub struct StructDefinition<N: TreeNode = SyntaxNode>(N);
 
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
@@ -104,7 +104,7 @@ impl Documented<SyntaxNode> for StructDefinition<SyntaxNode> {
 
 /// Represents an item in a struct definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub enum StructItem<N: TreeNode = SyntaxNode> {
     /// The item is a member declaration.
     Member(UnboundDecl<N>),

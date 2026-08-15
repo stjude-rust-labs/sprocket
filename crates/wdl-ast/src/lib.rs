@@ -431,7 +431,7 @@ impl TreeToken for SyntaxToken {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(
     feature = "unstable-python",
-    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
 )]
 pub enum Ast<N: TreeNode = SyntaxNode> {
     /// The WDL document specifies an unsupported version.
@@ -476,7 +476,7 @@ impl<N: TreeNode> Ast<N> {
 #[derive(Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "unstable-python",
-    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
 )]
 pub struct Document<N: TreeNode = SyntaxNode>(N);
 
@@ -650,7 +650,7 @@ impl fmt::Debug for Document {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "unstable-python",
-    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
 )]
 pub struct Whitespace<T: TreeToken = SyntaxToken>(T);
 
@@ -750,7 +750,7 @@ impl Directive {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(
     feature = "unstable-python",
-    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
 )]
 pub enum CommentKind {
     /// The comment is a normal line comment
@@ -764,10 +764,9 @@ pub enum CommentKind {
 
 /// The type of a [`Directive`].
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-// TODO: rename_all = "SCREAMING_SNAKE_CASE"
 #[cfg_attr(
     feature = "unstable-python",
-    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
 )]
 pub enum DirectiveKind {
     /// The comment is an `except` directive.
@@ -792,7 +791,7 @@ pub const DOC_COMMENT_PREFIX: &str = "##";
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "unstable-python",
-    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
 )]
 pub struct Comment<T: TreeToken = SyntaxToken>(T);
 
@@ -891,7 +890,7 @@ impl Comment {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "unstable-python",
-    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
 )]
 pub struct VersionStatement<N: TreeNode = SyntaxNode>(N);
 
@@ -931,7 +930,7 @@ impl<N: TreeNode> AstNode<N> for VersionStatement<N> {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "unstable-python",
-    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
 )]
 pub struct Version<T: TreeToken = SyntaxToken>(T);
 
@@ -956,7 +955,7 @@ impl<T: TreeToken> AstToken<T> for Version<T> {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 #[cfg_attr(
     feature = "unstable-python",
-    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
 )]
 pub struct Ident<T: TreeToken = SyntaxToken>(T);
 
@@ -996,7 +995,7 @@ impl<T: TreeToken> AstToken<T> for Ident<T> {
 #[derive(Debug, Clone)]
 #[cfg_attr(
     feature = "unstable-python",
-    sprocket_py_macros::ast(module = "sprocket_bio.ast")
+    sprocket_py_macros::ast(module = "sprocket_bio.ast", eq)
 )]
 pub struct TokenText<T: TreeToken = SyntaxToken>(T);
 
