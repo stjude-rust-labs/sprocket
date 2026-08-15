@@ -1059,6 +1059,7 @@ pub enum StrippedCommandPart<N: TreeNode = SyntaxNode> {
 #[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast)]
 pub struct CommandSection<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> CommandSection<N> {
     /// Gets whether or not the command section is a heredoc command.
     pub fn is_heredoc(&self) -> bool {
@@ -1164,6 +1165,7 @@ impl<N: TreeNode> CommandSection<N> {
     /// Strips leading whitespace from the command.
     ///
     /// If the command has mixed indentation, this will return `None`.
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn strip_whitespace(&self) -> Option<Vec<StrippedCommandPart<N>>> {
         let mut result = Vec::new();
         let heredoc = self.is_heredoc();
