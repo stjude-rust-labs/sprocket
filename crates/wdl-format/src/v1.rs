@@ -291,14 +291,16 @@ pub fn format_literal_input_item(
 ) {
     let mut children = element.children().expect("literal input item children");
 
-    let key = children.next().expect("literal input item key");
-    assert_eq!(key.element().kind(), SyntaxKind::Ident);
-    (&key).write(stream, config);
-
-    let colon = children.next().expect("literal input item colon");
-    assert_eq!(colon.element().kind(), SyntaxKind::Colon);
-    (&colon).write(stream, config);
-    stream.end_word();
+    for child in children.by_ref() {
+        if matches!(child.element().kind(), SyntaxKind::Ident | SyntaxKind::Dot) {
+            (&child).write(stream, config);
+        } else {
+            assert_eq!(child.element().kind(), SyntaxKind::Colon);
+            (&child).write(stream, config);
+            stream.end_word();
+            break;
+        }
+    }
 
     let hints_node = children.next().expect("literal input item hints node");
     assert_eq!(hints_node.element().kind(), SyntaxKind::LiteralHintsNode);
