@@ -77,11 +77,11 @@ impl Default for Args {
 /// See [`#[ast]`](super::ast).
 pub(crate) fn ast(args_stream: TokenStream, item_stream: TokenStream) -> Result<TokenStream> {
     let args = Args::parse(args_stream)?;
-    let item = syn::parse2::<Item>(item_stream)?;
+    let mut original_item = syn::parse2::<Item>(item_stream)?;
 
-    let expanded = match &item {
-        Item::Struct(struct_) => struct_::build(struct_, args)?,
-        Item::Enum(enum_) => enum_::build(enum_, args)?,
+    let py_item = match original_item {
+        Item::Struct(ref struct_) => struct_::build(struct_, args)?,
+        Item::Enum(ref mut enum_) => enum_::build(enum_, args)?,
         unsupported => {
             return Err(Error::new_spanned(
                 unsupported,
@@ -91,8 +91,8 @@ pub(crate) fn ast(args_stream: TokenStream, item_stream: TokenStream) -> Result<
     };
 
     Ok(quote! {
-        #item
-        #expanded
+        #original_item
+        #py_item
     })
 }
 

@@ -4,6 +4,8 @@ use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
 use syn::Arm;
+use syn::AttrStyle;
+use syn::Attribute;
 use syn::Error;
 use syn::Fields;
 use syn::FieldsUnnamed;
@@ -11,19 +13,27 @@ use syn::Generics;
 use syn::Ident;
 use syn::ItemEnum;
 use syn::LitStr;
+use syn::Meta;
 use syn::PathArguments;
 use syn::Result;
 use syn::Token;
 use syn::Type;
+use syn::Variant;
+use syn::parse::ParseStream;
+use syn::parse::Parser;
 use syn::parse_quote;
 use syn::punctuated::Punctuated;
+use syn::token::Bracket;
 use syn::token::Paren;
 
 use super::Args;
 
 /// Builds the Python binding equivalent of an AST enum.
-pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
-    let mut py_enum = original.clone();
+pub(super) fn build(original: &mut ItemEnum, args: Args) -> Result<TokenStream> {
+    let mut py_enum = ItemEnum {
+        variants: make_py_variant_attrs(&mut original.variants),
+        ..original.clone()
+    };
 
     py_enum.ident = super::make_py_ident(&original.ident);
 
@@ -116,6 +126,88 @@ pub(super) fn build(original: &ItemEnum, args: Args) -> Result<TokenStream> {
 
         #display_impl
     })
+}
+
+/// Processes `#[pyo3(...)]` attributes on the original enum variants, returning
+/// the Python enum variants.
+///
+/// This will remove `#[pyo3(...)]` attributes from the original variants and
+/// retain them on the Python variants. It will also unwrap `#[cfg_attr(feature
+/// = "unstable-python", pyo3(...))]` attributes on the Python variants, leaving
+/// just `#[pyo3(...)]`.
+fn make_py_variant_attrs(
+    original_variants: &mut Punctuated<Variant, Token![,]>,
+) -> Punctuated<Variant, Token![,]> {
+    /// Returns the `pyo3(...)` meta if `stream` parses as `feature =
+    /// "unstable-python", pyo3(...)`.
+    fn parse_cfg_attr_tokens(stream: ParseStream<'_>) -> Result<Meta> {
+        let feature = stream.parse::<Ident>()?;
+
+        if feature != "feature" {
+            return Err(stream.error("expected `feature`"));
+        }
+
+        stream.parse::<Token![=]>()?;
+
+        let unstable_python = stream.parse::<LitStr>()?;
+
+        if unstable_python.value() != "unstable-python" {
+            return Err(stream.error("expected `\"unstable-python\"`"));
+        }
+
+        stream.parse::<Token![,]>()?;
+
+        let meta = stream.parse::<Meta>()?;
+
+        if meta.path().is_ident("pyo3") {
+            Ok(meta)
+        } else {
+            Err(stream.error("expected `pyo3` path"))
+        }
+    }
+
+    original_variants
+        .iter_mut()
+        .map(|original_variant| {
+            let mut py_variant = Variant {
+                // Don't copy over attributes, we'll add them one at a time in the `while` loop.
+                attrs: Vec::with_capacity(original_variant.attrs.len()),
+                ..original_variant.clone()
+            };
+
+            let mut i = 0;
+
+            while i < original_variant.attrs.len() {
+                let attr = &original_variant.attrs[i];
+
+                if attr.path().is_ident("pyo3") {
+                    // Move the `#[pyo3(...)]` attribute from the original to the Python enum.
+                    py_variant.attrs.push(original_variant.attrs.remove(i));
+                } else if let Meta::List(ref meta_list) = attr.meta
+                && meta_list.path.is_ident("cfg_attr")
+                // Extract `pyo3(...)` from `#[cfg_attr(feature = "unstable-python", pyo3(...))]`.
+                && let Ok(meta) = parse_cfg_attr_tokens.parse2(meta_list.tokens.clone())
+                {
+                    // Remove the `#[cfg_attr(...)]` attribute from the original enum.
+                    original_variant.attrs.remove(i);
+
+                    // Push the extracted `#[pyo3(...)]` attribute to the Python enum.
+                    py_variant.attrs.push(Attribute {
+                        pound_token: <Token![#]>::default(),
+                        style: AttrStyle::Outer,
+                        bracket_token: Bracket::default(),
+                        meta,
+                    });
+                } else {
+                    // Copy the attribute from the original to the Python enum.
+                    py_variant.attrs.push(attr.clone());
+                    i += 1;
+                }
+            }
+
+            py_variant
+        })
+        .collect()
 }
 
 /// Returns true if the enum is composed of only unit variants.
@@ -321,6 +413,48 @@ mod tests {
     use proc_macro2::Span;
 
     use super::*;
+
+    #[test]
+    fn variant_attrs() {
+        let mut original_variants = parse_quote! {
+            NoAttribute,
+            #[foo]
+            UnrelatedAttr,
+            #[pyo3(name = "awesome sauce")]
+            PyO3Attr,
+            #[cfg_attr(feature = "unstable-python", foo)]
+            UnrelatedCfgAttr,
+            #[cfg_attr(feature = "unstable-python", pyo3(name = "awesomer sauce"))]
+            PyO3CfgAttr,
+        };
+
+        let python_variants = make_py_variant_attrs(&mut original_variants);
+
+        let original_expected = parse_quote! {
+            NoAttribute,
+            #[foo]
+            UnrelatedAttr,
+            PyO3Attr,
+            #[cfg_attr(feature = "unstable-python", foo)]
+            UnrelatedCfgAttr,
+            PyO3CfgAttr,
+        };
+
+        let python_expected = parse_quote! {
+            NoAttribute,
+            #[foo]
+            UnrelatedAttr,
+            #[pyo3(name = "awesome sauce")]
+            PyO3Attr,
+            #[cfg_attr(feature = "unstable-python", foo)]
+            UnrelatedCfgAttr,
+            #[pyo3(name = "awesomer sauce")]
+            PyO3CfgAttr
+        };
+
+        pretty_assertions::assert_eq!(original_variants, original_expected);
+        pretty_assertions::assert_eq!(python_variants, python_expected);
+    }
 
     #[test]
     fn only_unit_variants() {

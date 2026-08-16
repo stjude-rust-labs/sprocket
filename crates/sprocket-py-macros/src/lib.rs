@@ -268,6 +268,16 @@ use syn::Error;
 /// |`module`|`"sprocket_bio.ast.v1"`|The module the AST element is defined in, from Python's perspective.|
 /// |`eq`|Omitted|Implements `__eq__` for the type using its [`PartialEq`] implementation.|
 /// |`str`|Omitted|Implements `__str__` for the type using its [`Display`](std::fmt::Display) implementation. Note that unlike `#[pyclass]`, format strings (such as `str = "{var:?}"`) are not supported.|
+///
+/// # Attributes
+///
+/// `#[ast]` understands the following attributes, which can be used to
+/// customize its generation. The attributes may either be written plainly or
+/// put behind a `#[cfg_attr(feature = "unstable-python", ...)]` gate.
+///
+/// |Attribute|Description|
+/// |-|-|
+/// |`#[pyo3(...)]`|When placed on an enum variant, it will forward that attribute to `#[pyclass]`.|
 #[proc_macro_attribute]
 pub fn ast(args_stream: TokenStream, item_stream: TokenStream) -> TokenStream {
     ast::ast(args_stream.into(), item_stream.into())
