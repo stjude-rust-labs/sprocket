@@ -605,10 +605,7 @@ fn strip_path_generic(type_: &mut Type, generic_ident: &Ident) -> Result<()> {
 ///
 /// Additionally, this will return an error when it encounters an unknown
 /// receiver kind such as `&pin self`.
-fn make_py_method_body(
-    py_fn: &mut ImplItemFn,
-    original_type_path: &Path,
-) -> Result<()> {
+fn make_py_method_body(py_fn: &mut ImplItemFn, original_type_path: &Path) -> Result<()> {
     let method_ident = &py_fn.sig.ident;
     // Convert function inputs into function arguments. (Ex. turn `a: usize, b:
     // String` into `a, b`.)
@@ -1491,8 +1488,7 @@ mod tests {
             fn method(&self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast))
-            .unwrap();
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast)).unwrap();
 
         let expected = parse_quote! {
             fn method<'py>(&self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
@@ -1509,8 +1505,7 @@ mod tests {
             fn method(&self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast))
-            .unwrap();
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast)).unwrap();
 
         let expected = parse_quote! {
             fn method<'py>(&self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
@@ -1527,8 +1522,7 @@ mod tests {
             fn method(&mut self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast))
-            .unwrap();
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast)).unwrap();
 
         let expected = parse_quote! {
             fn method<'py>(&mut self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
@@ -1545,8 +1539,7 @@ mod tests {
             fn method(self) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast))
-            .unwrap();
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast)).unwrap();
 
         let expected = parse_quote! {
             fn method<'py>(self, py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
@@ -1563,8 +1556,7 @@ mod tests {
             fn method((a, b): (u8, u16)) -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast))
-            .unwrap();
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast)).unwrap();
 
         let expected = parse_quote! {
             fn method<'py>((a, b): (u8, u16), py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {
@@ -1581,8 +1573,7 @@ mod tests {
             fn method() -> impl Iterator<Item = ()> {}
         );
 
-        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast))
-            .unwrap();
+        make_py_method_body_impl_iterator(&mut py_fn, &parse_quote!(Ast)).unwrap();
 
         let expected = parse_quote! {
             fn method<'py>(py: ::pyo3::marker::Python<'py>) -> ::pyo3::PyResult<::pyo3::Bound<'py, ::pyo3::types::PyList>> {

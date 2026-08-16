@@ -291,6 +291,16 @@ pub fn ast(args_stream: TokenStream, item_stream: TokenStream) -> TokenStream {
 ///
 /// This attribute does not accept any arguments.
 ///
+/// # Attributes
+///
+/// `#[ast_methods]` understands the following attributes, which can be used to
+/// customize its generation. The attributes may either be written plainly or
+/// put behind a `#[cfg_attr(feature = "unstable-python", ...)]` gate.
+///
+/// |Attribute|Description|
+/// |-|-|
+/// |`#[skip]`|When placed on a method, it will prevent that method from being exposed to Python.|
+///
 /// # Requirements
 ///
 /// - The type these methods are implemented for must be annotated with
