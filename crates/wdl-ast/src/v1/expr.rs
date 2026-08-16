@@ -1048,6 +1048,7 @@ pub enum LiteralExpr<N: TreeNode = SyntaxNode> {
     /// The literal is a struct.
     Struct(LiteralStruct<N>),
     /// The literal is a `None`.
+    #[cfg_attr(feature = "unstable-python", pyo3(name = "None_"))]
     None(LiteralNone<N>),
     /// The literal is a `hints`.
     Hints(LiteralHints<N>),
