@@ -2,7 +2,7 @@ import typing
 
 from typing_extensions import disjoint_base
 
-from sprocket_bio.grammar import Span, SupportedVersion
+from sprocket_bio.grammar import Diagnostic, Span, SupportedVersion
 
 from . import v1
 
@@ -68,7 +68,9 @@ class DirectiveKind:
 @typing.final
 class Document(AstNode):
     @staticmethod
-    def parse(source: str, fallback_version: SupportedVersion | None) -> Document: ...
+    def parse(
+        source: str, fallback_version: SupportedVersion | None
+    ) -> tuple[Document, list[Diagnostic]]: ...
     def ast(self) -> Ast: ...
     def ast_with_version_fallback(
         self, fallback_version: SupportedVersion | None
