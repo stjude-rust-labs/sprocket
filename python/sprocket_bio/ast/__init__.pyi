@@ -1,12 +1,10 @@
-from sprocket_bio.grammar import Span, SupportedVersion
 import typing
+
 from typing_extensions import disjoint_base
 
-# from . import v1
+from sprocket_bio.grammar import Span, SupportedVersion
 
-# TODO: remove
-class TODO:
-    pass
+from . import v1
 
 @disjoint_base
 class Ast:
@@ -16,10 +14,10 @@ class Ast:
 
     @typing.final
     class V1(Ast):
-        _0: typing.Final[TODO] # v1.Ast
+        _0: typing.Final[v1.Ast]
         __match_args__ = ("_0",)
 
-        def __new__(cls, _0: TODO) -> Ast.V1: ...
+        def __new__(cls, _0: v1.Ast) -> Ast.V1: ...
 
 class AstNode:
     pass
@@ -72,7 +70,9 @@ class Document(AstNode):
     @staticmethod
     def parse(source: str, fallback_version: SupportedVersion | None) -> Document: ...
     def ast(self) -> Ast: ...
-    def ast_with_version_fallback(self, fallback_version: SupportedVersion |None) -> Ast: ...
+    def ast_with_version_fallback(
+        self, fallback_version: SupportedVersion | None
+    ) -> Ast: ...
     def version_statement(self, /) -> VersionStatement | None: ...
 
 @typing.final
@@ -94,7 +94,7 @@ class Version(AstToken):
 
 @typing.final
 class VersionStatement(AstNode):
-    def keyword(self, /) -> TODO: ... # v1.VersionKeyword
+    def keyword(self, /) -> v1.VersionKeyword: ...
     def version(self, /) -> Version: ...
 
 @typing.final
