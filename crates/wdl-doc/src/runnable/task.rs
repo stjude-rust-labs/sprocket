@@ -180,6 +180,10 @@ impl Task {
 
         let (input_markup, inner_headers) = self.render_inputs(assets, links, page_dir);
         headers.extend(inner_headers);
+        let output_markup = self.render_outputs(assets, links, page_dir);
+        if output_markup.is_some() {
+            headers.push(Header::Header("Outputs".to_string(), "outputs".to_string()));
+        }
 
         let mut hero = DeclarationHero::new("Task", self.name(), self.render_description(false))
             .kind_class("text-brand-violet-400")
@@ -201,11 +205,12 @@ impl Task {
                 }
             }
             (input_markup)
-            (self.render_outputs(assets, links, page_dir))
+            @if let Some(output_markup) = output_markup {
+                (output_markup)
+            }
             (self.render_runtime_section())
             (self.render_command_section())
         };
-        headers.push(Header::Header("Outputs".to_string(), "outputs".to_string()));
         headers.push(Header::Header("Runtime".to_string(), "runtime".to_string()));
         headers.push(Header::Header("Command".to_string(), "command".to_string()));
 
@@ -432,6 +437,61 @@ mod tests {
                 .text()
                 .unwrap(),
             "The generated greeting."
+        );
+    }
+
+    #[test]
+    fn render_omits_outputs_when_task_has_none() {
+        let task = task_at_path(
+            r#"
+            version 1.0
+            task my_task {
+                command <<<
+                echo hello
+                >>>
+            }
+            "#,
+            "tasks.wdl",
+        );
+        let links = PageLinkIndex::default();
+        let (markup, sections) = task.render(Path::new("assets"), &links, Path::new(""));
+
+        assert!(!markup.into_string().contains("id=\"outputs\""));
+        assert!(
+            !sections
+                .render()
+                .into_string()
+                .contains("href=\"#outputs\"")
+        );
+    }
+
+    #[test]
+    fn render_includes_outputs_when_task_has_any() {
+        let task = task_at_path(
+            r#"
+            version 1.0
+            task my_task {
+                command <<<
+                echo hello
+                >>>
+                output {
+                    String greeting = "hello"
+                }
+            }
+            "#,
+            "tasks.wdl",
+        );
+        let links = PageLinkIndex::default();
+        let (markup, sections) = task.render(Path::new("assets"), &links, Path::new(""));
+        let html = markup.into_string();
+
+        assert!(html.contains("id=\"outputs\""));
+        assert!(html.contains("Expression"));
+        assert!(
+            sections
+                .render()
+                .into_string()
+                .contains("href=\"#outputs\"")
         );
     }
 }

@@ -30,8 +30,6 @@ use anyhow::anyhow;
 use anyhow::bail;
 use bytesize::ByteSize;
 use cloud_copy::Alphanumeric;
-use crankshaft::engine::service::name::GeneratorIterator;
-use crankshaft::engine::service::name::UniqueAlphanumeric;
 use crankshaft::events::Event as CrankshaftEvent;
 use crankshaft::events::send_event;
 use futures::FutureExt;
@@ -61,7 +59,6 @@ use crate::PrimitiveValue;
 use crate::TaskInputs;
 use crate::backend::ApptainerRuntime;
 use crate::backend::ExecuteTaskRequest;
-use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
 use crate::config::Config;
@@ -233,8 +230,6 @@ struct Job {
 /// State used by the LSF task monitor.
 #[derive(Debug)]
 struct MonitorState {
-    /// The name generator for tasks.
-    names: GeneratorIterator<UniqueAlphanumeric>,
     /// The current tick count of the monitor.
     ///
     /// This is used to cheaply keep track of jobs that aren't in `bjobs`
@@ -252,10 +247,6 @@ impl MonitorState {
     /// Constructs a new monitor state.
     fn new() -> Self {
         Self {
-            names: GeneratorIterator::new(
-                UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
-                INITIAL_EXPECTED_NAMES,
-            ),
             tick: 0,
             tag: String::new(),
             jobs: HashMap::new(),
@@ -450,20 +441,13 @@ impl Monitor {
         command_path: &Path,
         transferer: &dyn Transferer,
     ) -> Result<SubmittedJob> {
-        let (task_name, tag) = {
-            let mut state = self.state.lock().expect("failed to lock state");
-
-            let task_name = format!(
-                "{id}-{generated}",
-                id = request.id,
-                generated = state
-                    .names
-                    .next()
-                    .expect("generator should never be exhausted")
-            );
-
-            (task_name, state.current_tag().to_string())
-        };
+        let task_name = request.name.to_string();
+        let tag = self
+            .state
+            .lock()
+            .expect("failed to lock state")
+            .current_tag()
+            .to_string();
 
         let mut command = Command::new("bsub");
 

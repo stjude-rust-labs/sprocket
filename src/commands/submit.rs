@@ -285,7 +285,7 @@ command <<<>>>
                     .expect("run should have a status")
                     .to_string();
 
-                if status != "queued" && status != "running" {
+                if status != "queued" && status != "analyzing" && status != "running" {
                     break;
                 }
 
