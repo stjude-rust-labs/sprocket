@@ -17,8 +17,10 @@ Options:
   -t, --target <NAME>
           Override the target task or workflow name
 
-      --index-on <OUTPUT_NAME>
-          Override the output name to index on
+      --index-on <INDEX_PATH>
+          Override the index path to index the run outputs under.
+          
+          The path must be relative and cannot contain `.` or `..` components.
 
       --no-validate
           Skip local re-analysis of the WDL source file.

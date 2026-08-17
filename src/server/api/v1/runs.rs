@@ -20,6 +20,7 @@ use super::error::Error;
 use super::send_command;
 use crate::system::v1::exec::svc::RunManagerCmd;
 use crate::system::v1::exec::svc::run_manager::commands;
+use crate::system::v1::fs::IndexPath;
 
 /// Request to submit a new run.
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
@@ -39,9 +40,11 @@ pub struct SubmitRunRequest {
     #[serde(default)]
     #[schema(example = "target")]
     pub target: Option<String>,
-    /// Optional output name to index on.
+    /// Optional index path to index the run outputs under.
     ///
-    /// If provided, the run outputs will be indexed.
+    /// If provided, the run outputs are symlinked into the `index` directory of
+    /// the output directory at this path. The path must be relative and cannot
+    /// contain `.` or `..` components.
     #[serde(default)]
     #[schema(example = "an/index/path")]
     pub index_on: Option<String>,
@@ -219,11 +222,18 @@ pub async fn submit_run(
         ));
     };
 
+    let index_on = request
+        .index_on
+        .as_deref()
+        .map(str::parse::<IndexPath>)
+        .transpose()
+        .map_err(|e| Error::BadRequest(e.to_string()))?;
+
     let response = send_command(&state.run_manager_tx, |rx| RunManagerCmd::Submit {
         source: request.source,
         inputs,
         target: request.target,
-        index_on: request.index_on,
+        index_on,
         rx,
     })
     .await?;

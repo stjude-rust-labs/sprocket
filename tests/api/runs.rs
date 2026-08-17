@@ -1332,6 +1332,37 @@ async fn submit_run_with_forbidden_file_path(pool: sqlx::SqlitePool) {
 }
 
 #[sqlx::test]
+async fn submit_run_with_invalid_index_path(pool: sqlx::SqlitePool) {
+    let (app, db, temp) = create_test_server().pool(pool).call().await;
+
+    let wdl_file = temp.path().join("test.wdl");
+    std::fs::write(&wdl_file, SIMPLE_WORKFLOW).unwrap();
+
+    // An index path that escapes the index directory is rejected before the run
+    // is created.
+    let submit_request = json!({
+        "source": wdl_file.to_str().unwrap(),
+        "inputs": {},
+        "index_on": "../escape",
+    });
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(paths::LIST_RUNS)
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert!(db.list_runs(None, None, None).await.unwrap().is_empty());
+}
+
+#[sqlx::test]
 async fn get_run_not_found(pool: sqlx::SqlitePool) {
     let (app, ..) = create_test_server().pool(pool).call().await;
 
@@ -1570,10 +1601,6 @@ async fn cancel_already_completed_run(pool: sqlx::SqlitePool) {
 async fn run_with_indexing(pool: sqlx::SqlitePool) {
     let (app, db, temp) = create_test_server().pool(pool).call().await;
 
-    // Create an index directory
-    let index_dir = temp.path().join("index_test");
-    std::fs::create_dir(&index_dir).unwrap();
-
     let wdl_file = temp.path().join("wdl").join("test.wdl");
     std::fs::write(&wdl_file, SIMPLE_WORKFLOW).unwrap();
 
@@ -1581,7 +1608,7 @@ async fn run_with_indexing(pool: sqlx::SqlitePool) {
     let submit_request = json!({
         "source": wdl_file.to_str().unwrap(),
         "inputs": {},
-        "index_on": index_dir.to_str().unwrap(),
+        "index_on": "index_test/sample",
     });
 
     let response = app
@@ -1630,13 +1657,12 @@ async fn run_with_indexing(pool: sqlx::SqlitePool) {
         "index_directory should be set when index_on is provided"
     );
 
-    let index_dir_relative = run
-        .index_directory
-        .as_ref()
-        .unwrap()
-        .strip_prefix("./")
-        .unwrap();
-    let index_path = temp.path().join(index_dir_relative);
+    assert_eq!(
+        run.index_directory.as_deref(),
+        Some("./index/index_test/sample")
+    );
+
+    let index_path = temp.path().join("index").join("index_test").join("sample");
 
     assert!(
         index_path.exists(),

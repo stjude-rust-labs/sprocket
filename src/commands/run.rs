@@ -71,6 +71,7 @@ use crate::system::v1::exec::execute_target;
 use crate::system::v1::exec::open_database;
 use crate::system::v1::exec::select_target;
 use crate::system::v1::fs::FileSystemLock;
+use crate::system::v1::fs::IndexPath;
 use crate::system::v1::fs::OutputDirectory;
 use crate::system::v1::fs::RunDirectory;
 
@@ -132,13 +133,18 @@ pub struct Args {
     #[clap(short, long, value_name = "OUTPUT_DIR")]
     pub output_dir: Option<PathBuf>,
 
-    /// The output name to index on.
+    /// The index path to index the run outputs under.
     ///
-    /// If provided, the run outputs will be indexed using the specified output
-    /// name as the key. The index allows efficient lookup of runs by output
-    /// values.
-    #[clap(long, value_name = "OUTPUT_NAME")]
-    pub index_on: Option<String>,
+    /// If provided, the run's output files and directories are symlinked into
+    /// `<output_dir>/index/<index_path>/`, along with a symlink to the run's
+    /// `outputs.json` file. The path must be relative and cannot contain `.` or
+    /// `..` components.
+    ///
+    /// The path is used verbatim, so group results by a value of your own
+    /// choosing by interpolating it in the shell (e.g. `--index-on
+    /// "project/$name"`).
+    #[clap(long, value_name = "INDEX_PATH")]
+    pub index_on: Option<IndexPath>,
 
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
@@ -864,7 +870,7 @@ pub async fn run(
         inputs,
         &run_dir,
         &base_dir,
-        args.index_on.as_deref(),
+        args.index_on.as_ref(),
     ));
 
     loop {

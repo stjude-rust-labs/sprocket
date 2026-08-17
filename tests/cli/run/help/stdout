@@ -28,10 +28,12 @@ Options:
           
           Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`. On Unix systems, the latest run is symlinked at `<output_dir>/runs/<target>/_latest`.
 
-      --index-on <OUTPUT_NAME>
-          The output name to index on.
+      --index-on <INDEX_PATH>
+          The index path to index the run outputs under.
           
-          If provided, the run outputs will be indexed using the specified output name as the key. The index allows efficient lookup of runs by output values.
+          If provided, the run's output files and directories are symlinked into `<output_dir>/index/<index_path>/`, along with a symlink to the run's `outputs.json` file. The path must be relative and cannot contain `.` or `..` components.
+          
+          The path is used verbatim, so group results by a value of your own choosing by interpolating it in the shell (e.g. `--index-on "project/$name"`).
 
   -m, --report-mode <MODE>
           The report mode

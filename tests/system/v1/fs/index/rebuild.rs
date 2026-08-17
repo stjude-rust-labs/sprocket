@@ -17,6 +17,7 @@ use wdl::engine::Outputs;
 use wdl::engine::PrimitiveValue;
 use wdl::engine::Value;
 
+use super::index_path;
 use super::normalize_path;
 
 #[sqlx::test]
@@ -64,10 +65,10 @@ async fn rebuild_index_full(pool: SqlitePool) -> Result<()> {
     .into_iter()
     .collect();
 
-    create_index_entries(&db, run_id1, &run_dir1, "yak", &outputs1).await?;
+    create_index_entries(&db, run_id1, &run_dir1, &index_path("yak"), &outputs1).await?;
 
     // Verify first index was created
-    let index_dir = output_dir.index_dir("yak");
+    let index_dir = output_dir.index_dir(&index_path("yak"));
     assert!(index_dir.join("outputs.json").exists());
     assert!(index_dir.join("outputs.json").is_symlink());
     assert!(index_dir.join("satisfaction_survey.tsv").exists());
@@ -124,7 +125,7 @@ async fn rebuild_index_full(pool: SqlitePool) -> Result<()> {
     .into_iter()
     .collect();
 
-    create_index_entries(&db, run_id2, &run_dir2, "yak", &outputs2).await?;
+    create_index_entries(&db, run_id2, &run_dir2, &index_path("yak"), &outputs2).await?;
 
     // Verify second index replaced the first (symlinks point to newer data)
     assert!(index_dir.join("satisfaction_survey.tsv").exists());
@@ -245,9 +246,9 @@ async fn rebuild_index_with_missing_targets(pool: SqlitePool) -> Result<()> {
     .into_iter()
     .collect();
 
-    create_index_entries(&db, run_id, &run_dir, "yak", &outputs).await?;
+    create_index_entries(&db, run_id, &run_dir, &index_path("yak"), &outputs).await?;
 
-    let index_dir = output_dir.index_dir("yak");
+    let index_dir = output_dir.index_dir(&index_path("yak"));
     assert!(index_dir.join("file1.txt").exists());
     assert!(index_dir.join("file2.txt").exists());
 
@@ -271,6 +272,60 @@ async fn rebuild_index_with_missing_targets(pool: SqlitePool) -> Result<()> {
 
     let content = fs::read_to_string(index_dir.join("file1.txt"))?;
     assert_eq!(content, "content1");
+
+    Ok(())
+}
+
+#[sqlx::test]
+async fn rebuild_index_skips_entries_outside_of_output_directory(pool: SqlitePool) -> Result<()> {
+    let temp = TempDir::new()?;
+    let output_dir = OutputDirectory::new(temp.path().join("out"));
+    fs::create_dir_all(output_dir.root())?;
+    let db = SqliteDatabase::from_pool(pool).await?;
+
+    let session_id = Uuid::new_v4();
+    db.create_session(session_id, SprocketCommand::Run, "test_user")
+        .await?;
+
+    let run_id = Uuid::new_v4();
+    db.create_run(
+        run_id,
+        session_id,
+        "test",
+        "file://test.wdl",
+        Some("test_task"),
+        "{}",
+    )
+    .await?;
+
+    let run_dir = output_dir.ensure_workflow_run("test-workflow")?;
+    fs::write(run_dir.root().join("result.txt"), "result")?;
+
+    // A database written before index paths were validated can hold entries that
+    // escape the index directory and even the output directory itself.
+    db.create_index_log_entry(
+        run_id,
+        "./index/../../escape/result.txt",
+        "./runs/test-workflow/result.txt",
+    )
+    .await?;
+    db.create_index_log_entry(
+        run_id,
+        "./index/../escape/result.txt",
+        "./runs/test-workflow/result.txt",
+    )
+    .await?;
+
+    rebuild_index(&db, &output_dir).await?;
+
+    assert!(
+        !temp.path().join("escape").exists(),
+        "rebuilding the index should not write outside of the output directory"
+    );
+    assert!(
+        !output_dir.root().join("escape").exists(),
+        "rebuilding the index should not write outside of the index directory"
+    );
 
     Ok(())
 }
