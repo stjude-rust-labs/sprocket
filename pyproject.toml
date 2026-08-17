@@ -27,7 +27,7 @@ dev = ["pytest~=9.1", "mypy~=2.3", "black~=26.5", "isort~=8.0"]
 # Required to generate code coverage.
 cov = ["pytest-cov~=7.1"]
 # Required to build API docs, needs Python 3.12 or greater.
-docs = ["sphinx~=9.1", "sphinx_rtd_theme~=3.1", "myst-parser~=5.1"]
+docs = ["sphinx~=9.1", "sphinx_rtd_theme~=3.1"]
 
 [tool.maturin]
 module-name = "sprocket_bio._sprocket_bio"

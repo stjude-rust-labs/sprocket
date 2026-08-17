@@ -1,0 +1,4 @@
+Sprocket documentation
+======================
+
+Hello, world!
