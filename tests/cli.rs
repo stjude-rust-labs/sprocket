@@ -59,6 +59,10 @@ static WINDOWS_DRIVE_PATH_PATTERN: LazyLock<Regex> =
 /// Binary file extensions that should only be checked for existence.
 const BINARY_EXTENSIONS: &[&str] = &["db", "sqlite", "sqlite3"];
 
+/// File names whose contents are inherently run-specific (e.g. random run
+/// names, wall times) and should only be checked for existence.
+const EXISTENCE_ONLY_FILES: &[&str] = &["metrics.json"];
+
 /// Transient file suffixes that should be removed during `BLESS`.
 const TRANSIENT_SUFFIXES: &[&str] = &["-shm", "-wal"];
 
@@ -362,6 +366,14 @@ fn is_binary_file(path: &Path) -> bool {
         .is_some_and(|ext| BINARY_EXTENSIONS.contains(&ext))
 }
 
+/// Returns true if the path's contents are inherently run-specific and should
+/// only be checked for existence.
+fn is_existence_only(path: &Path) -> bool {
+    path.file_name()
+        .and_then(|name| name.to_str())
+        .is_some_and(|name| EXISTENCE_ONLY_FILES.contains(&name))
+}
+
 /// Returns true if the path is a symlink.
 fn is_symlink(base_path: &Path, relative_path: &Path) -> bool {
     let full_path = base_path.join(relative_path);
@@ -582,7 +594,9 @@ __UNEXPECTED_FILES_FOUND__
     let failed_comparisons = expected_list
         .iter()
         .filter(|(normalized, expected_original)| {
-            !is_binary_file(normalized) && !is_symlink(expected_path, expected_original)
+            !is_binary_file(normalized)
+                && !is_existence_only(normalized)
+                && !is_symlink(expected_path, expected_original)
         })
         .filter_map(|(normalized, expected_original)| {
             let expected_full_path = expected_path.join(expected_original);

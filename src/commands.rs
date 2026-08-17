@@ -22,6 +22,7 @@ pub mod format;
 pub mod inputs;
 pub mod inspect;
 pub mod lock;
+pub mod metrics;
 pub mod module;
 pub(crate) mod output;
 pub mod retry;

@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   status, and logs. `GET /api/v1/runs/{id}/metrics` reports attempts grouped
   by fully qualified call path with a short display name, and task API
   responses expose the corresponding metrics fields.
+* `sprocket dev server metrics <RUN>` renders execution metrics, with `--json`
+  for the raw response and `--call` for filtering. Local `sprocket run`
+  executions write the same structure to `metrics.json` beside
+  `outputs.json`.
 
 ### Changed
 
