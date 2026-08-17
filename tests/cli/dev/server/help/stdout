@@ -7,6 +7,7 @@ Commands:
   submit   Submit a workflow to a Sprocket HTTP API server
   status   Show the status of one or all runs
   inspect  Show detailed information about a run
+  metrics  Show execution metrics for a run
   cancel   Cancel a running or queued run
   retry    Retry a previous run, optionally with input overrides
   help     Print this message or the help of the given subcommand(s)
