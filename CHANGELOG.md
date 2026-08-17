@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * Added per-rule configuration under `[check.rules.<RULE>]`, where every analysis and lint rule has a `severity` of `off`, `note`, or `warning` ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
 * Added `--warn <RULE>` and `--note <RULE>` to `check` and `lint` to set a rule's severity ([#963](https://github.com/stjude-rust-labs/sprocket/pull/963)).
+* `dev server` records execution metrics for every task attempt, including its
+  call id, attempt number, resolved constraints, retry cause, timings, exit
+  status, and logs. `GET /api/v1/runs/{id}/metrics` reports attempts grouped
+  by fully qualified call path with a short display name, and task API
+  responses expose the corresponding metrics fields.
 
 ### Changed
 

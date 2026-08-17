@@ -84,6 +84,26 @@ pub struct Task {
     pub exit_status: Option<i32>,
     /// Error message if task failed.
     pub error: Option<String>,
+    /// The stable WDL call path shared by every attempt of the same call.
+    ///
+    /// `null` for tasks recorded before attempt attribution or observed only
+    /// through backend events.
+    pub call_id: Option<String>,
+    /// The 0-based execution attempt number within the call.
+    pub attempt: i64,
+    /// The resolved execution constraints for this attempt (container, cpu,
+    /// memory, gpu, fpga, disks).
+    ///
+    /// `null` when the attempt never reached a backend (e.g. served from the
+    /// call cache).
+    #[schema(value_type = Option<Object>)]
+    pub constraints: Option<serde_json::Value>,
+    /// Why this attempt was retried.
+    ///
+    /// Set on the attempt that failed; `null` when the attempt was not
+    /// retried.
+    #[schema(value_type = Option<Object>)]
+    pub retry_cause: Option<serde_json::Value>,
     /// Timestamp when task was created.
     pub created_at: DateTime<Utc>,
     /// Timestamp when task started executing.
@@ -100,11 +120,23 @@ impl From<crate::system::v1::db::Task> for Task {
             status: task.status,
             exit_status: task.exit_status,
             error: task.error,
+            call_id: task.call_id,
+            attempt: task.attempt,
+            constraints: parse_json_column(task.constraints),
+            retry_cause: parse_json_column(task.retry_cause),
             created_at: task.created_at,
             started_at: task.started_at,
             completed_at: task.completed_at,
         }
     }
+}
+
+/// Parses a JSON-encoded database column for an API response.
+///
+/// A value that fails to parse is surfaced as a JSON string rather than being
+/// silently dropped, so malformed rows remain visible to clients.
+fn parse_json_column(value: Option<String>) -> Option<serde_json::Value> {
+    value.map(|v| serde_json::from_str(&v).unwrap_or(serde_json::Value::String(v)))
 }
 
 /// The response for a "list tasks" query.

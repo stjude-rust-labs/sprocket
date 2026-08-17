@@ -777,3 +777,163 @@ async fn task_endpoints_return_expected_errors(pool: sqlx::SqlitePool) {
         assert_eq!(response.status(), status, "unexpected status for `{uri}`");
     }
 }
+
+/// Metrics must group attempts by call, report timings, constraints, and
+/// retry causes, and total the attempts, retries, and cache hits.
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
+#[sqlx::test]
+async fn run_metrics_groups_attempts_by_call(pool: sqlx::SqlitePool) {
+    let (app, db, _temp) = create_test_server(pool).await;
+
+    let session_id = Uuid::new_v4();
+    db.create_session(session_id, SprocketCommand::Server, "tester")
+        .await
+        .unwrap();
+    let run_id = seed_run(&db, session_id, "metrics-run").await;
+    db.start_run(run_id, Utc::now()).await.unwrap();
+
+    // Call `wf-a`: a failed attempt that was retried, then a successful one.
+    db.create_task(NewTask {
+        name: "wf-a-x1",
+        run_id,
+        status: TaskStatus::Initializing,
+        call_id: Some("wf-a"),
+        attempt: 0,
+    })
+    .await
+    .unwrap();
+    db.update_task_constraints("wf-a-x1", r#"{"cpu":2.0,"memory":1024}"#)
+        .await
+        .unwrap();
+    db.update_task_started("wf-a-x1", Utc::now()).await.unwrap();
+    db.update_task_completed("wf-a-x1", Some(137), Utc::now())
+        .await
+        .unwrap();
+    db.update_task_retry_cause("wf-a-x1", r#"{"kind":"unacceptable_exit_code","code":137}"#)
+        .await
+        .unwrap();
+
+    db.create_task(NewTask {
+        name: "wf-a-x2",
+        run_id,
+        status: TaskStatus::Initializing,
+        call_id: Some("wf-a"),
+        attempt: 1,
+    })
+    .await
+    .unwrap();
+    db.update_task_started("wf-a-x2", Utc::now()).await.unwrap();
+    db.update_task_completed("wf-a-x2", Some(0), Utc::now())
+        .await
+        .unwrap();
+
+    // Call `wf-b`: served from the call cache.
+    db.create_task(NewTask {
+        name: "wf-b-x1",
+        run_id,
+        status: TaskStatus::Initializing,
+        call_id: Some("wf-b"),
+        attempt: 0,
+    })
+    .await
+    .unwrap();
+    db.update_task_cached("wf-b-x1", Utc::now()).await.unwrap();
+
+    // A legacy row without attempt attribution groups under its own name.
+    db.create_task(NewTask::from_backend_event(
+        "legacy-x1",
+        run_id,
+        TaskStatus::Pending,
+    ))
+    .await
+    .unwrap();
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(paths::run_metrics(run_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = response_json(response).await;
+
+    // Run summary.
+    assert_eq!(json["run"]["uuid"], run_id.to_string().as_str());
+    assert_eq!(json["run"]["name"], "metrics-run");
+
+    // Totals.
+    assert_eq!(json["totals"]["attempts"], 4);
+    assert_eq!(json["totals"]["retries"], 1);
+    assert_eq!(json["totals"]["cached"], 1);
+    assert_eq!(json["totals"]["preempted"], 0);
+
+    // Calls group their attempts.
+    let calls = json["calls"].as_array().expect("calls should be an array");
+    assert_eq!(calls.len(), 3);
+
+    let wf_a = calls
+        .iter()
+        .find(|c| c["call_id"] == "wf-a")
+        .expect("wf-a should be present");
+    // A top-level call's short name is its identifier.
+    assert_eq!(wf_a["name"], "wf-a");
+    let attempts = wf_a["attempts"].as_array().unwrap();
+    assert_eq!(attempts.len(), 2);
+
+    // The retried attempt reports its exit status, constraints, retry cause,
+    // timings, and a log reference. Its status is `completed` — exit-code
+    // interpretation lives in the engine, and the retry cause is what records
+    // that the attempt was rejected and retried.
+    assert_eq!(attempts[0]["name"], "wf-a-x1");
+    assert_eq!(attempts[0]["attempt"], 0);
+    assert_eq!(attempts[0]["status"], "completed");
+    assert_eq!(attempts[0]["exit_status"], 137);
+    assert_eq!(attempts[0]["constraints"]["cpu"], 2.0);
+    assert_eq!(attempts[0]["constraints"]["memory"], 1024);
+    assert_eq!(attempts[0]["retry_cause"]["kind"], "unacceptable_exit_code");
+    assert_eq!(attempts[0]["retry_cause"]["code"], 137);
+    assert!(attempts[0]["wall_time_ms"].as_i64().unwrap() >= 0);
+    assert!(attempts[0]["queued_ms"].as_i64().unwrap() >= 0);
+    assert_eq!(attempts[0]["logs"], paths::get_task_logs("wf-a-x1"));
+
+    // The successful attempt has no retry cause.
+    assert_eq!(attempts[1]["name"], "wf-a-x2");
+    assert_eq!(attempts[1]["attempt"], 1);
+    assert_eq!(attempts[1]["status"], "completed");
+    assert!(attempts[1]["retry_cause"].is_null());
+
+    // The cached attempt reports no wall time (it never started executing).
+    let wf_b = calls
+        .iter()
+        .find(|c| c["call_id"] == "wf-b")
+        .expect("wf-b should be present");
+    assert_eq!(wf_b["attempts"][0]["status"], "cached");
+    assert!(wf_b["attempts"][0]["wall_time_ms"].is_null());
+    assert!(wf_b["attempts"][0]["constraints"].is_null());
+
+    // The legacy row falls back to its own name as the call id.
+    assert!(calls.iter().any(|c| c["call_id"] == "legacy-x1"));
+}
+
+/// Metrics for an unknown run must return 404.
+#[cfg_attr(docker_tests_disabled, ignore = "Docker tests are disabled")]
+#[sqlx::test]
+async fn run_metrics_for_unknown_run_returns_404(pool: sqlx::SqlitePool) {
+    let (app, _db, _temp) = create_test_server(pool).await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(paths::run_metrics(Uuid::new_v4()))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+}
