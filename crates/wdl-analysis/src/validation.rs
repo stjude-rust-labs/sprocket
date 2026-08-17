@@ -318,7 +318,7 @@ impl Default for Validator {
     fn default() -> Self {
         let mut validator = Self::empty();
         validator.add_visitors([
-            Box::new(strings::LiteralTextVisitor) as Box<dyn Visitor>,
+            Box::<strings::LiteralTextVisitor>::default() as Box<dyn Visitor>,
             Box::<counts::CountingVisitor>::default(),
             Box::<keys::UniqueKeysVisitor>::default(),
             Box::<numbers::NumberVisitor>::default(),

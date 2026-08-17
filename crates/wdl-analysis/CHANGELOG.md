@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Fixed
+
+* Escape sequence validation no longer reports unknown or malformed escape
+  sequences within `meta` and `parameter_meta` sections; escape sequences are
+  not interpreted in metadata, so their shape is not meaningful there. Literal
+  tab and newline characters are still rejected in metadata strings
+  ([#248](https://github.com/stjude-rust-labs/sprocket/issues/248)).
+
 ## 0.24.0 - 2026-08-05
 
 ### Fixed

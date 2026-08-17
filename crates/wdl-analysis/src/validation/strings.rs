@@ -78,7 +78,11 @@ fn multiple_placeholder_options(first: Span, additional: Span) -> Diagnostic {
 }
 
 /// Used to check literal text in a string.
-fn check_text(diagnostics: &mut Diagnostics, start: usize, text: &str) {
+///
+/// If `in_metadata` is `true`, the text comes from a `meta` or
+/// `parameter_meta` section, where the shape of an escape sequence is not
+/// checked; see [`LiteralTextVisitor`].
+fn check_text(diagnostics: &mut Diagnostics, start: usize, text: &str, in_metadata: bool) {
     let lexer = EscapeToken::lexer(text).spanned();
     for (token, span) in lexer {
         match token.expect("should lex") {
@@ -87,6 +91,18 @@ fn check_text(diagnostics: &mut Diagnostics, start: usize, text: &str) {
             | EscapeToken::ValidHex
             | EscapeToken::ValidUnicode
             | EscapeToken::Text => continue,
+            // Escape sequences are not interpreted in metadata, so the shape
+            // of an escape sequence is not meaningful there; only the rules
+            // about characters that must be escaped still apply.
+            EscapeToken::InvalidOctal
+            | EscapeToken::InvalidHex
+            | EscapeToken::InvalidShortUnicode
+            | EscapeToken::InvalidUnicode
+            | EscapeToken::Unknown
+                if in_metadata =>
+            {
+                continue;
+            }
             EscapeToken::InvalidOctal => {
                 diagnostics.add(invalid_octal_escape(Span::new(start + span.start, 1)))
             }
@@ -125,10 +141,15 @@ fn check_text(diagnostics: &mut Diagnostics, start: usize, text: &str) {
 /// Ensures that string text:
 ///
 /// * Does not contain characters that must be escaped.
-/// * Does not contain invalid escape sequences.
+/// * Does not contain invalid escape sequences, except within `meta` and
+///   `parameter_meta` sections; escape sequences are not interpreted in
+///   metadata, so an unknown or malformed escape sequence there is just text.
 /// * Strings and command placeholders do not contain more than one option.
 #[derive(Default, Debug)]
-pub struct LiteralTextVisitor;
+pub struct LiteralTextVisitor {
+    /// Whether or not the visitor is within a metadata section.
+    in_metadata: bool,
+}
 
 impl Visitor for LiteralTextVisitor {
     fn reset(&mut self) {
@@ -141,7 +162,12 @@ impl Visitor for LiteralTextVisitor {
             LiteralStringKind::SingleQuoted | LiteralStringKind::DoubleQuoted => {
                 // Check the text of a normal string to ensure escape sequences are correct and
                 // characters that are required to be escaped are actually escaped.
-                check_text(diagnostics, text.span().start(), text.text());
+                check_text(
+                    diagnostics,
+                    text.span().start(),
+                    text.text(),
+                    self.in_metadata,
+                );
             }
             LiteralStringKind::Multiline => {
                 // Don't check the text of multiline strings as they are treated
@@ -151,6 +177,24 @@ impl Visitor for LiteralTextVisitor {
                 // line continuation whitespace is normalized.
             }
         }
+    }
+
+    fn metadata_section(
+        &mut self,
+        _: &mut Diagnostics,
+        reason: VisitReason,
+        _: &v1::MetadataSection,
+    ) {
+        self.in_metadata = reason == VisitReason::Enter;
+    }
+
+    fn parameter_metadata_section(
+        &mut self,
+        _: &mut Diagnostics,
+        reason: VisitReason,
+        _: &v1::ParameterMetadataSection,
+    ) {
+        self.in_metadata = reason == VisitReason::Enter;
     }
 
     fn placeholder(
