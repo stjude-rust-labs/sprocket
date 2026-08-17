@@ -1,8 +1,6 @@
 Sprocket documentation
 ======================
 
-Hello, world!
-
 .. toctree::
    :maxdepth: 2
 
