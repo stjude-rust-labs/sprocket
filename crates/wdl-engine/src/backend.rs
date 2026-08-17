@@ -306,6 +306,12 @@ impl<'a> ExecuteTaskRequest<'a> {
 /// Represents the result of a task's execution.
 #[derive(Debug)]
 pub struct TaskExecutionResult {
+    /// The final execution name when the backend ran the process under a name
+    /// other than the requested execution name.
+    ///
+    /// A value of `None` means the backend used the name from
+    /// [`ExecuteTaskRequest::name`] unchanged.
+    pub execution_name: Option<String>,
     /// The container image source that was actually used for execution.
     ///
     /// If `None`, the task was not executed in a container.

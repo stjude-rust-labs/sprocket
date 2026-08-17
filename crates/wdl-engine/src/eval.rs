@@ -1,6 +1,8 @@
 //! Module for evaluation.
 
 use std::borrow::Cow;
+use std::collections::BTreeMap;
+use std::fmt;
 use std::num::NonZeroUsize;
 use std::path::Path;
 use std::sync::Arc;
@@ -13,6 +15,8 @@ use cloud_copy::TransferEvent;
 use crankshaft::events::Event as CrankshaftEvent;
 use indexmap::IndexMap;
 use regex::Regex;
+use serde::Deserialize;
+use serde::Serialize;
 use tokio::sync::broadcast;
 use tokio_util::sync::CancellationToken;
 use tracing::error;
@@ -32,9 +36,11 @@ use crate::HostPath;
 use crate::Object;
 use crate::Outputs;
 use crate::Value;
+use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
 use crate::config::FailureMode;
 use crate::http::Location;
+use crate::v1::requirements::ImageSource;
 
 mod trie;
 pub mod v1;
@@ -489,12 +495,114 @@ impl EvaluationHttpClient {
 /// since the engine never announces one through [`EngineEvent`].
 ///
 /// The prefix contains a `.`, which a name minted for a WDL task can never
-/// contain: those names are a WDL call path, whose segments are WDL
+/// contain: those names are a WDL call path relative to the root workflow,
+/// whose levels are joined by `--` and whose segments within a level are WDL
 /// identifiers joined by `-`, followed by a `-` and an alphanumeric suffix.
 pub const CLEANUP_TASK_NAME_PREFIX: &str = "cleanup.";
 
+/// The separator a backend uses when it derives a name for a resubmission of a
+/// task it runs on the user's behalf.
+///
+/// A backend may retry an execution attempt on its own — the TES backend
+/// resubmits a preempted task, for example — without the evaluator minting a
+/// new attempt name. Each such resubmission is announced through
+/// [`EngineEvent::TaskRetrying`] and executes under a derived name of the form
+/// `{name}{RESUBMIT_NAME_SEPARATOR}{n}`, where `{name}` is the
+/// evaluator-minted attempt name and `{n}` is the 1-based resubmission
+/// ordinal.
+///
+/// The separator can never appear in an evaluator-minted name: those names are
+/// a WDL call path, whose levels are joined by `--` and whose segments within
+/// a level are WDL identifiers joined by `-`, followed by a `-` and an
+/// alphanumeric suffix.
+pub const RESUBMIT_NAME_SEPARATOR: char = '~';
+
+/// Derives the name for a backend-local resubmission of a task execution.
+///
+/// See [`RESUBMIT_NAME_SEPARATOR`] for the naming convention.
+pub fn resubmit_task_name(name: &str, resubmission: u64) -> String {
+    // Derive from the original attempt name so repeated resubmissions do not
+    // accumulate separators.
+    let base = name
+        .split(RESUBMIT_NAME_SEPARATOR)
+        .next()
+        .expect("split always yields at least one element");
+    format!("{base}{RESUBMIT_NAME_SEPARATOR}{resubmission}")
+}
+
+/// The cause of a task execution attempt being retried.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+#[non_exhaustive]
+pub enum RetryCause {
+    /// The attempt exited with a code that the task's `return_codes`
+    /// requirement does not accept.
+    UnacceptableExitCode {
+        /// The exit code of the failed attempt.
+        code: i32,
+    },
+    /// The attempt was preempted by the execution environment.
+    Preempted,
+}
+
+impl fmt::Display for RetryCause {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnacceptableExitCode { code } => {
+                write!(f, "unacceptable exit code {code}")
+            }
+            Self::Preempted => write!(f, "preempted"),
+        }
+    }
+}
+
+/// A serializable snapshot of the resolved execution constraints for a task
+/// execution attempt.
+///
+/// This mirrors the resource-related fields of the backend's
+/// `TaskExecutionConstraints` at the moment the attempt is submitted for
+/// execution.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct TaskConstraintsSnapshot {
+    /// The full URI of the primary container image the task requested.
+    ///
+    /// This is the first (highest priority) container candidate; `None` when
+    /// the task runs directly on the host.
+    pub container: Option<String>,
+    /// The allocated number of CPUs.
+    pub cpu: f64,
+    /// The allocated memory, in bytes.
+    pub memory: u64,
+    /// One specification per allocated GPU (execution engine-specific).
+    pub gpu: Vec<String>,
+    /// One specification per allocated FPGA (execution engine-specific).
+    pub fpga: Vec<String>,
+    /// A map of disk mount points to the initial amount of disk space
+    /// allocated, in bytes.
+    pub disks: BTreeMap<String, i64>,
+}
+
+impl From<&TaskExecutionConstraints> for TaskConstraintsSnapshot {
+    fn from(constraints: &TaskExecutionConstraints) -> Self {
+        Self {
+            container: constraints.sources.first().map(ImageSource::uri),
+            cpu: constraints.cpu,
+            memory: constraints.memory,
+            gpu: constraints.gpu.clone(),
+            fpga: constraints.fpga.clone(),
+            disks: constraints
+                .disks
+                .iter()
+                .map(|(k, v)| (k.clone(), *v))
+                .collect(),
+        }
+    }
+}
+
 /// Represents an event from the WDL evaluation engine.
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum EngineEvent {
     /// A task has started evaluation of an execution attempt.
     ///
@@ -509,6 +617,8 @@ pub enum EngineEvent {
         /// [`CrankshaftEvent::TaskCreated`] when the attempt reaches the
         /// backend.
         name: String,
+        /// The 0-based number of this execution attempt.
+        attempt: u64,
     },
     /// A task has started localizing its inputs.
     ///
@@ -519,6 +629,32 @@ pub enum EngineEvent {
     TaskLocalizing {
         /// The unique name of the task for this attempt.
         name: String,
+    },
+    /// A task execution attempt is being submitted to the execution backend.
+    ///
+    /// Carries the resolved execution constraints for the attempt. This event
+    /// is not emitted when the attempt's result is served from the call
+    /// cache.
+    TaskExecuting {
+        /// The unique name of the task for this attempt.
+        name: String,
+        /// The resolved execution constraints for this attempt.
+        constraints: TaskConstraintsSnapshot,
+    },
+    /// A task execution attempt failed and is being retried.
+    ///
+    /// A retry from the evaluator mints a new attempt name, which is
+    /// announced by the [`EngineEvent::TaskInitializing`] event that follows
+    /// this one. A backend-local resubmission (see
+    /// [`RESUBMIT_NAME_SEPARATOR`]) executes under the derived `next_name`
+    /// without a fresh `TaskInitializing`.
+    TaskRetrying {
+        /// The name of the attempt that failed.
+        prior_name: String,
+        /// The name of the attempt about to be made.
+        next_name: String,
+        /// The cause of the retry.
+        cause: RetryCause,
     },
     /// A cached task execution result was reused due to a call cache hit.
     ReusedCachedExecutionResult {
@@ -1261,5 +1397,68 @@ mod tests {
         assert!(!parent.user_canceled());
         assert_eq!(b.state(), CancellationContextState::NotCanceled);
         assert!(!b.user_canceled());
+    }
+
+    #[test]
+    fn resubmit_names_derive_from_the_original_attempt_name() {
+        assert_eq!(resubmit_task_name("wf-task-abc123", 1), "wf-task-abc123~1");
+        assert_eq!(resubmit_task_name("wf-task-abc123", 2), "wf-task-abc123~2");
+
+        // Deriving from an already-derived name must not stack separators.
+        assert_eq!(
+            resubmit_task_name("wf-task-abc123~1", 2),
+            "wf-task-abc123~2"
+        );
+    }
+
+    #[test]
+    fn retry_causes_serialize_with_a_kind_tag() {
+        let cause = RetryCause::UnacceptableExitCode { code: 137 };
+        let json = serde_json::to_value(cause).expect("cause should serialize");
+        assert_eq!(
+            json,
+            serde_json::json!({ "kind": "unacceptable_exit_code", "code": 137 })
+        );
+        assert_eq!(cause.to_string(), "unacceptable exit code 137");
+
+        let cause = RetryCause::Preempted;
+        let json = serde_json::to_value(cause).expect("cause should serialize");
+        assert_eq!(json, serde_json::json!({ "kind": "preempted" }));
+        assert_eq!(cause.to_string(), "preempted");
+
+        let parsed: RetryCause = serde_json::from_value(
+            serde_json::json!({ "kind": "unacceptable_exit_code", "code": 1 }),
+        )
+        .expect("cause should deserialize");
+        assert_eq!(parsed, RetryCause::UnacceptableExitCode { code: 1 });
+    }
+
+    #[test]
+    fn constraints_snapshot_captures_the_resolved_resources() {
+        let constraints = TaskExecutionConstraints {
+            sources: vec![ImageSource::Library("example.org/tools/tool:1".to_string())],
+            cpu: 4.0,
+            memory: 8 * 1024 * 1024 * 1024,
+            gpu: vec!["nvidia-tesla-t4".to_string()],
+            fpga: Vec::new(),
+            disks: [("/".to_string(), 10i64)].into_iter().collect(),
+        };
+
+        let snapshot = TaskConstraintsSnapshot::from(&constraints);
+        assert_eq!(
+            snapshot.container.as_deref(),
+            Some("library://example.org/tools/tool:1")
+        );
+        assert_eq!(snapshot.cpu, 4.0);
+        assert_eq!(snapshot.memory, 8 * 1024 * 1024 * 1024);
+        assert_eq!(snapshot.gpu, ["nvidia-tesla-t4"]);
+        assert!(snapshot.fpga.is_empty());
+        assert_eq!(snapshot.disks.get("/"), Some(&10));
+
+        // The snapshot round-trips through JSON.
+        let json = serde_json::to_string(&snapshot).expect("snapshot should serialize");
+        let parsed: TaskConstraintsSnapshot =
+            serde_json::from_str(&json).expect("snapshot should deserialize");
+        assert_eq!(parsed, snapshot);
     }
 }
