@@ -41,6 +41,9 @@ testpaths = ["python/tests"]
 
 [tool.mypy]
 strict = true
+python_version = "3.10"
+# Requires Python 3.12, cannot be type checked by Python 3.10.
+exclude = ["python/docs/"]
 
 [tool.black]
 target-version = ["py310"]
