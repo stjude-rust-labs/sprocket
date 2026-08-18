@@ -220,7 +220,7 @@ impl Analysis {
 
             // So the validator is always *aware* of all `wdl-lint` rules, even when the
             // linter isn't. Keeps `KnownRules` from firing unnecessarily.
-            validator.extend_known_rules(wdl::lint::ALL_RULE_IDS.iter().cloned());
+            validator.extend_rules(wdl::lint::RULE_MAP.clone());
             if self.enabled_lint_tags.count() > 0 {
                 let visitor =
                     get_lint_visitor(&self.enabled_lint_tags, &self.exceptions, &self.lint_config);

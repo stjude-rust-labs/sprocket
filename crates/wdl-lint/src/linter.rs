@@ -1,5 +1,6 @@
 //! Implementation of the linter.
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 
 use indexmap::IndexMap;
@@ -11,6 +12,7 @@ use wdl_analysis::Visitor;
 use wdl_ast::AstNode;
 use wdl_ast::Comment;
 use wdl_ast::SupportedVersion;
+use wdl_ast::SyntaxKind;
 use wdl_ast::VersionStatement;
 use wdl_ast::Whitespace;
 use wdl_ast::v1;
@@ -77,8 +79,11 @@ impl Default for Linter {
 }
 
 impl Visitor for Linter {
-    fn known_rules(&self) -> HashSet<String> {
-        self.rules.keys().map(ToString::to_string).collect()
+    fn rules(&self) -> HashMap<String, Option<&'static [SyntaxKind]>> {
+        self.rules
+            .iter()
+            .map(|(id, rule)| (id.to_string(), rule.exceptable_nodes()))
+            .collect()
     }
 
     fn reset(&mut self) {

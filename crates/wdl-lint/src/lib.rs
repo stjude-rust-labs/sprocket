@@ -23,6 +23,7 @@
 #![warn(clippy::missing_docs_in_private_items)]
 #![warn(rustdoc::broken_intra_doc_links)]
 
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use dyn_clone::DynClone;
@@ -62,6 +63,17 @@ pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
     ids.sort();
     ids
 });
+
+/// All rule IDs and their exceptable nodes.
+pub static RULE_MAP: LazyLock<HashMap<String, Option<&'static [SyntaxKind]>>> =
+    LazyLock::new(|| {
+        let rules = rules(&Config::default());
+        let mut map = HashMap::with_capacity(rules.len());
+        for rule in rules {
+            map.insert(String::from(rule.id()), rule.exceptable_nodes());
+        }
+        map
+    });
 
 /// All tag names sorted alphabetically.
 pub static ALL_TAG_NAMES: LazyLock<Vec<String>> =
@@ -146,7 +158,6 @@ pub fn rules(config: &Config) -> Vec<Box<dyn Rule + Send + Sync>> {
         Box::<rules::ContainerUriRule>::default(),
         Box::<rules::RequirementsSectionRule>::default(),
         Box::<rules::DeprecatedRuntimeSectionRule>::default(),
-        Box::<rules::ExceptDirectiveValidRule>::default(),
         Box::<rules::ParameterDescriptionRule>::default(),
         Box::<rules::ConciseInputRule>::default(),
         Box::<rules::ShellCheckRule>::default(),

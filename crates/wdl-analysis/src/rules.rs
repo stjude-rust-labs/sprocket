@@ -1,5 +1,6 @@
 //! Implementation of analysis rules.
 
+use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use wdl_ast::Severity;
@@ -11,6 +12,17 @@ pub static ALL_RULE_IDS: LazyLock<Vec<String>> = LazyLock::new(|| {
     ids.sort();
     ids
 });
+
+/// All rules and their exceptable nodes.
+pub(crate) static RULE_MAP: LazyLock<HashMap<String, Option<&'static [SyntaxKind]>>> =
+    LazyLock::new(|| {
+        let rules = rules();
+        let mut map = HashMap::with_capacity(rules.len());
+        for rule in rules {
+            map.insert(String::from(rule.id()), rule.exceptable_nodes());
+        }
+        map
+    });
 
 /// A labeled WDL code snippet.
 #[derive(Copy, Clone, Debug)]
@@ -73,6 +85,7 @@ pub fn rules() -> Vec<Box<dyn Rule>> {
         Box::<MisleadingDeclarationOrderRule>::default(),
         Box::<MeaninglessLintDirective>::default(),
         Box::<KnownRulesRule>::default(),
+        Box::<ExceptDirectiveValidRule>::default(),
     ];
 
     // Ensure all the rule ids are unique and pascal case
@@ -803,6 +816,82 @@ workflow example {
             revised: Some(LabeledSnippet {
                 label: None,
                 snippet: r#"version 1.2
+
+workflow example {
+}
+"#,
+            }),
+        }]
+    }
+
+    fn exceptable_nodes(&self) -> Option<&'static [wdl_ast::SyntaxKind]> {
+        Self::EXCEPTABLE_NODES
+    }
+
+    fn deny(&mut self) {
+        self.0 = Severity::Error;
+    }
+
+    fn severity(&self) -> Severity {
+        self.0
+    }
+}
+
+/// Detects unknown rules within lint directives.
+#[derive(Debug, Clone, Copy)]
+pub struct ExceptDirectiveValidRule(Severity);
+
+impl ExceptDirectiveValidRule {
+    /// See [`Self::exceptable_nodes()`].
+    pub const EXCEPTABLE_NODES: Option<&'static [SyntaxKind]> =
+        Some(&[SyntaxKind::VersionStatementNode]);
+    /// The rule identifier for except directive warnings.
+    pub const ID: &str = "ExceptDirectiveValid";
+
+    /// Creates a new "except directive valid" rule.
+    pub fn new() -> Self {
+        Self(Severity::Note)
+    }
+}
+
+impl Default for ExceptDirectiveValidRule {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl Rule for ExceptDirectiveValidRule {
+    fn id(&self) -> &'static str {
+        Self::ID
+    }
+
+    fn description(&self) -> &'static str {
+        "Ensures `except` directives are placed correctly to have the intended effect."
+    }
+
+    fn explanation(&self) -> &'static str {
+        "When writing WDL, `except` directives are used to suppress certain rules. If an `except` \
+         directive is misplaced, it will have no effect. This rule flags misplaced `except` \
+         directives to ensure they are in the correct location."
+    }
+
+    fn examples(&self) -> &'static [Example] {
+        &[Example {
+            negative: LabeledSnippet {
+                label: None,
+                snippet: r#"version 1.2
+
+# UsingFallbackVersion exceptions aren't valid
+# in this context
+#@ except: UsingFallbackVersion
+workflow example {
+}
+"#,
+            },
+            revised: Some(LabeledSnippet {
+                label: None,
+                snippet: r#"#@ except: UsingFallbackVersion
+version 1.2
 
 workflow example {
 }

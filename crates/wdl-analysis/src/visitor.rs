@@ -21,7 +21,7 @@
 //! visiting a V2 document; the hope is that enables some visitors to be
 //! "shared" across different WDL versions.
 
-use std::collections::HashSet;
+use std::collections::HashMap;
 
 use rowan::WalkEvent;
 use tracing::trace;
@@ -89,8 +89,8 @@ pub trait Visitor {
     /// Note that [`Validator`]s will expect this value to be static.
     ///
     /// [`Validator`]: crate::Validator
-    fn known_rules(&self) -> HashSet<String> {
-        HashSet::new()
+    fn rules(&self) -> HashMap<String, Option<&'static [SyntaxKind]>> {
+        HashMap::new()
     }
 
     /// Registers configuration with a visitor.
