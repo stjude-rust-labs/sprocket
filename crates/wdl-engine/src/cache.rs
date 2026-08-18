@@ -55,11 +55,10 @@ pub use hash::Hashable;
 
 /// Hashes the evaluated command of a cache key request.
 ///
-/// References to guest paths that are not temporary files are normalized to
-/// just the input's file name.
+/// References to inputs and replaced with the content digest of the input.
 ///
-/// References to guest paths of temporary files are ignored entirely.
-fn hash_command(request: KeyRequest<'_>) -> ArrayString<64> {
+/// If the input is not a temporary file, the input's file name is also hashed.
+fn hash_command(request: &KeyRequest<'_>, input_digests: &[ArrayString<64>]) -> ArrayString<64> {
     let mut hasher = blake3::Hasher::new();
     match request.guest_inputs_dir {
         Some(prefix) => {
@@ -76,27 +75,36 @@ fn hash_command(request: KeyRequest<'_>) -> ArrayString<64> {
                     .backend_inputs
                     .iter()
                     .enumerate()
-                    .filter_map(|(input_index, input)| {
+                    .filter_map(|(index, input)| {
                         let p = input.guest_path()?.as_str();
-                        current[start..]
-                            .starts_with(p)
-                            .then_some((input_index, p.len()))
+                        current[start..].starts_with(p).then_some((index, p.len()))
                     })
                     .max_by_key(|(_, len)| *len)
                 {
                     Some((index, len)) => {
                         let end = start + len;
+
+                        // If the backend input isn't excluded, hash the input kind, content digest,
+                        // and file name (non-temporary only)
                         let input = &request.backend_inputs[index];
-                        input.kind().hash(&mut hasher);
-                        match input.kind() {
-                            ContentKind::File | ContentKind::Directory => {
-                                // Hash just the file name
-                                // SAFETY: guest paths are always Unix style and have a slash
-                                let slash = start + current[start..end].rfind('/').unwrap();
-                                (&current[slash + 1..end]).hash(&mut hasher);
-                            }
-                            ContentKind::TempFile => {
-                                // Ignore the guest path entirely
+                        if !input.excluded_from_call_cache() {
+                            input.kind().hash(&mut hasher);
+
+                            // Count the number of preceding excluded inputs to offset by
+                            let offset = (0..index)
+                                .filter(|i| request.backend_inputs[*i].excluded_from_call_cache())
+                                .count();
+                            input_digests[index - offset].as_bytes().hash(&mut hasher);
+                            match input.kind() {
+                                ContentKind::File | ContentKind::Directory => {
+                                    // Hash the file name
+                                    // SAFETY: guest paths are always Unix style and have a slash
+                                    let slash = start + current[start..end].rfind('/').unwrap();
+                                    (&current[slash + 1..end]).hash(&mut hasher);
+                                }
+                                ContentKind::TempFile => {
+                                    // Ignore the file name
+                                }
                             }
                         }
 
@@ -131,6 +139,7 @@ fn hash_command(request: KeyRequest<'_>) -> ArrayString<64> {
 /// entry is valid. The `inputs` field is used when computing the cache key for
 /// a task, while the `requirements` and `hints` fields are used when checking
 /// if a cache entry is valid.
+#[derive(Default)]
 pub struct CallCacheExclusions {
     /// The list of cache input keys to exclude when computing keys and checking
     /// cache entries.
@@ -498,10 +507,7 @@ impl CallCache {
     ///
     /// This will calculate digests for the command, requirements, hints, and
     /// inputs.
-    pub async fn key(&self, request: KeyRequest<'_>) -> Result<Key> {
-        // Calculate the command digest
-        let command_digest = hash_command(request);
-
+    pub async fn key(&self, request: &KeyRequest<'_>) -> Result<Key> {
         // Calculate the requirement digests
         let requirement_digests = request
             .requirements
@@ -526,7 +532,11 @@ impl CallCache {
 
         // Calculate the digests of the backend inputs
         let mut inputs = Vec::with_capacity(request.backend_inputs.len());
-        for input in request.backend_inputs {
+        for input in request
+            .backend_inputs
+            .iter()
+            .filter(|i| !i.excluded_from_call_cache())
+        {
             let digest = input
                 .path()
                 .calculate_digest(self.0.transferer.as_ref(), input.kind(), self.0.mode)
@@ -534,6 +544,9 @@ impl CallCache {
 
             inputs.push(digest.to_hex());
         }
+
+        // Calculate the command digest
+        let command_digest = hash_command(request, &inputs);
 
         // Sort the input digests so that they can be easily compared with an entry
         inputs.sort();
@@ -674,10 +687,15 @@ impl CallCache {
         })?;
         Ok(key.key)
     }
+
+    /// Determines if an input is excluded from the cache.
+    pub(crate) fn is_input_excluded(&self, input: &str) -> bool {
+        self.0.exclusions.inputs.contains(input)
+    }
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use indexmap::IndexMap;
     use pretty_assertions::assert_eq;
     use tempfile::TempDir;
@@ -685,454 +703,475 @@ mod test {
 
     use super::*;
     use crate::GuestPath;
-    use crate::Object;
     use crate::digest::test::DigestTransferer;
     use crate::digest::test::clear_digest_cache;
 
-    /// Stores paths used in the test.
-    struct Paths {
-        /// The path to the WDL source being analyzed.
-        source: PathBuf,
-        /// The input file.
-        input: PathBuf,
-        /// The path to the stdout file.
-        stdout: PathBuf,
-        /// The path to the stderr file.
-        stderr: PathBuf,
-        /// The path to the task's working directory.
-        work_dir: PathBuf,
-    }
-
-    /// Represents the "evaluated" task for the tests.
-    struct Task {
-        paths: Paths,
-        document_uri: Url,
-        inputs: BTreeMap<String, Value>,
-        requirements: Object,
-        hints: Object,
-        default_container: Option<String>,
-        backend_inputs: [Input; 1],
-    }
-
-    impl Task {
-        /// Constructs a new "evaluated" task.
-        fn new(paths: Paths) -> Self {
-            // These values correspond to what would be evaluated for the WDL source in
-            // `prepare_task`.
-            let document_uri = Url::from_file_path(&paths.source).unwrap();
-            let input = paths.input.clone();
-            Self {
-                paths,
-                document_uri,
-                inputs: BTreeMap::from([(
-                    "file".into(),
-                    PrimitiveValue::new_file(input.to_str().unwrap()).into(),
-                )]),
-                requirements: Object::new(IndexMap::from_iter([(
-                    "container".into(),
-                    PrimitiveValue::new_string("ubuntu:latest").into(),
-                )])),
-                hints: Object::new(IndexMap::from_iter([(
-                    "foo".into(),
-                    PrimitiveValue::new_string("bar").into(),
-                )])),
-                default_container: None,
-                backend_inputs: [Input::new(
-                    ContentKind::File,
-                    EvaluationPath::from_local_path(input),
-                    Some(GuestPath::new("/mnt/task/inputs/0/input")),
-                )],
-            }
-        }
-
-        /// Gets a cache key request from the "evaluated" task.
-        fn key_request(&self) -> KeyRequest<'_> {
-            // These values correspond to what would be evaluated for the WDL source in
-            // `prepare_task`.
-            KeyRequest {
-                document_uri: &self.document_uri,
-                backend: "foo",
-                task_name: "test",
-                inputs: &self.inputs,
-                command: "cat /mnt/task/inputs/0/input",
-                default_container: self.default_container.as_deref(),
-                shell: "bash",
-                requirements: &self.requirements,
-                hints: &self.hints,
-                guest_inputs_dir: Some("/mnt/task/inputs/"),
-                backend_inputs: &self.backend_inputs,
-            }
-        }
-    }
-
-    /// Prepares an "evaluated" task.
-    ///
-    /// This populates the root directory with a source file, inputs, and
-    /// outputs.
-    ///
-    /// This does not actually evaluate any WDL; instead it returns enough
-    /// information for interacting with a call cache as if an evaluation
-    /// occurred.
-    async fn prepare_task(root_dir: &Path) -> Task {
-        let source_dir = root_dir.join("src");
-        fs::create_dir_all(&source_dir).await.unwrap();
-
-        let inputs_dir = root_dir.join("inputs");
-        fs::create_dir_all(&inputs_dir).await.unwrap();
-
-        let outputs_dir = root_dir.join("outputs");
-        fs::create_dir_all(&outputs_dir).await.unwrap();
-
-        let paths = Paths {
-            source: source_dir.join("source.wdl"),
-            input: inputs_dir.join("input"),
-            stdout: outputs_dir.join("stdout"),
-            stderr: outputs_dir.join("stderr"),
-            work_dir: outputs_dir.join("work"),
-        };
-
-        // The content of the source file doesn't matter for the purpose of the call
-        // cache tests
-        fs::write(&paths.source, "").await.unwrap();
-
-        // Write the input file
-        fs::write(&paths.input, "hello world!").await.unwrap();
-
-        // Write the stdout as if we evaluated the task
-        fs::write(&paths.stdout, "hello world!").await.unwrap();
-
-        // Write the stderr as if we evaluated the task
-        fs::write(&paths.stderr, "").await.unwrap();
-
-        // Create a work directory as if we evaluated the task
-        fs::create_dir(&paths.work_dir).await.unwrap();
-
-        Task::new(paths)
-    }
-
-    /// Populates a call cache with the baseline cache entry.
-    async fn populate_cache(cache: &CallCache, task: &Task) {
-        // Get a key for the cache (should not exist)
-        let key = cache.key(task.key_request()).await.unwrap();
-        assert!(cache.get(&key).await.unwrap().is_none());
-
-        // Cache an execution result
-        let result = TaskExecutionResult {
-            container: None,
-            exit_code: 0,
-            work_dir: EvaluationPath::from_local_path(task.paths.work_dir.clone()),
-            stdout: PrimitiveValue::new_file(task.paths.stdout.to_str().unwrap()).into(),
-            stderr: PrimitiveValue::new_file(task.paths.stderr.to_str().unwrap()).into(),
-        };
-        cache.put(key, &result).await.unwrap();
-
-        // Get the entry we just put and ensure the same result is returned
-        let key = cache.key(task.key_request()).await.unwrap();
-        let cached_result = cache
-            .get(&key)
-            .await
-            .unwrap()
-            .expect("should have cache entry");
-        assert_eq!(
-            result.exit_code, cached_result.exit_code,
-            "exit code mismatch"
-        );
-        assert_eq!(
-            result.work_dir, cached_result.work_dir,
-            "work directory mismatch"
-        );
-        assert_eq!(
-            result.stdout.as_file().unwrap(),
-            cached_result.stdout.as_file().unwrap(),
-            "stdout mismatch"
-        );
-        assert_eq!(
-            result.stderr.as_file().unwrap(),
-            cached_result.stderr.as_file().unwrap(),
-            "stderr mismatch"
-        );
-    }
-
-    /// Stores context for each call cache test case.
-    struct TestContext {
+    /// Stores a call cache for testing
+    struct TestCache {
         /// The root directory for the test.
-        _root_dir: TempDir,
-        /// An "evaluated" task to insert into the cache.
-        task: Task,
+        root_dir: TempDir,
+        /// The path to a dummy stdout file.
+        stdout: PathBuf,
+        /// The path to a dummy stderr file.
+        stderr: PathBuf,
+        /// The path to a dummy working directory.
+        work_dir: PathBuf,
         /// The call cache used by the test.
-        cache: CallCache,
+        inner: CallCache,
     }
 
-    impl TestContext {
-        /// Constructs a new test context.
+    impl TestCache {
+        /// Constructs a new test cache.
         async fn new() -> Self {
-            // Prepare an evaluated task for the test
-            let root_dir = tempdir().expect("failed to create temporary directory");
-            let task = prepare_task(root_dir.path()).await;
+            Self::new_with_exclusions(Default::default()).await
+        }
 
-            // Create the cache
-            let transfer = Arc::new(DigestTransferer::new([]));
-            let cache = CallCache::new(
-                Some(&root_dir.path().join("cache")),
+        /// Constructs a new test cache with the given exclusions
+        async fn new_with_exclusions(exclusions: CallCacheExclusions) -> Self {
+            // Create a root directory for the test
+            let root_dir = tempdir().expect("failed to create temporary directory");
+
+            // Create the inner cache
+            let inner = CallCache::new(
+                Some(&root_dir.path().join(".cache")),
                 ContentDigestMode::Strong,
-                transfer,
-                Arc::new(CallCacheExclusions {
-                    inputs: HashSet::new(),
-                    requirements: HashSet::new(),
-                    hints: HashSet::new(),
-                }),
+                Arc::new(DigestTransferer::new([])),
+                Arc::new(exclusions),
             )
             .await
             .unwrap();
 
-            // Populate the cache with the initial entry
-            populate_cache(&cache, &task).await;
+            let stdout = root_dir.path().join("stdout");
+            let stderr = root_dir.path().join("stderr");
+            let work_dir = root_dir.path().join("work");
 
             Self {
-                _root_dir: root_dir,
-                task,
-                cache,
+                root_dir,
+                stdout,
+                stderr,
+                work_dir,
+                inner,
             }
+        }
+
+        /// Creates a dummy task execution result.
+        ///
+        /// This will also create dummy files for the task execution result to
+        /// reference.
+        async fn create_execution_result(&self) -> TaskExecutionResult {
+            // Write a stdout file
+            if let Some(parent) = self.stdout.parent() {
+                fs::create_dir_all(parent).await.unwrap();
+            }
+
+            fs::write(&self.stdout, "stdout").await.unwrap();
+
+            // Write a stderr file
+            if let Some(parent) = self.stdout.parent() {
+                fs::create_dir_all(parent).await.unwrap();
+            }
+
+            fs::write(&self.stderr, "stderr").await.unwrap();
+
+            // Create a work directory
+            fs::create_dir(&self.work_dir).await.unwrap();
+
+            TaskExecutionResult {
+                container: Some("ubuntu:latest".parse().unwrap()),
+                exit_code: 0,
+                work_dir: EvaluationPath::from_local_path(self.work_dir.clone()),
+                stdout: PrimitiveValue::new_file(self.stdout.to_str().unwrap()).into(),
+                stderr: PrimitiveValue::new_file(self.stderr.to_str().unwrap()).into(),
+            }
+        }
+
+        /// Populates a dummy execution result into the cache for the given key
+        /// request.
+        async fn populate(&self, request: &KeyRequest<'_>) {
+            // Get a key for the cache (should not exist)
+            let key = self.inner.key(request).await.unwrap();
+            assert!(self.inner.get(&key).await.unwrap().is_none());
+
+            // Cache a dummy execution result
+            self.inner
+                .put(key, &self.create_execution_result().await)
+                .await
+                .unwrap();
+
+            // Get the entry we just put and ensure it is returned
+            self.inner.key(request).await.unwrap();
         }
     }
 
     #[tokio::test]
     async fn modified_command() {
-        let ctx = TestContext::new().await;
-        let request = ctx.task.key_request();
+        let cache = TestCache::new().await;
+
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
+
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
 
         // Check for modified command
-        let key = ctx
-            .cache
-            .key(KeyRequest {
+        let key = cache
+            .inner
+            .key(&KeyRequest {
                 command: "modified!",
                 ..request
             })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             "the command of the task was modified"
         );
     }
 
     #[tokio::test]
     async fn modified_guest_path() {
-        let root_dir = tempdir().expect("failed to create temporary directory");
-        let transfer = Arc::new(DigestTransferer::new([]));
-        let cache = CallCache::new(
-            Some(&root_dir.path().join("cache")),
-            ContentDigestMode::Strong,
-            transfer,
-            Arc::new(CallCacheExclusions {
-                inputs: HashSet::new(),
-                requirements: HashSet::new(),
-                hints: HashSet::new(),
-            }),
-        )
-        .await
-        .unwrap();
+        let cache = TestCache::new().await;
 
-        let mut task = prepare_task(root_dir.path()).await;
-        populate_cache(&cache, &task).await;
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
+
+        // Create an input file
+        let input_file_path = cache.root_dir.path().join("input");
+        fs::write(&input_file_path, "hello world!").await.unwrap();
+
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "cat /mnt/task/inputs/0/input",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[Input::new(
+                ContentKind::File,
+                EvaluationPath::from_local_path(input_file_path.clone()),
+                Some(GuestPath::new("/mnt/task/inputs/0/input")),
+            )],
+        };
+
+        cache.populate(&request).await;
 
         // Change the input's guest path, but keep the file name the same
-        task.backend_inputs[0] = Input::new(
-            task.backend_inputs[0].kind(),
-            task.backend_inputs[0].path().clone(),
-            Some(GuestPath::new("/mnt/task/inputs/100/input")),
-        );
-
-        // Ensure the entry can still be retrieved
+        // The entry should be valid as the input's contents and file name remained the
+        // same
         let key = cache
-            .key(KeyRequest {
+            .inner
+            .key(&KeyRequest {
                 command: "cat /mnt/task/inputs/100/input",
-                ..task.key_request()
+                backend_inputs: &[Input::new(
+                    ContentKind::File,
+                    EvaluationPath::from_local_path(input_file_path.clone()),
+                    Some(GuestPath::new("/mnt/task/inputs/100/input")),
+                )],
+                ..request
             })
             .await
             .unwrap();
-        cache.get(&key).await.unwrap();
+        cache.inner.get(&key).await.unwrap().unwrap();
 
         // Change the input's file name
-        task.backend_inputs[0] = Input::new(
-            task.backend_inputs[0].kind(),
-            task.backend_inputs[0].path().clone(),
-            Some(GuestPath::new("/mnt/task/inputs/0/foo")),
-        );
-
-        // Ensure the entry is invalid because it detected a modification to the command
         let key = cache
-            .key(KeyRequest {
+            .inner
+            .key(&KeyRequest {
                 command: "cat /mnt/task/inputs/0/foo",
-                ..task.key_request()
+                backend_inputs: &[Input::new(
+                    ContentKind::File,
+                    EvaluationPath::from_local_path(input_file_path),
+                    Some(GuestPath::new("/mnt/task/inputs/0/foo")),
+                )],
+                ..request
             })
             .await
             .unwrap();
         assert_eq!(
-            cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             "the command of the task was modified"
         );
     }
 
     #[tokio::test]
     async fn modified_temp_file_name() {
-        let root_dir = tempdir().expect("failed to create temporary directory");
-        let transfer = Arc::new(DigestTransferer::new([]));
-        let cache = CallCache::new(
-            Some(&root_dir.path().join("cache")),
-            ContentDigestMode::Strong,
-            transfer,
-            Arc::new(CallCacheExclusions {
-                inputs: HashSet::new(),
-                requirements: HashSet::new(),
-                hints: HashSet::new(),
-            }),
-        )
-        .await
-        .unwrap();
+        let cache = TestCache::new().await;
 
-        let mut task = prepare_task(root_dir.path()).await;
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
 
-        // Change the input to a temporary file
-        task.backend_inputs[0] = Input::new(
-            ContentKind::TempFile,
-            task.backend_inputs[0].path().clone(),
-            Some(GuestPath::new("/mnt/task/inputs/0/ABC")),
-        );
+        // Create an input file
+        let input_file_path = cache.root_dir.path().join("input");
+        fs::write(&input_file_path, "hello world!").await.unwrap();
 
-        populate_cache(&cache, &task).await;
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "cat /mnt/task/inputs/0/input",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[Input::new(
+                ContentKind::TempFile,
+                EvaluationPath::from_local_path(input_file_path.clone()),
+                Some(GuestPath::new("/mnt/task/inputs/0/input")),
+            )],
+        };
 
-        // Change the input's guest path
-        task.backend_inputs[0] = Input::new(
-            ContentKind::TempFile,
-            task.backend_inputs[0].path().clone(),
-            Some(GuestPath::new("/mnt/task/inputs/0/XYZ")),
-        );
+        cache.populate(&request).await;
 
-        // Ensure the entry can still be retrieved as temporary file names are ignored
+        // Change the input's file name doesn't invalidate the entry because the file
+        // contents remained the same and file names are ignored for temporary files
         let key = cache
-            .key(KeyRequest {
-                command: "cat /mnt/task/inputs/0/input",
-                ..task.key_request()
+            .inner
+            .key(&KeyRequest {
+                command: "cat /mnt/task/inputs/0/foo",
+                backend_inputs: &[Input::new(
+                    ContentKind::TempFile,
+                    EvaluationPath::from_local_path(input_file_path.clone()),
+                    Some(GuestPath::new("/mnt/task/inputs/0/foo")),
+                )],
+                ..request
             })
             .await
             .unwrap();
-        cache.get(&key).await.unwrap();
+        cache.inner.get(&key).await.unwrap().unwrap();
+
+        // Changing the temp file's contents invalidates the entry
+        fs::write(&input_file_path, "changed!").await.unwrap();
+        clear_digest_cache();
+
+        assert_eq!(
+            cache
+                .inner
+                .get(&cache.inner.key(&request).await.unwrap())
+                .await
+                .unwrap_err()
+                .to_string(),
+            "the content of a file or directory input was modified"
+        );
     }
 
     #[tokio::test]
     async fn modified_default_container() {
-        // Build a task with no `container` requirement so `default_container`
-        // is what drives cache invalidation.
-        let root_dir = tempdir().expect("failed to create temporary directory");
-        let mut task = prepare_task(root_dir.path()).await;
-        task.requirements = Object::empty();
-        task.default_container = Some("ubuntu:latest".into());
+        let cache = TestCache::new().await;
 
-        let transfer = Arc::new(DigestTransferer::new([]));
-        let cache = CallCache::new(
-            Some(&root_dir.path().join("cache")),
-            ContentDigestMode::Strong,
-            transfer,
-            Arc::new(CallCacheExclusions {
-                inputs: HashSet::new(),
-                requirements: HashSet::new(),
-                hints: HashSet::new(),
-            }),
-        )
-        .await
-        .unwrap();
-        populate_cache(&cache, &task).await;
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
 
-        let modified_default = Some("ubuntu:cthulhu".to_string());
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: Some("ubuntu:latest"),
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
         let key = cache
-            .key(KeyRequest {
-                default_container: modified_default.as_deref(),
-                ..task.key_request()
+            .inner
+            .key(&KeyRequest {
+                default_container: Some("ubuntu:cthulhu"),
+                ..request
             })
             .await
             .unwrap();
         assert_eq!(
-            cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             "the default container for the task was modified"
         );
     }
 
     #[tokio::test]
     async fn modified_shell() {
-        let ctx = TestContext::new().await;
-        let request = ctx.task.key_request();
+        let cache = TestCache::new().await;
 
-        // Check for modified shell
-        let key = ctx
-            .cache
-            .key(KeyRequest {
-                shell: "modified!",
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
+
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: Some("ubuntu:latest"),
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
+        let key = cache
+            .inner
+            .key(&KeyRequest {
+                shell: "zsh",
                 ..request
             })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             "the shell used by the task was modified"
         );
     }
 
     #[tokio::test]
     async fn requirement_removed() {
-        let ctx = TestContext::new().await;
-        let request = ctx.task.key_request();
+        let cache = TestCache::new().await;
 
-        // Check for removing a requirement
-        let key = ctx
-            .cache
-            .key(KeyRequest {
-                requirements: &Object::empty(),
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Object::new(IndexMap::from_iter([(
+            "container".into(),
+            PrimitiveValue::new_string("ubuntu:latest").into(),
+        )]));
+        let hints = Default::default();
+
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
+        let key = cache
+            .inner
+            .key(&KeyRequest {
+                requirements: &Object::default(),
                 ..request
             })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             "task requirement `container` was removed"
         );
     }
 
     #[tokio::test]
     async fn requirement_added() {
-        let ctx = TestContext::new().await;
-        let request = ctx.task.key_request();
+        let cache = TestCache::new().await;
 
-        // Check for adding a requirement
-        let key = ctx
-            .cache
-            .key(KeyRequest {
-                requirements: &Object::new(IndexMap::from_iter([
-                    (
-                        "container".into(),
-                        PrimitiveValue::new_string("ubuntu:latest").into(),
-                    ),
-                    ("memory".into(), 1000.into()),
-                ])),
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
+
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
+        let key = cache
+            .inner
+            .key(&KeyRequest {
+                requirements: &Object::new(IndexMap::from_iter([(
+                    "container".into(),
+                    PrimitiveValue::new_string("ubuntu:latest").into(),
+                )])),
                 ..request
             })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
-            "task requirement `memory` was added"
+            cache.inner.get(&key).await.unwrap_err().to_string(),
+            "task requirement `container` was added"
         );
     }
 
     #[tokio::test]
     async fn requirement_modified() {
-        let ctx = TestContext::new().await;
-        let request = ctx.task.key_request();
+        let cache = TestCache::new().await;
 
-        // Check for modifying a requirement
-        let key = ctx
-            .cache
-            .key(KeyRequest {
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Object::new(IndexMap::from_iter([(
+            "container".into(),
+            PrimitiveValue::new_string("ubuntu:latest").into(),
+        )]));
+        let hints = Default::default();
+
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
+        let key = cache
+            .inner
+            .key(&KeyRequest {
                 requirements: &Object::new(IndexMap::from_iter([(
                     "container".into(),
                     PrimitiveValue::new_string("ubuntu:cthulhu").into(),
@@ -1142,287 +1181,554 @@ mod test {
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             "task requirement `container` was modified"
         );
     }
 
     #[tokio::test]
     async fn hint_removed() {
-        let ctx = TestContext::new().await;
-        let request = ctx.task.key_request();
+        let cache = TestCache::new().await;
 
-        // Check for removing a hint
-        let key = ctx
-            .cache
-            .key(KeyRequest {
-                hints: &Object::empty(),
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Object::new(IndexMap::from_iter([(
+            "foo".into(),
+            PrimitiveValue::new_string("bar").into(),
+        )]));
+
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
+        let key = cache
+            .inner
+            .key(&KeyRequest {
+                hints: &Object::default(),
                 ..request
             })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             "task hint `foo` was removed"
         );
     }
 
     #[tokio::test]
     async fn hint_added() {
-        let ctx = TestContext::new().await;
-        let request = ctx.task.key_request();
+        let cache = TestCache::new().await;
 
-        // Check for adding a hint
-        let key = ctx
-            .cache
-            .key(KeyRequest {
-                hints: &Object::new(IndexMap::from_iter([
-                    ("foo".into(), PrimitiveValue::new_string("bar").into()),
-                    ("max_memory".into(), 1000.into()),
-                ])),
-                ..request
-            })
-            .await
-            .unwrap();
-        assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
-            "task hint `max_memory` was added"
-        );
-    }
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
 
-    #[tokio::test]
-    async fn hint_modified() {
-        let ctx = TestContext::new().await;
-        let request = ctx.task.key_request();
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
 
-        // Check for modifying a hint
-        let key = ctx
-            .cache
-            .key(KeyRequest {
+        cache.populate(&request).await;
+
+        let key = cache
+            .inner
+            .key(&KeyRequest {
                 hints: &Object::new(IndexMap::from_iter([(
                     "foo".into(),
-                    PrimitiveValue::new_string("baz!").into(),
+                    PrimitiveValue::new_string("bar").into(),
                 )])),
                 ..request
             })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
+            "task hint `foo` was added"
+        );
+    }
+
+    #[tokio::test]
+    async fn hint_modified() {
+        let cache = TestCache::new().await;
+
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Object::new(IndexMap::from_iter([(
+            "foo".into(),
+            PrimitiveValue::new_string("bar").into(),
+        )]));
+
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
+        let key = cache
+            .inner
+            .key(&KeyRequest {
+                hints: &Object::new(IndexMap::from_iter([(
+                    "foo".into(),
+                    PrimitiveValue::new_string("baz").into(),
+                )])),
+                ..request
+            })
+            .await
+            .unwrap();
+        assert_eq!(
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             "task hint `foo` was modified"
         );
     }
 
     #[tokio::test]
     async fn backend_input_removed() {
-        let ctx = TestContext::new().await;
-        let request = ctx.task.key_request();
+        let cache = TestCache::new().await;
 
-        // Check for removing a backend input
-        let key = ctx
-            .cache
-            .key(KeyRequest {
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
+
+        // Create an input file
+        let input_file_path = cache.root_dir.path().join("input");
+        fs::write(&input_file_path, "hello world!").await.unwrap();
+
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[Input::new(
+                ContentKind::File,
+                EvaluationPath::from_local_path(input_file_path),
+                Some(GuestPath::new("/mnt/task/inputs/0/input")),
+            )],
+        };
+
+        cache.populate(&request).await;
+
+        let key = cache
+            .inner
+            .key(&KeyRequest {
                 backend_inputs: &[],
                 ..request
             })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
-            "a file or directory input was removed since last evaluation",
+            cache.inner.get(&key).await.unwrap_err().to_string(),
+            "a file or directory input was removed since last evaluation"
         );
     }
 
     #[tokio::test]
     async fn backend_input_added() {
-        let ctx = TestContext::new().await;
-        let request = ctx.task.key_request();
+        let cache = TestCache::new().await;
 
-        // Create a new input file
-        let input2 = ctx.task.paths.input.with_file_name("input2");
-        fs::write(&input2, "hello world!!!").await.unwrap();
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
 
-        // Check for adding a backend input
-        let key = ctx
-            .cache
-            .key(KeyRequest {
-                backend_inputs: &[
-                    ctx.task.backend_inputs[0].clone(),
-                    Input::new(
-                        ContentKind::File,
-                        EvaluationPath::from_local_path(input2.clone()),
-                        Some(GuestPath::new("/mnt/task/inputs/0/input2")),
-                    ),
-                ],
+        // Create an input file
+        let input_file_path = cache.root_dir.path().join("input");
+        fs::write(&input_file_path, "hello world!").await.unwrap();
+
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
+        let key = cache
+            .inner
+            .key(&KeyRequest {
+                backend_inputs: &[Input::new(
+                    ContentKind::File,
+                    EvaluationPath::from_local_path(input_file_path),
+                    Some(GuestPath::new("/mnt/task/inputs/0/input")),
+                )],
                 ..request
             })
             .await
             .unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
-            "a file or directory input was added since last evaluation",
+            cache.inner.get(&key).await.unwrap_err().to_string(),
+            "a file or directory input was added since last evaluation"
         );
     }
 
     #[tokio::test]
     async fn backend_input_modified() {
-        let ctx = TestContext::new().await;
+        let cache = TestCache::new().await;
 
-        // Modify the input file
-        fs::write(&ctx.task.paths.input, "modified!").await.unwrap();
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
 
-        // Check for modifying a backend input
+        // Create an input file
+        let input_file_path = cache.root_dir.path().join("input");
+        fs::write(&input_file_path, "hello world!").await.unwrap();
+
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[Input::new(
+                ContentKind::File,
+                EvaluationPath::from_local_path(input_file_path.clone()),
+                Some(GuestPath::new("/mnt/task/inputs/0/input")),
+            )],
+        };
+
+        cache.populate(&request).await;
+
+        // Changing the file's contents invalidates the entry
+        fs::write(&input_file_path, "changed!").await.unwrap();
         clear_digest_cache();
-        let key = ctx.cache.key(ctx.task.key_request()).await.unwrap();
+
+        let key = cache.inner.key(&request).await.unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
-            "the content of a file or directory input was modified",
+            cache.inner.get(&key).await.unwrap_err().to_string(),
+            "the content of a file or directory input was modified"
         );
     }
 
     #[tokio::test]
     async fn stdout_modified() {
-        let ctx = TestContext::new().await;
+        let cache = TestCache::new().await;
 
-        // Modify the stdout file
-        fs::write(&ctx.task.paths.stdout, "modified!")
-            .await
-            .unwrap();
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
 
-        // Check for changed cached stdout
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
+        // Changing the stdout file invalidates the entry
+        fs::write(&cache.stdout, "changed!").await.unwrap();
         clear_digest_cache();
-        let key = ctx.cache.key(ctx.task.key_request()).await.unwrap();
+
+        let key = cache.inner.key(&request).await.unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             format!(
-                "cached content `{}` was modified",
-                ctx.task.paths.stdout.display()
+                "cached content `{stdout}` was modified",
+                stdout = cache.stdout.display()
             )
         );
     }
 
     #[tokio::test]
     async fn stdout_missing() {
-        let ctx = TestContext::new().await;
+        let cache = TestCache::new().await;
 
-        // Delete the stdout file
-        fs::remove_file(&ctx.task.paths.stdout).await.unwrap();
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
 
-        // Check for deleted cached stdout
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
+        // Deleting the stdout file invalidates the entry
+        fs::remove_file(&cache.stdout).await.unwrap();
         clear_digest_cache();
-        let key = ctx.cache.key(ctx.task.key_request()).await.unwrap();
+
+        let key = cache.inner.key(&request).await.unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             format!(
-                "failed to read metadata of `{}`",
-                ctx.task.paths.stdout.display()
+                "failed to read metadata of `{stdout}`",
+                stdout = cache.stdout.display()
             )
         );
     }
 
     #[tokio::test]
     async fn stderr_modified() {
-        let ctx = TestContext::new().await;
+        let cache = TestCache::new().await;
 
-        // Modify the stderr file
-        fs::write(&ctx.task.paths.stderr, "modified!")
-            .await
-            .unwrap();
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
 
-        // Check for changed cached stderr
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
+        // Changing the stderr file invalidates the entry
+        fs::write(&cache.stderr, "changed!").await.unwrap();
         clear_digest_cache();
-        let key = ctx.cache.key(ctx.task.key_request()).await.unwrap();
+
+        let key = cache.inner.key(&request).await.unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             format!(
-                "cached content `{}` was modified",
-                ctx.task.paths.stderr.display()
+                "cached content `{stderr}` was modified",
+                stderr = cache.stderr.display()
             )
         );
     }
 
     #[tokio::test]
     async fn stderr_missing() {
-        let ctx = TestContext::new().await;
+        let cache = TestCache::new().await;
 
-        // Delete the stderr file
-        fs::remove_file(&ctx.task.paths.stderr).await.unwrap();
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
 
-        // Check for deleted cached stderr
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
+        // Deleting the stderr file invalidates the entry
+        fs::remove_file(&cache.stderr).await.unwrap();
         clear_digest_cache();
-        let key = ctx.cache.key(ctx.task.key_request()).await.unwrap();
+
+        let key = cache.inner.key(&request).await.unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             format!(
-                "failed to read metadata of `{}`",
-                ctx.task.paths.stderr.display()
+                "failed to read metadata of `{stderr}`",
+                stderr = cache.stderr.display()
             )
         );
     }
 
     #[tokio::test]
     async fn work_dir_modified() {
-        let ctx = TestContext::new().await;
+        let cache = TestCache::new().await;
 
-        // Modify the working directory by creating a new file in it
-        fs::write(&ctx.task.paths.work_dir.join("foo"), "added!")
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
+
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
+        // Changing the work directory (by adding a file) invalidates the entry
+        fs::write(&cache.work_dir.join("foo"), "added!")
             .await
             .unwrap();
-
-        // Check for changed cached work dir
         clear_digest_cache();
-        let key = ctx.cache.key(ctx.task.key_request()).await.unwrap();
+
+        let key = cache.inner.key(&request).await.unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             format!(
-                "cached content `{}` was modified",
-                ctx.task.paths.work_dir.display()
+                "cached content `{work_dir}` was modified",
+                work_dir = cache.work_dir.display()
             )
         );
     }
 
     #[tokio::test]
-    async fn work_dir_deleted() {
-        let ctx = TestContext::new().await;
+    async fn work_dir_missing() {
+        let cache = TestCache::new().await;
 
-        // Delete the working directory
-        fs::remove_dir_all(&ctx.task.paths.work_dir).await.unwrap();
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
 
-        // Check for deleted cached work dir
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
+        // Deleting the working directory invalidates the entry
+        fs::remove_dir_all(&cache.work_dir).await.unwrap();
         clear_digest_cache();
-        let key = ctx.cache.key(ctx.task.key_request()).await.unwrap();
+
+        let key = cache.inner.key(&request).await.unwrap();
         assert_eq!(
-            ctx.cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             format!(
-                "failed to read metadata of `{}`",
-                ctx.task.paths.work_dir.display()
+                "failed to read metadata of `{work_dir}`",
+                work_dir = cache.work_dir.display()
             )
         );
     }
 
     #[tokio::test]
     async fn excluded_requirement_modified() {
-        let ctx = TestContext::new().await;
-        // Add "memory" as an excluded requirement
-        let cache = CallCache::new(
-            Some(ctx.cache.0.cache_dir.as_path()),
-            ContentDigestMode::Strong,
-            Arc::new(DigestTransferer::new([])),
-            Arc::new(CallCacheExclusions {
-                inputs: HashSet::new(),
-                requirements: HashSet::from_iter(["memory".to_string()]),
-                hints: HashSet::new(),
-            }),
-        )
-        .await
-        .unwrap();
+        // Exclude the memory requirement
+        let cache = TestCache::new_with_exclusions(CallCacheExclusions {
+            requirements: HashSet::from_iter(["memory".to_string()]),
+            ..Default::default()
+        })
+        .await;
 
-        let request = ctx.task.key_request();
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Object::new(IndexMap::from_iter([
+            (
+                "container".into(),
+                PrimitiveValue::new_string("ubuntu:latest").into(),
+            ),
+            ("memory".into(), 1.into()),
+        ]));
+        let hints = Default::default();
 
-        // Add a "memory" requirement - this should NOT invalidate the cache
-        // since "memory" is in the exclusion list
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
+        // Modify the memory requirement; this should not affect the entry
         let key = cache
-            .key(KeyRequest {
+            .inner
+            .key(&KeyRequest {
                 requirements: &Object::new(IndexMap::from_iter([
                     (
                         "container".into(),
@@ -1434,183 +1740,213 @@ mod test {
             })
             .await
             .unwrap();
+        cache.inner.get(&key).await.unwrap().unwrap();
 
-        // This should succeed (not return an error) because "memory" is excluded
-        assert!(
-            cache.get(&key).await.is_ok(),
-            "Expected cache hit when excluded requirement is added"
-        );
-
-        // Modify a non-excluded requirement - this SHOULD invalidate the cache
+        // Modify the container requirement; this should affect the entry
         let key = cache
-            .key(KeyRequest {
-                requirements: &Object::new(IndexMap::from_iter([(
-                    "container".into(),
-                    PrimitiveValue::new_string("ubuntu:cthulhu").into(),
-                )])),
+            .inner
+            .key(&KeyRequest {
+                requirements: &Object::new(IndexMap::from_iter([
+                    (
+                        "container".into(),
+                        PrimitiveValue::new_string("ubuntu:cthulhu").into(),
+                    ),
+                    ("memory".into(), 1.into()),
+                ])),
                 ..request
             })
             .await
             .unwrap();
-
         assert_eq!(
-            cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             "task requirement `container` was modified"
         );
     }
 
     #[tokio::test]
     async fn excluded_hint_modified() {
-        let ctx = TestContext::new().await;
-        // Add "localization_optional" as an excluded hint
-        let cache = CallCache::new(
-            Some(ctx.cache.0.cache_dir.as_path()),
-            ContentDigestMode::Strong,
-            Arc::new(DigestTransferer::new([])),
-            Arc::new(CallCacheExclusions {
-                inputs: HashSet::new(),
-                requirements: HashSet::new(),
-                hints: HashSet::from_iter(["localization_optional".to_string()]),
-            }),
-        )
-        .await
-        .unwrap();
+        // Exclude the `localization_optional` hint
+        let cache = TestCache::new_with_exclusions(CallCacheExclusions {
+            hints: HashSet::from_iter(["localization_optional".into()]),
+            ..Default::default()
+        })
+        .await;
 
-        let request = ctx.task.key_request();
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Object::new(IndexMap::from_iter([
+            ("foo".into(), PrimitiveValue::new_string("bar").into()),
+            ("localization_optional".into(), true.into()),
+        ]));
 
-        // Add a "localization_optional" hint - this should NOT invalidate the cache
-        // since "localization_optional" is in the exclusion list
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        cache.populate(&request).await;
+
+        // Modify the `localization_optional` hint; this should not affect the entry
         let key = cache
-            .key(KeyRequest {
+            .inner
+            .key(&KeyRequest {
                 hints: &Object::new(IndexMap::from_iter([
                     ("foo".into(), PrimitiveValue::new_string("bar").into()),
-                    (
-                        "localization_optional".into(),
-                        PrimitiveValue::new_string("true").into(),
-                    ),
+                    ("localization_optional".into(), false.into()),
                 ])),
                 ..request
             })
             .await
             .unwrap();
+        cache.inner.get(&key).await.unwrap().unwrap();
 
-        // This should succeed (not return an error) because "localization_optional" is
-        // excluded
-        assert!(
-            cache.get(&key).await.is_ok(),
-            "Expected cache hit when excluded hint is added"
-        );
-
-        // Modify a non-excluded hint - this SHOULD invalidate the cache
+        // Modify the `foo` hint; this should affect the entry
         let key = cache
-            .key(KeyRequest {
+            .inner
+            .key(&KeyRequest {
                 hints: &Object::new(IndexMap::from_iter([
                     ("foo".into(), PrimitiveValue::new_string("baz").into()),
-                    (
-                        "localization_optional".into(),
-                        PrimitiveValue::new_string("true").into(),
-                    ),
+                    ("localization_optional".into(), true.into()),
                 ])),
                 ..request
             })
             .await
             .unwrap();
-
         assert_eq!(
-            cache.get(&key).await.unwrap_err().to_string(),
+            cache.inner.get(&key).await.unwrap_err().to_string(),
             "task hint `foo` was modified"
         );
     }
 
     #[tokio::test]
     async fn excluded_input_modified() {
-        // Create cache with "file" as an excluded input
-        let root_dir = tempdir().expect("failed to create temporary directory");
-        let cache = CallCache::new(
-            Some(&root_dir.path().join("cache")),
-            ContentDigestMode::Strong,
-            Arc::new(DigestTransferer::new([])),
-            Arc::new(CallCacheExclusions {
-                inputs: HashSet::from_iter(["file".to_string()]),
-                requirements: HashSet::new(),
-                hints: HashSet::new(),
-            }),
-        )
-        .await
-        .unwrap();
+        // Exclude the `foo` input
+        let cache = TestCache::new_with_exclusions(CallCacheExclusions {
+            inputs: HashSet::from_iter(["foo".into()]),
+            ..Default::default()
+        })
+        .await;
 
-        let root_dir = tempdir().expect("failed to create temporary directory");
-        let mut task = prepare_task(root_dir.path()).await;
-        task.inputs.insert(
-            "file2".into(),
-            PrimitiveValue::new_file(task.paths.input.clone().to_str().unwrap()).into(),
+        // Create an input file
+        let input_file_path = cache.root_dir.path().join("input");
+        fs::write(&input_file_path, "hello world!").await.unwrap();
+
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = BTreeMap::from_iter([
+            (
+                "foo".to_string(),
+                Value::from(PrimitiveValue::new_file(input_file_path.to_str().unwrap())),
+            ),
+            ("bar".into(), PrimitiveValue::new_string("baz").into()),
+        ]);
+        let requirements = Default::default();
+        let hints = Default::default();
+
+        let mut input = Input::new(
+            ContentKind::File,
+            EvaluationPath::from_local_path(input_file_path.clone()),
+            Some(GuestPath::new("/mnt/task/inputs/0/input")),
         );
-        let request = task.key_request();
+        input.mark_excluded_from_call_cache();
+        let backend_inputs = [input];
 
-        // Get cache key with the `file` input excepted
-        let original_key = cache.key(task.key_request()).await.unwrap();
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "cat /mnt/task/inputs/0/input",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &backend_inputs,
+        };
 
-        // Modify the input - this should NOT invalidate the cache since the
-        // input is in the exclusion list
+        cache.populate(&request).await;
+
+        // Modify the `foo` input; this should not affect the entry
         let key = cache
-            .key(KeyRequest {
-                inputs: &BTreeMap::from([
-                    (
-                        "file".into(),
-                        PrimitiveValue::new_file(task.paths.stdout.clone().to_str().unwrap())
-                            .into(),
-                    ),
-                    (
-                        "file2".into(),
-                        PrimitiveValue::new_file(task.paths.input.clone().to_str().unwrap()).into(),
-                    ),
+            .inner
+            .key(&KeyRequest {
+                inputs: &BTreeMap::from_iter([
+                    ("foo".into(), 1.into()),
+                    ("bar".into(), PrimitiveValue::new_string("baz").into()),
                 ]),
                 ..request
             })
             .await
             .unwrap();
+        cache.inner.get(&key).await.unwrap().unwrap();
 
-        // This should succeed (not return an error) because the input is excluded
-        assert!(
-            original_key.key == key.key,
-            "Expected cache key to be the same when excluded input is modified"
-        );
-        // Modify a non-excluded input - this SHOULD be a cache miss
+        // Changing the file's contents should not invalidate the entry
+        fs::write(&input_file_path, "changed!").await.unwrap();
+        clear_digest_cache();
+
+        // Modify the `foo` input; this should not affect the entry as the backend input
+        // was excluded
+        let key = cache.inner.key(&request).await.unwrap();
+        cache.inner.get(&key).await.unwrap().unwrap();
+
+        // Modify the `bar` input; the key should change and the entry should not exist
         let key = cache
-            .key(KeyRequest {
-                inputs: &BTreeMap::from([(
-                    "file2".into(),
-                    PrimitiveValue::new_file(task.paths.stdout.clone().to_str().unwrap()).into(),
-                )]),
+            .inner
+            .key(&KeyRequest {
+                inputs: &BTreeMap::from_iter([
+                    (
+                        "foo".to_string(),
+                        Value::from(PrimitiveValue::new_file(input_file_path.to_str().unwrap())),
+                    ),
+                    ("bar".into(), PrimitiveValue::new_string("qux").into()),
+                ]),
                 ..request
             })
             .await
             .unwrap();
-
-        assert_ne!(
-            original_key.key, key.key,
-            "Expected key change when non-excluded input is modified"
-        );
+        assert!(cache.inner.get(&key).await.unwrap().is_none());
     }
 
     #[tokio::test]
     async fn backend_in_cache_key() {
-        let ctx = TestContext::new().await;
+        let cache = TestCache::new().await;
 
-        // Compute the cache key with the original backend
-        let request = ctx.task.key_request();
-        let original_key = ctx.cache.key(request).await.unwrap();
+        let document_uri = Url::from_file_path(cache.root_dir.path().join("source.wdl")).unwrap();
+        let inputs = Default::default();
+        let requirements = Default::default();
+        let hints = Default::default();
 
-        // Verify the original entry is cacheable (cache hit)
-        assert!(
-            ctx.cache.get(&original_key).await.is_ok(),
-            "Expected cache hit with original backend"
-        );
+        let request = KeyRequest {
+            document_uri: &document_uri,
+            backend: "backend",
+            task_name: "test",
+            inputs: &inputs,
+            command: "echo hello world!",
+            default_container: None,
+            shell: "bash",
+            requirements: &requirements,
+            hints: &hints,
+            guest_inputs_dir: Some("/mnt/task/inputs/"),
+            backend_inputs: &[],
+        };
+
+        // Compute the cache key
+        let original = cache.inner.key(&request).await.unwrap();
 
         // Compute a key with a different backend
-        let key = ctx
-            .cache
-            .key(KeyRequest {
+        let modified = cache
+            .inner
+            .key(&KeyRequest {
                 backend: "different",
                 ..request
             })
@@ -1618,14 +1954,8 @@ mod test {
             .unwrap();
 
         assert_ne!(
-            original_key.key, key.key,
-            "Expected different cache keys for different backends"
-        );
-
-        // Verify the different backend yields a cache miss (key doesn't exist)
-        assert!(
-            ctx.cache.get(&key).await.unwrap().is_none(),
-            "Expected no cache entry for different backend"
+            original.key, modified.key,
+            "expected different cache keys for different backends"
         );
     }
 }

@@ -64,6 +64,8 @@ pub(crate) struct Input {
     ///
     /// This is `Some` if the input has been downloaded to a known location.
     location: Option<Location>,
+    /// Whether or not the input is excluded from the call cache.
+    excluded_from_call_cache: bool,
 }
 
 impl Input {
@@ -74,6 +76,7 @@ impl Input {
             path,
             guest_path,
             location: None,
+            excluded_from_call_cache: false,
         }
     }
 
@@ -108,6 +111,16 @@ impl Input {
     /// This is used during localization to set a local path for remote inputs.
     pub fn set_location(&mut self, location: Location) {
         self.location = Some(location);
+    }
+
+    /// Whether or not the input is excluded from the call cache.
+    pub fn excluded_from_call_cache(&self) -> bool {
+        self.excluded_from_call_cache
+    }
+
+    /// Marks the input as being excluded from the call cache.
+    pub fn mark_excluded_from_call_cache(&mut self) {
+        self.excluded_from_call_cache = true
     }
 }
 
