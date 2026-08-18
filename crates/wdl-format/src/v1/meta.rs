@@ -7,6 +7,7 @@ use crate::PreToken;
 use crate::TokenStream;
 use crate::Writable as _;
 use crate::element::FormatElement;
+use crate::v1::write_comma_separated_items;
 
 /// Formats a [`LiteralNull`](wdl_ast::v1::LiteralNull).
 ///
@@ -62,21 +63,7 @@ pub fn format_metadata_array(
         stream.increment_indent();
     }
 
-    let mut items = items.iter().peekable();
-    let mut commas = commas.iter();
-    while let Some(item) = items.next() {
-        (item).write(stream, config);
-        if let Some(comma) = commas.next()
-            && (items.peek().is_some() || comma.has_comment())
-        {
-            (comma).write(stream, config);
-            if items.peek().is_some() {
-                stream.end_line();
-            }
-        } else if config.trailing_commas {
-            stream.push_literal(",".into(), SyntaxKind::Comma);
-        }
-    }
+    write_comma_separated_items(&items, &commas, stream, config);
 
     if !empty {
         stream.decrement_indent();
@@ -127,21 +114,7 @@ pub fn format_metadata_object(
         stream.increment_indent();
     }
 
-    let mut items = items.iter().peekable();
-    let mut commas = commas.iter();
-    while let Some(item) = items.next() {
-        (item).write(stream, config);
-        if let Some(comma) = commas.next()
-            && (items.peek().is_some() || comma.has_comment())
-        {
-            (comma).write(stream, config);
-            if items.peek().is_some() {
-                stream.end_line();
-            }
-        } else if config.trailing_commas {
-            stream.push_literal(",".into(), SyntaxKind::Comma);
-        }
-    }
+    write_comma_separated_items(&items, &commas, stream, config);
 
     if !empty {
         stream.decrement_indent();
