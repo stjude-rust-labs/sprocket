@@ -39,6 +39,51 @@ pub(crate) fn write_sections(
     }
 }
 
+/// Writes comma-separated items, one per line.
+///
+/// Prefers commas from the source AST so associated trivia is preserved. When
+/// an item has no corresponding source comma, inserts a trailing comma if
+/// `config.trailing_commas` is enabled.
+pub(crate) fn write_comma_separated_items<'a>(
+    items: impl IntoIterator<Item = &'a FormatElement>,
+    commas: impl IntoIterator<Item = &'a FormatElement>,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
+    let mut commas = commas.into_iter();
+    for item in items {
+        item.write(stream, config);
+        if let Some(comma) = commas.next() {
+            comma.write(stream, config);
+        } else if config.trailing_commas {
+            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+        }
+        stream.end_line();
+    }
+}
+
+/// Formats an infix expression whose operator token is whitespace-wrapped.
+///
+/// Each child is written in order. When a child matches `operator`, a word
+/// boundary is inserted on both sides so the operator is spaced like `a + b`.
+pub(crate) fn format_infix_expr(
+    element: &FormatElement,
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+    operator: SyntaxKind,
+) {
+    for child in element.children().expect("infix expression children") {
+        let wrap = child.element().kind() == operator;
+        if wrap {
+            stream.end_word();
+        }
+        (&child).write(stream, config);
+        if wrap {
+            stream.end_word();
+        }
+    }
+}
+
 pub mod decl;
 pub mod r#enum;
 pub mod expr;
@@ -360,16 +405,12 @@ pub fn format_literal_input(
         }
     }
 
-    let mut commas = commas.iter();
-    for item in items {
-        (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
-            (comma).write(stream, config);
-        } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
-        }
-        stream.end_line();
-    }
+    write_comma_separated_items(
+        items.iter().copied(),
+        commas.iter().copied(),
+        stream,
+        config,
+    );
 
     stream.decrement_indent();
     (&close_brace.expect("literal input close brace")).write(stream, config);
@@ -437,16 +478,12 @@ pub fn format_literal_hints(
         }
     }
 
-    let mut commas = commas.iter();
-    for item in items {
-        (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
-            (comma).write(stream, config);
-        } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
-        }
-        stream.end_line();
-    }
+    write_comma_separated_items(
+        items.iter().copied(),
+        commas.iter().copied(),
+        stream,
+        config,
+    );
 
     stream.decrement_indent();
     (&close_brace.expect("literal hints close brace")).write(stream, config);
@@ -516,16 +553,12 @@ pub fn format_literal_output(
         }
     }
 
-    let mut commas = commas.iter();
-    for item in items {
-        (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
-            (comma).write(stream, config);
-        } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
-        }
-        stream.end_line();
-    }
+    write_comma_separated_items(
+        items.iter().copied(),
+        commas.iter().copied(),
+        stream,
+        config,
+    );
 
     stream.decrement_indent();
     (&close_brace.expect("literal output close brace")).write(stream, config);
