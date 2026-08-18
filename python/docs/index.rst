@@ -19,3 +19,12 @@ website <https://sprocket.bio/python-bindings.html>`_.
    api/grammar/grammar
    api/grammar/parser
    api/grammar/version
+
+.. toctree::
+   :caption: Examples
+   :maxdepth: 2
+   :hidden:
+
+   examples/emit_diagnostics
+   examples/event_stream
+   examples/syntax_highlighter
