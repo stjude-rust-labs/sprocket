@@ -113,9 +113,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: develop
-          # Install `docs` dependency group so that Mypy can typecheck Sphinx's `conf.py` and
-          # extensions.
-          args: --locked --group docs
+          args: --locked
 
       - name: Check types
         run: mypy python
