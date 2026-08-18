@@ -403,6 +403,12 @@ struct State<'a> {
     document: &'a Document,
     /// The task being evaluated.
     task: &'a Task,
+    /// The unique name of the task's current execution attempt.
+    ///
+    /// The name is minted before any of the attempt's work begins so that
+    /// progress can be attributed to the task before it reaches the backend,
+    /// and it is the name the backend reports for the attempt.
+    task_name: String,
     /// The scopes of the task being evaluated.
     ///
     /// The first scope is the root scope, the second is the output scope, and
@@ -435,6 +441,7 @@ impl<'a> State<'a> {
         document: &'a Document,
         task: &'a Task,
         temp_dir: &'a Path,
+        task_name: String,
     ) -> Result<Self> {
         // Tasks have a root scope (index 0), an output scope (index 1), and a `task`
         // variable scope (index 2). The output scope inherits from the root scope and
@@ -470,6 +477,7 @@ impl<'a> State<'a> {
             base_dir,
             document,
             task,
+            task_name,
             scopes,
             env: Default::default(),
             inputs: Default::default(),
@@ -560,6 +568,11 @@ impl<'a> State<'a> {
                     .map(|l| (url, l, index))
             });
         }
+
+        // Notify that the task is transferring inputs; this path localizes eagerly
+        // during input and declaration evaluation, before the task's sections are
+        // evaluated.
+        self.evaluator.notify_task_localizing(&self.task_name);
 
         // Wait for the downloads to complete
         while let Some(result) = downloads.join_next().await {
@@ -1381,6 +1394,12 @@ impl<'a> State<'a> {
                 }
             }
 
+            // Notify that the task is transferring inputs, but only when there is
+            // something to transfer
+            if !downloads.is_empty() {
+                self.evaluator.notify_task_localizing(&self.task_name);
+            }
+
             // Wait for the downloads to complete
             while let Some(result) = downloads.join_next().await {
                 match result.unwrap_or_else(|e| Err(anyhow!("download task failed: {e}"))) {
@@ -1568,7 +1587,11 @@ impl Evaluator {
         // Write the inputs to the task's root directory
         write_json_file(task_eval_root.join(INPUTS_FILE), &inputs)?;
 
-        let mut state = State::new(self, document, task, &temp_dir)?;
+        // Mint the name for the first attempt before any of the task's work begins,
+        // so that even localization performed while evaluating inputs and
+        // declarations is attributable to the task.
+        let mut state = State::new(self, document, task, &temp_dir, self.generate_task_name(id))?;
+        self.notify_task_initializing(id, &state.task_name);
         let nodes = toposort(&graph, None).expect("graph should be acyclic");
         let mut current = 0;
         while current < nodes.len() {
@@ -1608,6 +1631,12 @@ impl Evaluator {
         let mut evaluated = loop {
             if self.cancellation.state() != CancellationContextState::NotCanceled {
                 return Err(EvaluationError::Canceled);
+            }
+
+            // Each attempt is a distinct execution with its own name.
+            if attempt > 0 {
+                state.task_name = self.generate_task_name(id);
+                self.notify_task_initializing(id, &state.task_name);
             }
 
             let EvaluatedSections {
@@ -1740,6 +1769,7 @@ impl Evaluator {
                         if let Some(sender) = &self.events {
                             let _ = sender.send(EngineEvent::ReusedCachedExecutionResult {
                                 id: id.to_string(),
+                                name: state.task_name.clone(),
                             });
                         }
 
@@ -1783,7 +1813,7 @@ impl Evaluator {
                         .execute(
                             &self.transferer,
                             ExecuteTaskRequest {
-                                id,
+                                name: &state.task_name,
                                 command: &command,
                                 inputs: &inputs,
                                 backend_inputs: state.backend_inputs.as_slice(),

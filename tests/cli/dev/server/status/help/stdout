@@ -12,7 +12,7 @@ Options:
       --status <STATUS>
           Filter the run list by status.
           
-          Valid values: `queued`, `running`, `completed`, `failed`, `canceling`, `canceled`. Only used when no `RUN` is provided.
+          Valid values: `queued`, `analyzing`, `running`, `completed`, `failed`, `canceling`, `canceled`. Only used when no `RUN` is provided.
 
       --limit <N>
           Maximum number of runs to display.
@@ -37,6 +37,9 @@ Options:
 
   -q, --quiet...
           Decrease logging verbosity
+
+      --no-ignore
+          Ignore `.sprocketignore` files while discovering WDL documents
 
       --color <COLOR>
           Controls output colorization

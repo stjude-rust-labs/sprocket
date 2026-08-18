@@ -141,7 +141,7 @@ jobs:
       - name: Build sprocket
         run: cargo build --release --locked --bin sprocket
       - name: Generate documentation
-        run: ./target/release/sprocket dev doc crates/wdl-doc/tests/ui/base/assets --output "$RUNNER_TEMP/a11y-docs"
+        run: ./target/release/sprocket --no-ignore dev doc crates/wdl-doc/tests/ui/base/assets --output "$RUNNER_TEMP/a11y-docs"
       - name: Install audit dependencies
         working-directory: crates/wdl-doc/a11y
         run: npm install

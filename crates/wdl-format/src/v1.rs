@@ -22,6 +22,23 @@ fn import_sort_key(stmt: &ImportStatement) -> (u8, String) {
     }
 }
 
+/// Writes each section of a definition's canonical slot, following each with a
+/// blank line.
+///
+/// A slot holds more than one section only when the document is invalid (e.g. a
+/// task with two `runtime` sections); every section is still written, in source
+/// order, so that formatting never discards input.
+pub(crate) fn write_sections(
+    sections: &[&FormatElement],
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
+    for section in sections {
+        section.write(stream, config);
+        stream.blank_line();
+    }
+}
+
 pub mod decl;
 pub mod r#enum;
 pub mod expr;
@@ -291,14 +308,16 @@ pub fn format_literal_input_item(
 ) {
     let mut children = element.children().expect("literal input item children");
 
-    let key = children.next().expect("literal input item key");
-    assert_eq!(key.element().kind(), SyntaxKind::Ident);
-    (&key).write(stream, config);
-
-    let colon = children.next().expect("literal input item colon");
-    assert_eq!(colon.element().kind(), SyntaxKind::Colon);
-    (&colon).write(stream, config);
-    stream.end_word();
+    for child in children.by_ref() {
+        if matches!(child.element().kind(), SyntaxKind::Ident | SyntaxKind::Dot) {
+            (&child).write(stream, config);
+        } else {
+            assert_eq!(child.element().kind(), SyntaxKind::Colon);
+            (&child).write(stream, config);
+            stream.end_word();
+            break;
+        }
+    }
 
     let hints_node = children.next().expect("literal input item hints node");
     assert_eq!(hints_node.element().kind(), SyntaxKind::LiteralHintsNode);

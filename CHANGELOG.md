@@ -7,8 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+### Added
+
+* `dev server` now reports finer-grained progress. A run is `analyzing` while
+  its document is resolved and type checked, and a task reports `initializing`,
+  `localizing` while its inputs are transferred, or `cached` when the call
+  cache serves the task result
+  ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
+* `sprocket --no-ignore` disables `.sprocketignore` processing while WDL
+  documents are discovered ([#1110](https://github.com/stjude-rust-labs/sprocket/pull/1110)).
+* `sprocket dev test` now produces spanned diagnostics for YAML files ([#982](https://github.com/stjude-rust-labs/sprocket/pull/982)).
+
+### Changed
+
+* `sprocket dev server inspect` now shows the run's `Directory:` and
+  `Outputs:` paths as absolute, copy-pasteable paths (joining the server's
+  output-directory root with the run-relative path) when the server's `/info`
+  endpoint is available, instead of requiring the user to manually combine a
+  separate `Output Dir:` line with a relative path
+  ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
+
 ### Fixed
 
+* Work a backend runs on its own behalf, such as the Docker backend's container
+  that restores ownership of a work directory, is no longer reported among a
+  run's tasks
+  ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
+
+* Canceling a `dev server` run mid-transfer now records the run as `canceled`
+  rather than `failed`, and no longer overwrites an outcome the run reached
+  first ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
+
+* The server's reported `output_dir` (used by `dev server inspect`) is now
+  resolved to an absolute path, even when configured with a relative path
+  (e.g. `./out`), so it can be reliably combined with a run's relative
+  directory ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
+* `sprocket run` now stores each run's directory relative to the output
+  directory (matching the format already used by dev-server-initiated runs),
+  fixing a bug where `dev server inspect` would display the output-directory
+  prefix twice for runs started via `sprocket run`
+  ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
 * `dev server` task endpoints now return `404 Not Found` for missing task
   lookups, including missing task logs, instead of returning empty log results
   or generic internal errors

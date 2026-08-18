@@ -168,18 +168,47 @@ pub trait Database: Send + Sync {
     /// List the latest index log entry for each unique index path.
     async fn list_latest_index_entries(&self) -> Result<Vec<IndexLogEntry>>;
 
-    /// Create a new task record.
-    async fn create_task(&self, name: &str, run_id: Uuid) -> Result<Task>;
+    /// Create a task record in the given starting status.
+    ///
+    /// Creation is idempotent: if the task already exists, its current record
+    /// is returned unchanged. Engine and Crankshaft events arrive on
+    /// independent channels with no ordering between them, so either may be
+    /// the first to observe a task.
+    async fn create_task(&self, name: &str, run_id: Uuid, status: TaskStatus) -> Result<Task>;
+
+    /// Advance a task to localizing its inputs.
+    ///
+    /// Returns `true` if a task was updated, `false` if it was not found or
+    /// has already advanced past initializing.
+    #[must_use = "the return value indicates whether a task was updated"]
+    async fn update_task_localizing(&self, name: &str) -> Result<bool>;
+
+    /// Advance a task to pending, meaning it has been submitted to a backend
+    /// and is awaiting scheduling.
+    ///
+    /// Returns `true` if a task was updated, `false` if it was not found or
+    /// has already advanced past localizing.
+    #[must_use = "the return value indicates whether a task was updated"]
+    async fn update_task_pending(&self, name: &str) -> Result<bool>;
+
+    /// Update a task as served from the call cache.
+    ///
+    /// Returns `true` if a task was updated, `false` if it was not found or
+    /// has already reached a terminal status.
+    #[must_use = "the return value indicates whether a task was updated"]
+    async fn update_task_cached(&self, name: &str, completed_at: DateTime<Utc>) -> Result<bool>;
 
     /// Update task with started timestamp.
     ///
-    /// Returns `true` if a task was updated, `false` if not found.
+    /// Returns `true` if a task was updated, `false` if it was not found or
+    /// has already advanced past pending.
     #[must_use = "the return value indicates whether a task was updated"]
     async fn update_task_started(&self, name: &str, started_at: DateTime<Utc>) -> Result<bool>;
 
     /// Update task with completion data.
     ///
-    /// Returns `true` if a task was updated, `false` if not found.
+    /// Returns `true` if a task was updated, `false` if it was not found or
+    /// has already reached a terminal status.
     #[must_use = "the return value indicates whether a task was updated"]
     async fn update_task_completed(
         &self,
@@ -190,7 +219,8 @@ pub trait Database: Send + Sync {
 
     /// Update task with failure data.
     ///
-    /// Returns `true` if a task was updated, `false` if not found.
+    /// Returns `true` if a task was updated, `false` if it was not found or
+    /// has already reached a terminal status.
     #[must_use = "the return value indicates whether a task was updated"]
     async fn update_task_failed(
         &self,
@@ -201,13 +231,15 @@ pub trait Database: Send + Sync {
 
     /// Update task as canceled.
     ///
-    /// Returns `true` if a task was updated, `false` if not found.
+    /// Returns `true` if a task was updated, `false` if it was not found or
+    /// has already reached a terminal status.
     #[must_use = "the return value indicates whether a task was updated"]
     async fn update_task_canceled(&self, name: &str, completed_at: DateTime<Utc>) -> Result<bool>;
 
     /// Update task as preempted.
     ///
-    /// Returns `true` if a task was updated, `false` if not found.
+    /// Returns `true` if a task was updated, `false` if it was not found or
+    /// has already reached a terminal status.
     #[must_use = "the return value indicates whether a task was updated"]
     async fn update_task_preempted(&self, name: &str, completed_at: DateTime<Utc>) -> Result<bool>;
 
@@ -276,4 +308,17 @@ pub trait Database: Send + Sync {
         self.update_run_completed_at(id, Some(completed_at)).await?;
         Ok(())
     }
+
+    /// Transition a run to `Canceling` status.
+    ///
+    /// Returns `true` if the run was updated, `false` if it was not found or
+    /// has already reached a terminal status.
+    ///
+    /// Cancellation is requested by signaling the run and then recording the
+    /// request, so a run that finishes in between — which is the common case
+    /// when the work being canceled is a transfer rather than a task — would
+    /// otherwise have its outcome overwritten by the request to cancel it, and
+    /// would appear to be canceling forever.
+    #[must_use = "the return value indicates whether a run was updated"]
+    async fn mark_run_canceling(&self, id: Uuid) -> Result<bool>;
 }

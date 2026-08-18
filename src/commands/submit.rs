@@ -89,6 +89,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         config.common.wdl.fallback_version.into(),
         config.modules.clone(),
         config.common.wdl.feature_flags,
+        config.common.ignore_filename(),
         report_mode,
         colorize,
     )
@@ -284,7 +285,7 @@ command <<<>>>
                     .expect("run should have a status")
                     .to_string();
 
-                if status != "queued" && status != "running" {
+                if status != "queued" && status != "analyzing" && status != "running" {
                     break;
                 }
 
