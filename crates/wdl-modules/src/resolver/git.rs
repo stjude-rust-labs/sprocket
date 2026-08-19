@@ -394,10 +394,7 @@ impl GitResolver {
         // runtime shutdown.
         .unwrap();
 
-        let fetched = match result {
-            Ok(fetched) => fetched,
-            Err(err) => return Err(err),
-        };
+        let fetched = result?;
 
         tracing::trace!(
             dependency = name.manifest(),
