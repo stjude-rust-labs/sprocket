@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Changed
+
+* `EngineEvent` now emits `TaskInitializing` before an execution attempt and
+  `TaskLocalizing` before it transfers inputs; both events identify the attempt
+  by its unique name. `ReusedCachedExecutionResult` now includes that name, and
+  `ExecuteTaskRequest::id` has been renamed to `name` so backends report the
+  same identifier ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
+
 #### Fixed
 
 * `WorkflowInputs` serialization no longer drops call-nested inputs.
@@ -22,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   view of it
   ([#1094](https://github.com/stjude-rust-labs/sprocket/pull/1094)).
 * `Directory` -> `String` coercions will no longer preserve trailing slashes ([#1107](https://github.com/stjude-rust-labs/sprocket/pull/1107)).
+* LSF workflows now survive `bjobs` query failures and retry at the next monitor
+  interval instead of failing every monitored task
+  ([#1120](https://github.com/stjude-rust-labs/sprocket/pull/1120)).
 
 ## 0.17.1 - 2026-08-05
 

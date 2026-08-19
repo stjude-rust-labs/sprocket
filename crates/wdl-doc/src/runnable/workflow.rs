@@ -195,6 +195,10 @@ impl Workflow {
         let (input_markup, inner_headers) = self.render_inputs(assets, links, page_dir);
 
         headers.extend(inner_headers);
+        let output_markup = self.render_outputs(assets, links, page_dir);
+        if output_markup.is_some() {
+            headers.push(Header::Header("Outputs".to_string(), "outputs".to_string()));
+        }
 
         let name_override = self.name_override();
         let (title, title_kind) = match name_override.as_deref() {
@@ -226,10 +230,10 @@ impl Workflow {
                 }
             }
             (input_markup)
-            (self.render_outputs(assets, links, page_dir))
+            @if let Some(output_markup) = output_markup {
+                (output_markup)
+            }
         };
-
-        headers.push(Header::Header("Outputs".to_string(), "outputs".to_string()));
 
         (
             main_container("workflow", self.wdl_path.is_none(), markup),
@@ -522,5 +526,72 @@ mod tests {
         assert!(html.contains("<svg"));
         assert!(html.contains("M2.146 2.854a"));
         assert!(html.contains("Nested Inputs Not Allowed"));
+    }
+
+    #[test]
+    fn render_omits_outputs_when_workflow_has_none() {
+        let (doc, _) = Document::parse(
+            r#"
+            version 1.0
+            workflow test {
+            }
+            "#,
+            None,
+        );
+        let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
+        let ast_workflow = doc_item.into_workflow_definition().unwrap();
+        let workflow = Workflow::new(
+            ast_workflow.name().text().to_string(),
+            SupportedVersion::V1(V1::Zero),
+            ast_workflow,
+            None,
+            false,
+        );
+        let links = PageLinkIndex::default();
+        let (markup, sections) = workflow.render(Path::new("assets"), &links, Path::new(""));
+
+        assert!(!markup.into_string().contains("id=\"outputs\""));
+        assert!(
+            !sections
+                .render()
+                .into_string()
+                .contains("href=\"#outputs\"")
+        );
+    }
+
+    #[test]
+    fn render_includes_outputs_when_workflow_has_any() {
+        let (doc, _) = Document::parse(
+            r#"
+            version 1.0
+            workflow test {
+                output {
+                    String greeting = "hello"
+                }
+            }
+            "#,
+            None,
+        );
+        let doc_item = doc.ast().into_v1().unwrap().items().next().unwrap();
+        let ast_workflow = doc_item.into_workflow_definition().unwrap();
+        let workflow = Workflow::new(
+            ast_workflow.name().text().to_string(),
+            SupportedVersion::V1(V1::Zero),
+            ast_workflow,
+            None,
+            false,
+        );
+        let links = PageLinkIndex::default();
+        let (markup, sections) = workflow.render(Path::new("assets"), &links, Path::new(""));
+        let html = markup.into_string();
+
+        assert!(html.contains("id=\"outputs\""));
+        assert!(html.contains("Expression"));
+        assert!(
+            sections
+                .render()
+                .into_string()
+                .contains("href=\"#outputs\"")
+        );
     }
 }

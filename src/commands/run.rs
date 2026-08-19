@@ -1,6 +1,7 @@
 //! Implementation of the `run` subcommand.
 
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::fmt::Write as _;
 use std::fs;
 use std::fs::File;
@@ -18,6 +19,7 @@ use clap::Parser;
 use colored::Colorize as _;
 use crankshaft::events::Event as CrankshaftEvent;
 use futures::FutureExt as _;
+use indexmap::IndexMap;
 use indexmap::IndexSet;
 use indicatif::ProgressStyle;
 use serde_json::Value as JsonValue;
@@ -36,6 +38,7 @@ use wdl::ast::Severity;
 use wdl::diagnostics::Mode;
 use wdl::diagnostics::emit_diagnostics;
 use wdl::diagnostics::emit_diagnostics_with_backtrace;
+use wdl::engine::CLEANUP_TASK_NAME_PREFIX;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
 use wdl::engine::Config as EngineConfig;
@@ -320,6 +323,16 @@ impl Task {
     }
 }
 
+/// The phase of a task that has begun evaluation but has not yet been
+/// submitted to an execution backend.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Preparation {
+    /// The engine is evaluating the task's sections.
+    Initializing,
+    /// The task is transferring its inputs.
+    Localizing,
+}
+
 /// Represents state for reporting evaluation progress.
 #[derive(Default)]
 struct State {
@@ -333,10 +346,52 @@ struct State {
     completed: usize,
     /// The number of canceled tasks.
     canceled: usize,
+    /// The tasks that have begun evaluation but have not yet been submitted to
+    /// an execution backend, along with the phase each is in.
+    preparing: IndexMap<Arc<String>, Preparation>,
+    /// The names of tasks that have left preparation.
+    ///
+    /// Engine and Crankshaft events arrive on independent channels with no
+    /// ordering between them, so a task's submission may be observed before
+    /// the engine events that precede it. Remembering what has already left
+    /// preparation keeps a late event from resurrecting it.
+    departed: HashSet<Arc<String>>,
     /// The number of parked tasks.
     parked: usize,
     /// The number of task results reused from the cache.
     cached: usize,
+}
+
+impl State {
+    /// Records that a task has entered the given preparation phase.
+    ///
+    /// Phases only ever advance: a task that has already left preparation is
+    /// not re-entered, and a task already localizing is not moved back to
+    /// initializing.
+    fn enter_preparation(&mut self, name: String, phase: Preparation) {
+        let name = Arc::new(name);
+        if self.departed.contains(&name) {
+            return;
+        }
+
+        match self.preparing.entry(name) {
+            indexmap::map::Entry::Occupied(mut e) => {
+                if phase == Preparation::Localizing {
+                    e.insert(phase);
+                }
+            }
+            indexmap::map::Entry::Vacant(e) => {
+                e.insert(phase);
+            }
+        }
+    }
+
+    /// Records that a task has left preparation, either by being submitted to
+    /// a backend or by having its result served from the call cache.
+    fn depart(&mut self, name: &Arc<String>) {
+        self.preparing.shift_remove(name);
+        self.departed.insert(name.clone());
+    }
 }
 
 /// Displays evaluation progress.
@@ -379,6 +434,17 @@ async fn progress(
             (state.tasks.len() - state.executing.len()) + state.parked,
             "waiting".yellow(),
         );
+        let localizing = state
+            .preparing
+            .values()
+            .filter(|p| **p == Preparation::Localizing)
+            .count();
+        append(
+            &mut message,
+            state.preparing.len() - localizing,
+            "preparing".yellow(),
+        );
+        append(&mut message, localizing, "localizing".yellow());
         append(&mut message, state.executing.len(), "executing".cyan());
 
         if !state.executing.is_empty() {
@@ -430,12 +496,22 @@ async fn progress(
                 Ok(event) if !lagged => {
                     let removed = match event {
                         CrankshaftEvent::TaskCreated { id, name, token: task_token, .. } => {
+                            // Work a backend runs on its own behalf is not a task of
+                            // the workflow, so it is left out of the counts entirely.
+                            // Dropping its id is enough: every other event is
+                            // resolved through `state.tasks`.
+                            if name.starts_with(CLEANUP_TASK_NAME_PREFIX) {
+                                continue;
+                            }
+
                             // If there has already been an initial cancellation, immediately signal the new task to cancel
                             if token.is_cancelled() {
                                 task_token.cancel();
                             }
 
-                            state.tasks.insert(id, Task::new(name.into(), task_token));
+                            let name: Arc<String> = Arc::new(name);
+                            state.depart(&name);
+                            state.tasks.insert(id, Task::new(name, task_token));
                             None
                         }
                         CrankshaftEvent::TaskStarted { id } => {
@@ -446,14 +522,26 @@ async fn progress(
                             None
                         }
                         CrankshaftEvent::TaskCompleted { id, .. } => {
+                            if !state.tasks.contains_key(&id) {
+                                continue;
+                            }
+
                             state.completed += 1;
                             Some(id)
                         }
                         CrankshaftEvent::TaskFailed { id, .. } | CrankshaftEvent::TaskPreempted { id } => {
+                            if !state.tasks.contains_key(&id) {
+                                continue;
+                            }
+
                             state.failed += 1;
                             Some(id)
                         }
                         CrankshaftEvent::TaskCanceled { id } => {
+                            if !state.tasks.contains_key(&id) {
+                                continue;
+                            }
+
                             state.canceled += 1;
                             Some(id)
                         }
@@ -527,7 +615,14 @@ async fn progress(
             r = engine.recv() => match r {
                 Ok(event) if !lagged => {
                     match event {
-                        EngineEvent::ReusedCachedExecutionResult { .. } => {
+                        EngineEvent::TaskInitializing { name, .. } => {
+                            state.enter_preparation(name, Preparation::Initializing);
+                        }
+                        EngineEvent::TaskLocalizing { name } => {
+                            state.enter_preparation(name, Preparation::Localizing);
+                        }
+                        EngineEvent::ReusedCachedExecutionResult { name, .. } => {
+                            state.depart(&Arc::new(name));
                             state.cached += 1;
                         }
                         EngineEvent::TaskParked => {

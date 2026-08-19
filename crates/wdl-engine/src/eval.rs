@@ -324,13 +324,53 @@ impl Default for CancellationContext {
     }
 }
 
+/// The prefix of the name given to a task a backend runs on its own behalf
+/// rather than on behalf of a WDL task.
+///
+/// The Docker backend's `chown` of a work directory is one: it is submitted to
+/// Crankshaft and reported through [`CrankshaftEvent`] like any other task,
+/// even though no WDL task corresponds to it. Consumers that describe a run's
+/// tasks should ignore any Crankshaft task whose name carries this prefix,
+/// since the engine never announces one through [`EngineEvent`].
+///
+/// The prefix contains a `.`, which a name minted for a WDL task can never
+/// contain: those names are a WDL call path, whose segments are WDL
+/// identifiers joined by `-`, followed by a `-` and an alphanumeric suffix.
+pub const CLEANUP_TASK_NAME_PREFIX: &str = "cleanup.";
+
 /// Represents an event from the WDL evaluation engine.
 #[derive(Debug, Clone)]
 pub enum EngineEvent {
+    /// A task has started evaluation of an execution attempt.
+    ///
+    /// This is the first event emitted for any attempt and precedes both
+    /// input localization and submission of the task to the backend.
+    TaskInitializing {
+        /// The id of the task being evaluated.
+        id: String,
+        /// The unique name of the task for this attempt.
+        ///
+        /// This is the same name later reported by
+        /// [`CrankshaftEvent::TaskCreated`] when the attempt reaches the
+        /// backend.
+        name: String,
+    },
+    /// A task has started localizing its inputs.
+    ///
+    /// Depending on the backend, localizing means either downloading remote
+    /// inputs to the host or digesting and uploading local inputs to remote
+    /// storage. The event is only emitted when there is at least one input to
+    /// transfer.
+    TaskLocalizing {
+        /// The unique name of the task for this attempt.
+        name: String,
+    },
     /// A cached task execution result was reused due to a call cache hit.
     ReusedCachedExecutionResult {
         /// The id of the task that reused a cached execution result.
         id: String,
+        /// The unique name of the task for this attempt.
+        name: String,
     },
     /// A locally running task has been parked by the engine due to insufficient
     /// resources.

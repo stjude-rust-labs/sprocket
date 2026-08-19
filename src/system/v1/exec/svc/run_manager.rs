@@ -449,7 +449,7 @@ async fn cancel_run(
 
     if !matches!(
         run.status,
-        RunStatus::Running | RunStatus::Queued | RunStatus::Canceling
+        RunStatus::Running | RunStatus::Analyzing | RunStatus::Queued | RunStatus::Canceling
     ) {
         return Err(CancelRunError::InvalidStatus {
             id,
@@ -469,9 +469,11 @@ async fn cancel_run(
             // Getting a `Waiting` state means that we're in lazy
             // cancellation mode. In this case, we should report to the
             // database that we're in the process of canceling
-            // (`Canceling`).
+            // (`Canceling`), unless the run reached its outcome in the
+            // meantime: the run was already signaled above, and work that is
+            // not a task execution — a transfer, say — stops right away.
             CancellationContextState::Waiting => {
-                db.update_run_status(id, RunStatus::Canceling).await?;
+                let _ = db.mark_run_canceling(id).await?;
             }
             // If we we `Canceling` back from the call, that means the task
             // is being actively canceled. As such, we can mark it as

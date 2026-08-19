@@ -35,15 +35,17 @@ use super::PullResults;
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
+#[cfg(unix)]
+use crate::CLEANUP_TASK_NAME_PREFIX;
 use crate::CancellationContext;
 use crate::EvaluationPath;
 use crate::Events;
+use crate::INITIAL_EXPECTED_NAMES;
 use crate::ONE_GIBIBYTE;
 use crate::Object;
 use crate::PrimitiveValue;
 use crate::TaskInputs;
 use crate::backend::ExecuteTaskRequest;
-use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::backend::manager::TaskManager;
 use crate::config::Config;
 use crate::config::TaskResourceLimitBehavior;
@@ -504,8 +506,6 @@ pub struct DockerBackend {
     max_memory: u64,
     /// The task manager for the backend.
     manager: TaskManager,
-    /// The name generator for tasks.
-    names: Arc<Mutex<GeneratorIterator<UniqueAlphanumeric>>>,
 }
 
 impl DockerBackend {
@@ -569,7 +569,6 @@ impl DockerBackend {
             max_cpu,
             max_memory,
             manager,
-            names,
         })
     }
 }
@@ -706,23 +705,14 @@ impl TaskExecutionBackend for DockerBackend {
                 .ok_or_else(|| anyhow::anyhow!("{results}"))?;
             let container = container.clone();
 
-            let name = format!(
-                "{id}-{generated}",
-                id = request.id,
-                generated = self
-                    .names
-                    .lock()
-                    .expect("generator should always acquire")
-                    .next()
-                    .expect("generator should never be exhausted")
-            );
+            let task_name = request.name.to_string();
 
             let task = DockerTask {
                 config: self.config.clone(),
                 request,
                 container,
                 backend: self.inner.clone(),
-                name,
+                name: task_name.clone(),
                 max_cpu,
                 max_memory,
                 gpu,
@@ -734,15 +724,7 @@ impl TaskExecutionBackend for DockerBackend {
                     // The task completed, perform cleanup on unix platforms
                     #[cfg(unix)]
                     {
-                        let name = format!(
-                            "docker-chown-{id}",
-                            id = self
-                                .names
-                                .lock()
-                                .expect("generator should always acquire")
-                                .next()
-                                .expect("generator should never be exhausted")
-                        );
+                        let name = format!("{CLEANUP_TASK_NAME_PREFIX}chown-{task_name}");
 
                         let task = CleanupTask {
                             name,
