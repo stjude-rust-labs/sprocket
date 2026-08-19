@@ -1,0 +1,20 @@
+error: literal strings cannot contain tab characters
+   ┌─ tests/validation/strings-in-metadata/source.wdl:43:29
+   │
+43 │         raw_tab: "this has a    tab"
+   │                             ^^^^ escape this tab with `/t`
+
+error: literal strings cannot contain newline characters
+   ┌─ tests/validation/strings-in-metadata/source.wdl:44:33
+   │  
+44 │           raw_newline: "this has a
+   │ ╭────────────────────────────────^
+45 │ │             newline"
+   │ ╰^ escape this newline with `/n`
+
+error: unknown escape sequence `/.`
+   ┌─ tests/validation/strings-in-metadata/source.wdl:57:21
+   │
+57 │     String regex = "/.bam$"
+   │                     ^^ this is not a valid WDL escape sequence
+
