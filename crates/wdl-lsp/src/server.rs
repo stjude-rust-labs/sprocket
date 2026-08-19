@@ -29,6 +29,7 @@ use async_lsp::tracing::TracingLayer;
 use futures::future::BoxFuture;
 use serde::Deserialize;
 use serde::Deserializer;
+use serde_json::Value;
 use serde_json::to_value;
 use struct_patch::Patch;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -58,7 +59,10 @@ use wdl_analysis::path_to_uri;
 use wdl_lint::Linter;
 use wdl_lint::Rule;
 
+use crate::handlers;
 use crate::proto;
+use crate::test::SprocketTestCache;
+use crate::test::is_sprocket_test_file;
 
 /// Normalizes the path of a URI.
 ///
@@ -387,13 +391,15 @@ pub type FilterReloadHandle<S> = tracing_subscriber::reload::Handle<EnvFilter, S
 
 /// Mutable server state.
 #[derive(Debug)]
-struct ServerState<S> {
+pub(crate) struct ServerState<S> {
     /// The current set of workspace folders.
     folders: Vec<WorkspaceFolder>,
     /// Mutable configuration fields.
     config: ServerConfig,
     /// Level filter reload handle.
     log_handle: Option<FilterReloadHandle<S>>,
+    /// Known `sprocket dev test` YAML files.
+    pub(crate) test_yamls: SprocketTestCache,
 }
 
 impl<S> ServerState<S> {
@@ -648,6 +654,77 @@ enum Message {
     Request(Request),
 }
 
+/// Server-defined commands to send to the client.
+pub(crate) enum Command {
+    /// Run a single test.
+    TestIndividual {
+        /// The source WDL file URI.
+        source: Url,
+        /// The entrypoint the test lives under.
+        target: String,
+        /// The filter to apply when running the test.
+        filter: String,
+    },
+    /// Run all tests under an entrypoint.
+    TestEntrypoint {
+        /// The source WDL file URI.
+        source: Url,
+        /// The test entrypoint to run.
+        target: String,
+    },
+}
+
+impl Command {
+    /// Get the title of the command, shown to the user by the client.
+    fn title(&self) -> String {
+        match self {
+            Command::TestIndividual { filter, .. } => format!("Run test '{filter}'"),
+            Command::TestEntrypoint { target, .. } => format!("Run '{target}' tests"),
+        }
+    }
+
+    /// Get the command to run.
+    fn command(&self) -> &'static str {
+        match self {
+            Command::TestEntrypoint { .. } => "sprocket.testTarget",
+            Command::TestIndividual { .. } => "sprocket.testSingle",
+        }
+    }
+
+    /// Get the command's arguments.
+    fn args(&self) -> Vec<Value> {
+        match self {
+            Command::TestIndividual {
+                source,
+                target,
+                filter,
+            } => {
+                vec![
+                    Value::String(source.to_string()),
+                    Value::String(target.clone()),
+                    Value::String(filter.clone()),
+                ]
+            }
+            Command::TestEntrypoint { source, target } => {
+                vec![
+                    Value::String(source.to_string()),
+                    Value::String(target.clone()),
+                ]
+            }
+        }
+    }
+}
+
+impl From<Command> for async_lsp::lsp_types::Command {
+    fn from(input: Command) -> Self {
+        async_lsp::lsp_types::Command {
+            title: input.title(),
+            command: input.command().to_string(),
+            arguments: Some(input.args()),
+        }
+    }
+}
+
 impl<S: 'static> Server<S> {
     /// Creates a new WDL language server.
     ///
@@ -670,6 +747,7 @@ impl<S: 'static> Server<S> {
                 analyzer,
             },
             log_handle,
+            test_yamls: SprocketTestCache::default(),
         }));
 
         let state_clone = state.clone();
@@ -933,22 +1011,6 @@ impl<S: 'static> Server<S> {
         }
     }
 
-    /// `textDocument/codeLens` request handler.
-    async fn code_lens(
-        params: CodeLensParams,
-        tx: RequestResponseSender<Option<Vec<CodeLens>>>,
-        state: &ServerState<S>,
-    ) {
-        let result = state
-            .config
-            .analyzer
-            .code_lens(params.text_document.uri)
-            .await
-            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
-
-        let _ = tx.send(result);
-    }
-
     /// `textDocument/completion` request handler.
     async fn completion(
         mut params: CompletionParams,
@@ -1105,15 +1167,40 @@ impl<S: 'static> Server<S> {
 
         let _ = tx.send(result);
     }
+}
+
+impl<S: 'static> Server<S> {
+    /// `textDocument/codeLens` request handler.
+    async fn code_lens(
+        params: CodeLensParams,
+        tx: RequestResponseSender<Option<Vec<CodeLens>>>,
+        state: &ServerState<S>,
+    ) {
+        if is_sprocket_test_file(&params.text_document.uri) {
+            let _ = tx.send(
+                handlers::code_lens::code_lens(params.text_document.uri, state)
+                    .await
+                    .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e)),
+            );
+            return;
+        }
+
+        let result = state
+            .config
+            .analyzer
+            .code_lens(params.text_document.uri)
+            .await
+            .map_err(|e| ResponseError::new(ErrorCode::INTERNAL_ERROR, e));
+
+        let _ = tx.send(result);
+    }
 
     /// `textDocument/hover` request handler.
     async fn hover(
-        mut params: HoverParams,
+        params: HoverParams,
         tx: RequestResponseSender<Option<Hover>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
             params.text_document_position_params.position.character,
@@ -1135,12 +1222,10 @@ impl<S: 'static> Server<S> {
 
     /// `callHierarchy/incomingCalls` request handler.
     async fn incoming_calls(
-        mut params: CallHierarchyIncomingCallsParams,
+        params: CallHierarchyIncomingCallsParams,
         tx: RequestResponseSender<Option<Vec<CallHierarchyIncomingCall>>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.item.uri);
-
         let position = SourcePosition::new(
             params.item.selection_range.start.line,
             params.item.selection_range.start.character,
@@ -1158,12 +1243,10 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/inlayHint` request handler.
     async fn inlay_hint(
-        mut params: InlayHintParams,
+        params: InlayHintParams,
         tx: RequestResponseSender<Option<Vec<InlayHint>>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document.uri);
-
         // Analyze the document first to ensure we have up-to-date information
         if let Err(e) = state.config.analyzer.analyze(ProgressToken(None)).await {
             let _ = tx.send(Err(ResponseError::new(ErrorCode::INTERNAL_ERROR, e)));
@@ -1182,12 +1265,10 @@ impl<S: 'static> Server<S> {
 
     /// `callHierarchy/outgoingCalls` request handler.
     async fn outgoing_calls(
-        mut params: CallHierarchyOutgoingCallsParams,
+        params: CallHierarchyOutgoingCallsParams,
         tx: RequestResponseSender<Option<Vec<CallHierarchyOutgoingCall>>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.item.uri);
-
         let position = SourcePosition::new(
             params.item.selection_range.start.line,
             params.item.selection_range.start.character,
@@ -1205,12 +1286,10 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/prepareCallHierarchy` request handler.
     async fn prepare_call_hierarchy(
-        mut params: CallHierarchyPrepareParams,
+        params: CallHierarchyPrepareParams,
         tx: RequestResponseSender<Option<Vec<CallHierarchyItem>>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
             params.text_document_position_params.position.character,
@@ -1232,12 +1311,10 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/references` request handler.
     async fn references(
-        mut params: ReferenceParams,
+        params: ReferenceParams,
         tx: RequestResponseSender<Option<Vec<Location>>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
-
         let position = SourcePosition::new(
             params.text_document_position.position.line,
             params.text_document_position.position.character,
@@ -1260,12 +1337,10 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/rename` request handler.
     async fn rename(
-        mut params: RenameParams,
+        params: RenameParams,
         tx: RequestResponseSender<Option<WorkspaceEdit>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document_position.text_document.uri);
-
         let position = SourcePosition::new(
             params.text_document_position.position.line,
             params.text_document_position.position.character,
@@ -1288,12 +1363,10 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/semanticTokens/full` request handler.
     async fn semantic_tokens_full(
-        mut params: SemanticTokensParams,
+        params: SemanticTokensParams,
         tx: RequestResponseSender<Option<SemanticTokensResult>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document.uri);
-
         let result = state
             .config
             .analyzer
@@ -1306,12 +1379,10 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/signatureHelp` request handler.
     async fn signature_help(
-        mut params: SignatureHelpParams,
+        params: SignatureHelpParams,
         tx: RequestResponseSender<Option<SignatureHelp>>,
         state: &ServerState<S>,
     ) {
-        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
-
         let position = SourcePosition::new(
             params.text_document_position_params.position.line,
             params.text_document_position_params.position.character,
@@ -1376,8 +1447,20 @@ impl<S: 'static> Server<S> {
     }
 
     /// `textDocument/didOpen` notification handler.
-    async fn did_open(mut params: DidOpenTextDocumentParams, state: &ServerState<S>) {
-        normalize_uri_path(&mut params.text_document.uri);
+    async fn did_open(params: DidOpenTextDocumentParams, state: &ServerState<S>) {
+        if is_sprocket_test_file(&params.text_document.uri) {
+            if let Err(e) = state
+                .test_yamls
+                .open(params.text_document.uri.clone())
+                .await
+            {
+                error!(
+                    "failed to open document {uri}: {e}",
+                    uri = params.text_document.uri
+                );
+            }
+            return;
+        }
 
         if let Err(e) = state
             .config
@@ -1404,8 +1487,8 @@ impl<S: 'static> Server<S> {
     }
 
     /// `textDocument/didClose` notification handler.
-    async fn did_close(mut params: DidCloseTextDocumentParams, state: &ServerState<S>) {
-        normalize_uri_path(&mut params.text_document.uri);
+    async fn did_close(params: DidCloseTextDocumentParams, state: &ServerState<S>) {
+        state.test_yamls.close(&params.text_document.uri).await;
 
         if let Err(e) = state
             .config
@@ -1418,7 +1501,16 @@ impl<S: 'static> Server<S> {
 
     /// `textDocument/didChange` notification handler.
     async fn did_change(mut params: DidChangeTextDocumentParams, state: &ServerState<S>) {
-        normalize_uri_path(&mut params.text_document.uri);
+        if is_sprocket_test_file(&params.text_document.uri) {
+            if let Err(e) = state
+                .test_yamls
+                .change(params.text_document.uri.clone(), params.content_changes)
+                .await
+            {
+                error!("failed to apply change: {e}");
+            }
+            return;
+        }
 
         debug!(
             "document `{uri}` is now client version {version}",
@@ -1596,6 +1688,18 @@ impl<S: 'static> Server<S> {
     }
 }
 
+/// Converts a URI into a WDL file path.
+fn to_wdl_file_path(uri: &Url) -> Option<PathBuf> {
+    if let Ok(path) = uri.to_file_path()
+        && path.is_file()
+        && path.extension().and_then(OsStr::to_str) == Some("wdl")
+    {
+        return Some(path);
+    }
+
+    None
+}
+
 impl<S: 'static> LanguageServer for Server<S> {
     type Error = ResponseError;
     type NotifyResult = ControlFlow<async_lsp::Result<()>>;
@@ -1715,10 +1819,9 @@ impl<S: 'static> LanguageServer for Server<S> {
                     inlay_hint_provider: Some(OneOf::Left(true)),
                     call_hierarchy_provider: Some(CallHierarchyServerCapability::Simple(true)),
                     folding_range_provider: Some(FoldingRangeProviderCapability::Simple(true)),
-                    // TODO(serial): Actually advertise code lens support when extensions are
-                    // updated code_lens_provider: Some(CodeLensOptions {
-                    //     resolve_provider: Some(false),
-                    // }),
+                    code_lens_provider: Some(CodeLensOptions {
+                        resolve_provider: Some(false),
+                    }),
                     ..Default::default()
                 },
                 server_info: Some(info),
@@ -1744,32 +1847,88 @@ impl<S: 'static> LanguageServer for Server<S> {
         })
     }
 
-    fn code_lens(
+    fn folding_range(
         &mut self,
-        params: CodeLensParams,
-    ) -> BoxFuture<'static, Result<Option<Vec<CodeLens>>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::CodeLens { params, tx }))
+        mut params: FoldingRangeParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<FoldingRange>>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document.uri);
+        self.request(move |tx| Message::Request(Request::FoldingRange { params, tx }))
+    }
+
+    fn prepare_call_hierarchy(
+        &mut self,
+        mut params: CallHierarchyPrepareParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyItem>>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+        if to_wdl_file_path(&params.text_document_position_params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::PrepareCallHierarchy { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
+    }
+
+    fn incoming_calls(
+        &mut self,
+        mut params: CallHierarchyIncomingCallsParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyIncomingCall>>, Self::Error>> {
+        normalize_uri_path(&mut params.item.uri);
+        if to_wdl_file_path(&params.item.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::IncomingCalls { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
+    }
+
+    fn outgoing_calls(
+        &mut self,
+        mut params: CallHierarchyOutgoingCallsParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyOutgoingCall>>, Self::Error>> {
+        normalize_uri_path(&mut params.item.uri);
+        if to_wdl_file_path(&params.item.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::OutgoingCalls { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn semantic_tokens_full(
         &mut self,
-        params: SemanticTokensParams,
+        mut params: SemanticTokensParams,
     ) -> BoxFuture<'static, Result<Option<SemanticTokensResult>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::SemanticTokensFull { params, tx }))
+        normalize_uri_path(&mut params.text_document.uri);
+        if to_wdl_file_path(&params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::SemanticTokensFull { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn inlay_hint(
         &mut self,
-        params: InlayHintParams,
+        mut params: InlayHintParams,
     ) -> BoxFuture<'static, Result<Option<Vec<InlayHint>>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::InlayHint { params, tx }))
+        normalize_uri_path(&mut params.text_document.uri);
+        if to_wdl_file_path(&params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::InlayHint { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn document_diagnostic(
         &mut self,
-        params: DocumentDiagnosticParams,
+        mut params: DocumentDiagnosticParams,
     ) -> BoxFuture<'static, Result<DocumentDiagnosticReportResult, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::DocumentDiagnostic { params, tx }))
+        normalize_uri_path(&mut params.text_document.uri);
+        if to_wdl_file_path(&params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::DocumentDiagnostic { params, tx }))
+        } else {
+            Box::pin(async {
+                Ok(DocumentDiagnosticReportResult::Report(
+                    DocumentDiagnosticReport::Full(RelatedFullDocumentDiagnosticReport::default()),
+                ))
+            })
+        }
     }
 
     fn workspace_diagnostic(
@@ -1781,72 +1940,74 @@ impl<S: 'static> LanguageServer for Server<S> {
 
     fn completion(
         &mut self,
-        params: CompletionParams,
+        mut params: CompletionParams,
     ) -> BoxFuture<'static, Result<Option<CompletionResponse>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::Completion { params, tx }))
-    }
-
-    fn prepare_call_hierarchy(
-        &mut self,
-        params: CallHierarchyPrepareParams,
-    ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyItem>>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::PrepareCallHierarchy { params, tx }))
-    }
-
-    fn incoming_calls(
-        &mut self,
-        params: CallHierarchyIncomingCallsParams,
-    ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyIncomingCall>>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::IncomingCalls { params, tx }))
-    }
-
-    fn outgoing_calls(
-        &mut self,
-        params: CallHierarchyOutgoingCallsParams,
-    ) -> BoxFuture<'static, Result<Option<Vec<CallHierarchyOutgoingCall>>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::OutgoingCalls { params, tx }))
+        normalize_uri_path(&mut params.text_document_position.text_document.uri);
+        if to_wdl_file_path(&params.text_document_position.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::Completion { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn hover(
         &mut self,
-        params: HoverParams,
+        mut params: HoverParams,
     ) -> BoxFuture<'static, Result<Option<Hover>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::Hover { params, tx }))
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+        if to_wdl_file_path(&params.text_document_position_params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::Hover { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn signature_help(
         &mut self,
-        params: SignatureHelpParams,
+        mut params: SignatureHelpParams,
     ) -> BoxFuture<'static, Result<Option<SignatureHelp>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::SignatureHelp { params, tx }))
-    }
-
-    fn folding_range(
-        &mut self,
-        params: FoldingRangeParams,
-    ) -> BoxFuture<'static, Result<Option<Vec<FoldingRange>>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::FoldingRange { params, tx }))
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+        if to_wdl_file_path(&params.text_document_position_params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::SignatureHelp { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn definition(
         &mut self,
-        params: GotoDefinitionParams,
+        mut params: GotoDefinitionParams,
     ) -> BoxFuture<'static, Result<Option<GotoDefinitionResponse>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::Definition { params, tx }))
+        normalize_uri_path(&mut params.text_document_position_params.text_document.uri);
+        if to_wdl_file_path(&params.text_document_position_params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::Definition { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn references(
         &mut self,
-        params: ReferenceParams,
+        mut params: ReferenceParams,
     ) -> BoxFuture<'static, Result<Option<Vec<Location>>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::References { params, tx }))
+        normalize_uri_path(&mut params.text_document_position.text_document.uri);
+        if to_wdl_file_path(&params.text_document_position.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::References { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn document_symbol(
         &mut self,
-        params: DocumentSymbolParams,
+        mut params: DocumentSymbolParams,
     ) -> BoxFuture<'static, Result<Option<DocumentSymbolResponse>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::DocumentSymbol { params, tx }))
+        normalize_uri_path(&mut params.text_document.uri);
+        if to_wdl_file_path(&params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::DocumentSymbol { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn symbol(
@@ -1856,18 +2017,36 @@ impl<S: 'static> LanguageServer for Server<S> {
         self.request(move |tx| Message::Request(Request::Symbol { params, tx }))
     }
 
+    fn code_lens(
+        &mut self,
+        mut params: CodeLensParams,
+    ) -> BoxFuture<'static, Result<Option<Vec<CodeLens>>, Self::Error>> {
+        normalize_uri_path(&mut params.text_document.uri);
+        self.request(move |tx| Message::Request(Request::CodeLens { params, tx }))
+    }
+
     fn formatting(
         &mut self,
-        params: DocumentFormattingParams,
+        mut params: DocumentFormattingParams,
     ) -> BoxFuture<'static, Result<Option<Vec<TextEdit>>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::Formatting { params, tx }))
+        normalize_uri_path(&mut params.text_document.uri);
+        if to_wdl_file_path(&params.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::Formatting { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn rename(
         &mut self,
-        params: RenameParams,
+        mut params: RenameParams,
     ) -> BoxFuture<'static, Result<Option<WorkspaceEdit>, Self::Error>> {
-        self.request(move |tx| Message::Request(Request::Rename { params, tx }))
+        normalize_uri_path(&mut params.text_document_position.text_document.uri);
+        if to_wdl_file_path(&params.text_document_position.text_document.uri).is_some() {
+            self.request(move |tx| Message::Request(Request::Rename { params, tx }))
+        } else {
+            Box::pin(async { Ok(None) })
+        }
     }
 
     fn initialized(&mut self, _: InitializedParams) -> Self::NotifyResult {
@@ -1939,15 +2118,18 @@ impl<S: 'static> LanguageServer for Server<S> {
         )))
     }
 
-    fn did_open(&mut self, params: DidOpenTextDocumentParams) -> Self::NotifyResult {
+    fn did_open(&mut self, mut params: DidOpenTextDocumentParams) -> Self::NotifyResult {
+        normalize_uri_path(&mut params.text_document.uri);
         self.queue(Message::Notification(Notification::DidOpen(params)))
     }
 
-    fn did_change(&mut self, params: DidChangeTextDocumentParams) -> Self::NotifyResult {
+    fn did_change(&mut self, mut params: DidChangeTextDocumentParams) -> Self::NotifyResult {
+        normalize_uri_path(&mut params.text_document.uri);
         self.queue(Message::Notification(Notification::DidChange(params)))
     }
 
-    fn did_close(&mut self, params: DidCloseTextDocumentParams) -> Self::NotifyResult {
+    fn did_close(&mut self, mut params: DidCloseTextDocumentParams) -> Self::NotifyResult {
+        normalize_uri_path(&mut params.text_document.uri);
         self.queue(Message::Notification(Notification::DidClose(params)))
     }
 
