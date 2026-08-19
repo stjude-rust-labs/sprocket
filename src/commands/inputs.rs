@@ -461,9 +461,7 @@ impl InputProcessor {
 pub async fn inputs(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     let source = match args.source {
-        Source::Directory(ref dir) => {
-            crate::analysis::resolve_module_entrypoint(dir, config.common.wdl.feature_flags)?
-        }
+        Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
     };
 

@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* `ImportedTask` and `ImportedWorkflow` are now public and expose `name()`,
+  `document()`, and source accessors, while `Document::imported_task_by_name`
+  and `Document::imported_workflow_by_name` are now public
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+
+#### Changed
+
+* An import must now share the importing document's major version and have a
+  minor version no greater than it; importing a newer minor version is rejected
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+
+#### Fixed
+
+* A task or workflow re-exported into a document through two scope-merging
+  imports that denote the same underlying declaration is no longer a spurious
+  conflict, so diamond-shaped import graphs resolve
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* A form-1 (namespaced) import now exposes the imported document's re-exported
+  tasks and workflows, so `call ns.reexported_task` resolves
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* Unknown unqualified calls are no longer reported when a wildcard import
+  fails to resolve, since the call may have originated from the missing import
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+
 ## 0.24.0 - 2026-08-05
 
 ### Fixed

@@ -3,9 +3,9 @@
 //! A documented workspace may contain one or more WDL modules (directories
 //! with a `module.json` manifest). This module discovers them by recursively
 //! scanning the workspace, so documentation generation can label module
-//! directories with their names and versions and render a module overview —
-//! whether a module sits at the workspace root or is nested within it (e.g. a
-//! monorepo of sibling modules under a manifest-less root).
+//! directories with their names and render a module overview, whether a module
+//! sits at the workspace root or is nested within it, such as a monorepo of
+//! sibling modules under a manifest-less root.
 
 use std::collections::BTreeMap;
 use std::path::Path;
@@ -25,8 +25,6 @@ pub(crate) struct ModuleMetadata {
     root: PathBuf,
     /// The module's display name.
     name: String,
-    /// The module version.
-    version: String,
     /// A brief description of the module.
     description: Option<String>,
     /// The path to the module's entrypoint WDL file, relative to
@@ -40,7 +38,6 @@ impl From<(&Module, PathBuf)> for ModuleMetadata {
         Self {
             root,
             name: manifest.name.clone(),
-            version: manifest.version.to_string(),
             description: manifest.description.clone(),
             entrypoint: manifest.entrypoint_filename().to_path_buf(),
         }
@@ -56,11 +53,6 @@ impl ModuleMetadata {
     /// Returns the module's display name.
     pub(crate) fn name(&self) -> &str {
         &self.name
-    }
-
-    /// Returns the module version.
-    pub(crate) fn version(&self) -> &str {
-        &self.version
     }
 
     /// Returns the module's description, if any.
@@ -271,7 +263,6 @@ mod tests {
         let metadata = WorkspaceMetadata::load(dir.path()).unwrap().unwrap();
 
         assert_eq!(metadata.root().unwrap().name(), "spellcraft-showcase");
-        assert_eq!(metadata.root().unwrap().version(), "1.0.0");
         assert_eq!(
             metadata
                 .module_for_document(Path::new("modules/wards/wards.wdl"))

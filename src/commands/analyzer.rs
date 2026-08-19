@@ -62,11 +62,8 @@ pub async fn analyzer(
     args.apply(&config);
 
     let cwd = std::env::current_dir().map_err(anyhow::Error::from)?;
-    let resolution_context = crate::analysis::resolution_context_from_paths(
-        &config.modules,
-        &config.common.wdl.feature_flags,
-        &[cwd],
-    )?;
+    let resolution_context =
+        crate::analysis::resolution_context_from_paths(&config.modules, &[cwd])?;
 
     Server::<Subscriber>::run(
         ServerOptions {
