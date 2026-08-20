@@ -50,6 +50,7 @@ use crate::system::v1::db::Session;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::db::SqliteDatabase;
 use crate::system::v1::exec::svc::TaskMonitorSvc;
+use crate::system::v1::fs::IndexPath;
 use crate::system::v1::fs::OutputDirectory;
 use crate::system::v1::fs::RunDirectory;
 
@@ -387,8 +388,8 @@ pub struct RunnableExecutor {
     target: Option<String>,
     /// The engine inputs.
     inputs: JsonObject,
-    /// Index key for result indexing, if requested.
-    index_on: Option<String>,
+    /// The index path to index the run outputs under, if requested.
+    index_on: Option<IndexPath>,
     /// The diagnostic reporting mode.
     report_mode: Mode,
     /// Whether to colorize diagnostics.
@@ -604,7 +605,7 @@ impl RunnableExecutor {
             inputs,
             &run_dir,
             &base_dir,
-            self.index_on.as_deref(),
+            self.index_on.as_ref(),
         )
         .await
         {
@@ -722,7 +723,7 @@ async fn set_run_success(
     target: &Target,
     outputs: Outputs,
     run_dir: &RunDirectory,
-    index_on: Option<&str>,
+    index_on: Option<&IndexPath>,
 ) -> Result<()> {
     // Serialize outputs
     let outputs_with_name = outputs.with_name(target.name());
@@ -738,11 +739,9 @@ async fn set_run_success(
     let outputs_str = serde_json::to_string(&outputs_json)?;
     db.update_run_outputs(ctx.run_id, &outputs_str).await?;
 
-    let output_dir = run_dir.output_directory();
-
     // Create the index entries if index_on was provided
     if let Some(index_on) = index_on {
-        crate::system::v1::fs::index::create_index_entries(
+        let index_dir = crate::system::v1::fs::index::create_index_entries(
             db,
             ctx.run_id,
             run_dir,
@@ -753,14 +752,8 @@ async fn set_run_success(
         .context("failed to create index entry")?;
 
         // Update the index directory in the database after successful indexing
-        let index_dir = output_dir
-            .ensure_index_dir(index_on)
-            .context("failed to ensure index directory")?;
-        let relative_index_dir = output_dir
-            .make_relative_to(&index_dir)
-            .expect("index directory should be within output directory");
         let updated = db
-            .update_run_index_directory(ctx.run_id, &relative_index_dir)
+            .update_run_index_directory(ctx.run_id, &index_dir)
             .await
             .context("failed to update run index directory")?;
         if !updated {
@@ -929,7 +922,7 @@ async fn execute_task_target(
 /// - `base_dir` is the directory from which relative paths in inputs should be
 ///   resolved. For the server, this is typically the server's working
 ///   directory. For the CLI, paths should already be absolute.
-/// - `index_on` is the key to index results on, if provided.
+/// - `index_on` is the index path to index the run outputs under, if provided.
 #[allow(clippy::too_many_arguments)]
 pub async fn execute_target(
     db: Arc<dyn Database>,
@@ -942,7 +935,7 @@ pub async fn execute_target(
     inputs: Inputs,
     run_dir: &RunDirectory,
     base_dir: &EvaluationPath,
-    index_on: Option<&str>,
+    index_on: Option<&IndexPath>,
 ) -> Result<(), EvaluationError> {
     let config = Arc::new(config);
     let cancellation_status = cancellation.clone();

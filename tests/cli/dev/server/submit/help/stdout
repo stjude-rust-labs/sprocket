@@ -33,10 +33,10 @@ Options:
 
           If `target` is specified, it will be appended with a `.` delimiter and then prepended to all key-value pair inputs on the command line. Keys specified within files are unchanged by this argument.
 
-      --index-on <OUTPUT_NAME>
-          The output name to index on.
-
-          If provided, the server will index the run outputs using the specified output name as the key.
+      --index-on <INDEX_PATH>
+          The index path to index the run outputs under.
+          
+          If provided, the server symlinks the run outputs into the `index` directory of its output directory at this path. The path must be relative and cannot contain `.` or `..` components.
 
   -m, --report-mode <MODE>
           The report mode

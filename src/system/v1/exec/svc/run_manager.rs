@@ -37,6 +37,7 @@ use crate::system::v1::exec::RunnableExecutor;
 use crate::system::v1::exec::create_run_record;
 use crate::system::v1::exec::create_session;
 use crate::system::v1::exec::validate_source;
+use crate::system::v1::fs::IndexPath;
 use crate::system::v1::fs::OutputDirectory;
 
 pub(crate) mod commands;
@@ -394,7 +395,7 @@ impl RunManagerSvc {
         source: String,
         inputs: JsonObject,
         target: Option<String>,
-        index_on: Option<String>,
+        index_on: Option<IndexPath>,
     ) -> Result<SubmitResponse, SubmitRunError> {
         let source = match validate_source(&source, &self.config)? {
             Source::Directory(dir) => crate::analysis::resolve_module_entrypoint(&dir)

@@ -7,6 +7,7 @@ use anyhow::Result;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::SprocketCommand;
 use sprocket::system::v1::db::SqliteDatabase;
+use sprocket::system::v1::fs::IndexPath;
 use sprocket::system::v1::fs::OutputDirectory;
 use sprocket::system::v1::fs::create_index_entries;
 use sqlx::SqlitePool;
@@ -29,6 +30,13 @@ mod rebuild;
 /// assertions.
 fn normalize_path(path: &str) -> String {
     path.replace('\\', "/")
+}
+
+/// Parses an index path for use in a test.
+fn index_path(path: &str) -> IndexPath {
+    // SAFETY: every index path used in these tests is a relative path made up
+    // of normal components.
+    path.parse().unwrap()
 }
 
 /// Helper to create a file output value and write the file.
@@ -97,9 +105,9 @@ async fn create_index_with_files(pool: SqlitePool) -> Result<()> {
     .into_iter()
     .collect();
 
-    create_index_entries(&db, run_id, &run_dir, "yak", &outputs).await?;
+    create_index_entries(&db, run_id, &run_dir, &index_path("yak"), &outputs).await?;
 
-    let index_dir = output_dir.index_dir("yak");
+    let index_dir = output_dir.index_dir(&index_path("yak"));
     assert!(index_dir.join("outputs.json").exists());
     assert!(index_dir.join("outputs.json").is_symlink());
     assert!(index_dir.join("satisfaction_survey.tsv").exists());
@@ -174,9 +182,9 @@ async fn create_index_with_directory(pool: SqlitePool) -> Result<()> {
 
     let outputs: Outputs = [(name, value)].into_iter().collect();
 
-    create_index_entries(&db, run_id, &run_dir, "yak", &outputs).await?;
+    create_index_entries(&db, run_id, &run_dir, &index_path("yak"), &outputs).await?;
 
-    let index_dir = output_dir.index_dir("yak");
+    let index_dir = output_dir.index_dir(&index_path("yak"));
     let yak_link = index_dir.join("styled_yaks");
     assert!(yak_link.exists());
     assert!(yak_link.is_symlink());
@@ -252,9 +260,9 @@ async fn create_index_with_array_of_files(pool: SqlitePool) -> Result<()> {
     .into_iter()
     .collect();
 
-    create_index_entries(&db, run_id, &run_dir, "yak", &outputs).await?;
+    create_index_entries(&db, run_id, &run_dir, &index_path("yak"), &outputs).await?;
 
-    let index_dir = output_dir.index_dir("yak");
+    let index_dir = output_dir.index_dir(&index_path("yak"));
     assert!(index_dir.join("outputs.json").exists());
     assert!(index_dir.join("result1.txt").exists());
     assert!(index_dir.join("result1.txt").is_symlink());
@@ -330,7 +338,7 @@ async fn create_index_with_missing_files(pool: SqlitePool) -> Result<()> {
     .collect();
 
     // This should fail because neither of the output files exist
-    let result = create_index_entries(&db, run_id, &run_dir, "yak", &outputs).await;
+    let result = create_index_entries(&db, run_id, &run_dir, &index_path("yak"), &outputs).await;
 
     assert!(result.is_err());
     assert!(
@@ -385,12 +393,12 @@ async fn create_index_with_partial_db_failure(pool: SqlitePool) -> Result<()> {
     .collect();
 
     // This should fail because `styling_metrics.json` is missing
-    let result = create_index_entries(&db, run_id, &run_dir, "yak", &outputs).await;
+    let result = create_index_entries(&db, run_id, &run_dir, &index_path("yak"), &outputs).await;
 
     assert!(result.is_err());
 
     // Verify that the successful symlinks were created even though operation failed
-    let index_dir = output_dir.index_dir("yak");
+    let index_dir = output_dir.index_dir(&index_path("yak"));
     assert!(index_dir.join("outputs.json").exists());
     assert!(index_dir.join("satisfaction_survey.tsv").exists());
 
@@ -436,9 +444,16 @@ async fn create_index_with_nested_directory_structure(pool: SqlitePool) -> Resul
     .into_iter()
     .collect();
 
-    create_index_entries(&db, run_id, &run_dir, "dataset/experiment1", &outputs).await?;
+    create_index_entries(
+        &db,
+        run_id,
+        &run_dir,
+        &index_path("dataset/experiment1"),
+        &outputs,
+    )
+    .await?;
 
-    let index_dir = output_dir.index_dir("dataset/experiment1");
+    let index_dir = output_dir.index_dir(&index_path("dataset/experiment1"));
     assert!(index_dir.exists());
     assert!(index_dir.join("outputs.json").exists());
     assert!(index_dir.join("outputs.json").is_symlink());
@@ -450,7 +465,7 @@ async fn create_index_with_nested_directory_structure(pool: SqlitePool) -> Resul
 
     let entries = db.list_index_log_entries_by_run(run_id).await?;
     assert_eq!(entries.len(), 2);
-    assert!(entries[1].link_path.contains("dataset/experiment1"));
+    assert!(normalize_path(&entries[1].link_path).contains("dataset/experiment1"));
     assert!(entries[1].link_path.contains("output.txt"));
 
     Ok(())
@@ -489,9 +504,16 @@ async fn create_index_replaces_older_index(pool: SqlitePool) -> Result<()> {
     .into_iter()
     .collect();
 
-    create_index_entries(&db, run_id_1, &run_dir_1, "experiment", &outputs_1).await?;
+    create_index_entries(
+        &db,
+        run_id_1,
+        &run_dir_1,
+        &index_path("experiment"),
+        &outputs_1,
+    )
+    .await?;
 
-    let index_dir = output_dir.index_dir("experiment");
+    let index_dir = output_dir.index_dir(&index_path("experiment"));
     let content = fs::read_to_string(index_dir.join("result.txt"))?;
     assert_eq!(content, "old result");
 
@@ -522,7 +544,14 @@ async fn create_index_replaces_older_index(pool: SqlitePool) -> Result<()> {
     .into_iter()
     .collect();
 
-    create_index_entries(&db, run_id_2, &run_dir_2, "experiment", &outputs_2).await?;
+    create_index_entries(
+        &db,
+        run_id_2,
+        &run_dir_2,
+        &index_path("experiment"),
+        &outputs_2,
+    )
+    .await?;
 
     // Verify index now points to new workflow
     let content = fs::read_to_string(index_dir.join("result.txt"))?;
@@ -572,9 +601,9 @@ async fn create_index_with_empty_outputs(pool: SqlitePool) -> Result<()> {
 
     let outputs: Outputs = Outputs::default();
 
-    create_index_entries(&db, run_id, &run_dir, "yak", &outputs).await?;
+    create_index_entries(&db, run_id, &run_dir, &index_path("yak"), &outputs).await?;
 
-    let index_dir = output_dir.index_dir("yak");
+    let index_dir = output_dir.index_dir(&index_path("yak"));
     assert!(index_dir.exists());
     assert!(index_dir.join("outputs.json").exists());
     assert!(index_dir.join("outputs.json").is_symlink());
@@ -618,10 +647,10 @@ async fn create_index_with_special_characters_in_index_name(pool: SqlitePool) ->
     .into_iter()
     .collect();
 
-    let index_name = "my experiment_2024/batch 1_🎉";
-    create_index_entries(&db, run_id, &run_dir, index_name, &outputs).await?;
+    let index_name = index_path("my experiment_2024/batch 1_🎉");
+    create_index_entries(&db, run_id, &run_dir, &index_name, &outputs).await?;
 
-    let index_dir = output_dir.index_dir(index_name);
+    let index_dir = output_dir.index_dir(&index_name);
     assert!(index_dir.exists());
     assert!(index_dir.join("outputs.json").exists());
     assert!(index_dir.join("data.txt").exists());
@@ -632,7 +661,7 @@ async fn create_index_with_special_characters_in_index_name(pool: SqlitePool) ->
 
     let entries = db.list_index_log_entries_by_run(run_id).await?;
     assert_eq!(entries.len(), 2);
-    assert!(entries[1].link_path.contains(index_name));
+    assert!(entries[1].link_path.contains(&index_name.to_string()));
 
     Ok(())
 }
@@ -670,9 +699,16 @@ async fn create_index_with_symlink_collision(pool: SqlitePool) -> Result<()> {
     .into_iter()
     .collect();
 
-    create_index_entries(&db, run_id_1, &run_dir_1, "experiment", &outputs_1).await?;
+    create_index_entries(
+        &db,
+        run_id_1,
+        &run_dir_1,
+        &index_path("experiment"),
+        &outputs_1,
+    )
+    .await?;
 
-    let index_dir = output_dir.index_dir("experiment");
+    let index_dir = output_dir.index_dir(&index_path("experiment"));
     let content = fs::read_to_string(index_dir.join("result.txt"))?;
     assert_eq!(content, "first workflow result");
 
@@ -706,7 +742,14 @@ async fn create_index_with_symlink_collision(pool: SqlitePool) -> Result<()> {
     .into_iter()
     .collect();
 
-    create_index_entries(&db, run_id_2, &run_dir_2, "experiment", &outputs_2).await?;
+    create_index_entries(
+        &db,
+        run_id_2,
+        &run_dir_2,
+        &index_path("experiment"),
+        &outputs_2,
+    )
+    .await?;
 
     // Verify symlink was replaced and now points to second workflow
     let content = fs::read_to_string(index_dir.join("result.txt"))?;
@@ -715,6 +758,65 @@ async fn create_index_with_symlink_collision(pool: SqlitePool) -> Result<()> {
     // Verify only one result.txt symlink exists
     assert!(index_dir.join("result.txt").exists());
     assert!(index_dir.join("result.txt").is_symlink());
+
+    Ok(())
+}
+
+#[sqlx::test]
+async fn create_index_skips_outputs_outside_of_output_directory(pool: SqlitePool) -> Result<()> {
+    let temp = TempDir::new()?;
+    let output_dir = OutputDirectory::new(temp.path());
+    let db = SqliteDatabase::from_pool(pool).await?;
+
+    let session_id = Uuid::new_v4();
+    db.create_session(session_id, SprocketCommand::Run, "test_user")
+        .await?;
+
+    let run_id = Uuid::new_v4();
+    db.create_run(
+        run_id,
+        session_id,
+        "test",
+        "file://test.wdl",
+        Some("test_task"),
+        "{}",
+    )
+    .await?;
+
+    let run_dir = output_dir.ensure_workflow_run("test-workflow")?;
+    fs::write(run_dir.outputs_file(), "{}")?;
+
+    // An input that a task passes straight through to an output lives outside of
+    // the output directory.
+    let inputs = TempDir::new()?;
+    let input_file = inputs.path().join("reads.bam");
+    fs::write(&input_file, "reads")?;
+
+    let outputs: Outputs = [(
+        "reads".to_string(),
+        Value::Primitive(PrimitiveValue::File(HostPath::new(
+            input_file.to_str().expect("path should be utf-8"),
+        ))),
+    )]
+    .into_iter()
+    .collect();
+
+    let index_dir = create_index_entries(&db, run_id, &run_dir, &index_path("yak"), &outputs)
+        .await
+        .expect("outputs outside of the output directory should not fail indexing");
+    assert_eq!(normalize_path(&index_dir), "./index/yak");
+
+    // The run outputs are indexed, but the pass-through input is not.
+    let index_dir = output_dir.index_dir(&index_path("yak"));
+    assert!(index_dir.join("outputs.json").is_symlink());
+    assert!(!index_dir.join("reads.bam").exists());
+
+    let entries = db.list_index_log_entries_by_run(run_id).await?;
+    assert_eq!(entries.len(), 1);
+    assert_eq!(
+        normalize_path(&entries[0].link_path),
+        "./index/yak/outputs.json"
+    );
 
     Ok(())
 }

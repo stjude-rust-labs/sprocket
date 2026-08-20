@@ -16,6 +16,7 @@ use crate::commands::validate::validate_inputs;
 use crate::config::Config;
 use crate::server::SubmitRunRequest;
 use crate::server::paths;
+use crate::system::v1::fs::IndexPath;
 
 /// CLI arguments for specifying the body of the [`SubmitRunRequest`].
 #[derive(ClapArgs, Debug)]
@@ -49,12 +50,13 @@ pub struct SubmitRunRequestArgs {
     #[clap(short, long, value_name = "NAME")]
     target: Option<String>,
 
-    /// The output name to index on.
+    /// The index path to index the run outputs under.
     ///
-    /// If provided, the server will index the run outputs using the specified
-    /// output name as the key.
-    #[clap(long, value_name = "OUTPUT_NAME")]
-    index_on: Option<String>,
+    /// If provided, the server symlinks the run outputs into the `index`
+    /// directory of its output directory at this path. The path must be
+    /// relative and cannot contain `.` or `..` components.
+    #[clap(long, value_name = "INDEX_PATH")]
+    index_on: Option<IndexPath>,
 
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
@@ -145,7 +147,7 @@ pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult
         source: source_str,
         inputs: target_json_inputs,
         target: args.run_request_args.target,
-        index_on: args.run_request_args.index_on,
+        index_on: args.run_request_args.index_on.map(|path| path.to_string()),
     };
 
     let submit_response: serde_json::Value = send_json(
