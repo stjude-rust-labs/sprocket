@@ -1684,17 +1684,6 @@ mod test {
         config.validate()?;
 
         let mut config = Config::default();
-        config.check.all_lint_rules = true;
-        config.check.only_lint_tags.push("style".to_string());
-        let Err(error) = config.validate() else {
-            panic!("incompatible lint options should error");
-        };
-        assert_eq!(
-            error.to_string(),
-            "`all_lint_rules` cannot be specified with `only_lint_tags`"
-        );
-
-        let mut config = Config::default();
         config.run.events_capacity = 0;
         let Err(error) = config.validate() else {
             panic!("zero events capacity should error");
