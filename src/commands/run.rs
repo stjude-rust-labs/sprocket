@@ -132,6 +132,11 @@ pub struct Args {
     #[clap(short, long, value_name = "OUTPUT_DIR")]
     pub output_dir: Option<PathBuf>,
 
+    /// Fail if `module-lock.json` is missing or out of date instead of
+    /// regenerating it before evaluation.
+    #[clap(long)]
+    pub locked: bool,
+
     /// The output name to index on.
     ///
     /// If provided, the run outputs will be indexed using the specified output
@@ -198,11 +203,20 @@ pub struct Args {
     /// Show task stderr during execution.
     ///
     /// Note that not all execution backends support this option.
-    #[clap(long)]
+    // An explicit `display_order` is set on this and the following argument so
+    // that they sort deterministically in `--help`. Without it, these two
+    // trailing arguments are auto-assigned the same clap display order as the
+    // globally propagated `--verbose`/`--quiet` flags, and the resulting tie is
+    // broken by argument insertion order, which is sensitive to build details
+    // and therefore not stable across configurations. Placing them past the
+    // propagated global arguments removes the tie. The rationale lives in a
+    // non-doc comment so it does not leak into the user-facing help text.
+    #[clap(long, display_order = 100)]
     pub show_task_stderr: bool,
 
     /// Optional suffix to append to the run directory name.
-    #[clap(long, value_name = "SUFFIX")]
+    // See `show_task_stderr` for why an explicit `display_order` is set.
+    #[clap(long, value_name = "SUFFIX", display_order = 101)]
     pub suffix: Option<String>,
 }
 
@@ -714,9 +728,7 @@ pub async fn run(
     filter_handle: FilterReloadHandle,
 ) -> CommandResult<()> {
     let source = match args.source {
-        Source::Directory(ref dir) => {
-            crate::analysis::resolve_module_entrypoint(dir, config.common.wdl.feature_flags)?
-        }
+        Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
     };
 
@@ -732,6 +744,20 @@ pub async fn run(
 
     let report_mode = args.report_mode.unwrap_or(config.common.report_mode);
     args.apply_engine_config(&mut config.run.engine);
+
+    // Bring a stale or missing module lockfile up to date before executing so
+    // the run proceeds against a consistent, reproducible tree, unless
+    // `--locked` asked for the run to fail instead.
+    if let Some(dir) = source.local_start_dir() {
+        let policy = if args.locked {
+            crate::commands::module::auto_lock::LockfilePolicy::RequireCurrent
+        } else {
+            crate::commands::module::auto_lock::LockfilePolicy::Regenerate
+        };
+        crate::commands::module::auto_lock::ensure_lockfile_current(&config, &dir, policy)
+            .await
+            .map_err(CommandError::from)?;
+    }
 
     let progress_bar = tracing::span!(Level::WARN, "progress");
     let start = std::time::Instant::now();

@@ -69,11 +69,18 @@ const CONFIG_FILENAME: &str = "sprocket.toml";
 /// `sprocket.toml` is read from. Use this anywhere a path needs to live
 /// alongside the user's Sprocket config.
 ///
-/// On macOS this is `$HOME/.config/sprocket/`, on Linux it follows
+/// The `SPROCKET_CONFIG_ROOT` environment variable, when set, overrides the
+/// platform-specific default (this is primarily used to isolate configuration
+/// during testing).
+///
+/// Otherwise, on macOS this is `$HOME/.config/sprocket/`, on Linux it follows
 /// `$XDG_CONFIG_HOME` (typically `~/.config/sprocket/`), on Windows it lands
 /// in `%APPDATA%/sprocket/`. Returns `None` when the underlying base
 /// directory cannot be determined (no `$HOME`, etc.).
 pub fn config_root() -> Option<PathBuf> {
+    if let Some(root) = std::env::var_os("SPROCKET_CONFIG_ROOT") {
+        return Some(PathBuf::from(root));
+    }
     #[cfg(target_os = "macos")]
     let base = dirs::home_dir().map(|p| p.join(".config"));
     #[cfg(not(target_os = "macos"))]
@@ -183,6 +190,10 @@ pub struct Config {
     #[toml(default, style = Header)]
     #[schemars(default)]
     pub common: CommonConfig,
+    /// Configuration for the `module` command group (`[module]` section).
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub module: ModuleConfig,
     /// Configuration for the module system (`[modules]` section).
     #[toml(default, style = Header)]
     #[schemars(default)]
@@ -193,6 +204,49 @@ impl Config {
     /// Gets a builder for the `[Config]`.
     pub fn builder() -> wdl::engine::config::ConfigBuilder<Self> {
         Default::default()
+    }
+}
+
+/// Configuration for the `sprocket dev module` command group.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ModuleConfig {
+    /// Configuration for `sprocket dev module init`.
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub init: ModuleInitConfig,
+}
+
+/// Configuration for `sprocket dev module init`.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ModuleInitConfig {
+    /// Default module author name.
+    pub author: Option<String>,
+    /// Default module author email.
+    pub email: Option<String>,
+    /// Default SPDX license expression.
+    pub license: Option<String>,
+}
+
+impl ModuleInitConfig {
+    /// Validates that configured module fields are not blank.
+    fn validate(&self) -> Result<()> {
+        for (field, value) in [
+            ("author", &self.author),
+            ("email", &self.email),
+            ("license", &self.license),
+        ] {
+            if value
+                .as_deref()
+                .is_some_and(|value| value.trim().is_empty())
+            {
+                bail!("`module.init.{field}` cannot be empty");
+            }
+        }
+        Ok(())
     }
 }
 
@@ -325,7 +379,7 @@ mod feature_flags {
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CheckConfig {
-    /// Rule IDs to except from running.
+    /// Rule IDs or tags to except from running.
     #[toml(default)]
     #[schemars(default)]
     pub except: Vec<String>,
@@ -345,21 +399,11 @@ pub struct CheckConfig {
     #[toml(default)]
     #[schemars(default)]
     pub hide_warnings: bool,
-    /// Enable all lint rules, even those outside the default set.
-    ///
-    /// This cannot be `true` while `only_lint_tags` is populated.
-    #[toml(default)]
-    #[schemars(default)]
-    pub all_lint_rules: bool,
     /// Set of lint tags to opt into. Leave this empty to use the default set of
     /// tags.
     #[toml(default)]
     #[schemars(default)]
-    pub only_lint_tags: Vec<String>,
-    /// Set of lint tags to filter out of the enabled lint rules.
-    #[toml(default)]
-    #[schemars(default)]
-    pub filter_lint_tags: Vec<String>,
+    pub tags: Vec<String>,
     /// Path to the diagnostic baseline file.
     pub baseline: Option<PathBuf>,
     /// Lint rule configuration.
@@ -1148,9 +1192,7 @@ impl Config {
 
     /// Validate a configuration.
     pub fn validate(&mut self) -> Result<()> {
-        if self.check.all_lint_rules && !self.check.only_lint_tags.is_empty() {
-            bail!("`all_lint_rules` cannot be specified with `only_lint_tags`")
-        }
+        self.module.init.validate()?;
 
         if self.run.events_capacity == 0 {
             bail!("`events_capacity` must be at least 1")
@@ -1486,6 +1528,36 @@ mod test {
     }
 
     #[test]
+    fn module_init_config_parses() {
+        let config = toml_spanner::from_str::<Config>(
+            "[module.init]\nauthor = \"Jane Doe\"\nemail = \"jane@example.com\"\nlicense = \
+             \"MIT\"\n",
+        )
+        .unwrap();
+
+        assert_eq!(config.module.init.author.as_deref(), Some("Jane Doe"));
+        assert_eq!(
+            config.module.init.email.as_deref(),
+            Some("jane@example.com")
+        );
+        assert_eq!(config.module.init.license.as_deref(), Some("MIT"));
+    }
+
+    #[test]
+    fn module_init_config_rejects_blank_fields() {
+        for (field, value) in [("author", "   "), ("email", "\t"), ("license", "\n")] {
+            let source = format!("[module.init]\n{field} = {value:?}\n");
+            let mut config = toml_spanner::from_str::<Config>(&source).unwrap();
+            let error = config.validate().unwrap_err();
+
+            assert_eq!(
+                error.to_string(),
+                format!("`module.init.{field}` cannot be empty")
+            );
+        }
+    }
+
+    #[test]
     fn doc_slack_url_is_optional_and_validated() {
         let mut config = DocConfig::default();
         assert_eq!(config.slack_url(), None);
@@ -1610,17 +1682,6 @@ mod test {
 
         let mut config = Config::default();
         config.validate()?;
-
-        let mut config = Config::default();
-        config.check.all_lint_rules = true;
-        config.check.only_lint_tags.push("style".to_string());
-        let Err(error) = config.validate() else {
-            panic!("incompatible lint options should error");
-        };
-        assert_eq!(
-            error.to_string(),
-            "`all_lint_rules` cannot be specified with `only_lint_tags`"
-        );
 
         let mut config = Config::default();
         config.run.events_capacity = 0;
