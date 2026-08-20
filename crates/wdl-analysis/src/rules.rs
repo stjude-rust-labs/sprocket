@@ -138,19 +138,24 @@ impl Rule for UnusedImportRule {
         &[Example {
             negative: LabeledSnippet {
                 label: None,
-                snippet: r#"version 1.2
+                snippet: r#"version 1.3
 
-import "foo.wdl"
+import "bar.wdl"
+import "foo.wdl" as used
 
 workflow example {
+    call used.test
 }
 "#,
             },
             revised: Some(LabeledSnippet {
                 label: Some("Consider removing the import entirely"),
-                snippet: r#"version 1.2
+                snippet: r#"version 1.3
+
+import "foo.wdl" as used
 
 workflow example {
+    call used.test
 }
 "#,
             }),

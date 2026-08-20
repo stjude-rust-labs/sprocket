@@ -3,21 +3,12 @@
   "title": "DocumentTests",
   "description": "Collection of tests for an entire WDL document.",
   "type": "object",
-  "properties": {
-    "targets": {
-      "description": "Tasks or Workflows with test definitions.\n\nEach task or workflow may have one or more test definitions.",
-      "type": "object",
-      "additionalProperties": {
-        "type": "array",
-        "items": {
-          "$ref": "#/$defs/TestDefinition"
-        }
-      }
+  "additionalProperties": {
+    "type": "array",
+    "items": {
+      "$ref": "#/$defs/TestDefinition"
     }
   },
-  "required": [
-    "targets"
-  ],
   "$defs": {
     "TestDefinition": {
       "description": "A test definition. Defines at least a single execution, but may define many\nexecutions.",

@@ -1,18 +1,23 @@
 //! User-level trust store at `<config>/sprocket/modules-trust.toml`.
+//!
+//! This state lives outside any module project. Callers choose the config path
+//! to read or write, and lockfile signer acceptance never writes inside the
+//! project tree.
 
+use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 
-use path_clean::PathClean;
+use tempfile::NamedTempFile;
 use thiserror::Error;
 use toml_spanner::Toml;
-use toml_spanner::helper::display;
-use toml_spanner::helper::parse_string;
 
-use crate::dependency::DependencyName;
+use crate::lockfile::DependencyMap;
+use crate::lockfile::Lockfile;
+use crate::signing::SignerIdentity;
 use crate::signing::VerifyingKey;
 
-/// An error reading or writing the trust store.
+/// An error reading or writing the user-level trust store.
 #[derive(Debug, Error)]
 pub enum TrustStoreError {
     /// I/O error.
@@ -51,35 +56,44 @@ pub enum TrustStoreError {
 }
 
 /// The user-level trust store loaded from `modules-trust.toml`.
+///
+/// This file is separate from `module.json` and `module-lock.json`, so trusted
+/// signer state remains outside the project tree.
 #[derive(Clone, Debug, Default, Eq, PartialEq, Toml)]
 #[toml(Toml)]
 pub struct TrustStore {
-    /// The list of explicit trust entries.
-    #[toml(default, style = Header, rename = "trust", skip_if = Vec::is_empty)]
-    pub entries: Vec<TrustEntry>,
+    /// The globally trusted signer public keys stored in
+    /// `modules-trust.toml`.
+    #[toml(default, rename = "trust", skip_if = Vec::is_empty)]
+    pub keys: Vec<VerifyingKey>,
+    /// Optional signer identity metadata keyed by public key in the same
+    /// trust-store file.
+    #[toml(default, rename = "identity", skip_if = Vec::is_empty)]
+    pub identities: Vec<TrustedIdentity>,
 }
 
-/// One explicit trust entry.
+/// Optional human metadata associated with one trusted key in the user-level
+/// trust store.
 #[derive(Clone, Debug, Eq, PartialEq, Toml)]
 #[toml(Toml)]
-pub struct TrustEntry {
-    /// The dependency this entry covers.
-    #[toml(FromToml with = parse_string, ToToml with = display)]
-    pub dep: DependencyName,
-    /// The Git URL or local path that this trust pin applies to.
-    pub source: String,
-    /// The sub-path within the source repository. `None` when the
-    /// module sits at the repository root.
-    #[toml(skip_if = Option::is_none)]
-    pub path: Option<String>,
-    /// The required signer public key in OpenSSH format.
-    #[toml(FromToml with = parse_string, ToToml with = display)]
+pub struct TrustedIdentity {
+    /// The public key this identity describes.
     pub key: VerifyingKey,
+    /// Optional display name for the key owner.
+    #[toml(default, skip_if = Option::is_none)]
+    pub name: Option<String>,
+    /// Optional email for the key owner.
+    #[toml(default, skip_if = Option::is_none)]
+    pub email: Option<String>,
+    /// Optional unstructured OpenSSH public key comment.
+    #[toml(default, skip_if = Option::is_none)]
+    pub comment: Option<String>,
 }
 
 impl TrustStore {
-    /// Reads the trust store from `path`, or returns the default (empty)
-    /// store if the file does not exist.
+    /// Reads the trust store from `path`.
+    ///
+    /// This returns the default empty store when `path` does not exist.
     pub fn load_or_default(path: &Path) -> Result<Self, TrustStoreError> {
         let bytes = match std::fs::read(path) {
             Ok(b) => b,
@@ -117,54 +131,157 @@ impl TrustStore {
             path: path.to_path_buf(),
             source,
         })?;
-        std::fs::write(path, s).map_err(|source| TrustStoreError::Io {
-            path: path.to_path_buf(),
+        let parent = path
+            .parent()
+            .filter(|parent| !parent.as_os_str().is_empty())
+            .unwrap_or_else(|| Path::new("."));
+        let mut temp = NamedTempFile::new_in(parent).map_err(|source| TrustStoreError::Io {
+            path: parent.to_path_buf(),
             source,
-        })
+        })?;
+        temp.write_all(s.as_bytes())
+            .and_then(|()| temp.as_file().sync_all())
+            .map_err(|source| TrustStoreError::Io {
+                path: temp.path().to_path_buf(),
+                source,
+            })?;
+        temp.persist(path).map_err(|error| TrustStoreError::Io {
+            path: path.to_path_buf(),
+            source: error.error,
+        })?;
+        Ok(())
     }
 
-    /// Looks up an explicit trust entry for the given dependency,
-    /// source URL, and sub-path within the source.
-    pub fn lookup(
-        &self,
-        dep: &DependencyName,
-        source_url: &str,
-        path: Option<&str>,
-    ) -> Option<&VerifyingKey> {
-        self.entries
-            .iter()
-            .find(|e| {
-                e.dep == *dep && sources_match(&e.source, source_url) && e.path.as_deref() == path
-            })
-            .map(|e| &e.key)
-    }
-}
-
-/// Returns true when two source strings identify the same trust source.
-fn sources_match(expected: &str, observed: &str) -> bool {
-    if expected == observed {
-        return true;
+    /// Returns `true` when `key` is globally trusted in this user-level store.
+    pub fn contains_key(&self, key: &VerifyingKey) -> bool {
+        self.keys.contains(key)
     }
 
-    matches!(
-        (local_path_source(expected), local_path_source(observed)),
-        (Some(expected), Some(observed)) if expected == observed
-    )
-}
-
-/// Normalizes a local path source for trust lookup.
-fn local_path_source(source: &str) -> Option<String> {
-    if source.contains("://") {
-        return None;
+    /// Adds `key` if it is not already trusted in `modules-trust.toml`.
+    pub fn insert_key(&mut self, key: VerifyingKey) -> bool {
+        if self.contains_key(&key) {
+            return false;
+        }
+        self.keys.push(key);
+        self.keys.sort_by_key(VerifyingKey::to_openssh);
+        true
     }
 
-    Some(
-        Path::new(source)
-            .clean()
-            .display()
-            .to_string()
-            .replace('\\', "/"),
-    )
+    /// Adds signer trust for `key` and records authenticated identity metadata
+    /// when present.
+    ///
+    /// This updates only the in-memory trust store. Call [`Self::save`] to
+    /// persist the user-level trust file.
+    pub fn trust_signer(&mut self, key: VerifyingKey, identity: Option<SignerIdentity>) -> bool {
+        let inserted = self.insert_key(key);
+        match identity {
+            Some(SignerIdentity::Signer { name, email }) => {
+                self.upsert_identity(key, Some(name), Some(email), None);
+            }
+            Some(SignerIdentity::Comment { comment }) => {
+                self.upsert_identity(key, None, None, Some(comment));
+            }
+            None => {}
+        }
+        inserted
+    }
+
+    /// Removes `key` from the in-memory trust store.
+    pub fn remove_key(&mut self, key: &VerifyingKey) -> bool {
+        let before = self.keys.len();
+        self.keys.retain(|trusted| trusted != key);
+        self.identities.retain(|identity| &identity.key != key);
+        self.keys.len() != before
+    }
+
+    /// Removes every trusted key and its identity metadata from memory.
+    pub fn clear(&mut self) {
+        self.keys.clear();
+        self.identities.clear();
+    }
+
+    /// Iterates over globally trusted signer keys from this user-level store.
+    pub fn trusted_keys(&self) -> impl Iterator<Item = &VerifyingKey> {
+        self.keys.iter()
+    }
+
+    /// Upserts optional metadata for a trusted key in memory.
+    pub fn upsert_identity(
+        &mut self,
+        key: VerifyingKey,
+        name: Option<String>,
+        email: Option<String>,
+        comment: Option<String>,
+    ) {
+        if name.is_none() && email.is_none() && comment.is_none() {
+            return;
+        }
+
+        if let Some(existing) = self
+            .identities
+            .iter_mut()
+            .find(|identity| identity.key == key)
+        {
+            if let Some(comment) = comment {
+                existing.name = None;
+                existing.email = None;
+                existing.comment = Some(comment);
+                return;
+            }
+            existing.comment = None;
+            if let Some(name) = name {
+                existing.name = Some(name);
+            }
+            if let Some(email) = email {
+                existing.email = Some(email);
+            }
+            return;
+        }
+
+        let (name, email) = if comment.is_some() {
+            (None, None)
+        } else {
+            (name, email)
+        };
+        self.identities.push(TrustedIdentity {
+            key,
+            name,
+            email,
+            comment,
+        });
+        self.identities
+            .sort_by_key(|identity| identity.key.to_openssh());
+    }
+
+    /// Returns optional metadata for a trusted key from this store.
+    pub fn identity(&self, key: &VerifyingKey) -> Option<&TrustedIdentity> {
+        self.identities.iter().find(|identity| &identity.key == key)
+    }
+
+    /// Trusts signer keys recorded across a lockfile dependency tree.
+    ///
+    /// This reads signer information from the supplied `module-lock.json`
+    /// model, inserts any new keys into the in-memory user-level store, and
+    /// returns the number of newly inserted keys. It does not modify the
+    /// project manifest or lockfile.
+    ///
+    /// Call [Self::save] to persist the user-level trust file.
+    pub fn trust_lockfile_signers(&mut self, lockfile: &Lockfile) -> usize {
+        fn visit(store: &mut TrustStore, dependencies: &DependencyMap) -> usize {
+            dependencies
+                .values()
+                .map(|dependency| {
+                    usize::from(
+                        dependency
+                            .signer
+                            .is_some_and(|key| store.trust_signer(key, None)),
+                    ) + visit(store, &dependency.dependencies)
+                })
+                .sum()
+        }
+
+        visit(self, &lockfile.dependencies)
+    }
 }
 
 #[cfg(test)]
@@ -174,35 +291,75 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
+    use crate::lockfile::DependencyEntry;
+    use crate::lockfile::DependencyMap;
+    use crate::lockfile::Lockfile;
+    use crate::lockfile::ResolvedSource;
+    use crate::signing::SignerIdentity;
 
     fn test_key() -> VerifyingKey {
         crate::signing::test_utils::signing_key_from_seed(0xA7).verifying_key()
     }
 
+    fn signed_lockfile_with_nested_duplicate(key: VerifyingKey) -> Lockfile {
+        let nested = DependencyEntry {
+            source: ResolvedSource::Git {
+                git: "https://example.com/nested".parse().unwrap(),
+                sha: "0000000000000000000000000000000000000000".parse().unwrap(),
+                selector: crate::dependency::GitSelector::Version("^1".parse().unwrap()),
+                path: None,
+            },
+            checksum: Some(
+                "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+                    .parse()
+                    .unwrap(),
+            ),
+            signer: Some(key),
+            dependencies: DependencyMap::new(),
+        };
+
+        let mut dependencies = DependencyMap::new();
+        dependencies.insert(
+            "root".parse().unwrap(),
+            DependencyEntry {
+                source: ResolvedSource::Git {
+                    git: "https://example.com/root".parse().unwrap(),
+                    sha: "1111111111111111111111111111111111111111".parse().unwrap(),
+                    selector: crate::dependency::GitSelector::Version("^1".parse().unwrap()),
+                    path: None,
+                },
+                checksum: Some(
+                    "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+                        .parse()
+                        .unwrap(),
+                ),
+                signer: Some(key),
+                dependencies: DependencyMap::from([("nested".parse().unwrap(), nested)]),
+            },
+        );
+        Lockfile {
+            version: crate::lockfile::LOCKFILE_VERSION,
+            dependencies,
+        }
+    }
+
     #[test]
     fn parses_empty_file() {
         let store: TrustStore = toml_spanner::from_str("").unwrap();
-        assert!(store.entries.is_empty());
+        assert!(store.keys.is_empty());
     }
-
-    const TEST_SOURCE: &str = "https://github.com/openwdl/tasks";
 
     #[test]
     fn round_trips_via_toml() {
-        let dep: DependencyName = "openwdl".parse().unwrap();
         let key = test_key();
-        let store = TrustStore {
-            entries: vec![TrustEntry {
-                dep: dep.clone(),
-                source: TEST_SOURCE.to_string(),
-                path: None,
-                key,
-            }],
-        };
+        let mut store = TrustStore::default();
+        store.insert_key(key);
         let s = toml_spanner::to_string(&store).unwrap();
+        assert!(s.contains("trust = ["));
+        assert!(!s.contains("key ="));
         let parsed: TrustStore = toml_spanner::from_str(&s).unwrap();
-        assert_eq!(parsed.entries.len(), 1);
-        assert!(parsed.lookup(&dep, TEST_SOURCE, None).is_some());
+        assert_eq!(parsed.keys.len(), 1);
+        assert!(parsed.contains_key(&key));
     }
 
     #[test]
@@ -210,23 +367,16 @@ mod tests {
         let dir = tempdir().unwrap();
         let path = dir.path().join("trust.toml");
         let store = TrustStore::load_or_default(&path).unwrap();
-        assert!(store.entries.is_empty());
+        assert!(store.keys.is_empty());
     }
 
     #[test]
     fn save_and_reload_round_trips() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("nested").join("trust.toml");
-        let dep: DependencyName = "openwdl".parse().unwrap();
         let key = test_key();
-        let store = TrustStore {
-            entries: vec![TrustEntry {
-                dep: dep.clone(),
-                source: TEST_SOURCE.to_string(),
-                path: None,
-                key,
-            }],
-        };
+        let mut store = TrustStore::default();
+        store.insert_key(key);
         store.save(&path).unwrap();
         assert!(path.exists());
 
@@ -238,92 +388,76 @@ mod tests {
     }
 
     #[test]
-    fn lookup_requires_matching_source() {
-        let dep: DependencyName = "openwdl".parse().unwrap();
-        let store = TrustStore {
-            entries: vec![TrustEntry {
-                dep: dep.clone(),
-                source: TEST_SOURCE.to_string(),
-                path: None,
-                key: test_key(),
-            }],
-        };
-        assert!(store.lookup(&dep, TEST_SOURCE, None).is_some());
+    fn insert_and_remove_key() {
+        let key = test_key();
+        let mut store = TrustStore::default();
+        assert!(store.insert_key(key));
+        assert!(!store.insert_key(key));
+        assert!(store.contains_key(&key));
+        assert!(store.remove_key(&key));
+        assert!(!store.remove_key(&key));
+    }
+
+    #[test]
+    fn clear_removes_keys_and_identities() {
+        let key = test_key();
+        let mut store = TrustStore::default();
+        store.insert_key(key);
+        store.upsert_identity(key, Some("Alice".to_string()), None, None);
+        store.clear();
+        assert!(store.keys.is_empty());
         assert!(
-            store
-                .lookup(&dep, "https://example.com/other", None)
-                .is_none(),
-            "trust pin for one source should not match a different source"
+            store.identities.is_empty(),
+            "clearing the store must not orphan identity metadata"
         );
     }
 
     #[test]
-    fn lookup_distinguishes_paths_within_same_source() {
-        let dep: DependencyName = "dep".parse().unwrap();
-        let store = TrustStore {
-            entries: vec![TrustEntry {
-                dep: dep.clone(),
-                source: TEST_SOURCE.to_string(),
-                path: Some("csvcut".to_string()),
-                key: test_key(),
-            }],
-        };
-        assert!(
-            store.lookup(&dep, TEST_SOURCE, Some("csvcut")).is_some(),
-            "exact path match should succeed"
-        );
-        assert!(
-            store.lookup(&dep, TEST_SOURCE, Some("csvgrep")).is_none(),
-            "trust pin for `csvcut` should not match `csvgrep` in the same repo"
-        );
-        assert!(
-            store.lookup(&dep, TEST_SOURCE, None).is_none(),
-            "trust pin for `csvcut` should not match root-level module in the same repo"
-        );
+    fn comment_identity_round_trips() {
+        let key = test_key();
+        let mut store = TrustStore::default();
+        store.insert_key(key);
+        store.upsert_identity(key, None, None, Some("release signer".to_string()));
+        // SAFETY: the in-memory trust store contains only serializable values.
+        let encoded = toml_spanner::to_string(&store).unwrap();
+        // SAFETY: `encoded` was produced from a valid trust store.
+        let decoded: TrustStore = toml_spanner::from_str(&encoded).unwrap();
+        // SAFETY: the identity was inserted above and survives serialization.
+        let identity = decoded.identity(&key).unwrap();
+
+        assert_eq!(identity.comment.as_deref(), Some("release signer"));
+        assert!(identity.name.is_none());
+        assert!(identity.email.is_none());
     }
 
     #[test]
-    fn lookup_matches_local_path_source() {
-        let dep: DependencyName = "utils".parse().unwrap();
-        let local_source = "/home/user/projects/shared/utils";
-        let store = TrustStore {
-            entries: vec![TrustEntry {
-                dep: dep.clone(),
-                source: local_source.to_string(),
-                path: None,
-                key: test_key(),
-            }],
-        };
-        assert!(
-            store.lookup(&dep, local_source, None).is_some(),
-            "local-path trust entry should match"
-        );
-        assert!(
-            store
-                .lookup(&dep, "/home/user/projects/other/utils", None)
-                .is_none(),
-            "different local path should not match"
-        );
+    fn trust_signer_adds_key_and_identity() {
+        let key = test_key();
+        let mut store = TrustStore::default();
+
+        assert!(store.trust_signer(
+            key,
+            Some(SignerIdentity::Signer {
+                name: "Ada".to_string(),
+                email: "ada@example.com".to_string(),
+            }),
+        ));
+        assert!(!store.trust_signer(key, None));
+        // SAFETY: `trust_signer` inserted the key and structured identity above.
+        let identity = store.identity(&key).unwrap();
+        assert_eq!(identity.name.as_deref(), Some("Ada"));
+        assert_eq!(identity.email.as_deref(), Some("ada@example.com"));
     }
 
     #[test]
-    fn lookup_normalizes_local_path_separators() {
-        let dep: DependencyName = "utils".parse().unwrap();
-        let store = TrustStore {
-            entries: vec![TrustEntry {
-                dep: dep.clone(),
-                source: "C:/Users/me/projects/shared/utils".to_string(),
-                path: None,
-                key: test_key(),
-            }],
-        };
+    fn trust_lockfile_signers_recurses_and_deduplicates() {
+        let key = test_key();
+        let lockfile = signed_lockfile_with_nested_duplicate(key);
+        let mut store = TrustStore::default();
 
-        assert!(
-            store
-                .lookup(&dep, r"C:\Users\me\projects\shared\utils", None)
-                .is_some(),
-            "local-path trust entry should match native separators"
-        );
+        assert_eq!(store.trust_lockfile_signers(&lockfile), 1);
+        assert_eq!(store.trust_lockfile_signers(&lockfile), 0);
+        assert!(store.contains_key(&key));
     }
 
     #[test]

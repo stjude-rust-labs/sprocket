@@ -376,16 +376,6 @@ impl MonitorState {
             self.tag.clear();
         }
     }
-
-    /// Fails all currently monitored jobs with the given error.
-    fn fail_all_jobs(&mut self, error: &anyhow::Error) {
-        for (_, job) in self.jobs.drain() {
-            let _ = job.completed.send(Err(anyhow!("{error:#}")));
-        }
-
-        // Reset the current tag
-        self.tag.clear();
-    }
 }
 
 /// Represents a submitted LSF job.
@@ -619,17 +609,33 @@ impl Monitor {
                     };
 
                     // Read the records using `bjobs` and then update the state
-                    let result = Self::read_job_records(&search_prefix).await.context("failed to query job status using `bjobs`");
-                    let mut state = state.lock().expect("failed to lock state");
-                    match result {
-                        Ok(records) => state.update_jobs(records, &events),
-                        Err(e) => state.fail_all_jobs(&e),
-                    }
+                    Self::handle_query_result(
+                        state.as_ref(),
+                        &events,
+                        Self::read_job_records(&search_prefix).await,
+                    );
                 }
             }
         }
 
         debug!("LSF task monitor has shut down");
+    }
+
+    /// Handles the result of querying job status with bjobs.
+    fn handle_query_result(
+        state: &Mutex<MonitorState>,
+        events: &Events,
+        result: Result<Vec<JobRecord>>,
+    ) {
+        match result {
+            Ok(records) => state
+                .lock()
+                .expect("failed to lock state")
+                .update_jobs(records, events),
+            Err(error) => {
+                error!("failed to query job status using `bjobs`: {error:#}");
+            }
+        }
     }
 
     /// Reads the current job records using `bjobs`.
@@ -1069,7 +1075,62 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 
 #[cfg(test)]
 mod tests {
+    use tokio::sync::oneshot::error::TryRecvError;
+    use tracing_test::traced_test;
+
     use super::*;
+
+    #[test]
+    #[traced_test]
+    fn monitor_continues_after_bjobs_error() {
+        let mut state = MonitorState::new();
+        let (completed_tx, mut completed_rx) = oneshot::channel();
+        state.add_job(42, 0, completed_tx);
+        let state = Mutex::new(state);
+
+        Monitor::handle_query_result(
+            &state,
+            &Events::disabled(),
+            Err(anyhow!("Permission denied (os error 13)")
+                .context("failed to spawn `bjobs` command")),
+        );
+
+        assert!(matches!(completed_rx.try_recv(), Err(TryRecvError::Empty)));
+        assert!(
+            state
+                .lock()
+                .expect("failed to lock state")
+                .jobs
+                .contains_key(&42)
+        );
+        assert!(logs_contain(
+            "failed to query job status using `bjobs`: failed to spawn `bjobs` command: \
+             Permission denied (os error 13)"
+        ));
+
+        Monitor::handle_query_result(
+            &state,
+            &Events::disabled(),
+            Ok(vec![JobRecord {
+                job_id: "42".to_string(),
+                state: "DONE".to_string(),
+                exit_code: "0".to_string(),
+                avg_memory: String::new(),
+                max_memory: String::new(),
+                cpu_used: String::new(),
+                user_cpu_time: String::new(),
+                system_cpu_time: String::new(),
+            }]),
+        );
+
+        assert_eq!(
+            completed_rx
+                .try_recv()
+                .expect("job should be completed")
+                .expect("job should complete successfully"),
+            0
+        );
+    }
 
     #[test]
     fn job_name_truncates() {
