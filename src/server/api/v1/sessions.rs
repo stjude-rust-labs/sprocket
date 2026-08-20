@@ -176,6 +176,7 @@ mod tests {
             subcommand: SprocketCommand::Server,
             created_by: "tester".to_string(),
             created_at: Utc::now(),
+            heartbeat_at: None,
         }
     }
 

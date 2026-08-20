@@ -2,6 +2,7 @@
 
 use std::path::Path;
 use std::str::FromStr;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::DateTime;
@@ -151,7 +152,7 @@ impl Database for SqliteDatabase {
 
         let session: Session = sqlx::query_as(
             "insert into sessions (uuid, subcommand, created_by) values (?, ?, ?) returning uuid, \
-             subcommand, created_by, created_at",
+             subcommand, created_by, created_at, heartbeat_at",
         )
         .bind(id.to_string())
         .bind(subcommand)
@@ -164,7 +165,8 @@ impl Database for SqliteDatabase {
 
     async fn get_session(&self, id: Uuid) -> Result<Option<Session>> {
         let session: Option<Session> = sqlx::query_as(
-            "select uuid, subcommand, created_by, created_at from sessions where uuid = ?",
+            "select uuid, subcommand, created_by, created_at, heartbeat_at from sessions where \
+             uuid = ?",
         )
         .bind(id.to_string())
         .fetch_optional(&self.pool)
@@ -178,8 +180,8 @@ impl Database for SqliteDatabase {
         let offset = offset.unwrap_or(DEFAULT_OFFSET);
 
         let sessions: Vec<Session> = sqlx::query_as(
-            "select uuid, subcommand, created_by, created_at from sessions order by created_at \
-             desc limit ? offset ?",
+            "select uuid, subcommand, created_by, created_at, heartbeat_at from sessions order by \
+             created_at desc limit ? offset ?",
         )
         .bind(limit)
         .bind(offset)
@@ -409,6 +411,75 @@ impl Database for SqliteDatabase {
         .await?;
 
         Ok(runs)
+    }
+
+    async fn heartbeat_session(&self, id: Uuid, at: DateTime<Utc>) -> Result<()> {
+        sqlx::query("update sessions set heartbeat_at = ? where uuid = ?")
+            .bind(at)
+            .bind(id.to_string())
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn mark_orphaned_runs(
+        &self,
+        error: &str,
+        timeout: Duration,
+        now: DateTime<Utc>,
+    ) -> Result<u64> {
+        // Saturating: a timeout large enough to underflow the epoch would
+        // otherwise panic, and a cutoff at the earliest representable instant
+        // matches nothing, which errs toward sweeping less.
+        let cutoff = now - chrono::Duration::from_std(timeout).unwrap_or(chrono::Duration::MAX);
+
+        let mut tx = self.pool.begin().await?;
+
+        // `coalesce(heartbeat_at, created_at)` treats a session that never
+        // recorded a heartbeat as stale since creation; those predate
+        // heartbeat support, so their process cannot still be running. A
+        // `sprocket run` from an older binary is swept early for the same
+        // reason, until it writes its own terminal status.
+        //
+        // Both sides go through `unixepoch` because the columns carry
+        // different text encodings: `created_at` defaults to SQLite's
+        // `current_timestamp` (`YYYY-MM-DD HH:MM:SS`) while `heartbeat_at` and
+        // the cutoff are RFC 3339 from sqlx. Compared as text they sort on the
+        // separator (`' ' < 'T'`), which would orphan live runs immediately.
+        //
+        // Tasks are marked first so they don't linger as `pending`/`running`
+        // under an `orphaned` run; this reads the runs' pre-update status.
+        sqlx::query(
+            "update tasks set status = ?, error = ?, completed_at = ? where status in ('pending', \
+             'running') and run_id in (select r.id from runs r join sessions s on r.session_id = \
+             s.id where unixepoch(coalesce(s.heartbeat_at, s.created_at)) < unixepoch(?) and \
+             r.status in ('queued', 'running', 'canceling'))",
+        )
+        .bind(TaskStatus::Orphaned)
+        .bind(error)
+        .bind(now)
+        .bind(cutoff)
+        .execute(&mut *tx)
+        .await?;
+
+        // A single bulk statement (not `list_runs`, which pages) so this
+        // scales regardless of how many runs were orphaned.
+        let result = sqlx::query(
+            "update runs set status = ?, error = ?, completed_at = ? where status in ('queued', \
+             'running', 'canceling') and session_id in (select id from sessions where \
+             unixepoch(coalesce(heartbeat_at, created_at)) < unixepoch(?))",
+        )
+        .bind(RunStatus::Orphaned)
+        .bind(error)
+        .bind(now)
+        .bind(cutoff)
+        .execute(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+
+        Ok(result.rows_affected())
     }
 
     async fn create_index_log_entry(
@@ -1666,5 +1737,376 @@ mod tests {
             .await
             .expect("failed to get task logs");
         assert_eq!(logs.len(), 2);
+    }
+
+    #[sqlx::test]
+    async fn mark_orphaned_runs(pool: SqlitePool) {
+        /// How long a session may go unheartbeated before it is stale.
+        const TIMEOUT: Duration = Duration::from_secs(300);
+        /// The error recorded on swept runs.
+        const ERROR: &str = "the server that owned this run stopped reporting";
+
+        let raw = pool.clone();
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let now = Utc::now();
+
+        // A server that died: its session stopped being heartbeated well
+        // beyond the timeout.
+        let stale_session = Uuid::new_v4();
+        db.create_session(stale_session, SprocketCommand::Server, "test-user")
+            .await
+            .expect("failed to create session");
+        db.heartbeat_session(stale_session, now - chrono::Duration::minutes(10))
+            .await
+            .expect("failed to heartbeat session");
+
+        // More orphaned runs than a single page (`DEFAULT_PAGE_SIZE`), to
+        // prove the sweep does not truncate on a large backlog.
+        let orphaned_running_count = usize::try_from(DEFAULT_PAGE_SIZE).unwrap() + 50;
+        let mut orphaned_running = Vec::with_capacity(orphaned_running_count);
+        for i in 0..orphaned_running_count {
+            let run_id = Uuid::new_v4();
+            db.create_run(
+                run_id,
+                stale_session,
+                &format!("orphaned-running-{i}"),
+                "test.wdl",
+                Some("test_task"),
+                "{}",
+            )
+            .await
+            .expect("failed to create run");
+            db.update_run_status(run_id, RunStatus::Running)
+                .await
+                .expect("failed to update run status");
+
+            // A task still `running`, as if its executor died mid-task.
+            let task_name = format!("orphaned-task-{i}");
+            db.create_task(&task_name, run_id, TaskStatus::Pending)
+                .await
+                .expect("failed to create task");
+            db.update_task_started(&task_name, now)
+                .await
+                .expect("failed to update task");
+
+            orphaned_running.push(run_id);
+        }
+
+        // One orphaned `Queued` run and one orphaned `Canceling` run, whose
+        // lazy cancellation was never finalized.
+        let queued_id = Uuid::new_v4();
+        db.create_run(
+            queued_id,
+            stale_session,
+            "orphaned-queued",
+            "test.wdl",
+            Some("test_task"),
+            "{}",
+        )
+        .await
+        .expect("failed to create run");
+
+        let canceling_id = Uuid::new_v4();
+        db.create_run(
+            canceling_id,
+            stale_session,
+            "orphaned-canceling",
+            "test.wdl",
+            Some("test_task"),
+            "{}",
+        )
+        .await
+        .expect("failed to create run");
+        db.update_run_status(canceling_id, RunStatus::Canceling)
+            .await
+            .expect("failed to update run status");
+
+        // A run that legitimately completed should be left untouched.
+        let completed_id = Uuid::new_v4();
+        db.create_run(
+            completed_id,
+            stale_session,
+            "completed-run",
+            "test.wdl",
+            Some("test_task"),
+            "{}",
+        )
+        .await
+        .expect("failed to create run");
+        db.complete_run(completed_id, now)
+            .await
+            .expect("failed to complete run");
+
+        // A concurrently live server sharing this database. Its in-flight work
+        // must survive another server's sweep, or one server would fail
+        // another's healthy runs out from under it.
+        let live_session = Uuid::new_v4();
+        db.create_session(live_session, SprocketCommand::Server, "test-user")
+            .await
+            .expect("failed to create session");
+        db.heartbeat_session(live_session, now)
+            .await
+            .expect("failed to heartbeat session");
+        let live_run_id = Uuid::new_v4();
+        db.create_run(
+            live_run_id,
+            live_session,
+            "live-server-run",
+            "test.wdl",
+            Some("test_task"),
+            "{}",
+        )
+        .await
+        .expect("failed to create run");
+        db.update_run_status(live_run_id, RunStatus::Running)
+            .await
+            .expect("failed to update run status");
+        let live_task_name = "live-server-task";
+        db.create_task(live_task_name, live_run_id, TaskStatus::Pending)
+            .await
+            .expect("failed to create task");
+        db.update_task_started(live_task_name, now)
+            .await
+            .expect("failed to update task");
+
+        // A session predating heartbeat support: `heartbeat_at` is null, so
+        // staleness falls back to `created_at`. Backdated through raw SQL to
+        // carry SQLite's `current_timestamp` format rather than sqlx's.
+        let legacy_session = Uuid::new_v4();
+        db.create_session(legacy_session, SprocketCommand::Server, "test-user")
+            .await
+            .expect("failed to create session");
+        sqlx::query("update sessions set created_at = '2020-01-01 00:00:00' where uuid = ?")
+            .bind(legacy_session.to_string())
+            .execute(&raw)
+            .await
+            .expect("failed to backdate session");
+        let legacy_run_id = Uuid::new_v4();
+        db.create_run(
+            legacy_run_id,
+            legacy_session,
+            "legacy-run",
+            "test.wdl",
+            Some("test_task"),
+            "{}",
+        )
+        .await
+        .expect("failed to create run");
+        db.update_run_status(legacy_run_id, RunStatus::Running)
+            .await
+            .expect("failed to update run status");
+
+        // A server session created moments ago that has not heartbeated yet.
+        // Its `created_at` is in SQLite's text format while the cutoff is
+        // RFC 3339; compared as text it would look stale immediately.
+        let fresh_session = Uuid::new_v4();
+        db.create_session(fresh_session, SprocketCommand::Server, "test-user")
+            .await
+            .expect("failed to create session");
+        let fresh_run_id = Uuid::new_v4();
+        db.create_run(
+            fresh_run_id,
+            fresh_session,
+            "fresh-run",
+            "test.wdl",
+            Some("test_task"),
+            "{}",
+        )
+        .await
+        .expect("failed to create run");
+        db.update_run_status(fresh_run_id, RunStatus::Running)
+            .await
+            .expect("failed to update run status");
+        let fresh_task_name = "fresh-task";
+        db.create_task(fresh_task_name, fresh_run_id, TaskStatus::Pending)
+            .await
+            .expect("failed to create task");
+        db.update_task_started(fresh_task_name, now)
+            .await
+            .expect("failed to update task");
+
+        // A live `sprocket run` heartbeats the session it owns just as a
+        // server does, and must survive a sweep while still executing.
+        let cli_session_id = Uuid::new_v4();
+        db.create_session(cli_session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+        db.heartbeat_session(cli_session_id, now)
+            .await
+            .expect("failed to heartbeat session");
+        let cli_run_id = Uuid::new_v4();
+        db.create_run(
+            cli_run_id,
+            cli_session_id,
+            "cli-run-in-progress",
+            "test.wdl",
+            Some("test_task"),
+            "{}",
+        )
+        .await
+        .expect("failed to create run");
+        db.update_run_status(cli_run_id, RunStatus::Running)
+            .await
+            .expect("failed to update run status");
+        let cli_task_name = "cli-task-in-progress";
+        db.create_task(cli_task_name, cli_run_id, TaskStatus::Pending)
+            .await
+            .expect("failed to create task");
+        db.update_task_started(cli_task_name, now)
+            .await
+            .expect("failed to update task");
+
+        // A `sprocket run` killed outright stops heartbeating like any other
+        // owner, and is swept on the same terms.
+        let dead_cli_session_id = Uuid::new_v4();
+        db.create_session(dead_cli_session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+        db.heartbeat_session(dead_cli_session_id, now - chrono::Duration::minutes(10))
+            .await
+            .expect("failed to heartbeat session");
+        let dead_cli_run_id = Uuid::new_v4();
+        db.create_run(
+            dead_cli_run_id,
+            dead_cli_session_id,
+            "cli-run-killed",
+            "test.wdl",
+            Some("test_task"),
+            "{}",
+        )
+        .await
+        .expect("failed to create run");
+        db.update_run_status(dead_cli_run_id, RunStatus::Running)
+            .await
+            .expect("failed to update run status");
+        let dead_cli_task_name = "cli-task-killed";
+        db.create_task(dead_cli_task_name, dead_cli_run_id, TaskStatus::Pending)
+            .await
+            .expect("failed to create task");
+        db.update_task_started(dead_cli_task_name, now)
+            .await
+            .expect("failed to update task");
+
+        let count = db
+            .mark_orphaned_runs(ERROR, TIMEOUT, now)
+            .await
+            .expect("failed to mark orphaned runs");
+        // Everything under the stale session (running + queued + canceling),
+        // the single legacy run, and the killed CLI run.
+        assert_eq!(count, orphaned_running_count as u64 + 4);
+
+        for run_id in &orphaned_running {
+            let run = db
+                .get_run(*run_id)
+                .await
+                .expect("failed to get run")
+                .unwrap();
+            assert_eq!(run.status, RunStatus::Orphaned);
+            assert_eq!(run.error.as_deref(), Some(ERROR));
+            assert!(run.completed_at.is_some());
+        }
+
+        let queued = db
+            .get_run(queued_id)
+            .await
+            .expect("failed to get run")
+            .unwrap();
+        assert_eq!(queued.status, RunStatus::Orphaned);
+
+        let canceling = db
+            .get_run(canceling_id)
+            .await
+            .expect("failed to get run")
+            .unwrap();
+        assert_eq!(canceling.status, RunStatus::Orphaned);
+
+        // Swept on `created_at` because it never recorded a heartbeat.
+        let legacy = db
+            .get_run(legacy_run_id)
+            .await
+            .expect("failed to get run")
+            .unwrap();
+        assert_eq!(legacy.status, RunStatus::Orphaned);
+
+        // Untouched: already terminal before the sweep ran.
+        let completed = db
+            .get_run(completed_id)
+            .await
+            .expect("failed to get run")
+            .unwrap();
+        assert_eq!(completed.status, RunStatus::Completed);
+        assert_eq!(completed.error, None);
+
+        // Untouched: owned by a concurrently live server.
+        let live_run = db
+            .get_run(live_run_id)
+            .await
+            .expect("failed to get run")
+            .unwrap();
+        assert_eq!(live_run.status, RunStatus::Running);
+        assert_eq!(live_run.error, None);
+
+        // Untouched: created moments ago, heartbeat still pending.
+        let fresh_run = db
+            .get_run(fresh_run_id)
+            .await
+            .expect("failed to get run")
+            .unwrap();
+        assert_eq!(fresh_run.status, RunStatus::Running);
+        assert_eq!(fresh_run.error, None);
+
+        // Untouched: a `sprocket run` that is still reporting.
+        let cli_run = db
+            .get_run(cli_run_id)
+            .await
+            .expect("failed to get run")
+            .unwrap();
+        assert_eq!(cli_run.status, RunStatus::Running);
+        assert_eq!(cli_run.error, None);
+
+        // Swept: a `sprocket run` that stopped reporting. Nothing is left to
+        // drive this run either, so it gets the same treatment as a server's.
+        let dead_cli_run = db
+            .get_run(dead_cli_run_id)
+            .await
+            .expect("failed to get run")
+            .unwrap();
+        assert_eq!(dead_cli_run.status, RunStatus::Orphaned);
+        assert_eq!(dead_cli_run.error.as_deref(), Some(ERROR));
+
+        // Tasks under swept runs were orphaned too; the live, fresh, and
+        // still-reporting CLI tasks are all still `running`.
+        let mut running: Vec<String> = db
+            .list_tasks(None, Some(TaskStatus::Running), None, None)
+            .await
+            .expect("failed to list tasks")
+            .into_iter()
+            .map(|t| t.name)
+            .collect();
+        running.sort();
+        assert_eq!(
+            running,
+            vec![
+                cli_task_name.to_string(),
+                fresh_task_name.to_string(),
+                live_task_name.to_string(),
+            ]
+        );
+
+        let orphaned_tasks = db
+            .list_tasks(None, Some(TaskStatus::Orphaned), Some(1000), None)
+            .await
+            .expect("failed to list tasks");
+        assert_eq!(orphaned_tasks.len(), orphaned_running_count + 1);
+
+        // Running it again is a no-op: nothing left to sweep.
+        let count = db
+            .mark_orphaned_runs(ERROR, TIMEOUT, now)
+            .await
+            .expect("failed to mark orphaned runs");
+        assert_eq!(count, 0);
     }
 }

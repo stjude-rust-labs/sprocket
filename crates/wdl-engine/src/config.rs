@@ -3069,7 +3069,7 @@ mod test {
 
         assert_eq!(
             toml_spanner::to_string(&map).unwrap().trim(),
-            format!(r#"foo = "secret""#)
+            r#"foo = "secret""#
         );
 
         map.insert(
@@ -3584,7 +3584,7 @@ type = 'lsf_apptainer'
             HashMap::from_iter([("value", Parallelism::Available)]);
         assert_eq!(
             toml_spanner::to_string(&map).unwrap(),
-            format!("value = \"available\"\n")
+            "value = \"available\"\n"
         );
 
         let map: HashMap<&str, Parallelism> =
@@ -3622,7 +3622,7 @@ type = 'lsf_apptainer'
         let map: HashMap<&str, Retries> = HashMap::from_iter([("value", Retries::Default)]);
         assert_eq!(
             toml_spanner::to_string(&map).unwrap(),
-            format!("value = \"default\"\n")
+            "value = \"default\"\n"
         );
 
         let map: HashMap<&str, Retries> = HashMap::from_iter([("value", Retries::Use(123))]);

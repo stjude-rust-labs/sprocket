@@ -75,6 +75,7 @@ output_dir = "./out"
 allowed_file_paths = []
 allowed_urls = []
 max_concurrent_runs = "unlimited"
+orphan_timeout_minutes = 5
 
 [server.database]
 url = "default"

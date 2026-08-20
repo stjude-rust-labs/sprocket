@@ -15,10 +15,13 @@ use chrono::DateTime;
 use chrono::Utc;
 use thiserror::Error;
 use tokio::sync::Mutex;
+use tokio::task::JoinHandle;
+use tokio::time::MissedTickBehavior;
 use tokio_retry2::Retry;
 use tokio_retry2::RetryError;
 use tokio_retry2::strategy::ExponentialBackoff;
 use tokio_util::sync::CancellationToken;
+use tracing::error;
 use tracing::info;
 use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
@@ -149,6 +152,48 @@ pub async fn create_session(
     let id = Uuid::new_v4();
     let username = whoami::username()?;
     db.create_session(id, command, &username).await
+}
+
+/// Keeps a session's liveness heartbeat running for as long as it is held.
+///
+/// Dropping it stops the heartbeat, which matters at teardown: the task would
+/// otherwise keep writing against a closing pool.
+#[must_use = "dropping the guard immediately stops the heartbeat"]
+#[derive(Debug)]
+pub struct HeartbeatGuard(JoinHandle<()>);
+
+impl Drop for HeartbeatGuard {
+    fn drop(&mut self) {
+        self.0.abort();
+    }
+}
+
+/// Spawns the background task that keeps `session_id` marked live.
+///
+/// A session that stops being heartbeated has its runs swept into `Orphaned`
+/// by [`Database::mark_orphaned_runs`], so any process that owns runs has to
+/// keep reporting for as long as they are in flight.
+///
+/// The first tick fires immediately, though a new session is not stale either
+/// way: `mark_orphaned_runs` falls back to `created_at`.
+pub fn spawn_heartbeat(
+    db: Arc<dyn Database>,
+    session_id: Uuid,
+    interval: Duration,
+) -> HeartbeatGuard {
+    HeartbeatGuard(tokio::spawn(async move {
+        let mut ticker = tokio::time::interval(interval);
+        // A late tick must not release a burst of catch-up writes.
+        ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
+        loop {
+            ticker.tick().await;
+
+            if let Err(e) = db.heartbeat_session(session_id, Utc::now()).await {
+                error!(error = %e, "failed to record session heartbeat");
+            }
+        }
+    }))
 }
 
 /// Creates a timestamped run directory for the given target.

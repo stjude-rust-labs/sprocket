@@ -62,6 +62,7 @@ use crate::commands::CommandResult;
 use crate::inputs::Invocation;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::SprocketCommand;
+use crate::system::v1::exec::HeartbeatGuard;
 use crate::system::v1::exec::RunContext;
 use crate::system::v1::exec::Target;
 use crate::system::v1::exec::create_run_directory;
@@ -70,6 +71,7 @@ use crate::system::v1::exec::create_session;
 use crate::system::v1::exec::execute_target;
 use crate::system::v1::exec::open_database;
 use crate::system::v1::exec::select_target;
+use crate::system::v1::exec::spawn_heartbeat;
 use crate::system::v1::fs::FileSystemLock;
 use crate::system::v1::fs::OutputDirectory;
 use crate::system::v1::fs::RunDirectory;
@@ -841,7 +843,9 @@ pub async fn run(
 
     let (target, inputs) = resolve_inputs(&args, document).await?;
 
-    let (ctx, run_dir, db) =
+    // Held for the rest of this function: dropping it stops the heartbeat and
+    // would make this run look abandoned while it is still executing.
+    let (ctx, run_dir, db, _heartbeat) =
         setup_run_context(handle, &args, &config, &source, &target, &inputs).await?;
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
@@ -1028,7 +1032,7 @@ async fn setup_run_context(
     source: &Source,
     target: &Target,
     inputs: &Inputs,
-) -> Result<(RunContext, RunDirectory, Arc<dyn Database>)> {
+) -> Result<(RunContext, RunDirectory, Arc<dyn Database>, HeartbeatGuard)> {
     // Set up output directory structure
     let output_dir = OutputDirectory::new(
         args.output_dir
@@ -1068,6 +1072,11 @@ async fn setup_run_context(
         .await
         .context("failed to create session")?;
 
+    // This process owns the session's runs, so it reports liveness while they
+    // are in flight; a `sprocket run` killed outright leaves them non-terminal
+    // for the sweep to close out.
+    let heartbeat = spawn_heartbeat(db.clone(), session.uuid, config.server.heartbeat_interval());
+
     let (run_id, run_name, _run) = create_run_record(
         db.as_ref(),
         session.uuid,
@@ -1096,7 +1105,7 @@ async fn setup_run_context(
         started_at: Utc::now(),
     };
 
-    Ok((ctx, run_dir, db))
+    Ok((ctx, run_dir, db, heartbeat))
 }
 
 /// Initializes logging to `output.log` in the given run directory.
