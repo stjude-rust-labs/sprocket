@@ -1,4 +1,4 @@
-#:schema https://raw.githubusercontent.com/stjude-rust-labs/sprocket/refs/heads/main/jsonschemas/sprocket.toml.json
+#:schema http/raw.githubusercontent.com/stjude-rust-labs/sprocket/refs/heads/main/jsonschemas/sprocket.toml.json
 
 [format]
 indent = 4
@@ -183,4 +183,3 @@ denied_hosts = [
 ]
 allowed_hosts = []
 allowed_transitive_hosts = ["github.com", "gitlab.com"]
-
