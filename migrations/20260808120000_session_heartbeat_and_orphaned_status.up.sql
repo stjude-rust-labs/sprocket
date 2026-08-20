@@ -30,7 +30,7 @@ create index idx_sessions_subcommand_heartbeat on "sessions"(subcommand, heartbe
 
 -- Rebuild `runs` to widen the `status` check constraint with `orphaned`.
 --
--- Column order and types are otherwise identical to the initial migration.
+-- Column order and types are otherwise identical to the preceding migration.
 create table runs_new (
     -- Primary key
     id integer primary key not null,
@@ -46,7 +46,7 @@ create table runs_new (
     -- provide a target and run has not yet resolved the target)
     "target" text,
     -- Current run status
-    "status" text not null check("status" in ('queued', 'running', 'completed', 'failed', 'canceling', 'canceled', 'orphaned')),
+    "status" text not null check("status" in ('queued', 'analyzing', 'running', 'completed', 'failed', 'canceling', 'canceled', 'orphaned')),
     -- JSON-encoded inputs
     inputs text not null,
     -- JSON-encoded outputs
@@ -90,7 +90,7 @@ create table tasks_new (
     -- Foreign key to the run managing this task
     run_id integer not null,
     -- Current task status
-    "status" text not null check("status" in ('pending', 'running', 'completed', 'failed', 'canceled', 'preempted', 'orphaned')),
+    "status" text not null check("status" in ('initializing', 'localizing', 'pending', 'running', 'completed', 'failed', 'canceled', 'preempted', 'cached', 'orphaned')),
     -- Exit status from task completion
     exit_status integer,
     -- Error message (`null` unless task failed)

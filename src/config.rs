@@ -1343,7 +1343,7 @@ mod test {
             HashMap::from_iter([("value", MaxConcurrentRuns::Unlimited)]);
         assert_eq!(
             toml_spanner::to_string(&map).unwrap(),
-            format!("value = \"unlimited\"\n")
+            "value = \"unlimited\"\n"
         );
 
         let map: HashMap<&str, MaxConcurrentRuns> =

@@ -22,7 +22,7 @@ create table runs_old (
     "name" text not null,
     "source" text not null,
     "target" text,
-    "status" text not null check("status" in ('queued', 'running', 'completed', 'failed', 'canceling', 'canceled')),
+    "status" text not null check("status" in ('queued', 'analyzing', 'running', 'completed', 'failed', 'canceling', 'canceled')),
     inputs text not null,
     outputs text,
     "error" text,
@@ -53,7 +53,7 @@ create index idx_runs_created_at on runs(created_at);
 create table tasks_old (
     "name" text primary key not null,
     run_id integer not null,
-    "status" text not null check("status" in ('pending', 'running', 'completed', 'failed', 'canceled', 'preempted')),
+    "status" text not null check("status" in ('initializing', 'localizing', 'pending', 'running', 'completed', 'failed', 'canceled', 'preempted', 'cached')),
     exit_status integer,
     "error" text,
     created_at timestamp not null default current_timestamp,
