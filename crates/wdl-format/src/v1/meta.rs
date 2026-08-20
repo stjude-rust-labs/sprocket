@@ -7,6 +7,7 @@ use crate::PreToken;
 use crate::TokenStream;
 use crate::Writable as _;
 use crate::element::FormatElement;
+use crate::v1::write_comma_separated_items;
 
 /// Formats a [`LiteralNull`](wdl_ast::v1::LiteralNull).
 ///
@@ -62,16 +63,7 @@ pub fn format_metadata_array(
         stream.increment_indent();
     }
 
-    let mut commas = commas.iter();
-    for item in items {
-        (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
-            (comma).write(stream, config);
-        } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
-        }
-        stream.end_line();
-    }
+    write_comma_separated_items(&items, &commas, stream, config);
 
     if !empty {
         stream.decrement_indent();
@@ -122,16 +114,7 @@ pub fn format_metadata_object(
         stream.increment_indent();
     }
 
-    let mut commas = commas.iter();
-    for item in items {
-        (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
-            (comma).write(stream, config);
-        } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
-        }
-        stream.end_line();
-    }
+    write_comma_separated_items(&items, &commas, stream, config);
 
     if !empty {
         stream.decrement_indent();
