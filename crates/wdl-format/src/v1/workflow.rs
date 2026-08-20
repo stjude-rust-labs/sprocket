@@ -11,6 +11,7 @@ use crate::TokenStream;
 use crate::Trivia;
 use crate::Writable as _;
 use crate::element::FormatElement;
+use crate::v1::write_sections;
 
 /// Formats a [`ConditionalStatement`](wdl_ast::v1::ConditionalStatement).
 ///
@@ -180,45 +181,45 @@ pub fn format_workflow_definition(
     (&open_brace).write(stream, config);
     stream.increment_indent();
 
-    let mut meta = None;
-    let mut parameter_meta = None;
-    let mut input = None;
+    let mut meta_sections = Vec::new();
+    let mut parameter_meta_sections = Vec::new();
+    let mut input_sections = Vec::new();
     let mut body = Vec::new();
-    let mut output = None;
-    let mut hints = None;
+    let mut output_sections = Vec::new();
+    let mut hints_sections = Vec::new();
     let mut close_brace = None;
 
     for child in children {
         match child.element().kind() {
             SyntaxKind::MetadataSectionNode => {
-                meta = Some(child.clone());
+                meta_sections.push(child);
             }
             SyntaxKind::ParameterMetadataSectionNode => {
-                parameter_meta = Some(child.clone());
+                parameter_meta_sections.push(child);
             }
             SyntaxKind::InputSectionNode => {
-                input = Some(child.clone());
+                input_sections.push(child);
             }
             SyntaxKind::BoundDeclNode => {
-                body.push(child.clone());
+                body.push(child);
             }
             SyntaxKind::CallStatementNode => {
-                body.push(child.clone());
+                body.push(child);
             }
             SyntaxKind::ConditionalStatementNode => {
-                body.push(child.clone());
+                body.push(child);
             }
             SyntaxKind::ScatterStatementNode => {
-                body.push(child.clone());
+                body.push(child);
             }
             SyntaxKind::OutputSectionNode => {
-                output = Some(child.clone());
+                output_sections.push(child);
             }
             SyntaxKind::WorkflowHintsSectionNode => {
-                hints = Some(child.clone());
+                hints_sections.push(child);
             }
             SyntaxKind::CloseBrace => {
-                close_brace = Some(child.clone());
+                close_brace = Some(child);
             }
             _ => {
                 unreachable!(
@@ -229,45 +230,29 @@ pub fn format_workflow_definition(
         }
     }
 
-    if let Some(meta) = meta {
-        (&meta).write(stream, config);
-        stream.blank_line();
-    }
-
-    if let Some(parameter_meta) = parameter_meta {
-        (&parameter_meta).write(stream, config);
-        stream.blank_line();
-    }
-
-    if let Some(input) = input {
-        (&input).write(stream, config);
-        stream.blank_line();
-    }
+    write_sections(&meta_sections, stream, config);
+    write_sections(&parameter_meta_sections, stream, config);
+    write_sections(&input_sections, stream, config);
 
     stream.allow_blank_lines();
     let body_empty = body.is_empty();
     for child in body {
-        (&child).write(stream, config);
+        child.write(stream, config);
     }
     stream.ignore_trailing_blank_lines();
     if !body_empty {
         stream.blank_line();
     }
 
-    if let Some(output) = output {
-        (&output).write(stream, config);
-        stream.blank_line();
-    }
-
-    if let Some(hints) = hints {
-        (&hints).write(stream, config);
-        stream.blank_line();
-    }
+    write_sections(&output_sections, stream, config);
+    write_sections(&hints_sections, stream, config);
 
     stream.trim_while(|t| matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine)));
 
     stream.decrement_indent();
-    (&close_brace.expect("workflow close brace")).write(stream, config);
+    close_brace
+        .expect("workflow close brace")
+        .write(stream, config);
     stream.end_line();
 }
 

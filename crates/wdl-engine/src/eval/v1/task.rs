@@ -403,6 +403,12 @@ struct State<'a> {
     document: &'a Document,
     /// The task being evaluated.
     task: &'a Task,
+    /// The unique name of the task's current execution attempt.
+    ///
+    /// The name is minted before any of the attempt's work begins so that
+    /// progress can be attributed to the task before it reaches the backend,
+    /// and it is the name the backend reports for the attempt.
+    task_name: String,
     /// The scopes of the task being evaluated.
     ///
     /// The first scope is the root scope, the second is the output scope, and
@@ -435,6 +441,7 @@ impl<'a> State<'a> {
         document: &'a Document,
         task: &'a Task,
         temp_dir: &'a Path,
+        task_name: String,
     ) -> Result<Self> {
         // Tasks have a root scope (index 0), an output scope (index 1), and a `task`
         // variable scope (index 2). The output scope inherits from the root scope and
@@ -470,6 +477,7 @@ impl<'a> State<'a> {
             base_dir,
             document,
             task,
+            task_name,
             scopes,
             env: Default::default(),
             inputs: Default::default(),
@@ -561,6 +569,11 @@ impl<'a> State<'a> {
             });
         }
 
+        // Notify that the task is transferring inputs; this path localizes eagerly
+        // during input and declaration evaluation, before the task's sections are
+        // evaluated.
+        self.evaluator.notify_task_localizing(&self.task_name);
+
         // Wait for the downloads to complete
         while let Some(result) = downloads.join_next().await {
             let (url, location, index) =
@@ -618,7 +631,7 @@ impl<'a> State<'a> {
             // matching guest prefix
             for (host, guest) in self.path_map.iter() {
                 // Check to see if the provided guest path is prefixed by this entry
-                if let Some(remainder) = strip_path_prefix(path.0.as_str(), guest.0.as_str()) {
+                if let Some(remainder) = strip_path_prefix(path, guest) {
                     // If the host is a URL, parse it and join it with the remainder
                     if is_supported_url(host.as_str()) {
                         let mut host: Url = host.as_str().parse().ok()?;
@@ -635,7 +648,7 @@ impl<'a> State<'a> {
                     }
 
                     // Otherwise, join paths
-                    let joined = Path::new(host.0.as_str()).join(remainder);
+                    let joined = Path::new(host.as_str()).join(remainder);
                     return Some(HostPath::new(joined.into_os_string().into_string().ok()?));
                 }
             }
@@ -669,12 +682,10 @@ impl<'a> State<'a> {
 
                 match (&path_url, &host_url) {
                     (None, None) => {
-                        if let Some(remainder) = strip_path_prefix(path.0.as_str(), host.0.as_str())
-                        {
+                        if let Some(remainder) = strip_path_prefix(path, host) {
                             // Note: guest paths are always Unix-style paths
                             return Some(GuestPath::new(format!(
-                                "{base}/{remainder}",
-                                base = guest.0.trim_end_matches('/'),
+                                "{guest}/{remainder}",
                                 remainder = remainder.replace('\\', "/")
                             )));
                         }
@@ -682,10 +693,7 @@ impl<'a> State<'a> {
                     (Some(path_url), Some(host_url)) => {
                         if let Some(remainder) = strip_url_path_prefix(path_url, host_url) {
                             // Note: guest paths are always Unix-style paths
-                            return Some(GuestPath::new(format!(
-                                "{base}/{remainder}",
-                                base = guest.0.trim_end_matches('/')
-                            )));
+                            return Some(GuestPath::new(format!("{guest}/{remainder}",)));
                         }
                     }
                     _ => continue,
@@ -1303,7 +1311,7 @@ impl<'a> State<'a> {
                     }
 
                     // Check for known input paths if this is a guest path
-                    if let Some(host) = self.host_path(&GuestPath(path.0.clone())) {
+                    if let Some(host) = self.host_path(&path.into()) {
                         return Ok(host);
                     }
 
@@ -1384,6 +1392,12 @@ impl<'a> State<'a> {
                             .with_context(|| anyhow!("failed to localize `{url}`"))
                     });
                 }
+            }
+
+            // Notify that the task is transferring inputs, but only when there is
+            // something to transfer
+            if !downloads.is_empty() {
+                self.evaluator.notify_task_localizing(&self.task_name);
             }
 
             // Wait for the downloads to complete
@@ -1573,7 +1587,11 @@ impl Evaluator {
         // Write the inputs to the task's root directory
         write_json_file(task_eval_root.join(INPUTS_FILE), &inputs)?;
 
-        let mut state = State::new(self, document, task, &temp_dir)?;
+        // Mint the name for the first attempt before any of the task's work begins,
+        // so that even localization performed while evaluating inputs and
+        // declarations is attributable to the task.
+        let mut state = State::new(self, document, task, &temp_dir, self.generate_task_name(id))?;
+        self.notify_task_initializing(id, &state.task_name);
         let nodes = toposort(&graph, None).expect("graph should be acyclic");
         let mut current = 0;
         while current < nodes.len() {
@@ -1613,6 +1631,12 @@ impl Evaluator {
         let mut evaluated = loop {
             if self.cancellation.state() != CancellationContextState::NotCanceled {
                 return Err(EvaluationError::Canceled);
+            }
+
+            // Each attempt is a distinct execution with its own name.
+            if attempt > 0 {
+                state.task_name = self.generate_task_name(id);
+                self.notify_task_initializing(id, &state.task_name);
             }
 
             let EvaluatedSections {
@@ -1745,6 +1769,7 @@ impl Evaluator {
                         if let Some(sender) = &self.events {
                             let _ = sender.send(EngineEvent::ReusedCachedExecutionResult {
                                 id: id.to_string(),
+                                name: state.task_name.clone(),
                             });
                         }
 
@@ -1788,7 +1813,7 @@ impl Evaluator {
                         .execute(
                             &self.transferer,
                             ExecuteTaskRequest {
-                                id,
+                                name: &state.task_name,
                                 command: &command,
                                 inputs: &inputs,
                                 backend_inputs: state.backend_inputs.as_slice(),
@@ -2014,7 +2039,7 @@ impl Evaluator {
             let Some(guest) = state
                 .path_map
                 .right_values()
-                .find(|p| symlink_guest_path.starts_with(p.0.as_str()))
+                .find(|p| symlink_guest_path.starts_with(p))
             else {
                 bail!(
                     "`{path}` links to guest path `{link_path}` but it is not to a task input or \
@@ -2054,12 +2079,12 @@ impl Evaluator {
                             )
                         })?
                 } else {
-                    Path::new(host.0.as_str())
+                    host.as_ref()
                 };
 
             // Translate the guest path to the corresponding host path
             let symlink_host_path: Cow<'_, Path> = if let Ok(stripped) =
-                symlink_guest_path.strip_prefix(guest.0.as_str())
+                symlink_guest_path.strip_prefix(guest)
                 && !stripped.as_os_str().is_empty()
             {
                 Cow::Owned(base_host_path.join(stripped))

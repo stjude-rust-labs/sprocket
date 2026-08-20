@@ -20,6 +20,8 @@ pub mod format;
 pub mod inputs;
 pub mod inspect;
 pub mod lock;
+pub mod module;
+pub(crate) mod output;
 pub mod retry;
 pub mod run;
 pub mod server;
@@ -141,6 +143,9 @@ pub enum DevCommands {
     Doc(doc::Args),
     /// Locks Docker images to a sha256 digest.
     Lock(lock::Args),
+    /// Create and manage WDL modules.
+    #[command(subcommand)]
+    Module(module::ModuleCommands),
     /// Run-management server commands (start, submit, status, inspect, cancel,
     /// retry).
     Server(server::Args),

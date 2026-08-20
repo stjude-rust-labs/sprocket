@@ -34,6 +34,8 @@ use wdl::engine::Config as EngineConfig;
 use wdl::format::Config as FormatConfig;
 use wdl_modules::resolver::ModulesConfig;
 
+use crate::IGNORE_FILENAME;
+
 /// Default host.
 const fn default_host() -> &'static str {
     "127.0.0.1"
@@ -67,11 +69,18 @@ const CONFIG_FILENAME: &str = "sprocket.toml";
 /// `sprocket.toml` is read from. Use this anywhere a path needs to live
 /// alongside the user's Sprocket config.
 ///
-/// On macOS this is `$HOME/.config/sprocket/`, on Linux it follows
+/// The `SPROCKET_CONFIG_ROOT` environment variable, when set, overrides the
+/// platform-specific default (this is primarily used to isolate configuration
+/// during testing).
+///
+/// Otherwise, on macOS this is `$HOME/.config/sprocket/`, on Linux it follows
 /// `$XDG_CONFIG_HOME` (typically `~/.config/sprocket/`), on Windows it lands
 /// in `%APPDATA%/sprocket/`. Returns `None` when the underlying base
 /// directory cannot be determined (no `$HOME`, etc.).
 pub fn config_root() -> Option<PathBuf> {
+    if let Some(root) = std::env::var_os("SPROCKET_CONFIG_ROOT") {
+        return Some(PathBuf::from(root));
+    }
     #[cfg(target_os = "macos")]
     let base = dirs::home_dir().map(|p| p.join(".config"));
     #[cfg(not(target_os = "macos"))]
@@ -181,6 +190,10 @@ pub struct Config {
     #[toml(default, style = Header)]
     #[schemars(default)]
     pub common: CommonConfig,
+    /// Configuration for the `module` command group (`[module]` section).
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub module: ModuleConfig,
     /// Configuration for the module system (`[modules]` section).
     #[toml(default, style = Header)]
     #[schemars(default)]
@@ -194,6 +207,49 @@ impl Config {
     }
 }
 
+/// Configuration for the `sprocket dev module` command group.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ModuleConfig {
+    /// Configuration for `sprocket dev module init`.
+    #[toml(default, style = Header)]
+    #[schemars(default)]
+    pub init: ModuleInitConfig,
+}
+
+/// Configuration for `sprocket dev module init`.
+#[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
+#[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
+#[schemars(rename_all = "snake_case", deny_unknown_fields)]
+pub struct ModuleInitConfig {
+    /// Default module author name.
+    pub author: Option<String>,
+    /// Default module author email.
+    pub email: Option<String>,
+    /// Default SPDX license expression.
+    pub license: Option<String>,
+}
+
+impl ModuleInitConfig {
+    /// Validates that configured module fields are not blank.
+    fn validate(&self) -> Result<()> {
+        for (field, value) in [
+            ("author", &self.author),
+            ("email", &self.email),
+            ("license", &self.license),
+        ] {
+            if value
+                .as_deref()
+                .is_some_and(|value| value.trim().is_empty())
+            {
+                bail!("`module.init.{field}` cannot be empty");
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Represents shared configuration options for Sprocket commands.
 #[derive(Debug, Default, Clone, PartialEq, Eq, Toml, JsonSchema)]
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
@@ -203,6 +259,10 @@ pub struct CommonConfig {
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
     #[schemars(default)]
     pub color: ColorMode,
+    /// Ignore `.sprocketignore` files while discovering WDL documents.
+    #[toml(skip)]
+    #[schemars(skip)]
+    pub no_ignore: bool,
     /// The report mode.
     #[toml(default, FromToml with = parse_string, ToToml with = display)]
     #[schemars(default)]
@@ -211,6 +271,13 @@ pub struct CommonConfig {
     #[toml(default, style = Header)]
     #[schemars(default)]
     pub wdl: WdlConfig,
+}
+
+impl CommonConfig {
+    /// Gets the ignore filename for document discovery.
+    pub fn ignore_filename(&self) -> Option<String> {
+        (!self.no_ignore).then(|| IGNORE_FILENAME.to_string())
+    }
 }
 
 /// Represents a fallback WDL version to use.
@@ -1135,6 +1202,8 @@ impl Config {
 
     /// Validate a configuration.
     pub fn validate(&mut self) -> Result<()> {
+        self.module.init.validate()?;
+
         if self.check.all_lint_rules && !self.check.only_lint_tags.is_empty() {
             bail!("`all_lint_rules` cannot be specified with `only_lint_tags`")
         }
@@ -1470,6 +1539,36 @@ mod test {
             !failed,
             "the generated schema does not match the current `sprocket.toml`!"
         );
+    }
+
+    #[test]
+    fn module_init_config_parses() {
+        let config = toml_spanner::from_str::<Config>(
+            "[module.init]\nauthor = \"Jane Doe\"\nemail = \"jane@example.com\"\nlicense = \
+             \"MIT\"\n",
+        )
+        .unwrap();
+
+        assert_eq!(config.module.init.author.as_deref(), Some("Jane Doe"));
+        assert_eq!(
+            config.module.init.email.as_deref(),
+            Some("jane@example.com")
+        );
+        assert_eq!(config.module.init.license.as_deref(), Some("MIT"));
+    }
+
+    #[test]
+    fn module_init_config_rejects_blank_fields() {
+        for (field, value) in [("author", "   "), ("email", "\t"), ("license", "\n")] {
+            let source = format!("[module.init]\n{field} = {value:?}\n");
+            let mut config = toml_spanner::from_str::<Config>(&source).unwrap();
+            let error = config.validate().unwrap_err();
+
+            assert_eq!(
+                error.to_string(),
+                format!("`module.init.{field}` cannot be empty")
+            );
+        }
     }
 
     #[test]

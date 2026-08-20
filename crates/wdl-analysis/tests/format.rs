@@ -19,6 +19,7 @@ fn normalize(s: &str) -> String {
 }
 
 #[tokio::test]
+#[test_log::test]
 async fn spaces() {
     let dir = Path::new("tests").join("format");
     let two_space_wdl_path = dir.join("two_spaces.wdl");

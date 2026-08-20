@@ -75,11 +75,11 @@ fn size(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
                     .unwrap_file();
 
                 // If the path is a URL that isn't `file` schemed, treat as a file
-                if !is_file_url(&path.0) && is_supported_url(&path.0) {
+                if !is_file_url(path.as_str()) && is_supported_url(path.as_str()) {
                     PrimitiveValue::File(path).into()
                 } else {
                     let local_path =
-                        ensure_local_path(context.base_dir(), &path.0).map_err(|e| {
+                        ensure_local_path(context.base_dir(), path.as_str()).map_err(|e| {
                             function_call_failed(FUNCTION_NAME, format!("{e:?}"), context.call_site)
                         })?;
 
