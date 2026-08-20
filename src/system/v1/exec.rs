@@ -21,6 +21,7 @@ use tokio_retry2::Retry;
 use tokio_retry2::RetryError;
 use tokio_retry2::strategy::ExponentialBackoff;
 use tracing::error;
+use tokio_util::sync::CancellationToken;
 use tracing::info;
 use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
@@ -44,6 +45,7 @@ use crate::analysis::Source;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::DatabaseError;
 use crate::system::v1::db::Run;
+use crate::system::v1::db::RunStatus;
 use crate::system::v1::db::Session;
 use crate::system::v1::db::SprocketCommand;
 use crate::system::v1::db::SqliteDatabase;
@@ -408,6 +410,20 @@ impl RunnableExecutor {
     /// returns early. On completion (success or failure), the run is removed
     /// from the active runs map.
     pub async fn execute(self) {
+        // The run has left the queue and is doing work; say so before analysis,
+        // which resolves and type checks every import and can take a while.
+        if let Err(e) = self
+            .db
+            .update_run_status(self.run_id, RunStatus::Analyzing)
+            .await
+        {
+            tracing::error!(
+                "run `{}` ({}) failed to update status: {e:#}",
+                &self.run_name,
+                self.run_id
+            );
+        }
+
         let result = match analyze_wdl_document(
             &self.source,
             self.fallback_version,
@@ -540,11 +556,17 @@ impl RunnableExecutor {
             &ctx.run_generated_name, self.run_id
         );
 
-        // SAFETY: because we subscribe to all events above, the Crankshaft
-        // subscriber should always be available to us here.
-        let crankshaft_rx = self.events.subscribe_crankshaft().unwrap();
-        let task_monitor_svc = TaskMonitorSvc::new(self.run_id, self.db.clone(), crankshaft_rx);
-        tokio::spawn(task_monitor_svc.run());
+        // SAFETY: because we subscribe to all events above, both subscribers
+        // should always be available to us here.
+        let monitor_shutdown = CancellationToken::new();
+        let task_monitor_svc = TaskMonitorSvc::new(
+            self.run_id,
+            self.db.clone(),
+            self.events.subscribe_crankshaft().unwrap(),
+            self.events.subscribe_engine().unwrap(),
+            monitor_shutdown.clone(),
+        );
+        let task_monitor = tokio::spawn(task_monitor_svc.run());
 
         // Resolve relative paths in inputs from the current working directory.
         let cwd = std::env::current_dir().expect("failed to get current working directory");
@@ -592,6 +614,14 @@ impl RunnableExecutor {
                 self.run_id,
                 e.to_string()
             );
+        }
+
+        // Evaluation is over, so no further events can be emitted. Let the monitor
+        // consume what is left and reconcile any task that never reached a
+        // terminal status before the run is considered finished.
+        monitor_shutdown.cancel();
+        if let Err(e) = task_monitor.await {
+            tracing::error!("task monitor for run {} failed: {e:#}", self.run_id);
         }
 
         self.runs.lock().await.remove(&self.run_id);
@@ -915,6 +945,7 @@ pub async fn execute_target(
     index_on: Option<&str>,
 ) -> Result<(), EvaluationError> {
     let config = Arc::new(config);
+    let cancellation_status = cancellation.clone();
     db.start_run(ctx.run_id, ctx.started_at)
         .await
         .map_err(anyhow::Error::from)?;
@@ -966,6 +997,21 @@ pub async fn execute_target(
             Ok(())
         }
         Err(e) => {
+            // Cancelling a run aborts whatever it is doing, and work that is not a
+            // task execution reports that abort as an ordinary evaluation error.
+            // Localizing a large input is the common case: the transfer is torn
+            // down by the cancellation token and fails. The run was canceled, not
+            // failed, and only the user's own cancellation counts here — a
+            // cancellation triggered by an error must still be recorded as a
+            // failure.
+            if cancellation_status.user_canceled() {
+                if let Err(db_err) = db.cancel_run(ctx.run_id, Utc::now()).await {
+                    tracing::error!("failed to record run cancellation: {db_err:#}");
+                }
+
+                return Ok(());
+            }
+
             let error = e.to_string();
             if let Err(db_err) = db.fail_run(ctx.run_id, &error, Utc::now()).await {
                 tracing::error!("failed to record run failure: {db_err:#}");

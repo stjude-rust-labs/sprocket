@@ -57,7 +57,6 @@ mod eval;
 mod inputs;
 pub mod server;
 pub mod system;
-mod test;
 
 /// The Sprocket ignore file name.
 const IGNORE_FILENAME: &str = ".sprocketignore";
@@ -186,6 +185,14 @@ async fn real_main() -> CommandResult<()> {
         }
         Commands::Dev(commands::DevCommands::Lock(args)) => {
             commands::lock::lock(args, config, colorize).await
+        }
+        Commands::Dev(commands::DevCommands::Module(command)) => {
+            commands::module::run(
+                command,
+                config,
+                commands::output::CommandOutput::new(colorize),
+            )
+            .await
         }
         Commands::Dev(commands::DevCommands::Server(args)) => {
             commands::server::server(args, config, colorize).await

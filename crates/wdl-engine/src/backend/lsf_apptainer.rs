@@ -30,8 +30,6 @@ use anyhow::anyhow;
 use anyhow::bail;
 use bytesize::ByteSize;
 use cloud_copy::Alphanumeric;
-use crankshaft::engine::service::name::GeneratorIterator;
-use crankshaft::engine::service::name::UniqueAlphanumeric;
 use crankshaft::events::Event as CrankshaftEvent;
 use crankshaft::events::send_event;
 use futures::FutureExt;
@@ -61,7 +59,6 @@ use crate::PrimitiveValue;
 use crate::TaskInputs;
 use crate::backend::ApptainerRuntime;
 use crate::backend::ExecuteTaskRequest;
-use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::backend::TaskExecutionConstraints;
 use crate::backend::TaskExecutionResult;
 use crate::config::Config;
@@ -233,8 +230,6 @@ struct Job {
 /// State used by the LSF task monitor.
 #[derive(Debug)]
 struct MonitorState {
-    /// The name generator for tasks.
-    names: GeneratorIterator<UniqueAlphanumeric>,
     /// The current tick count of the monitor.
     ///
     /// This is used to cheaply keep track of jobs that aren't in `bjobs`
@@ -252,10 +247,6 @@ impl MonitorState {
     /// Constructs a new monitor state.
     fn new() -> Self {
         Self {
-            names: GeneratorIterator::new(
-                UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
-                INITIAL_EXPECTED_NAMES,
-            ),
             tick: 0,
             tag: String::new(),
             jobs: HashMap::new(),
@@ -385,16 +376,6 @@ impl MonitorState {
             self.tag.clear();
         }
     }
-
-    /// Fails all currently monitored jobs with the given error.
-    fn fail_all_jobs(&mut self, error: &anyhow::Error) {
-        for (_, job) in self.jobs.drain() {
-            let _ = job.completed.send(Err(anyhow!("{error:#}")));
-        }
-
-        // Reset the current tag
-        self.tag.clear();
-    }
 }
 
 /// Represents a submitted LSF job.
@@ -450,20 +431,13 @@ impl Monitor {
         command_path: &Path,
         transferer: &dyn Transferer,
     ) -> Result<SubmittedJob> {
-        let (task_name, tag) = {
-            let mut state = self.state.lock().expect("failed to lock state");
-
-            let task_name = format!(
-                "{id}-{generated}",
-                id = request.id,
-                generated = state
-                    .names
-                    .next()
-                    .expect("generator should never be exhausted")
-            );
-
-            (task_name, state.current_tag().to_string())
-        };
+        let task_name = request.name.to_string();
+        let tag = self
+            .state
+            .lock()
+            .expect("failed to lock state")
+            .current_tag()
+            .to_string();
 
         let mut command = Command::new("bsub");
 
@@ -635,17 +609,33 @@ impl Monitor {
                     };
 
                     // Read the records using `bjobs` and then update the state
-                    let result = Self::read_job_records(&search_prefix).await.context("failed to query job status using `bjobs`");
-                    let mut state = state.lock().expect("failed to lock state");
-                    match result {
-                        Ok(records) => state.update_jobs(records, &events),
-                        Err(e) => state.fail_all_jobs(&e),
-                    }
+                    Self::handle_query_result(
+                        state.as_ref(),
+                        &events,
+                        Self::read_job_records(&search_prefix).await,
+                    );
                 }
             }
         }
 
         debug!("LSF task monitor has shut down");
+    }
+
+    /// Handles the result of querying job status with bjobs.
+    fn handle_query_result(
+        state: &Mutex<MonitorState>,
+        events: &Events,
+        result: Result<Vec<JobRecord>>,
+    ) {
+        match result {
+            Ok(records) => state
+                .lock()
+                .expect("failed to lock state")
+                .update_jobs(records, events),
+            Err(error) => {
+                error!("failed to query job status using `bjobs`: {error:#}");
+            }
+        }
     }
 
     /// Reads the current job records using `bjobs`.
@@ -1085,7 +1075,62 @@ impl TaskExecutionBackend for LsfApptainerBackend {
 
 #[cfg(test)]
 mod tests {
+    use tokio::sync::oneshot::error::TryRecvError;
+    use tracing_test::traced_test;
+
     use super::*;
+
+    #[test]
+    #[traced_test]
+    fn monitor_continues_after_bjobs_error() {
+        let mut state = MonitorState::new();
+        let (completed_tx, mut completed_rx) = oneshot::channel();
+        state.add_job(42, 0, completed_tx);
+        let state = Mutex::new(state);
+
+        Monitor::handle_query_result(
+            &state,
+            &Events::disabled(),
+            Err(anyhow!("Permission denied (os error 13)")
+                .context("failed to spawn `bjobs` command")),
+        );
+
+        assert!(matches!(completed_rx.try_recv(), Err(TryRecvError::Empty)));
+        assert!(
+            state
+                .lock()
+                .expect("failed to lock state")
+                .jobs
+                .contains_key(&42)
+        );
+        assert!(logs_contain(
+            "failed to query job status using `bjobs`: failed to spawn `bjobs` command: \
+             Permission denied (os error 13)"
+        ));
+
+        Monitor::handle_query_result(
+            &state,
+            &Events::disabled(),
+            Ok(vec![JobRecord {
+                job_id: "42".to_string(),
+                state: "DONE".to_string(),
+                exit_code: "0".to_string(),
+                avg_memory: String::new(),
+                max_memory: String::new(),
+                cpu_used: String::new(),
+                user_cpu_time: String::new(),
+                system_cpu_time: String::new(),
+            }]),
+        );
+
+        assert_eq!(
+            completed_rx
+                .try_recv()
+                .expect("job should be completed")
+                .expect("job should complete successfully"),
+            0
+        );
+    }
 
     #[test]
     fn job_name_truncates() {

@@ -1,3 +1,3 @@
-from . import diagnostics, grammar
+from . import ast, diagnostics, grammar
 
-__all__ = ["diagnostics", "grammar"]
+__all__ = ["ast", "diagnostics", "grammar"]

@@ -8,45 +8,33 @@ Arguments:
 
 Options:
   -e, --except <RULE>
-          Excepts (ignores) an analysis or lint rule.
-          
-          Repeat the flag multiple times to except multiple rules. This is additive with exceptions found in config files.
+          Excepts (ignores) a lint rule or tag from running if it would have been included otherwise.
 
-  -a, --all-lint-rules
-          Enable all lint rules. This includes additional rules outside the default set.
-          
-          `--except <RULE>` and `--filter-lint-tag <TAG>` can be used in conjunction with this argument.
+          Repeat the flag multiple times to except multiple rules or tags. This is additive with exceptions found in config files.
 
-      --filter-lint-tag <TAG>
-          Excludes a lint tag from running if it would have been included otherwise.
-          
-          Repeat the flag multiple times to filter multiple tags. This is additive with filtered tags found in config files.
-          
-          [possible values: Clarity, Completeness, Correctness, Deprecated, Documentation, Naming, Performance, Portability, Sorting, Spacing, SprocketCompatibility, Style]
-
-      --only-lint-tag <TAG>
+      --tag <TAG>
           Includes a lint tag for running.
-          
-          Repeat the flag multiple times to include multiple tags. `--except <RULE>` and `--filter-lint-tag <TAG>` can be used in conjunction with this argument. This is additive with tags selected via config files.
-          
-          [possible values: Clarity, Completeness, Correctness, Deprecated, Documentation, Naming, Performance, Portability, Sorting, Spacing, SprocketCompatibility, Style]
+
+          Repeat the flag multiple times to include multiple tags. `--except <RULE|TAG>` can be used in conjunction with this argument. This is additive with tags selected via config files.
+
+          [possible values: All, Clarity, Completeness, Correctness, Deprecated, Documentation, Naming, Performance, Portability, Sorting, Spacing, SprocketCompatibility, Style]
 
       --deny-warnings
           Causes the command to fail if warnings were reported
 
       --deny-notes
           Causes the command to fail if notes were reported.
-          
+
           Implies `--deny-warnings`.
 
       --suppress-imports
           Suppress diagnostics from documents that were not explicitly provided in the sources list (i.e., were imported from a provided source).
-          
+
           If the sources list contains a directory, an error will be raised.
 
       --show-remote-diagnostics
           Show diagnostics for remote documents.
-          
+
           By default, when checking a local document remote diagnostics are suppressed. This flag will show diagnostics for remote documents. This flag has no effect when checking a remote document.
 
       --hide-notes
@@ -65,17 +53,17 @@ Options:
       --generate-baseline
           Generate a baseline file from current diagnostics and exit
 
-  -v, --verbose...
-          Increase logging verbosity
-
       --no-baseline
           Ignore the baseline file for this run
 
-  -q, --quiet...
-          Decrease logging verbosity
-
   -l, --lint
           Enable lint checks in addition to validation errors
+
+  -v, --verbose...
+          Increase logging verbosity
+
+  -q, --quiet...
+          Decrease logging verbosity
 
       --no-ignore
           Ignore `.sprocketignore` files while discovering WDL documents
@@ -87,7 +75,7 @@ Options:
           - auto:   Automatically colorize output depending on output device
           - always: Always colorize output
           - never:  Never colorize output
-          
+
           [default: auto]
 
   -c, --config <CONFIG>
@@ -95,7 +83,7 @@ Options:
 
   -s, --skip-config-search
           Skip searching for and loading configuration files.
-          
+
           Only a configuration file specified as a command line argument will be used.
 
   -h, --help

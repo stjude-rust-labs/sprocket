@@ -19,6 +19,11 @@ use uuid::Uuid;
 pub enum RunStatus {
     /// The run is queued for execution.
     Queued,
+    /// The run's WDL document is being analyzed.
+    ///
+    /// Analysis resolves and type checks the document and all of its imports;
+    /// it precedes the creation of the run directory and any evaluation.
+    Analyzing,
     /// The run is currently running.
     Running,
     /// The run completed successfully.
@@ -45,6 +50,7 @@ impl fmt::Display for RunStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RunStatus::Queued => write!(f, "queued"),
+            RunStatus::Analyzing => write!(f, "analyzing"),
             RunStatus::Running => write!(f, "running"),
             RunStatus::Completed => write!(f, "completed"),
             RunStatus::Failed => write!(f, "failed"),
@@ -61,6 +67,7 @@ impl FromStr for RunStatus {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "queued" => Ok(RunStatus::Queued),
+            "analyzing" => Ok(RunStatus::Analyzing),
             "running" => Ok(RunStatus::Running),
             "completed" => Ok(RunStatus::Completed),
             "failed" => Ok(RunStatus::Failed),
@@ -111,6 +118,16 @@ impl FromStr for SprocketCommand {
 pub enum TaskStatus {
     /// Task has been created.
     Pending,
+    /// The engine is evaluating the task's inputs, command, and requirements.
+    ///
+    /// This is the first state of a task and precedes both localization and
+    /// submission to the execution backend.
+    Initializing,
+    /// The task's inputs are being transferred.
+    ///
+    /// Depending on the backend, this means either downloading remote inputs
+    /// to the host or digesting and uploading local inputs to remote storage.
+    Localizing,
     /// Task is executing.
     Running,
     /// Task completed successfully.
@@ -123,18 +140,24 @@ pub enum TaskStatus {
     Preempted,
     /// Task was orphaned along with the run that owned it.
     Orphaned,
+    /// Task execution was skipped because a previous result was reused from
+    /// the call cache.
+    Cached,
 }
 
 impl fmt::Display for TaskStatus {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TaskStatus::Pending => write!(f, "pending"),
+            TaskStatus::Initializing => write!(f, "initializing"),
+            TaskStatus::Localizing => write!(f, "localizing"),
             TaskStatus::Running => write!(f, "running"),
             TaskStatus::Completed => write!(f, "completed"),
             TaskStatus::Failed => write!(f, "failed"),
             TaskStatus::Canceled => write!(f, "canceled"),
             TaskStatus::Preempted => write!(f, "preempted"),
             TaskStatus::Orphaned => write!(f, "orphaned"),
+            TaskStatus::Cached => write!(f, "cached"),
         }
     }
 }
@@ -144,6 +167,8 @@ impl FromStr for TaskStatus {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
+            "initializing" => Ok(TaskStatus::Initializing),
+            "localizing" => Ok(TaskStatus::Localizing),
             "pending" => Ok(TaskStatus::Pending),
             "running" => Ok(TaskStatus::Running),
             "completed" => Ok(TaskStatus::Completed),
@@ -151,6 +176,7 @@ impl FromStr for TaskStatus {
             "canceled" => Ok(TaskStatus::Canceled),
             "preempted" => Ok(TaskStatus::Preempted),
             "orphaned" => Ok(TaskStatus::Orphaned),
+            "cached" => Ok(TaskStatus::Cached),
             _ => Err(format!("invalid task status: {}", s)),
         }
     }

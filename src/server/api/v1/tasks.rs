@@ -125,12 +125,20 @@ pub struct ListTasksResponse {
 /// Every status is always present; statuses with no tasks report `0`.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct RunTaskCountsResponse {
-    /// Number of tasks that have been created but not yet started.
+    /// Number of tasks whose inputs, command, and requirements are being
+    /// evaluated.
+    pub initializing: i64,
+    /// Number of tasks that are transferring their inputs.
+    pub localizing: i64,
+    /// Number of tasks that have been submitted to a backend but not yet
+    /// started.
     pub pending: i64,
     /// Number of tasks that are currently executing.
     pub running: i64,
     /// Number of tasks that completed successfully.
     pub completed: i64,
+    /// Number of tasks whose result was reused from the call cache.
+    pub cached: i64,
     /// Number of tasks that failed.
     pub failed: i64,
     /// Number of tasks that were canceled.
@@ -147,9 +155,12 @@ pub struct RunTaskCountsResponse {
 impl From<commands::RunTaskCountsResponse> for RunTaskCountsResponse {
     fn from(response: commands::RunTaskCountsResponse) -> Self {
         let mut counts = Self {
+            initializing: 0,
+            localizing: 0,
             pending: 0,
             running: 0,
             completed: 0,
+            cached: 0,
             failed: 0,
             canceled: 0,
             preempted: 0,
@@ -159,9 +170,12 @@ impl From<commands::RunTaskCountsResponse> for RunTaskCountsResponse {
 
         for (status, count) in response.counts {
             match status {
+                TaskStatus::Initializing => counts.initializing = count,
+                TaskStatus::Localizing => counts.localizing = count,
                 TaskStatus::Pending => counts.pending = count,
                 TaskStatus::Running => counts.running = count,
                 TaskStatus::Completed => counts.completed = count,
+                TaskStatus::Cached => counts.cached = count,
                 TaskStatus::Failed => counts.failed = count,
                 TaskStatus::Canceled => counts.canceled = count,
                 TaskStatus::Preempted => counts.preempted = count,

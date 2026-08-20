@@ -59,6 +59,11 @@ pub struct SubmitRunRequestArgs {
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
     report_mode: Option<Mode>,
+
+    /// Fail if `module-lock.json` is missing or out of date instead of
+    /// regenerating it before submission.
+    #[clap(long)]
+    locked: bool,
 }
 
 /// Arguments for the `submit` subcommand.
@@ -78,11 +83,21 @@ pub struct Args {
 pub async fn submit(args: Args, config: Config, colorize: bool) -> CommandResult<()> {
     let report_mode = args.run_request_args.report_mode.unwrap_or_default();
     let source = match args.run_request_args.source {
-        Source::Directory(ref dir) => {
-            crate::analysis::resolve_module_entrypoint(dir, config.common.wdl.feature_flags)?
-        }
+        Source::Directory(ref dir) => crate::analysis::resolve_module_entrypoint(dir)?,
         ref other => other.clone(),
     };
+
+    // Bring a stale or missing module lockfile up to date before submitting so
+    // the workflow runs against a consistent, reproducible tree, unless
+    // `--locked` asked for the submission to fail instead.
+    if let Some(dir) = source.local_start_dir() {
+        let policy = if args.run_request_args.locked {
+            crate::commands::module::auto_lock::LockfilePolicy::RequireCurrent
+        } else {
+            crate::commands::module::auto_lock::LockfilePolicy::Regenerate
+        };
+        crate::commands::module::auto_lock::ensure_lockfile_current(&config, &dir, policy).await?;
+    }
 
     let document = analyze_source(
         &source,
@@ -252,6 +267,7 @@ command <<<>>>
                     index_on: None,
                     target: Some("my_task".to_string()),
                     report_mode: None,
+                    locked: false,
                 },
             },
             config,
@@ -285,7 +301,7 @@ command <<<>>>
                     .expect("run should have a status")
                     .to_string();
 
-                if status != "queued" && status != "running" {
+                if status != "queued" && status != "analyzing" && status != "running" {
                     break;
                 }
 
@@ -322,6 +338,7 @@ command <<<>>>
                     index_on: None,
                     target: Some("my_task".to_string()),
                     report_mode: None,
+                    locked: false,
                 },
             },
             Config::default(),
@@ -361,6 +378,7 @@ command <<<>>>
                     index_on: None,
                     target: Some("my_task".to_string()),
                     report_mode: None,
+                    locked: false,
                 },
             },
             Config::default(),

@@ -494,7 +494,7 @@ mod tests {
                 &ApptainerConfig::default(),
                 DEFAULT_TASK_SHELL,
                 &ExecuteTaskRequest {
-                    id: "example-task",
+                    name: "example-task-0",
                     command: "echo hello",
                     inputs: &TaskInputs::default(),
                     backend_inputs: &[],
@@ -546,7 +546,7 @@ mod tests {
                 &ApptainerConfig::default(),
                 DEFAULT_TASK_SHELL,
                 &ExecuteTaskRequest {
-                    id: "example-task",
+                    name: "example-task-0",
                     command: "echo hello",
                     inputs: &TaskInputs::default(),
                     backend_inputs: &[],
