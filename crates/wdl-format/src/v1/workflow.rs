@@ -291,19 +291,20 @@ pub fn format_workflow_hints_array(
         }
     }
 
-    let mut commas = commas.into_iter();
-    for item in items {
-        (&item).write(stream, config);
-        match commas.next() {
-            Some(comma) => {
-                (&comma).write(stream, config);
+    let mut items = items.iter().peekable();
+    let mut commas = commas.iter();
+    while let Some(item) = items.next() {
+        (item).write(stream, config);
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
+            (comma).write(stream, config);
+            if items.peek().is_some() {
+                stream.end_line();
             }
-            _ if config.trailing_commas => {
-                stream.push_literal(",".to_string(), SyntaxKind::Comma);
-            }
-            _ => {}
+        } else if config.trailing_commas {
+            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
-        stream.end_line();
     }
 
     stream.decrement_indent();
