@@ -2,6 +2,7 @@
 members = [
     "crates/gauntlet",
     "crates/sprocket-py",
+    "crates/sprocket-py-macros",
     "crates/sprocket-test-types",
     "crates/wdl",
     "crates/wdl-analysis",
