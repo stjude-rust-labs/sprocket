@@ -15,9 +15,8 @@ use thiserror::Error;
 use url::Url;
 
 use crate::lockfile::GitCommit;
-use crate::resolver::git::CredentialMode;
-use crate::resolver::git::GitError;
-use crate::resolver::git::list_advertised_refs;
+use crate::resolver::git::ops::GitError;
+use crate::resolver::git::ops::list_advertised_refs;
 use crate::version_requirement::VersionRequirement;
 
 /// Errors produced by version selection.
@@ -136,9 +135,9 @@ pub type RemoteRefs = HashMap<String, GitCommit>;
 pub fn discover_remote_tags(
     url: &Url,
     max_refs: usize,
-    mode: CredentialMode,
+    policy: super::git::ops::FetchPolicy,
 ) -> Result<RemoteRefs, GitError> {
-    let advertised = list_advertised_refs(url, max_refs, mode)?;
+    let advertised = list_advertised_refs(url, max_refs, policy)?;
     let mut refs = HashMap::new();
     for (name, oid) in advertised {
         let Some(stripped) = name.strip_prefix(REF_TAG_PREFIX) else {
@@ -165,9 +164,9 @@ pub fn discover_remote_tags(
 pub fn discover_remote_branches(
     url: &Url,
     max_refs: usize,
-    mode: CredentialMode,
+    policy: super::git::ops::FetchPolicy,
 ) -> Result<RemoteRefs, GitError> {
-    let advertised = list_advertised_refs(url, max_refs, mode)?;
+    let advertised = list_advertised_refs(url, max_refs, policy)?;
     let mut refs = HashMap::new();
     for (name, oid) in advertised {
         let Some(stripped) = name.strip_prefix(REF_HEAD_PREFIX) else {

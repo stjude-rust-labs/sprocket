@@ -193,6 +193,7 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
     let args = shlex::split(&format!("--skip-config-search {args_string}"))
         .ok_or_else(|| anyhow!("failed to split command args"))?;
     let mut command = Command::new(sprocket_exe);
+    let config_root = TempDir::new().context("failed to create isolated config root")?;
 
     let env_config = resolve_env_config(test_path)?;
     if let Some(env_config) = env_config.as_ref() {
@@ -206,6 +207,7 @@ fn run_sprocket(test_path: &Path, working_test_directory: &Path) -> Result<Comma
     let result = command
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
+        .env("SPROCKET_CONFIG_ROOT", config_root.path())
         .env("RUST_LOG", "none")
         .env_remove("RUST_BACKTRACE")
         .spawn()
@@ -298,7 +300,22 @@ fn normalize_string(input: &str, temp_dir: &Path) -> String {
 
     let s = UUID_PATTERN.replace_all(&s, "_UUID_");
     let s = TIMESTAMP_PATTERN.replace_all(&s, "_TIMESTAMP_");
-    s.to_string()
+    trim_trailing_whitespace(&s)
+}
+
+/// Removes trailing horizontal whitespace and excess blank lines.
+fn trim_trailing_whitespace(s: &str) -> String {
+    let terminated = s.ends_with('\n') || s.ends_with('\r');
+    let mut lines = s.lines().map(str::trim_end).collect::<Vec<_>>();
+    while lines.last().is_some_and(|line| line.is_empty()) {
+        lines.pop();
+    }
+
+    let mut normalized = lines.join("\n");
+    if terminated {
+        normalized.push('\n');
+    }
+    normalized
 }
 
 /// Normalizes a path by replacing dynamic components (timestamps) with

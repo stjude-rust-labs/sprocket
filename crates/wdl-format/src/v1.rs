@@ -22,6 +22,23 @@ fn import_sort_key(stmt: &ImportStatement) -> (u8, String) {
     }
 }
 
+/// Writes each section of a definition's canonical slot, following each with a
+/// blank line.
+///
+/// A slot holds more than one section only when the document is invalid (e.g. a
+/// task with two `runtime` sections); every section is still written, in source
+/// order, so that formatting never discards input.
+pub(crate) fn write_sections(
+    sections: &[&FormatElement],
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
+    for section in sections {
+        section.write(stream, config);
+        stream.blank_line();
+    }
+}
+
 pub mod decl;
 pub mod r#enum;
 pub mod expr;
@@ -98,6 +115,8 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>, c
         if trailing_comments.is_none() {
             trailing_comments = find_trailing_comments(&last_token_of_element(import));
         }
+
+        stream.end_line();
     }
 
     stream.blank_line();
@@ -343,15 +362,20 @@ pub fn format_literal_input(
         }
     }
 
+    let mut items = items.iter().peekable();
     let mut commas = commas.iter();
-    for item in items {
-        (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
+    while let Some(item) = items.next() {
+        (item).write(stream, config);
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
             (comma).write(stream, config);
+            if items.peek().is_some() {
+                stream.end_line();
+            }
         } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
-        stream.end_line();
     }
 
     stream.decrement_indent();
@@ -420,15 +444,20 @@ pub fn format_literal_hints(
         }
     }
 
+    let mut items = items.iter().peekable();
     let mut commas = commas.iter();
-    for item in items {
-        (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
+    while let Some(item) = items.next() {
+        (item).write(stream, config);
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
             (comma).write(stream, config);
+            if items.peek().is_some() {
+                stream.end_line();
+            }
         } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
-        stream.end_line();
     }
 
     stream.decrement_indent();
@@ -499,15 +528,20 @@ pub fn format_literal_output(
         }
     }
 
+    let mut items = items.iter().peekable();
     let mut commas = commas.iter();
-    for item in items {
-        (&item).write(stream, config);
-        if let Some(comma) = commas.next() {
+    while let Some(item) = items.next() {
+        (item).write(stream, config);
+        if let Some(comma) = commas.next()
+            && (items.peek().is_some() || comma.has_comment())
+        {
             (comma).write(stream, config);
+            if items.peek().is_some() {
+                stream.end_line();
+            }
         } else if config.trailing_commas {
-            stream.push_literal(",".to_string(), SyntaxKind::Comma);
+            stream.push_literal(",".into(), SyntaxKind::Comma);
         }
-        stream.end_line();
     }
 
     stream.decrement_indent();

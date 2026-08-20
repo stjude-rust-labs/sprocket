@@ -19,8 +19,10 @@ use crate::TreeNode;
 
 /// Represents an enum definition.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct EnumDefinition<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> EnumDefinition<N> {
     /// Gets the name of the enum.
     pub fn name(&self) -> Ident<N::Token> {
@@ -72,6 +74,7 @@ impl<N: TreeNode> EnumDefinition<N> {
     ///     Red = "#FF0000",
     /// }
     /// ```
+    #[cfg_attr(feature = "unstable-python", skip)]
     pub fn display<'a>(&'a self, computed_type: Option<&'a str>) -> EnumDefinitionDisplay<'a, N> {
         EnumDefinitionDisplay {
             definition: self,
@@ -139,8 +142,10 @@ impl Documented<SyntaxNode> for EnumDefinition<SyntaxNode> {
 
 /// Represents an enum type parameter (e.g., [String]).
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct EnumTypeParameter<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> EnumTypeParameter<N> {
     /// Gets the inner type.
     pub fn ty(&self) -> Type<N> {
@@ -170,8 +175,10 @@ impl<N: TreeNode> AstNode<N> for EnumTypeParameter<N> {
 
 /// Represents an enum choice.
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast(eq))]
 pub struct EnumChoice<N: TreeNode = SyntaxNode>(N);
 
+#[cfg_attr(feature = "unstable-python", sprocket_py_macros::ast_methods)]
 impl<N: TreeNode> EnumChoice<N> {
     /// Gets the choice name.
     pub fn name(&self) -> Ident<N::Token> {
