@@ -68,6 +68,7 @@ fn expected_mapping(field: &Spanned<String>) -> Diagnostic {
 
 /// Collection of tests for an entire WDL document.
 #[derive(Clone, Debug, JsonSchema)]
+#[schemars(transparent)]
 pub struct DocumentTests {
     /// Tasks or Workflows with test definitions.
     ///
@@ -280,5 +281,66 @@ impl TestDefinition {
         } else {
             Err(diagnostics)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+    use std::path::PathBuf;
+
+    use schemars::schema_for;
+
+    use super::*;
+
+    fn json_schema_path() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("..")
+            .join("..")
+            .join("jsonschemas")
+            .join("sprocket-test.json")
+    }
+
+    fn json_schema() -> String {
+        std::fs::read_to_string(json_schema_path()).unwrap()
+    }
+
+    fn full_test_path() -> PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("assets")
+            .join("full-test.yaml")
+    }
+
+    #[test]
+    fn public_schema_up_to_date() {
+        let current_schema = schema_for!(DocumentTests);
+        let current_schema_pretty = serde_json::to_string_pretty(&current_schema).unwrap();
+
+        pretty_assertions::assert_eq!(
+            current_schema_pretty,
+            json_schema().trim(),
+            "The `sprocket test` schema at `{}` is out of date! Update it with the output of \
+             `sprocket dev test schema`.",
+            json_schema_path().display()
+        );
+    }
+
+    #[test]
+    fn schema_matches_config() {
+        let config_str = std::fs::read_to_string(full_test_path()).unwrap();
+
+        let schema = serde_yaml_ng::from_str::<Value>(&json_schema()).unwrap();
+        let config = serde_yaml_ng::from_str::<Value>(&config_str).unwrap();
+
+        let mut failed = false;
+        let validator = jsonschema::draft202012::new(&schema).unwrap();
+        for error in validator.iter_errors(&config) {
+            failed = true;
+            eprintln!("{error}");
+        }
+        assert!(
+            !failed,
+            "the generated schema does not match the current `TestDefinition` spec!"
+        );
     }
 }

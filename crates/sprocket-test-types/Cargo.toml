@@ -23,5 +23,10 @@ wdl-analysis = { path = "../wdl-analysis", version = "0.24.0" }
 wdl-ast = { path = "../wdl-ast", version = "0.26.1" }
 wdl-engine = { path = "../wdl-engine", version = "0.17.1" }
 
+[dev-dependencies]
+jsonschema.workspace = true
+pretty_assertions.workspace = true
+serde_yaml_ng.workspace = true
+
 [lints]
 workspace = true
