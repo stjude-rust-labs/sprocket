@@ -379,7 +379,7 @@ mod feature_flags {
 #[toml(Toml, rename_all = "snake_case", deny_unknown_fields)]
 #[schemars(rename_all = "snake_case", deny_unknown_fields)]
 pub struct CheckConfig {
-    /// Rule IDs to except from running.
+    /// Rule IDs or tags to except from running.
     #[toml(default)]
     #[schemars(default)]
     pub except: Vec<String>,
@@ -399,21 +399,11 @@ pub struct CheckConfig {
     #[toml(default)]
     #[schemars(default)]
     pub hide_warnings: bool,
-    /// Enable all lint rules, even those outside the default set.
-    ///
-    /// This cannot be `true` while `only_lint_tags` is populated.
-    #[toml(default)]
-    #[schemars(default)]
-    pub all_lint_rules: bool,
     /// Set of lint tags to opt into. Leave this empty to use the default set of
     /// tags.
     #[toml(default)]
     #[schemars(default)]
-    pub only_lint_tags: Vec<String>,
-    /// Set of lint tags to filter out of the enabled lint rules.
-    #[toml(default)]
-    #[schemars(default)]
-    pub filter_lint_tags: Vec<String>,
+    pub tags: Vec<String>,
     /// Path to the diagnostic baseline file.
     pub baseline: Option<PathBuf>,
     /// Lint rule configuration.
@@ -1204,10 +1194,6 @@ impl Config {
     pub fn validate(&mut self) -> Result<()> {
         self.module.init.validate()?;
 
-        if self.check.all_lint_rules && !self.check.only_lint_tags.is_empty() {
-            bail!("`all_lint_rules` cannot be specified with `only_lint_tags`")
-        }
-
         if self.run.events_capacity == 0 {
             bail!("`events_capacity` must be at least 1")
         }
@@ -1696,17 +1682,6 @@ mod test {
 
         let mut config = Config::default();
         config.validate()?;
-
-        let mut config = Config::default();
-        config.check.all_lint_rules = true;
-        config.check.only_lint_tags.push("style".to_string());
-        let Err(error) = config.validate() else {
-            panic!("incompatible lint options should error");
-        };
-        assert_eq!(
-            error.to_string(),
-            "`all_lint_rules` cannot be specified with `only_lint_tags`"
-        );
 
         let mut config = Config::default();
         config.run.events_capacity = 0;

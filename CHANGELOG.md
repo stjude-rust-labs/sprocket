@@ -58,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `sprocket --no-ignore` disables `.sprocketignore` processing while WDL
   documents are discovered ([#1110](https://github.com/stjude-rust-labs/sprocket/pull/1110)).
 * `sprocket dev test` now produces spanned diagnostics for YAML files ([#982](https://github.com/stjude-rust-labs/sprocket/pull/982)).
+* `sprocket check --tag` to append a lint tag to the default set.
 
 ### Changed
 
@@ -98,13 +99,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `sprocket run` and `sprocket submit` now regenerate a missing or out-of-date
   `module-lock.json` before executing, rather than only warning
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
-
 * `sprocket dev server inspect` now shows the run's `Directory:` and
   `Outputs:` paths as absolute, copy-pasteable paths (joining the server's
   output-directory root with the run-relative path) when the server's `/info`
   endpoint is available, instead of requiring the user to manually combine a
   separate `Output Dir:` line with a relative path
   ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
+* `sprocket check --except` now accepts lint tag names (e.g., `--except documentation`).
 
 ### Fixed
 
@@ -140,6 +141,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * A cached Git dependency whose sparse-checkout metadata cannot be parsed is
   now evicted and re-cloned instead of reused
   ([#1115](https://github.com/stjude-rust-labs/sprocket/pull/1115)).
+
+### Removed
+
+* `sprocket check --all-lint-rules`, use `sprocket check --tag all` instead.
+* `sprocket check --filter-lint-tag`, tag names can now be used in the `--except` option instead.
+* `sprocket check --only-lint-tag`
 
 ## 0.29.0 - 2026-08-05
 
