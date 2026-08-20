@@ -16,7 +16,6 @@ use super::Callback;
 use super::Function;
 use super::Signature;
 use crate::Array;
-use crate::HostPath;
 use crate::PrimitiveValue;
 use crate::Value;
 use crate::diagnostics::function_call_failed;
@@ -38,10 +37,9 @@ pub(crate) async fn write_tsv_value<W: AsyncWrite + Unpin>(
     context: &CallContext<'_>,
 ) -> Result<bool, std::io::Error> {
     match value {
-        PrimitiveValue::String(v)
-        | PrimitiveValue::File(HostPath(v))
-        | PrimitiveValue::Directory(HostPath(v))
-            if v.contains('\t') =>
+        PrimitiveValue::String(v) if v.contains('\t') => Ok(false),
+        PrimitiveValue::File(path) | PrimitiveValue::Directory(path)
+            if path.as_str().contains('\t') =>
         {
             Ok(false)
         }
@@ -168,7 +166,7 @@ async fn write_array_tsv_file(
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
 fn write_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
-        debug_assert!(context.arguments.len() == 1);
+        debug_assert_eq!(context.arguments.len(), 1);
         debug_assert!(context.return_type_eq(PrimitiveType::File));
 
         let rows = context
@@ -192,7 +190,7 @@ fn write_tsv(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic
 /// https://github.com/openwdl/wdl/blob/wdl-1.2/SPEC.md#write_tsv
 fn write_tsv_with_header(context: CallContext<'_>) -> BoxFuture<'_, Result<Value, Diagnostic>> {
     async move {
-        debug_assert!(context.arguments.len() == 3);
+        debug_assert_eq!(context.arguments.len(), 3);
         debug_assert!(context.return_type_eq(PrimitiveType::File));
 
         let rows = context

@@ -16,6 +16,7 @@ use sprocket::server::paths;
 use sprocket::system::v1::db::Database;
 use sprocket::system::v1::db::Run;
 use sprocket::system::v1::db::RunStatus;
+use sprocket::system::v1::db::SprocketCommand;
 use sprocket::system::v1::db::SqliteDatabase;
 use sprocket::system::v1::db::TaskStatus;
 use sprocket::system::v1::exec::svc::RunManagerCmd;
@@ -25,6 +26,7 @@ use tokio::sync::oneshot;
 use tower::ServiceExt;
 use tower_http::cors::CorsLayer;
 use wdl::diagnostics::Mode;
+use wdl::engine::config::LocalBackendConfig;
 
 /// Create a test server with real database and filesystem.
 #[bon::builder]
@@ -32,6 +34,7 @@ async fn create_test_server(
     pool: sqlx::SqlitePool,
     max_concurrent_runs: Option<usize>,
     engine: Option<wdl::engine::Config>,
+    allowed_urls: Option<Vec<String>>,
 ) -> (axum::Router, Arc<dyn Database>, TempDir) {
     let temp = TempDir::new().unwrap();
 
@@ -42,6 +45,7 @@ async fn create_test_server(
     let mut server_config = ServerConfig {
         output_dir: temp.path().to_path_buf(),
         allowed_file_paths: vec![wdl_dir],
+        allowed_urls: allowed_urls.unwrap_or_default(),
         max_concurrent_runs: max_concurrent_runs.into(),
         engine: engine.unwrap_or_default(),
         ..Default::default()
@@ -807,12 +811,23 @@ task final_task {
         "partially-canceled workflow should not have outputs"
     );
 
-    // Verify individual task statuses via the database. Filter out internal
-    // tasks (e.g., `docker-chown-*`) so we only inspect the WDL call tasks.
+    // Verify individual task statuses via the database.
     let tasks = db
         .list_tasks(Some(run_uuid), None, None, None)
         .await
         .unwrap();
+
+    // Only WDL tasks are recorded: work a backend runs on its own behalf, such
+    // as the Docker backend's `chown` of a work directory, is not a task the
+    // user submitted and must not appear among the run's tasks.
+    for task in &tasks {
+        assert!(
+            !task.name.starts_with(wdl::engine::CLEANUP_TASK_NAME_PREFIX),
+            "internal task `{name}` should not be recorded",
+            name = task.name
+        );
+    }
+
     let wdl_tasks: Vec<_> = tasks
         .iter()
         .filter(|t| {
@@ -823,8 +838,9 @@ task final_task {
         .collect();
 
     // `fast_task` and `slow_task` should have been created and completed
-    // with successful exit statuses; `final_task` should never have been
-    // created because the lazy cancel prevented it from starting.
+    // with successful exit statuses; `final_task` must never have started,
+    // because the lazy cancel stopped the workflow before it could be
+    // submitted to a backend.
     let fast_task = wdl_tasks
         .iter()
         .find(|t| t.name.starts_with("fast_task-"))
@@ -841,10 +857,18 @@ task final_task {
     assert_eq!(slow_task.exit_status, Some(0));
     assert!(slow_task.completed_at.is_some());
 
-    assert!(
-        !wdl_tasks.iter().any(|t| t.name.starts_with("final_task-")),
-        "final_task should never have been created"
-    );
+    // Whether `final_task` is recorded at all depends on how far the workflow
+    // got before the cancel landed: the engine creates the task's record when it
+    // starts evaluating it, which is before it decides not to run it. Either way
+    // it must never have executed.
+    if let Some(final_task) = wdl_tasks.iter().find(|t| t.name.starts_with("final_task-")) {
+        assert_eq!(final_task.status, TaskStatus::Canceled);
+        assert!(
+            final_task.started_at.is_none(),
+            "final_task should never have started"
+        );
+        assert!(final_task.exit_status.is_none());
+    }
 }
 
 #[sqlx::test]
@@ -1719,11 +1743,13 @@ task slow_task {
         statuses.push(status_json["status"].as_str().unwrap().to_string());
     }
 
-    // With `max_concurrent_workflows=1`, we should see one `running` and one
-    // `queued`
+    // With `max_concurrent_workflows=1`, one run holds the permit and the other
+    // waits for it
     assert!(
-        statuses.contains(&"running".to_string()) || statuses.contains(&"queued".to_string()),
-        "at least one workflow should be `running` or `queued`, got {:?}",
+        statuses.contains(&"running".to_string())
+            || statuses.contains(&"analyzing".to_string())
+            || statuses.contains(&"queued".to_string()),
+        "at least one workflow should be `running`, `analyzing`, or `queued`, got {:?}",
         statuses
     );
 
@@ -2102,4 +2128,299 @@ async fn invalid_next_token_returns_error(pool: sqlx::SqlitePool) {
             .unwrap()
             .contains("invalid `next_token`")
     );
+}
+
+#[sqlx::test]
+async fn list_runs_returns_empty_initially(pool: sqlx::SqlitePool) {
+    let (app, ..) = create_test_server().pool(pool).call().await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri("/api/v1/runs")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["total"], 0);
+    assert!(json["runs"].as_array().unwrap().is_empty());
+}
+
+#[sqlx::test]
+async fn get_run_returns_seeded_run(pool: sqlx::SqlitePool) {
+    let (app, db, ..) = create_test_server().pool(pool).call().await;
+    let session_id = uuid::Uuid::new_v4();
+    let run_id = uuid::Uuid::new_v4();
+
+    db.create_session(session_id, SprocketCommand::Server, "tester")
+        .await
+        .unwrap();
+    db.create_run(
+        run_id,
+        session_id,
+        "seeded-run",
+        "workflow.wdl",
+        Some("workflow"),
+        r#"{"workflow.message":"hello"}"#,
+    )
+    .await
+    .unwrap();
+    db.update_run_outputs(run_id, r#"{"workflow.result":"ok"}"#)
+        .await
+        .unwrap();
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("/api/v1/runs/{run_id}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["uuid"], run_id.to_string());
+    assert_eq!(json["session_uuid"], session_id.to_string());
+    assert_eq!(json["name"], "seeded-run");
+    assert_eq!(json["source"], "workflow.wdl");
+    assert_eq!(json["target"], "workflow");
+    assert_eq!(json["status"], "queued");
+    assert_eq!(json["inputs"], r#"{"workflow.message":"hello"}"#);
+    assert_eq!(json["outputs"], r#"{"workflow.result":"ok"}"#);
+}
+
+#[sqlx::test]
+async fn submit_run_rejects_non_object_inputs(pool: sqlx::SqlitePool) {
+    let (app, ..) = create_test_server().pool(pool).call().await;
+    let submit_request = json!({
+        "source": "workflow.wdl",
+        "inputs": [],
+    });
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/api/v1/runs")
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let json: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["message"], "inputs must be a JSON object");
+}
+
+#[sqlx::test]
+async fn missing_run_action_endpoints_return_404(pool: sqlx::SqlitePool) {
+    let (app, ..) = create_test_server().pool(pool).call().await;
+    let run_id = uuid::Uuid::new_v4();
+
+    for (method, uri) in [
+        ("POST", format!("/api/v1/runs/{run_id}/cancel")),
+        ("GET", format!("/api/v1/runs/{run_id}/outputs")),
+    ] {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method(method)
+                    .uri(uri)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    }
+}
+
+/// Canceling a run that is transferring an input must record the run as
+/// canceled rather than failed.
+///
+/// Tearing down a transfer surfaces as an ordinary evaluation error rather than
+/// as the cancellation that task execution reports, so the run's outcome has to
+/// be classified from the cancellation context.
+#[sqlx::test]
+async fn cancel_run_during_input_transfer(pool: sqlx::SqlitePool) {
+    use tokio::io::AsyncReadExt as _;
+    use tokio::io::AsyncWriteExt as _;
+
+    let mut engine = wdl::engine::Config::default();
+    engine
+        .backends
+        .insert("default".into(), LocalBackendConfig::default().into());
+
+    /// The advertised size of the input the origin never finishes sending.
+    const INPUT_SIZE: usize = 1024 * 1024;
+
+    // An origin that answers the existence probe but stalls part way through the
+    // body, so the run is stuck transferring the input until it is canceled.
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let origin = tokio::spawn(async move {
+        while let Ok((mut stream, _)) = listener.accept().await {
+            tokio::spawn(async move {
+                let mut request = Vec::new();
+                let mut chunk = [0u8; 1024];
+                loop {
+                    match stream.read(&mut chunk).await {
+                        Ok(0) => return,
+                        Ok(n) => {
+                            request.extend_from_slice(&chunk[..n]);
+                            if request.windows(4).any(|w| w == b"\r\n\r\n") {
+                                break;
+                            }
+                        }
+                        Err(_) => return,
+                    }
+                }
+
+                let head = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {INPUT_SIZE}\r\nContent-Type: \
+                     application/octet-stream\r\n\r\n"
+                );
+                if stream.write_all(head.as_bytes()).await.is_err() {
+                    return;
+                }
+
+                if !request.starts_with(b"HEAD") {
+                    // Send a token amount of the body and then never finish it.
+                    let _ = stream.write_all(&[0u8; 64]).await;
+                    std::future::pending::<()>().await
+                }
+            });
+        }
+    });
+
+    let (app, db, temp) = create_test_server()
+        .pool(pool)
+        .engine(engine)
+        .allowed_urls(vec![format!("http://127.0.0.1:{port}/")])
+        .call()
+        .await;
+
+    let wdl_content = r#"
+version 1.2
+
+task measure {
+    input {
+        File data
+    }
+
+    command <<<
+        wc -c < '~{data}'
+    >>>
+
+    output {
+        String size = read_string(stdout())
+    }
+
+    runtime {
+        container: "ubuntu:latest"
+    }
+}
+
+workflow transfer_test {
+    input {
+        File data
+    }
+
+    call measure { input: data }
+
+    output {
+        String size = measure.size
+    }
+}
+"#;
+    let wdl_file = temp.path().join("wdl").join("transfer.wdl");
+    std::fs::write(&wdl_file, wdl_content).unwrap();
+
+    let submit_request = json!({
+        "source": wdl_file.to_str().unwrap(),
+        "inputs": { "transfer_test.data": format!("http://127.0.0.1:{port}/input.txt") },
+    });
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(paths::LIST_RUNS)
+                .header("content-type", "application/json")
+                .body(Body::from(serde_json::to_string(&submit_request).unwrap()))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    let submit_response: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    let run_id: uuid::Uuid = submit_response["uuid"].as_str().unwrap().parse().unwrap();
+
+    // Wait until evaluation has begun and is therefore stalled on the transfer.
+    poll_for_status(&db, run_id, RunStatus::Running, 60)
+        .await
+        .expect("run should start running");
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(paths::cancel_run(run_id))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let status = poll_for_completion(&db, run_id, 60)
+        .await
+        .expect("run should reach a terminal status");
+
+    assert_eq!(
+        status,
+        RunStatus::Canceled,
+        "a canceled transfer should be reported as a cancellation, not a failure"
+    );
+
+    // No task may be left claiming to be working once the run is over.
+    let tasks = db.list_tasks(Some(run_id), None, None, None).await.unwrap();
+    for task in tasks {
+        assert!(
+            matches!(
+                task.status,
+                TaskStatus::Completed
+                    | TaskStatus::Cached
+                    | TaskStatus::Failed
+                    | TaskStatus::Canceled
+                    | TaskStatus::Preempted
+            ),
+            "task `{name}` was left in status `{status}`",
+            name = task.name,
+            status = task.status
+        );
+    }
+
+    origin.abort();
 }

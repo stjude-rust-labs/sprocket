@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Fixed
+
+* Task and workflow pages no longer render an empty Outputs section when no outputs are declared ([#199](https://github.com/stjude-rust-labs/sprocket/issues/199)).
+
+## 0.16.0 - 2026-08-05
+
 ## 0.15.3 - 2026-07-15
 
 ## 0.15.2 - 2026-06-26

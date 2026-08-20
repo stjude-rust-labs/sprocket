@@ -243,6 +243,8 @@ fn should_run_headless() -> bool {
 
 /// Configure and run the webdriver process.
 async fn setup_webdriver() -> anyhow::Result<WebDriver> {
+    const MAX_ATTEMPTS: usize = 3;
+
     let mut caps = DesiredCapabilities::chrome();
     if should_run_headless() {
         caps.add_arg("--headless=new")?;
@@ -253,9 +255,24 @@ async fn setup_webdriver() -> anyhow::Result<WebDriver> {
 
     tracing::info!("Starting webdriver process...");
 
-    let driver = WebDriver::managed(caps)
-        .await
-        .context("failed to start web driver process")?;
+    let mut attempt = 1;
+    let driver = loop {
+        match WebDriver::managed(caps.clone()).await {
+            Ok(driver) => break driver,
+            Err(error) if attempt < MAX_ATTEMPTS => {
+                tracing::warn!(
+                    attempt,
+                    error = %error,
+                    "failed to start webdriver process; retrying"
+                );
+                attempt += 1;
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+            Err(error) => {
+                return Err(error).context("failed to start web driver process");
+            }
+        }
+    };
     driver.fullscreen_window().await?;
 
     Ok(driver)
@@ -331,7 +348,7 @@ fn main() -> ExitCode {
         .expect("failed to create Tokio runtime");
 
     let args = libtest_mimic::Arguments::from_args();
-    if !should_run_headless() {
+    if !should_run_headless() && !args.list {
         let warning = r#"+------------------------------------+
 |                                    |
 |                                    |
@@ -346,7 +363,9 @@ fn main() -> ExitCode {
         println!("{}\n", warning.red());
         for i in (1..6).rev() {
             println!("The tests will start in {i} seconds.");
-            runtime.block_on(tokio::time::sleep(Duration::from_secs(1)));
+            runtime.block_on(async {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            });
         }
     }
 
@@ -390,7 +409,7 @@ fn create_trials(tmp: PathBuf, tests: Arc<Vec<Test>>, runtime: Arc<Runtime>) -> 
                     let ctx = match global_state(tests, tmp.clone()).await {
                         GlobalState::Ready(ctx) => ctx,
                         GlobalState::Failed(e) => {
-                            return Err(anyhow!("failed to get global state: {e}").into());
+                            return Err(anyhow!("failed to get global state: {e:#}").into());
                         }
                     };
 

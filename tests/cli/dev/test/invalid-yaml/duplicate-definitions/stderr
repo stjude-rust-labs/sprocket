@@ -1,0 +1,9 @@
+error: the name `duplicate` is defined multiple times
+  ┌─ foo.yml:2:11
+  │
+2 │   - name: duplicate
+  │           ^^^^^^^^^ first definition here
+3 │   - name: duplicate
+  │           --------- `duplicate` redefined here
+
+error: failing due to 1 error

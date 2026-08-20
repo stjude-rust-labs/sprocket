@@ -11,6 +11,7 @@ use crate::TokenStream;
 use crate::Trivia;
 use crate::Writable as _;
 use crate::element::FormatElement;
+use crate::v1::write_sections;
 
 /// Formats a [`ConditionalStatement`](wdl_ast::v1::ConditionalStatement).
 ///
@@ -68,7 +69,7 @@ pub fn format_conditional_statement_clause(
     // the parens and all elements inside!
     if has_condition {
         let open_paren = children.next().expect("open paren");
-        assert!(open_paren.element().kind() == SyntaxKind::OpenParen);
+        assert_eq!(open_paren.element().kind(), SyntaxKind::OpenParen);
         (&open_paren).write(stream, config);
 
         for child in children.by_ref() {
@@ -81,7 +82,7 @@ pub fn format_conditional_statement_clause(
     }
 
     let open_brace = children.next().expect("open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 
@@ -107,21 +108,21 @@ pub fn format_scatter_statement(
     let mut children = element.children().expect("scatter statement children");
 
     let scatter_keyword = children.next().expect("scatter keyword");
-    assert!(scatter_keyword.element().kind() == SyntaxKind::ScatterKeyword);
+    assert_eq!(scatter_keyword.element().kind(), SyntaxKind::ScatterKeyword);
     (&scatter_keyword).write(stream, config);
     stream.end_word();
 
     let open_paren = children.next().expect("open paren");
-    assert!(open_paren.element().kind() == SyntaxKind::OpenParen);
+    assert_eq!(open_paren.element().kind(), SyntaxKind::OpenParen);
     (&open_paren).write(stream, config);
 
     let variable = children.next().expect("scatter variable");
-    assert!(variable.element().kind() == SyntaxKind::Ident);
+    assert_eq!(variable.element().kind(), SyntaxKind::Ident);
     (&variable).write(stream, config);
     stream.end_word();
 
     let in_keyword = children.next().expect("in keyword");
-    assert!(in_keyword.element().kind() == SyntaxKind::InKeyword);
+    assert_eq!(in_keyword.element().kind(), SyntaxKind::InKeyword);
     (&in_keyword).write(stream, config);
     stream.end_word();
 
@@ -134,7 +135,7 @@ pub fn format_scatter_statement(
     }
 
     let open_brace = children.next().expect("open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.end_line();
     stream.increment_indent();
@@ -163,59 +164,62 @@ pub fn format_workflow_definition(
     stream.ignore_trailing_blank_lines();
 
     let workflow_keyword = children.next().expect("workflow keyword");
-    assert!(workflow_keyword.element().kind() == SyntaxKind::WorkflowKeyword);
+    assert_eq!(
+        workflow_keyword.element().kind(),
+        SyntaxKind::WorkflowKeyword
+    );
     (&workflow_keyword).write(stream, config);
     stream.end_word();
 
     let name = children.next().expect("workflow name");
-    assert!(name.element().kind() == SyntaxKind::Ident);
+    assert_eq!(name.element().kind(), SyntaxKind::Ident);
     (&name).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 
-    let mut meta = None;
-    let mut parameter_meta = None;
-    let mut input = None;
+    let mut meta_sections = Vec::new();
+    let mut parameter_meta_sections = Vec::new();
+    let mut input_sections = Vec::new();
     let mut body = Vec::new();
-    let mut output = None;
-    let mut hints = None;
+    let mut output_sections = Vec::new();
+    let mut hints_sections = Vec::new();
     let mut close_brace = None;
 
     for child in children {
         match child.element().kind() {
             SyntaxKind::MetadataSectionNode => {
-                meta = Some(child.clone());
+                meta_sections.push(child);
             }
             SyntaxKind::ParameterMetadataSectionNode => {
-                parameter_meta = Some(child.clone());
+                parameter_meta_sections.push(child);
             }
             SyntaxKind::InputSectionNode => {
-                input = Some(child.clone());
+                input_sections.push(child);
             }
             SyntaxKind::BoundDeclNode => {
-                body.push(child.clone());
+                body.push(child);
             }
             SyntaxKind::CallStatementNode => {
-                body.push(child.clone());
+                body.push(child);
             }
             SyntaxKind::ConditionalStatementNode => {
-                body.push(child.clone());
+                body.push(child);
             }
             SyntaxKind::ScatterStatementNode => {
-                body.push(child.clone());
+                body.push(child);
             }
             SyntaxKind::OutputSectionNode => {
-                output = Some(child.clone());
+                output_sections.push(child);
             }
             SyntaxKind::WorkflowHintsSectionNode => {
-                hints = Some(child.clone());
+                hints_sections.push(child);
             }
             SyntaxKind::CloseBrace => {
-                close_brace = Some(child.clone());
+                close_brace = Some(child);
             }
             _ => {
                 unreachable!(
@@ -226,45 +230,29 @@ pub fn format_workflow_definition(
         }
     }
 
-    if let Some(meta) = meta {
-        (&meta).write(stream, config);
-        stream.blank_line();
-    }
-
-    if let Some(parameter_meta) = parameter_meta {
-        (&parameter_meta).write(stream, config);
-        stream.blank_line();
-    }
-
-    if let Some(input) = input {
-        (&input).write(stream, config);
-        stream.blank_line();
-    }
+    write_sections(&meta_sections, stream, config);
+    write_sections(&parameter_meta_sections, stream, config);
+    write_sections(&input_sections, stream, config);
 
     stream.allow_blank_lines();
     let body_empty = body.is_empty();
     for child in body {
-        (&child).write(stream, config);
+        child.write(stream, config);
     }
     stream.ignore_trailing_blank_lines();
     if !body_empty {
         stream.blank_line();
     }
 
-    if let Some(output) = output {
-        (&output).write(stream, config);
-        stream.blank_line();
-    }
-
-    if let Some(hints) = hints {
-        (&hints).write(stream, config);
-        stream.blank_line();
-    }
+    write_sections(&output_sections, stream, config);
+    write_sections(&hints_sections, stream, config);
 
     stream.trim_while(|t| matches!(t, PreToken::BlankLine | PreToken::Trivia(Trivia::BlankLine)));
 
     stream.decrement_indent();
-    (&close_brace.expect("workflow close brace")).write(stream, config);
+    close_brace
+        .expect("workflow close brace")
+        .write(stream, config);
     stream.end_line();
 }
 
@@ -281,7 +269,7 @@ pub fn format_workflow_hints_array(
     let mut children = element.children().expect("workflow hints array children");
 
     let open_bracket = children.next().expect("open bracket");
-    assert!(open_bracket.element().kind() == SyntaxKind::OpenBracket);
+    assert_eq!(open_bracket.element().kind(), SyntaxKind::OpenBracket);
     (&open_bracket).write(stream, config);
     stream.increment_indent();
 
@@ -335,11 +323,11 @@ pub fn format_workflow_hints_item(
     let mut children = element.children().expect("workflow hints item children");
 
     let key = children.next().expect("workflow hints item key");
-    assert!(key.element().kind() == SyntaxKind::Ident);
+    assert_eq!(key.element().kind(), SyntaxKind::Ident);
     (&key).write(stream, config);
 
     let colon = children.next().expect("workflow hints item colon");
-    assert!(colon.element().kind() == SyntaxKind::Colon);
+    assert_eq!(colon.element().kind(), SyntaxKind::Colon);
     (&colon).write(stream, config);
     stream.end_word();
 
@@ -364,11 +352,11 @@ pub fn format_workflow_hints_object_item(
         .expect("workflow hints object item children");
 
     let key = children.next().expect("workflow hints object item key");
-    assert!(key.element().kind() == SyntaxKind::Ident);
+    assert_eq!(key.element().kind(), SyntaxKind::Ident);
     (&key).write(stream, config);
 
     let colon = children.next().expect("workflow hints object item colon");
-    assert!(colon.element().kind() == SyntaxKind::Colon);
+    assert_eq!(colon.element().kind(), SyntaxKind::Colon);
     (&colon).write(stream, config);
     stream.end_word();
 
@@ -391,7 +379,7 @@ pub fn format_workflow_hints_object(
     let mut children = element.children().expect("workflow hints object children");
 
     let open_brace = children.next().expect("open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 
@@ -417,12 +405,12 @@ pub fn format_workflow_hints_section(
     let mut children = element.children().expect("workflow hints section children");
 
     let hints_keyword = children.next().expect("hints keyword");
-    assert!(hints_keyword.element().kind() == SyntaxKind::HintsKeyword);
+    assert_eq!(hints_keyword.element().kind(), SyntaxKind::HintsKeyword);
     (&hints_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 

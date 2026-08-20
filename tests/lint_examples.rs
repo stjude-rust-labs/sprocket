@@ -118,6 +118,10 @@ impl TestContext {
                 asset_dir.join(IMPORT_DOC_NAME),
                 include_str!("../crates/wdl-grammar/tests/parsing/enums/source.wdl"),
             )?;
+            std::fs::write(
+                asset_dir.join("bar.wdl"),
+                include_str!("../crates/wdl-grammar/tests/parsing/enums/source.wdl"),
+            )?;
         }
 
         analyzer.add_directory(asset_dir).await?;
@@ -130,14 +134,14 @@ impl TestContext {
         let id = rule.id();
         let examples = rule.examples();
 
-        let validator = Box::new(move || {
+        let validator = move || {
             let mut validator = Validator::empty();
             validator.add_visitor(Linter::new(std::iter::once(
                 rule.clone() as Box<dyn LintRule>
             )));
 
             validator
-        });
+        };
 
         let analyzer = Analyzer::new_with_validator(
             AnalysisConfig::default(),
@@ -156,7 +160,7 @@ impl TestContext {
         let id = rule.id();
         let examples = rule.examples();
 
-        let validator = Box::new(Validator::empty);
+        let validator = Validator::empty;
 
         let analyzer = Analyzer::new_with_validator(
             AnalysisConfig::default()
@@ -193,7 +197,9 @@ async fn verify_examples(ctx: Arc<TestContext>, expected_rule: &str) -> Result<(
     }
 
     for result in results {
-        if result.document().path().ends_with(IMPORT_DOC_NAME) {
+        if result.document().path().ends_with(IMPORT_DOC_NAME)
+            || result.document().path().ends_with("bar.wdl")
+        {
             continue;
         }
 

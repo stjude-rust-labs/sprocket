@@ -5,32 +5,35 @@ Usage: sprocket run [OPTIONS] <SOURCE> [INPUTS]...
 Arguments:
   <SOURCE>
           The WDL source file to run.
-          
+
           The source file may be specified by either a local file path, a URL, or a WDL module directory containing a `module.json`.
 
   [INPUTS]...
           The inputs for the task or workflow.
-          
+
           An input can be a key-value pair (e.g., `task.name=value`), an input file prefixed with `@` (e.g., `@inputs.json`), or a bare value that is appended to the preceding key's array.
 
 Options:
   -t, --target <NAME>
           The name of the task or workflow to run.
-          
+
           When no inputs are provided and `target` is not specified, the target is inferred from the document: a workflow is selected if one exists, otherwise a single task is selected. If the target remains ambiguous (e.g., multiple tasks and no workflow), an error is returned.
-          
+
           If `target` is not specified but inputs are provided, all input keys (from both files and key-value pairs) are expected to be prefixed with the name of the workflow or task being run.
-          
+
           If `target` is specified, it is prepended (with a `.` delimiter) to any input key that does not already carry the target prefix. This applies to both file inputs and key-value pairs on the command line.
 
   -o, --output-dir <OUTPUT_DIR>
           The output directory; defaults to `./out`.
-          
+
           Individual runs are stored at `<output_dir>/runs/<target>/<timestamp>/`. On Unix systems, the latest run is symlinked at `<output_dir>/runs/<target>/_latest`.
+
+      --locked
+          Fail if `module-lock.json` is missing or out of date instead of regenerating it before evaluation
 
       --index-on <OUTPUT_NAME>
           The output name to index on.
-          
+
           If provided, the run outputs will be indexed using the specified output name as the key. The index allows efficient lookup of runs by output values.
 
   -m, --report-mode <MODE>
@@ -42,52 +45,50 @@ Options:
 
       --azure-account-name <NAME>
           The Azure Storage account name to use
-          
+
           [env: AZURE_ACCOUNT_NAME=]
 
       --azure-access-key <KEY>
           The Azure Storage access key to use
-          
+
           [env: AZURE_ACCESS_KEY]
 
       --aws-access-key-id <ID>
           The AWS Access Key ID to use; overrides configuration
-          
+
           [env: AWS_ACCESS_KEY_ID=]
 
       --aws-secret-access-key <KEY>
           The AWS Secret Access Key to use; overrides configuration
-          
+
           [env: AWS_SECRET_ACCESS_KEY]
 
       --aws-default-region <REGION>
           The default AWS region; overrides configuration
-          
+
           [env: AWS_DEFAULT_REGION=]
 
       --google-hmac-access-key <KEY>
           The Google Cloud Storage HMAC access key to use; overrides configuration
-          
+
           [env: GOOGLE_HMAC_ACCESS_KEY=]
 
       --google-hmac-secret <SECRET>
           The Google Cloud Storage HMAC secret to use; overrides configuration
-          
-          [env: GOOGLE_HMAC_SECRET]
 
-      --no-call-cache
-          Disables the use of the call cache for this run
+          [env: GOOGLE_HMAC_SECRET]
 
   -v, --verbose...
           Increase logging verbosity
 
+      --no-call-cache
+          Disables the use of the call cache for this run
+
   -q, --quiet...
           Decrease logging verbosity
 
-      --show-task-stderr
-          Show task stderr during execution.
-          
-          Note that not all execution backends support this option.
+      --no-ignore
+          Ignore `.sprocketignore` files while discovering WDL documents
 
       --color <COLOR>
           Controls output colorization
@@ -96,19 +97,24 @@ Options:
           - auto:   Automatically colorize output depending on output device
           - always: Always colorize output
           - never:  Never colorize output
-          
-          [default: auto]
 
-      --suffix <SUFFIX>
-          Optional suffix to append to the run directory name
+          [default: auto]
 
   -c, --config <CONFIG>
           Path to the configuration file
 
   -s, --skip-config-search
           Skip searching for and loading configuration files.
-          
+
           Only a configuration file specified as a command line argument will be used.
+
+      --show-task-stderr
+          Show task stderr during execution.
+
+          Note that not all execution backends support this option.
+
+      --suffix <SUFFIX>
+          Optional suffix to append to the run directory name
 
   -h, --help
           Print help (see a summary with '-h')

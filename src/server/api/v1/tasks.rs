@@ -125,12 +125,20 @@ pub struct ListTasksResponse {
 /// Every status is always present; statuses with no tasks report `0`.
 #[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct RunTaskCountsResponse {
-    /// Number of tasks that have been created but not yet started.
+    /// Number of tasks whose inputs, command, and requirements are being
+    /// evaluated.
+    pub initializing: i64,
+    /// Number of tasks that are transferring their inputs.
+    pub localizing: i64,
+    /// Number of tasks that have been submitted to a backend but not yet
+    /// started.
     pub pending: i64,
     /// Number of tasks that are currently executing.
     pub running: i64,
     /// Number of tasks that completed successfully.
     pub completed: i64,
+    /// Number of tasks whose result was reused from the call cache.
+    pub cached: i64,
     /// Number of tasks that failed.
     pub failed: i64,
     /// Number of tasks that were canceled.
@@ -144,9 +152,12 @@ pub struct RunTaskCountsResponse {
 impl From<commands::RunTaskCountsResponse> for RunTaskCountsResponse {
     fn from(response: commands::RunTaskCountsResponse) -> Self {
         let mut counts = Self {
+            initializing: 0,
+            localizing: 0,
             pending: 0,
             running: 0,
             completed: 0,
+            cached: 0,
             failed: 0,
             canceled: 0,
             preempted: 0,
@@ -155,9 +166,12 @@ impl From<commands::RunTaskCountsResponse> for RunTaskCountsResponse {
 
         for (status, count) in response.counts {
             match status {
+                TaskStatus::Initializing => counts.initializing = count,
+                TaskStatus::Localizing => counts.localizing = count,
                 TaskStatus::Pending => counts.pending = count,
                 TaskStatus::Running => counts.running = count,
                 TaskStatus::Completed => counts.completed = count,
+                TaskStatus::Cached => counts.cached = count,
                 TaskStatus::Failed => counts.failed = count,
                 TaskStatus::Canceled => counts.canceled = count,
                 TaskStatus::Preempted => counts.preempted = count,
@@ -423,4 +437,103 @@ pub async fn get_task_logs(
         total: response.total,
         next_token,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use tokio::sync::mpsc;
+
+    use super::*;
+    use crate::server::ServerFailureMode;
+
+    fn app_state() -> AppState {
+        let (run_manager_tx, _run_manager_rx) = mpsc::channel(1);
+        AppState::builder()
+            .run_manager_tx(run_manager_tx)
+            .failure_mode(ServerFailureMode::Slow)
+            .output_dir(String::new())
+            .build()
+    }
+
+    fn db_task() -> crate::system::v1::db::Task {
+        let now = Utc::now();
+        crate::system::v1::db::Task {
+            name: "task-name".to_string(),
+            run_uuid: Uuid::nil(),
+            status: TaskStatus::Completed,
+            exit_status: Some(0),
+            error: None,
+            created_at: now,
+            started_at: Some(now),
+            completed_at: Some(now),
+        }
+    }
+
+    #[tokio::test]
+    async fn list_tasks_rejects_invalid_next_token() {
+        let query = ListTasksQueryParams {
+            run_uuid: None,
+            status: None,
+            limit: None,
+            next_token: Some("bad-token".to_string()),
+        };
+
+        let error = list_tasks(State(app_state()), Ok(Query(query)))
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(error, Error::BadRequest(message) if message == "invalid `next_token`: `bad-token`")
+        );
+    }
+
+    #[tokio::test]
+    async fn get_task_logs_rejects_invalid_next_token() {
+        let query = ListTaskLogsQueryParams {
+            source: None,
+            limit: None,
+            next_token: Some("bad-token".to_string()),
+        };
+
+        let error = get_task_logs(
+            State(app_state()),
+            Path("task-name".to_string()),
+            Ok(Query(query)),
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            matches!(error, Error::BadRequest(message) if message == "invalid `next_token`: `bad-token`")
+        );
+    }
+
+    #[test]
+    fn task_response_conversions_preserve_fields() {
+        let db_task = db_task();
+        let response = GetTaskResponse::from(commands::GetTaskResponse {
+            task: db_task.clone(),
+        });
+
+        assert_eq!(response.task.name, db_task.name);
+        assert_eq!(response.task.run_uuid, db_task.run_uuid);
+        assert_eq!(response.task.status, db_task.status);
+        assert_eq!(response.task.exit_status, db_task.exit_status);
+        assert_eq!(response.task.error, db_task.error);
+        assert_eq!(response.task.created_at, db_task.created_at);
+        assert_eq!(response.task.started_at, db_task.started_at);
+        assert_eq!(response.task.completed_at, db_task.completed_at);
+
+        let log = crate::system::v1::db::TaskLog {
+            id: 7,
+            task_name: "task-name".to_string(),
+            source: LogSource::Stdout,
+            chunk: Box::from(*b"hello"),
+            created_at: Utc::now(),
+        };
+        let converted = TaskLog::from(log.clone());
+        assert_eq!(converted.id, log.id);
+        assert_eq!(converted.task_name, log.task_name);
+        assert_eq!(converted.source, log.source);
+        assert_eq!(converted.chunk, log.chunk);
+        assert_eq!(converted.created_at, log.created_at);
+    }
 }

@@ -15,7 +15,6 @@ use wdl::lsp::UserOptions;
 
 use crate::Config;
 use crate::FilterReloadHandle;
-use crate::IGNORE_FILENAME;
 use crate::Subscriber;
 use crate::commands::CommandError;
 use crate::commands::CommandResult;
@@ -63,18 +62,15 @@ pub async fn analyzer(
     args.apply(&config);
 
     let cwd = std::env::current_dir().map_err(anyhow::Error::from)?;
-    let resolution_context = crate::analysis::resolution_context_from_paths(
-        &config.modules,
-        &config.common.wdl.feature_flags,
-        &[cwd],
-    )?;
+    let resolution_context =
+        crate::analysis::resolution_context_from_paths(&config.modules, &[cwd])?;
 
     Server::<Subscriber>::run(
         ServerOptions {
             name: "Sprocket".into(),
             version: env!("CARGO_PKG_VERSION").into(),
             exceptions: args.except,
-            ignore_filename: Some(IGNORE_FILENAME.to_string()),
+            ignore_filename: config.common.ignore_filename(),
             feature_flags: config.common.wdl.feature_flags,
             resolution_context,
             baseline: {

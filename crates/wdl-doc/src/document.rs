@@ -94,7 +94,7 @@ impl Document {
                     @match page.1.page_type() {
                         PageType::Struct(s) => {
                             div class="main__grid-cell" {
-                                a class="text-brand-pink-400 hover:text-pink-200" href=(page.0.to_string_lossy()) {
+                                a class="underline font-mono text-brand-pink-400 hover:text-pink-200" href=(page.0.to_string_lossy()) {
                                     (page.1.name())
                                 }
                             }
@@ -105,7 +105,7 @@ impl Document {
                         }
                         PageType::Enum(e) => {
                             div class="main__grid-cell" {
-                                a class="text-brand-lime-300 hover:text-lime-200" href=(page.0.to_string_lossy()) {
+                                a class="underline font-mono text-brand-lime-300 hover:text-lime-200" href=(page.0.to_string_lossy()) {
                                     (page.1.name())
                                 }
                             }
@@ -116,7 +116,7 @@ impl Document {
                         }
                         PageType::Task(t) => {
                             div class="main__grid-cell" {
-                                a class="text-brand-violet-400 hover:text-violet-200" href=(page.0.to_string_lossy()) {
+                                a class="underline font-mono text-brand-violet-400 hover:text-violet-200" href=(page.0.to_string_lossy()) {
                                     (page.1.name())
                                 }
                             }
@@ -127,7 +127,7 @@ impl Document {
                         }
                         PageType::Workflow(w) => {
                             div class="main__grid-cell" {
-                                a class="text-brand-emerald-400 hover:text-brand-emerald-200" href=(page.0.to_string_lossy()) {
+                                a class="underline font-mono text-brand-emerald-400 hover:text-brand-emerald-200" href=(page.0.to_string_lossy()) {
                                     (page.1.name())
                                 }
                             }
@@ -167,7 +167,7 @@ impl Document {
 
         let markup = html! {
             div class="main__container" {
-                h1 id="title" class="main__title" { (self.name()) }
+                h1 id="title" class="main__title" { code class="heading-code-literal" { (self.name()) } }
                 div class="main__badge-container" {
                     (self.render_version())
                 }
@@ -202,5 +202,42 @@ impl Document {
         ));
 
         (markup, headers)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use wdl_ast::Document as AstDocument;
+    use wdl_ast::SupportedVersion;
+    use wdl_ast::version::V1;
+
+    use super::Document;
+
+    #[test]
+    fn document_title_wraps_name_in_heading_code_literal() {
+        let (doc, _) = AstDocument::parse("version 1.1\n\nworkflow example {\n}\n", None);
+        let version_statement = doc
+            .version_statement()
+            .expect("fixture should have a version statement");
+
+        let document = Document::new(
+            "main".to_string(),
+            SupportedVersion::V1(V1::One),
+            version_statement,
+            Vec::new(),
+        );
+
+        let html = document.render().0.into_string();
+
+        assert!(
+            html.contains("class=\"main__title\""),
+            "expected the document title h1, got: {html}"
+        );
+        // The document name is a WDL identifier used as a page title, so it is
+        // styled as a code literal inside the h1.
+        assert!(
+            html.contains("<code class=\"heading-code-literal\">main</code>"),
+            "expected the document name wrapped as a heading code literal, got: {html}"
+        );
     }
 }

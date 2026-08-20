@@ -36,6 +36,9 @@ Options:
   -q, --quiet...
           Decrease logging verbosity
 
+      --no-ignore
+          Ignore `.sprocketignore` files while discovering WDL documents
+
       --color <COLOR>
           Controls output colorization
 
@@ -70,6 +73,7 @@ Available rules:
   - DenyGlobStar
   - DeprecatedObject
   - DeprecatedPlaceholder
+  - DeprecatedRuntimeSection
   - DescriptionLength
   - DocCommentTabs
   - DocMetaStrings

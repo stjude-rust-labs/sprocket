@@ -14,8 +14,11 @@ use sprocket::server::ServerFailureMode;
 use sprocket::server::create_router;
 use sprocket::server::paths;
 use sprocket::system::v1::db::Database;
+use sprocket::system::v1::db::LogSource;
+use sprocket::system::v1::db::RunStatus;
 use sprocket::system::v1::db::SprocketCommand;
 use sprocket::system::v1::db::SqliteDatabase;
+use sprocket::system::v1::db::TaskStatus;
 use sprocket::system::v1::exec::svc::RunManagerCmd;
 use sprocket::system::v1::exec::svc::RunManagerSvc;
 use tempfile::TempDir;
@@ -80,6 +83,40 @@ async fn seed_run(db: &Arc<dyn Database>, session_id: Uuid, name: &str) -> Uuid 
     run_id
 }
 
+async fn response_json(response: axum::response::Response) -> serde_json::Value {
+    let body = response.into_body().collect().await.unwrap().to_bytes();
+    serde_json::from_slice(&body).expect("response should be valid JSON")
+}
+
+async fn seed_completed_task(db: &Arc<dyn Database>) -> Uuid {
+    let session_id = Uuid::new_v4();
+    db.create_session(session_id, SprocketCommand::Server, "tester")
+        .await
+        .unwrap();
+
+    let run_id = seed_run(db, session_id, "run-name").await;
+    db.update_run_status(run_id, RunStatus::Running)
+        .await
+        .unwrap();
+    db.create_task("task-one", run_id, TaskStatus::Pending)
+        .await
+        .unwrap();
+    db.update_task_started("task-one", Utc::now())
+        .await
+        .unwrap();
+    db.update_task_completed("task-one", Some(0), Utc::now())
+        .await
+        .unwrap();
+    db.insert_task_log("task-one", LogSource::Stdout, b"hello")
+        .await
+        .unwrap();
+    db.insert_task_log("task-one", LogSource::Stderr, b"warning")
+        .await
+        .unwrap();
+
+    run_id
+}
+
 #[sqlx::test]
 async fn run_task_counts_groups_by_status(pool: sqlx::SqlitePool) {
     let (app, db, _temp) = create_test_server(pool).await;
@@ -94,7 +131,9 @@ async fn run_task_counts_groups_by_status(pool: sqlx::SqlitePool) {
     // Two pending (left as created), one running, one completed, one failed,
     // one canceled. No preempted tasks.
     for name in ["t1", "t2", "t3", "t4", "t5", "t6"] {
-        db.create_task(name, run_id).await.unwrap();
+        db.create_task(name, run_id, TaskStatus::Pending)
+            .await
+            .unwrap();
     }
     assert!(db.update_task_started("t3", Utc::now()).await.unwrap());
     assert!(
@@ -111,7 +150,9 @@ async fn run_task_counts_groups_by_status(pool: sqlx::SqlitePool) {
 
     // A task on a different run must not be counted.
     let other_run_id = seed_run(&db, session_id, "other-run").await;
-    db.create_task("other", other_run_id).await.unwrap();
+    db.create_task("other", other_run_id, TaskStatus::Pending)
+        .await
+        .unwrap();
 
     let response = app
         .clone()
@@ -309,10 +350,14 @@ async fn list_run_tasks_filters_by_run(pool: sqlx::SqlitePool) {
     let run_b = seed_run(&db, session_id, "run-b").await;
 
     for name in ["a1", "a2", "a3"] {
-        db.create_task(name, run_a).await.unwrap();
+        db.create_task(name, run_a, TaskStatus::Pending)
+            .await
+            .unwrap();
     }
     for name in ["b1", "b2"] {
-        db.create_task(name, run_b).await.unwrap();
+        db.create_task(name, run_b, TaskStatus::Pending)
+            .await
+            .unwrap();
     }
 
     let (status, body) = list_run_tasks(&app, run_a, "").await;
@@ -352,7 +397,9 @@ async fn list_run_tasks_filters_by_status(pool: sqlx::SqlitePool) {
     // Two pending (untouched), one running, one completed, one failed, one
     // canceled, no preempted.
     for name in ["s1", "s2", "s3", "s4", "s5", "s6"] {
-        db.create_task(name, run_id).await.unwrap();
+        db.create_task(name, run_id, TaskStatus::Pending)
+            .await
+            .unwrap();
     }
     assert!(db.update_task_started("s3", Utc::now()).await.unwrap());
     assert!(
@@ -417,7 +464,9 @@ async fn list_run_tasks_paginates(pool: sqlx::SqlitePool) {
     let run_id = seed_run(&db, session_id, "paginate-run").await;
 
     for name in ["t1", "t2", "t3", "t4", "t5"] {
-        db.create_task(name, run_id).await.unwrap();
+        db.create_task(name, run_id, TaskStatus::Pending)
+            .await
+            .unwrap();
     }
 
     // Helper: collect a page's task names.
@@ -497,4 +546,189 @@ async fn list_run_tasks_unknown_run_returns_empty(pool: sqlx::SqlitePool) {
         "expected absent `next_token`, got {}",
         body["next_token"]
     );
+}
+
+#[sqlx::test]
+async fn list_tasks_returns_empty_initially(pool: sqlx::SqlitePool) {
+    let (app, ..) = create_test_server(pool).await;
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(paths::LIST_TASKS)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = response_json(response).await;
+    assert_eq!(json["total"], 0);
+    assert!(
+        json["tasks"]
+            .as_array()
+            .expect("tasks should be an array")
+            .is_empty()
+    );
+}
+
+#[sqlx::test]
+async fn task_endpoints_return_seeded_task_and_logs(pool: sqlx::SqlitePool) {
+    let (app, db, ..) = create_test_server(pool).await;
+    let run_id = seed_completed_task(&db).await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(paths::LIST_TASKS)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = response_json(response).await;
+    assert_eq!(json["total"], 1);
+    assert_eq!(json["tasks"][0]["name"], "task-one");
+    assert_eq!(json["tasks"][0]["run_uuid"], run_id.to_string());
+    assert_eq!(json["tasks"][0]["status"], "completed");
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!(
+                    "{}?run_uuid={run_id}&status=completed&limit=1",
+                    paths::LIST_TASKS
+                ))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = response_json(response).await;
+    assert_eq!(json["total"], 1);
+    assert_eq!(json["tasks"].as_array().unwrap().len(), 1);
+    assert!(json["next_token"].is_null());
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(paths::get_task("task-one"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = response_json(response).await;
+    assert_eq!(json["name"], "task-one");
+    assert_eq!(json["status"], "completed");
+    assert_eq!(json["exit_status"], 0);
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("{}?limit=1", paths::get_task_logs("task-one")))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = response_json(response).await;
+    assert_eq!(json["total"], 2);
+    assert_eq!(json["logs"].as_array().unwrap().len(), 1);
+    assert_eq!(json["next_token"], "1");
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!(
+                    "{}?source=stdout",
+                    paths::get_task_logs("task-one")
+                ))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = response_json(response).await;
+    assert_eq!(json["total"], 1);
+    assert_eq!(json["logs"][0]["source"], "stdout");
+    assert_eq!(
+        json["logs"][0]["chunk"],
+        serde_json::json!([104, 101, 108, 108, 111])
+    );
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .method("GET")
+                .uri(format!("{}?next_token=1", paths::get_task_logs("task-one")))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    let json = response_json(response).await;
+    assert_eq!(json["total"], 2);
+    assert_eq!(json["logs"].as_array().unwrap().len(), 1);
+    assert!(json["next_token"].is_null());
+}
+
+#[sqlx::test]
+async fn task_endpoints_return_expected_errors(pool: sqlx::SqlitePool) {
+    let (app, db, ..) = create_test_server(pool).await;
+    seed_completed_task(&db).await;
+
+    let cases = [
+        (
+            format!("{}?next_token=bad", paths::LIST_TASKS),
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            format!("{}?status=bad", paths::LIST_TASKS),
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            format!("{}?next_token=bad", paths::get_task_logs("task-one")),
+            StatusCode::BAD_REQUEST,
+        ),
+        (
+            format!("{}?source=bad", paths::get_task_logs("task-one")),
+            StatusCode::BAD_REQUEST,
+        ),
+        (paths::get_task("missing-task"), StatusCode::NOT_FOUND),
+        (paths::get_task_logs("missing-task"), StatusCode::NOT_FOUND),
+    ];
+
+    for (uri, status) in cases {
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(uri.as_str())
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), status, "unexpected status for `{uri}`");
+    }
 }

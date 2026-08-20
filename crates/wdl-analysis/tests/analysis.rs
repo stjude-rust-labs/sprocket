@@ -54,7 +54,7 @@ fn find_tests(runtime: &tokio::runtime::Handle) -> Vec<Trial> {
             }
 
             let test_name = path
-                .file_stem()
+                .file_name()
                 .map(OsStr::to_string_lossy)
                 .unwrap()
                 .into_owned();
@@ -70,20 +70,36 @@ fn find_tests(runtime: &tokio::runtime::Handle) -> Vec<Trial> {
 
 /// Normalizes a result.
 fn normalize(s: &str, is_error: bool) -> String {
-    if is_error {
+    let s = if is_error {
         // Normalize paths in any error messages
         let s = s.replace('\\', "/").replace("\r\n", "\n");
 
         // Handle any OS specific errors messages
-        let s = s.replace(
+        s.replace(
             "The system cannot find the file specified. (os error 2)",
             "No such file or directory (os error 2)",
-        );
-        return s;
+        )
+    } else {
+        // Otherwise, just normalize line endings
+        s.replace("\r\n", "\n")
+    };
+
+    trim_trailing_whitespace(&s)
+}
+
+/// Removes trailing horizontal whitespace and excess blank lines.
+fn trim_trailing_whitespace(s: &str) -> String {
+    let terminated = s.ends_with('\n') || s.ends_with('\r');
+    let mut lines = s.lines().map(str::trim_end).collect::<Vec<_>>();
+    while lines.last().is_some_and(|line| line.is_empty()) {
+        lines.pop();
     }
 
-    // Otherwise, just normalize line endings
-    s.replace("\r\n", "\n")
+    let mut normalized = lines.join("\n");
+    if terminated {
+        normalized.push('\n');
+    }
+    normalized
 }
 
 /// Compares a single result.
@@ -107,6 +123,7 @@ fn compare_result(path: &Path, result: &str, is_error: bool) -> Result<()> {
             )
         })?
         .replace("\r\n", "\n");
+    let expected = normalize(&expected, is_error);
 
     if expected != result {
         bail!(
@@ -167,7 +184,7 @@ async fn run_test(test: &Path) -> Result<(), anyhow::Error> {
     let analyzer = Analyzer::new(config, |_, _, _, _| async {});
 
     let results =
-        if SINGLE_DOCUMENT_TESTS.contains(&base.file_stem().and_then(OsStr::to_str).unwrap()) {
+        if SINGLE_DOCUMENT_TESTS.contains(&base.file_name().and_then(OsStr::to_str).unwrap()) {
             // Single-document tests add and analyze only `source.wdl`.
             let document = base.join("source.wdl");
             let uri = path_to_uri(&document).expect("should be valid URI");

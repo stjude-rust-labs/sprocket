@@ -5,13 +5,10 @@ use std::fs;
 use std::fs::File;
 use std::process::Stdio;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
 use anyhow::bail;
-use crankshaft::engine::service::name::GeneratorIterator;
-use crankshaft::engine::service::name::UniqueAlphanumeric;
 use crankshaft::events::Event;
 use crankshaft::events::next_task_id;
 use crankshaft::events::send_event;
@@ -36,7 +33,6 @@ use crate::PrimitiveValue;
 use crate::SYSTEM;
 use crate::TaskInputs;
 use crate::backend::ExecuteTaskRequest;
-use crate::backend::INITIAL_EXPECTED_NAMES;
 use crate::backend::TaskExecutionResult;
 use crate::backend::manager::TaskManager;
 use crate::config::Config;
@@ -227,8 +223,6 @@ pub struct LocalBackend {
     memory: u64,
     /// The underlying task manager.
     manager: TaskManager,
-    /// The name generator for tasks.
-    names: Arc<Mutex<GeneratorIterator<UniqueAlphanumeric>>>,
     /// The sender for events.
     events: Events,
 }
@@ -244,11 +238,6 @@ impl LocalBackend {
         cancellation: CancellationContext,
     ) -> Result<Self> {
         info!("initializing local backend");
-
-        let names = Arc::new(Mutex::new(GeneratorIterator::new(
-            UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
-            INITIAL_EXPECTED_NAMES,
-        )));
 
         let backend_config = config.backend()?;
         let backend_config = backend_config
@@ -278,13 +267,16 @@ impl LocalBackend {
             cpu,
             memory,
             manager,
-            names,
             events,
         })
     }
 }
 
 impl TaskExecutionBackend for LocalBackend {
+    fn name(&self) -> &'static str {
+        "local"
+    }
+
     fn constraints(
         &self,
         inputs: &TaskInputs,
@@ -370,16 +362,7 @@ impl TaskExecutionBackend for LocalBackend {
         request: ExecuteTaskRequest<'a>,
     ) -> BoxFuture<'a, Result<Option<TaskExecutionResult>>> {
         async move {
-            let name = format!(
-                "{id}-{generated}",
-                id = request.id,
-                generated = self
-                    .names
-                    .lock()
-                    .expect("generator should always acquire")
-                    .next()
-                    .expect("generator should never be exhausted")
-            );
+            let name = request.name.to_string();
 
             let cpu = request.constraints.cpu;
             let memory = request.constraints.memory;

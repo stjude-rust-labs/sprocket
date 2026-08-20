@@ -249,6 +249,20 @@ impl Database for SqliteDatabase {
         Ok(())
     }
 
+    async fn mark_run_canceling(&self, id: Uuid) -> Result<bool> {
+        let result = sqlx::query(
+            "update runs
+             set status = ?
+             where uuid = ? and status not in ('completed', 'failed', 'canceled')",
+        )
+        .bind(RunStatus::Canceling)
+        .bind(id.to_string())
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
     async fn update_run_started_at(
         &self,
         id: Uuid,
@@ -440,14 +454,18 @@ impl Database for SqliteDatabase {
         Ok(entries)
     }
 
-    async fn create_task(&self, name: &str, run_id: Uuid) -> Result<Task> {
+    async fn create_task(&self, name: &str, run_id: Uuid, status: TaskStatus) -> Result<Task> {
+        // The upsert makes this idempotent: a task row is created by whichever
+        // event observes the task first, and any later creation leaves the row
+        // and its status untouched.
         let task: Task = sqlx::query_as(
             "insert into tasks (name, run_id, status) select ?, r.id, ? from runs r where r.uuid \
-             = ? returning name, (select uuid from runs where id = run_id) as run_uuid, status, \
-             exit_status, error, created_at, started_at, completed_at",
+             = ? on conflict(\"name\") do update set run_id = tasks.run_id returning name, \
+             (select uuid from runs where id = run_id) as run_uuid, status, exit_status, error, \
+             created_at, started_at, completed_at",
         )
         .bind(name)
-        .bind(TaskStatus::Pending)
+        .bind(status)
         .bind(run_id.to_string())
         .fetch_one(&self.pool)
         .await?;
@@ -455,11 +473,55 @@ impl Database for SqliteDatabase {
         Ok(task)
     }
 
+    async fn update_task_localizing(&self, name: &str) -> Result<bool> {
+        let result = sqlx::query(
+            "update tasks
+             set status = ?
+             where name = ? and status = 'initializing'",
+        )
+        .bind(TaskStatus::Localizing)
+        .bind(name)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    async fn update_task_pending(&self, name: &str) -> Result<bool> {
+        let result = sqlx::query(
+            "update tasks
+             set status = ?
+             where name = ? and status in ('initializing', 'localizing')",
+        )
+        .bind(TaskStatus::Pending)
+        .bind(name)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    async fn update_task_cached(&self, name: &str, completed_at: DateTime<Utc>) -> Result<bool> {
+        let result = sqlx::query(
+            "update tasks
+             set status = ?, completed_at = ?
+             where name = ? and status not in ('completed', 'failed', 'canceled', 'preempted', \
+             'cached')",
+        )
+        .bind(TaskStatus::Cached)
+        .bind(completed_at)
+        .bind(name)
+        .execute(&self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
     async fn update_task_started(&self, name: &str, started_at: DateTime<Utc>) -> Result<bool> {
         let result = sqlx::query(
             "update tasks
              set status = ?, started_at = ?
-             where name = ?",
+             where name = ? and status in ('initializing', 'localizing', 'pending')",
         )
         .bind(TaskStatus::Running)
         .bind(started_at)
@@ -479,7 +541,8 @@ impl Database for SqliteDatabase {
         let result = sqlx::query(
             "update tasks
              set status = ?, exit_status = ?, completed_at = ?
-             where name = ?",
+             where name = ? and status not in ('completed', 'failed', 'canceled', 'preempted', \
+             'cached')",
         )
         .bind(TaskStatus::Completed)
         .bind(exit_status)
@@ -500,7 +563,8 @@ impl Database for SqliteDatabase {
         let result = sqlx::query(
             "update tasks
              set status = ?, error = ?, completed_at = ?
-             where name = ?",
+             where name = ? and status not in ('completed', 'failed', 'canceled', 'preempted', \
+             'cached')",
         )
         .bind(TaskStatus::Failed)
         .bind(error)
@@ -516,7 +580,8 @@ impl Database for SqliteDatabase {
         let result = sqlx::query(
             "update tasks
              set status = ?, completed_at = ?
-             where name = ?",
+             where name = ? and status not in ('completed', 'failed', 'canceled', 'preempted', \
+             'cached')",
         )
         .bind(TaskStatus::Canceled)
         .bind(completed_at)
@@ -531,7 +596,8 @@ impl Database for SqliteDatabase {
         let result = sqlx::query(
             "update tasks
              set status = ?, completed_at = ?
-             where name = ?",
+             where name = ? and status not in ('completed', 'failed', 'canceled', 'preempted', \
+             'cached')",
         )
         .bind(TaskStatus::Preempted)
         .bind(completed_at)
@@ -930,6 +996,48 @@ mod tests {
     }
 
     #[sqlx::test]
+    async fn mark_run_canceling_never_overwrites_an_outcome(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        assert!(
+            db.mark_run_canceling(run_id)
+                .await
+                .expect("failed to mark run canceling")
+        );
+
+        // A run that reaches its outcome before the cancellation is recorded
+        // keeps that outcome; otherwise it would appear to cancel forever.
+        db.cancel_run(run_id, Utc::now())
+            .await
+            .expect("failed to cancel run");
+        assert!(
+            !db.mark_run_canceling(run_id)
+                .await
+                .expect("failed to mark run canceling")
+        );
+
+        let run = db
+            .get_run(run_id)
+            .await
+            .expect("failed to get run")
+            .unwrap();
+        assert_eq!(run.status, RunStatus::Canceled);
+        assert!(run.completed_at.is_some());
+    }
+
+    #[sqlx::test]
     async fn get_run(pool: SqlitePool) {
         let db = SqliteDatabase::from_pool(pool)
             .await
@@ -1075,13 +1183,161 @@ mod tests {
         .expect("failed to create run");
 
         let task = db
-            .create_task("my_task", run_id)
+            .create_task("my_task", run_id, TaskStatus::Pending)
             .await
             .expect("failed to create task");
 
         assert_eq!(task.name, "my_task");
         assert_eq!(task.run_uuid, run_id);
         assert_eq!(task.status, TaskStatus::Pending);
+    }
+
+    #[sqlx::test]
+    async fn create_task_is_idempotent(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        db.create_task("t", run_id, TaskStatus::Initializing)
+            .await
+            .expect("failed to create task");
+        assert!(
+            db.update_task_started("t", Utc::now())
+                .await
+                .expect("failed to start task")
+        );
+
+        // Whichever event observes the task second must not resurrect it: the
+        // engine and Crankshaft channels have no ordering between them.
+        let task = db
+            .create_task("t", run_id, TaskStatus::Pending)
+            .await
+            .expect("failed to create task");
+
+        assert_eq!(task.status, TaskStatus::Running);
+    }
+
+    #[sqlx::test]
+    async fn task_status_only_advances(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        db.create_task("t", run_id, TaskStatus::Initializing)
+            .await
+            .expect("failed to create task");
+
+        assert!(
+            db.update_task_localizing("t")
+                .await
+                .expect("failed to update task")
+        );
+        assert!(
+            db.update_task_pending("t")
+                .await
+                .expect("failed to update task")
+        );
+
+        // A late localizing event must not drag the task backwards.
+        assert!(
+            !db.update_task_localizing("t")
+                .await
+                .expect("failed to update task")
+        );
+        assert_eq!(
+            db.get_task("t").await.expect("failed to get task").status,
+            TaskStatus::Pending
+        );
+
+        assert!(
+            db.update_task_started("t", Utc::now())
+                .await
+                .expect("failed to update task")
+        );
+        assert!(
+            !db.update_task_pending("t")
+                .await
+                .expect("failed to update task")
+        );
+
+        // The first terminal status wins; reconciliation of a finished task is a
+        // no-op.
+        assert!(
+            db.update_task_completed("t", Some(0), Utc::now())
+                .await
+                .expect("failed to update task")
+        );
+        assert!(
+            !db.update_task_canceled("t", Utc::now())
+                .await
+                .expect("failed to update task")
+        );
+
+        let task = db.get_task("t").await.expect("failed to get task");
+        assert_eq!(task.status, TaskStatus::Completed);
+        assert_eq!(task.exit_status, Some(0));
+    }
+
+    #[sqlx::test]
+    async fn update_task_cached_is_terminal(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Run, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(run_id, session_id, "test-run", "test.wdl", Some("t"), "{}")
+            .await
+            .expect("failed to create run");
+
+        db.create_task("t", run_id, TaskStatus::Initializing)
+            .await
+            .expect("failed to create task");
+
+        let completed_at = Utc::now();
+        assert!(
+            db.update_task_cached("t", completed_at)
+                .await
+                .expect("failed to update task")
+        );
+
+        let task = db.get_task("t").await.expect("failed to get task");
+        assert_eq!(task.status, TaskStatus::Cached);
+        assert!(task.completed_at.is_some());
+
+        assert!(
+            !db.update_task_started("t", Utc::now())
+                .await
+                .expect("failed to update task")
+        );
+        assert_eq!(
+            db.get_task("t").await.expect("failed to get task").status,
+            TaskStatus::Cached
+        );
     }
 
     #[sqlx::test]
@@ -1108,7 +1364,7 @@ mod tests {
         .expect("failed to create run");
 
         let created_task = db
-            .create_task("my_task", run_id)
+            .create_task("my_task", run_id, TaskStatus::Pending)
             .await
             .expect("failed to create task");
 
@@ -1153,15 +1409,15 @@ mod tests {
         .await
         .expect("failed to create run");
 
-        db.create_task("task1", run1_id)
+        db.create_task("task1", run1_id, TaskStatus::Pending)
             .await
             .expect("failed to create task");
 
-        db.create_task("task2", run1_id)
+        db.create_task("task2", run1_id, TaskStatus::Pending)
             .await
             .expect("failed to create task");
 
-        db.create_task("task3", run2_id)
+        db.create_task("task3", run2_id, TaskStatus::Pending)
             .await
             .expect("failed to create task");
 
@@ -1255,7 +1511,7 @@ mod tests {
 
         // run_id: two pending, one running, one completed.
         for name in ["t1", "t2", "t3", "t4"] {
-            db.create_task(name, run_id)
+            db.create_task(name, run_id, TaskStatus::Pending)
                 .await
                 .expect("failed to create task");
         }
@@ -1267,7 +1523,7 @@ mod tests {
             .expect("failed to update task");
 
         // A task on a different run must not be counted.
-        db.create_task("other", other_run_id)
+        db.create_task("other", other_run_id, TaskStatus::Pending)
             .await
             .expect("failed to create task");
 
@@ -1316,7 +1572,7 @@ mod tests {
         .await
         .expect("failed to create run");
 
-        db.create_task("my_task", run_id)
+        db.create_task("my_task", run_id, TaskStatus::Pending)
             .await
             .expect("failed to create task");
 
@@ -1358,7 +1614,7 @@ mod tests {
         .await
         .expect("failed to create run");
 
-        db.create_task("my_task", run_id)
+        db.create_task("my_task", run_id, TaskStatus::Pending)
             .await
             .expect("failed to create task");
 

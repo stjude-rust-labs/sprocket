@@ -12,14 +12,12 @@ Options:
       --status <STATUS>
           Filter the run list by status.
           
-          Valid values: `queued`, `running`, `completed`, `failed`, `canceling`, `canceled`. Only used when no `RUN` is provided.
+          Valid values: `queued`, `analyzing`, `running`, `completed`, `failed`, `canceling`, `canceled`. Only used when no `RUN` is provided.
 
       --limit <N>
-          Maximum number of runs to return per page.
+          Maximum number of runs to display.
           
-          Only used when no `RUN` is provided.
-          
-          [default: 100]
+          When set, fetches a single page of at most `N` runs. When omitted, all runs are displayed by paginating through the server's results. Only used when no `RUN` is provided.
 
       --json
           Output the raw JSON response instead of the formatted summary
@@ -39,6 +37,9 @@ Options:
 
   -q, --quiet...
           Decrease logging verbosity
+
+      --no-ignore
+          Ignore `.sprocketignore` files while discovering WDL documents
 
       --color <COLOR>
           Controls output colorization

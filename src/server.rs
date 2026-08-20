@@ -30,6 +30,7 @@ pub(crate) use api::v1::info::ServerInfoResponse;
 pub use api::v1::paths;
 pub(crate) use api::v1::runs::CancelRunResponse;
 pub(crate) use api::v1::runs::ListRunsResponse;
+pub(crate) use api::v1::runs::Run;
 pub(crate) use api::v1::runs::RunResponse;
 pub(crate) use api::v1::runs::SubmitRunRequest;
 pub(crate) use api::v1::tasks::ListTasksResponse;
@@ -77,7 +78,15 @@ async fn create_server_app(
 
     let db = open_database(&db_path).await?;
     let failure_mode = ServerFailureMode::from(config.server.engine.failure_mode);
-    let output_dir = config.server.output_dir.display().to_string();
+    // Resolve the output directory to an absolute path so clients (e.g. `dev
+    // server inspect`) can join it with a run-relative path to produce a
+    // usable, copy-pasteable filesystem path, regardless of the server
+    // process's working directory or whether the configured path was
+    // relative (e.g. `./out`).
+    let output_dir = std::path::absolute(&config.server.output_dir)
+        .unwrap_or_else(|_| config.server.output_dir.clone())
+        .display()
+        .to_string();
     let (_, run_manager_tx) = RunManagerSvc::spawn(
         DEFAULT_CHANNEL_BUFFER_SIZE,
         config.clone(),
@@ -132,4 +141,41 @@ pub async fn run(config: Config, report_mode: Mode, colorize: bool) -> anyhow::R
     run_with_listener(config, report_mode, colorize, listener).await?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use axum::body::Body;
+    use axum::http::Request;
+    use axum::http::StatusCode;
+    use tokio::sync::mpsc;
+    use tower::ServiceExt;
+
+    use super::*;
+    use crate::system::v1::exec::svc::RunManagerCmd;
+
+    #[tokio::test]
+    async fn router_serves_openapi_and_nested_api_routes() -> anyhow::Result<()> {
+        let (run_manager_tx, _run_manager_rx) = mpsc::channel::<RunManagerCmd>(1);
+        let state = AppState::builder()
+            .run_manager_tx(run_manager_tx)
+            .failure_mode(ServerFailureMode::Slow)
+            .output_dir(String::new())
+            .build();
+        let app = create_router()
+            .state(state)
+            .cors_layer(CorsLayer::new())
+            .call();
+
+        let request = Request::builder()
+            .uri("/api/v1/openapi.json")
+            .body(Body::empty())?;
+        let response = app.clone().oneshot(request).await?;
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let request = Request::builder().uri("/api/v1/nope").body(Body::empty())?;
+        let response = app.oneshot(request).await?;
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        Ok(())
+    }
 }

@@ -46,7 +46,7 @@ impl Outputs {
         // resulting sort is still considered to be stable
         self.values.sort_unstable_by(move |a, _, b, _| {
             let ordering = cmp(a, b);
-            assert!(ordering != Ordering::Equal);
+            assert_ne!(ordering, Ordering::Equal);
             ordering
         });
     }

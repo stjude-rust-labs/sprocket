@@ -15,6 +15,8 @@ use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
+use crankshaft::engine::service::name::GeneratorIterator;
+use crankshaft::engine::service::name::UniqueAlphanumeric;
 pub(crate) use expr::*;
 use serde::Serialize;
 pub(crate) use task::*;
@@ -25,6 +27,7 @@ use wdl_analysis::types::EnumChoiceCacheKey;
 use super::CancellationContext;
 use super::Events;
 use crate::EngineEvent;
+use crate::INITIAL_EXPECTED_NAMES;
 use crate::Value;
 use crate::backend::TaskExecutionBackend;
 use crate::cache::CallCache;
@@ -71,6 +74,12 @@ pub struct Evaluator {
     cache: Option<CallCache>,
     /// The events for evaluation.
     events: Option<broadcast::Sender<EngineEvent>>,
+    /// The generator for unique task names.
+    ///
+    /// Task names are minted by the evaluator rather than by the backend so
+    /// that a task can be identified by consumers of [`EngineEvent`] before it
+    /// is submitted for execution.
+    names: Arc<Mutex<GeneratorIterator<UniqueAlphanumeric>>>,
     /// Cache for evaluated enum choice values to avoid redundant AST lookups.
     choice_cache: Arc<Mutex<HashMap<EnumChoiceCacheKey, Value>>>,
 }
@@ -134,7 +143,46 @@ impl Evaluator {
             transferer,
             cache,
             events: events.engine().clone(),
+            names: Arc::new(Mutex::new(GeneratorIterator::new(
+                UniqueAlphanumeric::default_with_expected_generations(INITIAL_EXPECTED_NAMES),
+                INITIAL_EXPECTED_NAMES,
+            ))),
             choice_cache: Default::default(),
         })
+    }
+
+    /// Generates a unique name for an execution attempt of the given task id.
+    ///
+    /// The name is what identifies the attempt in every event the engine and
+    /// the backends emit for it.
+    fn generate_task_name(&self, id: &str) -> String {
+        format!(
+            "{id}-{generated}",
+            generated = self
+                .names
+                .lock()
+                .expect("generator should always acquire")
+                .next()
+                .expect("generator should never be exhausted")
+        )
+    }
+
+    /// Notifies that a task has started evaluating an execution attempt.
+    fn notify_task_initializing(&self, id: &str, name: &str) {
+        if let Some(sender) = &self.events {
+            let _ = sender.send(EngineEvent::TaskInitializing {
+                id: id.to_string(),
+                name: name.to_string(),
+            });
+        }
+    }
+
+    /// Notifies that a task has started transferring its inputs.
+    fn notify_task_localizing(&self, name: &str) {
+        if let Some(sender) = &self.events {
+            let _ = sender.send(EngineEvent::TaskLocalizing {
+                name: name.to_string(),
+            });
+        }
     }
 }

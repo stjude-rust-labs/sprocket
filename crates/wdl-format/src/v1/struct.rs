@@ -7,6 +7,7 @@ use crate::PreToken;
 use crate::TokenStream;
 use crate::Writable as _;
 use crate::element::FormatElement;
+use crate::v1::write_sections;
 
 /// Formats a [`StructDefinition`](wdl_ast::v1::StructDefinition).
 ///
@@ -21,39 +22,39 @@ pub fn format_struct_definition(
     let mut children = element.children().expect("struct definition children");
 
     let struct_keyword = children.next().expect("struct keyword");
-    assert!(struct_keyword.element().kind() == SyntaxKind::StructKeyword);
+    assert_eq!(struct_keyword.element().kind(), SyntaxKind::StructKeyword);
     (&struct_keyword).write(stream, config);
     stream.end_word();
 
     let name = children.next().expect("struct name");
-    assert!(name.element().kind() == SyntaxKind::Ident);
+    assert_eq!(name.element().kind(), SyntaxKind::Ident);
     (&name).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.end_line();
     stream.increment_indent();
 
-    let mut meta = None;
-    let mut parameter_meta = None;
+    let mut meta_sections = Vec::new();
+    let mut parameter_meta_sections = Vec::new();
     let mut members = Vec::new();
     let mut close_brace = None;
 
     for child in children {
         match child.element().kind() {
             SyntaxKind::MetadataSectionNode => {
-                meta = Some(child.clone());
+                meta_sections.push(child);
             }
             SyntaxKind::ParameterMetadataSectionNode => {
-                parameter_meta = Some(child.clone());
+                parameter_meta_sections.push(child);
             }
             SyntaxKind::UnboundDeclNode => {
-                members.push(child.clone());
+                members.push(child);
             }
             SyntaxKind::CloseBrace => {
-                close_brace = Some(child.clone());
+                close_brace = Some(child);
             }
             _ => {
                 unreachable!(
@@ -64,22 +65,17 @@ pub fn format_struct_definition(
         }
     }
 
-    if let Some(meta) = meta {
-        (&meta).write(stream, config);
-        stream.blank_line();
-    }
-
-    if let Some(parameter_meta) = parameter_meta {
-        (&parameter_meta).write(stream, config);
-        stream.blank_line();
-    }
+    write_sections(&meta_sections, stream, config);
+    write_sections(&parameter_meta_sections, stream, config);
 
     for member in members {
-        (&member).write(stream, config);
+        member.write(stream, config);
     }
 
     stream.decrement_indent();
-    (&close_brace.expect("struct definition close brace")).write(stream, config);
+    close_brace
+        .expect("struct definition close brace")
+        .write(stream, config);
     stream.end_line();
 }
 
@@ -96,11 +92,11 @@ pub fn format_literal_struct_item(
     let mut children = element.children().expect("literal struct item children");
 
     let key = children.next().expect("literal struct item key");
-    assert!(key.element().kind() == SyntaxKind::Ident);
+    assert_eq!(key.element().kind(), SyntaxKind::Ident);
     (&key).write(stream, config);
 
     let colon = children.next().expect("literal struct item colon");
-    assert!(colon.element().kind() == SyntaxKind::Colon);
+    assert_eq!(colon.element().kind(), SyntaxKind::Colon);
     (&colon).write(stream, config);
     stream.end_word();
 
@@ -122,12 +118,12 @@ pub fn format_literal_struct(
     let mut children = element.children().expect("literal struct children");
 
     let name = children.next().expect("literal struct name");
-    assert!(name.element().kind() == SyntaxKind::Ident);
+    assert_eq!(name.element().kind(), SyntaxKind::Ident);
     (&name).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("literal struct open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 

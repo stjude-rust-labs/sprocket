@@ -95,7 +95,7 @@ pub fn format_call_statement(
     let mut children = element.children().expect("call statement children");
 
     let call_keyword = children.next().expect("call keyword");
-    assert!(call_keyword.element().kind() == SyntaxKind::CallKeyword);
+    assert_eq!(call_keyword.element().kind(), SyntaxKind::CallKeyword);
     (&call_keyword).write(stream, config);
     stream.end_word();
 

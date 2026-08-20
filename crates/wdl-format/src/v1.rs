@@ -22,6 +22,23 @@ fn import_sort_key(stmt: &ImportStatement) -> (u8, String) {
     }
 }
 
+/// Writes each section of a definition's canonical slot, following each with a
+/// blank line.
+///
+/// A slot holds more than one section only when the document is invalid (e.g. a
+/// task with two `runtime` sections); every section is still written, in source
+/// order, so that formatting never discards input.
+pub(crate) fn write_sections(
+    sections: &[&FormatElement],
+    stream: &mut TokenStream<PreToken>,
+    config: &Config,
+) {
+    for section in sections {
+        section.write(stream, config);
+        stream.blank_line();
+    }
+}
+
 pub mod decl;
 pub mod r#enum;
 pub mod expr;
@@ -58,7 +75,10 @@ pub fn format_ast(element: &FormatElement, stream: &mut TokenStream<PreToken>, c
     let mut children = element.children().expect("AST children");
 
     let version_statement = children.next().expect("version statement");
-    assert!(version_statement.element().kind() == SyntaxKind::VersionStatementNode);
+    assert_eq!(
+        version_statement.element().kind(),
+        SyntaxKind::VersionStatementNode
+    );
     (&version_statement).write(stream, config);
 
     stream.blank_line();
@@ -169,7 +189,7 @@ pub fn format_version_statement(
     // but the preceding trivia may include one that will
     // be added if we don't exclude it.
     let version_keyword = children.next().expect("version keyword");
-    assert!(version_keyword.element().kind() == SyntaxKind::VersionKeyword);
+    assert_eq!(version_keyword.element().kind(), SyntaxKind::VersionKeyword);
     let mut buffer = TokenStream::<PreToken>::default();
     (&version_keyword).write(&mut buffer, config);
     let mut buff_iter = buffer.into_iter();
@@ -203,12 +223,12 @@ pub fn format_input_section(
     let mut children = element.children().expect("input section children");
 
     let input_keyword = children.next().expect("input section input keyword");
-    assert!(input_keyword.element().kind() == SyntaxKind::InputKeyword);
+    assert_eq!(input_keyword.element().kind(), SyntaxKind::InputKeyword);
     (&input_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("input section open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 
@@ -255,12 +275,12 @@ pub fn format_output_section(
     let mut children = element.children().expect("output section children");
 
     let output_keyword = children.next().expect("output keyword");
-    assert!(output_keyword.element().kind() == SyntaxKind::OutputKeyword);
+    assert_eq!(output_keyword.element().kind(), SyntaxKind::OutputKeyword);
     (&output_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("output section open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 
@@ -268,7 +288,7 @@ pub fn format_output_section(
         if child.element().kind() == SyntaxKind::CloseBrace {
             stream.decrement_indent();
         } else {
-            assert!(child.element().kind() == SyntaxKind::BoundDeclNode);
+            assert_eq!(child.element().kind(), SyntaxKind::BoundDeclNode);
         }
         (&child).write(stream, config);
         stream.end_line();
@@ -288,17 +308,19 @@ pub fn format_literal_input_item(
 ) {
     let mut children = element.children().expect("literal input item children");
 
-    let key = children.next().expect("literal input item key");
-    assert!(key.element().kind() == SyntaxKind::Ident);
-    (&key).write(stream, config);
-
-    let colon = children.next().expect("literal input item colon");
-    assert!(colon.element().kind() == SyntaxKind::Colon);
-    (&colon).write(stream, config);
-    stream.end_word();
+    for child in children.by_ref() {
+        if matches!(child.element().kind(), SyntaxKind::Ident | SyntaxKind::Dot) {
+            (&child).write(stream, config);
+        } else {
+            assert_eq!(child.element().kind(), SyntaxKind::Colon);
+            (&child).write(stream, config);
+            stream.end_word();
+            break;
+        }
+    }
 
     let hints_node = children.next().expect("literal input item hints node");
-    assert!(hints_node.element().kind() == SyntaxKind::LiteralHintsNode);
+    assert_eq!(hints_node.element().kind(), SyntaxKind::LiteralHintsNode);
     (&hints_node).write(stream, config);
 }
 
@@ -316,12 +338,12 @@ pub fn format_literal_input(
     let mut children = element.children().expect("literal input children");
 
     let input_keyword = children.next().expect("literal input keyword");
-    assert!(input_keyword.element().kind() == SyntaxKind::InputKeyword);
+    assert_eq!(input_keyword.element().kind(), SyntaxKind::InputKeyword);
     (&input_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("literal input open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 
@@ -367,11 +389,11 @@ pub fn format_literal_hints_item(
     let mut children = element.children().expect("literal hints item children");
 
     let key = children.next().expect("literal hints item key");
-    assert!(key.element().kind() == SyntaxKind::Ident);
+    assert_eq!(key.element().kind(), SyntaxKind::Ident);
     (&key).write(stream, config);
 
     let colon = children.next().expect("literal hints item colon");
-    assert!(colon.element().kind() == SyntaxKind::Colon);
+    assert_eq!(colon.element().kind(), SyntaxKind::Colon);
     (&colon).write(stream, config);
     stream.end_word();
 
@@ -393,12 +415,12 @@ pub fn format_literal_hints(
     let mut children = element.children().expect("literal hints children");
 
     let hints_keyword = children.next().expect("literal hints keyword");
-    assert!(hints_keyword.element().kind() == SyntaxKind::HintsKeyword);
+    assert_eq!(hints_keyword.element().kind(), SyntaxKind::HintsKeyword);
     (&hints_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("literal hints open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 
@@ -447,7 +469,7 @@ pub fn format_literal_output_item(
         if matches!(child.element().kind(), SyntaxKind::Ident | SyntaxKind::Dot) {
             (&child).write(stream, config);
         } else {
-            assert!(child.element().kind() == SyntaxKind::Colon);
+            assert_eq!(child.element().kind(), SyntaxKind::Colon);
             (&child).write(stream, config);
             stream.end_word();
             break;
@@ -472,12 +494,12 @@ pub fn format_literal_output(
     let mut children = element.children().expect("literal output children");
 
     let output_keyword = children.next().expect("literal output keyword");
-    assert!(output_keyword.element().kind() == SyntaxKind::OutputKeyword);
+    assert_eq!(output_keyword.element().kind(), SyntaxKind::OutputKeyword);
     (&output_keyword).write(stream, config);
     stream.end_word();
 
     let open_brace = children.next().expect("literal output open brace");
-    assert!(open_brace.element().kind() == SyntaxKind::OpenBrace);
+    assert_eq!(open_brace.element().kind(), SyntaxKind::OpenBrace);
     (&open_brace).write(stream, config);
     stream.increment_indent();
 

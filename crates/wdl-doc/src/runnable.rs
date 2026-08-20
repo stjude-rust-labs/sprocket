@@ -4,7 +4,6 @@ pub mod task;
 pub mod workflow;
 
 use std::collections::BTreeSet;
-use std::path::MAIN_SEPARATOR;
 use std::path::Path;
 
 use maud::Markup;
@@ -20,6 +19,7 @@ use wdl_ast::v1::OutputSection;
 use crate::VersionBadge;
 use crate::docs_tree::Header;
 use crate::docs_tree::PageSections;
+use crate::links::PageLinkIndex;
 use crate::meta::DESCRIPTION_KEY;
 use crate::meta::DefinitionMeta;
 use crate::meta::MetaMap;
@@ -102,36 +102,50 @@ pub(crate) trait Runnable: DefinitionMeta {
     /// Render the "run with" component of the runnable.
     fn render_run_with(&self, _assets: &Path) -> Markup {
         if let Some(wdl_path) = self.wdl_path() {
-            let unix_path = wdl_path.to_string_lossy().replace(MAIN_SEPARATOR, "/");
-            let windows_path = wdl_path.to_string_lossy().replace(MAIN_SEPARATOR, "\\");
+            let raw_path = wdl_path.to_string_lossy();
+            let unix_path = raw_path.replace('\\', "/");
+            let windows_path = raw_path.replace('/', "\\");
+            // The Unix/Windows toggle only changes the path separator in the
+            // shown `sprocket run --target <path>` command, so it is only
+            // meaningful when the path actually contains a separator. Detect
+            // both separators explicitly rather than via `MAIN_SEPARATOR`, which
+            // would miss the `/` in WDL import paths when the host OS is
+            // Windows.
+            let has_separator = raw_path.contains('/') || raw_path.contains('\\');
             html! {
-                div x-data="{ run_with: (localStorage.getItem('run_with') ?? 'unix') }" class="main__run-with-container" data-pagefind-ignore="all" {
+                div class="main__run-with-container" data-pagefind-ignore="all" {
                     div class="main__run-with-label" {
                         span class="main__run-with-label-text" {
                             "RUN WITH"
                         }
-                        button x-on:click="
-                        run_with = run_with == 'unix' ? 'windows' : 'unix'
-                        localStorage.setItem('run_with', run_with)
-                        "
-                        class="main__run-with-toggle" {
-                            div x-bind:class="run_with == 'unix' ? 'main__run-with-toggle-label--active' : 'main__run-with-toggle-label--inactive'" {
-                                "Unix"
-                            }
-                            div x-bind:class="run_with == 'windows' ? 'main__run-with-toggle-label--active' : 'main__run-with-toggle-label--inactive'" {
-                                "Windows"
+                        @if has_separator {
+                            button x-on:click="
+                            const next = document.documentElement.dataset.runWith === 'unix' ? 'windows' : 'unix'
+                            document.documentElement.dataset.runWith = next
+                            localStorage.setItem('run_with', next)
+                            "
+                            class="main__run-with-toggle" {
+                                div class="main__run-with-toggle-label main__run-with-toggle-label--unix" {
+                                    "Unix"
+                                }
+                                div class="main__run-with-toggle-label main__run-with-toggle-label--windows" {
+                                    "Windows"
+                                }
                             }
                         }
                     }
                     div class="main__run-with-content" {
                         p class="main__run-with-content-text" {
-                            "sprocket run --target "
+                            span style="color: var(--shiki-token-function)" { "sprocket" }
+                            " run "
+                            span style="color: var(--shiki-token-constant)" { "--target" }
+                            " "
                             (self.name())
                             " "
-                            span x-show="run_with == 'unix'" {
+                            span class="main__run-with-path--unix" {
                                 (unix_path)
                             }
-                            span x-show="run_with == 'windows'" {
+                            span class="main__run-with-path--windows" {
                                 (windows_path)
                             }
                             " [INPUTS]..."
@@ -145,12 +159,17 @@ pub(crate) trait Runnable: DefinitionMeta {
     }
 
     /// Render the required inputs of the runnable if present.
-    fn render_required_inputs(&self, assets: &Path) -> Option<Markup> {
+    fn render_required_inputs(
+        &self,
+        assets: &Path,
+        links: &PageLinkIndex,
+        page_dir: &Path,
+    ) -> Option<Markup> {
         let mut iter = self.required_inputs().peekable();
         iter.peek()?;
 
         let rows = iter
-            .map(|param| param.render(assets).into_string())
+            .map(|param| param.render(assets, links, page_dir).into_string())
             .collect::<Vec<_>>()
             .join(&html! { div class="main__grid-row-separator" {} }.into_string());
 
@@ -172,14 +191,19 @@ pub(crate) trait Runnable: DefinitionMeta {
     ///
     /// This will render each group with a subheader and a table
     /// of parameters that are part of that group.
-    fn render_group_inputs(&self, assets: &Path) -> Option<Markup> {
+    fn render_group_inputs(
+        &self,
+        assets: &Path,
+        links: &PageLinkIndex,
+        page_dir: &Path,
+    ) -> Option<Markup> {
         let mut group_tables = self
             .input_groups()
             .into_iter()
             .map(|group| {
                 html! {
                     h3 id=(group.id()) class="main__section-subheader" { (group.display_name()) }
-                    (render_non_required_parameters_table(self.inputs_in_group(&group), assets))
+                    (render_non_required_parameters_table(self.inputs_in_group(&group), assets, links, page_dir))
                 }
             })
             .peekable();
@@ -194,29 +218,39 @@ pub(crate) trait Runnable: DefinitionMeta {
 
     /// Render the inputs that are neither required nor part of a group if
     /// present.
-    fn render_other_inputs(&self, assets: &Path) -> Option<Markup> {
+    fn render_other_inputs(
+        &self,
+        assets: &Path,
+        links: &PageLinkIndex,
+        page_dir: &Path,
+    ) -> Option<Markup> {
         let mut iter = self.other_inputs().peekable();
         iter.peek()?;
 
         Some(html! {
             h3 id="other-inputs" class="main__section-subheader" { "Other Inputs" }
-            (render_non_required_parameters_table(iter, assets))
+            (render_non_required_parameters_table(iter, assets, links, page_dir))
         })
     }
 
     /// Render the inputs of the runnable.
-    fn render_inputs(&self, assets: &Path) -> (Markup, PageSections) {
+    fn render_inputs(
+        &self,
+        assets: &Path,
+        links: &PageLinkIndex,
+        page_dir: &Path,
+    ) -> (Markup, PageSections) {
         let mut inner_markup = Vec::new();
         let mut headers = PageSections::default();
         headers.push(Header::Header("Inputs".to_string(), "inputs".to_string()));
-        if let Some(req) = self.render_required_inputs(assets) {
+        if let Some(req) = self.render_required_inputs(assets, links, page_dir) {
             inner_markup.push(req);
             headers.push(Header::SubHeader(
                 "Required Inputs".to_string(),
                 "required-inputs".to_string(),
             ));
         }
-        if let Some(group) = self.render_group_inputs(assets) {
+        if let Some(group) = self.render_group_inputs(assets, links, page_dir) {
             inner_markup.push(group);
             for group in self.input_groups() {
                 headers.push(Header::SubHeader(
@@ -225,7 +259,7 @@ pub(crate) trait Runnable: DefinitionMeta {
                 ));
             }
         }
-        if let Some(other) = self.render_other_inputs(assets) {
+        if let Some(other) = self.render_other_inputs(assets, links, page_dir) {
             inner_markup.push(other);
             headers.push(Header::SubHeader(
                 "Other Inputs".to_string(),
@@ -244,14 +278,23 @@ pub(crate) trait Runnable: DefinitionMeta {
         (markup, headers)
     }
 
-    /// Render the outputs of the runnable.
-    fn render_outputs(&self, assets: &Path) -> Markup {
-        html! {
+    /// Render the outputs of the runnable when any exist.
+    fn render_outputs(
+        &self,
+        assets: &Path,
+        links: &PageLinkIndex,
+        page_dir: &Path,
+    ) -> Option<Markup> {
+        if self.outputs().is_empty() {
+            return None;
+        }
+
+        Some(html! {
             div class="main__section" {
                 h2 id="outputs" class="main__section-header" { "Outputs" }
-                (render_non_required_parameters_table(self.outputs().iter(), assets))
+                (render_non_required_parameters_table(self.outputs().iter(), assets, links, page_dir))
             }
-        }
+        })
     }
 }
 

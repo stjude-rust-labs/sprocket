@@ -7,8 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* `ImportedTask` and `ImportedWorkflow` are now public and expose `name()`,
+  `document()`, and source accessors, while `Document::imported_task_by_name`
+  and `Document::imported_workflow_by_name` are now public
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+
+#### Changed
+
+* An import must now share the importing document's major version and have a
+  minor version no greater than it; importing a newer minor version is rejected
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+
+#### Fixed
+
+* A task or workflow re-exported into a document through two scope-merging
+  imports that denote the same underlying declaration is no longer a spurious
+  conflict, so diamond-shaped import graphs resolve
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* A form-1 (namespaced) import now exposes the imported document's re-exported
+  tasks and workflows, so `call ns.reexported_task` resolves
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* Unknown unqualified calls are no longer reported when a wildcard import
+  fails to resolve, since the call may have originated from the missing import
+  ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+
+## 0.24.0 - 2026-08-05
+
 ### Fixed
 
+* Supported WDL 1.0 `runtime` resource requirements remain available to
+  execution consumers while static type diagnostics remain version-aware
+  ([#1027](https://github.com/stjude-rust-labs/sprocket/pull/1027)).
 * LSP hover and completion for standard library functions are now version-aware:
   functions and polymorphic signatures whose minimum WDL version exceeds the
   document's declared version are no longer offered in completion or shown on
@@ -21,10 +52,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * Analysis resolves symbolic module imports (`import owner/module/path`, including the wildcard `import * from owner/module` and selected-member `import { a, b } from owner/module` forms) through a `wdl-modules` `Resolver`, materializing them to concrete files during analysis ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
 * `MeaninglessLintDirective` rule, which flags `#@ except` comments that don't suppress anything ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
 * `KnownRules` rule, which ensures only known rules are used in `except` directives ([#858](https://github.com/stjude-rust-labs/sprocket/pull/858)).
+* `Analyzer::delete_documents()` to forcefully delete documents from the graph, regardless of
+  dependencies ([#917](https://github.com/stjude-rust-labs/sprocket/pull/917)).
 
 #### Changed
 
 * `Analyzer::new` and `Analyzer::new_with_validator` now take a `ResolutionContext` (a resolver plus an optional manifest path) in place of separate arguments; pass `ResolutionContext::default()` to preserve the previous non-resolving behavior ([#872](https://github.com/stjude-rust-labs/sprocket/pull/872)).
+* `Analyzer::remove_documents()` was renamed to `Analyzer::remove_roots()` ([#917](https://github.com/stjude-rust-labs/sprocket/pull/917)).
 
 #### Fixed
 
