@@ -1,1 +1,1 @@
-check --lint --except deprecated input-keyword.wdl
+check --lint --except portability input-keyword.wdl

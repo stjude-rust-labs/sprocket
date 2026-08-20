@@ -1,5 +1,5 @@
 # Test for lint tag exceptions. This file should only produce rules under the
-# `Deprecated` tag, which is excepted.
+# `Portability` tag, which is excepted.
 #@ except: EmptyOutputs, MetaSections
 
 version 1.3
