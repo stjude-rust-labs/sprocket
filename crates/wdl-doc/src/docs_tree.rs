@@ -906,9 +906,8 @@ impl DocsTree {
             icon: Option<String>,
             /// The href for the node.
             href: Option<String>,
-            /// The manifest version of the module rooted at this node, if
-            /// this node is the root of a WDL module.
-            module_version: Option<String>,
+            /// Whether this node is the root of a WDL module.
+            module_root: bool,
             /// Whether the node is ancestor.
             ancestor: bool,
             /// Whether the node is the current page.
@@ -931,7 +930,7 @@ impl DocsTree {
                     (None, Some(page)) => page.name().to_string(),
                     (None, None) => node.name().to_string(),
                 };
-                let module_version = module.map(|module| module.version().to_string());
+                let module_root = module.is_some();
                 let parent = node
                     .path()
                     .parent()
@@ -993,7 +992,7 @@ impl DocsTree {
                     search_name: search_name.clone(),
                     icon,
                     href,
-                    module_version,
+                    module_root,
                     ancestor,
                     current,
                     nest_level,
@@ -1118,11 +1117,10 @@ impl DocsTree {
                             img x-show="node.href && node.children.length" x-on:click="$event.preventDefault(); $event.stopPropagation(); toggleChildren(node.key);" x-bind:src="dirOpen.replace('.svg', '.light.svg')" x-bind:class="showChildrenCache[node.key] ? '' : 'rotate-180'" class="left-sidebar__chevron hidden light:block" alt="";
                             div x-show="node.href && !node.children.length" class="left-sidebar__chevron" {}
                             div class="relative left-sidebar__icon shrink-0" {
-                                img x-bind:src="(node.module_version && showChildrenCache[node.key]) ? node.icon.replace('wdl-folder.svg', 'wdl-folder-open.svg') : (node.icon || dirOpen)" class="left-sidebar__icon block light:hidden" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
-                                img x-bind:src="((node.module_version && showChildrenCache[node.key]) ? node.icon.replace('wdl-folder.svg', 'wdl-folder-open.svg') : (node.icon || dirOpen)).replace('.svg', '.light.svg')" class="left-sidebar__icon hidden light:block" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
+                                img x-bind:src="(node.module_root && showChildrenCache[node.key]) ? node.icon.replace('wdl-folder.svg', 'wdl-folder-open.svg') : (node.icon || dirOpen)" class="left-sidebar__icon block light:hidden" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
+                                img x-bind:src="((node.module_root && showChildrenCache[node.key]) ? node.icon.replace('wdl-folder.svg', 'wdl-folder-open.svg') : (node.icon || dirOpen)).replace('.svg', '.light.svg')" class="left-sidebar__icon hidden light:block" alt="Node icon" x-bind:class="`${(node.icon === null) && !showChildrenCache[node.key] ? 'rotate-180' : ''}`";
                             }
                             div class="crop-ellipsis" x-text="node.display_name" {}
-                            span x-show="node.module_version" x-text="node.module_version" class="left-sidebar__module-version" {}
                         }
                     }
                 }
@@ -1425,9 +1423,6 @@ impl DocsTree {
                     }
                     div class="module-overview__metadata" {
                         div class="module-overview__metadata-item" {
-                            span class="module-overview__metadata-label" { "Version " (root.version()) }
-                        }
-                        div class="module-overview__metadata-item" {
                             span class="module-overview__metadata-label" { "Entrypoint" }
                             code class="module-overview__metadata-value" { (root.entrypoint().display().to_string()) }
                         }
@@ -1442,7 +1437,6 @@ impl DocsTree {
                             @for module in &modules {
                                 div class="module-overview__dependency-card" {
                                     p class="module-overview__dependency-name" { (module.name()) }
-                                    p class="module-overview__dependency-version" { "v" (module.version()) }
                                     @if let Some(description) = module.description() {
                                         p class="module-overview__dependency-description" { (description) }
                                     }
@@ -1941,7 +1935,6 @@ mod tests {
         let page = docs_dir.path().join("modules/wards/index.html");
         let sidebar = tree.render_left_sidebar(&page).into_string();
         assert!(sidebar.contains("wards"));
-        assert!(sidebar.contains("1.0.0"));
         assert!(!sidebar.contains("Workflows"));
     }
 
@@ -2056,7 +2049,6 @@ mod tests {
 
         let content = fs::read_to_string(docs_dir.path().join("index.html")).unwrap();
         assert!(content.contains("Spellcraft Showcase"));
-        assert!(content.contains("Version 1.0.0"));
         assert!(content.contains("Entrypoint"));
         assert!(content.contains("main.wdl"));
         assert!(content.contains("Dependencies"));

@@ -2,6 +2,7 @@
 members = [
     "crates/gauntlet",
     "crates/sprocket-py",
+    "crates/sprocket-py-macros",
     "crates/sprocket-test-types",
     "crates/wdl",
     "crates/wdl-analysis",
@@ -49,6 +50,7 @@ colored = "3.1.1"
 convert_case = "0.11.0"
 crankshaft = { version = "0.10.0", features = ["docker"] }
 criterion = "0.8.2"
+dialoguer = "0.12.0"
 dirs = "6.0.0"
 dyn-clone = "1.0.20"
 ed25519-dalek = "3.0.0"
@@ -194,6 +196,7 @@ anyhow.workspace = true
 async-trait.workspace = true
 axum.workspace = true
 bon.workspace = true
+bytesize.workspace = true
 chrono.workspace = true
 clap.workspace = true
 clap-verbosity-flag.workspace = true
@@ -202,6 +205,7 @@ cloud-copy.workspace = true
 codespan-reporting.workspace = true
 colored.workspace = true
 crankshaft.workspace = true
+dialoguer.workspace = true
 dirs.workspace = true
 futures.workspace = true
 git-testament.workspace = true
@@ -226,6 +230,7 @@ similar.workspace = true
 sprocket-test-types.workspace = true
 sqlx.workspace = true
 strum.workspace = true
+tempfile.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
 tokio-retry2.workspace = true
@@ -247,15 +252,18 @@ whoami.workspace = true
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
+git2.workspace = true
 http-body-util = "0.1.3"
 jsonschema = { workspace = true }
 libtest-mimic.workspace = true
 regex.workspace = true
 reqwest = { workspace = true, features = ["blocking"] }
 shlex.workspace = true
-tempfile.workspace = true
+ssh-key = { workspace = true, features = ["ed25519", "getrandom"] }
 toml = { workspace = true }
+tracing-test.workspace = true
 walkdir.workspace = true
+wdl-modules = { workspace = true, features = ["git-resolver", "test-utils"] }
 zip = { workspace = true, features = ["deflate"] }
 
 [lints]

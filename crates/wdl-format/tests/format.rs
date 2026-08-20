@@ -10,6 +10,8 @@
 //! The `source.formatted.wdl` file may be automatically generated or updated by
 //! setting the `BLESS` environment variable when running this test.
 
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 use std::env;
 use std::ffi::OsStr;
 use std::fs;
@@ -23,9 +25,11 @@ use codespan_reporting::term::Config;
 use codespan_reporting::term::termcolor::Buffer;
 use libtest_mimic::Trial;
 use pretty_assertions::StrComparison;
+use wdl_ast::AstNode as _;
 use wdl_ast::Diagnostic;
 use wdl_ast::Document;
 use wdl_ast::Node;
+use wdl_ast::SyntaxKind;
 use wdl_format::Config as FormatConfig;
 use wdl_format::Formatter;
 use wdl_format::NewlineStyle;
@@ -130,12 +134,71 @@ fn prepare_document(source: &str, path: &Path) -> Result<FormatElement, anyhow::
     Ok(Node::Ast(document.ast().into_v1().unwrap()).into_format_element())
 }
 
+/// Counts the nodes of each kind in a document.
+fn node_kinds(source: &str, path: &Path) -> Result<BTreeMap<SyntaxKind, usize>, anyhow::Error> {
+    let (document, diagnostics) = Document::parse(source, None);
+
+    if !diagnostics.is_empty() {
+        bail!(
+            "failed to parse `{path}` {e}",
+            path = path.display(),
+            e = format_diagnostics(&diagnostics, path, source)
+        );
+    };
+
+    let mut counts = BTreeMap::new();
+    for node in document.inner().descendants() {
+        *counts.entry(node.kind()).or_default() += 1;
+    }
+
+    Ok(counts)
+}
+
+/// Asserts that formatting neither dropped nor invented a node.
+///
+/// Formatting normalizes tokens: it may rewrite quote style, insert or remove
+/// trailing commas, reindent command text, and rewrite `#@ except` directives.
+/// It must never change which nodes a document contains, as that would mean a
+/// section, declaration, statement, or expression was lost or duplicated.
+fn assert_nodes_preserved(source: &str, formatted: &str, path: &Path) -> Result<(), anyhow::Error> {
+    let before = node_kinds(source, path)?;
+    let after = node_kinds(formatted, path)?;
+
+    if before == after {
+        return Ok(());
+    }
+
+    let differences = before
+        .keys()
+        .chain(after.keys())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .filter_map(|kind| {
+            let before = before.get(kind).copied().unwrap_or(0);
+            let after = after.get(kind).copied().unwrap_or(0);
+            (before != after).then(|| {
+                format!("  {kind:?}: {before} in the source, {after} in the formatted output")
+            })
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    bail!(
+        "formatting `{path}` did not preserve every node:\n{differences}",
+        path = path.display()
+    );
+}
+
 /// Parses and formats source string
 fn format(config: FormatConfig, source: &str, path: &Path) -> Result<String, anyhow::Error> {
     let document = prepare_document(source, path)?;
-    Formatter::new(config)
+    let formatted = Formatter::new(config)
         .format(&document)
-        .context("formatting document")
+        .context("formatting document")?;
+
+    assert_nodes_preserved(source, &formatted, path)?;
+
+    Ok(formatted)
 }
 
 /// Runs a lint test with the specified [`FormatConfig`].

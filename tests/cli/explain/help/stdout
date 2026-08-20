@@ -113,6 +113,7 @@ Available rules:
   - UsingFallbackVersion
 
 Available tags:
+  - All
   - Clarity
   - Completeness
   - Correctness

@@ -115,6 +115,7 @@ use crate::diagnostics::unused_declaration;
 use crate::diagnostics::unused_import;
 use crate::diagnostics::unused_input;
 use crate::diagnostics::wildcard_import_conflict;
+use crate::diagnostics::workflow_conflict;
 use crate::document::Name;
 use crate::eval::v1::TaskGraphBuilder;
 use crate::eval::v1::TaskGraphNode;
@@ -541,6 +542,7 @@ fn add_wildcard_import(
     let (uri, imported) = match resolve_import(graph, import, importer_index) {
         Ok(resolved) => resolved,
         Err(Some(diagnostic)) => {
+            document.failed_wildcard_import = true;
             document.analysis_diagnostics.add(diagnostic);
             return;
         }
@@ -613,6 +615,7 @@ fn add_wildcard_import(
                 name: task.name.clone(),
                 span,
                 source: uri.clone(),
+                document: imported.clone(),
                 inputs: task.inputs.clone(),
                 outputs: task.outputs.clone(),
             },
@@ -629,6 +632,7 @@ fn add_wildcard_import(
                 name: task.name.clone(),
                 span,
                 source: task.source.clone(),
+                document: task.document.clone(),
                 inputs: task.inputs.clone(),
                 outputs: task.outputs.clone(),
             },
@@ -645,6 +649,7 @@ fn add_wildcard_import(
                 name: workflow.name.clone(),
                 span,
                 source: uri.clone(),
+                document: imported.clone(),
                 inputs: workflow.inputs.clone(),
                 outputs: workflow.outputs.clone(),
             },
@@ -661,6 +666,7 @@ fn add_wildcard_import(
                 name: workflow.name.clone(),
                 span,
                 source: workflow.source.clone(),
+                document: workflow.document.clone(),
                 inputs: workflow.inputs.clone(),
                 outputs: workflow.outputs.clone(),
             },
@@ -680,6 +686,7 @@ fn add_selected_import(
     let (uri, imported) = match resolve_import(graph, import, importer_index) {
         Ok(resolved) => resolved,
         Err(Some(diagnostic)) => {
+            record_failed_selected_imports(document, import);
             document.analysis_diagnostics.add(diagnostic);
             return;
         }
@@ -730,7 +737,6 @@ fn add_selected_import(
             member_name.text(),
             &local_name,
             member_span,
-            member_span,
         );
 
         if found_any {
@@ -743,6 +749,22 @@ fn add_selected_import(
             member_name.span(),
         ));
     }
+}
+
+/// Records selected import names whose source import failed to resolve.
+fn record_failed_selected_imports(document: &mut DocumentData, import: &ImportStatement) {
+    let Some(members) = import.members() else {
+        return;
+    };
+
+    document
+        .failed_selected_imports
+        .extend(members.members().map(|member| {
+            member
+                .alias()
+                .map(|alias| alias.text().to_string())
+                .unwrap_or_else(|| member.name().text().to_string())
+        }));
 }
 
 /// Imports a struct member into the document. Returns `true` when a
@@ -842,6 +864,7 @@ fn import_selected_task(
             name: task.name.clone(),
             span,
             source: uri.clone(),
+            document: imported.clone(),
             inputs: task.inputs.clone(),
             outputs: task.outputs.clone(),
         }
@@ -850,6 +873,7 @@ fn import_selected_task(
             name: task.name.clone(),
             span,
             source: task.source.clone(),
+            document: task.document.clone(),
             inputs: task.inputs.clone(),
             outputs: task.outputs.clone(),
         }
@@ -876,7 +900,6 @@ fn import_selected_workflow(
     member_name: &str,
     local_name: &str,
     member_span: Span,
-    span: Span,
 ) -> bool {
     let entry = if let Some(workflow) = imported
         .data
@@ -886,16 +909,18 @@ fn import_selected_workflow(
     {
         ImportedWorkflow {
             name: workflow.name.clone(),
-            span,
+            span: member_span,
             source: uri.clone(),
+            document: imported.clone(),
             inputs: workflow.inputs.clone(),
             outputs: workflow.outputs.clone(),
         }
     } else if let Some(workflow) = imported.data.imported_workflows.get(member_name) {
         ImportedWorkflow {
             name: workflow.name.clone(),
-            span,
+            span: member_span,
             source: workflow.source.clone(),
+            document: workflow.document.clone(),
             inputs: workflow.inputs.clone(),
             outputs: workflow.outputs.clone(),
         }
@@ -925,6 +950,17 @@ fn insert_imported_task(
     conflict_span: Span,
     conflict: impl Fn(&str, Span, Span) -> Diagnostic,
 ) {
+    // A name brought in twice that denotes the same underlying
+    // declaration in the same resolved source document is not a
+    // conflict; the two imports refer to that single declaration. This
+    // keeps diamond-shaped import graphs usable without renames.
+    if let Some(existing) = document.imported_tasks.get(local_name)
+        && existing.source == entry.source
+        && existing.name == entry.name
+    {
+        return;
+    }
+
     if let Some(prev_span) = callable_conflict_span(document, local_name) {
         document
             .analysis_diagnostics
@@ -939,9 +975,15 @@ fn insert_imported_task(
 
 /// Inserts a re-exported workflow into `document` under `local_name`.
 ///
-/// When a callable by that name already exists, the `conflict`
-/// diagnostic is emitted (highlighting `conflict_span` and the previous
-/// definition) and the entry is not inserted.
+/// Checks are performed in order.
+///
+/// 1. Same underlying declaration re-imported (diamond pattern) is silently
+///    deduplicated; no diagnostic is emitted.
+/// 2. A distinct workflow already occupies local scope; only one workflow may
+///    be in scope at a time, so the import is rejected and `workflow_conflict`
+///    is emitted.
+/// 3. The local name collides with a task or other callable; the `conflict`
+///    callback is called (preserving the import-form-specific diagnostic).
 fn insert_imported_workflow(
     document: &mut DocumentData,
     local_name: &str,
@@ -949,6 +991,31 @@ fn insert_imported_workflow(
     conflict_span: Span,
     conflict: impl Fn(&str, Span, Span) -> Diagnostic,
 ) {
+    // The same underlying declaration re-imported under the same name is
+    // not a conflict; deduplicate silently.
+    if let Some(existing) = document.imported_workflows.get(local_name)
+        && existing.source == entry.source
+        && existing.name == entry.name
+    {
+        return;
+    }
+
+    // Only one distinct workflow may occupy local scope at a time.
+    if let Some(existing) = document
+        .imported_workflows
+        .values()
+        .find(|existing| existing.source != entry.source || existing.name != entry.name)
+    {
+        document.analysis_diagnostics.add(workflow_conflict(
+            &entry.name,
+            conflict_span,
+            &existing.name,
+            existing.span,
+        ));
+        return;
+    }
+
+    // The local name collides with a task or other callable.
     if let Some(prev_span) = callable_conflict_span(document, local_name) {
         document
             .analysis_diagnostics
@@ -1564,6 +1631,17 @@ fn add_workflow(document: &mut DocumentData, workflow: &WorkflowDefinition) -> b
         return false;
     }
 
+    // An imported workflow already occupies local scope; reject this definition.
+    if let Some(imported) = document.imported_workflows.values().next() {
+        document.analysis_diagnostics.add(workflow_conflict(
+            name.text(),
+            name.span(),
+            &imported.name,
+            imported.span,
+        ));
+        return false;
+    }
+
     // Check for a name conflict
     if let Some(ctx) = document.context(name.text()) {
         document.analysis_diagnostics.add(name_conflict(
@@ -2164,47 +2242,46 @@ fn resolve_call_type(
         return None;
     }
 
-    let (kind, inputs, outputs) = match target.tasks.get(name.text()) {
-        Some(task) => (CallKind::Task, task.inputs.clone(), task.outputs.clone()),
-        _ => match &target.workflow {
-            Some(workflow) if workflow.name == name.text() => (
-                CallKind::Workflow,
-                workflow.inputs.clone(),
-                workflow.outputs.clone(),
-            ),
-            _ if namespace.is_none() => {
-                if document.failed_selected_imports.contains(name.text()) {
-                    return None;
-                } else if let Some(imported) = document.imported_tasks.get(name.text()) {
-                    (
-                        CallKind::Task,
-                        imported.inputs.clone(),
-                        imported.outputs.clone(),
-                    )
-                } else if let Some(imported) = document.imported_workflows.get(name.text()) {
-                    (
-                        CallKind::Workflow,
-                        imported.inputs.clone(),
-                        imported.outputs.clone(),
-                    )
-                } else {
-                    document.analysis_diagnostics.add(unknown_task_or_workflow(
-                        None,
-                        name.text(),
-                        name.span(),
-                    ));
-                    return None;
-                }
-            }
-            _ => {
-                document.analysis_diagnostics.add(unknown_task_or_workflow(
-                    namespace.map(|ns| ns.span()),
-                    name.text(),
-                    name.span(),
-                ));
-                return None;
-            }
-        },
+    // A locally failed selected import short-circuits before any lookup,
+    // but only for an unqualified call against the local document.
+    if namespace.is_none() && document.failed_selected_imports.contains(name.text()) {
+        return None;
+    }
+    if namespace.is_none() && document.failed_wildcard_import {
+        return None;
+    }
+
+    // Resolve the call target against the namespaced document (or the
+    // local document). Tasks and workflows re-exported into that
+    // document's scope by a scope-merging import are reachable here too,
+    // so a namespaced call can reach a module's curated surface.
+    let (kind, inputs, outputs) = if let Some(task) = target.tasks.get(name.text()) {
+        (CallKind::Task, task.inputs.clone(), task.outputs.clone())
+    } else if let Some(workflow) = target.workflow.as_ref().filter(|w| w.name == name.text()) {
+        (
+            CallKind::Workflow,
+            workflow.inputs.clone(),
+            workflow.outputs.clone(),
+        )
+    } else if let Some(imported) = target.imported_tasks.get(name.text()) {
+        (
+            CallKind::Task,
+            imported.inputs.clone(),
+            imported.outputs.clone(),
+        )
+    } else if let Some(imported) = target.imported_workflows.get(name.text()) {
+        (
+            CallKind::Workflow,
+            imported.inputs.clone(),
+            imported.outputs.clone(),
+        )
+    } else {
+        document.analysis_diagnostics.add(unknown_task_or_workflow(
+            namespace.map(|ns| ns.span()),
+            name.text(),
+            name.span(),
+        ));
+        return None;
     };
 
     let specified = Arc::new(
@@ -2265,6 +2342,9 @@ fn resolve_import(
         }
         ImportSource::ModulePath(module_path) => {
             let span = module_path.span();
+            // A symbolic import in a pre-1.4 document is already rejected
+            // during validation (see `validation::version`), so when the
+            // feature is not enabled here the import is silently skipped.
             if !importer_node
                 .parse_state()
                 .symbolic_imports_enabled(graph.config())
@@ -2343,7 +2423,12 @@ fn resolve_import(
     else {
         panic!("importer should have a parsed version");
     };
-    if !imported_version.has_same_major_version(*importer_version) {
+    // The imported document must share the importer's major version and
+    // have a minor version no greater than the importer's. A dependency
+    // authored against a newer minor version therefore fails at import.
+    if !imported_version.has_same_major_version(*importer_version)
+        || imported_version > *importer_version
+    {
         return Err(Some(incompatible_import(
             &imported_version.to_string(),
             span,
