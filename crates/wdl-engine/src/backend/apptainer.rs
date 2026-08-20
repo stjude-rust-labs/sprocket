@@ -126,7 +126,8 @@ impl ApptainerRuntime {
         };
 
         let (container, path) = results
-            .successful_container()
+            .successful_containers()
+            .next()
             .ok_or_else(|| anyhow!("{results}"))?;
         let container = container.clone();
         let path = path.clone();
@@ -283,7 +284,6 @@ impl ApptainerRuntime {
         token: CancellationToken,
         events_ctx: Option<(broadcast::Sender<Event>, TaskId)>,
     ) -> Result<Option<PathBuf>> {
-        let display_name = container.uri();
         let events = events_ctx.as_ref().map(|(sender, _)| sender.clone());
         let task = events_ctx.as_ref().map(|(_, task_id)| *task_id);
 
@@ -296,7 +296,7 @@ impl ApptainerRuntime {
             events,
             Event::ImagePullStarted {
                 id: task.unwrap(),
-                name: display_name.clone()
+                name: container.uri()
             }
         );
 
@@ -307,7 +307,7 @@ impl ApptainerRuntime {
                 events,
                 Event::ImagePullFailed {
                     id: task.unwrap(),
-                    name: display_name.clone(),
+                    name: container.uri(),
                     message: err.clone()
                 }
             );
@@ -322,6 +322,7 @@ impl ApptainerRuntime {
                 .clone()
         };
 
+        let events_clone = events.clone();
         let pull = once.get_or_try_init(|| async move {
             // SAFETY: the next two `unwrap` calls are safe because the source can't be a
             // file or an unknown source at this point
@@ -349,7 +350,7 @@ impl ApptainerRuntime {
                 })?;
             }
 
-            let container = format!("{container:#}");
+            let image = format!("{container:#}");
             let executable = executable.to_string();
 
             Retry::spawn_notify(
@@ -361,7 +362,7 @@ impl ApptainerRuntime {
                 ExponentialBackoff::from_millis(50)
                     .max_delay_millis(60_000)
                     .take(10),
-                || Self::try_pull_image(&executable, &container, &path),
+                || Self::try_pull_image(&executable, &image, &path),
                 {
                     let executable = executable.clone();
                     move |e: &anyhow::Error, _| {
@@ -372,14 +373,23 @@ impl ApptainerRuntime {
             .await
             .with_context(|| format!("failed pulling Apptainer image `{container}`"))?;
 
-            send_event!(events, Event::ImagePullFinished { id: task.unwrap(), name: display_name });
+            send_event!(events_clone, Event::ImagePullFinished { id: task.unwrap(), name: container.uri() });
             debug!(path = %path.display(), "Apptainer image `{container}` pulled successfully");
             Ok(path)
         });
 
         tokio::select! {
             _ = token.cancelled() => Ok(None),
-            res = pull => res.map(|p| Some(p.clone())),
+            res = pull => match res {
+                Ok(p) => {
+                    send_event!(events, Event::ImagePullFinished { id: task.unwrap(), name: container.uri() });
+                    Ok(Some(p.clone()))
+                },
+                Err(e) => {
+                    send_event!(events, Event::ImagePullFailed { id: task.unwrap(), name: container.uri(), message: format!("{e:#}") });
+                    Err(e)
+                },
+            },
         }
     }
 

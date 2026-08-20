@@ -8,6 +8,7 @@ use std::fs::File;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::sync::LazyLock;
 use std::time::Duration;
 
 use anyhow::Context;
@@ -320,15 +321,27 @@ enum Preparation {
     Localizing,
 }
 
+struct ImagePullState {
+    /// The displayed currently being pulled.
+    displayed_image: Option<(String, tracing::Span)>,
+    /// Images actively being pulled.
+    pulling_images: IndexMap<String, usize>,
+    /// The collapsed footer span for multi-image pulls.
+    collapsed_images_span: tracing::Span,
+}
+
 /// Represents state for reporting evaluation progress.
-#[derive(Default)]
 struct State {
+    /// The progress bar span.
+    progress_bar: tracing::Span,
+    /// The style of sub-tasks under the main runner status.
+    sub_task_style: ProgressStyle,
     /// The map of task identifiers to names.
     tasks: HashMap<u64, Task>,
     /// The set of currently executing tasks.
     executing: IndexSet<Arc<String>>,
-    /// The images currently being pulled.
-    pulling_images: IndexMap<String, tracing::Span>,
+    /// The state of container image pulls.
+    images: ImagePullState,
     /// The number of failed tasks.
     failed: usize,
     /// The number of completed tasks.
@@ -352,6 +365,34 @@ struct State {
 }
 
 impl State {
+    fn new(progress_bar: tracing::Span, colorize: bool) -> Self {
+        let sub_task_style_template = if colorize {
+            "{span_child_prefix}[{elapsed_precise:.cyan/blue}] {msg}"
+        } else {
+            "{span_child_prefix}[{elapsed_precise}] {msg}"
+        };
+        let sub_task_style = ProgressStyle::with_template(sub_task_style_template).unwrap();
+
+        Self {
+            progress_bar,
+            sub_task_style,
+            tasks: Default::default(),
+            executing: Default::default(),
+            images: ImagePullState {
+                displayed_image: None,
+                pulling_images: IndexMap::new(),
+                collapsed_images_span: tracing::Span::none(),
+            },
+            failed: 0,
+            preparing: IndexMap::new(),
+            departed: HashSet::new(),
+            canceled: 0,
+            parked: 0,
+            cached: 0,
+            completed: 0,
+        }
+    }
+
     /// Records that a task has entered the given preparation phase.
     ///
     /// Phases only ever advance: a task that has already left preparation is
@@ -381,10 +422,104 @@ impl State {
         self.preparing.shift_remove(name);
         self.departed.insert(name.clone());
     }
-}
 
-/// The maximum number of lines to display in the progress bar.
-pub const MAX_LINES: u64 = 2;
+    /// The number of images that are being pulled, but not displayed.
+    fn collapsed_image_count(&self) -> usize {
+        let displayed = self
+            .images
+            .displayed_image
+            .as_ref()
+            .map(|(name, _)| name.as_str());
+
+        self.images
+            .pulling_images
+            .keys()
+            .filter(|name| Some(name.as_str()) != displayed)
+            .count()
+    }
+
+    /// Set a new image to be displayed.
+    fn display_image_pull(&mut self, name: String) {
+        let span = span!(parent: self.progress_bar.clone(), Level::WARN, "pull image");
+        span.pb_set_style(&self.sub_task_style);
+        span.pb_set_message(&format!("pulling image `{}`", name.green()));
+        span.pb_start();
+
+        self.images.displayed_image.replace((name, span));
+    }
+
+    /// Update the collapsed image progress bar.
+    fn update_collapsed_image_pull_status(&mut self) {
+        static PENDING_FOOTER_STYLE: LazyLock<ProgressStyle> =
+            LazyLock::new(|| ProgressStyle::with_template("    ...and {msg} more").unwrap());
+
+        let collapsed = self.collapsed_image_count();
+        if collapsed == 0 {
+            self.images.collapsed_images_span = tracing::Span::none();
+            return;
+        }
+
+        if self.images.collapsed_images_span.is_none() {
+            self.images.collapsed_images_span =
+                span!(parent: self.progress_bar.clone(), Level::WARN, "pulling images");
+            self.images
+                .collapsed_images_span
+                .pb_set_style(&PENDING_FOOTER_STYLE);
+            self.images.collapsed_images_span.pb_start();
+        }
+
+        self.images
+            .collapsed_images_span
+            .pb_set_message(&collapsed.to_string());
+    }
+
+    /// Add an image to the pull progress bar.
+    fn start_image_pull(&mut self, name: String) {
+        let no_images = self.images.pulling_images.is_empty();
+
+        self.images
+            .pulling_images
+            .entry(name.clone())
+            .and_modify(|count| *count += 1)
+            .or_insert(1);
+
+        if no_images {
+            self.display_image_pull(name);
+        }
+
+        self.update_collapsed_image_pull_status();
+    }
+
+    /// Remove an image from the pull progress bar.
+    fn end_image_pull(&mut self, name: String) {
+        let Some(count) = self.images.pulling_images.get_mut(&name) else {
+            return;
+        };
+
+        *count = count.saturating_sub(1);
+        if *count > 0 {
+            return;
+        }
+
+        self.images.pulling_images.shift_remove(&name);
+
+        if self
+            .images
+            .displayed_image
+            .as_ref()
+            .is_some_and(|(current, _)| current == &name)
+        {
+            self.images.displayed_image.take();
+
+            // Promote the next image to be displayed
+            if let Some(next) = self.images.pulling_images.keys().next().cloned() {
+                self.display_image_pull(next);
+            }
+        }
+
+        self.update_collapsed_image_pull_status();
+    }
+}
 
 /// Displays evaluation progress.
 async fn progress(
@@ -467,16 +602,9 @@ async fn progress(
         )
     };
 
-    let sub_task_style_template = if colorize {
-        "{span_child_prefix}[{elapsed_precise:.cyan/blue}] {msg}"
-    } else {
-        "{span_child_prefix}[{elapsed_precise}] {msg}"
-    };
-    let sub_task_style = ProgressStyle::with_template(sub_task_style_template).unwrap();
-
     progress_bar.pb_set_style(&ProgressStyle::with_template(&template).unwrap());
 
-    let mut state = State::default();
+    let mut state = State::new(progress_bar.clone(), colorize);
     let mut lagged = false;
     let mut tasks_canceled = false;
 
@@ -497,22 +625,11 @@ async fn progress(
                 Ok(event) if !lagged => {
                     let removed = match event {
                         CrankshaftEvent::ImagePullStarted { name, .. } => {
-                            // We can hit this multiple times for the same image
-                            if state.pulling_images.get_mut(&name).is_some() {
-                                continue;
-                            }
-
-                            let span = span!(parent: progress_bar.clone(), Level::WARN, "pull image");
-                            span.pb_set_style(&sub_task_style);
-                            span.pb_set_message(&format!("pulling image '{}'", name.green()));
-                            span.pb_start();
-
-                            state.pulling_images.insert(name, span);
-
+                            state.start_image_pull(name);
                             None
                         }
                         CrankshaftEvent::ImagePullFailed { name, .. } | CrankshaftEvent::ImagePullFinished { name, .. } => {
-                            state.pulling_images.swap_remove(&name);
+                            state.end_image_pull(name);
                             None
                         }
                         CrankshaftEvent::TaskCreated { id, name, token: task_token, .. } => {

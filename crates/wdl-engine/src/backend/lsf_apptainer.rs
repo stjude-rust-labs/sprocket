@@ -944,6 +944,13 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                     )
                     .await?
                 else {
+                    send_event!(
+                        self.events.crankshaft(),
+                        CrankshaftEvent::TaskCanceled {
+                            id: crankshaft_id,
+                        },
+                    );
+
                     return Ok(None);
                 };
 
@@ -1028,14 +1035,6 @@ impl TaskExecutionBackend for LsfApptainerBackend {
                             exit_code
                         },
                         Err(e) => {
-                            send_event!(
-                                self.events.crankshaft(),
-                                CrankshaftEvent::TaskFailed {
-                                    id: crankshaft_id,
-                                    message: format!("{e:#}"),
-                                },
-                            );
-
                             return Err(e);
                         }
                     }

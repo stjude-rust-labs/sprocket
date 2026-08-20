@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::hash_map::Entry;
 use std::fmt::Write as _;
 use std::fs::read_to_string;
 use std::fs::remove_dir;
@@ -44,6 +45,7 @@ use tracing::span;
 use tracing::subscriber::NoSubscriber;
 use tracing_indicatif::IndicatifWriter;
 use tracing_indicatif::span_ext::IndicatifSpanExt;
+use tracing_indicatif::writer::Stdout;
 use uuid::Uuid;
 use wdl::analysis::AnalysisResult;
 use wdl::ast::AstNode;
@@ -301,7 +303,7 @@ impl TestIteration {
         self,
         clean: bool,
         quiet: bool,
-        mut indicatif_writer: IndicatifWriter,
+        mut indicatif_writer: IndicatifWriter<Stdout>,
     ) -> Result<IterationResult> {
         let id = format!(
             "{doc}::{target}::{test} (iteration #{num})",
@@ -473,19 +475,27 @@ struct TestTask {
     inputs: EngineInputs,
 }
 
+struct StatusBarState {
+    /// The images currently being pulled.
+    pulling_images: HashMap<String, usize>,
+    span: tracing::Span,
+}
+
 #[derive(Clone)]
 struct StatusBar {
-    /// The images currently being pulled.
-    pulling_images: Arc<Mutex<HashSet<String>>>,
-    span: tracing::Span,
+    disabled: bool,
+    state: Arc<Mutex<StatusBarState>>,
 }
 
 impl StatusBar {
     /// Create a disabled status bar.
     fn disabled() -> Self {
         Self {
-            pulling_images: Arc::new(Mutex::new(HashSet::new())),
-            span: tracing::Span::none(),
+            disabled: true,
+            state: Arc::new(Mutex::new(StatusBarState {
+                pulling_images: HashMap::new(),
+                span: tracing::Span::none(),
+            })),
         }
     }
 
@@ -501,60 +511,91 @@ impl StatusBar {
         status_bar.pb_set_style(&ProgressStyle::with_template(template).unwrap());
 
         Self {
-            pulling_images: Arc::new(Mutex::new(HashSet::new())),
-            span: status_bar,
+            disabled: false,
+            state: Arc::new(Mutex::new(StatusBarState {
+                pulling_images: HashMap::new(),
+                span: status_bar,
+            })),
         }
     }
 
-    fn update_image_pull_status(&self, images: &HashSet<String>) {
+    fn update_image_pull_status(state: &mut StatusBarState) {
         const MAX_PULLING_IMAGES: usize = 3;
 
-        if images.is_empty() {
-            self.span.record("indicatif.pb_hide", true);
-            self.span.pb_reset();
+        if state.pulling_images.is_empty() {
+            state.span = tracing::Span::none();
             return;
         }
 
-        self.span.pb_start();
+        state.span = span!(Level::WARN, "status bar");
+        state.span.pb_start();
 
-        if images.len() == 1 {
-            self.span.pb_set_message(&format!(
+        if state.pulling_images.len() == 1 {
+            state.span.pb_set_message(&format!(
                 "pulling image '{}'",
-                images.iter().next().unwrap().green()
+                state.pulling_images.keys().next().unwrap().green()
             ));
             return;
         }
 
         let mut msg = String::from("pulling images: ");
 
-        let shown_images = std::cmp::min(MAX_PULLING_IMAGES, images.len());
-        for (idx, image) in images.iter().take(MAX_PULLING_IMAGES).enumerate() {
+        let shown_images = std::cmp::min(MAX_PULLING_IMAGES, state.pulling_images.len());
+        for (idx, image) in state
+            .pulling_images
+            .keys()
+            .take(MAX_PULLING_IMAGES)
+            .enumerate()
+        {
             write!(msg, "'{}'", image.green()).expect("String writes won't fail");
             if idx == shown_images - 1 {
-                if images.len() > MAX_PULLING_IMAGES {
-                    write!(msg, ", and {} more...", images.len() - MAX_PULLING_IMAGES)
-                        .expect("String writes won't fail");
+                if state.pulling_images.len() > MAX_PULLING_IMAGES {
+                    write!(
+                        msg,
+                        ", and {} more...",
+                        state.pulling_images.len() - MAX_PULLING_IMAGES
+                    )
+                    .expect("String writes won't fail");
                 }
             } else {
                 write!(msg, ", ").expect("String writes won't fail");
             }
         }
 
-        self.span.pb_set_message(&msg);
+        state.span.pb_set_message(&msg);
     }
 
     /// Indicate the start of an image pull.
     async fn image_pull(&self, name: String) {
-        let mut images = self.pulling_images.lock().await;
-        images.insert(name);
-        self.update_image_pull_status(&images);
+        if self.disabled {
+            return;
+        }
+
+        let mut state = self.state.lock().await;
+        state
+            .pulling_images
+            .entry(name)
+            .and_modify(|count| *count += 1)
+            .or_insert(1);
+        Self::update_image_pull_status(&mut state);
     }
 
     /// Indicate the end of an image pull.
     async fn image_pull_finish(&self, name: String) {
-        let mut images = self.pulling_images.lock().await;
-        images.remove(&name);
-        self.update_image_pull_status(&images);
+        if self.disabled {
+            return;
+        }
+
+        let mut state = self.state.lock().await;
+        if let Entry::Occupied(entry) = state
+            .pulling_images
+            .entry(name)
+            .and_modify(|count| *count -= 1)
+            && *entry.get() == 0
+        {
+            entry.remove();
+        }
+        Self::update_image_pull_status(&mut state);
     }
 }
 
@@ -563,7 +604,7 @@ struct Runner {
     fixtures: Arc<EvaluationPath>,
     engine_config: Arc<wdl::engine::Config>,
     status_bar: StatusBar,
-    indicatif_writer: IndicatifWriter,
+    indicatif_writer: IndicatifWriter<Stdout>,
     permits: usize,
     throttle: u64,
     cancellation: CancellationContext,
@@ -939,7 +980,7 @@ pub async fn test(
     args: Args,
     mut config: Config,
     colorize: bool,
-    indicatif_writer: IndicatifWriter,
+    indicatif_writer: IndicatifWriter<Stdout>,
 ) -> CommandResult<()> {
     if matches!(args.command, Some(Subcommand::Schema)) {
         let schema = schemars::schema_for!(DocumentTests);

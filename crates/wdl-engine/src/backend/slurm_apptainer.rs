@@ -1044,6 +1044,13 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                     )
                     .await?
                 else {
+                    send_event!(
+                        self.events.crankshaft(),
+                        CrankshaftEvent::TaskCanceled {
+                            id: crankshaft_id,
+                        },
+                    );
+
                     return Ok(None);
                 };
 

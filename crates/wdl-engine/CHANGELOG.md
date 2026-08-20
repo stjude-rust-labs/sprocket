@@ -9,8 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Added
 
-<!-- TODO: Add PR number -->
-* Added support for the `ImagePull{Started, Failed, Finished}` `crankshaft` events ([#]()).
+* Added support for the `ImagePull{Started, Failed, Finished}` `crankshaft` events ([#1117](https://github.com/stjude-rust-labs/sprocket/pull/1117)).
 
 #### Changed
 

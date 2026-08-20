@@ -7,6 +7,7 @@ use std::sync::Mutex;
 
 use anyhow::Context;
 use anyhow::Result;
+use anyhow::anyhow;
 use anyhow::bail;
 use crankshaft::config::backend;
 use crankshaft::engine::Task;
@@ -30,6 +31,7 @@ use tracing::info;
 use tracing::warn;
 use url::Url;
 
+use super::PullResults;
 use super::TaskExecutionBackend;
 use super::TaskExecutionConstraints;
 use super::TaskExecutionResult;
@@ -146,39 +148,60 @@ struct DockerTask<'a> {
     cancellation: CancellationContext,
 }
 
+/// Filters out any non-Docker sources.
+fn collect_applicable_sources(sources: &[ContainerSource]) -> anyhow::Result<Vec<String>> {
+    let mut pull_results = PullResults::default();
+    for source in sources {
+        match source {
+            ContainerSource::Docker(s) => pull_results.push(source.clone(), Ok(s.clone())),
+            ContainerSource::Library(_) | ContainerSource::Oras(_) => {
+                let err = anyhow!(
+                    "Docker backend does not support `{source:#}`; use a Docker registry image \
+                     instead"
+                );
+                warn!("{err:?}");
+                pull_results.push(source.clone(), Err(err));
+            }
+            ContainerSource::SifFile(_) => {
+                let err = anyhow!(
+                    "Docker backend does not support local SIF file `{source:#}`; use a Docker \
+                     registry image instead"
+                );
+                warn!("{err:?}");
+                pull_results.push(source.clone(), Err(err));
+            }
+            ContainerSource::Unknown(_) => {
+                let err = anyhow!(
+                    "Docker backend does not support unknown container source `{source:#}`"
+                );
+                warn!("{err:?}");
+                pull_results.push(source.clone(), Err(err));
+            }
+        }
+    }
+
+    if pull_results.successful_containers().next().is_none() {
+        return Err(anyhow!("{pull_results}"));
+    }
+
+    Ok(pull_results
+        .successful_containers()
+        .map(|(_, v)| v.clone())
+        .collect::<Vec<_>>())
+}
+
 impl<'a> DockerTask<'a> {
     /// Runs the docker task.
     ///
     /// Returns `Ok(None)` if the task was canceled.
     async fn run(self) -> Result<Option<TaskExecutionResult>> {
-        let images = self
-            .request
-            .constraints
-            .container
-            .as_ref()
-            .context("task does not use a container")?
-            .iter()
-            .filter_map(|c| match c {
-                ContainerSource::Docker(s) => Some(s.clone()),
-                ContainerSource::Library(_) | ContainerSource::Oras(_) => {
-                    warn!(
-                        "Docker backend does not support `{c:#}`; use a Docker registry image \
-                         instead"
-                    );
-                    None
-                }
-                ContainerSource::SifFile(_) => {
-                    warn!(
-                        "Docker backend does not support local SIF file `{c:#}`; use a Docker \
-                         registry image instead"
-                    );
-                    None
-                }
-                ContainerSource::Unknown(_) => {
-                    warn!("Docker backend does not support unknown container source `{c:#}`");
-                    None
-                }
-            });
+        let candidate_images = collect_applicable_sources(
+            self.request
+                .constraints
+                .container
+                .as_ref()
+                .context("task does not use a container")?,
+        )?;
 
         // Create the working directory
         let work_dir = self.request.work_dir();
@@ -304,7 +327,7 @@ impl<'a> DockerTask<'a> {
             .name(&self.name)
             .executions(NonEmpty::new(
                 Execution::builder()
-                    .images(images)?
+                    .images(candidate_images)?
                     .program(&self.config.task.shell)
                     .args([GUEST_COMMAND_PATH.to_string()])
                     .work_dir(GUEST_WORK_DIR)

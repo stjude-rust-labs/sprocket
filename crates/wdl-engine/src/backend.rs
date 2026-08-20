@@ -129,11 +129,11 @@ impl<T> PullResults<T> {
         self.0.push((source, result));
     }
 
-    /// Returns the first successful container and its associated value, if any.
-    pub fn successful_container(&self) -> Option<(&ContainerSource, &T)> {
+    /// Returns the successful containers and their associated value, if any.
+    pub fn successful_containers(&self) -> impl Iterator<Item = (&ContainerSource, &T)> {
         self.0
             .iter()
-            .find_map(|(source, result)| result.as_ref().ok().map(|value| (source, value)))
+            .filter_map(|(source, result)| result.as_ref().ok().map(|value| (source, value)))
     }
 
     /// Iterates over the failed pull attempts.
@@ -321,7 +321,7 @@ mod tests {
     #[test]
     fn empty_pull_results_has_no_successful_container() {
         let results: PullResults<String> = PullResults::default();
-        assert!(results.successful_container().is_none());
+        assert!(results.successful_containers().next().is_none());
     }
 
     #[test]
@@ -331,8 +331,9 @@ mod tests {
         results.push(source.clone(), Ok("resolved".to_string()));
         assert_eq!(
             results
-                .successful_container()
-                .map(|(s, v)| (s.clone(), v.clone())),
+                .successful_containers()
+                .map(|(s, v)| (s.clone(), v.clone()))
+                .next(),
             Some((source, "resolved".to_string()))
         );
     }
@@ -348,7 +349,7 @@ mod tests {
             ContainerSource::Docker("b:2".to_string()),
             Err(anyhow::anyhow!("timeout")),
         );
-        assert!(results.successful_container().is_none());
+        assert!(results.successful_containers().next().is_none());
         assert_eq!(results.failures().count(), 2);
     }
 
