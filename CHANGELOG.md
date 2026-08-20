@@ -187,12 +187,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * `sprocket check` will no longer trigger `KnownRules` for rules excepted over the
   command line or in `sprocket.toml` ([#1060](https://github.com/stjude-rust-labs/sprocket/pull/1060)).
 
-### Removed
-
-* `sprocket check --all-lint-rules`, use `sprocket check --tag all` instead.
-* `sprocket check --filter-lint-tag`, tag names can now be used in the `--except` option instead.
-* `sprocket check --only-lint-tag`
-
 ## 0.28.0 - 2026-07-15
 
 ### Added
