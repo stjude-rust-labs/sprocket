@@ -13,12 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `document()`, and source accessors, while `Document::imported_task_by_name`
   and `Document::imported_workflow_by_name` are now public
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* `ExceptDirectiveValid` rule, which ensures that `#@ except` comments are placed in valid locations ([#1125](https://github.com/stjude-rust-labs/sprocket/pull/1125)).
 
 #### Changed
 
 * An import must now share the importing document's major version and have a
   minor version no greater than it; importing a newer minor version is rejected
   ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)).
+* `Visitor::known_rules()` and `Validator::extend_known_rules()` were renamed to `Visitor::rules()` and
+  `Validator::extend_rules()`, respectively ([#1125](https://github.com/stjude-rust-labs/sprocket/pull/1125)).
 
 #### Fixed
 
