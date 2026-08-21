@@ -1,0 +1,256 @@
+name: Release Sprocket Python Bindings
+
+permissions:
+  contents: read
+
+on:
+  push:
+    tags:
+      - v*
+  # When run on a pull request, this workflow will only build the wheels. It will not trigger a
+  # release.
+  pull_request:
+    paths:
+      - .github/workflows/python-release.yml
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish to PyPI if true, just build artifacts if false
+        required: true
+        type: boolean
+        default: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  linux:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: ubuntu-22.04
+            target: x86_64
+          - runner: ubuntu-22.04
+            target: x86
+          - runner: ubuntu-22.04
+            target: aarch64
+          - runner: ubuntu-22.04
+            target: armv7
+          - runner: ubuntu-22.04
+            target: s390x
+          - runner: ubuntu-22.04
+            target: ppc64le
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+
+      - name: Create virtual environment
+        run: python -m venv --upgrade-deps .venv
+
+      - name: Activate virtual environment
+        run: |
+          echo "VIRTUAL_ENV=$(pwd)/.venv" >> "${GITHUB_ENV}"
+          echo "$(pwd)/.venv/bin" >> "${GITHUB_PATH}"
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: --release --out dist --find-interpreter --include-debuginfo
+          target: ${{ matrix.platform.target }}
+          manylinux: auto
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v6
+        with:
+          name: wheels-linux-${{ matrix.platform.target }}
+          path: dist
+
+  musllinux:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: ubuntu-22.04
+            target: x86_64
+          - runner: ubuntu-22.04
+            target: x86
+          - runner: ubuntu-22.04
+            target: aarch64
+          - runner: ubuntu-22.04
+            target: armv7
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+
+      - name: Create virtual environment
+        run: python -m venv --upgrade-deps .venv
+
+      - name: Activate virtual environment
+        run: |
+          echo "VIRTUAL_ENV=$(pwd)/.venv" >> "${GITHUB_ENV}"
+          echo "$(pwd)/.venv/bin" >> "${GITHUB_PATH}"
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: --release --out dist --find-interpreter --include-debuginfo
+          target: ${{ matrix.platform.target }}
+          manylinux: musllinux_1_2
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v6
+        with:
+          name: wheels-musllinux-${{ matrix.platform.target }}
+          path: dist
+
+  windows:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: windows-latest
+            target: x64
+            python_arch: x64
+          - runner: windows-latest
+            target: x86
+            python_arch: x86
+          - runner: windows-11-arm
+            target: aarch64
+            python_arch: arm64
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13" # TODO: why does Maturin hard-code this version?
+          # We need to specify the architecture, or it will download x64 Python on x86 builds.
+          architecture: ${{ matrix.platform.python_arch }}
+
+      - name: Activate virtual environment
+        run: |
+          Add-Content -Value "VIRTUAL_ENV=$PWD\.venv" -Path $Env:GITHUB_ENV
+          Add-Content -Value "$PWD\.venv\Scripts" -Path $Env:GITHUB_PATH
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: --release --out dist --find-interpreter --include-debuginfo
+          target: ${{ matrix.platform.target }}
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v6
+        with:
+          name: wheels-windows-${{ matrix.platform.target }}
+          path: dist
+
+  macos:
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      matrix:
+        platform:
+          - runner: macos-15-intel
+            target: x86_64
+          - runner: macos-latest
+            target: aarch64
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Update Rust
+        run: rustup update stable && rustup default stable
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version-file: .python-version
+
+      - name: Create virtual environment
+        run: python -m venv --upgrade-deps .venv
+
+      - name: Activate virtual environment
+        run: |
+          echo "VIRTUAL_ENV=$(pwd)/.venv" >> "${GITHUB_ENV}"
+          echo "$(pwd)/.venv/bin" >> "${GITHUB_PATH}"
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          args: --release --out dist --find-interpreter --include-debuginfo
+          target: ${{ matrix.platform.target }}
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v6
+        with:
+          name: wheels-macos-${{ matrix.platform.target }}
+          path: dist
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+
+      - name: Upload sdist
+        uses: actions/upload-artifact@v6
+        with:
+          name: wheels-sdist
+          path: dist
+
+  release:
+    name: Release
+    runs-on: ubuntu-latest
+    # Only publish when a new release is made or on demand. This way we don't try to publish when
+    # triggered on a pull request.
+    if: ${{ startsWith(github.ref, 'refs/tags/') || (github.event_name == 'workflow_dispatch' && github.event.inputs.publish) }}
+    needs: [linux, musllinux, windows, macos, sdist]
+    permissions:
+      # Use to sign the release artifacts and use trusted publishing.
+      id-token: write
+      # Used to upload release artifacts.
+      contents: write
+      # Used to generate artifact attestation.
+      attestations: write
+    environment:
+      name: pypi
+      url: https://pypi.org/p/sprocket-bio
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v8
+        with:
+          pattern: 'wheels-*'
+          path: dist
+          merge-multiple: true
+
+      - name: Publish package distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
