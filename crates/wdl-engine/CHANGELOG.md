@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
+#### Added
+
+* Added support for the `ImagePull{Started, Failed, Finished}` `crankshaft` events ([#1117](https://github.com/stjude-rust-labs/sprocket/pull/1117)).
+
 #### Changed
 
 * `EngineEvent` now emits `TaskInitializing` before an execution attempt and

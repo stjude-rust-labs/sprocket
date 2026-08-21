@@ -26,6 +26,7 @@ use anyhow::anyhow;
 use anyhow::bail;
 use bytesize::ByteSize;
 use crankshaft::events::Event as CrankshaftEvent;
+use crankshaft::events::TaskId;
 use crankshaft::events::send_event;
 use futures::FutureExt;
 use futures::future::BoxFuture;
@@ -395,7 +396,7 @@ impl MonitorState {
     fn add_job(
         &mut self,
         job_id: u64,
-        crankshaft_id: u64,
+        crankshaft_id: TaskId,
         completed: oneshot::Sender<Result<JobExitCode>>,
     ) {
         let prev = self.jobs.insert(
@@ -513,10 +514,6 @@ impl MonitorState {
 struct SubmittedJob {
     /// The identifier for the Slurm job.
     id: u64,
-    /// The task name for Crankshaft events.
-    ///
-    /// Note: this name differs from the job name used in `sbatch`.
-    task_name: String,
     /// The receiver for when the job completes.
     completed: oneshot::Receiver<Result<JobExitCode>>,
 }
@@ -552,7 +549,7 @@ impl Monitor {
         &self,
         config: &SlurmApptainerBackendConfig,
         request: &ExecuteTaskRequest<'_>,
-        crankshaft_id: u64,
+        crankshaft_id: TaskId,
         command_path: &Path,
         transferer: &dyn Transferer,
     ) -> Result<SubmittedJob> {
@@ -689,7 +686,6 @@ impl Monitor {
 
         Ok(SubmittedJob {
             id: job_id,
-            task_name,
             completed: rx,
         })
     }
@@ -982,90 +978,8 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                 .as_slurm_apptainer()
                 .expect("configured backend is not Slurm Apptainer");
 
-            // Create the working directory.
-            let work_dir = request.work_dir();
-            fs::create_dir_all(&work_dir).await.with_context(|| {
-                format!(
-                    "failed to create working directory `{path}`",
-                    path = work_dir.display()
-                )
-            })?;
-
-            // Create an empty file for the task's stdout.
-            let stdout_path = request.stdout_path();
-            let _ = File::create(&stdout_path).await.with_context(|| {
-                format!(
-                    "failed to create stdout file `{path}`",
-                    path = stdout_path.display()
-                )
-            })?;
-
-            // Create an empty file for the task's stderr.
-            let stderr_path = request.stderr_path();
-            let _ = File::create(&stderr_path).await.with_context(|| {
-                format!(
-                    "failed to create stderr file `{path}`",
-                    path = stderr_path.display()
-                )
-            })?;
-
-            // Write the evaluated WDL command section to a host file.
-            let command_path = request.command_path();
-            fs::write(&command_path, request.command)
-                .await
-                .with_context(|| {
-                    format!(
-                        "failed to write command contents to `{path}`",
-                        path = command_path.display()
-                    )
-                })?;
-
-            let Some((apptainer_script, container)) = self
-                .apptainer
-                .generate_script(
-                    &backend_config.apptainer,
-                    &self.config.task.shell,
-                    &request,
-                    self.cancellation.first(),
-                )
-                .await?
-            else {
-                return Ok(None);
-            };
-
-            let apptainer_command_path = request.attempt_dir.join(APPTAINER_COMMAND_FILE_NAME);
-            fs::write(&apptainer_command_path, apptainer_script)
-                .await
-                .with_context(|| {
-                    format!(
-                        "failed to write Apptainer command file `{}`",
-                        apptainer_command_path.display()
-                    )
-                })?;
-
-            // Ensure the command files are executable
-            #[cfg(unix)]
-            {
-                use std::fs::Permissions;
-                use std::os::unix::fs::PermissionsExt;
-
-                fs::set_permissions(&command_path, Permissions::from_mode(0o770)).await?;
-                fs::set_permissions(&apptainer_command_path, Permissions::from_mode(0o770)).await?;
-            }
-
             let crankshaft_id = crankshaft::events::next_task_id();
-
-            let permit = self
-                .permits
-                .acquire()
-                .await
-                .context("failed to acquire permit for submitting job")?;
-
-            let job = self.monitor.submit_job(backend_config, &request, crankshaft_id, &apptainer_command_path, transferer.as_ref()).await?;
-            drop(permit);
-
-            let name = job.task_name;
-            let job_id = job.id;
+            let name = request.name.to_string();
 
             // Create a task-specific cancellation token that is independent of the overall
             // cancellation context
@@ -1080,58 +994,142 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                 },
             );
 
-            let cancelled = async {
-                send_event!(
-                    self.events.crankshaft(),
-                    CrankshaftEvent::TaskCanceled { id: crankshaft_id },
-                );
+            let run = async {
+                // Create the working directory.
+                let work_dir = request.work_dir();
+                fs::create_dir_all(&work_dir).await.with_context(|| {
+                    format!(
+                        "failed to create working directory `{path}`",
+                        path = work_dir.display()
+                    )
+                })?;
 
-                self.kill_job(job_id).await
-            };
+                // Create an empty file for the task's stdout.
+                let stdout_path = request.stdout_path();
+                let _ = File::create(&stdout_path).await.with_context(|| {
+                    format!(
+                        "failed to create stdout file `{path}`",
+                        path = stdout_path.display()
+                    )
+                })?;
 
-            let token = self.cancellation.second();
-            let exit_code = tokio::select! {
-                _ = task_token.cancelled() => {
-                    if let Err(e) = cancelled.await {
-                        error!("failed to cancel task `{name}` (Slurm job `{job_id}`): {e:#}");
-                    }
+                // Create an empty file for the task's stderr.
+                let stderr_path = request.stderr_path();
+                let _ = File::create(&stderr_path).await.with_context(|| {
+                    format!(
+                        "failed to create stderr file `{path}`",
+                        path = stderr_path.display()
+                    )
+                })?;
+
+                // Write the evaluated WDL command section to a host file.
+                let command_path = request.command_path();
+                fs::write(&command_path, request.command)
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "failed to write command contents to `{path}`",
+                            path = command_path.display()
+                        )
+                    })?;
+
+                let Some((apptainer_script, container)) = self
+                    .apptainer
+                    .generate_script(
+                        &backend_config.apptainer,
+                        &self.config.task.shell,
+                        &request,
+                        self.cancellation.first(),
+                        self.events.crankshaft().map(|e| (e.clone(), crankshaft_id)),
+                    )
+                    .await?
+                else {
+                    send_event!(
+                        self.events.crankshaft(),
+                        CrankshaftEvent::TaskCanceled {
+                            id: crankshaft_id,
+                        },
+                    );
 
                     return Ok(None);
+                };
+
+                let apptainer_command_path = request.attempt_dir.join(APPTAINER_COMMAND_FILE_NAME);
+                fs::write(&apptainer_command_path, apptainer_script)
+                    .await
+                    .with_context(|| {
+                        format!(
+                            "failed to write Apptainer command file `{}`",
+                            apptainer_command_path.display()
+                        )
+                    })?;
+
+                // Ensure the command files are executable
+                #[cfg(unix)]
+                {
+                    use std::fs::Permissions;
+                    use std::os::unix::fs::PermissionsExt;
+                    fs::set_permissions(&command_path, Permissions::from_mode(0o770)).await?;
+                    fs::set_permissions(&apptainer_command_path, Permissions::from_mode(0o770)).await?;
                 }
-                _ = token.cancelled() => {
-                    if let Err(e) = cancelled.await {
-                        error!("failed to cancel task `{name}` (Slurm job `{job_id}`): {e:#}");
+
+                let permit = self
+                    .permits
+                    .acquire()
+                    .await
+                    .context("failed to acquire permit for submitting job")?;
+
+                let job = self.monitor.submit_job(backend_config, &request, crankshaft_id, &apptainer_command_path, transferer.as_ref()).await?;
+                drop(permit);
+
+                let job_id = job.id;
+
+                let cancelled = async {
+                    send_event!(
+                        self.events.crankshaft(),
+                        CrankshaftEvent::TaskCanceled { id: crankshaft_id },
+                    );
+
+                    self.kill_job(job_id).await
+                };
+
+                let token = self.cancellation.second();
+
+                // Wait for completion or cancellation
+                let exit_code = tokio::select! {
+                    _ = task_token.cancelled() => {
+                        if let Err(e) = cancelled.await {
+                            error!("failed to cancel task `{name}` (Slurm job `{job_id}`): {e:#}");
+                        }
+
+                        return Ok(None);
                     }
+                    _ = token.cancelled() => {
+                        if let Err(e) = cancelled.await {
+                            error!("failed to cancel task `{name}` (Slurm job `{job_id}`): {e:#}");
+                        }
 
-                    return Ok(None);
-                }
-                result = job.completed => match result.context("failed to wait for task to complete")? {
-                    Ok(exit_code) => {
-                        let exit_status = exit_code.into_exit_status();
-
-                        send_event!(
-                            self.events.crankshaft(),
-                            CrankshaftEvent::TaskCompleted {
-                                id: crankshaft_id,
-                                exit_statuses: NonEmpty::new(exit_status),
-                            }
-                        );
-
-                        exit_code.code()
-                    },
-                    Err(e) => {
-                        send_event!(
-                            self.events.crankshaft(),
-                            CrankshaftEvent::TaskFailed {
-                                id: crankshaft_id,
-                                message: format!("{e:#}"),
-                            },
-                        );
-
-                        return Err(e);
+                        return Ok(None);
                     }
-                }
-            };
+                    result = job.completed => match result.context("failed to wait for task to complete")? {
+                        Ok(exit_code) => {
+                            let exit_status = exit_code.into_exit_status();
+
+                            send_event!(
+                                self.events.crankshaft(),
+                                CrankshaftEvent::TaskCompleted {
+                                    id: crankshaft_id,
+                                    exit_statuses: NonEmpty::new(exit_status),
+                                }
+                            );
+
+                            exit_code.code()
+                        },
+                        Err(e) => {
+                            return Err(e);
+                        }
+                    }
+                };
 
             Ok(Some(TaskExecutionResult {
                 container: Some(container),
@@ -1152,7 +1150,21 @@ impl TaskExecutionBackend for SlurmApptainerBackend {
                 )
                 .into(),
             }))
+        };
+
+            let result = run.await;
+            if let Err(e) = &result {
+                send_event!(
+                    self.events.crankshaft(),
+                    CrankshaftEvent::TaskFailed {
+                        id: crankshaft_id,
+                        message: e.to_string(),
+                    },
+                );
+            }
+
+            result
         }
-        .boxed()
+            .boxed()
     }
 }

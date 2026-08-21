@@ -993,8 +993,7 @@ dependencies = [
 [[package]]
 name = "crankshaft"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bac450b95dcae324ca65cedff15f8f991d58dde49be0698b264c7d0397b65b3a"
+source = "git+https://github.com/stjude-rust-labs/crankshaft.git#81624d3977ddee898d1c20c20f1cc48c79d7dc37"
 dependencies = [
  "crankshaft-config",
  "crankshaft-docker",
@@ -1005,8 +1004,7 @@ dependencies = [
 [[package]]
 name = "crankshaft-config"
 version = "0.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1d2e13ae8d83b9876ef53901b468ae7af951740b0f171f5ea38c64811e9db123"
+source = "git+https://github.com/stjude-rust-labs/crankshaft.git#81624d3977ddee898d1c20c20f1cc48c79d7dc37"
 dependencies = [
  "base64 0.22.1",
  "bon",
@@ -1021,11 +1019,11 @@ dependencies = [
 [[package]]
 name = "crankshaft-docker"
 version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d4ab14fcfa01bb9286f405558f5a43b4ea1507523441112500ff13c91aa03483"
+source = "git+https://github.com/stjude-rust-labs/crankshaft.git#81624d3977ddee898d1c20c20f1cc48c79d7dc37"
 dependencies = [
  "anyhow",
  "bollard",
+ "crankshaft-config",
  "crankshaft-events",
  "futures",
  "indexmap 2.14.0",
@@ -1041,8 +1039,7 @@ dependencies = [
 [[package]]
 name = "crankshaft-engine"
 version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46d0196dc242411b549237c7c639642f1eed1c8a8a45f58fd52501ef5c284610"
+source = "git+https://github.com/stjude-rust-labs/crankshaft.git#81624d3977ddee898d1c20c20f1cc48c79d7dc37"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1074,8 +1071,7 @@ dependencies = [
 [[package]]
 name = "crankshaft-events"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a91580ed9689970b2ac77dd6bed52277d6c2af688ff79a3641e24acc99236030"
+source = "git+https://github.com/stjude-rust-labs/crankshaft.git#81624d3977ddee898d1c20c20f1cc48c79d7dc37"
 dependencies = [
  "bytes",
  "nonempty",
