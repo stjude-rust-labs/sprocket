@@ -3,4 +3,3 @@ error: cannot coerce type `Array[String]` to type `String`
    │
 10 │     String x = "foo ${a}"
    │                       ^ this is type `Array[String]`
-

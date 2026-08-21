@@ -3,6 +3,5 @@ error: type mismatch: a type common to both type `String?` and type `Int` does n
   │
 8 │     Array[String?] x = [opt_string, "hi", 1]
   │                                     ----  ^ this is type `Int`
-  │                                     │      
+  │                                     │
   │                                     this and all prior elements had a common type `String?`
-

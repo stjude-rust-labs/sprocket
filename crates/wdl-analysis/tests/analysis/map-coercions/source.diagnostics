@@ -3,7 +3,7 @@ error: type mismatch: expected type `Object`, but found type `Map[Int, String]`
    │
 33 │     Object invalid1 = { 1: "foo", 2: "bar" }
    │            --------   ^^^^^^^^^^^^^^^^^^^^^^ this is type `Map[Int, String]`
-   │            │           
+   │            │
    │            this expects type `Object`
 
 error: type mismatch: expected an instance of struct `Foo`, but found type `Map[Int, Int]`
@@ -11,7 +11,7 @@ error: type mismatch: expected an instance of struct `Foo`, but found type `Map[
    │
 34 │     Foo invalid2 = { 1: 1, 2: 2 }
    │         --------   ^^^^^^^^^^^^^^ this is type `Map[Int, Int]`
-   │         │           
+   │         │
    │         this expects an instance of struct `Foo`
 
 error: type mismatch: expected type `Map[Int, Int]`, but found type `Object`
@@ -19,7 +19,7 @@ error: type mismatch: expected type `Map[Int, Int]`, but found type `Object`
    │
 35 │     Map[Int, Int] invalid3 = object { foo: 1, bar: 2 }
    │                   --------   ^^^^^^^^^^^^^^^^^^^^^^^^^ this is type `Object`
-   │                   │           
+   │                   │
    │                   this expects type `Map[Int, Int]`
 
 error: type mismatch: expected type `Map[Int, Int]`, but found an instance of struct `Foo`
@@ -27,6 +27,5 @@ error: type mismatch: expected type `Map[Int, Int]`, but found an instance of st
    │
 36 │     Map[Int, Int] invalid4 = Foo { x: 1, y: 2}
    │                   --------   ^^^^^^^^^^^^^^^^^ this is an instance of struct `Foo`
-   │                   │           
+   │                   │
    │                   this expects type `Map[Int, Int]`
-

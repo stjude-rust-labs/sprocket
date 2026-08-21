@@ -6,4 +6,3 @@ error: conflicting task name `MyTask`
   ·
 8 │ task MyTask {
   │      ^^^^^^ this task conflicts with a previously used name
-

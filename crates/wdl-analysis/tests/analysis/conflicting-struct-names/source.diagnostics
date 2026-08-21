@@ -37,4 +37,3 @@ error: conflicting struct name `Baz`
    │        ^^^ this name conflicts with an imported struct
    │
    = fix: either rename the struct or use an `alias` clause on the import with a different name
-

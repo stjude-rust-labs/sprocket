@@ -3,4 +3,3 @@ error: type mismatch: expected `logical and` operand to be type `Boolean`, but f
    │
 10 │     Boolean d = a && c && b
    │                      ^ this is type `String`
-

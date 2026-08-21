@@ -368,8 +368,9 @@ impl EvaluationContext for TaskEvaluationContext<'_, '_> {
         self.state.guest_path(path)
     }
 
-    fn notify_file_created(&mut self, path: &HostPath) -> Result<()> {
-        self.state.insert_backend_input(ContentKind::File, path)?;
+    fn notify_temp_file_created(&mut self, path: &HostPath) -> Result<()> {
+        self.state
+            .insert_backend_input(ContentKind::TempFile, path, true)?;
         Ok(())
     }
 }
@@ -503,6 +504,7 @@ impl<'a> State<'a> {
         value: &mut Value,
         transferer: Arc<dyn Transferer>,
         needs_local_inputs: bool,
+        cacheable: bool,
     ) -> Result<()> {
         // For WDL 1.2 documents, start by ensuring paths exist.
         // This will replace any non-existent optional paths with `None`
@@ -533,6 +535,7 @@ impl<'a> State<'a> {
                     ContentKind::Directory
                 },
                 path,
+                cacheable,
             )? {
                 // Check to see if there's no guest path for a remote URL that needs to be
                 // localized; if so, we must localize it now
@@ -603,6 +606,7 @@ impl<'a> State<'a> {
         &mut self,
         kind: ContentKind,
         path: &HostPath,
+        cacheable: bool,
     ) -> Result<Option<usize>> {
         // Insert an input for the path
         if let Some(index) = self
@@ -610,11 +614,12 @@ impl<'a> State<'a> {
             .insert(kind, path.as_str(), &self.base_dir)?
         {
             // If the input has a guest path, map it
-            let input = &self.backend_inputs.as_slice()[index];
+            let input = &mut self.backend_inputs.as_slice_mut()[index];
             if let Some(guest_path) = input.guest_path() {
                 self.path_map.insert(path.clone(), guest_path.clone());
             }
 
+            input.update_cacheable(cacheable);
             return Ok(Some(index));
         }
 
@@ -774,6 +779,11 @@ impl<'a> State<'a> {
             &mut value,
             self.transferer().clone(),
             self.evaluator.backend.needs_local_inputs(),
+            self.evaluator
+                .cache
+                .as_ref()
+                .map(|c| !c.is_input_excluded(name.text()))
+                .unwrap_or(true),
         )
         .await
         .map_err(|e| {
@@ -835,6 +845,7 @@ impl<'a> State<'a> {
             &mut value,
             self.transferer().clone(),
             self.evaluator.backend.needs_local_inputs(),
+            true,
         )
         .await
         .map_err(|e| {
@@ -1695,10 +1706,11 @@ impl Evaluator {
                         hints: &hints,
                         default_container,
                         shell: &self.config.task.shell,
+                        guest_inputs_dir: self.backend.guest_inputs_dir(),
                         backend_inputs: state.backend_inputs.as_slice(),
                     };
 
-                    match cache.key(request).await {
+                    match cache.key(&request).await {
                         Ok(key) => {
                             debug!(
                                 task_id = id,
@@ -2197,8 +2209,8 @@ impl Evaluator {
     }
 }
 
-#[cfg(test)]
-mod test {
+#[cfg(all(test, not(docker_tests_disabled)))]
+mod tests {
     use std::fs;
     use std::path::Path;
 
@@ -2214,12 +2226,25 @@ mod test {
     use crate::TaskInputs;
     use crate::config::CallCachingMode;
     use crate::config::Config;
-    use crate::config::LocalBackendConfig;
+    use crate::config::DockerBackendConfig;
+    use crate::digest::test::clear_digest_cache;
     use crate::eval::EvaluatedTask;
     use crate::v1::Evaluator;
 
+    /// Creates a configuration for testing with the given mode and root test
+    /// directory.
+    fn create_config(mode: CallCachingMode, root_dir: &Path) -> Config {
+        let mut config = Config::default();
+        config.task.cache = mode;
+        config.task.cache_dir = root_dir.join("cache").to_string_lossy().into();
+        config
+            .backends
+            .insert("default".into(), DockerBackendConfig::default().into());
+        config
+    }
+
     /// Helper for evaluating a simple task with the given call cache mode.
-    async fn evaluate_task(mode: CallCachingMode, root_dir: &Path, source: &str) -> EvaluatedTask {
+    async fn evaluate_task(config: Config, root_dir: &Path, source: &str) -> EvaluatedTask {
         fs::write(root_dir.join("source.wdl"), source).expect("failed to write WDL source file");
 
         // Analyze the source file
@@ -2238,13 +2263,6 @@ mod test {
         assert_eq!(results.len(), 1, "expected only one result");
 
         let document = results.first().expect("should have result").document();
-
-        let mut config = Config::default();
-        config.task.cache = mode;
-        config.task.cache_dir = root_dir.join("cache").to_string_lossy().into();
-        config
-            .backends
-            .insert("default".into(), LocalBackendConfig::default().into());
 
         let evaluator = Evaluator::new(
             &root_dir.join("runs"),
@@ -2288,7 +2306,8 @@ task test {
 "#;
 
         let root_dir = tempdir().expect("failed to create temporary directory");
-        let evaluated = evaluate_task(CallCachingMode::Off, root_dir.path(), SOURCE).await;
+        let config = create_config(CallCachingMode::Off, root_dir.path());
+        let evaluated = evaluate_task(config, root_dir.path(), SOURCE).await;
         assert!(!evaluated.cached());
         assert_eq!(evaluated.exit_code(), 0);
         assert_eq!(
@@ -2328,7 +2347,8 @@ task test {
 "#;
 
         let root_dir = tempdir().expect("failed to create temporary directory");
-        let evaluated = evaluate_task(CallCachingMode::On, root_dir.path(), SOURCE).await;
+        let config = create_config(CallCachingMode::On, root_dir.path());
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
         assert!(!evaluated.cached());
         assert_eq!(evaluated.exit_code(), 0);
         assert_eq!(
@@ -2351,7 +2371,7 @@ task test {
             "expected the task to have executed"
         );
 
-        let evaluated = evaluate_task(CallCachingMode::On, root_dir.path(), SOURCE).await;
+        let evaluated = evaluate_task(config, root_dir.path(), SOURCE).await;
         assert!(evaluated.cached());
         assert_eq!(evaluated.exit_code(), 0);
         assert_eq!(
@@ -2396,7 +2416,8 @@ task test {
 "#;
 
         let root_dir = tempdir().expect("failed to create temporary directory");
-        let evaluated = evaluate_task(CallCachingMode::On, root_dir.path(), SOURCE).await;
+        let config = create_config(CallCachingMode::On, root_dir.path());
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
         assert!(!evaluated.cached());
         assert_eq!(evaluated.exit_code(), 0);
         assert_eq!(
@@ -2415,7 +2436,7 @@ task test {
             "expected task to not be cacheable"
         );
 
-        let evaluated = evaluate_task(CallCachingMode::On, root_dir.path(), SOURCE).await;
+        let evaluated = evaluate_task(config, root_dir.path(), SOURCE).await;
         assert!(!evaluated.cached());
         assert_eq!(evaluated.exit_code(), 0);
         assert_eq!(
@@ -2456,7 +2477,8 @@ task test {
 "#;
 
         let root_dir = tempdir().expect("failed to create temporary directory");
-        let evaluated = evaluate_task(CallCachingMode::Explicit, root_dir.path(), SOURCE).await;
+        let config = create_config(CallCachingMode::Explicit, root_dir.path());
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
         assert!(!evaluated.cached());
         assert_eq!(evaluated.exit_code(), 0);
         assert_eq!(
@@ -2477,7 +2499,7 @@ task test {
             "expected task to not be cacheable"
         );
 
-        let evaluated = evaluate_task(CallCachingMode::Explicit, root_dir.path(), SOURCE).await;
+        let evaluated = evaluate_task(config, root_dir.path(), SOURCE).await;
         assert!(!evaluated.cached());
         assert_eq!(evaluated.exit_code(), 0);
         assert_eq!(
@@ -2522,7 +2544,8 @@ task test {
 "#;
 
         let root_dir = tempdir().expect("failed to create temporary directory");
-        let evaluated = evaluate_task(CallCachingMode::Explicit, root_dir.path(), SOURCE).await;
+        let config = create_config(CallCachingMode::Explicit, root_dir.path());
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
         assert!(!evaluated.cached());
         assert_eq!(evaluated.exit_code(), 0);
         assert_eq!(
@@ -2545,7 +2568,7 @@ task test {
             "expected the task to have executed"
         );
 
-        let evaluated = evaluate_task(CallCachingMode::Explicit, root_dir.path(), SOURCE).await;
+        let evaluated = evaluate_task(config, root_dir.path(), SOURCE).await;
         assert!(evaluated.cached());
         assert_eq!(evaluated.exit_code(), 0);
         assert_eq!(
@@ -2561,6 +2584,466 @@ task test {
         assert!(
             logs_contain("task execution was skipped"),
             "expected second run to skip execution"
+        );
+    }
+
+    /// Tests that calls to `write_lines` is cacheable.
+    /// See: https://github.com/stjude-rust-labs/sprocket/issues/877
+    #[tokio::test]
+    #[traced_test]
+    async fn cache_write_lines() {
+        const SOURCE: &str = r#"
+version 1.3
+
+task test {
+    input {
+        Array[String] xs = ["one", "two"]
+    }
+
+    command <<<
+        cat ~{write_lines(xs)}
+    >>>
+
+    output {
+        Array[String] lines = read_lines(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = create_config(CallCachingMode::On, root_dir.path());
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "one\ntwo"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(logs_contain("using call cache"), "expected cache to be on");
+        assert!(
+            logs_contain("call cache miss"),
+            "expected first run to miss the cache"
+        );
+        assert!(
+            logs_contain("running task"),
+            "expected the task to have executed"
+        );
+
+        let evaluated = evaluate_task(config, root_dir.path(), SOURCE).await;
+        assert!(evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "one\ntwo"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            logs_contain("task execution was skipped"),
+            "expected second run to skip execution"
+        );
+    }
+
+    /// Tests that calls to `write_lines` with no reference in the command is
+    /// cacheable. See: https://github.com/stjude-rust-labs/sprocket/issues/877
+    #[tokio::test]
+    #[traced_test]
+    async fn cache_unreferenced_write_lines() {
+        const SOURCE: &str = r#"
+version 1.3
+
+task test {
+    File f = write_lines(["foo"])
+    String s = read_string(f)
+
+    command <<<
+        echo '~{s}'
+    >>>
+
+    output {
+        String message = read_string(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = create_config(CallCachingMode::On, root_dir.path());
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "foo"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(logs_contain("using call cache"), "expected cache to be on");
+        assert!(
+            logs_contain("call cache miss"),
+            "expected first run to miss the cache"
+        );
+        assert!(
+            logs_contain("running task"),
+            "expected the task to have executed"
+        );
+
+        let evaluated = evaluate_task(config, root_dir.path(), SOURCE).await;
+        assert!(evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "foo"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            logs_contain("task execution was skipped"),
+            "expected second run to skip execution"
+        );
+    }
+
+    /// Tests that swapped calls to `write_lines` invalidates a cache entry.
+    /// See: https://github.com/stjude-rust-labs/sprocket/issues/877
+    #[tokio::test]
+    #[traced_test]
+    async fn cache_swapped_write_lines() {
+        const SOURCE: &str = r#"
+version 1.3
+
+task test {
+    command <<<
+        cat ~{write_lines(["left"])} ~{write_lines(["right"])}
+    >>>
+
+    output {
+        String message = read_string(stdout())
+    }
+}
+"#;
+
+        const SWAPPED_SOURCE: &str = r#"
+version 1.3
+
+task test {
+    command <<<
+        cat ~{write_lines(["right"])} ~{write_lines(["left"])}
+    >>>
+
+    output {
+        String message = read_string(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        let config = create_config(CallCachingMode::On, root_dir.path());
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "left\nright"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(logs_contain("using call cache"), "expected cache to be on");
+        assert!(
+            logs_contain("call cache miss"),
+            "expected first run to miss the cache"
+        );
+        assert!(
+            logs_contain("running task"),
+            "expected the task to have executed"
+        );
+
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "left\nright"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            logs_contain("task execution was skipped"),
+            "expected second run to skip execution"
+        );
+
+        // Now evaluate the swapped source; it should be treated as a modified command
+        let evaluated = evaluate_task(config, root_dir.path(), SWAPPED_SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "right\nleft"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            logs_contain("the command of the task was modified"),
+            "expected command to be modified"
+        );
+    }
+
+    /// Tests that excluded input files do not impact the cache.
+    /// See: https://github.com/stjude-rust-labs/sprocket/issues/877
+    #[tokio::test]
+    #[traced_test]
+    async fn cache_excluded_input_file() {
+        const SOURCE: &str = r#"
+version 1.3
+
+task test {
+    input {
+        File excluded = "foo.txt"
+        File not_excluded = "not.txt"
+    }
+
+    command <<<
+        cat '~{excluded}'
+    >>>
+
+    output {
+        String message = read_string(stdout())
+    }
+}
+"#;
+
+        const MODIFIED_SOURCE: &str = r#"
+version 1.3
+
+task test {
+    input {
+        File excluded = "bar.txt"
+        File not_excluded = "not.txt"
+    }
+
+    command <<<
+        cat '~{excluded}'
+    >>>
+
+    output {
+        String message = read_string(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        fs::write(root_dir.path().join("not.txt"), "not excluded!").unwrap();
+        fs::write(root_dir.path().join("foo.txt"), "hello world!").unwrap();
+        fs::write(root_dir.path().join("bar.txt"), "different!").unwrap();
+
+        let mut config = create_config(CallCachingMode::On, root_dir.path());
+        config.task.excluded_cache_inputs.push("excluded".into());
+
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "hello world!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(logs_contain("using call cache"), "expected cache to be on");
+        assert!(
+            logs_contain("call cache miss"),
+            "expected first run to miss the cache"
+        );
+        assert!(
+            logs_contain("running task"),
+            "expected the task to have executed"
+        );
+
+        // Evaluate the source again; the result should be cached
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "hello world!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            logs_contain("task execution was skipped"),
+            "expected second run to skip execution"
+        );
+
+        // Evaluate the modified source; it should still be cached despite the different
+        // input value and file contents.
+        // Note: that the contents of `foo.txt` is returned because the modified input
+        // was excluded
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), MODIFIED_SOURCE).await;
+        assert!(evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "hello world!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+
+        // Change the not excluded file; this should invalidate the entry and rerun the
+        // task with the previously modified excluded input
+        fs::write(root_dir.path().join("not.txt"), "modified!").unwrap();
+        clear_digest_cache();
+        let evaluated = evaluate_task(config, root_dir.path(), MODIFIED_SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "different!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            logs_contain("the content of a file or directory input was modified"),
+            "expected input to be modified"
+        );
+    }
+
+    /// Tests that excluded input files that are referenced by an "included"
+    /// input are not treated as excluded
+    #[tokio::test]
+    #[traced_test]
+    async fn cache_aliased_excluded_input_file() {
+        const SOURCE: &str = r#"
+version 1.3
+
+task test {
+    input {
+        File excluded = "foo.txt"
+        File not_excluded = "foo.txt"
+    }
+
+    command <<<
+        cat '~{excluded}'
+    >>>
+
+    output {
+        String message = read_string(stdout())
+    }
+}
+"#;
+
+        let root_dir = tempdir().expect("failed to create temporary directory");
+        fs::write(root_dir.path().join("foo.txt"), "hello world!").unwrap();
+
+        let mut config = create_config(CallCachingMode::On, root_dir.path());
+        config.task.excluded_cache_inputs.push("excluded".into());
+
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "hello world!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(logs_contain("using call cache"), "expected cache to be on");
+        assert!(
+            logs_contain("call cache miss"),
+            "expected first run to miss the cache"
+        );
+        assert!(
+            logs_contain("running task"),
+            "expected the task to have executed"
+        );
+
+        // Evaluate the source again; the result should be cached
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "hello world!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            logs_contain("task execution was skipped"),
+            "expected second run to skip execution"
+        );
+
+        // Modify the input file
+        fs::write(root_dir.path().join("foo.txt"), "modified!").unwrap();
+        clear_digest_cache();
+
+        // The cache entry should be invalidated because `not_excluded` was ultimately
+        // modified
+        let evaluated = evaluate_task(config.clone(), root_dir.path(), SOURCE).await;
+        assert!(!evaluated.cached());
+        assert_eq!(evaluated.exit_code(), 0);
+        assert_eq!(
+            fs::read_to_string(evaluated.stdout().as_file().unwrap().as_str())
+                .unwrap()
+                .trim(),
+            "modified!"
+        );
+        assert_eq!(
+            fs::read_to_string(evaluated.stderr().as_file().unwrap().as_str()).unwrap(),
+            ""
+        );
+        assert!(
+            logs_contain("the content of a file or directory input was modified"),
+            "expected input to be modified"
         );
     }
 }

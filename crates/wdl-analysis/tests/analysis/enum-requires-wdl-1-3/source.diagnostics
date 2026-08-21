@@ -17,4 +17,3 @@ error: unknown name `Status`
    │
 12 │     Status s = Status.Active
    │                ^^^^^^
-

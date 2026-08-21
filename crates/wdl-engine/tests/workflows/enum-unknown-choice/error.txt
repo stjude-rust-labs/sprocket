@@ -3,4 +3,3 @@ error: unknown choice named `InvalidChoice` for enum `Status`
    │
 10 │     Status s = Status.InvalidChoice
    │                       ^^^^^^^^^^^^^ the choice is referenced here
-

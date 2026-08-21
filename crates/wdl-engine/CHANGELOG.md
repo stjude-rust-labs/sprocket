@@ -17,6 +17,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### Fixed
 
+* Call cache entries for commands that reference temporary files created by a
+  call to a `write_*` stdlib function will no longer be ignored due to a
+  mismatch between the evaluated command and the cached evaluated command.
+  NOTE: this fix will invalidate all existing call cache entries ([#1103](https://github.com/stjude-rust-labs/sprocket/pull/1103)).
 * `WorkflowInputs` serialization no longer drops call-nested inputs.
   Previously, the `Serialize` impl silently discarded per-call inputs
   (including task input overrides, requirements, and hints for calls inside a

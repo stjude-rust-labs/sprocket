@@ -3,4 +3,3 @@ error: failed to deserialize configuration file `bad.toml`
   │
 2 │ retries = 123
   │           ^^^ expected an integer less than 100 or `default` for retries
-
