@@ -18,4 +18,3 @@ error: conflicting enum name `Status`
   │        ^^^^^^^^^ this import introduces a conflicting definition
   │
   = fix: add an `alias` clause to the import to specify a different name
-

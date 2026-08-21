@@ -105,4 +105,3 @@ error: conflicting output name `y`
    ·
 65 │         String y = "y"
    │                ^ this output conflicts with a previously used name
-

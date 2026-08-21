@@ -35,7 +35,7 @@ Options:
 
       --index-on <INDEX_PATH>
           The index path to index the run outputs under.
-          
+
           If provided, the server symlinks the run outputs into the `index` directory of its output directory at this path. The path must be relative and cannot contain `.` or `..` components.
 
   -m, --report-mode <MODE>

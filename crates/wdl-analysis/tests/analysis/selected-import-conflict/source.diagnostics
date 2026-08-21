@@ -6,4 +6,3 @@ error: import of `Record` conflicts with an existing definition
   ·
 7 │ import { Record } from "lib.wdl"
   │          ^^^^^^ imported here
-

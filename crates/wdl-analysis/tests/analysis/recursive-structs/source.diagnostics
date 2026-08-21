@@ -13,4 +13,3 @@ error: struct `Bar` has a recursive definition
    │        ^^^
 14 │     Foo f
    │         - this struct member participates in the recursion
-

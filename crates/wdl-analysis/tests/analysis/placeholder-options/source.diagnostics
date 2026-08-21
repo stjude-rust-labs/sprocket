@@ -27,4 +27,3 @@ error: cannot coerce type `Array[Int]` to type `String`
    │
 48 │     String s8 = "~{[1, 2, 3]}"
    │                    ^^^^^^^^^ this is type `Array[Int]`
-

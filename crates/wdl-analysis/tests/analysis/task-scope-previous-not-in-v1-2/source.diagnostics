@@ -3,4 +3,3 @@ error: the `task` variable does not have a member named `previous`
   │
 9 │         echo ~{task.previous.memory}
   │                     ^^^^^^^^
-

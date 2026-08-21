@@ -3,7 +3,7 @@ error: type mismatch: expected type `String` or type `Array[String]`, but found 
    │
 29 │         docker: false
    │         ------  ^^^^^ this is type `Boolean`
-   │         │        
+   │         │
    │         this expects type `String` or type `Array[String]`
 
 error: type mismatch: expected type `Int` or type `String`, but found type `Boolean`
@@ -11,6 +11,5 @@ error: type mismatch: expected type `Int` or type `String`, but found type `Bool
    │
 30 │         memory: false
    │         ------  ^^^^^ this is type `Boolean`
-   │         │        
+   │         │
    │         this expects type `Int` or type `String`
-

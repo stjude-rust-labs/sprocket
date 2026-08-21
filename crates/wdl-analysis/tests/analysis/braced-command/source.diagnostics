@@ -3,4 +3,3 @@ error: unknown name `unknown`
    │
 10 │         echo ~{unknown}
    │                ^^^^^^^
-

@@ -19,7 +19,7 @@ Options:
 
       --index-on <INDEX_PATH>
           Override the index path to index the run outputs under.
-          
+
           The path must be relative and cannot contain `.` or `..` components.
 
       --no-validate

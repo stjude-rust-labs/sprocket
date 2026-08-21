@@ -12,4 +12,3 @@ error: imported document is missing a version statement
   │
 5 │ import "foo.wdl"
   │        ^^^^^^^^^
-

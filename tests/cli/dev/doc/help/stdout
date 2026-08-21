@@ -94,7 +94,7 @@ Options:
 
       --with-doc-comments
           Enables support for documentation comments
-          
+
           This option is *experimental* and will be removed in a future major version. Follow the pre-RFC discussion here: <https://github.com/openwdl/wdl/issues/757>.
 
   -m, --report-mode <MODE>
