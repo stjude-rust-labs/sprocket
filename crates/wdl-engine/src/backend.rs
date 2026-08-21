@@ -120,10 +120,7 @@ impl Input {
 
     /// Determines if the input is cacheable by the call cache.
     pub fn cacheable(&self) -> bool {
-        match self.cacheable {
-            Some(false) => false,
-            _ => true,
-        }
+        !matches!(self.cacheable, Some(false))
     }
 
     /// Updates the cacheability of the input.
