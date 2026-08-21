@@ -3,7 +3,7 @@ error: cannot define workflow `bar` as only one workflow is allowed per source f
   │
 5 │ workflow foo {}
   │          --- first workflow is defined here
-6 │ 
+6 │
 7 │ workflow bar {}
   │          ^^^ consider moving this workflow to a new file
 
@@ -15,4 +15,3 @@ error: cannot define workflow `baz` as only one workflow is allowed per source f
   ·
 9 │ workflow baz {}
   │          ^^^ consider moving this workflow to a new file
-

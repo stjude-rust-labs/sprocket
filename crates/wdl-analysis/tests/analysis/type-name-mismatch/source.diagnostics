@@ -3,6 +3,5 @@ error: type mismatch: expected an instance of struct `Resource`, but found type 
    │
 12 │     Resource x = Resource
    │              -   ^^^^^^^^ this is type name `Resource`
-   │              │    
+   │              │
    │              this expects an instance of struct `Resource`
-

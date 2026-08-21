@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* Runs whose owning process stops reporting are marked `orphaned` after
+  `server.orphan_timeout_minutes` (default `5`), rather than remaining
+  `running` indefinitely
+  ([#1109](https://github.com/stjude-rust-labs/sprocket/pull/1109)).
+
 * Added the experimental `sprocket dev module` command group for creating and
   managing WDL modules ([#999](https://github.com/stjude-rust-labs/sprocket/pull/999)):
   * `init` bootstraps module manifests and scaffolding.
@@ -106,10 +111,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   endpoint is available, instead of requiring the user to manually combine a
   separate `Output Dir:` line with a relative path
   ([#1067](https://github.com/stjude-rust-labs/sprocket/pull/1067)).
+* The `--index-on` flag (and the `index_on` field of the run submission API) is
+  now documented as, and validated as, a path within the output directory's
+  `index` directory rather than the name of an output
+  ([#704](https://github.com/stjude-rust-labs/sprocket/issues/704)).
 * `sprocket check --except` now accepts lint tag names (e.g., `--except documentation`).
 
 ### Fixed
 
+* `dev server cancel` no longer reports success for a run this server instance
+  is not tracking. Cancelling a run left behind by a previous server process
+  silently did nothing while the run stayed `running`; it now returns
+  `409 Conflict` explaining that the run was orphaned
+  ([#1109](https://github.com/stjude-rust-labs/sprocket/pull/1109)).
 * Work a backend runs on its own behalf, such as the Docker backend's container
   that restores ownership of a work directory, is no longer reported among a
   run's tasks
@@ -119,6 +133,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rather than `failed`, and no longer overwrites an outcome the run reached
   first ([#1093](https://github.com/stjude-rust-labs/sprocket/pull/1093)).
 
+* `--index-on` no longer panics when a run's output files live outside of the
+  output directory; such outputs (e.g. a `File` input that a task passes
+  straight through to an output) are reported and left out of the index, and
+  the rest of the run's outputs are indexed as before
+  ([#704](https://github.com/stjude-rust-labs/sprocket/issues/704)).
+* `--index-on` now indexes output files when the output directory is given as a
+  relative path (e.g. `-o out`); previously the run panicked after producing an
+  absolute, non-portable index symlink
+  ([#704](https://github.com/stjude-rust-labs/sprocket/issues/704)).
+* `--index-on` (and the `index_on` field of the run submission API) now rejects
+  empty, absolute, and `..`-containing index paths up front, instead of writing
+  index entries outside of the `index` directory
+  ([#704](https://github.com/stjude-rust-labs/sprocket/issues/704)).
+* Rebuilding the index now skips recorded entries that do not resolve within
+  the output directory, so entries written by an earlier version from an
+  escaping index path are no longer recreated outside of it
+  ([#704](https://github.com/stjude-rust-labs/sprocket/issues/704)).
 * The server's reported `output_dir` (used by `dev server inspect`) is now
   resolved to an absolute path, even when configured with a relative path
   (e.g. `./out`), so it can be reliably combined with a run's relative

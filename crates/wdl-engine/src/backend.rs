@@ -64,6 +64,13 @@ pub(crate) struct Input {
     ///
     /// This is `Some` if the input has been downloaded to a known location.
     location: Option<Location>,
+    /// Whether or not the input is cacheable by the call cache.
+    ///
+    /// A value of `None` and `Some(true)` indicates cacheable.
+    ///
+    /// For an input to *not* be cacheable, all calls to `update_cacheable` must
+    /// be passed `false`.
+    cacheable: Option<bool>,
 }
 
 impl Input {
@@ -74,6 +81,7 @@ impl Input {
             path,
             guest_path,
             location: None,
+            cacheable: None,
         }
     }
 
@@ -108,6 +116,29 @@ impl Input {
     /// This is used during localization to set a local path for remote inputs.
     pub fn set_location(&mut self, location: Location) {
         self.location = Some(location);
+    }
+
+    /// Determines if the input is cacheable by the call cache.
+    pub fn cacheable(&self) -> bool {
+        !matches!(self.cacheable, Some(false))
+    }
+
+    /// Updates the cacheability of the input.
+    ///
+    /// For an input to _not_ be cacheable, every call to `update_cacheable`
+    /// must pass `false`.
+    pub fn update_cacheable(&mut self, cacheable: bool) {
+        match self.cacheable {
+            Some(false) if cacheable => {
+                self.cacheable = Some(true);
+            }
+            Some(true) | Some(false) => {
+                // No op
+            }
+            None => {
+                self.cacheable = Some(cacheable);
+            }
+        }
     }
 }
 

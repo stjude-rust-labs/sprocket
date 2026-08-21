@@ -32,4 +32,3 @@ task stderr output (last 10 lines):
    │
  6 │     call second.test
    │     ---- called from this location
-

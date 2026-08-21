@@ -220,7 +220,6 @@ impl Visitor for DeprecatedPlaceholderRule {
 
 #[cfg(test)]
 mod tests {
-    use wdl_ast::AstNode as _;
     use wdl_ast::Document;
     use wdl_ast::SupportedVersion;
     use wdl_ast::v1::Placeholder;

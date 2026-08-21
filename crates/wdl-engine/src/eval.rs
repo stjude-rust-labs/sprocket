@@ -624,11 +624,11 @@ pub(crate) trait EvaluationContext: Send + Sync {
         None
     }
 
-    /// Notifies the context that a file was created as a result of a call to a
-    /// stdlib function.
+    /// Notifies the context that a temporary file was created as a result of a
+    /// call to a stdlib function.
     ///
     /// A context may map a guest path for the new host path.
-    fn notify_file_created(&mut self, path: &HostPath) -> Result<()> {
+    fn notify_temp_file_created(&mut self, path: &HostPath) -> Result<()> {
         let _ = path;
         Ok(())
     }

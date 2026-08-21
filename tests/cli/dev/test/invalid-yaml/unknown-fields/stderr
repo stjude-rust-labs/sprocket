@@ -9,4 +9,3 @@ warning: unknown field `some_unknown_field`
   │
 3 │     some_unknown_field: true
   │     ^^^^^^^^^^^^^^^^^^
-

@@ -3,4 +3,3 @@ error: unknown name `c`
   │
 9 │     String d = c
   │                ^
-

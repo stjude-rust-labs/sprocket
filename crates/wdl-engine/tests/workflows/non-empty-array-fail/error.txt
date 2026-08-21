@@ -5,4 +5,3 @@ error: type mismatch: expected type `Array[Boolean]+`, but found type `Array[Boo
   │                   --------   ^ this is type `Array[Boolean]`
   │                   │           
   │                   this expects type `Array[Boolean]+`
-

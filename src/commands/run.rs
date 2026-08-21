@@ -64,6 +64,7 @@ use crate::commands::CommandResult;
 use crate::inputs::Invocation;
 use crate::system::v1::db::Database;
 use crate::system::v1::db::SprocketCommand;
+use crate::system::v1::exec::HeartbeatGuard;
 use crate::system::v1::exec::RunContext;
 use crate::system::v1::exec::Target;
 use crate::system::v1::exec::create_run_directory;
@@ -72,7 +73,9 @@ use crate::system::v1::exec::create_session;
 use crate::system::v1::exec::execute_target;
 use crate::system::v1::exec::open_database;
 use crate::system::v1::exec::select_target;
+use crate::system::v1::exec::spawn_heartbeat;
 use crate::system::v1::fs::FileSystemLock;
+use crate::system::v1::fs::IndexPath;
 use crate::system::v1::fs::OutputDirectory;
 use crate::system::v1::fs::RunDirectory;
 
@@ -139,13 +142,18 @@ pub struct Args {
     #[clap(long)]
     pub locked: bool,
 
-    /// The output name to index on.
+    /// The index path to index the run outputs under.
     ///
-    /// If provided, the run outputs will be indexed using the specified output
-    /// name as the key. The index allows efficient lookup of runs by output
-    /// values.
-    #[clap(long, value_name = "OUTPUT_NAME")]
-    pub index_on: Option<String>,
+    /// If provided, the run's output files and directories are symlinked into
+    /// `<output_dir>/index/<index_path>/`, along with a symlink to the run's
+    /// `outputs.json` file. The path must be relative and cannot contain `.` or
+    /// `..` components.
+    ///
+    /// The path is used verbatim, so group results by a value of your own
+    /// choosing by interpolating it in the shell (e.g. `--index-on
+    /// "project/$name"`).
+    #[clap(long, value_name = "INDEX_PATH")]
+    pub index_on: Option<IndexPath>,
 
     /// The report mode.
     #[arg(short = 'm', long, value_name = "MODE")]
@@ -992,7 +1000,9 @@ pub async fn run(
 
     let (target, inputs) = resolve_inputs(&args, document).await?;
 
-    let (ctx, run_dir, db) =
+    // Held for the rest of this function: dropping it stops the heartbeat and
+    // would make this run look abandoned while it is still executing.
+    let (ctx, run_dir, db, _heartbeat) =
         setup_run_context(handle, &args, &config, &source, &target, &inputs).await?;
 
     let cancellation = CancellationContext::new(config.run.engine.failure_mode);
@@ -1041,7 +1051,7 @@ pub async fn run(
         inputs,
         &run_dir,
         &base_dir,
-        args.index_on.as_deref(),
+        args.index_on.as_ref(),
     ));
 
     loop {
@@ -1179,7 +1189,7 @@ async fn setup_run_context(
     source: &Source,
     target: &Target,
     inputs: &Inputs,
-) -> Result<(RunContext, RunDirectory, Arc<dyn Database>)> {
+) -> Result<(RunContext, RunDirectory, Arc<dyn Database>, HeartbeatGuard)> {
     // Set up output directory structure
     let output_dir = OutputDirectory::new(
         args.output_dir
@@ -1219,6 +1229,11 @@ async fn setup_run_context(
         .await
         .context("failed to create session")?;
 
+    // This process owns the session's runs, so it reports liveness while they
+    // are in flight; a `sprocket run` killed outright leaves them non-terminal
+    // for the sweep to close out.
+    let heartbeat = spawn_heartbeat(db.clone(), session.uuid, config.server.heartbeat_interval());
+
     let (run_id, run_name, _run) = create_run_record(
         db.as_ref(),
         session.uuid,
@@ -1247,7 +1262,7 @@ async fn setup_run_context(
         started_at: Utc::now(),
     };
 
-    Ok((ctx, run_dir, db))
+    Ok((ctx, run_dir, db, heartbeat))
 }
 
 /// Initializes logging to `output.log` in the given run directory.

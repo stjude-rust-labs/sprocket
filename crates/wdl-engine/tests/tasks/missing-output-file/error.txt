@@ -3,4 +3,3 @@ error: failed to evaluate output `foo` for task `test`: file `attempts/0/work/fo
   │
 9 │         File foo = "foo.txt"
   │              ^^^
-

@@ -332,21 +332,34 @@ pub async fn calculate_local_digest(
                 path = path.display()
             );
 
-            if kind == ContentKind::File {
-                if !metadata.is_file() {
-                    bail!("expected path `{path}` to be a file", path = path.display());
-                }
+            match kind {
+                ContentKind::File | ContentKind::TempFile => {
+                    if !metadata.is_file() {
+                        bail!("expected path `{path}` to be a file", path = path.display());
+                    }
 
-                calculate_file_digest(path, mode).await
-            } else {
-                if metadata.is_file() {
-                    bail!(
-                        "expected path `{path}` to be a directory",
-                        path = path.display()
-                    );
+                    // Always use a strong digest mode for temporary files
+                    // This will ensure that the file metadata is _not_ considered for the digest
+                    calculate_file_digest(
+                        path,
+                        if kind == ContentKind::TempFile {
+                            ContentDigestMode::Strong
+                        } else {
+                            mode
+                        },
+                    )
+                    .await
                 }
+                ContentKind::Directory => {
+                    if metadata.is_file() {
+                        bail!(
+                            "expected path `{path}` to be a directory",
+                            path = path.display()
+                        );
+                    }
 
-                calculate_directory_digest(path, mode).await
+                    calculate_directory_digest(path, mode).await
+                }
             }
         })
         .await?)
@@ -387,6 +400,12 @@ pub async fn calculate_remote_digest(
                 digest.hash(&mut hasher);
                 return anyhow::Ok(Digest::File(hasher.finalize()));
             }
+
+            assert_eq!(
+                kind,
+                ContentKind::Directory,
+                "expected a directory for the content kind"
+            );
 
             // Walk the URL; the returned entries are in lexicographical order
             let entries = transferer
@@ -674,6 +693,45 @@ pub(crate) mod test {
             .unwrap();
 
         assert!(digest_a != digest_b, "expected strong digests to differ");
+    }
+
+    #[tokio::test]
+    async fn temp_files_always_use_strong_digests() {
+        // Create two temporary files with the same content
+        let mut a = NamedTempFile::new().unwrap();
+        let mut b = NamedTempFile::new().unwrap();
+
+        a.write_all(b"samesies!!!").unwrap();
+        b.write_all(b"samesies!!!").unwrap();
+        a.flush().unwrap();
+        b.flush().unwrap();
+
+        // Regardless of the content digest mode, temporary files should _always_ use a
+        // strong digest
+        let digest_a =
+            calculate_local_digest(a.path(), ContentKind::TempFile, ContentDigestMode::Weak)
+                .await
+                .unwrap();
+        let digest_b = calculate_local_digest(
+            b.path(),
+            ContentKind::TempFile,
+            ContentDigestMode::Strongish,
+        )
+        .await
+        .unwrap();
+        let digest_c =
+            calculate_local_digest(b.path(), ContentKind::TempFile, ContentDigestMode::Strong)
+                .await
+                .unwrap();
+
+        assert_eq!(
+            digest_a, digest_b,
+            "expected digests to match since temporary files always use strong digests"
+        );
+        assert_eq!(
+            digest_a, digest_c,
+            "expected digests to match since temporary files always use strong digests"
+        );
     }
 
     #[tokio::test]

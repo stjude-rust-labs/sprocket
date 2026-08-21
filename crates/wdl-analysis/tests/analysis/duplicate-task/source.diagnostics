@@ -6,4 +6,3 @@ error: conflicting task name `foo`
    ·
 15 │ task foo {
    │      ^^^ this task conflicts with a previously used name
-

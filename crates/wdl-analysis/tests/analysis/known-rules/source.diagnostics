@@ -21,4 +21,3 @@ note[KnownRules]: unknown rule `MetaSections`
   │            ^^^^^^^^^^^^ cannot make an exception for this rule
   │
   = fix: remove the unknown rule from the exception list
-

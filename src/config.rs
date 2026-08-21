@@ -5,6 +5,7 @@ use std::fmt;
 use std::path::Path;
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::time::Duration;
 
 use anyhow::Context;
 use anyhow::Result;
@@ -110,6 +111,28 @@ pub fn config_root() -> Option<PathBuf> {
 fn default_events_channel_capacity() -> u32 {
     5000
 }
+
+/// The default number of minutes a session may go without recording a
+/// heartbeat before the runs it owns are considered orphaned.
+///
+/// Processes heartbeat far more often than this (see
+/// [`ServerConfig::heartbeat_interval`]), so five minutes tolerates several
+/// missed heartbeats and some clock drift between hosts sharing a database.
+fn default_orphan_timeout_minutes() -> u64 {
+    5
+}
+
+/// How many heartbeats a process aims to record per orphan timeout window.
+///
+/// Dividing the timeout by this keeps the interval under it, so a process must
+/// miss several heartbeats before its runs are swept.
+const HEARTBEATS_PER_ORPHAN_TIMEOUT: u32 = 5;
+
+/// The longest a process goes between heartbeats.
+///
+/// The sweep shares this interval, so a ceiling keeps it responsive however
+/// long the timeout is.
+const MAX_HEARTBEAT_INTERVAL: Duration = Duration::from_secs(60);
 
 /// The default parallelism for the `sprocket test` command.
 const DEFAULT_TEST_PARALLELISM: u32 = 50;
@@ -600,6 +623,12 @@ pub struct ServerConfig {
     #[toml(default)]
     #[schemars(default)]
     pub engine: EngineConfig,
+    /// How many minutes a session may go without recording a heartbeat before
+    /// the runs it owns are marked `orphaned`. Applies to `sprocket run`
+    /// invocations as well as servers.
+    #[toml(default = default_orphan_timeout_minutes())]
+    #[schemars(default = "default_orphan_timeout_minutes")]
+    pub orphan_timeout_minutes: u64,
 }
 
 impl Default for ServerConfig {
@@ -614,6 +643,7 @@ impl Default for ServerConfig {
             allowed_urls: Vec::new(),
             max_concurrent_runs: Default::default(),
             engine: EngineConfig::default(),
+            orphan_timeout_minutes: default_orphan_timeout_minutes(),
         }
     }
 }
@@ -629,6 +659,24 @@ impl ServerConfig {
         } else {
             self.database.url.to_string()
         }
+    }
+
+    /// The interval at which a process records a liveness heartbeat on the
+    /// session it owns, and a server re-sweeps for sessions that have stopped
+    /// recording one.
+    ///
+    /// Derived from [`Self::orphan_timeout_minutes`] rather than configured
+    /// separately: an interval at or above the timeout would let a server
+    /// declare its own live runs orphaned. [`Self::validate`] rejects a zero
+    /// timeout, which `tokio::time::interval` would panic on.
+    pub fn heartbeat_interval(&self) -> Duration {
+        (self.orphan_timeout() / HEARTBEATS_PER_ORPHAN_TIMEOUT).min(MAX_HEARTBEAT_INTERVAL)
+    }
+
+    /// The duration a session may go without a heartbeat before the runs it
+    /// owns are considered orphaned.
+    pub fn orphan_timeout(&self) -> Duration {
+        Duration::from_secs(self.orphan_timeout_minutes * 60)
     }
 
     /// Validates and normalizes the server configuration.
@@ -650,6 +698,11 @@ impl ServerConfig {
             && max == 0
         {
             anyhow::bail!("`max_concurrent_runs` must be at least 1");
+        }
+
+        // Validate the orphan timeout is at least a minute
+        if self.orphan_timeout_minutes == 0 {
+            anyhow::bail!("`orphan_timeout_minutes` must be at least 1");
         }
 
         // Validate that all allowed URLs can be parsed
@@ -1290,7 +1343,7 @@ mod test {
             HashMap::from_iter([("value", MaxConcurrentRuns::Unlimited)]);
         assert_eq!(
             toml_spanner::to_string(&map).unwrap(),
-            format!("value = \"unlimited\"\n")
+            "value = \"unlimited\"\n"
         );
 
         let map: HashMap<&str, MaxConcurrentRuns> =

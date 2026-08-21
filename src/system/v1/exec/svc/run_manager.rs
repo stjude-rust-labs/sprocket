@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 use anyhow::Result;
 use chrono::Utc;
@@ -10,8 +11,11 @@ use tokio::sync::Mutex;
 use tokio::sync::Semaphore;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
+use tokio::time::MissedTickBehavior;
+use tracing::error;
 use tracing::info;
 use tracing::trace;
+use tracing::warn;
 use uuid::Uuid;
 use wdl::engine::CancellationContext;
 use wdl::engine::CancellationContextState;
@@ -33,6 +37,7 @@ use crate::system::v1::exec::RunnableExecutor;
 use crate::system::v1::exec::create_run_record;
 use crate::system::v1::exec::create_session;
 use crate::system::v1::exec::validate_source;
+use crate::system::v1::fs::IndexPath;
 use crate::system::v1::fs::OutputDirectory;
 
 pub(crate) mod commands;
@@ -76,9 +81,10 @@ pub struct RunManagerSvc {
     /// This field keeps track of which session entry in the database this
     /// manager service is associated with.
     ///
-    /// The field is `None` until the first run is submitted, at which point it
-    /// is lazily created and persisted to the database.
-    session_id: Option<Uuid>,
+    /// Shared with the sweeper task, which must see the same session this
+    /// service submits runs against, including one created after startup by
+    /// the fallback in the `Submit` arm below.
+    session_id: Arc<Mutex<Option<Uuid>>>,
     /// The receiver for commands.
     rx: Rx,
     /// A semaphore for limiting concurrent runs.
@@ -121,9 +127,8 @@ impl RunManagerSvc {
             modules_config,
             output_dir,
             db,
-            // NOTE: this is empty upon creation, but it's created lazily upon
-            // the first run.
-            session_id: None,
+            // Created eagerly by `run`, with a fallback on first submission.
+            session_id: Default::default(),
             rx,
             semaphore,
             runs: Default::default(),
@@ -137,6 +142,31 @@ impl RunManagerSvc {
         info!("run manager service started");
         info!("allowed file paths: {:?}", self.config.allowed_file_paths);
         info!("allowed urls: {:?}", self.config.allowed_urls);
+
+        // The session must exist before anything is submitted against it, and
+        // be heartbeated from that moment: `mark_orphaned_runs` makes no
+        // exception for the session doing the sweeping.
+        match create_session(self.db.as_ref(), SprocketCommand::Server).await {
+            Ok(session) => {
+                if let Err(e) = self.db.heartbeat_session(session.uuid, Utc::now()).await {
+                    error!(error = %e, "failed to record the initial session heartbeat");
+                }
+
+                *self.session_id.lock().await = Some(session.uuid);
+            }
+            Err(e) => {
+                // Not fatal: the first submission retries this, and until it
+                // succeeds this process owns no runs to sweep.
+                error!(error = %e, "failed to create the server session on startup");
+            }
+        }
+
+        let sweeper = Self::spawn_sweeper(
+            self.db.clone(),
+            self.session_id.clone(),
+            self.config.heartbeat_interval(),
+            self.config.orphan_timeout(),
+        );
 
         while let Some(cmd) = self.rx.recv().await {
             match cmd {
@@ -159,15 +189,22 @@ impl RunManagerSvc {
                         "received `Submit` command"
                     );
 
-                    // Lazily create session on first run submission.
-                    let session_id = if let Some(id) = self.session_id {
+                    // Normally created at startup; retry here so a blip then
+                    // does not sideline the service for its whole lifetime.
+                    let mut session = self.session_id.lock().await;
+                    let session_id = if let Some(id) = *session {
                         id
                     } else {
                         match create_session(self.db.as_ref(), SprocketCommand::Server).await {
-                            Ok(session) => {
-                                let id = session.uuid;
-                                self.session_id = Some(id);
-                                id
+                            Ok(created) => {
+                                if let Err(e) =
+                                    self.db.heartbeat_session(created.uuid, Utc::now()).await
+                                {
+                                    error!(error = %e, "failed to record session heartbeat");
+                                }
+
+                                *session = Some(created.uuid);
+                                created.uuid
                             }
                             Err(e) => {
                                 let _ = rx.send(Err(SubmitRunError::Database(e)));
@@ -175,6 +212,7 @@ impl RunManagerSvc {
                             }
                         }
                     };
+                    drop(session);
 
                     let result = self
                         .submit_run(session_id, source, inputs, target, index_on)
@@ -270,6 +308,67 @@ impl RunManagerSvc {
         }
 
         info!("run manager service stopped");
+        sweeper.abort();
+    }
+
+    /// Spawns the background task that keeps this server's session marked live
+    /// and closes out runs whose owning process is gone, including runs a
+    /// `sprocket run` invocation left behind.
+    ///
+    /// Heartbeating and sweeping share one task, in that order, so a failed
+    /// heartbeat skips that round's sweep: without a fresh one this process
+    /// cannot tell its own session apart from a dead one, and would orphan its
+    /// own live runs.
+    ///
+    /// The first tick fires immediately, so a server closes out runs inherited
+    /// from a process that died long ago at startup rather than an interval
+    /// later.
+    fn spawn_sweeper(
+        db: Arc<dyn Database>,
+        session_id: Arc<Mutex<Option<Uuid>>>,
+        interval: Duration,
+        timeout: Duration,
+    ) -> JoinHandle<()> {
+        /// The error recorded on runs closed out by the sweep.
+        const ORPHANED_RUN_ERROR: &str = "the process that owned this run stopped reporting; the \
+                                          run can no longer be observed or canceled";
+
+        tokio::spawn(async move {
+            let mut ticker = tokio::time::interval(interval);
+            // A late tick must not release a burst of catch-up sweeps.
+            ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
+
+            loop {
+                ticker.tick().await;
+
+                let now = Utc::now();
+
+                // Copied out so the guard is not held across the write, which
+                // would stall run submission behind every heartbeat.
+                let session_id = *session_id.lock().await;
+                if let Some(id) = session_id
+                    && let Err(e) = db.heartbeat_session(id, now).await
+                {
+                    error!(
+                        error = %e,
+                        "failed to record session heartbeat; skipping this orphan sweep"
+                    );
+                    continue;
+                }
+
+                match db
+                    .mark_orphaned_runs(ORPHANED_RUN_ERROR, timeout, now)
+                    .await
+                {
+                    Ok(0) => {}
+                    Ok(count) => warn!(
+                        count,
+                        "marked run(s) orphaned: the process that owned them stopped reporting"
+                    ),
+                    Err(e) => error!(error = %e, "failed to sweep for orphaned runs"),
+                }
+            }
+        })
     }
 
     /// Spawns a new run manager service and returns:
@@ -296,7 +395,7 @@ impl RunManagerSvc {
         source: String,
         inputs: JsonObject,
         target: Option<String>,
-        index_on: Option<String>,
+        index_on: Option<IndexPath>,
     ) -> Result<SubmitResponse, SubmitRunError> {
         let source = match validate_source(&source, &self.config)? {
             Source::Directory(dir) => crate::analysis::resolve_module_entrypoint(&dir)
@@ -437,6 +536,17 @@ pub enum CancelRunError {
         /// The current status.
         status: RunStatus,
     },
+    /// The run has no in-memory execution state to cancel.
+    ///
+    /// The run is non-terminal in the database, but this process has no
+    /// `CancellationContext` for it: the run belongs to another process,
+    /// either one still executing it or one that died holding it. The sweep in
+    /// [`Database::mark_orphaned_runs`] closes out the latter.
+    #[error(
+        "run `{0}` is not tracked by this server instance and cannot be canceled; it belongs to \
+         another process, or was left behind by one that stopped reporting"
+    )]
+    Orphaned(Uuid),
 }
 
 /// Attempts to cancel a run that is in progress.
@@ -493,6 +603,16 @@ async fn cancel_run(
         // `Ok(None)` for the cancellation and removes itself from the
         // map without updating the DB. Finalize the cancellation here.
         db.cancel_run(id, Utc::now()).await?;
+    } else {
+        // `run.status` is `Running` or `Queued` but there is no tracking
+        // entry for it in this process. Every DB status transition for a
+        // run happens strictly before its entry is removed from `runs`
+        // (see `RunnableExecutor::execute`), so this can only mean the run
+        // was never submitted by this process in the first place: it was
+        // orphaned by a previous server instance. Report this explicitly
+        // instead of returning success for a cancellation that did
+        // nothing.
+        return Err(CancelRunError::Orphaned(id));
     }
 
     Ok(CancelRunResponse { id })
@@ -602,4 +722,118 @@ async fn get_task_logs(
     let logs = db.get_task_logs(&name, stream, limit, offset).await?;
     let total = db.count_task_logs(&name, stream).await?;
     Ok(ListTaskLogsResponse { logs, total })
+}
+
+#[cfg(test)]
+mod tests {
+    use sqlx::SqlitePool;
+    use wdl::engine::config::FailureMode;
+
+    use super::*;
+    use crate::system::v1::db::SprocketCommand;
+    use crate::system::v1::db::SqliteDatabase;
+
+    #[sqlx::test]
+    async fn cancel_run_errors_on_orphaned_run(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+        let db: Arc<dyn Database> = Arc::new(db);
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Server, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(
+            run_id,
+            session_id,
+            "orphaned-run",
+            "test.wdl",
+            Some("test_task"),
+            "{}",
+        )
+        .await
+        .expect("failed to create run");
+        db.update_run_status(run_id, RunStatus::Running)
+            .await
+            .expect("failed to update run status");
+
+        // No in-memory tracking entry for this run — simulates a run left
+        // behind by a server process that stopped reporting, which is what
+        // `mark_orphaned_runs` sweeps.
+        let runs: Arc<Mutex<HashMap<Uuid, CancellationContext>>> = Default::default();
+
+        let error = cancel_run(&db, &runs, run_id)
+            .await
+            .expect_err("cancel of an untracked run should error, not silently succeed");
+        assert!(matches!(error, CancelRunError::Orphaned(id) if id == run_id));
+
+        // Must be left completely alone: no silent status transition.
+        let run = db
+            .get_run(run_id)
+            .await
+            .expect("failed to get run")
+            .unwrap();
+        assert_eq!(run.status, RunStatus::Running);
+    }
+
+    #[sqlx::test]
+    async fn cancel_run_transitions_tracked_run(pool: SqlitePool) {
+        let db = SqliteDatabase::from_pool(pool)
+            .await
+            .expect("failed to create database");
+        let db: Arc<dyn Database> = Arc::new(db);
+
+        let session_id = Uuid::new_v4();
+        db.create_session(session_id, SprocketCommand::Server, "test-user")
+            .await
+            .expect("failed to create session");
+
+        let run_id = Uuid::new_v4();
+        db.create_run(
+            run_id,
+            session_id,
+            "tracked-run",
+            "test.wdl",
+            Some("test_task"),
+            "{}",
+        )
+        .await
+        .expect("failed to create run");
+        db.update_run_status(run_id, RunStatus::Running)
+            .await
+            .expect("failed to update run status");
+
+        let cancellation = CancellationContext::new(FailureMode::Slow);
+        let runs: Arc<Mutex<HashMap<Uuid, CancellationContext>>> =
+            Arc::new(Mutex::new(HashMap::from([(run_id, cancellation)])));
+
+        // First cancel: lazy/`Waiting` — reflected as `Canceling` in the DB,
+        // but the run stays tracked so a running task can finish.
+        cancel_run(&db, &runs, run_id)
+            .await
+            .expect("first cancel should succeed");
+        let run = db
+            .get_run(run_id)
+            .await
+            .expect("failed to get run")
+            .unwrap();
+        assert_eq!(run.status, RunStatus::Canceling);
+        assert!(runs.lock().await.contains_key(&run_id));
+
+        // Second cancel: forceful/`Canceling` — marked `Canceled` and
+        // removed from the tracking map.
+        cancel_run(&db, &runs, run_id)
+            .await
+            .expect("second cancel should succeed");
+        let run = db
+            .get_run(run_id)
+            .await
+            .expect("failed to get run")
+            .unwrap();
+        assert_eq!(run.status, RunStatus::Canceled);
+        assert!(!runs.lock().await.contains_key(&run_id));
+    }
 }

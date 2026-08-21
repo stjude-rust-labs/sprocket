@@ -87,6 +87,7 @@ impl From<CancelRunError> for Error {
             CancelRunError::Database(_) => Self::Internal,
             CancelRunError::NotFound(_) => Self::NotFound(err.to_string()),
             CancelRunError::InvalidStatus { .. } => Self::Conflict(err.to_string()),
+            CancelRunError::Orphaned(_) => Self::Conflict(err.to_string()),
         }
     }
 }

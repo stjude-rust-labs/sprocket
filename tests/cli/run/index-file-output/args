@@ -1,0 +1,1 @@
+-qq run make_file.wdl -t make_file -o out --index-on project/sample

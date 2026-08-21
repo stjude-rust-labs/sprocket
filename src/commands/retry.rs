@@ -26,6 +26,7 @@ use crate::inputs::join_paths_for_target;
 use crate::server::RunResponse;
 use crate::server::SubmitRunRequest;
 use crate::server::paths;
+use crate::system::v1::fs::IndexPath;
 
 /// Arguments for the `retry` subcommand.
 #[derive(Parser, Debug)]
@@ -52,9 +53,11 @@ pub struct Args {
     #[clap(short, long, value_name = "NAME")]
     target: Option<String>,
 
-    /// Override the output name to index on.
-    #[clap(long, value_name = "OUTPUT_NAME")]
-    index_on: Option<String>,
+    /// Override the index path to index the run outputs under.
+    ///
+    /// The path must be relative and cannot contain `.` or `..` components.
+    #[clap(long, value_name = "INDEX_PATH")]
+    index_on: Option<IndexPath>,
 
     /// Skip local re-analysis of the WDL source file.
     ///
@@ -162,7 +165,7 @@ pub async fn retry(args: Args, config: Config, colorize: bool) -> CommandResult<
         source: original.source.clone(),
         inputs: JsonValue::Object(merged_inputs),
         target: effective_target,
-        index_on: args.index_on,
+        index_on: args.index_on.map(|path| path.to_string()),
     };
 
     let submit_response: JsonValue = send_json(

@@ -24,4 +24,3 @@ error: conflicting declaration name `a`
    ·
 13 │         String a = "goodbye"
    │                ^ this declaration conflicts with a previously used name
-

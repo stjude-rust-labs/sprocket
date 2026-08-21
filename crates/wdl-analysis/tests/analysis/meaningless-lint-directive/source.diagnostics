@@ -29,4 +29,3 @@ note[MeaninglessLintDirective]: unnecessary `except` directive for lint rule `Un
    │
 31 │     #@ except: UnnecessaryFunctionCall, UnusedDeclaration
    │                                         ^^^^^^^^^^^^^^^^^
-

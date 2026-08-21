@@ -100,6 +100,11 @@ enum ContentKind {
     File,
     /// The content is a directory.
     Directory,
+    /// The content is a single temporary file.
+    ///
+    /// A digest for a temporary file should always be "strong" and the metadata
+    /// of the file should be otherwise ignored.
+    TempFile,
 }
 
 impl Hashable for ContentKind {
@@ -111,7 +116,7 @@ impl Hashable for ContentKind {
 impl From<ContentKind> for crankshaft::engine::task::input::Type {
     fn from(value: ContentKind) -> Self {
         match value {
-            ContentKind::File => Self::File,
+            ContentKind::File | ContentKind::TempFile => Self::File,
             ContentKind::Directory => Self::Directory,
         }
     }

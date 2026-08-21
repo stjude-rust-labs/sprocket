@@ -21,4 +21,3 @@ warning: useless `stderr` assertion
   │       ^^^^^^
   │
   = help: `stderr` assertions have no effect for workflows
-

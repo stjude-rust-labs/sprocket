@@ -152,15 +152,18 @@ pub(crate) fn temp_path_to_value(
         )
     })?);
 
-    // Finally, notify that the file was created.
+    // Finally, notify that the temp file was created.
     // For task evaluation, this will cause a guest path to be mapped.
-    context.context.notify_file_created(&path).map_err(|e| {
-        function_call_failed(
-            function_name,
-            format!("failed to keep temporary file: {e}"),
-            context.call_site,
-        )
-    })?;
+    context
+        .context
+        .notify_temp_file_created(&path)
+        .map_err(|e| {
+            function_call_failed(
+                function_name,
+                format!("failed to keep temporary file: {e}"),
+                context.call_site,
+            )
+        })?;
 
     Ok(PrimitiveValue::File(path).into())
 }

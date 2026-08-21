@@ -632,7 +632,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__check)
-            opts="-e -m -l -v -q -c -s -h -V --except --tag --deny-warnings --deny-notes --suppress-imports --show-remote-diagnostics --hide-notes --hide-warnings --report-mode --generate-baseline --no-baseline --lint --verbose --quiet --no-ignore --color --config --skip-config-search --help --version [SOURCE]..."
+            opts="-e -m -l -v -q -c -s -h -V --except --tag --deny-warnings --deny-notes --suppress-imports --show-remote-diagnostics --hide-notes --hide-warnings --report-mode --generate-baseline --no-baseline --lint --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -904,7 +904,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__doc)
-            opts="-l -m -v -q -c -s -h -V --check --index-page --logo --homepage-url --github-url --slack-url --alt-light-logo --light-mode --output --overwrite --open --html-head --html-body-open --html-body-close --theme --install --with-doc-comments --report-mode --verbose --quiet --no-ignore --color --config --skip-config-search --help --version [WORKSPACE]"
+            opts="-l -m -v -q -c -s -h -V --check --index-page --logo --homepage-url --github-url --slack-url --alt-light-logo --light-mode --output --overwrite --open --html-head --html-body-open --html-body-close --theme --install --with-doc-comments --report-mode --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1444,7 +1444,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__lock)
-            opts="-o -m -v -q -c -s -h -V --output --report-mode --verbose --quiet --no-ignore --color --config --skip-config-search --help --version [SOURCE]"
+            opts="-o -m -v -q -c -s -h -V --output --report-mode --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1512,7 +1512,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__module__subcmd__add)
-            opts="-v -q -c -s -h --name --version --tag --branch --commit --path --git-platform --no-lock --trust-mode --manifest-path --verbose --quiet --no-ignore --color --config --skip-config-search --help <SOURCE_OR_NAME> [SOURCE]"
+            opts="-v -q -c -s -h --name --version --tag --branch --commit --path --git-platform --no-lock --trust-mode --manifest-path --verbose --quiet --no-ignore --color --config --skip-config-search --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -1996,7 +1996,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__module__subcmd__init)
-            opts="-v -q -c -s -h --name --license --no-scaffold --author --email --verbose --quiet --no-ignore --color --config --skip-config-search --help [PATH]"
+            opts="-v -q -c -s -h --name --license --no-scaffold --author --email --verbose --quiet --no-ignore --color --config --skip-config-search --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2102,7 +2102,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__module__subcmd__remove)
-            opts="-v -q -c -s -h -V --no-lock --trust-mode --manifest-path --verbose --quiet --no-ignore --color --config --skip-config-search --help --version <NAME>"
+            opts="-v -q -c -s -h -V --no-lock --trust-mode --manifest-path --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2234,7 +2234,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__module__subcmd__trust__subcmd__add)
-            opts="-v -q -c -s -h -V --name --email --verbose --quiet --no-ignore --color --config --skip-config-search --help --version <KEYS>..."
+            opts="-v -q -c -s -h -V --name --email --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2448,7 +2448,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__module__subcmd__trust__subcmd__remove)
-            opts="-v -q -c -s -h -V --verbose --quiet --no-ignore --color --config --skip-config-search --help --version <KEYS>..."
+            opts="-v -q -c -s -h -V --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 5 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2474,7 +2474,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__module__subcmd__update)
-            opts="-v -q -c -s -h -V --dry-run --trust-mode --manifest-path --verbose --quiet --no-ignore --color --config --skip-config-search --help --version [NAMES]..."
+            opts="-v -q -c -s -h -V --dry-run --trust-mode --manifest-path --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2508,7 +2508,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__module__subcmd__upgrade)
-            opts="-v -q -c -s -h -V --dry-run --trust-mode --manifest-path --verbose --quiet --no-ignore --color --config --skip-config-search --help --version [NAMES]..."
+            opts="-v -q -c -s -h -V --dry-run --trust-mode --manifest-path --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2598,7 +2598,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__server__subcmd__cancel)
-            opts="-p -v -q -c -s -h -V --host --port --verbose --quiet --no-ignore --color --config --skip-config-search --help --version <RUN>"
+            opts="-p -v -q -c -s -h -V --host --port --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2748,7 +2748,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__server__subcmd__inspect)
-            opts="-p -v -q -c -s -h -V --json --detailed --host --port --verbose --quiet --no-ignore --color --config --skip-config-search --help --version <RUN>"
+            opts="-p -v -q -c -s -h -V --json --detailed --host --port --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2786,7 +2786,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__server__subcmd__retry)
-            opts="-t -m -p -v -q -c -s -h -V --target --index-on --no-validate --report-mode --host --port --verbose --quiet --no-ignore --color --config --skip-config-search --help --version <RUN> [OVERRIDES]..."
+            opts="-t -m -p -v -q -c -s -h -V --target --index-on --no-validate --report-mode --host --port --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2910,7 +2910,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__server__subcmd__status)
-            opts="-p -v -q -c -s -h -V --status --limit --json --host --port --verbose --quiet --no-ignore --color --config --skip-config-search --help --version [RUN]"
+            opts="-p -v -q -c -s -h -V --status --limit --json --host --port --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -2956,7 +2956,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__server__subcmd__submit)
-            opts="-p -t -m -v -q -c -s -h -V --host --port --target --index-on --report-mode --locked --verbose --quiet --no-ignore --color --config --skip-config-search --help --version <SOURCE> [INPUTS]..."
+            opts="-p -t -m -v -q -c -s -h -V --host --port --target --index-on --report-mode --locked --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 4 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -3014,7 +3014,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__dev__subcmd__test)
-            opts="-w -t -f -i -e -p -m -v -q -c -s -h -V --workspace --target --filter --exact --include-tag --exclude-tag --no-clean --clean-all --parallelism --fixtures-dir --run-dir --no-status --report-mode --verbose --quiet --no-ignore --color --config --skip-config-search --help --version [SOURCE] schema help"
+            opts="-w -t -f -i -e -p -m -v -q -c -s -h -V --workspace --target --filter --exact --include-tag --exclude-tag --no-clean --clean-all --parallelism --fixtures-dir --run-dir --no-status --report-mode --verbose --quiet --no-ignore --color --config --skip-config-search --help --version schema help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -3272,7 +3272,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__format__subcmd__check)
-            opts="-m -t -i -v -q -c -s -h -V --report-mode --with-tabs --indentation-size --max-line-length --newline-style --verbose --quiet --no-ignore --color --config --skip-config-search --help --version [SOURCES]..."
+            opts="-m -t -i -v -q -c -s -h -V --report-mode --with-tabs --indentation-size --max-line-length --newline-style --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -3392,7 +3392,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__format__subcmd__overwrite)
-            opts="-m -t -i -v -q -c -s -h -V --report-mode --with-tabs --indentation-size --max-line-length --newline-style --verbose --quiet --no-ignore --color --config --skip-config-search --help --version [SOURCES]..."
+            opts="-m -t -i -v -q -c -s -h -V --report-mode --with-tabs --indentation-size --max-line-length --newline-style --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -3442,7 +3442,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__format__subcmd__view)
-            opts="-m -t -i -v -q -c -s -h -V --report-mode --with-tabs --indentation-size --max-line-length --newline-style --verbose --quiet --no-ignore --color --config --skip-config-search --help --version <SOURCE>"
+            opts="-m -t -i -v -q -c -s -h -V --report-mode --with-tabs --indentation-size --max-line-length --newline-style --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 3 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -4192,7 +4192,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__inputs)
-            opts="-t -m -v -q -c -s -h -V --target --show-non-literals --hide-defaults --nested-inputs --yaml --report-mode --verbose --quiet --no-ignore --color --config --skip-config-search --help --version <SOURCE>"
+            opts="-t -m -v -q -c -s -h -V --target --show-non-literals --hide-defaults --nested-inputs --yaml --report-mode --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -4234,7 +4234,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__lint)
-            opts="-e -m -v -q -c -s -h -V --except --tag --deny-warnings --deny-notes --suppress-imports --show-remote-diagnostics --hide-notes --hide-warnings --report-mode --generate-baseline --no-baseline --verbose --quiet --no-ignore --color --config --skip-config-search --help --version [SOURCE]..."
+            opts="-e -m -v -q -c -s -h -V --except --tag --deny-warnings --deny-notes --suppress-imports --show-remote-diagnostics --hide-notes --hide-warnings --report-mode --generate-baseline --no-baseline --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -4280,7 +4280,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__run)
-            opts="-t -o -m -v -q -c -s -h --target --output-dir --locked --index-on --report-mode --azure-account-name --azure-access-key --aws-access-key-id --aws-secret-access-key --aws-default-region --google-hmac-access-key --google-hmac-secret --no-call-cache --show-task-stderr --suffix --verbose --quiet --no-ignore --color --config --skip-config-search --help <SOURCE> [INPUTS]..."
+            opts="-t -o -m -v -q -c -s -h --target --output-dir --locked --index-on --report-mode --azure-account-name --azure-access-key --aws-access-key-id --aws-secret-access-key --aws-default-region --google-hmac-access-key --google-hmac-secret --no-call-cache --show-task-stderr --suffix --verbose --quiet --no-ignore --color --config --skip-config-search --help"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0
@@ -4366,7 +4366,7 @@ _sprocket() {
             return 0
             ;;
         sprocket__subcmd__validate)
-            opts="-t -m -v -q -c -s -h -V --target --report-mode --verbose --quiet --no-ignore --color --config --skip-config-search --help --version <SOURCE> [INPUTS]..."
+            opts="-t -m -v -q -c -s -h -V --target --report-mode --verbose --quiet --no-ignore --color --config --skip-config-search --help --version"
             if [[ ${cur} == -* || ${COMP_CWORD} -eq 2 ]] ; then
                 COMPREPLY=( $(compgen -W "${opts}" -- "${cur}") )
                 return 0

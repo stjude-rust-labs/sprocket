@@ -6,4 +6,3 @@ error: a name reference cycle was detected
    ·
 24 │     Int b = my_task.y[0]
    │             ------- a reference back to `my_task` is here
-
